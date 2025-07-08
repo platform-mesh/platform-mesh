@@ -1,0 +1,9 @@
+version = 1
+SPDX-PackageName = "account-operator"
+SPDX-PackageDownloadLocation = "https://github.com/platform-mesh/account-operator"
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2024 SAP SE or an SAP affiliate company and platform-mesh contributors and account-operator contributors."
+SPDX-License-Identifier = "Apache-2.0"

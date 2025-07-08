@@ -1,0 +1,19 @@
+apiVersion: tenancy.kcp.io/v1alpha1
+kind: WorkspaceType
+metadata:
+  name: orgs
+spec:
+  defaultAPIBindings:
+    - export: core.platform-mesh.io
+      path: root:platform-mesh-system
+  defaultChildWorkspaceType:
+    name: org
+    path: root
+  extend:
+    with:
+      - name: universal
+        path: root
+  limitAllowedChildren:
+    types:
+      - name: org
+        path: root

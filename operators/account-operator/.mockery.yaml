@@ -1,0 +1,22 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+recursive: false
+require-template-schema-exists: true
+template: testify
+template-schema: '{{.Template}}.schema.json'
+structname: '{{.InterfaceName}}'
+dir: 'pkg/subroutines/mocks'
+pkgname: mocks
+packages:
+  github.com/openfga/api/proto/openfga/v1:
+    interfaces:
+      OpenFGAServiceClient:
+        config:
+          include-interface-regex: OpenFGAServiceClient
+          filename: mock_OpenFGAServiceClient.go
+  sigs.k8s.io/controller-runtime/pkg/client:
+    config:
+      include-interface-regex: Client
+      filename: mock_K8Service.go

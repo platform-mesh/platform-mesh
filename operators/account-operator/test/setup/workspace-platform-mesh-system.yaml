@@ -1,0 +1,8 @@
+apiVersion: tenancy.kcp.io/v1alpha1
+kind: Workspace
+metadata:
+  name: platform-mesh-system
+spec:
+  type:
+    name: universal
+    path: root

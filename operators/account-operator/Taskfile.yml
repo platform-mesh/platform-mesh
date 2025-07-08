@@ -1,0 +1,91 @@
+version: '3'
+
+dotenv: ['.taskenv', '.secret/.env', '{{.HOME}}/.env' ]
+vars:
+  LOCAL_BIN: bin
+  CONTROLLER_TOOLS_VERSION: v0.14.0
+  ENVTEST_K8S_VERSION: "1.29.0"
+  ENVTEST_VERSION: release-0.17
+  CRD_DIRECTORY: config/crd
+  TEST_SETUP_DIRECTORY: test/setup/01-platform-mesh-system
+  KCP_APIGEN_VERSION: v0.21.0
+  KCP_VERSION: 0.27.1
+  GOMPLATE_VERSION: v4.3.0
+  GOARCH:
+    sh: go env GOARCH
+  GOOS:
+    sh: go env GOOS
+tasks:
+  ## Setup
+  setup:controller-gen:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/controller-gen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-tools/cmd/controller-gen@{{.CONTROLLER_TOOLS_VERSION}}
+  setup:kcp:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-tool.sh https://github.com/kcp-dev/kcp/releases/download/v{{ .KCP_VERSION }}/kcp_{{ .KCP_VERSION }}_{{ .GOOS }}_{{ .GOARCH }}.tar.gz kcp {{.KCP_VERSION}}
+  setup:gomplate:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/gomplate || curl -o {{.LOCAL_BIN}}/gomplate -sSL https://github.com/hairyhenderson/gomplate/releases/download/{{ .GOMPLATE_VERSION }}/gomplate_{{ .GOOS }}-{{ .GOARCH }} && chmod +x {{.LOCAL_BIN}}/gomplate && chmod 755 {{.LOCAL_BIN}}/gomplate
+  setup:golangci-lint:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+  setup:kcp-api-gen:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/apigen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/kcp-dev/kcp/sdk/cmd/apigen@{{.KCP_APIGEN_VERSION}}
+
+  ## Development
+  manifests:
+    deps: [setup:controller-gen,setup:kcp-api-gen]
+    cmds:
+      - "{{.LOCAL_BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+  generate:
+    cmds:
+      - task: manifests
+      - "{{.LOCAL_BIN}}/controller-gen object:headerFile=hack/boilerplate.go.txt paths=./..."
+      - "{{.LOCAL_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
+      - "{{.LOCAL_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir {{ .TEST_SETUP_DIRECTORY }}"
+  build:
+    cmds:
+      - go build ./...
+  docker-build:
+    cmds:
+      - docker build .
+  ## Testing
+  fmt:
+    cmds:
+      - go fmt ./...
+  lint:
+    deps: [setup:golangci-lint]
+    cmds:
+      - task: fmt
+      - "{{.LOCAL_BIN}}/golangci-lint run --timeout 15m ./..."
+  envtest:
+    cmds:
+      - go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
+  test:
+    deps: [setup:kcp, setup:gomplate]
+    cmds:
+      - task: envtest
+  cover:
+    deps: [setup:kcp, setup:gomplate]
+    cmds:
+      - task: envtest
+        vars:
+          ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+  helm-unittest:
+    cmds:
+      - helm unittest chart
+  validate:
+    cmds:
+      - task: lint
+      - task: test
+  start-kcp:
+    deps: [setup:kcp]
+    cmds:
+      - "{{ .LOCAL_BIN}}/kcp start"
+

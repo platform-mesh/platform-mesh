@@ -1,0 +1,19 @@
+apiVersion: core.platform-mesh.io/v1alpha1
+kind: Account
+metadata:
+  name: new-account-debug1
+  namespace: default
+spec:
+  type: folder
+  displayName: New Demo Account
+  creator: test.user@example.com
+  extensions:
+  - apiVersion: core.platform-mesh.io/v1alpha1
+    kind: AccountExtension
+    specGoTemplate:
+      foo: bar
+    readyConditionType: "Ready"
+  data:
+    some:
+      nested:
+        data: "value"

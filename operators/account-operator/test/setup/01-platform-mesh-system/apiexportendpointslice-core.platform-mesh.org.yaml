@@ -1,0 +1,8 @@
+kind: APIExportEndpointSlice
+apiVersion: apis.kcp.io/v1alpha1
+metadata:
+  name: core.platform-mesh.io
+spec:
+  export:
+    path: root:platform-mesh-system
+    name: core.platform-mesh.io
