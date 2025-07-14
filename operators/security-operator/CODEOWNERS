@@ -1,0 +1,4 @@
+# Default code owners
+* @openmfp/frame
+go.mod
+go.sum

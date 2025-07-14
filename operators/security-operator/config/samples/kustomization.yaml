@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- core_v1alpha1_store.yaml
+- core_v1alpha1_authorizationmodel.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

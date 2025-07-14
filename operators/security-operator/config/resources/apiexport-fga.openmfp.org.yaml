@@ -1,0 +1,10 @@
+apiVersion: apis.kcp.io/v1alpha1
+kind: APIExport
+metadata:
+  creationTimestamp: null
+  name: fga.openmfp.org
+spec:
+  latestResourceSchemas:
+  - v250401-5769f6b.authorizationmodels.fga.openmfp.org
+  - v250401-66f7f53.stores.fga.openmfp.org
+status: {}

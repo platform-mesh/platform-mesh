@@ -1,0 +1,29 @@
+module core
+
+type user
+
+type role
+  relations
+    define assignee: [user,user:*]
+
+type account
+  relations
+
+    define parent: [account]
+    define owner: [role#assignee]
+    define member: [role#assignee] or owner
+
+    define get: member or get from parent
+    define update: member or update from parent
+    define delete: owner or delete from parent
+
+    define create_core_openmfp_org_accounts: member
+    define list_core_openmfp_org_accounts: member
+    define watch_core_openmfp_org_accounts: member
+
+    # org and account specific
+    define watch: member or watch from parent
+
+    # org specific
+    define create: member or create from parent
+    define list: member or list from parent

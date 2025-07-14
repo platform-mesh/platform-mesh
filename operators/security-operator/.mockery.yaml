@@ -1,0 +1,15 @@
+with-expecter: true
+packages:
+  github.com/openfga/api/proto/openfga/v1:
+    config:
+      dir: internal/subroutine/mocks
+      outpkg: mocks
+    interfaces:
+      OpenFGAServiceClient:
+  
+  sigs.k8s.io/controller-runtime/pkg/client:
+    config:
+      dir: internal/subroutine/mocks
+      outpkg: mocks
+    interfaces:
+      Client:

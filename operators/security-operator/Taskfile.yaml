@@ -1,0 +1,107 @@
+version: "3"
+
+vars:
+  LOCAL_BIN: bin
+  CONTROLLER_TOOLS_VERSION: v0.16.4
+  ENVTEST_K8S_VERSION: "1.31.0"
+  ENVTEST_VERSION: release-0.19
+  CRD_DIRECTORY: config/crd/bases
+  KCP_APIGEN_VERSION: v0.21.0
+  KCP_VERSION: 0.26.1
+  GOARCH:
+    sh: go env GOARCH
+  GOOS:
+    sh: go env GOOS
+tasks:
+  default:
+    cmds:
+      - task --list-all
+  ## Setup
+  setup:controller-gen:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/controller-gen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-tools/cmd/controller-gen@{{.CONTROLLER_TOOLS_VERSION}}
+  setup:envtest:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/setup-envtest || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-runtime/tools/setup-envtest@{{.ENVTEST_VERSION}}
+  setup:golangci-lint:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+  setup:docker-compose:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/docker-compose || ( GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/docker/compose/v2/cmd@latest && mv $(pwd)/{{.LOCAL_BIN}}/cmd $(pwd)/{{.LOCAL_BIN}}/docker-compose )
+  setup:go-test-coverage:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/go-test-coverage || ( GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vladopajic/go-test-coverage/v2@latest )
+  setup:kcp-api-gen:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/apigen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/kcp-dev/kcp/sdk/cmd/apigen@{{.KCP_APIGEN_VERSION}}
+  setup:kcp:
+    cmds:
+      - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-tool.sh https://github.com/kcp-dev/kcp/releases/download/v{{ .KCP_VERSION }}/kcp_{{ .KCP_VERSION }}_{{ .GOOS }}_{{ .GOARCH }}.tar.gz kcp {{.KCP_VERSION}}
+  ## Development
+  manifests:
+    deps: [setup:controller-gen,setup:kcp-api-gen]
+    cmds:
+      - "{{.LOCAL_BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+  generate:
+    cmds:
+      - task: manifests
+      - "{{.LOCAL_BIN}}/controller-gen object paths=./..."
+      - "{{.LOCAL_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
+  build:
+    cmds:
+      - go build ./...
+  docker-build:
+    cmds:
+      - docker build .
+  ## Testing
+  fmt:
+    cmds:
+      - go fmt ./...
+  lint:
+    deps: [setup:golangci-lint]
+    cmds:
+      - task: fmt
+      - "{{.LOCAL_BIN}}/golangci-lint run --timeout 15m ./..."
+  envtest:
+    internal: true
+    env:
+      KUBEBUILDER_ASSETS:
+        sh: $(pwd)/{{.LOCAL_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir $(pwd)/{{.LOCAL_BIN}} -p path
+      GO111MODULE: on
+    cmds:
+      - go test -count=1 ./... {{.ADDITIONAL_COMMAND_ARGS}}
+  test:
+    deps: [setup:envtest]
+    cmds:
+      - task: envtest
+  cover:
+    deps: [setup:envtest]
+    cmds:
+      - task: envtest
+        vars:
+          ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic
+  validate:
+    cmds:
+      - task: lint
+      - task: test
+  assert-coverage:
+    deps: [setup:go-test-coverage]
+    cmds:
+      - task: cover
+      - "{{.LOCAL_BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
+  install:
+    cmds:
+      - kubectl apply -f config/crd/bases
+  uninstall:
+    cmds:
+      - kubectl delete -f config/crd/bases
+  run:
+    cmds:
+      - go run ./cmd/main.go operator

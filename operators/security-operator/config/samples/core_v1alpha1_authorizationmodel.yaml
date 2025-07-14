@@ -1,0 +1,19 @@
+apiVersion: core.openmfp.org/v1alpha1
+kind: AuthorizationModel
+metadata:
+  name: authorizationmodel-sample
+spec:
+  storeRef:
+    name: test-store
+    path: root:test
+  model: |
+    module extension
+
+    type role
+      relations
+       define assignee: [user,user:*]
+    
+    extend type account
+      relations
+        define parent: [account]
+

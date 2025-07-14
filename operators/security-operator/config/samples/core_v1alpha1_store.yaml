@@ -1,0 +1,11 @@
+apiVersion: core.openmfp.org/v1alpha1
+kind: Store
+metadata:
+  name: test-store
+spec:
+  coreModule: |
+    module core
+
+    type user
+
+    type account
