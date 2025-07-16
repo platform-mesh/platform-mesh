@@ -2,7 +2,7 @@ apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v250305-70de32b.accounts.core.platform-mesh.io
+  name: v250715-5b899f6.accounts.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
