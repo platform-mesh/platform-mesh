@@ -112,7 +112,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		WebhookServer:                 webhookServer,
 		HealthProbeBindAddress:        defaultCfg.HealthProbeBindAddress,
 		LeaderElection:                enableLeaderElection,
-		LeaderElectionID:              "8c290d9a.platform-mesh.org",
+		LeaderElectionID:              "8c290d9a.platform-mesh.io",
 		LeaderElectionConfig:          restCfg,
 		LeaderElectionReleaseOnCancel: true,
 	}
