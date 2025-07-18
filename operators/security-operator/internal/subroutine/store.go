@@ -5,16 +5,17 @@ import (
 	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/openmfp/golang-commons/controller/lifecycle"
-	"github.com/openmfp/golang-commons/errors"
-	"github.com/openmfp/golang-commons/logger"
+	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/golang-commons/logger"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/openmfp/fga-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
 type storeSubroutine struct {
@@ -31,13 +32,13 @@ func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, k8s client.Client, l
 	}
 }
 
-var _ lifecycle.Subroutine = &storeSubroutine{}
+var _ lifecyclesubroutine.Subroutine = &storeSubroutine{}
 
 func (s *storeSubroutine) GetName() string { return "Store" }
 
-func (s *storeSubroutine) Finalizers() []string { return []string{"fga.openmfp.org/fga-store"} }
+func (s *storeSubroutine) Finalizers() []string { return []string{"core.platform-mesh.io/fga-store"} }
 
-func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycle.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 
@@ -65,7 +66,7 @@ func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycle.Runti
 	return ctrl.Result{}, nil
 }
 
-func (s *storeSubroutine) Process(ctx context.Context, instance lifecycle.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (s *storeSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 

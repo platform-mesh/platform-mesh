@@ -7,9 +7,9 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/openmfp/fga-operator/api/v1alpha1"
-	"github.com/openmfp/fga-operator/internal/subroutine"
-	"github.com/openmfp/fga-operator/internal/subroutine/mocks"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
@@ -26,7 +26,7 @@ func TestGetName(t *testing.T) {
 
 func TestFinalizers(t *testing.T) {
 	subroutine := subroutine.NewStoreSubroutine(nil, nil, nil)
-	assert.Equal(t, []string{"fga.openmfp.org/fga-store"}, subroutine.Finalizers())
+	assert.Equal(t, []string{"core.platform-mesh.io/fga-store"}, subroutine.Finalizers())
 }
 
 func TestProcess(t *testing.T) {

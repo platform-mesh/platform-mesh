@@ -11,7 +11,7 @@ import (
 	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
-	accountsv1alpha1 "github.com/openmfp/account-operator/api/v1alpha1"
+	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -27,14 +27,14 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	openmfpcontext "github.com/openmfp/golang-commons/context"
-	"github.com/openmfp/golang-commons/logger"
-	"github.com/openmfp/golang-commons/sentry"
+	platformeshcontext "github.com/platform-mesh/golang-commons/context"
+	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/golang-commons/sentry"
 	"github.com/spf13/cobra"
 
-	corev1alpha1 "github.com/openmfp/fga-operator/api/v1alpha1"
-	"github.com/openmfp/fga-operator/internal/controller"
-	"github.com/openmfp/fga-operator/internal/subroutine"
+	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/controller"
+	"github.com/platform-mesh/security-operator/internal/subroutine"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -67,7 +67,7 @@ var operatorCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctrl.SetLogger(log.ComponentLogger("controller-runtime").Logr())
 
-		ctx, _, shutdown := openmfpcontext.StartContext(log, defaultCfg, defaultCfg.ShutdownTimeout)
+		ctx, _, shutdown := platformeshcontext.StartContext(log, defaultCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
 		if defaultCfg.Sentry.Dsn != "" {
@@ -79,7 +79,7 @@ var operatorCmd = &cobra.Command{
 				log.Fatal().Err(err).Msg("Sentry init failed")
 			}
 
-			defer openmfpcontext.Recover(log)
+			defer platformeshcontext.Recover(log)
 		}
 
 		cfg := ctrl.GetConfigOrDie()
@@ -97,7 +97,7 @@ var operatorCmd = &cobra.Command{
 			},
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			LeaderElection:         defaultCfg.LeaderElection.Enabled,
-			LeaderElectionID:       "fga-operator.openmfp.org",
+			LeaderElectionID:       "security-operator.platform-mesh.io",
 			BaseContext:            func() context.Context { return ctx },
 		}
 		if defaultCfg.LeaderElection.Enabled {

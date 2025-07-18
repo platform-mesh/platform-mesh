@@ -2,9 +2,9 @@ apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v250401-66f7f53.stores.fga.openmfp.org
+  name: v250401-66f7f53.stores.core.platform-mesh.io
 spec:
-  group: fga.openmfp.org
+  group: core.platform-mesh.io
   names:
     kind: Store
     listKind: StoreList

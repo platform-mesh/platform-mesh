@@ -15,32 +15,33 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	corev1alpha1 "github.com/openmfp/fga-operator/api/v1alpha1"
-	"github.com/openmfp/fga-operator/internal/subroutine"
-	openmfpconfig "github.com/openmfp/golang-commons/config"
-	"github.com/openmfp/golang-commons/controller/lifecycle"
-	"github.com/openmfp/golang-commons/logger"
+	platformeshconfig "github.com/platform-mesh/golang-commons/config"
+	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
+	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/logger"
+	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/subroutine"
 )
 
 // StoreReconciler reconciles a Store object
 type StoreReconciler struct {
-	lifecycle    *lifecycle.LifecycleManager
+	lifecycle    *lifecyclecontrollerruntime.LifecycleManager
 	lcClientFunc subroutine.NewLogicalClusterClientFunc
 }
 
 func NewStoreReconciler(log *logger.Logger, clt client.Client, fga openfgav1.OpenFGAServiceClient, lcClientFunc subroutine.NewLogicalClusterClientFunc) *StoreReconciler {
 	return &StoreReconciler{
 		lcClientFunc: lcClientFunc,
-		lifecycle: lifecycle.NewLifecycleManager(
-			log,
-			"store",
-			"StoreReconciler",
-			clt,
-			[]lifecycle.Subroutine{
+		lifecycle: lifecyclecontrollerruntime.NewLifecycleManager(
+			[]lifecyclesubroutine.Subroutine{
 				subroutine.NewStoreSubroutine(fga, clt, lcClientFunc),
 				subroutine.NewAuthorizationModelSubroutine(fga, clt, lcClientFunc),
 				subroutine.NewTupleSubroutine(fga, clt, lcClientFunc),
 			},
+			"store",
+			"StoreReconciler",
+			clt,
+			log,
 		),
 	}
 }
@@ -50,7 +51,7 @@ func (r *StoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StoreReconciler) SetupWithManager(mgr ctrl.Manager, cfg *openmfpconfig.CommonServiceConfig, log *logger.Logger) error { // coverage-ignore
+func (r *StoreReconciler) SetupWithManager(mgr ctrl.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger) error { // coverage-ignore
 	controllerBuilder, err := r.lifecycle.
 		WithConditionManagement().
 		SetupWithManagerBuilder(mgr, cfg.MaxConcurrentReconciles, "store", &corev1alpha1.Store{}, cfg.DebugLabelValue, log)

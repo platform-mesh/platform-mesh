@@ -6,8 +6,8 @@ import (
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
-	"github.com/openmfp/fga-operator/internal/subroutine"
-	"github.com/openmfp/fga-operator/internal/subroutine/mocks"
+	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -15,7 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	accountv1alpha1 "github.com/openmfp/account-operator/api/v1alpha1"
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 // Additional helpers for mocking
@@ -41,7 +42,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				Spec: kcpv1alpha1.APIBindingSpec{
 					Reference: kcpv1alpha1.BindingReference{
 						Export: &kcpv1alpha1.ExportBindingReference{
-							Name: "core.openmfp.org",
+							Name: "core.platform-mesh.io",
 							Path: "root",
 						},
 					},
@@ -75,6 +76,38 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					rs.Spec.Group = "group"
 					rs.Spec.Names.Plural = "foos"
 					rs.Spec.Names.Singular = "foo"
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				kcpClient.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Maybe()
+				kcpClient.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+			},
+		},
+		{
+			name: "generate model in Process with namespaced scope",
+			binding: &kcpv1alpha1.APIBinding{
+				Spec: kcpv1alpha1.APIBindingSpec{
+					Reference: kcpv1alpha1.BindingReference{
+						Export: &kcpv1alpha1.ExportBindingReference{
+							Name: "foo",
+							Path: "bar",
+						},
+					},
+				},
+			},
+			mockSetup: func(kcpClient *mocks.MockClient) {
+				mockAccountInfo(kcpClient, "org", "origin")
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					apiExport := o.(*kcpv1alpha1.APIExport)
+					apiExport.Spec.LatestResourceSchemas = []string{"schema1"}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					rs := o.(*kcpv1alpha1.APIResourceSchema)
+					rs.Spec.Group = "group"
+					rs.Spec.Names.Plural = "foos"
+					rs.Spec.Names.Singular = "foo"
+					rs.Spec.Scope = apiextensionsv1.NamespaceScoped
 					return nil
 				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -146,7 +179,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					rs := o.(*kcpv1alpha1.APIResourceSchema)
-					rs.Spec.Group = "averyveryveryveryveryveryveryveryverylonggroup.openmfp.org"
+					rs.Spec.Group = "averyveryveryveryveryveryveryveryverylonggroup.platform-mesh.org"
 					rs.Spec.Names.Plural = "plural"
 					rs.Spec.Names.Singular = "singular"
 					return nil
@@ -255,7 +288,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				})
 				// Delete returns NotFound
 				kcpClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(
-					kerrors.NewNotFound(schema.GroupResource{Group: "fga.openmfp.org", Resource: "authorizationmodels"}, "foo-bar"),
+					kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "foo-bar"),
 				)
 			},
 		},
@@ -334,7 +367,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				})
 				// accountInfo for second binding (different org) - simulate NotFound
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(
-					kerrors.NewNotFound(schema.GroupResource{Group: "account.openmfp.org", Resource: "accountinfos"}, "account"),
+					kerrors.NewNotFound(schema.GroupResource{Group: "account.platform-mesh.org", Resource: "accountinfos"}, "account"),
 				)
 			},
 		},

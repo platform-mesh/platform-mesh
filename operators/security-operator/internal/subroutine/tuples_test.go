@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	"github.com/openmfp/fga-operator/api/v1alpha1"
-	"github.com/openmfp/fga-operator/internal/subroutine"
-	"github.com/openmfp/fga-operator/internal/subroutine/mocks"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +24,7 @@ func TestTupleGetName(t *testing.T) {
 
 func TestTupleFinalizers(t *testing.T) {
 	subroutine := subroutine.NewTupleSubroutine(nil, nil, nil)
-	assert.Equal(t, []string{"fga.openmfp.org/fga-tuples"}, subroutine.Finalizers())
+	assert.Equal(t, []string{"core.platform-mesh.io/fga-tuples"}, subroutine.Finalizers())
 }
 
 func TestTupleProcessWithStore(t *testing.T) {

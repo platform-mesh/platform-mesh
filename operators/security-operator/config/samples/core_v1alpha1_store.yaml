@@ -1,4 +1,4 @@
-apiVersion: core.openmfp.org/v1alpha1
+apiVersion: core.platform-mesh.io/v1alpha1
 kind: Store
 metadata:
   name: test-store

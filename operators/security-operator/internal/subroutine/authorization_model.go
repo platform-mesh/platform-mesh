@@ -8,10 +8,11 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
-	"github.com/openmfp/fga-operator/api/v1alpha1"
-	"github.com/openmfp/golang-commons/controller/lifecycle"
-	"github.com/openmfp/golang-commons/errors"
-	"github.com/openmfp/golang-commons/logger"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"google.golang.org/protobuf/encoding/protojson"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,13 +36,13 @@ func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, k8s cli
 	}
 }
 
-var _ lifecycle.Subroutine = &authorizationModelSubroutine{}
+var _ subroutine.Subroutine = &authorizationModelSubroutine{}
 
 func (a *authorizationModelSubroutine) Finalizers() []string { return nil }
 
 func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
 
-func (a *authorizationModelSubroutine) Finalize(ctx context.Context, instance lifecycle.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (a *authorizationModelSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	return ctrl.Result{}, nil
 }
 
@@ -86,7 +87,7 @@ func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store
 	return extendingModules, nil
 }
 
-func (a *authorizationModelSubroutine) Process(ctx context.Context, instance lifecycle.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (a *authorizationModelSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 

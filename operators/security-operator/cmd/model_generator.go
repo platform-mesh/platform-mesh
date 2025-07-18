@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 
-	openmfpcontext "github.com/openmfp/golang-commons/context"
+	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/spf13/cobra"
@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	fgav1alpha1 "github.com/openmfp/fga-operator/api/v1alpha1"
-	"github.com/openmfp/fga-operator/internal/controller"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/controller"
 )
 
 var modelGeneratorCmd = &cobra.Command{
@@ -27,7 +27,7 @@ var modelGeneratorCmd = &cobra.Command{
 
 		ctrl.SetLogger(log.ComponentLogger("controller-runtime").Logr())
 
-		ctx, _, shutdown := openmfpcontext.StartContext(log, defaultCfg, defaultCfg.ShutdownTimeout)
+		ctx, _, shutdown := platformeshcontext.StartContext(log, defaultCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
 		cfg := ctrl.GetConfigOrDie()
@@ -45,7 +45,7 @@ var modelGeneratorCmd = &cobra.Command{
 			},
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			LeaderElection:         defaultCfg.LeaderElection.Enabled,
-			LeaderElectionID:       "fga-operator-generator.openmfp.org",
+			LeaderElectionID:       "security-operator-generator.platform-mesh.io",
 			BaseContext:            func() context.Context { return ctx },
 		}
 		if defaultCfg.LeaderElection.Enabled {
@@ -64,7 +64,7 @@ var modelGeneratorCmd = &cobra.Command{
 
 		runtimeScheme := runtime.NewScheme()
 		utilruntime.Must(appsv1.AddToScheme(runtimeScheme))
-		utilruntime.Must(fgav1alpha1.AddToScheme(runtimeScheme))
+		utilruntime.Must(securityv1alpha1.AddToScheme(runtimeScheme))
 
 		if err := controller.NewAPIBindingReconciler(mgr.GetClient(), log, logicalClusterClientFromKey(mgr, log)).
 			SetupWithManager(mgr, log, defaultCfg); err != nil {

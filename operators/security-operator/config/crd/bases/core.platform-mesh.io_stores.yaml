@@ -4,21 +4,24 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: authorizationmodels.fga.openmfp.org
+  name: stores.core.platform-mesh.io
 spec:
-  group: fga.openmfp.org
+  group: core.platform-mesh.io
   names:
-    kind: AuthorizationModel
-    listKind: AuthorizationModelList
-    plural: authorizationmodels
-    singular: authorizationmodel
+    kind: Store
+    listKind: StoreList
+    plural: stores
+    singular: store
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: AuthorizationModel is the Schema for the authorizationmodels
-          API.
+        description: Store is the Schema for the stores API.
         properties:
           apiVersion:
             description: |-
@@ -38,20 +41,10 @@ spec:
           metadata:
             type: object
           spec:
-            description: AuthorizationModelSpec defines the desired state of AuthorizationModel.
+            description: StoreSpec defines the desired state of Store.
             properties:
-              model:
+              coreModule:
                 type: string
-              storeRef:
-                properties:
-                  name:
-                    type: string
-                  path:
-                    type: string
-                required:
-                - name
-                - path
-                type: object
               tuples:
                 items:
                   properties:
@@ -68,12 +61,13 @@ spec:
                   type: object
                 type: array
             required:
-            - model
-            - storeRef
+            - coreModule
             type: object
           status:
-            description: AuthorizationModelStatus defines the observed state of AuthorizationModel.
+            description: StoreStatus defines the observed state of Store.
             properties:
+              authorizationModelId:
+                type: string
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -145,6 +139,8 @@ spec:
                   - user
                   type: object
                 type: array
+              storeId:
+                type: string
             type: object
         type: object
     served: true

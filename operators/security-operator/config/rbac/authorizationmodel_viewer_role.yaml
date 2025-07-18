@@ -3,12 +3,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    app.kubernetes.io/name: fga-operator
+    app.kubernetes.io/name: security-operator
     app.kubernetes.io/managed-by: kustomize
   name: authorizationmodel-viewer-role
 rules:
 - apiGroups:
-  - core.openmfp.io
+  - core.platform-mesh.io
   resources:
   - authorizationmodels
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - core.openmfp.io
+  - core.platform-mesh.io
   resources:
   - authorizationmodels/status
   verbs:

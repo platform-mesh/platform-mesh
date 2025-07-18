@@ -8,17 +8,19 @@ import (
 	"strings"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	accountsv1alpha1 "github.com/openmfp/account-operator/api/v1alpha1"
-	"github.com/openmfp/golang-commons/controller/lifecycle"
-	"github.com/openmfp/golang-commons/errors"
+	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+
+	"github.com/platform-mesh/golang-commons/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/openmfp/fga-operator/api/v1alpha1"
-	"github.com/openmfp/fga-operator/internal/config"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/config"
 )
 
 const initializerName = "root:fga"
@@ -40,7 +42,7 @@ func NewWorkspaceInitializer(cl, orgsClient client.Client, restCfg *rest.Config,
 	}
 }
 
-var _ lifecycle.Subroutine = &workspaceInitializer{}
+var _ lifecyclesubroutine.Subroutine = &workspaceInitializer{}
 
 type workspaceInitializer struct {
 	cl         client.Client
@@ -49,7 +51,7 @@ type workspaceInitializer struct {
 	coreModule string
 }
 
-func (w *workspaceInitializer) Finalize(ctx context.Context, instance lifecycle.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (w *workspaceInitializer) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	// TODO: implement once finalizing workspaces are a thing
 	return ctrl.Result{}, nil
 }
@@ -58,7 +60,7 @@ func (w *workspaceInitializer) Finalizers() []string { return nil }
 
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
-func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycle.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	path, ok := lc.ObjectMeta.Annotations["kcp.io/path"]
@@ -79,7 +81,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycle.R
 					User:     "user:*",
 				},
 				{
-					Object:   fmt.Sprintf("account:%s/%s", lc.Spec.Owner.Cluster, lc.Spec.Owner.Name),
+					Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", lc.Spec.Owner.Cluster, lc.Spec.Owner.Name),
 					Relation: "member",
 					User:     "role:authenticated#assignee",
 				},

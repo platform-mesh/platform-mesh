@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/kcp"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/openmfp/fga-operator/internal/controller"
+	"github.com/platform-mesh/security-operator/internal/controller"
 )
 
 var initializerCmd = &cobra.Command{
@@ -25,7 +25,7 @@ var initializerCmd = &cobra.Command{
 		mgrOpts := ctrl.Options{
 			Scheme:                 scheme,
 			LeaderElection:         defaultCfg.LeaderElection.Enabled,
-			LeaderElectionID:       "fga-operator-initializer.openmfp.org",
+			LeaderElectionID:       "security-operator-initializer.platform-mesh.io",
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			Metrics: server.Options{
 				BindAddress: defaultCfg.Metrics.BindAddress,

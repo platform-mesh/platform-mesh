@@ -2,25 +2,27 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
-domain: openmfp.io
+domain: platform-mesh.io
 layout:
 - go.kubebuilder.io/v4
-projectName: fga-operator
-repo: github.com/openmfp/fga-operator
+plugins:
+  helm.kubebuilder.io/v1-alpha: {}
+projectName: security-operator
+repo: github.com/platform-mesh/security-operator
 resources:
 - api:
     crdVersion: v1
   controller: true
-  domain: openmfp.org
+  domain: platform-mesh.io
   group: core
   kind: Store
-  path: github.com/openmfp/fga-operator/api/v1alpha1
+  path: github.com/platform-mesh/security-operator/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
-  domain: openmfp.org
+  domain: platform-mesh.io
   group: core
   kind: AuthorizationModel
-  path: github.com/openmfp/fga-operator/api/v1alpha1
+  path: github.com/platform-mesh/security-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

@@ -3,12 +3,12 @@ package v1alpha1
 import (
 	"fmt"
 
-	"github.com/openmfp/golang-commons/controller/lifecycle"
+	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	StoreRefLabelKey = "fga.openmfp.org/store-name"
+	StoreRefLabelKey = "core.platform-mesh.io/store-name"
 )
 
 type Tuple struct {
@@ -59,7 +59,7 @@ func (in *Store) SetConditions(conditions []metav1.Condition) {
 	in.Status.Conditions = conditions
 }
 
-var _ lifecycle.RuntimeObjectConditions = &Store{}
+var _ lifecycleapi.RuntimeObjectConditions = &Store{}
 
 // +kubebuilder:object:root=true
 

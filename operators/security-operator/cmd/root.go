@@ -4,17 +4,17 @@ import (
 	"flag"
 
 	"github.com/go-logr/logr"
-	openmfpconfig "github.com/openmfp/golang-commons/config"
-	"github.com/openmfp/golang-commons/logger"
+	platformeshconfig "github.com/platform-mesh/golang-commons/config"
+	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/openmfp/fga-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/config"
 )
 
 var (
-	defaultCfg *openmfpconfig.CommonServiceConfig
+	defaultCfg *platformeshconfig.CommonServiceConfig
 	appCfg     config.Config
 	v          *viper.Viper
 	log        *logger.Logger
@@ -22,7 +22,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use: "fga-operator",
+	Use: "security-operator",
 }
 
 func init() {
@@ -33,12 +33,12 @@ func init() {
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 
 	var err error
-	v, defaultCfg, err = openmfpconfig.NewDefaultConfig(rootCmd)
+	v, defaultCfg, err = platformeshconfig.NewDefaultConfig(rootCmd)
 	if err != nil {
 		panic(err)
 	}
 
-	if err := openmfpconfig.BindConfigToFlags(v, initializerCmd, &appCfg); err != nil {
+	if err := platformeshconfig.BindConfigToFlags(v, initializerCmd, &appCfg); err != nil {
 		panic(err)
 	}
 
