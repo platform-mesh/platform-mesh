@@ -50,14 +50,14 @@ extend type core_platform-mesh_io_account
 {{ if eq .Scope "Namespaced" }}
 extend type core_namespace
 	relations
-		define create_{{ .Group }}_{{ .Name }}: member
-		define list_{{ .Group }}_{{ .Name }}: member
-		define watch_{{ .Group }}_{{ .Name }}: member
+		define create_{{ .Group }}_{{ .Name }}: member from parent
+		define list_{{ .Group }}_{{ .Name }}: member from parent
+		define watch_{{ .Group }}_{{ .Name }}: member from parent
 {{ end }}
 
 type {{ .Group }}_{{ .Singular }}
 	relations
-		define parent: [account]
+		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
 		
 		define get: member from parent
 		define update: member from parent
