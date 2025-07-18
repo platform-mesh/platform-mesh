@@ -23,7 +23,7 @@ import (
 	"github.com/platform-mesh/security-operator/internal/config"
 )
 
-const initializerName = "root:fga"
+const initializerName = "root:security"
 
 func NewWorkspaceInitializer(cl, orgsClient client.Client, restCfg *rest.Config, cfg config.Config) *workspaceInitializer {
 	coreModulePath := cfg.CoreModulePath
