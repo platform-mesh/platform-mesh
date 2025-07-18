@@ -41,11 +41,13 @@ type AuthorizationModelGenerationSubroutine struct {
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
 
+{{ if eq .Scope "Cluster" }}
 extend type core_platform-mesh_io_account
 	relations
 		define create_{{ .Group }}_{{ .Name }}: member
 		define list_{{ .Group }}_{{ .Name }}: member
 		define watch_{{ .Group }}_{{ .Name }}: member
+{{ end }}
 
 {{ if eq .Scope "Namespaced" }}
 extend type core_namespace
