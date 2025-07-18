@@ -102,7 +102,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 
 	// Update accountInfo with storeid
 	wsCfg := rest.CopyConfig(w.restCfg)
-	wsCfg.Host = strings.Replace(wsCfg.Host, "/services/initializingworkspaces/root:fga", "/clusters/"+path, -1)
+	wsCfg.Host = strings.Replace(wsCfg.Host, "/services/initializingworkspaces/root:security", "/clusters/"+path, -1)
 	wsClient, err := client.New(wsCfg, client.Options{Scheme: w.cl.Scheme()})
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create client: %w", err), true, true)
