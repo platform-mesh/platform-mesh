@@ -72,7 +72,7 @@ func mockLogicalClusterGet(k8s *mocks.MockClient) {
 		func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 			lc := o.(*kcpcorev1alpha1.LogicalCluster)
 			lc.Annotations = map[string]string{
-				"kcp.io/path": "path",
+				"kcp.io/cluster": "path",
 			}
 
 			return nil
