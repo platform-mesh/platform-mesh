@@ -66,7 +66,7 @@ func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store
 		return v1alpha1.AuthorizationModelList{}, err
 	}
 
-	storeWorkspacePath := lc.Annotations["kcp.io/path"]
+	storeWorkspacePath := lc.Annotations["kcp.io/cluster"]
 
 	allCtx := kontext.WithCluster(ctx, "")
 	allAuthorizationModels := v1alpha1.AuthorizationModelList{}
