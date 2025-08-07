@@ -2,6 +2,8 @@ package v1alpha1
 
 import (
 	"context"
+	"fmt"
+	"slices"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -9,10 +11,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-func SetupAccountWebhookWithManager(mgr ctrl.Manager) error {
+func SetupAccountWebhookWithManager(mgr ctrl.Manager, denyList []string) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&Account{}).
 		WithDefaulter(&AccountDefaulter{}).
+		WithValidator(&AccountValidator{DenyList: denyList}).
 		Complete()
 }
 
@@ -33,3 +36,34 @@ func (a *AccountDefaulter) Default(ctx context.Context, obj runtime.Object) erro
 }
 
 var _ webhook.CustomDefaulter = &AccountDefaulter{}
+var _ webhook.CustomValidator = &AccountValidator{}
+
+type AccountValidator struct {
+	DenyList []string
+}
+
+func (v *AccountValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	account := obj.(*Account)
+	if account.Spec.Type == AccountTypeOrg {
+		if slices.Contains(v.DenyList, account.Name) {
+			return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
+		}
+	}
+	return nil, nil
+}
+
+func (v *AccountValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	account := newObj.(*Account)
+
+	if account.Spec.Type == AccountTypeOrg {
+		if slices.Contains(v.DenyList, account.Name) {
+			return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
+		}
+	}
+
+	return nil, nil
+}
+
+func (v *AccountValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	return nil, nil
+}

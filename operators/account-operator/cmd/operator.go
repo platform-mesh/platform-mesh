@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"strings"
 
 	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
@@ -164,7 +165,15 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	}
 
 	if operatorCfg.Webhooks.Enabled {
-		if err := v1alpha1.SetupAccountWebhookWithManager(mgr); err != nil {
+		var denyList []string
+		if operatorCfg.Webhooks.DenyList != "" {
+			denyList = strings.Split(operatorCfg.Webhooks.DenyList, ",")
+			for i, item := range denyList {
+				denyList[i] = strings.TrimSpace(item)
+			}
+		}
+		log.Info().Strs("deniedNames", denyList).Msg("webhooks are enabled")
+		if err := v1alpha1.SetupAccountWebhookWithManager(mgr, denyList); err != nil {
 			log.Fatal().Err(err).Str("webhook", "Account").Msg("unable to create webhook")
 		}
 	}
