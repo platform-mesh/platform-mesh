@@ -17,7 +17,8 @@ The platform-mesh account-operator manages the core Account resource which is a 
 
 ## Getting started
 
-TBD
+- For running and building the account-operator, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository.
+- To deploy the account-operator to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository. 
 
 ## Releasing
 
