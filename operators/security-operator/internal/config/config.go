@@ -7,4 +7,5 @@ type Config struct {
 	} `mapstructure:",squash"`
 	APIExportEndpointSliceName string `mapstructure:"api-export-endpoint-slice-name"`
 	CoreModulePath             string `mapstructure:"core-module-path"`
+	WorkspaceDir               string `mapstructure:"workspace-dir" default:"/operator/"`
 }
