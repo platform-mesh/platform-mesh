@@ -5,6 +5,17 @@ metadata:
   name: core.platform-mesh.io
 spec:
   latestResourceSchemas:
-  - v250715-5b899f6.accountinfos.core.platform-mesh.io
-  - v250715-5b899f6.accounts.core.platform-mesh.io
+    - v250715-5b899f6.accountinfos.core.platform-mesh.io
+    - v250915-1185c0b.accounts.core.platform-mesh.io
+  permissionClaims:
+    - resource: namespaces
+      all: true
+    - group: tenancy.kcp.io
+      identityHash: '{{ .data.apiExportRootTenancyKcpIoIdentityHash }}'
+      resource: workspaces
+      all: true
+    - group: tenancy.kcp.io
+      identityHash: '{{ .data.apiExportRootTenancyKcpIoIdentityHash }}'
+      resource: workspacetypes
+      all: true
 status: {}

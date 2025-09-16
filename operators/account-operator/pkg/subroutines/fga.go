@@ -94,9 +94,9 @@ func (e *FGASubroutine) Process(ctx context.Context, ro runtimeobject.RuntimeObj
 
 		// Determine parent account to create parent relation
 		writes = append(writes, &openfgav1.TupleKey{
-			Object:   fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.GetName()),
-			Relation: e.parentRelation,
 			User:     fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.ParentAccount.OriginClusterId, parentAccountName),
+			Relation: e.parentRelation,
+			Object:   fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.GetName()),
 		})
 	}
 
@@ -110,15 +110,15 @@ func (e *FGASubroutine) Process(ctx context.Context, ro runtimeobject.RuntimeObj
 		creator := formatUser(*account.Spec.Creator)
 
 		writes = append(writes, &openfgav1.TupleKey{
-			Object:   fmt.Sprintf("role:%s/%s/owner", accountInfo.Spec.Account.OriginClusterId, account.Name),
-			Relation: "assignee",
 			User:     fmt.Sprintf("user:%s", creator),
+			Relation: "assignee",
+			Object:   fmt.Sprintf("role:%s/%s/%s/owner", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
 		})
 
 		writes = append(writes, &openfgav1.TupleKey{
-			Object:   fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
+			User:     fmt.Sprintf("role:%s/%s/%s/owner#assignee", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
 			Relation: e.creatorRelation,
-			User:     fmt.Sprintf("role:%s/%s/owner#assignee", accountInfo.Spec.Account.OriginClusterId, account.Name),
+			Object:   fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
 		})
 	}
 
@@ -167,24 +167,24 @@ func (e *FGASubroutine) Finalize(ctx context.Context, runtimeObj runtimeobject.R
 			parentAccountName := accountInfo.Spec.Account.Name
 
 			deletes = append(deletes, &openfgav1.TupleKeyWithoutCondition{
-				User:     fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.Account.OriginClusterId, parentAccountName),
+				User:     fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.ParentAccount.OriginClusterId, parentAccountName),
 				Relation: e.parentRelation,
-				Object:   fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.Account.GeneratedClusterId, account.GetName()),
+				Object:   fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.GetName()),
 			})
 		}
 
 		if account.Spec.Creator != nil {
 			creator := formatUser(*account.Spec.Creator)
 			deletes = append(deletes, &openfgav1.TupleKeyWithoutCondition{
-				Object:   fmt.Sprintf("role:%s/%s/owner", accountInfo.Spec.Account.GeneratedClusterId, account.Name),
-				Relation: "assignee",
 				User:     fmt.Sprintf("user:%s", creator),
+				Relation: "assignee",
+				Object:   fmt.Sprintf("role:%s/%s/%s/owner", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
 			})
 
 			deletes = append(deletes, &openfgav1.TupleKeyWithoutCondition{
-				Object:   fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.Account.GeneratedClusterId, account.Name),
+				User:     fmt.Sprintf("role:%s/%s/%s/owner#assignee", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
 				Relation: e.creatorRelation,
-				User:     fmt.Sprintf("role:%s/%s/owner#assignee", accountInfo.Spec.Account.GeneratedClusterId, account.Name),
+				Object:   fmt.Sprintf("%s:%s/%s", e.objectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
 			})
 		}
 

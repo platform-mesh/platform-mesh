@@ -19,7 +19,7 @@ type OperatorConfig struct {
 			Enabled         bool   `mapstructure:"subroutines-fga-enabled" default:"true"`
 			RootNamespace   string `mapstructure:"subroutines-fga-root-namespace" default:"platform-mesh-root"`
 			GrpcAddr        string `mapstructure:"subroutines-fga-grpc-addr" default:"localhost:8081"`
-			ObjectType      string `mapstructure:"subroutines-fga-object-type" default:"account"`
+			ObjectType      string `mapstructure:"subroutines-fga-object-type" default:"core_platform-mesh_io_account"`
 			ParentRelation  string `mapstructure:"subroutines-fga-parent-relation" default:"parent"`
 			CreatorRelation string `mapstructure:"subroutines-fga-creator-relation" default:"owner"`
 		} `mapstructure:",squash"`
