@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,6 +46,11 @@ type AccountValidator struct {
 func (v *AccountValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	account := obj.(*Account)
 	if account.Spec.Type == AccountTypeOrg {
+
+		if len(strings.TrimSpace(account.Name)) < 3 {
+			return nil, fmt.Errorf("organization name %q is too short, must be at least 3 characters", account.Name)
+		}
+
 		if slices.Contains(v.DenyList, account.Name) {
 			return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
 		}
@@ -56,6 +62,10 @@ func (v *AccountValidator) ValidateUpdate(ctx context.Context, oldObj, newObj ru
 	account := newObj.(*Account)
 
 	if account.Spec.Type == AccountTypeOrg {
+		if len(strings.TrimSpace(account.Name)) < 3 {
+			return nil, fmt.Errorf("organization name %q is too short, must be at least 3 characters", account.Name)
+		}
+
 		if slices.Contains(v.DenyList, account.Name) {
 			return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
 		}

@@ -53,6 +53,16 @@ func TestAccountValidator_ValidateCreate(t *testing.T) {
 			denyList:    []string{},
 			expectError: false,
 		},
+		{
+			name: "deny less than 3 characters",
+			account: &Account{
+				ObjectMeta: metav1.ObjectMeta{Name: "gk"},
+				Spec:       AccountSpec{Type: "org"},
+			},
+			denyList:    []string{},
+			expectError: true,
+			errorMsg:    `organization name "gk" is too short, must be at least 3 characters`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -171,6 +181,20 @@ func TestAccountValidator_ValidateUpdate(t *testing.T) {
 			},
 			denyList:    []string{},
 			expectError: false,
+		},
+		{
+			name: "deny less than 3 characters",
+			oldAccount: &Account{
+				ObjectMeta: metav1.ObjectMeta{Name: "gke"},
+				Spec:       AccountSpec{Type: "org"},
+			},
+			newAccount: &Account{
+				ObjectMeta: metav1.ObjectMeta{Name: "gk"},
+				Spec:       AccountSpec{Type: "org"},
+			},
+			denyList:    []string{},
+			expectError: true,
+			errorMsg:    `organization name "gk" is too short, must be at least 3 characters`,
 		},
 	}
 
