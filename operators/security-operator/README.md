@@ -1,138 +1,50 @@
 > [!WARNING]
 > This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
 
-# security-operator
-// TODO(user): Add simple overview of use/purpose
+# platform-mesh - security-operator
+![build status](https://github.com/platform-mesh/security-operator/actions/workflows/pipeline.yaml/badge.svg)
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+The platform-mesh security-operator is the component responsible for security configuration. It automaticly configures and updates isolated authorization models for platform mesh utializing OpenFGA, KeyClock and KCP.
 
-## Getting Started
+It consists of 3 parts: initializer, generator and security-operator.
+- Initializer will be triggered when a new workspace with workspace type which extends "security" workspace type appears. It reconciles this new workspase and creates store in OpenFGA, add a new realm with a client, etc.
+- Generator reconciles apibinding resource from kcp and generates OpenFGA model for it
+- Security-operator reconciles store and authorization model resources from kcp
 
-### Prerequisites
-- go version v1.24.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+## Features
+- Stores, tupels and authorization models management in OpenFGA
+- Instantiation of Stores and authorization models resources in KCP
+- KeyClock realms and clients management in Keyclock
+- Instantiation of Realms and Clients resources in deployment cluster
 
-```sh
-make docker-build docker-push IMG=<some-registry>/security-operator:tag
-```
+## Getting started
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+- For running and building the security-operator, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository.
+- To deploy the security-operator to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository. 
 
-**Install the CRDs into the cluster:**
+## Releasing
 
-```sh
-make install
-```
+The release is performed automatically through a GitHub Actions Workflow.
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+All the released versions will be available through access to GitHub (as any other Golang Module).
 
-```sh
-make deploy IMG=<some-registry>/security-operator:tag
-```
+## Requirements
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+The security-operator requires a installation of go. Checkout the [go.mod](go.mod) for the required go version and dependencies.
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
-```
-
->**NOTE**: Ensure that the samples has default values to test it out.
-
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
-```
-
-**Delete the APIs(CRDs) from the cluster:**
-
-```sh
-make uninstall
-```
-
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
-```
-
-## Project Distribution
-
-Following the options to release and provide this solution to the users.
-
-### By providing a bundle with all YAML files
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/security-operator:tag
-```
-
-**NOTE:** The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without its
-dependencies.
-
-2. Using the installer
-
-Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
-the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/security-operator/<tag or branch>/dist/install.yaml
-```
-
-### By providing a Helm Chart
-
-1. Build the chart using the optional helm plugin
-
-```sh
-kubebuilder edit --plugins=helm/v1-alpha
-```
-
-2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
-
-**NOTE:** If you change the project, you need to update the Helm Chart
-using the same command above to sync the latest changes. Furthermore,
-if you create webhooks, you need to use the above command with
-the '--force' flag and manually ensure that any custom configuration
-previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
-is manually re-applied afterwards.
+## Security / Disclosure
+If you find any bug that may be a security problem, please follow our instructions at [in our security policy](https://github.com/platform-mesh/extension-manager-operator/security/policy) on how to report it. Please do not create GitHub issues for security-related doubts or problems.
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
+Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository for instructions on how to contribute to platform-mesh.
 
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+## Code of Conduct
 
-## License
+Please refer to the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) file in this repository informations on the expected Code of Conduct for contributing to platform-mesh.
 
-Copyright 2025.
+## Licensing
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+Copyright 2024 SAP SE or an SAP affiliate company and platform-mesh contributors. Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available [via the REUSE tool](https://api.reuse.software/info/github.com/platform-mesh/security-operator).
