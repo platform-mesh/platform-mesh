@@ -35,6 +35,7 @@ spec:
   releaseName: placeholder
   values: {}
 `
+	baseDomain = "portal.dev.local"
 )
 
 func newClientMock(t *testing.T, setup func(m *mocks.MockClient)) *mocks.MockClient {
@@ -174,7 +175,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 
 			repository, helmRelease = trim(repoYAML), trim(helmReleaseYAML)
 
-			rs := NewRealmSubroutine(clientMock)
+			rs := NewRealmSubroutine(clientMock, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 			res, opErr := rs.Process(context.Background(), lc)
@@ -190,7 +191,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			})
 
 			repository, helmRelease = trim(repoYAML), trim(helmReleaseYAML)
-			rs := NewRealmSubroutine(clientMock)
+			rs := NewRealmSubroutine(clientMock, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 			res, opErr := rs.Process(context.Background(), lc)
@@ -201,7 +202,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 		t.Run("missing workspace annotation", func(t *testing.T) {
 			t.Parallel()
 			clientMock := newClientMock(t, nil)
-			rs := NewRealmSubroutine(clientMock)
+			rs := NewRealmSubroutine(clientMock, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			res, opErr := rs.Process(context.Background(), lc)
 			require.NotNil(t, opErr)
@@ -246,7 +247,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				clientMock := newClientMock(t, tc.setupMocks)
-				rs := NewRealmSubroutine(clientMock)
+				rs := NewRealmSubroutine(clientMock, baseDomain)
 				lc := &kcpv1alpha1.LogicalCluster{}
 				lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 				res, opErr := rs.Finalize(context.Background(), lc)

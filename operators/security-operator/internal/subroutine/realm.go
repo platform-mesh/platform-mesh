@@ -31,12 +31,14 @@ var (
 )
 
 type realmSubroutine struct {
-	k8s client.Client
+	k8s        client.Client
+	baseDomain string
 }
 
-func NewRealmSubroutine(k8s client.Client) *realmSubroutine {
+func NewRealmSubroutine(k8s client.Client, baseDomain string) *realmSubroutine {
 	return &realmSubroutine{
-		k8s: k8s,
+		k8s,
+		baseDomain,
 	}
 }
 
@@ -93,6 +95,9 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 			"client": map[string]interface{}{
 				"name":        workspaceName,
 				"displayName": workspaceName,
+				"validRedirectUris": []string{
+					fmt.Sprintf("https://%s.%s/callback*", workspaceName, r.baseDomain),
+				},
 			},
 		},
 		"keycloakConfig": map[string]interface{}{
