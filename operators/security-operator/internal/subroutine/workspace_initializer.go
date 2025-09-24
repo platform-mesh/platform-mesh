@@ -6,6 +6,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -71,8 +72,11 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 	store := v1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
+	//TODO use ctx after migrating to multi-cluster runtime
+	ctxWithTimeout,cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	_, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctxWithTimeout, w.orgsClient, &store, func() error {
 		store.Spec = v1alpha1.StoreSpec{
 			Tuples: []v1alpha1.Tuple{
 				{
@@ -111,7 +115,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 	accountInfo := accountsv1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
 	}
-	_, err = controllerutil.CreateOrUpdate(ctx, wsClient, &accountInfo, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctxWithTimeout, wsClient, &accountInfo, func() error {
 		accountInfo.Spec.FGA.Store.Id = store.Status.StoreID
 		return nil
 	})
