@@ -25,7 +25,7 @@ type workspaceAuthSubroutine struct {
 	cfg           config.Config
 }
 
-func NewWorkspaceAuthConfigurationSubroutine(client client.Client, runtimeClient client.Client, cfg config.Config) *workspaceAuthSubroutine {
+func NewWorkspaceAuthConfigurationSubroutine(client, runtimeClient client.Client, cfg config.Config) *workspaceAuthSubroutine {
 	return &workspaceAuthSubroutine{
 		client:        client,
 		runtimeClient: runtimeClient,
@@ -64,7 +64,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 	}
 
 	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctxWithTimeout, r.client, obj, func() error {
 		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				{
