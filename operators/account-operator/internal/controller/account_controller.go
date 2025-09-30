@@ -45,8 +45,11 @@ type AccountReconciler struct {
 
 func NewAccountReconciler(log *logger.Logger, mgr ctrl.Manager, cfg config.OperatorConfig, fgaClient openfgav1.OpenFGAServiceClient) *AccountReconciler {
 	var subs []subroutine.Subroutine
+	if cfg.Subroutines.WorkspaceType.Enabled {
+		subs = append(subs, subroutines.NewWorkspaceTypeSubroutine(mgr))
+	}
 	if cfg.Subroutines.Workspace.Enabled {
-		subs = append(subs, subroutines.NewWorkspaceSubroutine(mgr.GetClient()))
+		subs = append(subs, subroutines.NewWorkspaceSubroutine(mgr))
 	}
 	if cfg.Subroutines.AccountInfo.Enabled {
 		subs = append(subs, subroutines.NewAccountInfoSubroutine(mgr.GetClient(), string(mgr.GetConfig().CAData)))

@@ -65,6 +65,7 @@ func (suite *AccountTestSuite) SetupSuite() {
 	cfg.Subroutines.FGA.Enabled = false
 	cfg.Subroutines.Workspace.Enabled = true
 	cfg.Subroutines.AccountInfo.Enabled = true
+	cfg.Subroutines.WorkspaceType.Enabled = true
 	cfg.Kcp.ProviderWorkspace = "root"
 	suite.Require().NoError(err)
 
@@ -120,6 +121,14 @@ func (suite *AccountTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	go suite.startController(testContext)
+
+	orgsConfig := rest.CopyConfig(suite.rootConfig)
+	orgsConfig.Host = fmt.Sprintf("%s:%s", suite.rootConfig.Host, "orgs")
+	orgsClient, err := client.New(orgsConfig, client.Options{})
+	suite.Require().NoError(err)
+
+	err = suite.testEnv.WaitForWorkspaceWithTimeout(orgsClient, "root-org", testEnvLogger, 1*time.Minute)
+	suite.Require().NoError(err)
 }
 
 func (suite *AccountTestSuite) TearDownSuite() {
@@ -164,7 +173,7 @@ func (suite *AccountTestSuite) TestAddingFinalizer() {
 		return err == nil && createdAccount.Finalizers != nil
 	}, defaultTestTimeout, defaultTickInterval)
 
-	suite.Equal([]string{"account.core.platform-mesh.io/finalizer", "account.core.platform-mesh.io/info"}, createdAccount.Finalizers)
+	suite.Equal([]string{"workspacetype.core.platform-mesh.io/finalizer", "account.core.platform-mesh.io/finalizer", "account.core.platform-mesh.io/info"}, createdAccount.Finalizers)
 }
 
 func (suite *AccountTestSuite) TestWorkspaceCreation() {

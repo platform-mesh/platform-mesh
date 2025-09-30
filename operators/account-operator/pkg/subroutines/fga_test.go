@@ -1,4 +1,4 @@
-package subroutines_test
+package subroutines
 
 import (
 	"context"
@@ -20,7 +20,6 @@ import (
 
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/internal/config"
-	"github.com/platform-mesh/account-operator/pkg/subroutines"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
 )
 
@@ -42,12 +41,12 @@ func newFgaError(c openfgav1.ErrorCode, m string) *fgaError {
 }
 
 func TestFGASubroutine_GetName(t *testing.T) {
-	routine := subroutines.NewFGASubroutine(nil, nil, "", "", "")
+	routine := NewFGASubroutine(nil, nil, "", "", "")
 	assert.Equal(t, "FGASubroutine", routine.GetName())
 }
 
 func TestFGASubroutine_Finalizers(t *testing.T) {
-	routine := subroutines.NewFGASubroutine(nil, nil, "", "", "")
+	routine := NewFGASubroutine(nil, nil, "", "", "")
 	assert.Equal(t, []string{"account.core.platform-mesh.io/fga"}, routine.Finalizers())
 }
 
@@ -515,7 +514,7 @@ func TestFGASubroutine_Process(t *testing.T) {
 				test.setupMocks(openFGAClient, clientMock)
 			}
 
-			routine := subroutines.NewFGASubroutine(clientMock, openFGAClient, "owner", "parent", "account")
+			routine := NewFGASubroutine(clientMock, openFGAClient, "owner", "parent", "account")
 
 			if test.expectedPanic {
 				assert.Panics(t, func() {
@@ -802,7 +801,7 @@ func TestCreatorSubroutine_Finalize(t *testing.T) {
 				test.setupMocks(openFGAClient, k8sClient)
 			}
 
-			routine := subroutines.NewFGASubroutine(k8sClient, openFGAClient, "owner", "parent", "account")
+			routine := NewFGASubroutine(k8sClient, openFGAClient, "owner", "parent", "account")
 			ctx := kontext.WithCluster(defaultContext, "abcdefghi")
 			_, err := routine.Finalize(ctx, test.account)
 			if test.expectedError {

@@ -187,8 +187,12 @@ func (te *Environment) waitForDefaultNamespace() error {
 }
 
 func (te *Environment) waitForWorkspace(client client.Client, name string, log *logger.Logger) error {
+	return te.WaitForWorkspaceWithTimeout(client, name, log, time.Second*15)
+}
+
+func (te *Environment) WaitForWorkspaceWithTimeout(client client.Client, name string, log *logger.Logger, timeout time.Duration) error {
 	// It shouldn't take longer than 5s for the default namespace to be brought up in etcd
-	err := wait.PollUntilContextTimeout(context.TODO(), time.Millisecond*500, time.Second*15, true, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), time.Millisecond*500, timeout, true, func(ctx context.Context) (bool, error) {
 		ws := &kcptenancyv1alpha.Workspace{}
 		if err := client.Get(ctx, types.NamespacedName{Name: name}, ws); err != nil {
 			return false, nil //nolint:nilerr
