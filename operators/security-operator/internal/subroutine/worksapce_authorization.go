@@ -13,6 +13,7 @@ import (
 	"github.com/platform-mesh/security-operator/internal/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -71,13 +72,16 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 					Issuer: kcptenancyv1alphav1.Issuer{
 						URL:                 fmt.Sprintf("https://%s/keycloak/realms/%s", r.cfg.BaseDomain, workspaceName),
 						AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
+						Audiences:           []string{workspaceName},
 					},
 					ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
 						Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
-							Claim: r.cfg.GroupClaim,
+							Claim:  r.cfg.GroupClaim,
+							Prefix: ptr.To(""),
 						},
 						Username: kcptenancyv1alphav1.PrefixedClaimOrExpression{
-							Claim: r.cfg.UserClaim,
+							Claim:  r.cfg.UserClaim,
+							Prefix: ptr.To(""),
 						},
 					},
 				},
