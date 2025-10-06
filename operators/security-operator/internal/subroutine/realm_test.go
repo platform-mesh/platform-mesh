@@ -8,6 +8,7 @@ import (
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -175,7 +176,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 
 			repository, helmRelease = trim(repoYAML), trim(helmReleaseYAML)
 
-			rs := NewRealmSubroutine(clientMock, baseDomain)
+			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 			res, opErr := rs.Process(context.Background(), lc)
@@ -191,7 +192,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			})
 
 			repository, helmRelease = trim(repoYAML), trim(helmReleaseYAML)
-			rs := NewRealmSubroutine(clientMock, baseDomain)
+			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 			res, opErr := rs.Process(context.Background(), lc)
@@ -202,7 +203,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 		t.Run("missing workspace annotation", func(t *testing.T) {
 			t.Parallel()
 			clientMock := newClientMock(t, nil)
-			rs := NewRealmSubroutine(clientMock, baseDomain)
+			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			res, opErr := rs.Process(context.Background(), lc)
 			require.NotNil(t, opErr)
@@ -247,7 +248,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				clientMock := newClientMock(t, tc.setupMocks)
-				rs := NewRealmSubroutine(clientMock, baseDomain)
+				rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
 				lc := &kcpv1alpha1.LogicalCluster{}
 				lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 				res, opErr := rs.Finalize(context.Background(), lc)

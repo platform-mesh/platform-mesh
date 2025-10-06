@@ -12,4 +12,19 @@ type Config struct {
 	GroupClaim                 string `mapstructure:"group-claim" default:"groups"`
 	UserClaim                  string `mapstructure:"user-claim" default:"email"`
 	DomainCALookup             bool   `mapstructure:"domain-ca-lookup" default:"false"`
+	IDP                        struct {
+		// SMTP settings
+		SMTPServer  string `mapstructure:"idp-smtp-server"`
+		SMTPPort    int    `mapstructure:"idp-smtp-port"`
+		FromAddress string `mapstructure:"idp-from-address"`
+
+		// SSL settings
+		SSL      bool `mapstructure:"idp-smtp-ssl" default:"false"`
+		StartTLS bool `mapstructure:"idp-smtp-starttls" default:"false"`
+
+		// Auth settings
+		SMTPUser               string `mapstructure:"idp-smtp-user"`
+		SMTPPasswordSecretName string `mapstructure:"idp-smtp-password-secret-name"`
+		SMTPPasswordSecretKey  string `mapstructure:"idp-smtp-password-secret-key" default:"password"`
+	} `mapstructure:",squash"`
 }
