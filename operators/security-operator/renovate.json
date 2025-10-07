@@ -10,7 +10,7 @@
           "(^|/)internal/subroutine/manifests/organizationIdp/repository\\.yaml$"
         ],
         "matchStrings": [
-          "semver:\\s*(?<currentValue>[\\d\\.]+(-[\\w\\.-]+)?)"
+          "semver:\\s*\"?(?<currentValue>[\\d\\.]+(-[\\w\\.-]+)?)\"?"
         ],
         "versioningTemplate": "semver",
         "depNameTemplate": "ghcr.io/platform-mesh/helm-charts/organization-idp",
