@@ -2,5 +2,19 @@
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "extends": [
       "local>platform-mesh/.github:renovate-config"
+    ],
+    "customManagers": [
+      {
+        "customType": "regex",
+        "fileMatch": [
+          "(^|/)internal/subroutine/manifests/organizationIdp/repository\\.yaml$"
+        ],
+        "matchStrings": [
+          "semver:\\s*(?<currentValue>[\\d\\.]+(-[\\w\\.-]+)?)"
+        ],
+        "versioningTemplate": "semver",
+        "depNameTemplate": "ghcr.io/platform-mesh/helm-charts/organization-idp",
+        "datasourceTemplate": "docker"
+      }
     ]
-  }
+}
