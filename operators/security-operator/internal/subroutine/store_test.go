@@ -16,17 +16,17 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/kontext"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 func TestGetName(t *testing.T) {
-	subroutine := subroutine.NewStoreSubroutine(nil, nil, nil)
+	subroutine := subroutine.NewStoreSubroutine(nil, nil)
 	assert.Equal(t, "Store", subroutine.GetName())
 }
 
 func TestFinalizers(t *testing.T) {
-	subroutine := subroutine.NewStoreSubroutine(nil, nil, nil)
-	assert.Equal(t, []string{"core.platform-mesh.io/fga-store"}, subroutine.Finalizers())
+	subroutine := subroutine.NewStoreSubroutine(nil, nil)
+	assert.Equal(t, []string{"core.platform-mesh.io/fga-store"}, subroutine.Finalizers(nil))
 }
 
 func TestProcess(t *testing.T) {
@@ -35,6 +35,7 @@ func TestProcess(t *testing.T) {
 		store       *v1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
+		mgrMocks    func(*mocks.MockManager)
 		expectError bool
 	}{
 		{
@@ -129,14 +130,8 @@ func TestProcess(t *testing.T) {
 				test.fgaMocks(fga)
 			}
 
-			k8s := mocks.NewMockClient(t)
-			if test.k8sMocks != nil {
-				test.k8sMocks(k8s)
-			}
-
-			subroutine := subroutine.NewStoreSubroutine(fga, k8s, func(clusterKey logicalcluster.Name) (client.Client, error) {
-				return k8s, nil
-			})
+			manager := mocks.NewMockManager(t)
+			subroutine := subroutine.NewStoreSubroutine(fga, manager)
 
 			_, err := subroutine.Process(context.Background(), test.store)
 			if test.expectError {
@@ -155,6 +150,7 @@ func TestFinalize(t *testing.T) {
 		store       *v1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
+		mgrMocks    func(*mocks.MockManager)
 		expectError bool
 	}{
 		{
@@ -176,8 +172,7 @@ func TestFinalize(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 					if list, ok := ol.(*v1alpha1.AuthorizationModelList); ok {
 						list.Items = []v1alpha1.AuthorizationModel{
 							{
@@ -206,8 +201,7 @@ func TestFinalize(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error"))
+				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(errors.New("error"))
 			},
 			expectError: true,
 		},
@@ -222,8 +216,7 @@ func TestFinalize(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
 				fga.EXPECT().DeleteStore(mock.Anything, &openfgav1.DeleteStoreRequest{StoreId: "id"}).Return(nil, nil)
@@ -240,8 +233,7 @@ func TestFinalize(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
 				fga.EXPECT().DeleteStore(mock.Anything, &openfgav1.DeleteStoreRequest{StoreId: "id"}).Return(nil, status.Error(codes.Code(openfgav1.NotFoundErrorCode_store_id_not_found), "not found"))
@@ -258,8 +250,7 @@ func TestFinalize(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
 				fga.EXPECT().DeleteStore(mock.Anything, &openfgav1.DeleteStoreRequest{StoreId: "id"}).Return(nil, errors.New("error"))
@@ -275,16 +266,21 @@ func TestFinalize(t *testing.T) {
 				test.fgaMocks(fga)
 			}
 
-			k8s := mocks.NewMockClient(t)
-			if test.k8sMocks != nil {
-				test.k8sMocks(k8s)
+			manager := mocks.NewMockManager(t)
+			subroutine := subroutine.NewStoreSubroutine(fga, manager)
+
+			// Only wire cluster/client expectations when Finalize will actually query k8s (i.e., StoreID is set)
+			if test.store.Status.StoreID != "" {
+				cluster := mocks.NewMockCluster(t)
+				client := mocks.NewMockClient(t)
+				if test.k8sMocks != nil {
+					test.k8sMocks(client)
+				}
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(client)
 			}
 
-			subroutine := subroutine.NewStoreSubroutine(fga, k8s, func(clusterKey logicalcluster.Name) (client.Client, error) {
-				return k8s, nil
-			})
-
-			ctx := kontext.WithCluster(context.Background(), logicalcluster.Name("a"))
+			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("path")))
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {

@@ -2,33 +2,32 @@ package subroutine
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
 type storeSubroutine struct {
-	fga          openfgav1.OpenFGAServiceClient
-	k8s          client.Client
-	lcClientFunc NewLogicalClusterClientFunc
+	fga openfgav1.OpenFGAServiceClient
+	mgr mcmanager.Manager
 }
 
-func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, k8s client.Client, lcClientFunc NewLogicalClusterClientFunc) *storeSubroutine {
+func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *storeSubroutine {
 	return &storeSubroutine{
-		fga:          fga,
-		k8s:          k8s,
-		lcClientFunc: lcClientFunc,
+		fga: fga,
+		mgr: mgr,
 	}
 }
 
@@ -36,9 +35,11 @@ var _ lifecyclesubroutine.Subroutine = &storeSubroutine{}
 
 func (s *storeSubroutine) GetName() string { return "Store" }
 
-func (s *storeSubroutine) Finalizers() []string { return []string{"core.platform-mesh.io/fga-store"} }
+func (s *storeSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+	return []string{"core.platform-mesh.io/fga-store"}
+}
 
-func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (s *storeSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 
@@ -46,7 +47,12 @@ func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 		return ctrl.Result{}, nil
 	}
 
-	authorizationModels, err := getRelatedAuthorizationModels(ctx, s.k8s, store, s.lcClientFunc)
+	cluster, err := s.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
+	}
+
+	authorizationModels, err := getRelatedAuthorizationModels(ctx, cluster.GetClient(), store)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 	}
@@ -66,7 +72,7 @@ func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 	return ctrl.Result{}, nil
 }
 
-func (s *storeSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (s *storeSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 

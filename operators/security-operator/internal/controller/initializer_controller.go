@@ -5,50 +5,46 @@ import (
 
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
+	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/kcp"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 )
 
 type LogicalClusterReconciler struct {
+	log *logger.Logger
+
 	lifecycle *lifecyclecontrollerruntime.LifecycleManager
 }
 
-func NewLogicalClusterReconciler(log *logger.Logger, restCfg *rest.Config, cl, orgClient client.Client, cfg config.Config, inClusterClient client.Client) *LogicalClusterReconciler {
+func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *LogicalClusterReconciler {
 	return &LogicalClusterReconciler{
-		lifecycle: lifecyclecontrollerruntime.NewLifecycleManager(
-			[]lifecyclesubroutine.Subroutine{
-				subroutine.NewWorkspaceInitializer(cl, orgClient, restCfg, cfg),
-				subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, cfg),
-				subroutine.NewRealmSubroutine(inClusterClient, &cfg, cfg.BaseDomain),
-			},
-			"logicalcluster",
-			"LogicalClusterReconciler",
-			cl,
-			log,
-		),
+		log: log,
+		lifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
+			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
+			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, cfg),
+			subroutine.NewRealmSubroutine(inClusterClient, &cfg, cfg.BaseDomain),
+			subroutine.NewRemoveInitializer(mgr, cfg.InitializerName),
+		}, log).
+			WithReadOnly().
+			BuildMultiCluster(mgr),
 	}
 }
 
-func (r *LogicalClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req, &kcpcorev1alpha1.LogicalCluster{})
+func (r *LogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
+	return r.lifecycle.Reconcile(ctxWithCluster, req, &kcpcorev1alpha1.LogicalCluster{})
 }
 
-func (r *LogicalClusterReconciler) SetupWithManager(mgr ctrl.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger) error {
-	return r.lifecycle.WithReadOnly().SetupWithManager(
-		mgr,
-		cfg.MaxConcurrentReconciles,
-		"logicalcluster",
-		&kcpcorev1alpha1.LogicalCluster{},
-		cfg.DebugLabelValue,
-		kcp.WithClusterInContext(r),
-		log,
-	)
+func (r *LogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+	return r.lifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "LogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
 }

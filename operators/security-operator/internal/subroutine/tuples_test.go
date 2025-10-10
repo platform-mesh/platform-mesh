@@ -14,17 +14,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/kontext"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 func TestTupleGetName(t *testing.T) {
-	subroutine := subroutine.NewTupleSubroutine(nil, nil, nil)
+	subroutine := subroutine.NewTupleSubroutine(nil, nil)
 	assert.Equal(t, "TupleSubroutine", subroutine.GetName())
 }
 
 func TestTupleFinalizers(t *testing.T) {
-	subroutine := subroutine.NewTupleSubroutine(nil, nil, nil)
-	assert.Equal(t, []string{"core.platform-mesh.io/fga-tuples"}, subroutine.Finalizers())
+	subroutine := subroutine.NewTupleSubroutine(nil, nil)
+	assert.Equal(t, []string{"core.platform-mesh.io/fga-tuples"}, subroutine.Finalizers(nil))
 }
 
 func TestTupleProcessWithStore(t *testing.T) {
@@ -33,6 +33,7 @@ func TestTupleProcessWithStore(t *testing.T) {
 		store       *v1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
+		mgrMocks    func(*mocks.MockManager)
 		expectError bool
 	}{
 		{
@@ -162,12 +163,12 @@ func TestTupleProcessWithStore(t *testing.T) {
 				test.fgaMocks(fga)
 			}
 
-			k8s := mocks.NewMockClient(t)
-			if test.k8sMocks != nil {
-				test.k8sMocks(k8s)
+			manager := mocks.NewMockManager(t)
+			if test.mgrMocks != nil {
+				test.mgrMocks(manager)
 			}
 
-			subroutine := subroutine.NewTupleSubroutine(fga, k8s, nil)
+			subroutine := subroutine.NewTupleSubroutine(fga, manager)
 
 			_, err := subroutine.Process(context.Background(), test.store)
 			if test.expectError {
@@ -187,6 +188,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 		store       *v1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
+		mgrMocks    func(*mocks.MockManager)
 		expectError bool
 	}{
 		{
@@ -300,16 +302,19 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				test.fgaMocks(fga)
 			}
 
-			k8s := mocks.NewMockClient(t)
+			manager := mocks.NewMockManager(t)
+			cluster := mocks.NewMockCluster(t)
+			k8sClient := mocks.NewMockClient(t)
 			if test.k8sMocks != nil {
-				test.k8sMocks(k8s)
+				test.k8sMocks(k8sClient)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
+				cluster.EXPECT().GetClient().Return(k8sClient).Maybe()
 			}
 
-			subroutine := subroutine.NewTupleSubroutine(fga, k8s, func(clusterKey logicalcluster.Name) (client.Client, error) {
-				return k8s, nil
-			})
+			subroutine := subroutine.NewTupleSubroutine(fga, manager)
 
-			ctx := kontext.WithCluster(context.Background(), logicalcluster.Name("a"))
+			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {
@@ -329,6 +334,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 		store       *v1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
+		mgrMocks    func(*mocks.MockManager)
 		expectError bool
 	}{
 		{
@@ -375,16 +381,19 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				test.fgaMocks(fga)
 			}
 
-			k8s := mocks.NewMockClient(t)
+			manager := mocks.NewMockManager(t)
+			cluster := mocks.NewMockCluster(t)
+			k8sClient := mocks.NewMockClient(t)
 			if test.k8sMocks != nil {
-				test.k8sMocks(k8s)
+				test.k8sMocks(k8sClient)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
+				cluster.EXPECT().GetClient().Return(k8sClient).Maybe()
 			}
 
-			subroutine := subroutine.NewTupleSubroutine(fga, k8s, func(clusterKey logicalcluster.Name) (client.Client, error) {
-				return k8s, nil
-			})
+			subroutine := subroutine.NewTupleSubroutine(fga, manager)
 
-			ctx := kontext.WithCluster(context.Background(), logicalcluster.Name("a"))
+			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {
@@ -404,6 +413,7 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 		store       *v1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
+		mgrMocks    func(*mocks.MockManager)
 		expectError bool
 	}{
 		{
@@ -451,12 +461,12 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 				test.fgaMocks(fga)
 			}
 
-			k8s := mocks.NewMockClient(t)
-			if test.k8sMocks != nil {
-				test.k8sMocks(k8s)
+			manager := mocks.NewMockManager(t)
+			if test.mgrMocks != nil {
+				test.mgrMocks(manager)
 			}
 
-			subroutine := subroutine.NewTupleSubroutine(fga, k8s, nil)
+			subroutine := subroutine.NewTupleSubroutine(fga, manager)
 
 			_, err := subroutine.Finalize(context.Background(), test.store)
 			if test.expectError {

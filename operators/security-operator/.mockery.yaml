@@ -13,3 +13,17 @@ packages:
       outpkg: mocks
     interfaces:
       Client:
+
+  sigs.k8s.io/multicluster-runtime/pkg/manager:
+    config:
+      dir: internal/subroutine/mocks
+      outpkg: mocks
+    interfaces:
+      Manager:
+
+  sigs.k8s.io/controller-runtime/pkg/cluster:
+      config:
+        dir: internal/subroutine/mocks
+        outpkg: mocks
+      interfaces:
+        Cluster:

@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/kontext"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 var coreModule = `
@@ -52,17 +52,17 @@ type user
 `
 
 func TestAuthorizationModelGetName(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil)
+	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil)
 	assert.Equal(t, "AuthorizationModel", subroutine.GetName())
 }
 
 func TestAuthorizationModelFinalizers(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil)
-	assert.Equal(t, []string(nil), subroutine.Finalizers())
+	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil)
+	assert.Equal(t, []string(nil), subroutine.Finalizers(nil))
 }
 
 func TestAuthorizationModelFinalize(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil)
+	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil)
 	_, err := subroutine.Finalize(context.Background(), nil)
 	assert.Nil(t, err)
 }
@@ -86,6 +86,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 		store       *v1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
+		mgrMocks    func(*mocks.MockManager)
 		expectError bool
 	}{
 		{
@@ -102,8 +103,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*v1alpha1.AuthorizationModelList)
 						am.Items = []v1alpha1.AuthorizationModel{
@@ -160,8 +160,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*v1alpha1.AuthorizationModelList)
 						am.Items = []v1alpha1.AuthorizationModel{
@@ -196,8 +195,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error"))
+				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(errors.New("error"))
 			},
 			expectError: true,
 		},
@@ -216,8 +214,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*v1alpha1.AuthorizationModelList)
 						am.Items = []v1alpha1.AuthorizationModel{
@@ -251,8 +248,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*v1alpha1.AuthorizationModelList)
 						am.Items = []v1alpha1.AuthorizationModel{
@@ -286,8 +282,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*v1alpha1.AuthorizationModelList)
 						am.Items = []v1alpha1.AuthorizationModel{
@@ -319,16 +314,23 @@ func TestAuthorizationModelProcess(t *testing.T) {
 				test.fgaMocks(fga)
 			}
 
-			k8s := mocks.NewMockClient(t)
-			if test.k8sMocks != nil {
-				test.k8sMocks(k8s)
+			manager := mocks.NewMockManager(t)
+			if test.mgrMocks != nil {
+				test.mgrMocks(manager)
 			}
 
-			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, k8s, func(clusterKey logicalcluster.Name) (client.Client, error) {
-				return k8s, nil
-			})
+			cluster := mocks.NewMockCluster(t)
+			client := mocks.NewMockClient(t)
 
-			ctx := kontext.WithCluster(context.Background(), logicalcluster.Name("a"))
+			if test.k8sMocks != nil {
+				test.k8sMocks(client)
+			}
+
+			manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+			cluster.EXPECT().GetClient().Return(client)
+
+			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager)
+			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("path")))
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {

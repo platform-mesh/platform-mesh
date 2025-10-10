@@ -3,78 +3,64 @@ package controller
 import (
 	"context"
 
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/kcp"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
+	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/multicluster-runtime/pkg/handler"
 )
 
 // StoreReconciler reconciles a Store object
 type StoreReconciler struct {
-	lifecycle    *lifecyclecontrollerruntime.LifecycleManager
-	lcClientFunc subroutine.NewLogicalClusterClientFunc
+	fga       openfgav1.OpenFGAServiceClient
+	log       *logger.Logger
+	lifecycle *lifecyclecontrollerruntime.LifecycleManager
 }
 
-func NewStoreReconciler(log *logger.Logger, clt client.Client, fga openfgav1.OpenFGAServiceClient, lcClientFunc subroutine.NewLogicalClusterClientFunc) *StoreReconciler {
+func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *StoreReconciler {
 	return &StoreReconciler{
-		lcClientFunc: lcClientFunc,
-		lifecycle: lifecyclecontrollerruntime.NewLifecycleManager(
-			[]lifecyclesubroutine.Subroutine{
-				subroutine.NewStoreSubroutine(fga, clt, lcClientFunc),
-				subroutine.NewAuthorizationModelSubroutine(fga, clt, lcClientFunc),
-				subroutine.NewTupleSubroutine(fga, clt, lcClientFunc),
-			},
-			"store",
-			"StoreReconciler",
-			clt,
-			log,
-		),
+		fga: fga,
+		log: log,
+		lifecycle: builder.NewBuilder("store", "StoreReconciler", []lifecyclesubroutine.Subroutine{
+			subroutine.NewStoreSubroutine(fga, mcMgr),
+			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr),
+			subroutine.NewTupleSubroutine(fga, mcMgr),
+		}, log).WithConditionManagement().
+			BuildMultiCluster(mcMgr),
 	}
 }
 
-func (r *StoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req, &corev1alpha1.Store{})
+func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
+	return r.lifecycle.Reconcile(ctxWithCluster, req, &corev1alpha1.Store{})
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StoreReconciler) SetupWithManager(mgr ctrl.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger) error { // coverage-ignore
-	controllerBuilder, err := r.lifecycle.
-		WithConditionManagement().
-		SetupWithManagerBuilder(mgr, cfg.MaxConcurrentReconciles, "store", &corev1alpha1.Store{}, cfg.DebugLabelValue, log)
+func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error { // coverage-ignore
+	builder, err := r.lifecycle.SetupWithManagerBuilder(mgr, cfg.MaxConcurrentReconciles, "store", &corev1alpha1.Store{}, cfg.DebugLabelValue, r.log, evp...)
 	if err != nil {
 		return err
 	}
-
-	return controllerBuilder.
+	return builder.
 		Watches(
 			&corev1alpha1.AuthorizationModel{},
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-				model := obj.(*corev1alpha1.AuthorizationModel)
-
-				lcClient, err := r.lcClientFunc(logicalcluster.Name(model.Spec.StoreRef.Path))
-				if err != nil {
-					log.Error().Err(err).Msg("failed to get logical cluster client")
-					return nil
-				}
-
-				var lc kcpcorev1alpha1.LogicalCluster
-				err = lcClient.Get(ctx, client.ObjectKey{Name: "cluster"}, &lc)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to get logical cluster")
+				model,ok := obj.(*corev1alpha1.AuthorizationModel)
+				if !ok {
 					return nil
 				}
 
@@ -83,11 +69,9 @@ func (r *StoreReconciler) SetupWithManager(mgr ctrl.Manager, cfg *platformeshcon
 						NamespacedName: types.NamespacedName{
 							Name: model.Spec.StoreRef.Name,
 						},
-						ClusterName: lc.Annotations["kcp.io/cluster"],
 					},
 				}
 			}),
-			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
-		).
-		Complete(kcp.WithClusterInContext(r))
+			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).Complete(r)
 }

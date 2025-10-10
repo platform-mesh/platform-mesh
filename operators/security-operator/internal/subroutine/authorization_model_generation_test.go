@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +40,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			binding: &kcpv1alpha1.APIBinding{
 				Spec: kcpv1alpha1.APIBindingSpec{Reference: kcpv1alpha1.BindingReference{Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"}}},
 			},
-			mockSetup: func(kcpClient *mocks.MockClient) {},
+			mockSetup:   func(kcpClient *mocks.MockClient) {},
 			expectError: true,
 		},
 		{
@@ -57,12 +56,15 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			},
 		},
 		{
-			name: "error on lcClientFunc for apiExport client",
+			name: "error on getting apiExport",
 			binding: &kcpv1alpha1.APIBinding{
 				Spec: kcpv1alpha1.APIBindingSpec{Reference: kcpv1alpha1.BindingReference{Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"}}},
 			},
 			mockSetup: func(kcpClient *mocks.MockClient) {
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				// account info exists
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				// apiExport Get fails
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 			expectError: true,
 		},
@@ -257,21 +259,21 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			manager := mocks.NewMockManager(t)
+			cluster := mocks.NewMockCluster(t)
 			kcpClient := mocks.NewMockClient(t)
-			lcFunc := func(clusterKey logicalcluster.Name) (client.Client, error) {
-				// Simulate lcClientFunc error for specific tests by checking name value
-				if test.name == "error on lcClientFunc for binding workspace client" {
-					return nil, assert.AnError
+
+			if test.name == "error on lcClientFunc for binding workspace client" {
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
+			} else {
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
+				cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
+				if test.mockSetup != nil {
+					test.mockSetup(kcpClient)
 				}
-				if test.name == "error on lcClientFunc for apiExport client" && string(clusterKey) == "bar" {
-					return nil, assert.AnError
-				}
-				return kcpClient, nil
 			}
-			if test.mockSetup != nil {
-				test.mockSetup(kcpClient)
-			}
-			sub := subroutine.NewAuthorizationModelGenerationSubroutine(kcpClient, lcFunc)
+			sub := subroutine.NewAuthorizationModelGenerationSubroutine(manager)
 			ctx := context.Background()
 			_, err := sub.Process(ctx, test.binding)
 			if test.expectError {
@@ -521,17 +523,21 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			manager := mocks.NewMockManager(t)
+			cluster := mocks.NewMockCluster(t)
 			kcpClient := mocks.NewMockClient(t)
-			lcFunc := func(clusterKey logicalcluster.Name) (client.Client, error) {
-				if test.name == "error on lcClientFunc for binding in Finalize" {
-					return nil, assert.AnError
+
+			if test.name == "error on lcClientFunc for binding in Finalize" {
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
+			} else {
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
+				cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
+				if test.mockSetup != nil {
+					test.mockSetup(kcpClient, test.binding)
 				}
-				return kcpClient, nil
 			}
-			if test.mockSetup != nil {
-				test.mockSetup(kcpClient, test.binding)
-			}
-			sub := subroutine.NewAuthorizationModelGenerationSubroutine(kcpClient, lcFunc)
+			sub := subroutine.NewAuthorizationModelGenerationSubroutine(manager)
 			ctx := context.Background()
 			_, err := sub.Finalize(ctx, test.binding)
 			if test.expectError {
@@ -544,6 +550,6 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 }
 
 func TestFinalizeAuthorizationModelGeneration(t *testing.T) {
-	finalizers := subroutine.NewAuthorizationModelGenerationSubroutine(nil, nil).Finalizers()
+	finalizers := subroutine.NewAuthorizationModelGenerationSubroutine(nil).Finalizers(nil)
 	assert.Equal(t, []string{}, finalizers)
 }

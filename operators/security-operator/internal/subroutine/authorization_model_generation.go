@@ -19,24 +19,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
-func NewAuthorizationModelGenerationSubroutine(cl client.Client, lcClientFunc NewLogicalClusterClientFunc) *AuthorizationModelGenerationSubroutine {
+func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
-		cl:           cl,
-		lcClientFunc: lcClientFunc,
+		mgr: mcMgr,
 	}
 }
 
 var _ lifecyclesubroutine.Subroutine = &AuthorizationModelGenerationSubroutine{}
 
 type AuthorizationModelGenerationSubroutine struct {
-	cl           client.Client
-	lcClientFunc NewLogicalClusterClientFunc
+	mgr mcmanager.Manager
 }
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
@@ -85,14 +83,19 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 	bindingToDelete := instance.(*kcpv1alpha1.APIBinding)
 
+	cluster, err := a.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
+	}
+
 	var bindings kcpv1alpha1.APIBindingList
-	err := a.cl.List(ctx, &bindings)
+	err = cluster.GetClient().List(ctx, &bindings)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
 	var toDeleteAccountInfo accountv1alpha1.AccountInfo
-	err = a.cl.Get(ctx, types.NamespacedName{Name: "account"}, &toDeleteAccountInfo)
+	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &toDeleteAccountInfo)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get account info for binding deletion")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
@@ -104,13 +107,13 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 			continue
 		}
 
-		bindingWsClient, err := a.lcClientFunc(logicalcluster.From(&binding))
+		bindingCluster, err := a.mgr.GetCluster(ctx, string(logicalcluster.From(&binding)))
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
 
 		var accountInfo accountv1alpha1.AccountInfo
-		err = bindingWsClient.Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
+		err = bindingCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
 			// If the accountinfo does not exist, we can skip the model generation.
 			return ctrl.Result{}, nil
@@ -134,7 +137,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 		return ctrl.Result{}, nil
 	}
 
-	err = a.cl.Delete(ctx, &securityv1alpha1.AuthorizationModel{
+	err = cluster.GetClient().Delete(ctx, &securityv1alpha1.AuthorizationModel{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", bindingToDelete.Spec.Reference.Export.Name, bindingToDelete.Spec.Reference.Export.Path),
 		},
@@ -152,7 +155,9 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 }
 
 // Finalizers implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Finalizers() []string { return []string{} }
+func (a *AuthorizationModelGenerationSubroutine) Finalizers(_ lifecyclecontrollerruntime.RuntimeObject) []string {
+	return []string{}
+}
 
 // GetName implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) GetName() string {
@@ -163,22 +168,17 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	binding := instance.(*kcpv1alpha1.APIBinding)
 
-	bindingWsClient, err := a.lcClientFunc(logicalcluster.From(binding))
+	cluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
 	var accountInfo accountv1alpha1.AccountInfo
-	err = bindingWsClient.Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
+	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 	if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
 		// If the accountinfo does not exist, we can skip the model generation.
 		return ctrl.Result{}, nil
 	}
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
-	}
-
-	apiExportClient, err := a.lcClientFunc(logicalcluster.Name(binding.Spec.Reference.Export.Path))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
@@ -188,15 +188,20 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 		return ctrl.Result{}, nil
 	}
 
+	apiExportCluster, err := a.mgr.GetCluster(ctx, binding.Status.APIExportClusterName)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+
 	var apiExport kcpv1alpha1.APIExport
-	err = apiExportClient.Get(ctx, types.NamespacedName{Name: binding.Spec.Reference.Export.Name}, &apiExport)
+	err = apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: binding.Spec.Reference.Export.Name}, &apiExport)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
 	for _, latestResourceSchema := range apiExport.Spec.LatestResourceSchemas {
 		var resourceSchema kcpv1alpha1.APIResourceSchema
-		err := apiExportClient.Get(ctx, types.NamespacedName{Name: latestResourceSchema}, &resourceSchema)
+		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema}, &resourceSchema)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
@@ -226,7 +231,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 			},
 		}
 
-		_, err = controllerutil.CreateOrUpdate(ctx, apiExportClient, &model, func() error {
+		_, err = controllerutil.CreateOrUpdate(ctx, apiExportCluster.GetClient(), &model, func() error {
 			model.Spec = securityv1alpha1.AuthorizationModelSpec{
 				Model: buffer.String(),
 				StoreRef: securityv1alpha1.WorkspaceStoreRef{

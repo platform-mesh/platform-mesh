@@ -3,11 +3,10 @@ package subroutine
 import (
 	"context"
 	"fmt"
-	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	kcptenancyv1alphav1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
-	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/security-operator/internal/config"
@@ -38,13 +37,15 @@ var _ lifecyclesubroutine.Subroutine = &workspaceAuthSubroutine{}
 
 func (r *workspaceAuthSubroutine) GetName() string { return "workspaceAuthConfiguration" }
 
-func (r *workspaceAuthSubroutine) Finalizers() []string { return []string{} }
+func (r *workspaceAuthSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+	return []string{}
+}
 
-func (r *workspaceAuthSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (r *workspaceAuthSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	return reconcile.Result{}, nil
 }
 
-func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
@@ -52,20 +53,16 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
 
-	//TODO use ctx after migrating to multi-cluster runtime
-	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	var domainCASecret corev1.Secret
 	if r.cfg.DomainCALookup {
-		err := r.runtimeClient.Get(ctxWithTimeout, client.ObjectKey{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, &domainCASecret)
+		err := r.runtimeClient.Get(ctx, client.ObjectKey{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, &domainCASecret)
 		if err != nil {
 			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get domain CA secret: %w", err), true, false)
 		}
 	}
 
 	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err := controllerutil.CreateOrUpdate(ctxWithTimeout, r.client, obj, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, func() error {
 		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				{

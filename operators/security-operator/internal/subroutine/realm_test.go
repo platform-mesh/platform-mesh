@@ -184,6 +184,27 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			require.Equal(t, ctrl.Result{}, res)
 		})
 
+		// New: success create with SMTP config
+		t.Run("success create with SMTP config", func(t *testing.T) {
+			t.Parallel()
+			clientMock := newClientMock(t, func(m *mocks.MockClient) {
+				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Twice()
+			})
+
+			cfg := &config.Config{}
+			cfg.IDP.SMTPServer = "smtp.example.com"
+			cfg.IDP.SMTPPort = 587
+			cfg.IDP.FromAddress = "noreply@example.com"
+			cfg.IDP.SSL = false
+			cfg.IDP.StartTLS = true
+			rs := NewRealmSubroutine(clientMock, cfg, baseDomain)
+			lc := &kcpv1alpha1.LogicalCluster{}
+			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
+			res, opErr := rs.Process(context.Background(), lc)
+			require.Nil(t, opErr)
+			require.Equal(t, ctrl.Result{}, res)
+		})
+
 		t.Run("oci repository apply fails", func(t *testing.T) {
 			t.Parallel()
 			clientMock := newClientMock(t, func(m *mocks.MockClient) {
@@ -196,6 +217,16 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			lc := &kcpv1alpha1.LogicalCluster{}
 			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 			res, opErr := rs.Process(context.Background(), lc)
+			require.NotNil(t, opErr)
+			require.Equal(t, ctrl.Result{}, res)
+		})
+
+		// New: Finalize missing workspace annotation
+		t.Run("missing workspace annotation in Finalize", func(t *testing.T) {
+			clientMock := newClientMock(t, nil)
+			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
+			lc := &kcpv1alpha1.LogicalCluster{}
+			res, opErr := rs.Finalize(context.Background(), lc)
 			require.NotNil(t, opErr)
 			require.Equal(t, ctrl.Result{}, res)
 		})
