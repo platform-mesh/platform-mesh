@@ -41,6 +41,9 @@ func init() {
 	if err := platformeshconfig.BindConfigToFlags(v, initializerCmd, &appCfg); err != nil {
 		panic(err)
 	}
+	if err := platformeshconfig.BindConfigToFlags(v, operatorCmd, &appCfg); err != nil {
+		panic(err)
+	}
 
 	cobra.OnInitialize(initLog)
 }

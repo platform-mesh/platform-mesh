@@ -2,19 +2,19 @@ apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v250401-5769f6b.authorizationmodels.core.platform-mesh.io
+  name: v251007-1d3512f.invites.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
-    kind: AuthorizationModel
-    listKind: AuthorizationModelList
-    plural: authorizationmodels
-    singular: authorizationmodel
+    kind: Invite
+    listKind: InviteList
+    plural: invites
+    singular: invite
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
-      description: AuthorizationModel is the Schema for the authorizationmodels API.
+      description: Invite is the Schema for the invites API
       properties:
         apiVersion:
           description: |-
@@ -34,41 +34,15 @@ spec:
         metadata:
           type: object
         spec:
-          description: AuthorizationModelSpec defines the desired state of AuthorizationModel.
+          description: spec defines the desired state of Invite
           properties:
-            model:
+            email:
               type: string
-            storeRef:
-              properties:
-                name:
-                  type: string
-                path:
-                  type: string
-              required:
-              - name
-              - path
-              type: object
-            tuples:
-              items:
-                properties:
-                  object:
-                    type: string
-                  relation:
-                    type: string
-                  user:
-                    type: string
-                required:
-                - object
-                - relation
-                - user
-                type: object
-              type: array
           required:
-          - model
-          - storeRef
+          - email
           type: object
         status:
-          description: AuthorizationModelStatus defines the observed state of AuthorizationModel.
+          description: status defines the observed state of Invite
           properties:
             conditions:
               items:
@@ -126,22 +100,9 @@ spec:
                 - type
                 type: object
               type: array
-            managedTuples:
-              items:
-                properties:
-                  object:
-                    type: string
-                  relation:
-                    type: string
-                  user:
-                    type: string
-                required:
-                - object
-                - relation
-                - user
-                type: object
-              type: array
           type: object
+      required:
+      - spec
       type: object
     served: true
     storage: true

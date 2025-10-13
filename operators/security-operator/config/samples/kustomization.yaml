@@ -2,4 +2,5 @@
 resources:
 - core_v1alpha1_store.yaml
 - core_v1alpha1_authorizationmodel.yaml
+- core_v1alpha1_invite.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

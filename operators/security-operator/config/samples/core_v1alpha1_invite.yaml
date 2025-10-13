@@ -1,0 +1,7 @@
+apiVersion: core.platform-mesh.io/v1alpha1
+kind: Invite
+metadata:
+  name: invite-sample
+spec:
+  email: text2@acme.corp
+  role: owner # optional

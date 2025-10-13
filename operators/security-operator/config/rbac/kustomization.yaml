@@ -27,3 +27,10 @@ resources:
 - store_editor_role.yaml
 - store_viewer_role.yaml
 
+# For each CRD, "Admin", "Editor" and "Viewer" roles are scaffolded by
+# default, aiding admins in cluster management. Those roles are
+# not used by the security-operator itself. You can comment the following lines
+# if you do not want those helpers be installed with your Project.
+- invite_admin_role.yaml
+- invite_editor_role.yaml
+- invite_viewer_role.yaml
