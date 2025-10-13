@@ -14,13 +14,14 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/config"
 	"golang.org/x/oauth2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/config"
 )
 
 const (
@@ -43,7 +44,8 @@ type keycloakUser struct {
 
 func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, pwd string) (*subroutine, error) {
 
-	provider, err := oidc.NewProvider(ctx, fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL))
+	issuer := fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL)
+	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
 		return nil, err
 	}

@@ -3,12 +3,6 @@ FROM golang:1.25.2-bookworm AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
-### BEGIN GHE Configurations ###
-ENV GOPRIVATE="github.com/platform-mesh"
-ENV GOSUMDB=off
-
-RUN git config --global credential.helper store
-RUN --mount=type=secret,id=org_token echo "https://gha:$(cat /run/secrets/org_token)@github.com" > /root/.git-credentials
 WORKDIR /workspace
 
 # Copy the Go Modules manifests

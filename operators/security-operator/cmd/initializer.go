@@ -19,15 +19,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/platform-mesh/security-operator/internal/controller"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	"github.com/platform-mesh/security-operator/internal/controller"
 )
 
 var initializerCmd = &cobra.Command{
 	Use:   "initializer",
 	Short: "FGA initializer for the organization workspacetype",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _, shutdown := pmcontext.StartContext(log, appCfg, defaultCfg.ShutdownTimeout)
+		ctx, _, shutdown := pmcontext.StartContext(log, initializerCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
 		mgrCfg := ctrl.GetConfigOrDie()
@@ -57,7 +58,7 @@ var initializerCmd = &cobra.Command{
 		}
 
 		provider, err := initializingworkspaces.New(mgrCfg, initializingworkspaces.Options{
-			InitializerName: appCfg.InitializerName,
+			InitializerName: initializerCfg.InitializerName,
 			Scheme:          mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -93,11 +94,11 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if appCfg.IDP.AdditionalRedirectURLs == nil {
-			appCfg.IDP.AdditionalRedirectURLs = []string{}
+		if initializerCfg.IDP.AdditionalRedirectURLs == nil {
+			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		if err := controller.NewLogicalClusterReconciler(log, orgClient, appCfg, inClusterClient, mgr).
+		if err := controller.NewLogicalClusterReconciler(log, orgClient, initializerCfg, inClusterClient, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)

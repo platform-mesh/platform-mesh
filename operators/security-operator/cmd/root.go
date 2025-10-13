@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"flag"
+	"strings"
 
 	"github.com/go-logr/logr"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
@@ -14,11 +15,11 @@ import (
 )
 
 var (
-	defaultCfg *platformeshconfig.CommonServiceConfig
-	appCfg     config.Config
-	v          *viper.Viper
-	log        *logger.Logger
-	setupLog   logr.Logger
+	defaultCfg     *platformeshconfig.CommonServiceConfig
+	initializerCfg config.Config
+	operatorCfg    config.Config
+	log            *logger.Logger
+	setupLog       logr.Logger
 )
 
 var rootCmd = &cobra.Command{
@@ -33,19 +34,30 @@ func init() {
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 
 	var err error
-	v, defaultCfg, err = platformeshconfig.NewDefaultConfig(rootCmd)
+	_, defaultCfg, err = platformeshconfig.NewDefaultConfig(rootCmd)
 	if err != nil {
 		panic(err)
 	}
 
-	if err := platformeshconfig.BindConfigToFlags(v, initializerCmd, &appCfg); err != nil {
+	operatorV := newViper()
+	if err := platformeshconfig.BindConfigToFlags(operatorV, operatorCmd, &operatorCfg); err != nil {
 		panic(err)
 	}
-	if err := platformeshconfig.BindConfigToFlags(v, operatorCmd, &appCfg); err != nil {
+	initializerV := newViper()
+	if err := platformeshconfig.BindConfigToFlags(initializerV, initializerCmd, &initializerCfg); err != nil {
 		panic(err)
 	}
 
 	cobra.OnInitialize(initLog)
+}
+
+func newViper() *viper.Viper {
+	v := viper.NewWithOptions(
+		viper.EnvKeyReplacer(strings.NewReplacer("-", "_")),
+	)
+
+	v.AutomaticEnv()
+	return v
 }
 
 func initLog() { // coverage-ignore
