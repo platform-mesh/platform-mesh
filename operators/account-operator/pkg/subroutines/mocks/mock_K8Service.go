@@ -527,6 +527,78 @@ func (_m *Client) EXPECT() *Client_Expecter {
 	return &Client_Expecter{mock: &_m.Mock}
 }
 
+// Apply provides a mock function for the type Client
+func (_mock *Client) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.ApplyOption) error {
+	var tmpRet mock.Arguments
+	if len(opts) > 0 {
+		tmpRet = _mock.Called(ctx, obj, opts)
+	} else {
+		tmpRet = _mock.Called(ctx, obj)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Apply")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, runtime.ApplyConfiguration, ...client.ApplyOption) error); ok {
+		r0 = returnFunc(ctx, obj, opts...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Client_Apply_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Apply'
+type Client_Apply_Call struct {
+	*mock.Call
+}
+
+// Apply is a helper method to define mock.On call
+//   - ctx context.Context
+//   - obj runtime.ApplyConfiguration
+//   - opts ...client.ApplyOption
+func (_e *Client_Expecter) Apply(ctx interface{}, obj interface{}, opts ...interface{}) *Client_Apply_Call {
+	return &Client_Apply_Call{Call: _e.mock.On("Apply",
+		append([]interface{}{ctx, obj}, opts...)...)}
+}
+
+func (_c *Client_Apply_Call) Run(run func(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.ApplyOption)) *Client_Apply_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 runtime.ApplyConfiguration
+		if args[1] != nil {
+			arg1 = args[1].(runtime.ApplyConfiguration)
+		}
+		var arg2 []client.ApplyOption
+		var variadicArgs []client.ApplyOption
+		if len(args) > 2 {
+			variadicArgs = args[2].([]client.ApplyOption)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_Apply_Call) Return(err error) *Client_Apply_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Client_Apply_Call) RunAndReturn(run func(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.ApplyOption) error) *Client_Apply_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function for the type Client
 func (_mock *Client) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	var tmpRet mock.Arguments

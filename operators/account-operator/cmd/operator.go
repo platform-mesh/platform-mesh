@@ -20,9 +20,10 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"net/url"
 	"strings"
 
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/platform-mesh/golang-commons/traces"
@@ -35,9 +36,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/kcp"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -50,12 +51,6 @@ var operatorCmd = &cobra.Command{
 	Short: "operator to reconcile Accounts",
 	Run:   RunController,
 }
-
-var (
-	enableLeaderElection bool
-	secureMetrics        bool
-	enableHTTP2          bool
-)
 
 func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	var err error
@@ -70,7 +65,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	}
 
 	var tlsOpts []func(*tls.Config)
-	if !enableHTTP2 {
+	if !defaultCfg.EnableHTTP2 {
 		tlsOpts = append(tlsOpts, disableHTTP2)
 	}
 
@@ -80,13 +75,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to start gRPC-Sidecar TracerProvider")
 		}
-	} else {
-		providerShutdown, err = traces.InitLocalProvider(ctx, defaultCfg.Tracing.Collector, false)
-		if err != nil {
-			log.Fatal().Err(err).Msg("unable to start local TracerProvider")
-		}
 	}
-
 	defer func() {
 		if err := providerShutdown(ctx); err != nil {
 			log.Fatal().Err(err).Msg("failed to shutdown TracerProvider")
@@ -98,47 +87,42 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		CertDir: operatorCfg.Webhooks.CertDir,
 		Port:    operatorCfg.Webhooks.Port,
 	})
+
 	restCfg := ctrl.GetConfigOrDie()
 	restCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)
 	})
-	opts := ctrl.Options{
+
+	var leaderCfg *rest.Config
+	if defaultCfg.LeaderElection.Enabled {
+		leaderCfg, err = rest.InClusterConfig()
+		if err != nil {
+			log.Fatal().Err(err).Msg("unable to get in-cluster config")
+		}
+	}
+
+	providerCfg := rest.CopyConfig(restCfg)
+
+	provider, err := apiexport.New(providerCfg, apiexport.Options{Scheme: scheme})
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to construct APIExport provider")
+	}
+
+	mgr, err := mcmanager.New(providerCfg, provider, mcmanager.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress:   defaultCfg.Metrics.BindAddress,
-			SecureServing: secureMetrics,
+			SecureServing: defaultCfg.Metrics.Secure,
 			TLSOpts:       tlsOpts,
 		},
 		BaseContext:                   func() context.Context { return ctx },
 		WebhookServer:                 webhookServer,
 		HealthProbeBindAddress:        defaultCfg.HealthProbeBindAddress,
-		LeaderElection:                enableLeaderElection,
+		LeaderElection:                defaultCfg.LeaderElection.Enabled,
 		LeaderElectionID:              "8c290d9a.platform-mesh.io",
-		LeaderElectionConfig:          restCfg,
+		LeaderElectionConfig:          leaderCfg,
 		LeaderElectionReleaseOnCancel: true,
-	}
-	var mgr ctrl.Manager
-	mgrConfig := rest.CopyConfig(restCfg)
-	if len(operatorCfg.Kcp.ApiExportEndpointSliceName) > 0 {
-		// Lookup API Endpointslice
-		kclient, err := client.New(restCfg, client.Options{
-			Scheme: scheme,
-		})
-		if err != nil {
-			log.Fatal().Err(err).Msg("unable to create client")
-		}
-		es := &apisv1alpha1.APIExportEndpointSlice{}
-		err = kclient.Get(ctx, client.ObjectKey{Name: operatorCfg.Kcp.ApiExportEndpointSliceName}, es)
-		if err != nil {
-			log.Fatal().Err(err).Msg("unable to create client")
-		}
-		if len(es.Status.APIExportEndpoints) == 0 {
-			log.Fatal().Msg("no APIExportEndpoints found")
-		}
-		log.Info().Str("host", es.Status.APIExportEndpoints[0].URL).Msg("using host")
-		mgrConfig.Host = es.Status.APIExportEndpoints[0].URL
-	}
-	mgr, err = kcp.NewClusterAwareManager(mgrConfig, opts)
+	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to start manager")
 	}
@@ -146,12 +130,12 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	var fgaClient openfgav1.OpenFGAServiceClient
 	if operatorCfg.Subroutines.FGA.Enabled {
 		log.Debug().Str("GrpcAddr", operatorCfg.Subroutines.FGA.GrpcAddr).Msg("Creating FGA Client")
+
 		conn, err := grpc.NewClient(operatorCfg.Subroutines.FGA.GrpcAddr,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		)
 		if err != nil {
-
 			log.Fatal().Err(err).Msg("error when creating the grpc client")
 		}
 		log.Debug().Msg("FGA client created")
@@ -159,7 +143,12 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		fgaClient = openfgav1.NewOpenFGAServiceClient(conn)
 	}
 
-	accountReconciler := controller.NewAccountReconciler(log, mgr, operatorCfg, fgaClient)
+	orgsClient, err := buildOrgsClient(mgr.GetLocalManager())
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to create orgs client")
+	}
+
+	accountReconciler := controller.NewAccountReconciler(log, mgr, operatorCfg, orgsClient, fgaClient)
 	if err := accountReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 		log.Fatal().Err(err).Str("controller", "Account").Msg("unable to create controller")
 	}
@@ -172,8 +161,9 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 				denyList[i] = strings.TrimSpace(item)
 			}
 		}
+
 		log.Info().Strs("deniedNames", denyList).Msg("webhooks are enabled")
-		if err := v1alpha1.SetupAccountWebhookWithManager(mgr, denyList); err != nil {
+		if err := v1alpha1.SetupAccountWebhookWithManager(mgr.GetLocalManager(), denyList); err != nil {
 			log.Fatal().Err(err).Str("webhook", "Account").Msg("unable to create webhook")
 		}
 	}
@@ -185,8 +175,33 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to set up ready check")
 	}
 
+	log.Info().Msg("starting APIExport provider")
+	go func() {
+		if err := provider.Run(ctx, mgr); err != nil {
+			log.Fatal().Err(err).Msg("problem running APIExport provider")
+		}
+	}()
+
 	log.Info().Msg("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("problem running manager")
 	}
+}
+
+func buildOrgsClient(mgr ctrl.Manager) (client.Client, error) {
+	cfg := rest.CopyConfig(mgr.GetConfig())
+
+	parsed, err := url.Parse(cfg.Host)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to parse host")
+		return nil, err
+	}
+
+	parsed.Path = "/clusters/root:orgs"
+
+	cfg.Host = parsed.String()
+
+	return client.New(cfg, client.Options{
+		Scheme: scheme,
+	})
 }

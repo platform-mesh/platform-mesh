@@ -45,30 +45,34 @@ type AccountValidator struct {
 
 func (v *AccountValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	account := obj.(*Account)
-	if account.Spec.Type == AccountTypeOrg {
-
-		if len(strings.TrimSpace(account.Name)) < 3 {
-			return nil, fmt.Errorf("organization name %q is too short, must be at least 3 characters", account.Name)
-		}
-
-		if slices.Contains(v.DenyList, account.Name) {
-			return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
-		}
+	if account.Spec.Type != AccountTypeOrg {
+		return nil, nil
 	}
+
+	if len(strings.TrimSpace(account.Name)) < 3 {
+		return nil, fmt.Errorf("organization name %q is too short, must be at least 3 characters", account.Name)
+	}
+
+	if slices.Contains(v.DenyList, account.Name) {
+		return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
+	}
+
 	return nil, nil
 }
 
 func (v *AccountValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	account := newObj.(*Account)
 
-	if account.Spec.Type == AccountTypeOrg {
-		if len(strings.TrimSpace(account.Name)) < 3 {
-			return nil, fmt.Errorf("organization name %q is too short, must be at least 3 characters", account.Name)
-		}
+	if account.Spec.Type != AccountTypeOrg {
+		return nil, nil
+	}
 
-		if slices.Contains(v.DenyList, account.Name) {
-			return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
-		}
+	if len(strings.TrimSpace(account.Name)) < 3 {
+		return nil, fmt.Errorf("organization name %q is too short, must be at least 3 characters", account.Name)
+	}
+
+	if slices.Contains(v.DenyList, account.Name) {
+		return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
 	}
 
 	return nil, nil

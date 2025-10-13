@@ -42,18 +42,12 @@ func init() {
 		panic(err)
 	}
 
-	cobra.OnInitialize(initConfig)
-
 	err = platformmeshcontext.BindConfigToFlags(v, operatorCmd, &operatorCfg)
 	if err != nil {
 		panic(err)
 	}
 
 	cobra.OnInitialize(initLog)
-}
-
-func initConfig() {
-
 }
 
 func initLog() { // coverage-ignore

@@ -24,10 +24,8 @@ import (
 type AccountType string
 
 const (
-	AccountTypeOrg                      AccountType = "org"
-	AccountTypeAccount                  AccountType = "account"
-	NamespaceAccountOwnerLabel          AccountType = "account.core.platform-mesh.io/owner"
-	NamespaceAccountOwnerNamespaceLabel AccountType = "account.core.platform-mesh.io/owner-namespace"
+	AccountTypeOrg     AccountType = "org"
+	AccountTypeAccount AccountType = "account"
 )
 
 // AccountSpec defines the desired state of Account

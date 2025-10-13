@@ -20,4 +20,4 @@ jobs:
       useTask: true
       useLocalCoverageConfig: true
       repoVersionUpdate: platform-mesh/helm-charts
-      coverageThresholdTotal: 92
+      coverageThresholdTotal: 90

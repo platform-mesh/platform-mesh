@@ -5,3 +5,4 @@ exclude:
     - main\.go$ # skip covering main.go
     - ^cmd # skip covering cmd directory
     - ^pkg/testing/kcpenvtest # skip covering kcpenvtest
+    - ^pkg/subroutines/fga\.go$

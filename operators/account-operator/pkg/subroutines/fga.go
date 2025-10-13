@@ -8,7 +8,7 @@ import (
 	"time"
 
 	kcpcorev1alpha "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v3"
+	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -18,54 +18,70 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/kontext"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/account-operator/pkg/clusteredname"
+	"github.com/platform-mesh/account-operator/pkg/subroutines/accountinfo"
 )
 
 type FGASubroutine struct {
 	fgaClient       openfgav1.OpenFGAServiceClient
-	client          client.Client
+	mgr             mcmanager.Manager
 	objectType      string
 	parentRelation  string
 	creatorRelation string
-	limiter         workqueue.TypedRateLimiter[ClusteredName]
+
+	limiter workqueue.TypedRateLimiter[clusteredname.ClusteredName]
 }
 
-func NewFGASubroutine(cl client.Client, fgaClient openfgav1.OpenFGAServiceClient, creatorRelation, parentRealtion, objectType string) *FGASubroutine {
-	exp := workqueue.NewTypedItemExponentialFailureRateLimiter[ClusteredName](1*time.Second, 120*time.Second)
+func NewFGASubroutine(mgr mcmanager.Manager, fgaClient openfgav1.OpenFGAServiceClient, creatorRelation, parentRelation, objectType string) *FGASubroutine {
 	return &FGASubroutine{
-		client:          cl,
+		mgr:             mgr,
 		fgaClient:       fgaClient,
 		creatorRelation: creatorRelation,
-		parentRelation:  parentRealtion,
+		parentRelation:  parentRelation,
 		objectType:      objectType,
-		limiter:         exp,
+		limiter:         workqueue.NewTypedItemExponentialFailureRateLimiter[clusteredname.ClusteredName](1*time.Second, 120*time.Second),
 	}
 }
 
 func (e *FGASubroutine) Process(ctx context.Context, ro runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	account := ro.(*v1alpha1.Account)
-	cn := MustGetClusteredName(ctx, ro)
+	cn := clusteredname.MustGetClusteredName(ctx, ro)
 
 	log := logger.LoadLoggerFromContext(ctx)
 	log.Debug().Msg("Starting creator subroutine process() function")
 
-	accountWorkspace, err := retrieveWorkspace(ctx, account, e.client, log)
+	clusterName, ok := mccontext.ClusterFrom(ctx)
+	if !ok {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cluster client not available: ensure context carries cluster information"), true, true)
+	}
+
+	clusterRef, err := e.mgr.GetCluster(ctx, clusterName)
 	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+	clusterClient := clusterRef.GetClient()
+
+	accountWorkspace := &kcptenancyv1alpha.Workspace{}
+	if err := clusterClient.Get(ctx, client.ObjectKey{Name: account.Name}, accountWorkspace); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
 	if accountWorkspace.Status.Phase != kcpcorev1alpha.LogicalClusterPhaseReady {
 		log.Info().Msg("workspace is not ready yet, retry")
-		next := e.limiter.When(cn)
-		return ctrl.Result{RequeueAfter: next}, nil
+		return ctrl.Result{RequeueAfter: e.limiter.When(cn)}, nil
 	}
 
-	// Prepare context to work in workspace
-	wsCtx := kontext.WithCluster(ctx, logicalcluster.Name(accountWorkspace.Spec.Cluster))
+	accountCluster, err := e.mgr.GetCluster(ctx, accountWorkspace.Spec.Cluster)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+	accountClusterClient := accountCluster.GetClient()
 
-	accountInfo, err := e.getAccountInfo(wsCtx)
+	accountInfo, err := e.getAccountInfo(ctx, accountClusterClient)
 	if err != nil {
 		log.Error().Err(err).Msg("Couldn't get Store Id")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
@@ -104,8 +120,8 @@ func (e *FGASubroutine) Process(ctx context.Context, ro runtimeobject.RuntimeObj
 	creatorTuplesWritten := meta.IsStatusConditionTrue(account.Status.Conditions, fmt.Sprintf("%s_Ready", e.GetName()))
 	if account.Spec.Creator != nil && !creatorTuplesWritten {
 		if valid := validateCreator(*account.Spec.Creator); !valid {
-			log.Error().Err(err).Str("creator", *account.Spec.Creator).Msg("creator string is in the protected service account prefix range")
-			return ctrl.Result{}, errors.NewOperatorError(err, false, false)
+			log.Error().Str("creator", *account.Spec.Creator).Msg("creator string is in the protected service account prefix range")
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("creator in protected service account range"), false, false)
 		}
 		creator := formatUser(*account.Spec.Creator)
 
@@ -151,7 +167,18 @@ func (e *FGASubroutine) Finalize(ctx context.Context, runtimeObj runtimeobject.R
 
 	// Skip fga account finalization for organizations because the store is removed completely
 	if account.Spec.Type != v1alpha1.AccountTypeOrg {
-		accountInfo, err := e.getAccountInfo(ctx)
+		clusterName, ok := mccontext.ClusterFrom(ctx)
+		if !ok {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cluster client not available: ensure context carries cluster information"), true, true)
+		}
+
+		clusterRef, err := e.mgr.GetCluster(ctx, clusterName)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		}
+		clusterClient := clusterRef.GetClient()
+
+		accountInfo, err := e.getAccountInfo(ctx, clusterClient)
 		if err != nil {
 			log.Error().Err(err).Msg("Couldn't get Store Id")
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
@@ -213,10 +240,9 @@ func (e *FGASubroutine) Finalize(ctx context.Context, runtimeObj runtimeobject.R
 	return ctrl.Result{}, nil
 }
 
-func (e *FGASubroutine) getAccountInfo(ctx context.Context) (*v1alpha1.AccountInfo, error) {
-	// Get AccountInfo For Project
+func (e *FGASubroutine) getAccountInfo(ctx context.Context, cl client.Client) (*v1alpha1.AccountInfo, error) {
 	accountInfo := &v1alpha1.AccountInfo{}
-	err := e.client.Get(ctx, client.ObjectKey{Name: DefaultAccountInfoName}, accountInfo)
+	err := cl.Get(ctx, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +251,9 @@ func (e *FGASubroutine) getAccountInfo(ctx context.Context) (*v1alpha1.AccountIn
 
 func (e *FGASubroutine) GetName() string { return "FGASubroutine" }
 
-func (e *FGASubroutine) Finalizers() []string { return []string{"account.core.platform-mesh.io/fga"} }
+func (e *FGASubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+	return []string{"account.core.platform-mesh.io/fga"}
+}
 
 var saRegex = regexp.MustCompile(`^system:serviceaccount:[^:]*:[^:]*$`)
 
@@ -240,5 +268,5 @@ func formatUser(user string) string {
 
 // validateCreator validates the creator string to ensure if it is not in the service account prefix range
 func validateCreator(creator string) bool {
-	return !strings.HasPrefix(creator, "system.serviceaccount")
+	return !strings.HasPrefix(creator, "system:serviceaccount:")
 }
