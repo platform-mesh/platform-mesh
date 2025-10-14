@@ -2,6 +2,8 @@ module github.com/platform-mesh/security-operator
 
 go 1.25.0
 
+replace github.com/kcp-dev/multicluster-provider v0.2.0 => github.com/kcp-dev/multicluster-provider v0.0.0-20250827085327-2b5ca378b7b4
+
 require (
 	github.com/coreos/go-oidc v2.4.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.4.2
@@ -12,7 +14,7 @@ require (
 	github.com/kcp-dev/multicluster-provider v0.2.0
 	github.com/openfga/api/proto v0.0.0-20250909173124-0ac19aac54f2
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250919191407-efa08b02a76a
-	github.com/platform-mesh/account-operator v0.4.5
+	github.com/platform-mesh/account-operator v0.5.1
 	github.com/platform-mesh/golang-commons v0.6.1
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.1

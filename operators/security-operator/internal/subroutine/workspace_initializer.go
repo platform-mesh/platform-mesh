@@ -91,7 +91,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 
 	if store.Status.StoreID == "" {
 		// Store is not ready yet, requeue
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store id is empty"), true, false)
 	}
 
 	cluster, err := w.mgr.ClusterFromContext(ctx)

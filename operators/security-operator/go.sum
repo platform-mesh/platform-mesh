@@ -114,8 +114,8 @@ github.com/kcp-dev/kcp/sdk v0.28.1-0.20250926104223-cec2e15f24c6 h1:bOR4mdLD24VC
 github.com/kcp-dev/kcp/sdk v0.28.1-0.20250926104223-cec2e15f24c6/go.mod h1:aC2BPGPvy8QtkI2gQNH9NfW6xpfGIKZkR93gy9O02BE=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
-github.com/kcp-dev/multicluster-provider v0.2.0 h1:Nk1uHL+9ljAbHJx2IqiP4G2LWJmu2DBxGVHBhKWgp4c=
-github.com/kcp-dev/multicluster-provider v0.2.0/go.mod h1:4mbY+bdAsSRJfzSzewM0bfxkzx9YCvG3sy3OOhiZG5I=
+github.com/kcp-dev/multicluster-provider v0.0.0-20250827085327-2b5ca378b7b4 h1:GUihV22j2J/cGF5Svr/zGVvfqTJepIO+sOnYTn9o4Vc=
+github.com/kcp-dev/multicluster-provider v0.0.0-20250827085327-2b5ca378b7b4/go.mod h1:E/NxN2SMtC7b6iXgFMlQYWA7lJIfDPqRkPdvpxOEQLA=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
@@ -157,8 +157,8 @@ github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4
 github.com/pingcap/errors v0.11.4/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
-github.com/platform-mesh/account-operator v0.4.5 h1:g669DP340c1VtUODWAQpAbiUOTus6Fr9WvvUJpF7cGw=
-github.com/platform-mesh/account-operator v0.4.5/go.mod h1:joYQ+uPK6fpcLlinrK1dY6WnxB+y1/F1rWgeUP3UGhE=
+github.com/platform-mesh/account-operator v0.5.1 h1:CeF7MDJ+KbL4gHechyjU0Pjel36f/Y5JTsP++rLqQlc=
+github.com/platform-mesh/account-operator v0.5.1/go.mod h1:itjGdSkN329WScwSITzUXuWKI6aNSu29BdWGu8aEFaY=
 github.com/platform-mesh/golang-commons v0.6.1 h1:cSA42oCbWcQUo/ZQAZhDcVhEfWve3haRIsa4h3OIY18=
 github.com/platform-mesh/golang-commons v0.6.1/go.mod h1:5+KiHZXhZFbKUupBVKRfEQXTzaH716ntpwW2pNP8EqI=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
@@ -236,8 +236,8 @@ go.opentelemetry.io/otel/trace v1.38.0 h1:Fxk5bKrDZJUH+AMyyIXGcFAPah0oRcT+LuNtJr
 go.opentelemetry.io/otel/trace v1.38.0/go.mod h1:j1P9ivuFsTceSWe1oY+EeW3sc+Pp42sO++GHkg4wwhs=
 go.opentelemetry.io/proto/otlp v1.8.0 h1:fRAZQDcAFHySxpJ1TwlA1cJ4tvcrw7nXl9xWWC8N5CE=
 go.opentelemetry.io/proto/otlp v1.8.0/go.mod h1:tIeYOeNBU4cvmPqpaji1P+KbB4Oloai8wN4rWzRrFF0=
-go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
-go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
+go.uber.org/goleak v1.3.1-0.20241121203838-4ff5fa6529ee h1:uOMbcH1Dmxv45VkkpZQYoerZFeDncWpjbN7ATiQOO7c=
+go.uber.org/goleak v1.3.1-0.20241121203838-4ff5fa6529ee/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
 go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
 go.uber.org/zap v1.27.0 h1:aJMhYGrd5QSmlpLMr2MftRKl7t8J8PTZPA732ud/XR8=
