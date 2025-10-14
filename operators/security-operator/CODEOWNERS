@@ -1,4 +1,4 @@
 # Default code owners
-* @platform-mesh/tsc
+* @platform-mesh/frame
 go.mod
 go.sum
