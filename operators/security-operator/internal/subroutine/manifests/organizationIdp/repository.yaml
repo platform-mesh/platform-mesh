@@ -7,4 +7,4 @@ spec:
   interval: 5m
   url: oci://ghcr.io/platform-mesh/helm-charts/organization-idp
   ref:
-    semver: "0.3.0"
+    semver: "0.4.0"

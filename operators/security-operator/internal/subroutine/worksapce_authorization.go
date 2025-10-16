@@ -69,7 +69,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 					Issuer: kcptenancyv1alphav1.Issuer{
 						URL:                 fmt.Sprintf("https://%s/keycloak/realms/%s", r.cfg.BaseDomain, workspaceName),
 						AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
-						Audiences:           []string{workspaceName},
+						Audiences:           []string{workspaceName, "kubectl"},
 					},
 					ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
 						Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
