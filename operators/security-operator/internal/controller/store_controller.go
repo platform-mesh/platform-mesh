@@ -2,9 +2,13 @@ package controller
 
 import (
 	"context"
+	"net/url"
+	"strings"
 
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
@@ -32,12 +36,38 @@ type StoreReconciler struct {
 }
 
 func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *StoreReconciler {
+
+	allCfg := rest.CopyConfig(mcMgr.GetLocalManager().GetConfig())
+
+	parsed, err := url.Parse(allCfg.Host)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to parse host from config")
+	}
+
+	parts := strings.Split(parsed.Path, "clusters")
+
+	parsed.Path, err = url.JoinPath(parts[0], "clusters", logicalcluster.Wildcard.String())
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to join path")
+	}
+
+	allCfg.Host = parsed.String()
+
+	log.Info().Str("host", allCfg.Host).Msg("using host")
+
+	allClient, err := client.New(allCfg, client.Options{
+		Scheme: mcMgr.GetLocalManager().GetScheme(),
+	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to create new client")
+	}
+
 	return &StoreReconciler{
 		fga: fga,
 		log: log,
 		lifecycle: builder.NewBuilder("store", "StoreReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewStoreSubroutine(fga, mcMgr),
-			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr),
+			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, allClient, log),
 			subroutine.NewTupleSubroutine(fga, mcMgr),
 		}, log).WithConditionManagement().
 			BuildMultiCluster(mcMgr),
@@ -59,7 +89,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 		Watches(
 			&corev1alpha1.AuthorizationModel{},
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-				model,ok := obj.(*corev1alpha1.AuthorizationModel)
+				model, ok := obj.(*corev1alpha1.AuthorizationModel)
 				if !ok {
 					return nil
 				}

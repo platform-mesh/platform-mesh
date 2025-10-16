@@ -22,14 +22,16 @@ import (
 const schemaVersion = "1.2"
 
 type authorizationModelSubroutine struct {
-	fga openfgav1.OpenFGAServiceClient
-	mgr mcmanager.Manager
+	fga       openfgav1.OpenFGAServiceClient
+	mgr       mcmanager.Manager
+	allClient client.Client
 }
 
-func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *authorizationModelSubroutine {
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, allClient client.Client, log *logger.Logger) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
-		fga: fga,
-		mgr: mgr,
+		fga:       fga,
+		mgr:       mgr,
+		allClient: allClient,
 	}
 }
 
@@ -73,12 +75,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 
-	cluster, err := a.mgr.ClusterFromContext(ctx)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
-	}
-
-	extendingModules, err := getRelatedAuthorizationModels(ctx, cluster.GetClient(), store)
+	extendingModules, err := getRelatedAuthorizationModels(ctx, a.allClient, store)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get related authorization models")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)

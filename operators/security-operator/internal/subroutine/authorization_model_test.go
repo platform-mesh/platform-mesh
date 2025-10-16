@@ -9,6 +9,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
@@ -52,17 +53,17 @@ type user
 `
 
 func TestAuthorizationModelGetName(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil)
+	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil)
 	assert.Equal(t, "AuthorizationModel", subroutine.GetName())
 }
 
 func TestAuthorizationModelFinalizers(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil)
+	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil)
 	assert.Equal(t, []string(nil), subroutine.Finalizers(nil))
 }
 
 func TestAuthorizationModelFinalize(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil)
+	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil)
 	_, err := subroutine.Finalize(context.Background(), nil)
 	assert.Nil(t, err)
 }
@@ -326,10 +327,12 @@ func TestAuthorizationModelProcess(t *testing.T) {
 				test.k8sMocks(client)
 			}
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
-			cluster.EXPECT().GetClient().Return(client)
+			manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
+			cluster.EXPECT().GetClient().Return(client).Maybe()
 
-			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager)
+			logger := testlogger.New()
+
+			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, client, logger.Logger)
 			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("path")))
 
 			_, err := subroutine.Process(ctx, test.store)
