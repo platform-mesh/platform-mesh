@@ -109,7 +109,12 @@ func (w *WorkspaceTypeSubroutine) GetName() string {
 	return WorkspaceTypeSubroutineName
 }
 
-func (w *WorkspaceTypeSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+func (w *WorkspaceTypeSubroutine) Finalizers(obj runtimeobject.RuntimeObject) []string {
+	account := obj.(*v1alpha1.Account)
+	if account.Spec.Type != v1alpha1.AccountTypeOrg {
+		return []string{}
+	}
+
 	return []string{WorkspaceTypeSubroutineFinalizer}
 }
 

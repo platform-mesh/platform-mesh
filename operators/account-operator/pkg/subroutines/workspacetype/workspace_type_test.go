@@ -22,7 +22,7 @@ func TestName(t *testing.T) {
 
 func TestFinalizer(t *testing.T) {
 	s := workspacetype.New(nil)
-	assert.Equal(t, []string{workspacetype.WorkspaceTypeSubroutineFinalizer}, s.Finalizers(nil))
+	assert.Equal(t, []string{workspacetype.WorkspaceTypeSubroutineFinalizer}, s.Finalizers(&v1alpha1.Account{Spec: v1alpha1.AccountSpec{Type: v1alpha1.AccountTypeOrg}}))
 }
 
 func TestFinalize(t *testing.T) {
