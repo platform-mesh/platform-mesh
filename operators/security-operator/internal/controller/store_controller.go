@@ -88,17 +88,20 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	return builder.
 		Watches(
 			&corev1alpha1.AuthorizationModel{},
-			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+			handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
 				model, ok := obj.(*corev1alpha1.AuthorizationModel)
 				if !ok {
 					return nil
 				}
 
-				return []reconcile.Request{
+				return []mcreconcile.Request{
 					{
-						NamespacedName: types.NamespacedName{
-							Name: model.Spec.StoreRef.Name,
+						Request: reconcile.Request{
+							NamespacedName: types.NamespacedName{
+								Name: model.Spec.StoreRef.Name,
+							},
 						},
+						ClusterName: model.Spec.StoreRef.Path,
 					},
 				}
 			}),
