@@ -42,7 +42,7 @@ var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
 {{ if eq .Scope "Cluster" }}
 extend type core_platform-mesh_io_account
 	relations
-		define create_{{ .Group }}_{{ .Name }}: member
+		define create_{{ .Group }}_{{ .Name }}: owner
 		define list_{{ .Group }}_{{ .Name }}: member
 		define watch_{{ .Group }}_{{ .Name }}: member
 {{ end }}
@@ -50,23 +50,26 @@ extend type core_platform-mesh_io_account
 {{ if eq .Scope "Namespaced" }}
 extend type core_namespace
 	relations
-		define create_{{ .Group }}_{{ .Name }}: member from parent
-		define list_{{ .Group }}_{{ .Name }}: member from parent
-		define watch_{{ .Group }}_{{ .Name }}: member from parent
+		define create_{{ .Group }}_{{ .Name }}: owner
+		define list_{{ .Group }}_{{ .Name }}: member
+		define watch_{{ .Group }}_{{ .Name }}: member
 {{ end }}
 
 type {{ .Group }}_{{ .Singular }}
 	relations
 		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
+		define member: [role#assignee] or owner or member from parent
+		define owner: [role#assignee] or owner from parent
 		
-		define get: member from parent
-		define update: member from parent
-		define delete: member from parent
-		define patch: member from parent
-		define watch: member from parent
+		define get: member
+		define update: member
+		define delete: member
+		define patch: member
+		define watch: member
 
-		define statusUpdate: member from parent
-		define statusPatch: member from parent
+		define manage_iam_roles: owner
+		define get_iam_roles: member
+		define get_iam_users: member
 
 `))
 
