@@ -33,6 +33,7 @@ func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cf
 			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
 			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, cfg),
 			subroutine.NewRealmSubroutine(inClusterClient, &cfg, cfg.BaseDomain),
+			subroutine.NewInviteSubroutine(orgClient, mgr),
 			subroutine.NewRemoveInitializer(mgr, cfg.InitializerName),
 		}, log).
 			WithReadOnly().

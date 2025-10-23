@@ -140,8 +140,8 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 		}
 
 		storeCtx := mccontext.WithCluster(ctx, string(logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey])))
-		
-		storeCluster, err := t.mgr.GetCluster(ctx,obj.Spec.StoreRef.Path)
+
+		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Path)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store cluster: %w", err), true, false)
 		}
