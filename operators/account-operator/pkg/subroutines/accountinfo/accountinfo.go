@@ -80,7 +80,7 @@ func (r *AccountInfoSubroutine) Process(ctx context.Context, ro runtimeobject.Ru
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	if accountWorkspace.Status.Phase != kcpcorev1alpha.LogicalClusterPhaseReady {
+	if accountWorkspace.Status.Phase != kcpcorev1alpha.LogicalClusterPhaseInitializing && accountWorkspace.Status.Phase != kcpcorev1alpha.LogicalClusterPhaseReady {
 		log.Info().Msg("workspace is not ready yet, retry")
 		return ctrl.Result{RequeueAfter: r.limiter.When(cn)}, nil
 	}
