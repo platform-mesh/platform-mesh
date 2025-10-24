@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"strings"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/platform-mesh/security-operator/internal/config"
@@ -18,6 +21,7 @@ var (
 	defaultCfg     *platformeshconfig.CommonServiceConfig
 	initializerCfg config.Config
 	operatorCfg    config.Config
+	generatorCfg   config.Config
 	log            *logger.Logger
 	setupLog       logr.Logger
 )
@@ -43,12 +47,31 @@ func init() {
 	if err := platformeshconfig.BindConfigToFlags(operatorV, operatorCmd, &operatorCfg); err != nil {
 		panic(err)
 	}
+	generatorV := newViper()
+	if err := platformeshconfig.BindConfigToFlags(generatorV, modelGeneratorCmd, &generatorCfg); err != nil {
+		panic(err)
+	}
 	initializerV := newViper()
 	if err := platformeshconfig.BindConfigToFlags(initializerV, initializerCmd, &initializerCfg); err != nil {
 		panic(err)
 	}
 
 	cobra.OnInitialize(initLog)
+}
+
+func getKubeconfigFromPath(kubeconfigPath string) (*rest.Config, error) {
+	if kubeconfigPath == "" {
+		return nil, errors.New("missing value for required flag --kcp-kubeconfig")
+	}
+	cfg, err := clientcmd.LoadFromFile(kubeconfigPath)
+	if err != nil {
+		return nil, err
+	}
+	restCfg, err := clientcmd.NewDefaultClientConfig(*cfg, &clientcmd.ConfigOverrides{}).ClientConfig()
+	if err != nil {
+		return restCfg, err
+	}
+	return restCfg, nil
 }
 
 func newViper() *viper.Viper {

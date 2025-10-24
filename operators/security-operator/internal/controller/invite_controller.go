@@ -6,7 +6,7 @@ import (
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	lifecycle "github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -20,7 +20,7 @@ import (
 )
 
 type InviteReconciler struct {
-	lifecycle *lifecycle.LifecycleManager
+	mclifecycle *multicluster.LifecycleManager
 }
 
 func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config, log *logger.Logger) *InviteReconciler {
@@ -35,7 +35,7 @@ func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config
 	}
 
 	return &InviteReconciler{
-		lifecycle: builder.NewBuilder(
+		mclifecycle: builder.NewBuilder(
 			"invite",
 			"InviteReconciler",
 			[]lifecyclesubroutine.Subroutine{
@@ -46,11 +46,11 @@ func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config
 }
 
 func (r *InviteReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(mccontext.WithCluster(ctx, req.ClusterName), req, &v1alpha1.Invite{})
+	return r.mclifecycle.Reconcile(mccontext.WithCluster(ctx, req.ClusterName), req, &v1alpha1.Invite{})
 }
 
 func (r *InviteReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger) error { // coverage-ignore
-	return r.lifecycle.
+	return r.mclifecycle.
 		SetupWithManager(
 			mgr,
 			cfg.MaxConcurrentReconciles,

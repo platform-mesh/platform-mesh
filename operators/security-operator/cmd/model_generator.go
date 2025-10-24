@@ -26,13 +26,16 @@ import (
 var modelGeneratorCmd = &cobra.Command{
 	Use: "model-generator",
 	RunE: func(cmd *cobra.Command, args []string) error {
-
 		ctrl.SetLogger(log.ComponentLogger("controller-runtime").Logr())
 
 		ctx, _, shutdown := platformeshcontext.StartContext(log, defaultCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
-		cfg := ctrl.GetConfigOrDie()
+		restCfg, err := getKubeconfigFromPath(generatorCfg.KCP.Kubeconfig)
+		if err != nil {
+			log.Error().Err(err).Msg("unable to get KCP kubeconfig")
+			return err
+		}
 
 		mgrOpts := manager.Options{
 			Scheme: scheme,
@@ -67,7 +70,7 @@ var modelGeneratorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(cfg, apiexport.Options{
+		provider, err := apiexport.New(restCfg, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -75,7 +78,7 @@ var modelGeneratorCmd = &cobra.Command{
 			return err
 		}
 
-		mgr, err := mcmanager.New(cfg, provider, mgrOpts)
+		mgr, err := mcmanager.New(restCfg, provider, mgrOpts)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create manager")
 			return err

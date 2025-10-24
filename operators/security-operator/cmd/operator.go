@@ -77,6 +77,12 @@ var operatorCmd = &cobra.Command{
 		ctx, _, shutdown := platformeshcontext.StartContext(log, defaultCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
+		restCfg, err := getKubeconfigFromPath(operatorCfg.KCP.Kubeconfig)
+		if err != nil {
+			log.Error().Err(err).Msg("unable to get KCP kubeconfig")
+			return err
+		}
+
 		if defaultCfg.Sentry.Dsn != "" {
 			err := sentry.Start(ctx,
 				defaultCfg.Sentry.Dsn, defaultCfg.Environment, defaultCfg.Region,
@@ -88,8 +94,6 @@ var operatorCmd = &cobra.Command{
 
 			defer platformeshcontext.Recover(log)
 		}
-
-		cfg := ctrl.GetConfigOrDie()
 
 		mgrOpts := ctrl.Options{
 			Scheme: scheme,
@@ -121,7 +125,7 @@ var operatorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(cfg, apiexport.Options{
+		provider, err := apiexport.New(restCfg, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -129,7 +133,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		mgr, err := mcmanager.New(cfg, provider, mgrOpts)
+		mgr, err := mcmanager.New(restCfg, provider, mgrOpts)
 		if err != nil {
 			setupLog.Error(err, "Failed to create manager")
 			return err

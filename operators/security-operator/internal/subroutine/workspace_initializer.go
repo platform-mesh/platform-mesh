@@ -23,10 +23,8 @@ import (
 )
 
 func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager) *workspaceInitializer {
-	coreModulePath := cfg.CoreModulePath
-
 	// read file from path
-	res, err := os.ReadFile(coreModulePath)
+	res, err := os.ReadFile(cfg.CoreModulePath)
 	if err != nil {
 		panic(err)
 	}

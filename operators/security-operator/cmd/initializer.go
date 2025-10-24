@@ -31,7 +31,11 @@ var initializerCmd = &cobra.Command{
 		ctx, _, shutdown := pmcontext.StartContext(log, initializerCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
-		mgrCfg := ctrl.GetConfigOrDie()
+		restCfg, err := getKubeconfigFromPath(initializerCfg.KCP.Kubeconfig)
+		if err != nil {
+			log.Error().Err(err).Msg("unable to get KCP kubeconfig")
+			os.Exit(1)
+		}
 
 		mgrOpts := ctrl.Options{
 			Scheme:                 scheme,
@@ -57,7 +61,7 @@ var initializerCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		provider, err := initializingworkspaces.New(mgrCfg, initializingworkspaces.Options{
+		provider, err := initializingworkspaces.New(restCfg, initializingworkspaces.Options{
 			InitializerName: initializerCfg.InitializerName,
 			Scheme:          mgrOpts.Scheme,
 		})
@@ -66,7 +70,7 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		mgr, err := mcmanager.New(mgrCfg, provider, mgrOpts)
+		mgr, err := mcmanager.New(restCfg, provider, mgrOpts)
 		if err != nil {
 			setupLog.Error(err, "Failed to create manager")
 			os.Exit(1)
@@ -82,13 +86,9 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		inClusterConfig, err := rest.InClusterConfig()
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create in cluster config")
-			os.Exit(1)
-		}
+		k8sCfg := ctrl.GetConfigOrDie()
 
-		inClusterClient, err := client.New(inClusterConfig, client.Options{Scheme: scheme})
+		runtimeClient, err := client.New(k8sCfg, client.Options{Scheme: scheme})
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create in cluster client")
 			os.Exit(1)
@@ -98,7 +98,7 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		if err := controller.NewLogicalClusterReconciler(log, orgClient, initializerCfg, inClusterClient, mgr).
+		if err := controller.NewLogicalClusterReconciler(log, orgClient, initializerCfg, runtimeClient, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
