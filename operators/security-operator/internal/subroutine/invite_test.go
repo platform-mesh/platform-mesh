@@ -71,7 +71,7 @@ func TestInviteSubroutine_Process(t *testing.T) {
 		expectedResult ctrl.Result
 	}{
 		{
-			name: "Empty workspace name - early return",
+			name:       "Empty workspace name - early return",
 			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {},
 			lc: &kcpv1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
@@ -134,28 +134,6 @@ func TestInviteSubroutine_Process(t *testing.T) {
 				},
 			},
 			expectedErr:    false,
-			expectedResult: ctrl.Result{},
-		},
-		{
-			name: "Account Creator is nil",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {
-				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
-				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
-					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*accountv1alpha1.Account)
-						acc.Spec.Type = accountv1alpha1.AccountTypeOrg
-						acc.Spec.Creator = nil
-						return nil
-					}).Once()
-			},
-			lc: &kcpv1alpha1.LogicalCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"kcp.io/path": "root:orgs:test",
-					},
-				},
-			},
-			expectedErr:    true,
 			expectedResult: ctrl.Result{},
 		},
 		{

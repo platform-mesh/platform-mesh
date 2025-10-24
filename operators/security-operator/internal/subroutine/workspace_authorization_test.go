@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
@@ -268,4 +269,21 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
+}
+
+func TestWorkspaceAuthConfigurationSubroutine_GetName(t *testing.T) {
+	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, config.Config{})
+	assert.Equal(t, "workspaceAuthConfiguration", sub.GetName())
+}
+
+func TestWorkspaceAuthConfigurationSubroutine_Finalizers(t *testing.T) {
+	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, config.Config{})
+	assert.Equal(t, []string{}, sub.Finalizers(nil))
+}
+
+func TestWorkspaceAuthConfigurationSubroutine_Finalize(t *testing.T) {
+	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, config.Config{})
+	result, err := sub.Finalize(context.Background(), nil)
+	assert.Nil(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
 }

@@ -1,8 +1,12 @@
 package subroutine
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
+	"text/template"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
@@ -12,6 +16,10 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"google.golang.org/protobuf/encoding/protojson"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -19,19 +27,65 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
-const schemaVersion = "1.2"
+const (
+	schemaVersion = "1.2"
+)
+
+var (
+	privilegedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
+	groupVersions            = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1"}
+
+	privilegedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
+
+{{ if eq .Scope "Cluster" }}
+extend type core_platform-mesh_io_account
+	relations
+		define create_{{ .Group }}_{{ .Name }}: owner
+		define list_{{ .Group }}_{{ .Name }}: member
+		define watch_{{ .Group }}_{{ .Name }}: member
+{{ end }}
+
+{{ if eq .Scope "Namespaced" }}
+extend type core_namespace
+	relations
+		define create_{{ .Group }}_{{ .Name }}: owner
+		define list_{{ .Group }}_{{ .Name }}: member
+		define watch_{{ .Group }}_{{ .Name }}: member
+{{ end }}
+
+type {{ .Group }}_{{ .Singular }}
+	relations
+		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
+		define member: [role#assignee] or owner or member from parent
+		define owner: [role#assignee] or owner from parent
+		
+		define get: member
+		define update: owner
+		define delete: owner
+		define patch: owner
+		define watch: member
+
+		define manage_iam_roles: owner
+		define get_iam_roles: member
+		define get_iam_users: member
+`))
+)
+
+type NewDiscoveryClientFunc func(cfg *rest.Config) discovery.DiscoveryInterface
 
 type authorizationModelSubroutine struct {
-	fga       openfgav1.OpenFGAServiceClient
-	mgr       mcmanager.Manager
-	allClient client.Client
+	fga                    openfgav1.OpenFGAServiceClient
+	mgr                    mcmanager.Manager
+	allClient              client.Client
+	newDiscoveryClientFunc NewDiscoveryClientFunc
 }
 
-func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, allClient client.Client, log *logger.Logger) *authorizationModelSubroutine {
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, allClient client.Client, newDiscoveryClientFunc NewDiscoveryClientFunc, log *logger.Logger) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
-		fga:       fga,
-		mgr:       mgr,
-		allClient: allClient,
+		fga:                    fga,
+		mgr:                    mgr,
+		allClient:              allClient,
+		newDiscoveryClientFunc: newDiscoveryClientFunc,
 	}
 }
 
@@ -92,6 +146,38 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 		})
 	}
 
+	if store.Name != "orgs" {
+		cfg := rest.CopyConfig(a.mgr.GetLocalManager().GetConfig())
+
+		parsed, err := url.Parse(cfg.Host)
+		if err != nil {
+			log.Error().Err(err).Msg("unable to parse host from config")
+			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		}
+
+		parsed.Path, err = url.JoinPath("clusters", fmt.Sprintf("root:orgs:%s", store.Name))
+		if err != nil {
+			log.Error().Err(err).Msg("unable to join path")
+			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		}
+
+		cfg.Host = parsed.String()
+
+		discoveryClient := a.newDiscoveryClientFunc(cfg)
+
+		coreModules, err := discoverAndRender(discoveryClient, modelTpl, groupVersions)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		}
+		moduleFiles = append(moduleFiles, coreModules...)
+
+		privilegedModules, err := discoverAndRender(discoveryClient, privilegedTemplate, privilegedGroupVersions)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		}
+		moduleFiles = append(moduleFiles, privilegedModules...)
+	}
+
 	authorizationModel, err := language.TransformModuleFilesToModel(moduleFiles, schemaVersion)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to transform module files to model")
@@ -109,17 +195,11 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
 
-		// the following ignore comments are due to the fact, that its incredibly hard to setup a specific condition where one of the parsing methods would fail
-
+		// Compare Proto objects directly instead of DSL strings to avoid ordering issues
+		// The two models should be semantically equivalent even if DSL ordering differs
 		currentRaw, err := protojson.Marshal(res.AuthorizationModel)
 		if err != nil { // coverage-ignore
 			log.Error().Err(err).Msg("unable to marshal current model")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-		}
-
-		current, err := language.TransformJSONStringToDSL(string(currentRaw))
-		if err != nil { // coverage-ignore
-			log.Error().Err(err).Msg("unable to transform current model to dsl")
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
 
@@ -129,13 +209,8 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
 
-		desired, err := language.TransformJSONStringToDSL(string(desiredRaw))
-		if err != nil { // coverage-ignore
-			log.Error().Err(err).Msg("unable to transform desired model to dsl")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-		}
-
-		if *current == *desired {
+		// Compare JSON representations instead of DSL strings
+		if string(currentRaw) == string(desiredRaw) {
 			return ctrl.Result{}, nil
 		}
 
@@ -155,4 +230,57 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 	store.Status.AuthorizationModelID = res.AuthorizationModelId
 
 	return ctrl.Result{}, nil
+}
+
+func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template) (bytes.Buffer, error) {
+
+	scope := apiextensionsv1.ClusterScoped
+	if resource.Namespaced {
+		scope = apiextensionsv1.NamespaceScoped
+	}
+
+	group := "core"
+	if resource.Group != "" {
+		group = resource.Group
+	}
+
+	var buffer bytes.Buffer
+	err := tpl.Execute(&buffer, modelInput{
+		Name:     resource.Name,
+		Group:    strings.ReplaceAll(group, ".", "_"), // TODO: group name length capping
+		Singular: resource.SingularName,
+		Scope:    string(scope),
+	})
+	if err != nil {
+		return buffer, err
+	}
+
+	return buffer, nil
+}
+
+func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, groupVersions []string) ([]language.ModuleFile, error) {
+	var files []language.ModuleFile
+	for _, gv := range groupVersions {
+		resourceList, err := dc.ServerResourcesForGroupVersion(gv)
+		if err != nil {
+			return nil, fmt.Errorf("discover resources for %s: %w", gv, err)
+		}
+
+		for _, apiRes := range resourceList.APIResources {
+			if strings.Contains(apiRes.Name, "/") { // skip subresources
+				continue
+			}
+
+			buf, err := processAPIResourceIntoModel(apiRes, tpl)
+			if err != nil {
+				return nil, fmt.Errorf("process api resource %s in %s: %w", apiRes.Name, gv, err)
+			}
+
+			files = append(files, language.ModuleFile{
+				Name:     fmt.Sprintf("internal_core_types_%s.fga", apiRes.Name),
+				Contents: buf.String(),
+			})
+		}
+	}
+	return files, nil
 }

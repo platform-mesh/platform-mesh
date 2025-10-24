@@ -75,7 +75,8 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 	}
 
 	if account.Spec.Creator == nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("account.Spec.Creator is nil for account %s", wsName), true, true)
+		log.Info().Str("workspace", wsName).Msg("account creator is nil, skipping invite creation")
+		return ctrl.Result{}, nil
 	}
 
 	// the Invite resource is created in :root:orgs:<new org> workspace

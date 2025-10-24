@@ -307,6 +307,7 @@ func TestReplaceTemplateAndUnstructured(t *testing.T) {
 		{"empty template yields empty result", map[string]string{}, []byte(""), false, ""},
 		{"successful template rendering", map[string]string{"Name": "testing"}, []byte("hello {{ .Name }}"), false, "hello testing"},
 		{"execute error indexing missing map", map[string]string{}, []byte(`{{ index .MissingMap "k" }}`), true, ""},
+		{"nil template data with static content", nil, []byte("static content"), false, "static content"},
 	}
 
 	for _, tc := range cases {
@@ -338,4 +339,14 @@ func TestReplaceTemplateAndUnstructured(t *testing.T) {
 		_, err2 := unstructuredFromString(string(out), nil, l)
 		require.NoError(t, err2)
 	})
+}
+
+func TestRealmSubroutine_GetName(t *testing.T) {
+	r := NewRealmSubroutine(nil, &config.Config{}, "")
+	require.Equal(t, "Realm", r.GetName())
+}
+
+func TestRealmSubroutine_Finalizers(t *testing.T) {
+	r := NewRealmSubroutine(nil, &config.Config{}, "")
+	require.Equal(t, []string{}, r.Finalizers(nil))
 }

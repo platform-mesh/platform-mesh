@@ -8,6 +8,7 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
@@ -67,7 +68,9 @@ func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, 
 		log: log,
 		lifecycle: builder.NewBuilder("store", "StoreReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewStoreSubroutine(fga, mcMgr),
-			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, allClient, log),
+			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, allClient, func(cfg *rest.Config) discovery.DiscoveryInterface {
+				return discovery.NewDiscoveryClientForConfigOrDie(cfg)
+			}, log),
 			subroutine.NewTupleSubroutine(fga, mcMgr),
 		}, log).WithConditionManagement().
 			BuildMultiCluster(mcMgr),

@@ -1,29 +1,44 @@
-with-expecter: true
+pkgname: mocks
 packages:
   github.com/openfga/api/proto/openfga/v1:
     config:
       dir: internal/subroutine/mocks
-      outpkg: mocks
+      filename: mock_OpenFGAServiceClient.go
     interfaces:
       OpenFGAServiceClient:
   
   sigs.k8s.io/controller-runtime/pkg/client:
     config:
       dir: internal/subroutine/mocks
-      outpkg: mocks
+      filename: mock_Client.go
     interfaces:
       Client:
+
+  sigs.k8s.io/controller-runtime/pkg/manager:
+    config:
+      dir: internal/subroutine/mocks
+      filename: mock_CTRLManager.go
+      structname: CTRLManager
+    interfaces:
+      Manager:
 
   sigs.k8s.io/multicluster-runtime/pkg/manager:
     config:
       dir: internal/subroutine/mocks
-      outpkg: mocks
+      filename: mock_Manager.go
     interfaces:
       Manager:
 
   sigs.k8s.io/controller-runtime/pkg/cluster:
       config:
         dir: internal/subroutine/mocks
-        outpkg: mocks
+        filename: mock_Cluster.go
       interfaces:
         Cluster:
+  
+  k8s.io/client-go/discovery:
+      config:
+        dir: internal/subroutine/mocks
+        filename: mock_DiscoveryInterface.go
+      interfaces:
+        DiscoveryInterface:

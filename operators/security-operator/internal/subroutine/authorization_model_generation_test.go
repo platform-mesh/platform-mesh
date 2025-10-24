@@ -553,3 +553,8 @@ func TestFinalizeAuthorizationModelGeneration(t *testing.T) {
 	finalizers := subroutine.NewAuthorizationModelGenerationSubroutine(nil).Finalizers(nil)
 	assert.Equal(t, []string{}, finalizers)
 }
+
+func TestAuthorizationModelGenerationSubroutine_GetName(t *testing.T) {
+	sub := subroutine.NewAuthorizationModelGenerationSubroutine(nil)
+	assert.Equal(t, "AuthorizationModelGeneration", sub.GetName())
+}

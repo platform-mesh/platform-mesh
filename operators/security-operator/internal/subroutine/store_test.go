@@ -121,6 +121,37 @@ func TestProcess(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "should fail if get store fails when verifying existing store",
+			store: &v1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "store",
+				},
+				Status: v1alpha1.StoreStatus{
+					StoreID: "id",
+				},
+			},
+			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
+				fga.EXPECT().GetStore(mock.Anything, &openfgav1.GetStoreRequest{StoreId: "id"}).Return(nil, errors.New("get store failed"))
+			},
+			expectError: true,
+		},
+		{
+			name: "should fail if update store fails when names differ",
+			store: &v1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "store",
+				},
+				Status: v1alpha1.StoreStatus{
+					StoreID: "id",
+				},
+			},
+			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
+				fga.EXPECT().GetStore(mock.Anything, &openfgav1.GetStoreRequest{StoreId: "id"}).Return(&openfgav1.GetStoreResponse{Name: "different-name"}, nil)
+				fga.EXPECT().UpdateStore(mock.Anything, &openfgav1.UpdateStoreRequest{StoreId: "id", Name: "store"}).Return(nil, errors.New("update failed"))
+			},
+			expectError: true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
