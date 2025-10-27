@@ -144,6 +144,33 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	log.Info().Str("email", invite.Spec.Email).Msg("User does not exist, creating user and sending invite")
 
+	clientQueryParams := url.Values{
+		"clientId": {realm},
+	}
+
+	res, err = s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/clients?%s", s.keycloakBaseURL, realm, clientQueryParams.Encode()))
+	if err != nil {
+		log.Err(err).Msg("Failed to verify client exists")
+		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+	}
+	defer res.Body.Close() //nolint:errcheck
+
+	if res.StatusCode != http.StatusOK {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to verify client exists: %s", res.Status), true, false)
+	}
+
+	var clients []keycloakClient
+	if err = json.NewDecoder(res.Body).Decode(&clients); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+	}
+
+	if len(clients) == 0 {
+		log.Info().Str("clientId", realm).Msg("Client does not exist yet, requeuing")
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("client %s does not exist yet", realm), true, false)
+	}
+
+	log.Debug().Str("clientId", realm).Msg("Client verified")
+
 	// Create user
 	newUser := keycloakUser{
 		Email:           invite.Spec.Email,
@@ -185,33 +212,6 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	newUser = users[0]
 
 	log.Debug().Str("email", invite.Spec.Email).Str("id", newUser.ID).Msg("User created")
-
-	clientQueryParams := url.Values{
-		"clientId": {realm},
-	}
-
-	res, err = s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/clients?%s", s.keycloakBaseURL, realm, clientQueryParams.Encode()))
-	if err != nil {
-		log.Err(err).Msg("Failed to verify client exists")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-	}
-	defer res.Body.Close() //nolint:errcheck
-
-	if res.StatusCode != http.StatusOK {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to verify client exists: %s", res.Status), true, false)
-	}
-
-	var clients []keycloakClient
-	if err = json.NewDecoder(res.Body).Decode(&clients); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-	}
-
-	if len(clients) == 0 {
-		log.Info().Str("clientId", realm).Msg("Client does not exist yet, requeuing")
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("client %s does not exist yet", realm), true, false)
-	}
-
-	log.Debug().Str("clientId", realm).Msg("Client verified")
 
 	queryParams := url.Values{
 		"redirect_uri": {fmt.Sprintf("https://%s.%s/", realm, s.baseDomain)},
