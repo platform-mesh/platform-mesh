@@ -224,6 +224,7 @@ func TestSubroutineProcess(t *testing.T) {
 					KeycloakBaseURL:  srv.URL,
 					KeycloakClientID: "admin-cli",
 				},
+				BaseDomain: "portal.dev.local:8443",
 			}, mgr, "password")
 			assert.NoError(t, err)
 

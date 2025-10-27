@@ -24,8 +24,6 @@ import (
 )
 
 var (
-	//go:embed manifests/organizationIdp/repository.yaml
-	repository string
 
 	//go:embed manifests/organizationIdp/helmrelease.yaml
 	helmRelease string
@@ -62,14 +60,6 @@ func (r *realmSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
 
-	ociObj, err := unstructuredFromString(repository, nil, log)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to load OCI repository manifest: %w", err), true, true)
-	}
-	if err := r.k8s.Delete(ctx, &ociObj); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete OCI repository: %w", err), true, true)
-	}
-
 	helmObj, err := unstructuredFromString(helmRelease, nil, log)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to load HelmRelease  manifest: %w", err), true, true)
@@ -100,7 +90,7 @@ func (r *realmSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 			"client": map[string]any{
 				"name":              workspaceName,
 				"displayName":       workspaceName,
-				"validRedirectUris": append(r.cfg.IDP.AdditionalRedirectURLs, fmt.Sprintf("https://%s.%s/callback*", workspaceName, r.baseDomain)),
+				"validRedirectUris": append(r.cfg.IDP.AdditionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, r.baseDomain)),
 			},
 			"organization": map[string]any{
 				"domain": "example.com", // TODO: change
@@ -150,11 +140,6 @@ func (r *realmSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 
 	values := apiextensionsv1.JSON{Raw: marshalledPatch}
 	releaseName := fmt.Sprintf("%s-idp", workspaceName)
-
-	err = applyManifestWithMergedValues(ctx, repository, r.k8s, nil)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create OCI repository: %w", err), true, true)
-	}
 
 	err = applyReleaseWithValues(ctx, helmRelease, r.k8s, values, releaseName)
 	if err != nil {
@@ -233,19 +218,4 @@ func ReplaceTemplate(templateData map[string]string, templateBytes []byte) ([]by
 		return []byte{}, nil
 	}
 	return result.Bytes(), nil
-}
-
-func applyManifestWithMergedValues(ctx context.Context, manifest string, k8sClient client.Client, templateData map[string]string) error {
-	log := logger.LoadLoggerFromContext(ctx)
-
-	obj, err := unstructuredFromString(manifest, templateData, log)
-	if err != nil {
-		return err
-	}
-
-	err = k8sClient.Patch(ctx, &obj, client.Apply, client.FieldOwner("security-operator"))
-	if err != nil {
-		return errors.Wrap(err, "Failed to apply manifest (%s/%s)", obj.GetKind(), obj.GetName())
-	}
-	return nil
 }

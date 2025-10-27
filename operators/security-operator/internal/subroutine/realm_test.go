@@ -19,14 +19,6 @@ import (
 )
 
 const (
-	repoYAML = `
-apiVersion: v1
-kind: Config
-metadata:
-  name: repo-min
-spec:
-  foo: bar
-`
 	helmReleaseYAML = `
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
@@ -100,24 +92,6 @@ spec:
 			},
 			true,
 		},
-		{"manifest: invalid YAML", "manifest", "this: is: : invalid: yaml", nil, true},
-		{
-			"manifest: patch error wrapped",
-			"manifest",
-			trim(`
-apiVersion: v1
-kind: Config
-metadata:
-  name: test-manifest
-spec:
-  foo: bar
-`),
-			func(m *mocks.MockClient) {
-				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					Return(errors.New("simulated patch error for manifest")).Once()
-			},
-			true,
-		},
 	}
 
 	for _, tc := range cases {
@@ -133,13 +107,6 @@ spec:
 				} else {
 					require.NoError(t, err)
 				}
-			case "manifest":
-				err := applyManifestWithMergedValues(ctx, tc.content, clientMock, nil)
-				if tc.expectErr {
-					require.Error(t, err)
-				} else {
-					require.NoError(t, err)
-				}
 			default:
 				t.Fatalf("unknown call type %q", tc.call)
 			}
@@ -148,20 +115,13 @@ spec:
 }
 
 func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
-	origRepo, origHR := repository, helmRelease
-	defer func() { repository, helmRelease = origRepo, origHR }()
+	origHR := helmRelease
+	defer func() { helmRelease = origHR }()
 
 	t.Run("Process", func(t *testing.T) {
 		t.Run("success create repo then helmrelease", func(t *testing.T) {
 			t.Parallel()
 			clientMock := newClientMock(t, func(m *mocks.MockClient) {
-				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
-						_, ok := obj.(*unstructured.Unstructured)
-						require.True(t, ok)
-						return nil
-					}).Once()
-
 				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					RunAndReturn(func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						hr := obj.(*unstructured.Unstructured)
@@ -174,7 +134,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 					}).Once()
 			})
 
-			repository, helmRelease = trim(repoYAML), trim(helmReleaseYAML)
+			helmRelease = trim(helmReleaseYAML)
 
 			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
@@ -188,7 +148,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 		t.Run("success create with SMTP config", func(t *testing.T) {
 			t.Parallel()
 			clientMock := newClientMock(t, func(m *mocks.MockClient) {
-				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Twice()
+				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 			})
 
 			cfg := &config.Config{}
@@ -205,14 +165,14 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			require.Equal(t, ctrl.Result{}, res)
 		})
 
-		t.Run("oci repository apply fails", func(t *testing.T) {
+		t.Run("helmrelease apply fails", func(t *testing.T) {
 			t.Parallel()
 			clientMock := newClientMock(t, func(m *mocks.MockClient) {
 				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					Return(errors.New("simulated patch failure for OCI repo")).Once()
+					Return(errors.New("simulated patch failure for HelmRelease")).Once()
 			})
 
-			repository, helmRelease = trim(repoYAML), trim(helmReleaseYAML)
+			helmRelease = trim(helmReleaseYAML)
 			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
@@ -251,25 +211,16 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			expectedResult ctrl.Result
 		}{
 			{
-				"OCI delete error",
-				func(m *mocks.MockClient) {
-					m.EXPECT().Delete(mock.Anything, mock.Anything).Return(errors.New("failed to delete oci repository")).Once()
-				},
-				true,
-				ctrl.Result{},
-			},
-			{
 				"HelmRelease delete error",
 				func(m *mocks.MockClient) {
-					m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
 					m.EXPECT().Delete(mock.Anything, mock.Anything).Return(errors.New("failed to delete helmRelease")).Once()
 				},
 				true,
 				ctrl.Result{},
 			},
 			{
-				"Both deletes succeed",
-				func(m *mocks.MockClient) { m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Twice() },
+				"Delete succeeds",
+				func(m *mocks.MockClient) { m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once() },
 				false,
 				ctrl.Result{},
 			},
