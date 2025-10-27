@@ -8,7 +8,7 @@ vars:
   CRD_DIRECTORY: config/crd/bases
   KCP_APIGEN_VERSION: v0.21.0
   KCP_VERSION: 0.26.1
-  GOLANGCI_LINT_VERSION: v2.4.0
+  GOLANGCI_LINT_VERSION: v2.5.0
   GOARCH:
     sh: go env GOARCH
   GOOS:

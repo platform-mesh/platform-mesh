@@ -220,7 +220,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 						Contents: extensionModel,
 					},
 					{
-						Name:     "internal_core_types_namespaces.fga",
+						Name: "internal_core_types_namespaces.fga",
 						Contents: `module namespaces
 
 extend type core_platform-mesh_io_account

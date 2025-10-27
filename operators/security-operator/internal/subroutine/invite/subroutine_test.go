@@ -98,6 +98,15 @@ func TestSubroutineProcess(t *testing.T) {
 					user["id"] = "1234"
 					users = append(users, user)
 				})
+				mux.HandleFunc("GET /admin/realms/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					clients := []map[string]any{
+						{"id": "client-uuid", "clientId": "acme"},
+					}
+					err := json.NewEncoder(w).Encode(&clients)
+					assert.NoError(t, err)
+				})
 				mux.HandleFunc("PUT /admin/realms/acme/users/{id}/execute-actions-email", func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusNoContent)
@@ -186,11 +195,130 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
-				// Simulate k8s Get failure (AccountInfo missing)
 				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("accountinfo not found"))
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux) {
-				// No Keycloak calls expected when AccountInfo fetch fails.
+			},
+		},
+		{
+			desc: "error verifying client (500 from Keycloak)",
+			obj: &v1alpha1.Invite{
+				Spec: v1alpha1.InviteSpec{
+					Email: "clienterror@acme.corp",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						accountInfo := &accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{
+									Name: "acme",
+								},
+							},
+						}
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						return nil
+					},
+				)
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				users := []map[string]any{}
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					err := json.NewEncoder(w).Encode(&users)
+					assert.NoError(t, err)
+				})
+				mux.HandleFunc("POST /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusCreated)
+					user := map[string]any{}
+					err := json.NewDecoder(r.Body).Decode(&user)
+					assert.NoError(t, err)
+					user["id"] = "1234"
+					users = append(users, user)
+				})
+				mux.HandleFunc("GET /admin/realms/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusInternalServerError)
+					_, _ = w.Write([]byte(`{"error":"boom"}`))
+				})
+			},
+		},
+		{
+			desc: "client does not exist yet, should requeue",
+			obj: &v1alpha1.Invite{
+				Spec: v1alpha1.InviteSpec{
+					Email: "requeue@acme.corp",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						accountInfo := &accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{
+									Name: "acme",
+								},
+							},
+						}
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						return nil
+					},
+				)
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				users := []map[string]any{}
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					err := json.NewEncoder(w).Encode(&users)
+					assert.NoError(t, err)
+				})
+				mux.HandleFunc("POST /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusCreated)
+					user := map[string]any{}
+					err := json.NewDecoder(r.Body).Decode(&user)
+					assert.NoError(t, err)
+					user["id"] = "1234"
+					users = append(users, user)
+				})
+				mux.HandleFunc("GET /admin/realms/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					clients := []map[string]any{}
+					err := json.NewEncoder(w).Encode(&clients)
+					assert.NoError(t, err)
+				})
+			},
+		},
+		{
+			desc: "organization name is empty in AccountInfo",
+			obj: &v1alpha1.Invite{
+				Spec: v1alpha1.InviteSpec{
+					Email: "empty@acme.corp",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						accountInfo := &accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{
+									Name: "",
+								},
+							},
+						}
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						return nil
+					},
+				)
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
 			},
 		},
 	}
