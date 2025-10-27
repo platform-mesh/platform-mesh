@@ -33,7 +33,7 @@ const (
 
 var (
 	privilegedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
-	groupVersions            = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1"}
+	groupVersions           = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1"}
 
 	privilegedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
 
@@ -195,8 +195,8 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
 
-		// Compare Proto objects directly instead of DSL strings to avoid ordering issues
-		// The two models should be semantically equivalent even if DSL ordering differs
+		res.AuthorizationModel.Id = ""
+
 		currentRaw, err := protojson.Marshal(res.AuthorizationModel)
 		if err != nil { // coverage-ignore
 			log.Error().Err(err).Msg("unable to marshal current model")
