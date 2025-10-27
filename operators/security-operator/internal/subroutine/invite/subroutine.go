@@ -182,7 +182,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	log.Debug().Str("email", invite.Spec.Email).Str("id", newUser.ID).Msg("User created")
 
 	queryParams := url.Values{
-		"redirect_uri": {fmt.Sprintf("https://%s.%s", realm, s.baseDomain)},
+		"redirect_uri": {fmt.Sprintf("https://%s.%s/", realm, s.baseDomain)},
 		"client_id":    {realm},
 	}
 
