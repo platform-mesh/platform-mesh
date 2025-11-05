@@ -2,9 +2,8 @@ package config
 
 type InviteConfig struct {
 	KeycloakBaseURL      string `mapstructure:"invite-keycloak-base-url"`
-	KeycloakClientID     string `mapstructure:"invite-keycloak-client-id" default:"admin-cli"`
-	KeycloakUser         string `mapstructure:"invite-keycloak-user" default:"keycloak-admin"`
-	KeycloakPasswordFile string `mapstructure:"invite-keycloak-password-file" default:"/var/run/secrets/keycloak/password"`
+	KeycloakClientID     string `mapstructure:"invite-keycloak-client-id" default:"security-operator"`
+	KeycloakClientSecret string `mapstructure:"invite-keycloak-client-secret"`
 }
 
 // Config struct to hold the app config

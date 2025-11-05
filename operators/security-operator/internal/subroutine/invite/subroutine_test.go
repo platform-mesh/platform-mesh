@@ -350,10 +350,10 @@ func TestSubroutineProcess(t *testing.T) {
 			s, err := invite.New(ctx, &config.Config{
 				Invite: config.InviteConfig{
 					KeycloakBaseURL:  srv.URL,
-					KeycloakClientID: "admin-cli",
+					KeycloakClientID: "security-operator",
 				},
 				BaseDomain: "portal.dev.local:8443",
-			}, mgr, "password")
+			}, mgr)
 			assert.NoError(t, err)
 
 			l := testlogger.New()
@@ -382,9 +382,9 @@ func TestHelperFunctions(t *testing.T) {
 	s, err := invite.New(ctx, &config.Config{
 		Invite: config.InviteConfig{
 			KeycloakBaseURL:  srv.URL,
-			KeycloakClientID: "admin-cli",
+			KeycloakClientID: "security-operator",
 		},
-	}, nil, "password")
+	}, nil)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "Invite", s.GetName())

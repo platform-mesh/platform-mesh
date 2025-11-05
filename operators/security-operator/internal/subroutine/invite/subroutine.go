@@ -14,7 +14,6 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
-	"golang.org/x/oauth2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
@@ -22,6 +21,7 @@ import (
 
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 const (
@@ -48,7 +48,7 @@ type keycloakClient struct {
 	ClientID string `json:"clientId,omitempty"`
 }
 
-func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, pwd string) (*subroutine, error) {
+func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager) (*subroutine, error) {
 
 	issuer := fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
@@ -56,21 +56,19 @@ func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, pwd str
 		return nil, err
 	}
 
-	config := oauth2.Config{
-		ClientID: cfg.Invite.KeycloakClientID,
-		Endpoint: provider.Endpoint(),
+	cCfg := clientcredentials.Config{
+		ClientID:     cfg.Invite.KeycloakClientID,
+		ClientSecret: cfg.Invite.KeycloakClientSecret,
+		TokenURL:     provider.Endpoint().TokenURL,
 	}
 
-	token, err := config.PasswordCredentialsToken(ctx, cfg.Invite.KeycloakUser, pwd)
-	if err != nil {
-		return nil, err
-	}
+	httpClient := cCfg.Client(ctx)
 
 	return &subroutine{
 		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
 		baseDomain:      cfg.BaseDomain,
 		mgr:             mgr,
-		keycloak:        config.Client(ctx, token),
+		keycloak:        httpClient,
 	}, nil
 }
 
