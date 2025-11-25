@@ -35,7 +35,7 @@ func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config
 			[]lifecyclesubroutine.Subroutine{
 				inviteSubroutine,
 			}, log,
-		).WithConditionManagement().BuildMultiCluster(mgr),
+		).WithConditionManagement().WithStaticThenExponentialRateLimiter().BuildMultiCluster(mgr),
 	}
 }
 
