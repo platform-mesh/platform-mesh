@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
-	kcpv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -72,8 +71,7 @@ var modelGeneratorCmd = &cobra.Command{
 		}
 
 		provider, err := apiexport.New(restCfg, apiexport.Options{
-			Scheme:        mgrOpts.Scheme,
-			ObjectToWatch: &kcpv1alpha2.APIBinding{},
+			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create apiexport provider")

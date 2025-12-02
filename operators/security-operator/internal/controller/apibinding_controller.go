@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 
-	kcpv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -35,9 +35,9 @@ type APIBindingReconciler struct {
 
 func (r *APIBindingReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpv1alpha2.APIBinding{})
+	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpv1alpha1.APIBinding{})
 }
 
 func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "apibinding-controller", &kcpv1alpha2.APIBinding{}, cfg.DebugLabelValue, r, r.log, evp...)
+	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "apibinding-controller", &kcpv1alpha1.APIBinding{}, cfg.DebugLabelValue, r, r.log, evp...)
 }
