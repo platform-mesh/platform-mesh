@@ -7,8 +7,9 @@ import (
 	"strings"
 	"text/template"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
+	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -84,14 +85,14 @@ type modelInput struct {
 func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	bindingToDelete := instance.(*kcpv1alpha1.APIBinding)
+	bindingToDelete := instance.(*kcpv1alpha2.APIBinding)
 
 	cluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
 	}
 
-	var bindings kcpv1alpha1.APIBindingList
+	var bindings kcpv1alpha2.APIBindingList
 	err = cluster.GetClient().List(ctx, &bindings)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
@@ -169,7 +170,7 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 
 // Process implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	binding := instance.(*kcpv1alpha1.APIBinding)
+	binding := instance.(*kcpv1alpha2.APIBinding)
 
 	cluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
@@ -196,15 +197,15 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	var apiExport kcpv1alpha1.APIExport
+	var apiExport kcpv1alpha2.APIExport
 	err = apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: binding.Spec.Reference.Export.Name}, &apiExport)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	for _, latestResourceSchema := range apiExport.Spec.LatestResourceSchemas {
+	for _, latestResourceSchema := range apiExport.Spec.Resources {
 		var resourceSchema kcpv1alpha1.APIResourceSchema
-		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema}, &resourceSchema)
+		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema.Name}, &resourceSchema)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}

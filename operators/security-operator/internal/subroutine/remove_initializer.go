@@ -6,8 +6,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/kcp-dev/kcp/sdk/apis/cache/initialization"
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	"github.com/kcp-dev/sdk/apis/cache/initialization"
+	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	secopv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
