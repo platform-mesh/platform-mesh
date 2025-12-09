@@ -59,8 +59,6 @@ func logicalClusterClientFromKey(mgr ctrl.Manager, log *logger.Logger) NewLogica
 
 		parsed.Path = fmt.Sprintf("/clusters/%s", clusterKey)
 
-		log.Info().Msg(fmt.Sprintf("HOST from logical cluster client from key -- %s", parsed.String()))
-
 		cfg.Host = parsed.String()
 
 		return client.New(cfg, client.Options{

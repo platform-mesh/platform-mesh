@@ -1,0 +1,29 @@
+apiVersion: apis.kcp.io/v1alpha1
+kind: APIExport
+metadata:
+  creationTimestamp: null
+  name: core.platform-mesh.io
+spec:
+  latestResourceSchemas:
+  - v250715-5b899f6.accountinfos.core.platform-mesh.io
+  - v250715-5b899f6.accounts.core.platform-mesh.io
+  - v250718-a64f278.authorizationmodels.core.platform-mesh.io
+  - v250718-a64f278.stores.core.platform-mesh.io
+  permissionClaims:
+    - resource: apibindings
+      group: apis.kcp.io
+      all: true
+      identityHash: ""
+    - resource: apiexports
+      group: apis.kcp.io
+      all: true
+      identityHash: ""
+    - resource: apiresourceschemas
+      group: apis.kcp.io
+      all: true
+      identityHash: ""
+    - resource: logicalclusters
+      group: apis.kcp.io
+      all: true
+      identityHash: ""
+status: {}

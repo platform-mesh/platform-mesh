@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
@@ -18,7 +17,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -95,19 +93,6 @@ func TestAuthorizationModelFinalize(t *testing.T) {
 	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil, nil)
 	_, err := subroutine.Finalize(t.Context(), nil)
 	assert.Nil(t, err)
-}
-
-func mockLogicalClusterGet(k8s *mocks.MockClient) {
-	k8s.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
-		func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-			lc := o.(*kcpcorev1alpha1.LogicalCluster)
-			lc.Annotations = map[string]string{
-				"kcp.io/cluster": "path",
-			}
-
-			return nil
-		},
-	).Once()
 }
 
 func TestAuthorizationModelProcess(t *testing.T) {

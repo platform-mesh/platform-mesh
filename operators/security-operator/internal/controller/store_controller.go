@@ -2,10 +2,7 @@ package controller
 
 import (
 	"context"
-	"net/url"
-	"strings"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
@@ -37,28 +34,7 @@ type StoreReconciler struct {
 }
 
 func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *StoreReconciler {
-
-	allCfg := rest.CopyConfig(mcMgr.GetLocalManager().GetConfig())
-
-	parsed, err := url.Parse(allCfg.Host)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to parse host from config")
-	}
-
-	parts := strings.Split(parsed.Path, "clusters")
-
-	parsed.Path, err = url.JoinPath(parts[0], "clusters", logicalcluster.Wildcard.String())
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to join path")
-	}
-
-	allCfg.Host = parsed.String()
-
-	log.Info().Str("host", allCfg.Host).Msg("using host")
-
-	allClient, err := client.New(allCfg, client.Options{
-		Scheme: mcMgr.GetLocalManager().GetScheme(),
-	})
+	allClient, err := getAllClient(mcMgr)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}

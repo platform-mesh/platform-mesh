@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"slices"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -16,8 +14,6 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
@@ -40,23 +36,15 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 		authorizationModelID = obj.Status.AuthorizationModelID
 		managedTuples = obj.Status.ManagedTuples
 	case *v1alpha1.AuthorizationModel:
-		cluster, err := t.mgr.ClusterFromContext(ctx)
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
-		}
-
 		managedTuples = obj.Status.ManagedTuples
 
-		var lc kcpcorev1alpha1.LogicalCluster
-		err = cluster.GetClient().Get(ctx, client.ObjectKey{Name: "cluster"}, &lc)
+		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Path)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store cluster: %w", err), true, false)
 		}
 
-		storeCtx := mccontext.WithCluster(ctx, string(logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey])))
-
 		var store v1alpha1.Store
-		err = cluster.GetClient().Get(storeCtx, types.NamespacedName{
+		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
 			Name: obj.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil {
@@ -125,21 +113,8 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 		specTuples = obj.Spec.Tuples
 		managedTuples = obj.Status.ManagedTuples
 	case *v1alpha1.AuthorizationModel:
-		cluster, err := t.mgr.ClusterFromContext(ctx)
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
-		}
-
 		specTuples = obj.Spec.Tuples
 		managedTuples = obj.Status.ManagedTuples
-
-		var lc kcpcorev1alpha1.LogicalCluster
-		err = cluster.GetClient().Get(ctx, client.ObjectKey{Name: "cluster"}, &lc)
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
-		}
-
-		storeCtx := mccontext.WithCluster(ctx, string(logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey])))
 
 		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Path)
 		if err != nil {
@@ -147,7 +122,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 		}
 
 		var store v1alpha1.Store
-		err = storeCluster.GetClient().Get(storeCtx, types.NamespacedName{
+		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
 			Name: obj.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil { // coverage-ignore

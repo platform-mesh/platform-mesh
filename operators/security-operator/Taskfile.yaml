@@ -7,7 +7,7 @@ vars:
   ENVTEST_VERSION: release-0.19
   CRD_DIRECTORY: config/crd/bases
   KCP_APIGEN_VERSION: v0.21.0
-  KCP_VERSION: 0.26.1
+  KCP_VERSION: 0.28.3
   GOLANGCI_LINT_VERSION: v2.5.0
   GOARCH:
     sh: go env GOARCH
@@ -76,15 +76,17 @@ tasks:
       GOPRIVATE: github.com/platform-mesh 
       KUBEBUILDER_ASSETS:
         sh: $(pwd)/{{.LOCAL_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir $(pwd)/{{.LOCAL_BIN}} -p path
+      TEST_KCP_ASSETS:
+        sh: echo $(pwd)/{{.LOCAL_BIN}}
       GO111MODULE: on
     cmds:
       - go test -count=1 ./... {{.ADDITIONAL_COMMAND_ARGS}}
   test:
-    deps: [setup:envtest]
+    deps: [setup:envtest, setup:kcp]
     cmds:
       - task: envtest
   cover:
-    deps: [setup:envtest]
+    deps: [setup:envtest, setup:kcp]
     cmds:
       - task: envtest
         vars:

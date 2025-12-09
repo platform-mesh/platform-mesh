@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
@@ -14,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 func TestTupleGetName(t *testing.T) {
@@ -200,6 +198,10 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 					},
 				},
 				Spec: v1alpha1.AuthorizationModelSpec{
+					StoreRef: v1alpha1.WorkspaceStoreRef{
+						Name: "store",
+						Path: "store-cluster",
+					},
 					Tuples: []v1alpha1.Tuple{
 						{
 							Object:   "foo",
@@ -223,8 +225,14 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				// Not used for AuthorizationModel
+			},
+			mgrMocks: func(mgr *mocks.MockManager) {
+				storeCluster := mocks.NewMockCluster(t)
+				storeClient := mocks.NewMockClient(t)
+				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
+				storeCluster.EXPECT().GetClient().Return(storeClient)
+				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*v1alpha1.Store)
 					*store = v1alpha1.Store{
 						Status: v1alpha1.StoreStatus{
@@ -245,6 +253,10 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 					},
 				},
 				Spec: v1alpha1.AuthorizationModelSpec{
+					StoreRef: v1alpha1.WorkspaceStoreRef{
+						Name: "store",
+						Path: "store-cluster",
+					},
 					Tuples: []v1alpha1.Tuple{
 						{
 							Object:   "foo",
@@ -281,8 +293,14 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				// Not used for AuthorizationModel
+			},
+			mgrMocks: func(mgr *mocks.MockManager) {
+				storeCluster := mocks.NewMockCluster(t)
+				storeClient := mocks.NewMockClient(t)
+				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
+				storeCluster.EXPECT().GetClient().Return(storeClient)
+				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*v1alpha1.Store)
 					*store = v1alpha1.Store{
 						Status: v1alpha1.StoreStatus{
@@ -303,18 +321,16 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			}
 
 			manager := mocks.NewMockManager(t)
-			cluster := mocks.NewMockCluster(t)
-			k8sClient := mocks.NewMockClient(t)
+			if test.mgrMocks != nil {
+				test.mgrMocks(manager)
+			}
 			if test.k8sMocks != nil {
-				test.k8sMocks(k8sClient)
-				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
-				cluster.EXPECT().GetClient().Return(k8sClient).Maybe()
+				test.k8sMocks(mocks.NewMockClient(t))
 			}
 
 			subroutine := subroutine.NewTupleSubroutine(fga, manager)
 
-			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
+			ctx := context.Background()
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {
@@ -345,6 +361,12 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 						v1alpha1.StoreRefLabelKey: "store",
 					},
 				},
+				Spec: v1alpha1.AuthorizationModelSpec{
+					StoreRef: v1alpha1.WorkspaceStoreRef{
+						Name: "store",
+						Path: "store-cluster",
+					},
+				},
 				Status: v1alpha1.AuthorizationModelStatus{
 					ManagedTuples: []v1alpha1.Tuple{
 						{
@@ -360,8 +382,14 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
-				mockLogicalClusterGet(k8s)
-				k8s.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				// Not used for AuthorizationModel
+			},
+			mgrMocks: func(mgr *mocks.MockManager) {
+				storeCluster := mocks.NewMockCluster(t)
+				storeClient := mocks.NewMockClient(t)
+				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
+				storeCluster.EXPECT().GetClient().Return(storeClient)
+				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*v1alpha1.Store)
 					*store = v1alpha1.Store{
 						Status: v1alpha1.StoreStatus{
@@ -382,18 +410,16 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 			}
 
 			manager := mocks.NewMockManager(t)
-			cluster := mocks.NewMockCluster(t)
-			k8sClient := mocks.NewMockClient(t)
+			if test.mgrMocks != nil {
+				test.mgrMocks(manager)
+			}
 			if test.k8sMocks != nil {
-				test.k8sMocks(k8sClient)
-				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
-				cluster.EXPECT().GetClient().Return(k8sClient).Maybe()
+				test.k8sMocks(mocks.NewMockClient(t))
 			}
 
 			subroutine := subroutine.NewTupleSubroutine(fga, manager)
 
-			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
+			ctx := context.Background()
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {
