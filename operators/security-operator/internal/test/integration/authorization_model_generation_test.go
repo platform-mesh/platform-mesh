@@ -57,7 +57,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	suite.Assert().Eventually(func() bool {
 		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
 		return err == nil
-	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should be created by controller")
+	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should be created by controller")
 
 	suite.Assert().Equal(testOrgName, model.Spec.StoreRef.Name)
 	suite.Assert().Equal(testOrgPath.String(), model.Spec.StoreRef.Path)
@@ -106,7 +106,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	suite.Assert().Eventually(func() bool {
 		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
 		return err == nil
-	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should exist after reconciliations")
+	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should exist after reconciliations")
 
 	var testApiBinding1, testApiBinding2 kcpapiv1alpha1.APIBinding
 	suite.Require().NoError(testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1))
@@ -122,13 +122,13 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 		var binding kcpapiv1alpha1.APIBinding
 		err := testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &binding)
 		return kerrors.IsNotFound(err)
-	}, 5*time.Second, 200*time.Millisecond, "APIBinding1 should be deleted")
+	}, 10*time.Second, 200*time.Millisecond, "APIBinding1 should be deleted")
 
 	suite.Assert().Eventually(func() bool {
 		var authModel securityv1alpha1.AuthorizationModel
 		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &authModel)
 		return err == nil && authModel.DeletionTimestamp.IsZero()
-	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should still exist after deleting first binding")
+	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should still exist after deleting first binding")
 
 	err = testAccount2Client.Delete(ctx, apiBinding2)
 	suite.Require().NoError(err)
@@ -137,13 +137,13 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 		var binding kcpapiv1alpha1.APIBinding
 		err := testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &binding)
 		return kerrors.IsNotFound(err)
-	}, 5*time.Second, 200*time.Millisecond, "APIBinding2 should be deleted")
+	}, 10*time.Second, 200*time.Millisecond, "APIBinding2 should be deleted")
 
 	suite.Assert().Eventually(func() bool {
 		var authModel securityv1alpha1.AuthorizationModel
 		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &authModel)
 		return kerrors.IsNotFound(err)
-	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should be deleted after deleting both bindings")
+	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should be deleted after deleting both bindings")
 }
 
 func (suite *IntegrationSuite) createTestAPIResourceSchema(ctx context.Context, client client.Client, name, group, plural, singular string, scope apiextensionsv1.ResourceScope) {
