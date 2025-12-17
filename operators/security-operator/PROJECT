@@ -32,4 +32,11 @@ resources:
   kind: Invite
   path: github.com/platform-mesh/security-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+  domain: platform-mesh.io
+  group: core
+  kind: IdentityProviderConfiguration
+  path: github.com/platform-mesh/security-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"

@@ -5,6 +5,7 @@ resources:
 - bases/core.platform-mesh.io_stores.yaml
 - bases/core.platform-mesh.io_authorizationmodels.yaml
 - bases/core.platform-mesh.io_invites.yaml
+- bases/core.platform-mesh.io_identityproviderconfigurations.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

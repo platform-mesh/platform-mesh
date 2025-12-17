@@ -143,6 +143,12 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
+		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager(), log)(logicalcluster.Name("root:orgs"))
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create org client")
+			return err
+		}
+
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
 		if err = controller.NewStoreReconciler(log, fga, mgr).
@@ -154,6 +160,10 @@ var operatorCmd = &cobra.Command{
 			NewAuthorizationModelReconciler(log, fga, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
+			return err
+		}
+		if err = controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, orgClient, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
+			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
 			return err
 		}
 		if err = controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {

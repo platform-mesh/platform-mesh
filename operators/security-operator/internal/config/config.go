@@ -34,9 +34,11 @@ type Config struct {
 		StartTLS bool `mapstructure:"idp-smtp-starttls" default:"false"`
 
 		// Auth settings
-		SMTPUser               string `mapstructure:"idp-smtp-user"`
+		SMTPUser string `mapstructure:"idp-smtp-user"`
+		// secret name and key will be removed with idp creation subroutine
 		SMTPPasswordSecretName string `mapstructure:"idp-smtp-password-secret-name"`
 		SMTPPasswordSecretKey  string `mapstructure:"idp-smtp-password-secret-key" default:"password"`
+		SMTPPassword           string `mapstructure:"idp-smtp-password"`
 
 		AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
 	} `mapstructure:",squash"`
