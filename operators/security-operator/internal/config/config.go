@@ -14,15 +14,16 @@ type Config struct {
 	KCP struct {
 		Kubeconfig string `mapstructure:"kcp-kubeconfig" default:"/api-kubeconfig/kubeconfig"`
 	} `mapstructure:",squash"`
-	APIExportEndpointSliceName string `mapstructure:"api-export-endpoint-slice-name"`
-	CoreModulePath             string `mapstructure:"core-module-path"`
-	BaseDomain                 string `mapstructure:"base-domain" default:"portal.dev.local:8443"`
-	GroupClaim                 string `mapstructure:"group-claim" default:"groups"`
-	UserClaim                  string `mapstructure:"user-claim" default:"email"`
-	InitializerName            string `mapstructure:"initializer-name" default:"root:security"`
-	DomainCALookup             bool   `mapstructure:"domain-ca-lookup" default:"false"`
-	HttpClientTimeoutSeconds   int    `mapstructure:"http-client-timeout-seconds" default:"30"`
-	IDP                        struct {
+	APIExportEndpointSliceName       string `mapstructure:"api-export-endpoint-slice-name"`
+	CoreModulePath                   string `mapstructure:"core-module-path"`
+	BaseDomain                       string `mapstructure:"base-domain" default:"portal.dev.local:8443"`
+	GroupClaim                       string `mapstructure:"group-claim" default:"groups"`
+	UserClaim                        string `mapstructure:"user-claim" default:"email"`
+	DevelopmentAllowUnverifiedEmails bool   `mapstructure:"development-allow-unverified-emails" default:"false"`
+	InitializerName                  string `mapstructure:"initializer-name" default:"root:security"`
+	DomainCALookup                   bool   `mapstructure:"domain-ca-lookup" default:"false"`
+	HttpClientTimeoutSeconds         int    `mapstructure:"http-client-timeout-seconds" default:"30"`
+	IDP                              struct {
 		// SMTP settings
 		SMTPServer  string `mapstructure:"idp-smtp-server"`
 		SMTPPort    int    `mapstructure:"idp-smtp-port"`

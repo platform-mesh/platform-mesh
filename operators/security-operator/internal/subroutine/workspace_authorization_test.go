@@ -436,6 +436,71 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 			expectError:    true,
 			expectedResult: ctrl.Result{},
 		},
+		{
+			name: "success - allow unverified emails in development mode",
+			logicalCluster: &kcpv1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:dev-workspace",
+					},
+				},
+			},
+			cfg: config.Config{
+				BaseDomain:                       "dev.domain",
+				GroupClaim:                       "groups",
+				UserClaim:                        "email",
+				DevelopmentAllowUnverifiedEmails: true,
+			},
+			setupMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "dev-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
+					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "dev-workspace")).Once()
+
+				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+						assert.Equal(t, "dev-workspace", wac.Name)
+						assert.Equal(t, "https://dev.domain/keycloak/realms/dev-workspace", wac.Spec.JWT[0].Issuer.URL)
+						assert.Equal(t, kcptenancyv1alphav1.AudienceMatchPolicyMatchAny, wac.Spec.JWT[0].Issuer.AudienceMatchPolicy)
+						assert.Equal(t, "groups", wac.Spec.JWT[0].ClaimMappings.Groups.Claim)
+						assert.Equal(t, "claims.email", wac.Spec.JWT[0].ClaimMappings.Username.Expression)
+						assert.Equal(t, "", wac.Spec.JWT[0].ClaimMappings.Username.Claim)
+						assert.Len(t, wac.Spec.JWT[0].ClaimValidationRules, 1)
+						assert.Equal(t, "claims.?email_verified.orValue(true) == true || claims.?email_verified.orValue(true) == false", wac.Spec.JWT[0].ClaimValidationRules[0].Expression)
+						assert.Equal(t, "Allowing both verified and unverified emails", wac.Spec.JWT[0].ClaimValidationRules[0].Message)
+						return nil
+					}).Once()
+
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "dev-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "dev-workspace-org"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						assert.Equal(t, "dev-workspace-org", wt.Name)
+						assert.Equal(t, "dev-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
+						return nil
+					}).Once()
+
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "dev-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "dev-workspace-acc"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						assert.Equal(t, "dev-workspace-acc", wt.Name)
+						assert.Equal(t, "dev-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
+						return nil
+					}).Once()
+			},
+			expectError:    false,
+			expectedResult: ctrl.Result{},
+		},
 	}
 
 	for _, tt := range tests {

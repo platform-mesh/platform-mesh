@@ -63,27 +63,45 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 		}
 	}
 
+	jwtAuthenticationConfiguration := kcptenancyv1alphav1.JWTAuthenticator{
+		Issuer: kcptenancyv1alphav1.Issuer{
+			URL:                 fmt.Sprintf("https://%s/keycloak/realms/%s", r.cfg.BaseDomain, workspaceName),
+			AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
+			Audiences:           []string{workspaceName, "kubectl"},
+		},
+		ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
+			Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
+				Claim:  r.cfg.GroupClaim,
+				Prefix: ptr.To(""),
+			},
+			Username: kcptenancyv1alphav1.PrefixedClaimOrExpression{}, // to be set based on environment
+		},
+	}
+
+	// If production - default behavior - only verified emails.
+	if !r.cfg.DevelopmentAllowUnverifiedEmails {
+		jwtAuthenticationConfiguration.ClaimMappings.Username = kcptenancyv1alphav1.PrefixedClaimOrExpression{
+			Claim:  r.cfg.UserClaim,
+			Prefix: ptr.To(""),
+		}
+	} else {
+		// Development mode - allow both verified and unverified emails.
+		jwtAuthenticationConfiguration.ClaimMappings.Username = kcptenancyv1alphav1.PrefixedClaimOrExpression{
+			Expression: "claims.email",
+		}
+		jwtAuthenticationConfiguration.ClaimValidationRules = []kcptenancyv1alphav1.ClaimValidationRule{
+			{
+				Expression: "claims.?email_verified.orValue(true) == true || claims.?email_verified.orValue(true) == false",
+				Message:    "Allowing both verified and unverified emails",
+			}}
+
+	}
+
 	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 	_, err := controllerutil.CreateOrUpdate(ctx, r.orgClient, obj, func() error {
 		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
-				{
-					Issuer: kcptenancyv1alphav1.Issuer{
-						URL:                 fmt.Sprintf("https://%s/keycloak/realms/%s", r.cfg.BaseDomain, workspaceName),
-						AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
-						Audiences:           []string{workspaceName, "kubectl"},
-					},
-					ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
-						Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
-							Claim:  r.cfg.GroupClaim,
-							Prefix: ptr.To(""),
-						},
-						Username: kcptenancyv1alphav1.PrefixedClaimOrExpression{
-							Claim:  r.cfg.UserClaim,
-							Prefix: ptr.To(""),
-						},
-					},
-				},
+				jwtAuthenticationConfiguration,
 			},
 		}
 
