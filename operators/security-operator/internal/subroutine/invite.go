@@ -90,7 +90,7 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create invite resource %w", err), true, true)
 	}
 
-	log.Info().Str("workspace", wsName).Msg("invite resource created")
+	log.Info().Str("workspace", wsName).Msg("invite resource is created")
 
 	err = wait.ExponentialBackoffWithContext(ctx, retry.DefaultBackoff,
 		func(ctx context.Context) (bool, error) {
@@ -105,6 +105,6 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("invite resource is not ready yet"), true, false)
 	}
 
-	log.Info().Str("workspace", wsName).Msg("invite resource ready")
+	log.Info().Str("workspace", wsName).Msg("invite resource is ready")
 	return ctrl.Result{}, nil
 }

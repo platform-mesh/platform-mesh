@@ -9,7 +9,7 @@ import (
 	"net/url"
 
 	"github.com/coreos/go-oidc"
-	corev1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -108,7 +108,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	cl := cluster.GetClient()
 
-	var accountInfo corev1alpha1.AccountInfo
+	var accountInfo accountsv1alpha1.AccountInfo
 	if err := cl.Get(ctx, client.ObjectKey{Name: "account"}, &accountInfo); err != nil {
 		log.Err(err).Msg("Failed to get AccountInfo")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
@@ -142,8 +142,14 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	log.Info().Str("email", invite.Spec.Email).Msg("User does not exist, creating user and sending invite")
 
+	clientID, err := s.getClientID(ctx, cl, realm)
+	if err != nil {
+		log.Err(err).Msg("failed to get client ID")
+		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+	}
+
 	clientQueryParams := url.Values{
-		"clientId": {realm},
+		"clientId": {clientID},
 	}
 
 	res, err = s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/clients?%s", s.keycloakBaseURL, realm, clientQueryParams.Encode()))
@@ -163,11 +169,11 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	}
 
 	if len(clients) == 0 {
-		log.Info().Str("clientId", realm).Msg("Client does not exist yet, requeuing")
+		log.Info().Str("clientId", clientID).Msg("Client does not exist yet, requeuing")
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("client %s does not exist yet", realm), true, false)
 	}
 
-	log.Debug().Str("clientId", realm).Msg("Client verified")
+	log.Debug().Str("clientId", clientID).Msg("Client verified")
 
 	// Create user
 	newUser := keycloakUser{
@@ -213,7 +219,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	queryParams := url.Values{
 		"redirect_uri": {fmt.Sprintf("https://%s.%s/", realm, s.baseDomain)},
-		"client_id":    {realm},
+		"client_id":    {clientID},
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email?%s", s.keycloakBaseURL, realm, newUser.ID, queryParams.Encode()), http.NoBody)
@@ -238,3 +244,16 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 }
 
 var _ lifecyclesubroutine.Subroutine = &subroutine{}
+
+func (s *subroutine) getClientID(ctx context.Context, cl client.Client, clientName string) (string, error) {
+	idp := &v1alpha1.IdentityProviderConfiguration{}
+	if err := cl.Get(ctx, client.ObjectKey{Name: clientName}, idp); err != nil {
+		return "", err
+	}
+
+	client, ok := idp.Status.ManagedClients[clientName]
+	if !ok {
+		return "", fmt.Errorf("client %s not found in idp %s", clientName, idp.Name)
+	}
+	return client.ClientID, nil
+}

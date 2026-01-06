@@ -14,16 +14,15 @@ type Config struct {
 	KCP struct {
 		Kubeconfig string `mapstructure:"kcp-kubeconfig" default:"/api-kubeconfig/kubeconfig"`
 	} `mapstructure:",squash"`
-	APIExportEndpointSliceName    string `mapstructure:"api-export-endpoint-slice-name"`
-	CoreModulePath                string `mapstructure:"core-module-path"`
-	WorkspaceDir                  string `mapstructure:"workspace-dir" default:"/operator/"`
-	BaseDomain                    string `mapstructure:"base-domain" default:"portal.dev.local:8443"`
-	GroupClaim                    string `mapstructure:"group-claim" default:"groups"`
-	UserClaim                     string `mapstructure:"user-claim" default:"email"`
-	InitializerName               string `mapstructure:"initializer-name" default:"root:security"`
-	DomainCALookup                bool   `mapstructure:"domain-ca-lookup" default:"false"`
-	SecretWaitingTimeoutInSeconds int    `mapstructure:"secret-waiting-timeout-seconds" default:"60"`
-	IDP                           struct {
+	APIExportEndpointSliceName string `mapstructure:"api-export-endpoint-slice-name"`
+	CoreModulePath             string `mapstructure:"core-module-path"`
+	BaseDomain                 string `mapstructure:"base-domain" default:"portal.dev.local:8443"`
+	GroupClaim                 string `mapstructure:"group-claim" default:"groups"`
+	UserClaim                  string `mapstructure:"user-claim" default:"email"`
+	InitializerName            string `mapstructure:"initializer-name" default:"root:security"`
+	DomainCALookup             bool   `mapstructure:"domain-ca-lookup" default:"false"`
+	HttpClientTimeoutSeconds   int    `mapstructure:"http-client-timeout-seconds" default:"30"`
+	IDP                        struct {
 		// SMTP settings
 		SMTPServer  string `mapstructure:"idp-smtp-server"`
 		SMTPPort    int    `mapstructure:"idp-smtp-port"`
@@ -34,11 +33,8 @@ type Config struct {
 		StartTLS bool `mapstructure:"idp-smtp-starttls" default:"false"`
 
 		// Auth settings
-		SMTPUser string `mapstructure:"idp-smtp-user"`
-		// secret name and key will be removed with idp creation subroutine
-		SMTPPasswordSecretName string `mapstructure:"idp-smtp-password-secret-name"`
-		SMTPPasswordSecretKey  string `mapstructure:"idp-smtp-password-secret-key" default:"password"`
-		SMTPPassword           string `mapstructure:"idp-smtp-password"`
+		SMTPUser     string `mapstructure:"idp-smtp-user"`
+		SMTPPassword string `mapstructure:"idp-smtp-password"`
 
 		AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
 	} `mapstructure:",squash"`

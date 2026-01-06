@@ -111,9 +111,20 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	var testApiBinding1, testApiBinding2 kcpapiv1alpha1.APIBinding
 	suite.Require().NoError(testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1))
 	suite.Require().NoError(testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &testApiBinding2))
+
 	expectedFinalizers := []string{"apis.kcp.io/apibinding-finalizer", "core.platform-mesh.io/apibinding-finalizer"}
-	suite.Require().Equal(expectedFinalizers, testApiBinding1.Finalizers, "APIBinding %s should have the expected finalizers", testApiBinding1.Name)
-	suite.Require().Equal(expectedFinalizers, testApiBinding2.Finalizers, "APIBinding %s should have the expected finalizers", testApiBinding2.Name)
+
+	suite.Assert().Eventually(func() bool {
+		var testApiBinding1, testApiBinding2 kcpapiv1alpha1.APIBinding
+		if err := testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1); err != nil {
+			return false
+		}
+		if err := testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &testApiBinding2); err != nil {
+			return false
+		}
+		return suite.Equal(expectedFinalizers, testApiBinding1.Finalizers) &&
+			suite.Equal(expectedFinalizers, testApiBinding2.Finalizers)
+	}, 5*time.Second, 200*time.Millisecond, "APIBindings should have the expected finalizers")
 
 	err = testAccount1Client.Delete(ctx, apiBinding1)
 	suite.Require().NoError(err)

@@ -10,7 +10,9 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -20,14 +22,14 @@ import (
 )
 
 type workspaceAuthSubroutine struct {
-	client        client.Client
+	orgClient     client.Client
 	runtimeClient client.Client
 	cfg           config.Config
 }
 
-func NewWorkspaceAuthConfigurationSubroutine(client, runtimeClient client.Client, cfg config.Config) *workspaceAuthSubroutine {
+func NewWorkspaceAuthConfigurationSubroutine(orgClient, runtimeClient client.Client, cfg config.Config) *workspaceAuthSubroutine {
 	return &workspaceAuthSubroutine{
-		client:        client,
+		orgClient:     orgClient,
 		runtimeClient: runtimeClient,
 		cfg:           cfg,
 	}
@@ -62,7 +64,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 	}
 
 	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctx, r.orgClient, obj, func() error {
 		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				{
@@ -95,5 +97,42 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
 	}
 
+	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-org", workspaceName), workspaceName)
+	if err != nil {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace type: %w", err), true, true)
+	}
+
+	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-acc", workspaceName), workspaceName)
+	if err != nil {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace type: %w", err), true, true)
+	}
+
 	return ctrl.Result{}, nil
+}
+
+func (r *workspaceAuthSubroutine) patchWorkspaceType(ctx context.Context, cl client.Client, workspaceTypeName, authConfigurationRefName string) error {
+	wsType := &kcptenancyv1alphav1.WorkspaceType{
+		ObjectMeta: metav1.ObjectMeta{Name: workspaceTypeName},
+	}
+
+	if err := cl.Get(ctx, client.ObjectKey{Name: workspaceTypeName}, wsType); err != nil {
+		return fmt.Errorf("failed to get WorkspaceType: %w", err)
+	}
+
+	desiredAuthConfig := []kcptenancyv1alphav1.AuthenticationConfigurationReference{
+		{Name: authConfigurationRefName},
+	}
+
+	if equality.Semantic.DeepEqual(wsType.Spec.AuthenticationConfigurations, desiredAuthConfig) {
+		log.Debug().Msg(fmt.Sprintf("workspaceType %s already has authentication configuration, skip patching", workspaceTypeName))
+		return nil
+	}
+
+	original := wsType.DeepCopy()
+	wsType.Spec.AuthenticationConfigurations = desiredAuthConfig
+
+	if err := cl.Patch(ctx, wsType, client.MergeFrom(original)); err != nil {
+		return fmt.Errorf("failed to patch WorkspaceType: %w", err)
+	}
+	return nil
 }

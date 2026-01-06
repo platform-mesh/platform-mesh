@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,8 +68,8 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			setupK8sMocks: func(m *mocks.MockClient) {
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						accountInfo := &accountsv1alpha1.AccountInfo{
 							Spec: accountsv1alpha1.AccountInfoSpec{
 								Organization: accountsv1alpha1.AccountLocation{
@@ -78,8 +79,25 @@ func TestSubroutineProcess(t *testing.T) {
 						}
 						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
-					},
-				)
+					}).Once()
+
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						idp := &v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "acme",
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"acme": {
+										ClientID: "acme",
+									},
+								},
+							},
+						}
+						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						return nil
+					}).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux) {
 				users := []map[string]any{}
@@ -122,8 +140,8 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						accountInfo := &accountsv1alpha1.AccountInfo{
 							Spec: accountsv1alpha1.AccountInfoSpec{
 								Organization: accountsv1alpha1.AccountLocation{
@@ -133,8 +151,7 @@ func TestSubroutineProcess(t *testing.T) {
 						}
 						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
-					},
-				)
+					}).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux) {
 				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
@@ -152,8 +169,8 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						accountInfo := &accountsv1alpha1.AccountInfo{
 							Spec: accountsv1alpha1.AccountInfoSpec{
 								Organization: accountsv1alpha1.AccountLocation{
@@ -163,8 +180,25 @@ func TestSubroutineProcess(t *testing.T) {
 						}
 						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
-					},
-				)
+					}).Once()
+
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						idp := &v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "acme",
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"acme": {
+										ClientID: "acme",
+									},
+								},
+							},
+						}
+						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						return nil
+					}).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux) {
 				first := true
@@ -195,7 +229,8 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("accountinfo not found"))
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					Return(fmt.Errorf("accountinfo not found")).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux) {
 			},
@@ -209,8 +244,8 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						accountInfo := &accountsv1alpha1.AccountInfo{
 							Spec: accountsv1alpha1.AccountInfoSpec{
 								Organization: accountsv1alpha1.AccountLocation{
@@ -220,8 +255,25 @@ func TestSubroutineProcess(t *testing.T) {
 						}
 						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
-					},
-				)
+					}).Once()
+
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						idp := &v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "acme",
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"acme": {
+										ClientID: "acme",
+									},
+								},
+							},
+						}
+						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						return nil
+					}).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux) {
 				users := []map[string]any{}
@@ -255,8 +307,8 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						accountInfo := &accountsv1alpha1.AccountInfo{
 							Spec: accountsv1alpha1.AccountInfoSpec{
 								Organization: accountsv1alpha1.AccountLocation{
@@ -266,8 +318,25 @@ func TestSubroutineProcess(t *testing.T) {
 						}
 						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
-					},
-				)
+					}).Once()
+
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						idp := &v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "acme",
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"acme": {
+										ClientID: "acme",
+									},
+								},
+							},
+						}
+						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						return nil
+					}).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux) {
 				users := []map[string]any{}
@@ -304,8 +373,8 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						accountInfo := &accountsv1alpha1.AccountInfo{
 							Spec: accountsv1alpha1.AccountInfoSpec{
 								Organization: accountsv1alpha1.AccountLocation{
@@ -315,8 +384,7 @@ func TestSubroutineProcess(t *testing.T) {
 						}
 						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
-					},
-				)
+					}).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux) {
 			},

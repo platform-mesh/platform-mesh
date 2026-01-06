@@ -31,12 +31,13 @@ func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cf
 		log: log,
 		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
-			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, cfg),
-			subroutine.NewRealmSubroutine(inClusterClient, &cfg, cfg.BaseDomain),
+			subroutine.NewIDPSubroutine(orgClient, mgr, cfg),
 			subroutine.NewInviteSubroutine(orgClient, mgr),
-			subroutine.NewRemoveInitializer(mgr, cfg, inClusterClient),
+			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, cfg),
+			subroutine.NewRemoveInitializer(mgr, cfg),
 		}, log).
 			WithReadOnly().
+			WithStaticThenExponentialRateLimiter().
 			BuildMultiCluster(mgr),
 	}
 }
