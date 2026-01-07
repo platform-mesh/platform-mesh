@@ -1,5 +1,6 @@
 # Build the manager binary
-FROM golang:1.24.4-bullseye AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24.6-bullseye AS builder
+ARG TARGETARCH
 
 WORKDIR /workspace
 
@@ -20,7 +21,7 @@ COPY pkg/ pkg/
 
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags '-w -s' -o manager main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o manager main.go
 
 FROM scratch
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
