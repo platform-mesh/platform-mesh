@@ -8,7 +8,7 @@ vars:
   CRD_DIRECTORY: config/crd
   TEST_SETUP_DIRECTORY: test/setup/01-platform-mesh-system
   KCP_APIGEN_VERSION: v0.27.1
-  KCP_VERSION: 0.27.1
+  KCP_VERSION: 0.29.0
   GOMPLATE_VERSION: v4.3.0
   GOARCH:
     sh: go env GOARCH
@@ -23,7 +23,7 @@ tasks:
   setup:kcp:
     internal: true
     cmds:
-      - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-kcp.sh
+      - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-tool.sh https://github.com/kcp-dev/kcp/releases/download/v{{ .KCP_VERSION }}/kcp_{{ .KCP_VERSION }}_{{ .GOOS }}_{{ .GOARCH }}.tar.gz kcp {{.KCP_VERSION}}
   setup:gomplate:
     internal: true
     cmds:
@@ -72,7 +72,7 @@ tasks:
     cmds:
       - task: envtest
         vars:
-          ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+          ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
   start-kcp:
     deps: [setup:kcp]
     cmds:

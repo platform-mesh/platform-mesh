@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
-	conditionsapi "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
+	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	conditionsapi "github.com/kcp-dev/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
 	corev1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/workspace"

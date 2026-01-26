@@ -28,7 +28,7 @@ type OperatorConfig struct {
 		} `mapstructure:",squash"`
 	} `mapstructure:",squash"`
 	Kcp struct {
-		ApiExportEndpointSliceName string `mapstructure:"kcp-api-export-endpoint-slice-name"`
+		ApiExportEndpointSliceName string `mapstructure:"kcp-api-export-endpoint-slice-name" default:"core.platform-mesh.io"`
 		ProviderWorkspace          string `mapstructure:"kcp-provider-workspace" default:"root"`
 	} `mapstructure:",squash"`
 }

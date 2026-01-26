@@ -3,7 +3,7 @@ package workspacetype
 import (
 	"context"
 
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"

@@ -69,15 +69,15 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		tlsOpts = append(tlsOpts, disableHTTP2)
 	}
 
-	var providerShutdown func(ctx context.Context) error
+	var traceShutdown func(ctx context.Context) error
 	if defaultCfg.Tracing.Enabled {
-		providerShutdown, err = traces.InitProvider(ctx, defaultCfg.Tracing.Collector)
+		traceShutdown, err = traces.InitProvider(ctx, defaultCfg.Tracing.Collector)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to start gRPC-Sidecar TracerProvider")
 		}
 	}
 	defer func() {
-		if err := providerShutdown(ctx); err != nil {
+		if err := traceShutdown(ctx); err != nil {
 			log.Fatal().Err(err).Msg("failed to shutdown TracerProvider")
 		}
 	}()
@@ -100,15 +100,15 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 			log.Fatal().Err(err).Msg("unable to get in-cluster config")
 		}
 	}
-
-	providerCfg := rest.CopyConfig(restCfg)
-
-	provider, err := apiexport.New(providerCfg, apiexport.Options{Scheme: scheme})
+	provider, err := apiexport.New(restCfg, operatorCfg.Kcp.ApiExportEndpointSliceName, apiexport.Options{
+		Log:    &ctrl.Log,
+		Scheme: scheme,
+	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("unable to construct APIExport provider")
+		log.Fatal().Err(err).Msg("creating APIExport provider")
 	}
 
-	mgr, err := mcmanager.New(providerCfg, provider, mcmanager.Options{
+	mgr, err := mcmanager.New(restCfg, provider, mcmanager.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress:   defaultCfg.Metrics.BindAddress,
@@ -174,13 +174,6 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		log.Fatal().Err(err).Msg("unable to set up ready check")
 	}
-
-	log.Info().Msg("starting APIExport provider")
-	go func() {
-		if err := provider.Run(ctx, mgr); err != nil {
-			log.Fatal().Err(err).Msg("problem running APIExport provider")
-		}
-	}()
 
 	log.Info().Msg("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	kcpcorev1alpha "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"

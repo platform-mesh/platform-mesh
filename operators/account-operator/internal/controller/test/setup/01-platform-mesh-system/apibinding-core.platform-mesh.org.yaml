@@ -1,0 +1,52 @@
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIBinding
+metadata:
+  name: core.platform-mesh.io
+spec:
+  reference:
+    export:
+      name: core.platform-mesh.io
+      path: root:platform-mesh-system
+  permissionClaims:
+  - resource: apibindings
+    group: apis.kcp.io
+    selector:
+      matchAll: true
+    verbs: ["*"]
+    state: Accepted
+    identityHash: ""
+  - resource: apiexports
+    group: apis.kcp.io
+    selector:
+      matchAll: true
+    verbs: ["*"]
+    state: Accepted
+    identityHash: ""
+  - resource: apiresourceschemas
+    group: apis.kcp.io
+    selector:
+      matchAll: true
+    verbs: ["*"]
+    state: Accepted
+    identityHash: ""
+  - resource: logicalclusters
+    group: apis.kcp.io
+    selector:
+      matchAll: true
+    verbs: ["*"]
+    state: Accepted
+    identityHash: ""
+  - group: tenancy.kcp.io
+    resource: workspaces
+    selector:
+      matchAll: true
+    verbs: ["*"]
+    state: Accepted
+    identityHash: ""
+  - group: tenancy.kcp.io
+    resource: workspacetypes
+    selector:
+      matchAll: true
+    verbs: ["*"]
+    state: Accepted
+    identityHash: ""

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
-	conditionsapi "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
-	conditionshelper "github.com/kcp-dev/kcp/sdk/apis/third_party/conditions/util/conditions"
+	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	conditionsapi "github.com/kcp-dev/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
+	conditionshelper "github.com/kcp-dev/sdk/apis/third_party/conditions/util/conditions"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
