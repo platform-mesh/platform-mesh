@@ -85,6 +85,23 @@ spec:
                 required:
                 - store
                 type: object
+              oidc:
+                properties:
+                  clients:
+                    additionalProperties:
+                      properties:
+                        clientId:
+                          type: string
+                      required:
+                      - clientId
+                      type: object
+                    type: object
+                  issuerUrl:
+                    type: string
+                required:
+                - clients
+                - issuerUrl
+                type: object
               organization:
                 properties:
                   generatedClusterId:

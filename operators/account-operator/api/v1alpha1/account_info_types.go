@@ -27,6 +27,7 @@ type AccountInfoSpec struct {
 	ParentAccount *AccountLocation `json:"parentAccount,omitempty"`
 	Organization  AccountLocation  `json:"organization"`
 	ClusterInfo   ClusterInfo      `json:"clusterInfo"`
+	OIDC          *OIDCInfo        `json:"oidc,omitempty"`
 }
 
 type ClusterInfo struct {
@@ -49,8 +50,17 @@ type FGAInfo struct {
 	Store StoreInfo `json:"store"`
 }
 
+type OIDCInfo struct {
+	IssuerURL string                `json:"issuerUrl"`
+	Clients   map[string]ClientInfo `json:"clients"`
+}
+
 type StoreInfo struct {
 	Id string `json:"id"`
+}
+
+type ClientInfo struct {
+	ClientID string `json:"clientId"`
 }
 
 // AccountInfoStatus defines the observed state of AccountInfo

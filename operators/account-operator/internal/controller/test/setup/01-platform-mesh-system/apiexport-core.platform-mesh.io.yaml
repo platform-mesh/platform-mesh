@@ -5,7 +5,7 @@ metadata:
   name: core.platform-mesh.io
 spec:
   latestResourceSchemas:
-    - v250715-5b899f6.accountinfos.core.platform-mesh.io
+    - v260126-7c674ee.accountinfos.core.platform-mesh.io
     - v250915-1185c0b.accounts.core.platform-mesh.io
   permissionClaims:
     - resource: apibindings
