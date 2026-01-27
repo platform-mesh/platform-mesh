@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	apiexport "github.com/kcp-dev/multicluster-provider/apiexport"
@@ -59,6 +60,17 @@ func (s *AccountTestSuite) setupKCP() {
 	s.env.BinaryAssetsDirectory = relativeBinaryAssetsDirectory
 	s.env.KcpStartTimeout = 2 * time.Minute
 	s.env.KcpStopTimeout = 30 * time.Second
+
+	// Set the context in case using an existing KCP instance.
+	if os.Getenv("USE_EXISTING_KCP") != "" && os.Getenv("EXISTING_KCP_CONTEXT") == "" {
+		s.env.ExistingKcpContext = "base"
+	}
+
+	// Prevents KCP from cleaning up workspace fixtures before shutdown, the
+	// instance controlled by envtest is ephemeral anyway.
+	if os.Getenv("PRESERVE") == "" {
+		os.Setenv("PRESERVE", "true")
+	}
 
 	var err error
 	s.kcpConfig, err = s.env.Start()
