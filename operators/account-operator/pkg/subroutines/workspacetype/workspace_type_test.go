@@ -4,15 +4,21 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
-	"github.com/platform-mesh/account-operator/pkg/subroutines/workspacetype"
+	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
+	"github.com/platform-mesh/account-operator/pkg/subroutines/workspacetype"
 )
 
 func TestName(t *testing.T) {
@@ -87,12 +93,12 @@ func TestFinalize(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 
-			client := mocks.NewClient(t)
+			cl := mocks.NewClient(t)
 			if test.k8sMocks != nil {
-				test.k8sMocks(client)
+				test.k8sMocks(cl)
 			}
 
-			s := workspacetype.New(client)
+			s := workspacetype.New(cl)
 
 			ctx := t.Context()
 
@@ -139,12 +145,12 @@ func TestProcess(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			client := mocks.NewClient(t)
+			cl := mocks.NewClient(t)
 			if test.k8sMocks != nil {
-				test.k8sMocks(client)
+				test.k8sMocks(cl)
 			}
 
-			s := workspacetype.New(client)
+			s := workspacetype.New(cl)
 
 			_, err := s.Process(t.Context(), test.obj)
 			if test.expectError {
@@ -154,4 +160,51 @@ func TestProcess(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcess_PreservesAuthenticationConfigurations(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, kcptenancyv1alpha.AddToScheme(scheme))
+
+	existingAuthConfigs := []kcptenancyv1alpha.AuthenticationConfigurationReference{
+		{Name: "existing-auth-config"},
+	}
+
+	existingOrgWst := &kcptenancyv1alpha.WorkspaceType{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-org"},
+		Spec: kcptenancyv1alpha.WorkspaceTypeSpec{
+			AuthenticationConfigurations: existingAuthConfigs,
+		},
+	}
+	existingAccWst := &kcptenancyv1alpha.WorkspaceType{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-acc"},
+		Spec: kcptenancyv1alpha.WorkspaceTypeSpec{
+			AuthenticationConfigurations: existingAuthConfigs,
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(existingOrgWst, existingAccWst).
+		Build()
+
+	s := workspacetype.New(fakeClient)
+
+	account := &v1alpha1.Account{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec:       v1alpha1.AccountSpec{Type: v1alpha1.AccountTypeOrg},
+	}
+
+	_, err := s.Process(t.Context(), account)
+	require.Nil(t, err)
+
+	updatedOrgWst := &kcptenancyv1alpha.WorkspaceType{}
+	require.NoError(t, fakeClient.Get(t.Context(), client.ObjectKey{Name: "test-org"}, updatedOrgWst))
+	assert.Equal(t, existingAuthConfigs, updatedOrgWst.Spec.AuthenticationConfigurations,
+		"AuthenticationConfigurations should be preserved on org workspace type")
+
+	updatedAccWst := &kcptenancyv1alpha.WorkspaceType{}
+	require.NoError(t, fakeClient.Get(t.Context(), client.ObjectKey{Name: "test-acc"}, updatedAccWst))
+	assert.Equal(t, existingAuthConfigs, updatedAccWst.Spec.AuthenticationConfigurations,
+		"AuthenticationConfigurations should be preserved on account workspace type")
 }

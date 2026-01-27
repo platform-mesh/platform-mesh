@@ -55,12 +55,12 @@ func (w *WorkspaceTypeSubroutine) Process(ctx context.Context, ro runtimeobject.
 	orgWst := generateOrgWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName)
 	accWst := generateAccountWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName)
 
-	if err := w.createOrUpdateWorkspaceType(ctx, orgWst); err != nil { // coverage-ignore
+	if err := w.createOrPatchWorkspaceType(ctx, orgWst); err != nil { // coverage-ignore
 		log.Error().Err(err).Str("name", orgWst.Name).Msg("failed to create or update org workspace type")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	if err := w.createOrUpdateWorkspaceType(ctx, accWst); err != nil { // coverage-ignore
+	if err := w.createOrPatchWorkspaceType(ctx, accWst); err != nil { // coverage-ignore
 		log.Error().Err(err).Str("name", accWst.Name).Msg("failed to create or update account workspace type")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
@@ -68,11 +68,13 @@ func (w *WorkspaceTypeSubroutine) Process(ctx context.Context, ro runtimeobject.
 	return ctrl.Result{}, nil
 }
 
-func (w *WorkspaceTypeSubroutine) createOrUpdateWorkspaceType(ctx context.Context, desiredWst kcptenancyv1alpha.WorkspaceType) error {
-
+func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context, desiredWst kcptenancyv1alpha.WorkspaceType) error {
 	wst := &kcptenancyv1alpha.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: desiredWst.Name}}
-	_, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, wst, func() error {
-		wst.Spec = desiredWst.Spec
+	_, err := controllerutil.CreateOrPatch(ctx, w.orgsClient, wst, func() error {
+		wst.Spec.Extend = desiredWst.Spec.Extend
+		wst.Spec.DefaultChildWorkspaceType = desiredWst.Spec.DefaultChildWorkspaceType
+		wst.Spec.LimitAllowedParents = desiredWst.Spec.LimitAllowedParents
+		wst.Spec.LimitAllowedChildren = desiredWst.Spec.LimitAllowedChildren
 		return nil
 	})
 	return err

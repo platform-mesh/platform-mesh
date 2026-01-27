@@ -34,3 +34,4 @@ go.work
 kcp.log
 coverage.html
 .gocache/
+.claude
