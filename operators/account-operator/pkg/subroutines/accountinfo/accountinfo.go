@@ -139,6 +139,7 @@ func (r *AccountInfoSubroutine) Process(ctx context.Context, ro runtimeobject.Ru
 		accountInfo.Spec.ParentAccount = &parentAccountInfo.Spec.Account
 		accountInfo.Spec.Organization = parentAccountInfo.Spec.Organization
 		accountInfo.Spec.FGA.Store.Id = parentAccountInfo.Spec.FGA.Store.Id
+		accountInfo.Spec.OIDC = parentAccountInfo.Spec.OIDC
 		accountInfo.Spec.ClusterInfo.CA = r.serverCA
 		return nil
 	})
