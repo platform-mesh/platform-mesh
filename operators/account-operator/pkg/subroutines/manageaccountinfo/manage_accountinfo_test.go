@@ -1,4 +1,4 @@
-package accountinfo_test
+package manageaccountinfo_test
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/account-operator/pkg/subroutines/accountinfo"
+	"github.com/platform-mesh/account-operator/pkg/subroutines/manageaccountinfo"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/logger"
@@ -35,7 +35,7 @@ type Provider struct {
 }
 
 // Get implements multicluster.Provider.
-func (p *Provider) Get(ctx context.Context, clusterName string) (cluster.Cluster, error) {
+func (p *Provider) Get(_ context.Context, clusterName string) (cluster.Cluster, error) {
 	cluster, ok := p.clusters[clusterName]
 	if !ok {
 		return nil, fmt.Errorf("cluster not found: %s", clusterName)
@@ -44,68 +44,26 @@ func (p *Provider) Get(ctx context.Context, clusterName string) (cluster.Cluster
 }
 
 // IndexField implements multicluster.Provider.
-func (p *Provider) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+func (p *Provider) IndexField(_ context.Context, _ client.Object, _ string, _ client.IndexerFunc) error {
 	return nil
 }
 
-func TestAccountInfoGetName(t *testing.T) {
-	assert.Equal(t, accountinfo.AccountInfoSubroutineName, (&accountinfo.AccountInfoSubroutine{}).GetName())
+func TestManageAccountInfoGetName(t *testing.T) {
+	assert.Equal(t, manageaccountinfo.ManageAccountInfoSubroutineName, (&manageaccountinfo.ManageAccountInfoSubroutine{}).GetName())
 }
 
-func TestAccounInfoFinalizers(t *testing.T) {
-	assert.Equal(t, []string{accountinfo.AccountInfoFinalizer}, (&accountinfo.AccountInfoSubroutine{}).Finalizers(nil))
+func TestManageAccountInfoFinalizers(t *testing.T) {
+	assert.Equal(t, []string{}, (&manageaccountinfo.ManageAccountInfoSubroutine{}).Finalizers(nil))
 }
 
-func TestAccountInfoFinalize(t *testing.T) {
-	testCases := []struct {
-		name        string
-		obj         runtimeobject.RuntimeObject
-		expectError bool
-		expectReque bool
-	}{
-		{
-			name: "should requeue if there are other finalizers",
-			obj: &v1alpha1.AccountInfo{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "account",
-					Finalizers: []string{
-						"some.other/finalizer",
-						accountinfo.AccountInfoFinalizer,
-					},
-				},
-			},
-		},
-		{
-			name: "should not error if only finalizer is accountinfo finalizer",
-			obj: &v1alpha1.AccountInfo{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "account",
-					Finalizers: []string{accountinfo.AccountInfoFinalizer},
-				},
-			},
-		},
-	}
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			s := accountinfo.New(nil, "")
-
-			ctx := mccontext.WithCluster(t.Context(), "test-cluster")
-
-			result, err := s.Finalize(ctx, test.obj)
-			if test.expectError {
-				assert.Error(t, err.Err())
-			} else {
-				assert.Nil(t, err)
-			}
-
-			if test.expectReque {
-				assert.True(t, result.RequeueAfter > 0)
-			}
-		})
-	}
+func TestManageAccountInfoFinalize(t *testing.T) {
+	s := manageaccountinfo.New(nil, "")
+	result, err := s.Finalize(t.Context(), nil)
+	assert.Nil(t, err)
+	assert.Zero(t, result.RequeueAfter)
 }
 
-func TestAccountInfoProcess(t *testing.T) {
+func TestManageAccountInfoProcess(t *testing.T) {
 	accountObj := func(tp v1alpha1.AccountType) *v1alpha1.Account {
 		return &v1alpha1.Account{
 			ObjectMeta: metav1.ObjectMeta{Name: "acc"},
@@ -416,7 +374,7 @@ func TestAccountInfoProcess(t *testing.T) {
 			mgr, err := mcmanager.New(emptyConfig, testProvider, mcmanager.Options{})
 			assert.NoError(t, err)
 
-			s := accountinfo.New(mgr, "")
+			s := manageaccountinfo.New(mgr, "")
 			ctx := t.Context()
 
 			log := testlogger.New()

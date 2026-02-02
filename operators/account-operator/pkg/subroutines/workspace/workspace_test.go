@@ -210,6 +210,13 @@ func TestProcess(t *testing.T) {
 
 						return nil
 					}).Once()
+				m.EXPECT().
+					Update(mock.Anything, mock.MatchedBy(func(o client.Object) bool {
+						_, ok := o.(*corev1alpha1.AccountInfo)
+						return ok
+					})).
+					Return(nil).
+					Maybe()
 
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).

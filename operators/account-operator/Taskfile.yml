@@ -2,6 +2,7 @@ version: '3'
 
 vars:
   LOCAL_BIN: bin
+  GOLANGCI_LINT_VERSION: v2.8.0
   CONTROLLER_TOOLS_VERSION: v0.19.0
   ENVTEST_K8S_VERSION: "1.29.0"
   ENVTEST_VERSION: release-0.17
@@ -31,7 +32,7 @@ tasks:
   setup:golangci-lint:
     internal: true
     cmds:
-      - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
   setup:kcp-api-gen:
     internal: true
     cmds:
@@ -77,4 +78,28 @@ tasks:
     deps: [setup:kcp]
     cmds:
       - "{{ .LOCAL_BIN}}/kcp start"
+
+  docker:kind:
+    desc: "Build container image with current tag from kind cluster and load it"
+    vars:
+      CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
+      DEPLOYMENT_NAME: '{{.DEPLOYMENT_NAME | default "account-operator"}}'
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+      IMAGE_TAG:
+        sh: kubectl get deployment {{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}} -o jsonpath='{.spec.template.spec.containers[0].image}' | cut -d':' -f2
+      IMAGE_NAME: ghcr.io/platform-mesh/account-operator:{{.IMAGE_TAG}}
+    cmds:
+      - echo "Building image with tag {{.IMAGE_TAG}} using {{.CONTAINER_RUNTIME}}"
+      - "{{.CONTAINER_RUNTIME}} build -t {{.IMAGE_NAME}} ."
+      - |
+        if [ "{{.CONTAINER_RUNTIME}}" = "podman" ]; then
+          {{.CONTAINER_RUNTIME}} save {{.IMAGE_NAME}} -o /tmp/kind-image.tar
+          kind load image-archive /tmp/kind-image.tar --name {{.KIND_CLUSTER}}
+          rm -f /tmp/kind-image.tar
+        else
+          kind load docker-image {{.IMAGE_NAME}} --name {{.KIND_CLUSTER}}
+        fi
+      - kubectl rollout restart deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}}
+      - echo "Image loaded and deployment restarted"
 

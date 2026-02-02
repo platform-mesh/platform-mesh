@@ -18,10 +18,10 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/internal/config"
 	"github.com/platform-mesh/account-operator/pkg/subroutines"
-	"github.com/platform-mesh/account-operator/pkg/subroutines/accountinfo"
+	"github.com/platform-mesh/account-operator/pkg/subroutines/manageaccountinfo"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/workspace"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/workspacetype"
 )
@@ -53,7 +53,7 @@ func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.
 	}
 
 	if cfg.Subroutines.AccountInfo.Enabled {
-		subs = append(subs, accountinfo.New(mgr, serverCA))
+		subs = append(subs, manageaccountinfo.New(mgr, serverCA))
 	}
 
 	if cfg.Subroutines.FGA.Enabled {
@@ -69,9 +69,9 @@ func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.
 }
 
 func (r *AccountReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformmeshconfig.CommonServiceConfig, log *logger.Logger, eventPredicates ...predicate.Predicate) error { // coverage-ignore
-	return r.lifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, accountReconcilerName, &corev1alpha1.Account{}, cfg.DebugLabelValue, r, log, eventPredicates...)
+	return r.lifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, accountReconcilerName, &v1alpha1.Account{}, cfg.DebugLabelValue, r, log, eventPredicates...)
 }
 
 func (r *AccountReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) { // coverage-ignore
-	return r.lifecycle.Reconcile(mccontext.WithCluster(ctx, req.ClusterName), req, &corev1alpha1.Account{})
+	return r.lifecycle.Reconcile(mccontext.WithCluster(ctx, req.ClusterName), req, &v1alpha1.Account{})
 }

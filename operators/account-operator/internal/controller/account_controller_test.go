@@ -36,7 +36,7 @@ import (
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/internal/config"
 	"github.com/platform-mesh/account-operator/internal/controller"
-	"github.com/platform-mesh/account-operator/pkg/subroutines/accountinfo"
+	"github.com/platform-mesh/account-operator/pkg/subroutines/manageaccountinfo"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
 )
 
@@ -135,10 +135,10 @@ func (s *AccountTestSuite) TestAddingFinalizer() {
 	s.Assert().Eventually(func() bool {
 		err := s.rootOrgsDefaultClient.Get(testContext, types.NamespacedName{Name: accountName, Namespace: defaultNamespace}, &createdAccount)
 
-		return err == nil && len(createdAccount.Finalizers) == 3
+		return err == nil && len(createdAccount.Finalizers) == 2
 	}, defaultTestTimeout*2, defaultTickInterval)
 
-	s.ElementsMatch([]string{"workspacetype.core.platform-mesh.io/finalizer", "account.core.platform-mesh.io/finalizer", "account.core.platform-mesh.io/info"}, createdAccount.Finalizers)
+	s.ElementsMatch([]string{"workspacetype.core.platform-mesh.io/finalizer", "account.core.platform-mesh.io/finalizer"}, createdAccount.Finalizers)
 }
 
 func (s *AccountTestSuite) TestWorkspaceCreation() {
@@ -180,12 +180,12 @@ func (s *AccountTestSuite) TestAccountInfoCreationForOrganization() {
 		if err := s.rootOrgsClient.Get(testContext, types.NamespacedName{Name: accountName}, createdAccount); err != nil {
 			return false
 		}
-		return meta.IsStatusConditionTrue(createdAccount.Status.Conditions, "AccountInfoSubroutine_Ready")
+		return meta.IsStatusConditionTrue(createdAccount.Status.Conditions, "ManageAccountInfoSubroutine_Ready")
 	}, defaultTestTimeout, defaultTickInterval)
 
 	accountInfo := &v1alpha1.AccountInfo{}
 	s.Assert().Eventually(func() bool {
-		if err := s.rootOrgsDefaultClient.Get(testContext, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
+		if err := s.rootOrgsDefaultClient.Get(testContext, client.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
 			return false
 		}
 		return accountInfo.Spec.Account.Type == v1alpha1.AccountTypeOrg

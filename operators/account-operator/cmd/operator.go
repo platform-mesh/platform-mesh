@@ -153,6 +153,13 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Str("controller", "Account").Msg("unable to create controller")
 	}
 
+	if operatorCfg.Controllers.AccountInfo.Enabled {
+		accountInfoReconciler := controller.NewAccountInfoReconciler(log, mgr, operatorCfg)
+		if err := accountInfoReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
+			log.Fatal().Err(err).Str("controller", "AccountInfo").Msg("unable to create controller")
+		}
+	}
+
 	if operatorCfg.Webhooks.Enabled {
 		var denyList []string
 		if operatorCfg.Webhooks.DenyList != "" {

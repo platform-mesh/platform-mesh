@@ -2,14 +2,15 @@ package workspace
 
 import (
 	"context"
-	"time"
 
 	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	conditionsapi "github.com/kcp-dev/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
 	conditionshelper "github.com/kcp-dev/sdk/apis/third_party/conditions/util/conditions"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -17,9 +18,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	corev1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/pkg/clusteredname"
-	"github.com/platform-mesh/account-operator/pkg/subroutines/accountinfo"
+	"github.com/platform-mesh/account-operator/pkg/subroutines/manageaccountinfo"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/util"
 )
 
@@ -31,14 +32,15 @@ const (
 
 type WorkspaceSubroutine struct {
 	mgr        mcmanager.Manager
-	limiter    workqueue.TypedRateLimiter[clusteredname.ClusteredName]
+	limiter    workqueue.TypedRateLimiter[*v1alpha1.Account]
 	orgsClient client.Client
 }
 
 func New(mgr mcmanager.Manager, orgsClient client.Client) *WorkspaceSubroutine {
+	rl, _ := ratelimiter.NewStaticThenExponentialRateLimiter[*v1alpha1.Account](ratelimiter.NewConfig()) //nolint:errcheck
 	return &WorkspaceSubroutine{
 		mgr:        mgr,
-		limiter:    workqueue.NewTypedItemExponentialFailureRateLimiter[clusteredname.ClusteredName](1*time.Second, 120*time.Second),
+		limiter:    rl,
 		orgsClient: orgsClient,
 	}
 }
@@ -48,7 +50,7 @@ func (r *WorkspaceSubroutine) GetName() string {
 }
 
 func (r *WorkspaceSubroutine) Finalize(ctx context.Context, ro runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	instance := ro.(*corev1alpha1.Account)
+	instance := ro.(*v1alpha1.Account)
 	cn := clusteredname.MustGetClusteredName(ctx, ro)
 
 	clusterName := cn.ClusterID.String()
@@ -62,21 +64,22 @@ func (r *WorkspaceSubroutine) Finalize(ctx context.Context, ro runtimeobject.Run
 
 	ws := kcptenancyv1alpha.Workspace{}
 	if err := clusterClient.Get(ctx, client.ObjectKey{Name: instance.Name}, &ws); err != nil {
-		if kerrors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+			r.limiter.Forget(instance)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
 	if ws.GetDeletionTimestamp() != nil {
-		return ctrl.Result{RequeueAfter: r.limiter.When(cn)}, nil
+		return ctrl.Result{RequeueAfter: r.limiter.When(instance)}, nil
 	}
 
 	if err := clusterClient.Delete(ctx, &ws); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	return ctrl.Result{RequeueAfter: r.limiter.When(cn)}, nil
+	return ctrl.Result{RequeueAfter: r.limiter.When(instance)}, nil
 }
 
 func (r *WorkspaceSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string { // coverage-ignore
@@ -84,7 +87,7 @@ func (r *WorkspaceSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string
 }
 
 func (r *WorkspaceSubroutine) Process(ctx context.Context, ro runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	instance := ro.(*corev1alpha1.Account)
+	instance := ro.(*v1alpha1.Account)
 	cn := clusteredname.MustGetClusteredName(ctx, ro)
 
 	clusterName := cn.ClusterID.String()
@@ -97,19 +100,19 @@ func (r *WorkspaceSubroutine) Process(ctx context.Context, ro runtimeobject.Runt
 	clusterClient := clusterRef.GetClient()
 
 	workspaceTypeName := util.GetOrgWorkspaceTypeName(instance.Name)
-	if instance.Spec.Type == corev1alpha1.AccountTypeAccount {
+	if instance.Spec.Type == v1alpha1.AccountTypeAccount {
 
-		accountInfo := &corev1alpha1.AccountInfo{}
-		if err := clusterClient.Get(ctx, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
+		accountInfo := &v1alpha1.AccountInfo{}
+		if err := clusterClient.Get(ctx, client.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
 			if kerrors.IsNotFound(err) {
-				return ctrl.Result{RequeueAfter: r.limiter.When(cn)}, nil
+				return ctrl.Result{RequeueAfter: r.limiter.When(instance)}, nil
 			}
 
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
 
 		if accountInfo.Spec.Organization.Name == "" {
-			return ctrl.Result{RequeueAfter: r.limiter.When(cn)}, nil
+			return ctrl.Result{RequeueAfter: r.limiter.When(instance)}, nil
 		}
 
 		workspaceTypeName = util.GetAccountWorkspaceTypeName(accountInfo.Spec.Organization.Name)
@@ -120,7 +123,7 @@ func (r *WorkspaceSubroutine) Process(ctx context.Context, ro runtimeobject.Runt
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 	if !ready { // coverage-ignore
-		return ctrl.Result{RequeueAfter: r.limiter.When(cn)}, nil
+		return ctrl.Result{RequeueAfter: r.limiter.When(instance)}, nil
 	}
 
 	createdWorkspace := &kcptenancyv1alpha.Workspace{ObjectMeta: metav1.ObjectMeta{Name: instance.Name}}
@@ -136,7 +139,7 @@ func (r *WorkspaceSubroutine) Process(ctx context.Context, ro runtimeobject.Runt
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	r.limiter.Forget(cn)
+	r.limiter.Forget(instance)
 	return ctrl.Result{}, nil
 }
 

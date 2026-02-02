@@ -23,8 +23,10 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/account-operator/pkg/subroutines/accountinfo"
+	"github.com/platform-mesh/account-operator/pkg/subroutines/manageaccountinfo"
 )
+
+const fgaFinalizer = "account.core.platform-mesh.io/fga"
 
 type FGASubroutine struct {
 	fgaClient       openfgav1.OpenFGAServiceClient
@@ -235,16 +237,14 @@ func (e *FGASubroutine) Finalize(ctx context.Context, runtimeObj runtimeobject.R
 				log.Error().Err(err).Msg("Open FGA write failed")
 				return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 			}
-
 		}
 	}
-
 	return ctrl.Result{}, nil
 }
 
 func (e *FGASubroutine) getAccountInfo(ctx context.Context, cl client.Client) (*v1alpha1.AccountInfo, error) {
 	accountInfo := &v1alpha1.AccountInfo{}
-	err := cl.Get(ctx, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo)
+	err := cl.Get(ctx, client.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, accountInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -253,8 +253,14 @@ func (e *FGASubroutine) getAccountInfo(ctx context.Context, cl client.Client) (*
 
 func (e *FGASubroutine) GetName() string { return "FGASubroutine" }
 
-func (e *FGASubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
-	return []string{"account.core.platform-mesh.io/fga"}
+func (e *FGASubroutine) Finalizers(runtimeObj runtimeobject.RuntimeObject) []string {
+	account := runtimeObj.(*v1alpha1.Account)
+
+	// Skip fga account finalization for organizations because the store is removed completely
+	if account.Spec.Type != v1alpha1.AccountTypeOrg {
+		return []string{fgaFinalizer}
+	}
+	return []string{}
 }
 
 var saRegex = regexp.MustCompile(`^system:serviceaccount:[^:]*:[^:]*$`)

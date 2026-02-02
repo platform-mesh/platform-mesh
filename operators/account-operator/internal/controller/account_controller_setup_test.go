@@ -69,7 +69,7 @@ func (s *AccountTestSuite) setupKCP() {
 	// Prevents KCP from cleaning up workspace fixtures before shutdown, the
 	// instance controlled by envtest is ephemeral anyway.
 	if os.Getenv("PRESERVE") == "" {
-		os.Setenv("PRESERVE", "true")
+		s.Require().NoError(os.Setenv("PRESERVE", "true"))
 	}
 
 	var err error

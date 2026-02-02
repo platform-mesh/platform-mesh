@@ -27,6 +27,11 @@ type OperatorConfig struct {
 			CreatorRelation string `mapstructure:"subroutines-fga-creator-relation" default:"owner"`
 		} `mapstructure:",squash"`
 	} `mapstructure:",squash"`
+	Controllers struct {
+		AccountInfo struct {
+			Enabled bool `mapstructure:"controllers-account-info-enabled" default:"true"`
+		} `mapstructure:",squash"`
+	} `mapstructure:",squash"`
 	Kcp struct {
 		ApiExportEndpointSliceName string `mapstructure:"kcp-api-export-endpoint-slice-name" default:"core.platform-mesh.io"`
 		ProviderWorkspace          string `mapstructure:"kcp-provider-workspace" default:"root"`
