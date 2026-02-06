@@ -31,7 +31,6 @@ const (
 // AccountSpec defines the desired state of Account
 type AccountSpec struct {
 	// Type specifies the intended type for this Account object.
-	// +kubebuilder:validation:Enum=org;account
 	Type AccountType `json:"type"`
 
 	// The display name for this account

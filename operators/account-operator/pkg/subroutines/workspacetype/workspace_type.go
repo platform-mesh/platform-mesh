@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	WorkspaceTypeSubroutineName      = "WorkspaceTypeSubroutine"
-	WorkspaceTypeSubroutineFinalizer = "workspacetype.core.platform-mesh.io/finalizer"
+	SubroutineName      = "WorkspaceTypeSubroutine"
+	SubroutineFinalizer = "workspacetype.core.platform-mesh.io/finalizer"
 
 	rootOrgWorkspaceTypeName     = "org"
 	rootWorkspace                = "root"
@@ -49,11 +49,11 @@ func (w *WorkspaceTypeSubroutine) Process(ctx context.Context, ro runtimeobject.
 		return ctrl.Result{}, nil
 	}
 
-	orgWorkspaceTypeName := util.GetOrgWorkspaceTypeName(instance.Name)
-	accountWorkspaceTypeName := util.GetAccountWorkspaceTypeName(instance.Name)
+	orgWorkspaceTypeName := util.GetWorkspaceTypeName(instance.Name, instance.Spec.Type)
+	accountWorkspaceTypeName := util.GetWorkspaceTypeName(instance.Name, v1alpha1.AccountTypeAccount)
 
-	orgWst := generateOrgWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName)
-	accWst := generateAccountWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName)
+	orgWst := generateOrgWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName, instance.Name)
+	accWst := generateAccountWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName, instance.Name)
 
 	if err := w.createOrPatchWorkspaceType(ctx, orgWst); err != nil { // coverage-ignore
 		log.Error().Err(err).Str("name", orgWst.Name).Msg("failed to create or update org workspace type")
@@ -87,8 +87,8 @@ func (w *WorkspaceTypeSubroutine) Finalize(ctx context.Context, ro runtimeobject
 		return ctrl.Result{}, nil
 	}
 
-	orgWorkspaceTypeName := util.GetOrgWorkspaceTypeName(instance.Name)
-	accountWorkspaceTypeName := util.GetAccountWorkspaceTypeName(instance.Name)
+	orgWorkspaceTypeName := util.GetWorkspaceTypeName(instance.Name, instance.Spec.Type)
+	accountWorkspaceTypeName := util.GetWorkspaceTypeName(instance.Name, v1alpha1.AccountTypeAccount)
 
 	if err := w.orgsClient.Delete(ctx, &kcptenancyv1alpha.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: orgWorkspaceTypeName}}); err != nil {
 		if !kerrors.IsNotFound(err) {
@@ -108,7 +108,7 @@ func (w *WorkspaceTypeSubroutine) Finalize(ctx context.Context, ro runtimeobject
 }
 
 func (w *WorkspaceTypeSubroutine) GetName() string {
-	return WorkspaceTypeSubroutineName
+	return SubroutineName
 }
 
 func (w *WorkspaceTypeSubroutine) Finalizers(obj runtimeobject.RuntimeObject) []string {
@@ -117,12 +117,12 @@ func (w *WorkspaceTypeSubroutine) Finalizers(obj runtimeobject.RuntimeObject) []
 		return []string{}
 	}
 
-	return []string{WorkspaceTypeSubroutineFinalizer}
+	return []string{SubroutineFinalizer}
 }
 
-func generateOrgWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName string) kcptenancyv1alpha.WorkspaceType {
+func generateOrgWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName, orgName string) kcptenancyv1alpha.WorkspaceType {
 	return kcptenancyv1alpha.WorkspaceType{
-		ObjectMeta: metav1.ObjectMeta{Name: orgWorkspaceTypeName},
+		ObjectMeta: metav1.ObjectMeta{Name: orgWorkspaceTypeName, Labels: map[string]string{"core.platform-mesh.io/org": orgName}},
 		Spec: kcptenancyv1alpha.WorkspaceTypeSpec{
 			Extend: kcptenancyv1alpha.WorkspaceTypeExtension{
 				With: []kcptenancyv1alpha.WorkspaceTypeReference{
@@ -156,9 +156,9 @@ func generateOrgWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName str
 	}
 }
 
-func generateAccountWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName string) kcptenancyv1alpha.WorkspaceType {
+func generateAccountWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName, orgName string) kcptenancyv1alpha.WorkspaceType {
 	return kcptenancyv1alpha.WorkspaceType{
-		ObjectMeta: metav1.ObjectMeta{Name: accountWorkspaceTypeName},
+		ObjectMeta: metav1.ObjectMeta{Name: accountWorkspaceTypeName, Labels: map[string]string{"core.platform-mesh.io/org": orgName}},
 		Spec: kcptenancyv1alpha.WorkspaceTypeSpec{
 			Extend: kcptenancyv1alpha.WorkspaceTypeExtension{
 				With: []kcptenancyv1alpha.WorkspaceTypeReference{

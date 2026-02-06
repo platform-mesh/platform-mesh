@@ -3,10 +3,11 @@ package config
 // OperatorConfig struct to hold the app config
 type OperatorConfig struct {
 	Webhooks struct {
-		Enabled  bool   `mapstructure:"webhooks-enabled" default:"false"`
-		CertDir  string `mapstructure:"webhooks-cert-dir" default:"certs"`
-		Port     int    `mapstructure:"webhooks-port" default:"9443"`
-		DenyList string `mapstructure:"webhooks-deny-list"`
+		Enabled                bool     `mapstructure:"webhooks-enabled" default:"false"`
+		CertDir                string   `mapstructure:"webhooks-cert-dir" default:"certs"`
+		Port                   int      `mapstructure:"webhooks-port" default:"9443"`
+		DenyList               string   `mapstructure:"webhooks-deny-list"`
+		AdditionalAccountTypes []string `mapstructure:"webhooks-additional-account-types"`
 	} `mapstructure:",squash"`
 	Subroutines struct {
 		WorkspaceType struct {

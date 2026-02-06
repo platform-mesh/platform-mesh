@@ -23,12 +23,12 @@ import (
 
 func TestName(t *testing.T) {
 	s := workspacetype.New(nil)
-	assert.Equal(t, workspacetype.WorkspaceTypeSubroutineName, s.GetName())
+	assert.Equal(t, workspacetype.SubroutineName, s.GetName())
 }
 
 func TestFinalizer(t *testing.T) {
 	s := workspacetype.New(nil)
-	assert.Equal(t, []string{workspacetype.WorkspaceTypeSubroutineFinalizer}, s.Finalizers(&v1alpha1.Account{Spec: v1alpha1.AccountSpec{Type: v1alpha1.AccountTypeOrg}}))
+	assert.Equal(t, []string{workspacetype.SubroutineFinalizer}, s.Finalizers(&v1alpha1.Account{Spec: v1alpha1.AccountSpec{Type: v1alpha1.AccountTypeOrg}}))
 }
 
 func TestFinalize(t *testing.T) {

@@ -1,0 +1,21 @@
+apiVersion: apis.kcp.io/v1alpha1
+kind: APIExport
+metadata:
+  creationTimestamp: null
+  name: core.platform-mesh.io
+spec:
+  latestResourceSchemas:
+  - v250715-5b899f6.accountinfos.core.platform-mesh.io
+  - v260109-82344be.accounts.core.platform-mesh.io
+  permissionClaims:
+  - all: true
+    resource: namespaces
+  - all: true
+    group: tenancy.kcp.io
+    identityHash: '{{ .data.apiExportRootTenancyKcpIoIdentityHash }}'
+    resource: workspaces
+  - all: true
+    group: tenancy.kcp.io
+    identityHash: '{{ .data.apiExportRootTenancyKcpIoIdentityHash }}'
+    resource: workspacetypes
+status: {}

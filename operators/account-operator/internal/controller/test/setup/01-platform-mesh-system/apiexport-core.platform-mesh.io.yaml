@@ -6,7 +6,7 @@ metadata:
 spec:
   latestResourceSchemas:
     - v260126-7c674ee.accountinfos.core.platform-mesh.io
-    - v250915-1185c0b.accounts.core.platform-mesh.io
+    - v260109-82344be.accounts.core.platform-mesh.io
   permissionClaims:
     - resource: apibindings
       group: apis.kcp.io

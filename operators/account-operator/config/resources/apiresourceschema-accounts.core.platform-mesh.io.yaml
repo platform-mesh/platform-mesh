@@ -2,7 +2,7 @@ apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v250915-1185c0b.accounts.core.platform-mesh.io
+  name: v260109-82344be.accounts.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -93,9 +93,6 @@ spec:
               type: array
             type:
               description: Type specifies the intended type for this Account object.
-              enum:
-              - org
-              - account
               type: string
           required:
           - displayName

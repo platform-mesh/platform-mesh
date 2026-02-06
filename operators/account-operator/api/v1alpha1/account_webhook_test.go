@@ -39,7 +39,7 @@ func TestAccountValidator_ValidateCreate(t *testing.T) {
 			name: "non-organization account with denied name",
 			account: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "admin"},
-				Spec:       AccountSpec{Type: "personal"},
+				Spec:       AccountSpec{Type: "account"},
 			},
 			denyList:    []string{"admin", "root", "system"},
 			expectError: false,
@@ -67,7 +67,7 @@ func TestAccountValidator_ValidateCreate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validator := &AccountValidator{DenyList: tt.denyList}
+			validator := &AccountValidator{OrganizationNameDenyList: tt.denyList, AccountTypeAllowList: []AccountType{AccountTypeAccount, AccountTypeOrg}}
 			_, err := validator.ValidateCreate(context.Background(), tt.account)
 
 			if tt.expectError {
@@ -117,10 +117,10 @@ func TestAccountValidator_ValidateUpdate(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "changing from personal to organization with denied name",
+			name: "changing from account to organization with denied name",
 			oldAccount: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "admin"},
-				Spec:       AccountSpec{Type: "personal"},
+				Spec:       AccountSpec{Type: "account"},
 			},
 			newAccount: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "admin"},
@@ -131,10 +131,10 @@ func TestAccountValidator_ValidateUpdate(t *testing.T) {
 			errorMsg:    `organization name "admin" is not allowed`,
 		},
 		{
-			name: "changing from personal to organization with allowed name",
+			name: "changing from account to organization with allowed name",
 			oldAccount: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "my-account"},
-				Spec:       AccountSpec{Type: "personal"},
+				Spec:       AccountSpec{Type: "account"},
 			},
 			newAccount: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "my-account"},
@@ -144,27 +144,27 @@ func TestAccountValidator_ValidateUpdate(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "changing from organization to personal with denied name",
+			name: "changing from organization to account with denied name",
 			oldAccount: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "admin"},
 				Spec:       AccountSpec{Type: "org"},
 			},
 			newAccount: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "admin"},
-				Spec:       AccountSpec{Type: "personal"},
+				Spec:       AccountSpec{Type: "account"},
 			},
 			denyList:    []string{"admin", "root", "system"},
 			expectError: false,
 		},
 		{
-			name: "updating personal account with denied name",
+			name: "updating account account with denied name",
 			oldAccount: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "admin"},
-				Spec:       AccountSpec{Type: "personal"},
+				Spec:       AccountSpec{Type: "account"},
 			},
 			newAccount: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "admin"},
-				Spec:       AccountSpec{Type: "personal"},
+				Spec:       AccountSpec{Type: "account"},
 			},
 			denyList:    []string{"admin", "root", "system"},
 			expectError: false,
@@ -200,7 +200,7 @@ func TestAccountValidator_ValidateUpdate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validator := &AccountValidator{DenyList: tt.denyList}
+			validator := &AccountValidator{OrganizationNameDenyList: tt.denyList, AccountTypeAllowList: []AccountType{AccountTypeAccount, AccountTypeOrg}}
 			_, err := validator.ValidateUpdate(context.Background(), tt.oldAccount, tt.newAccount)
 
 			if tt.expectError {

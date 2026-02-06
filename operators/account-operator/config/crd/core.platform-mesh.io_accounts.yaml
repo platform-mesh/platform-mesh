@@ -97,9 +97,6 @@ spec:
                 type: array
               type:
                 description: Type specifies the intended type for this Account object.
-                enum:
-                - org
-                - account
                 type: string
             required:
             - displayName

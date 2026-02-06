@@ -241,7 +241,7 @@ func (s *AccountTestSuite) verifyWorkspace(ctx context.Context, orgName, account
 	s.Require().NoError(s.rootOrgsDefaultClient.Get(ctx, types.NamespacedName{Name: accountName}, workspace))
 	s.Equal(accountName, workspace.Name)
 	s.NotNil(workspace.Spec.Type)
-	expectedType := kcptenancyv1alpha.WorkspaceTypeName(fmt.Sprintf("%s-acc", orgName))
+	expectedType := kcptenancyv1alpha.WorkspaceTypeName(fmt.Sprintf("%s-%s", orgName, v1alpha1.AccountTypeAccount))
 	s.Equal(expectedType, workspace.Spec.Type.Name)
 }
 
