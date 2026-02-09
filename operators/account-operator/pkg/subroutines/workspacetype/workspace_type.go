@@ -1,6 +1,7 @@
 package workspacetype
 
 import (
+	"maps"
 	"context"
 
 	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
@@ -71,6 +72,11 @@ func (w *WorkspaceTypeSubroutine) Process(ctx context.Context, ro runtimeobject.
 func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context, desiredWst kcptenancyv1alpha.WorkspaceType) error {
 	wst := &kcptenancyv1alpha.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: desiredWst.Name}}
 	_, err := controllerutil.CreateOrPatch(ctx, w.orgsClient, wst, func() error {
+		if wst.Labels == nil {
+			wst.Labels = make(map[string]string)
+		}
+		maps.Copy(wst.Labels, desiredWst.Labels)
+		
 		wst.Spec.Extend = desiredWst.Spec.Extend
 		wst.Spec.DefaultChildWorkspaceType = desiredWst.Spec.DefaultChildWorkspaceType
 		wst.Spec.LimitAllowedParents = desiredWst.Spec.LimitAllowedParents
