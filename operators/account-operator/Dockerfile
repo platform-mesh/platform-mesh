@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM --platform=$BUILDPLATFORM golang:1.24.6-bullseye AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25.7-bookworm AS builder
 ARG TARGETARCH
 
 WORKDIR /workspace

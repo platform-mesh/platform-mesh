@@ -11,7 +11,10 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/platform-mesh/golang-commons/logger"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -116,11 +119,13 @@ func (r *ManageAccountInfoSubroutine) Process(ctx context.Context, ro runtimeobj
 	// Create AccountInfo for a non-organization Account based on its parent's
 	// AccountInfo
 	var parentAccountInfo v1alpha1.AccountInfo
-	if err := clusterClient.Get(ctx, client.ObjectKey{Name: DefaultAccountInfoName}, &parentAccountInfo); err != nil {
+	if err := clusterClient.Get(ctx, client.ObjectKey{Name: DefaultAccountInfoName}, &parentAccountInfo); kerrors.IsNotFound(err) {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo does not yet exist"), true, false)
+	} else if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent AccountInfo: %w", err), true, true)
 	}
 
-	accountInfo := &v1alpha1.AccountInfo{ObjectMeta: ctrl.ObjectMeta{Name: DefaultAccountInfoName}}
+	accountInfo := &v1alpha1.AccountInfo{ObjectMeta: v1.ObjectMeta{Name: DefaultAccountInfoName}}
 	if _, err := controllerutil.CreateOrUpdate(ctx, accountClusterClient, accountInfo, func() error {
 		accountInfo.Spec.Account = selfAccountLocation
 		accountInfo.Spec.ParentAccount = &parentAccountInfo.Spec.Account

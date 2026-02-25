@@ -10,12 +10,6 @@ structname: '{{.InterfaceName}}'
 dir: 'pkg/subroutines/mocks'
 pkgname: mocks
 packages:
-  github.com/openfga/api/proto/openfga/v1:
-    interfaces:
-      OpenFGAServiceClient:
-        config:
-          include-interface-regex: OpenFGAServiceClient
-          filename: mock_OpenFGAServiceClient.go
   sigs.k8s.io/controller-runtime/pkg/client:
     config:
       include-interface-regex: Client

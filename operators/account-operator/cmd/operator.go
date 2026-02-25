@@ -24,13 +24,9 @@ import (
 	"strings"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
-	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/platform-mesh/golang-commons/traces"
 	"github.com/spf13/cobra"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -127,28 +123,12 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to start manager")
 	}
 
-	var fgaClient openfgav1.OpenFGAServiceClient
-	if operatorCfg.Subroutines.FGA.Enabled {
-		log.Debug().Str("GrpcAddr", operatorCfg.Subroutines.FGA.GrpcAddr).Msg("Creating FGA Client")
-
-		conn, err := grpc.NewClient(operatorCfg.Subroutines.FGA.GrpcAddr,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
-		)
-		if err != nil {
-			log.Fatal().Err(err).Msg("error when creating the grpc client")
-		}
-		log.Debug().Msg("FGA client created")
-
-		fgaClient = openfgav1.NewOpenFGAServiceClient(conn)
-	}
-
 	orgsClient, err := buildOrgsClient(mgr.GetLocalManager())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create orgs client")
 	}
 
-	accountReconciler := controller.NewAccountReconciler(log, mgr, operatorCfg, orgsClient, fgaClient)
+	accountReconciler := controller.NewAccountReconciler(log, mgr, operatorCfg, orgsClient)
 	if err := accountReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 		log.Fatal().Err(err).Str("controller", "Account").Msg("unable to create controller")
 	}

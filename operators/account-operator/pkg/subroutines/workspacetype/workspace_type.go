@@ -1,8 +1,8 @@
 package workspacetype
 
 import (
-	"maps"
 	"context"
+	"maps"
 
 	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -76,7 +76,7 @@ func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context
 			wst.Labels = make(map[string]string)
 		}
 		maps.Copy(wst.Labels, desiredWst.Labels)
-		
+
 		wst.Spec.Extend = desiredWst.Spec.Extend
 		wst.Spec.DefaultChildWorkspaceType = desiredWst.Spec.DefaultChildWorkspaceType
 		wst.Spec.LimitAllowedParents = desiredWst.Spec.LimitAllowedParents

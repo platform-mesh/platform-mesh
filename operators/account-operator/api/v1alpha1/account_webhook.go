@@ -10,10 +10,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	mcruntime "sigs.k8s.io/multicluster-runtime"
 )
 
 func SetupAccountWebhookWithManager(mgr ctrl.Manager, organizationNameDenyList []string, accountTypeAllowList []AccountType) error {
-	return ctrl.NewWebhookManagedBy(mgr).
+	return mcruntime.NewWebhookManagedBy(mgr).
 		For(&Account{}).
 		WithDefaulter(&AccountDefaulter{}).
 		WithValidator(&AccountValidator{OrganizationNameDenyList: organizationNameDenyList, AccountTypeAllowList: accountTypeAllowList}).
@@ -36,8 +37,8 @@ func (a *AccountDefaulter) Default(ctx context.Context, obj runtime.Object) erro
 	return nil
 }
 
-var _ webhook.CustomDefaulter = &AccountDefaulter{}
-var _ webhook.CustomValidator = &AccountValidator{}
+var _ webhook.CustomDefaulter = &AccountDefaulter{} // nolint:staticcheck
+var _ webhook.CustomValidator = &AccountValidator{} // nolint:staticcheck
 
 type AccountValidator struct {
 	OrganizationNameDenyList []string
