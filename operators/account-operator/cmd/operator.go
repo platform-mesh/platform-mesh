@@ -90,7 +90,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	})
 
 	var leaderCfg *rest.Config
-	if defaultCfg.LeaderElection.Enabled {
+	if defaultCfg.LeaderElectionEnabled {
 		leaderCfg, err = rest.InClusterConfig()
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to get in-cluster config")
@@ -114,7 +114,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		BaseContext:                   func() context.Context { return ctx },
 		WebhookServer:                 webhookServer,
 		HealthProbeBindAddress:        defaultCfg.HealthProbeBindAddress,
-		LeaderElection:                defaultCfg.LeaderElection.Enabled,
+		LeaderElection:                defaultCfg.LeaderElectionEnabled,
 		LeaderElectionID:              "8c290d9a.platform-mesh.io",
 		LeaderElectionConfig:          leaderCfg,
 		LeaderElectionReleaseOnCancel: true,
