@@ -3,54 +3,54 @@ package config
 import "github.com/spf13/pflag"
 
 type WebhooksConfig struct {
-	Enabled                bool     `mapstructure:"webhooks-enabled" default:"false"`
-	CertDir                string   `mapstructure:"webhooks-cert-dir" default:"certs"`
-	Port                   int      `mapstructure:"webhooks-port" default:"9443"`
-	DenyList               string   `mapstructure:"webhooks-deny-list"`
-	AdditionalAccountTypes []string `mapstructure:"webhooks-additional-account-types"`
+	Enabled                bool
+	CertDir                string
+	Port                   int
+	DenyList               string
+	AdditionalAccountTypes []string
 }
 
 type WorkspaceTypeSubroutineConfig struct {
-	Enabled bool `mapstructure:"subroutines-workspace-type-enabled" default:"true"`
+	Enabled bool
 }
 
 type WorkspaceSubroutineConfig struct {
-	Enabled bool `mapstructure:"subroutines-workspace-enabled" default:"true"`
+	Enabled bool
 }
 
 type WorkspaceReadySubroutineConfig struct {
-	Enabled bool `mapstructure:"subroutines-workspace-ready-enabled" default:"true"`
+	Enabled bool
 }
 
 type AccountInfoSubroutineConfig struct {
-	Enabled bool `mapstructure:"subroutines-account-info-enabled" default:"true"`
+	Enabled bool
 }
 
 type SubroutinesConfig struct {
-	WorkspaceType  WorkspaceTypeSubroutineConfig  `mapstructure:",squash"`
-	Workspace      WorkspaceSubroutineConfig      `mapstructure:",squash"`
-	WorkspaceReady WorkspaceReadySubroutineConfig `mapstructure:",squash"`
-	AccountInfo    AccountInfoSubroutineConfig    `mapstructure:",squash"`
+	WorkspaceType  WorkspaceTypeSubroutineConfig
+	Workspace      WorkspaceSubroutineConfig
+	WorkspaceReady WorkspaceReadySubroutineConfig
+	AccountInfo    AccountInfoSubroutineConfig
 }
 
 type AccountInfoControllerConfig struct {
-	Enabled bool `mapstructure:"controllers-account-info-enabled" default:"true"`
+	Enabled bool
 }
 
 type ControllersConfig struct {
-	AccountInfo AccountInfoControllerConfig `mapstructure:",squash"`
+	AccountInfo AccountInfoControllerConfig
 }
 
 type KcpConfig struct {
-	ApiExportEndpointSliceName string `mapstructure:"kcp-api-export-endpoint-slice-name" default:"core.platform-mesh.io"`
-	ProviderWorkspace          string `mapstructure:"kcp-provider-workspace" default:"root"`
+	ApiExportEndpointSliceName string
+	ProviderWorkspace          string
 }
 
 type OperatorConfig struct {
-	Webhooks    WebhooksConfig    `mapstructure:",squash"`
-	Subroutines SubroutinesConfig `mapstructure:",squash"`
-	Controllers ControllersConfig `mapstructure:",squash"`
-	Kcp         KcpConfig         `mapstructure:",squash"`
+	Webhooks    WebhooksConfig
+	Subroutines SubroutinesConfig
+	Controllers ControllersConfig
+	Kcp         KcpConfig
 }
 
 func NewOperatorConfig() OperatorConfig {
