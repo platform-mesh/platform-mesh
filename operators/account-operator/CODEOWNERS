@@ -1,4 +1,4 @@
 # Default code owners
-* @platform-mesh/frame
+* @platform-mesh/frame @platform-mesh/go-approvers
 go.mod
 go.sum
