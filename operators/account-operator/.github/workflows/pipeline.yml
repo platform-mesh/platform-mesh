@@ -1,4 +1,5 @@
 name: ci
+
 on:
   push:
     branches:
@@ -8,16 +9,108 @@ on:
       - opened
       - synchronize
 
+permissions:
+  contents: write
+  id-token: write
+  issues: write
+  packages: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  pipe:
-    concurrency:
-      group: ${{ github.ref }}
-      cancel-in-progress: true
-    uses: platform-mesh/.github/.github/workflows/pipeline-golang-app.yml@main
+  # ──────────────────────────────────────────────
+  # Always-run jobs (PR + main)
+  # ──────────────────────────────────────────────
+  lint:
+    uses: platform-mesh/.github/.github/workflows/job-golang-lint.yml@main
+    with:
+      useTask: true
+
+  test:
+    uses: platform-mesh/.github/.github/workflows/job-golang-test-source.yml@main
     secrets: inherit
     with:
-      imageTagName: ghcr.io/platform-mesh/account-operator
       useTask: true
       useLocalCoverageConfig: true
-      repoVersionUpdate: platform-mesh/helm-charts
-      coverageThresholdTotal: 90
+
+  docker-build:
+    if: github.event_name == 'pull_request'
+    uses: platform-mesh/.github/.github/workflows/job-docker-build-push.yml@main
+    with:
+      imageTagName: ghcr.io/platform-mesh/account-operator
+    secrets: inherit
+
+  # ──────────────────────────────────────────────
+  # Quality gate (aggregates required checks)
+  # ──────────────────────────────────────────────
+  quality-gate:
+    if: always()
+    permissions: {}
+    needs: [lint, test, docker-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check results
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ]]; then
+            echo "lint failed"
+            exit 1
+          fi
+          if [[ "${{ needs.test.result }}" != "success" ]]; then
+            echo "test failed"
+            exit 1
+          fi
+          # docker-build is skipped on main pushes — allow skipped
+          if [[ "${{ needs.docker-build.result }}" != "success" && "${{ needs.docker-build.result }}" != "skipped" ]]; then
+            echo "docker-build failed"
+            exit 1
+          fi
+
+  # ──────────────────────────────────────────────
+  # Release jobs (main branch only)
+  # ──────────────────────────────────────────────
+  create-version:
+    if: github.ref == 'refs/heads/main'
+    uses: platform-mesh/.github/.github/workflows/job-create-version.yml@main
+    secrets: inherit
+
+  docker-build-push:
+    if: github.ref == 'refs/heads/main'
+    needs: [create-version, lint, test]
+    uses: platform-mesh/.github/.github/workflows/job-docker-build-push.yml@main
+    with:
+      imageTagName: ghcr.io/platform-mesh/account-operator
+      version: ${{ needs.create-version.outputs.version }}
+      multiarch: true
+    secrets: inherit
+
+  update-version:
+    if: github.ref == 'refs/heads/main'
+    needs: [create-version, docker-build-push]
+    uses: platform-mesh/.github/.github/workflows/job-chart-version-update.yml@main
+    secrets: inherit
+    with:
+      appVersion: ${{ needs.create-version.outputs.version }}
+      chart: account-operator
+      targetRepository: platform-mesh/helm-charts
+
+  sbom:
+    if: github.ref == 'refs/heads/main'
+    needs: [create-version, docker-build-push]
+    uses: platform-mesh/.github/.github/workflows/job-sbom.yml@main
+    with:
+      imageReference: ghcr.io/platform-mesh/account-operator:${{ needs.create-version.outputs.version }}
+
+  image-ocm:
+    if: github.ref == 'refs/heads/main'
+    needs: [create-version, docker-build-push, sbom]
+    uses: platform-mesh/.github/.github/workflows/job-image-ocm.yml@main
+    secrets: inherit
+    with:
+      imageReference: ghcr.io/platform-mesh/account-operator:${{ needs.create-version.outputs.version }}
+      appVersion: ${{ needs.create-version.outputs.version }}
+      repoName: account-operator
+      commit: ${{ github.sha }}

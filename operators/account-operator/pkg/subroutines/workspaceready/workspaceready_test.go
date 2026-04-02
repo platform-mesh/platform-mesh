@@ -22,11 +22,12 @@ import (
 
 func TestProcess(t *testing.T) {
 	testCases := []struct {
-		name          string
-		obj           runtimeobject.RuntimeObject
-		k8sMocks      func(m *mocks.Client)
-		expectRequeue bool
-		expectError   bool
+		name             string
+		obj              runtimeobject.RuntimeObject
+		k8sMocks         func(m *mocks.Client)
+		expectRequeue    bool
+		expectError      bool
+		getClusterError  bool
 	}{
 		{
 			name: "success when workspace phase is Ready",
@@ -83,18 +84,31 @@ func TestProcess(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "error when GetCluster fails",
+			obj: &corev1alpha1.Account{
+				ObjectMeta: metav1.ObjectMeta{Name: "test"},
+			},
+			expectError:      true,
+			getClusterError:  true,
+		},
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			mgr := mocks.NewManager(t)
-			cluster := mocks.NewCluster(t)
-			client := mocks.NewClient(t)
 
-			mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
-			cluster.EXPECT().GetClient().Return(client)
+			if test.getClusterError {
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(nil, errors.New("cluster-error"))
+			} else {
+				cluster := mocks.NewCluster(t)
+				client := mocks.NewClient(t)
 
-			if test.k8sMocks != nil {
-				test.k8sMocks(client)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(client)
+
+				if test.k8sMocks != nil {
+					test.k8sMocks(client)
+				}
 			}
 
 			s := workspaceready.New(mgr)
