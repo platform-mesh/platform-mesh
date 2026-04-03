@@ -10,9 +10,9 @@ import (
 	corev1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/workspace"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,19 +24,21 @@ import (
 )
 
 func TestGetName(t *testing.T) {
-	s := workspace.New(nil, nil)
+	s, err := workspace.New(nil, nil)
+	require.NoError(t, err)
 	assert.Equal(t, workspace.WorkspaceSubroutineName, s.GetName())
 }
 
 func TestFinalizers(t *testing.T) {
-	s := workspace.New(nil, nil)
+	s, err := workspace.New(nil, nil)
+	require.NoError(t, err)
 	assert.Equal(t, []string{workspace.WorkspaceSubroutineFinalizer}, s.Finalizers(nil))
 }
 
 func TestFinalize(t *testing.T) {
 	testCases := []struct {
 		name          string
-		obj           runtimeobject.RuntimeObject
+		obj           *corev1alpha1.Account
 		k8sMocks      func(m *mocks.Client)
 		expectRequeue bool
 	}{
@@ -107,16 +109,16 @@ func TestFinalize(t *testing.T) {
 				test.k8sMocks(client)
 			}
 
-			s := workspace.New(mgr, nil)
+			s, err := workspace.New(mgr, nil)
+			require.NoError(t, err)
 
 			ctx := t.Context()
-
 			ctx = mccontext.WithCluster(ctx, "test")
 
-			result, err := s.Finalize(ctx, test.obj)
-			assert.Nil(t, err)
+			result, finalizeErr := s.Finalize(ctx, test.obj)
+			assert.NoError(t, finalizeErr)
 			if test.expectRequeue {
-				assert.Greater(t, result.RequeueAfter.Microseconds(), int64(0))
+				assert.Greater(t, result.Requeue().Microseconds(), int64(0))
 			}
 		})
 	}
@@ -130,7 +132,7 @@ func TestProcess(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		obj           runtimeobject.RuntimeObject
+		obj           *corev1alpha1.Account
 		k8sMocks      func(m *mocks.Client)
 		orgsK8sMocks  func(m *mocks.Client)
 		expectRequeue bool
@@ -283,19 +285,20 @@ func TestProcess(t *testing.T) {
 				test.k8sMocks(client)
 			}
 
-			s := workspace.New(mgr, orgsClient)
+			s, err := workspace.New(mgr, orgsClient)
+			require.NoError(t, err)
 
 			ctx := t.Context()
 			ctx = mccontext.WithCluster(ctx, "test")
 
-			result, err := s.Process(ctx, test.obj)
+			result, processErr := s.Process(ctx, test.obj)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, processErr)
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, processErr)
 			}
 			if test.expectRequeue {
-				assert.Greater(t, result.RequeueAfter.Microseconds(), int64(0))
+				assert.Greater(t, result.Requeue().Microseconds(), int64(0))
 			}
 		})
 	}

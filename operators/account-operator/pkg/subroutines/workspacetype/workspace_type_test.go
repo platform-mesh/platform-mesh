@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -34,7 +33,7 @@ func TestFinalizer(t *testing.T) {
 func TestFinalize(t *testing.T) {
 	testCases := []struct {
 		name        string
-		obj         runtimeobject.RuntimeObject
+		obj         *v1alpha1.Account
 		k8sMocks    func(client *mocks.Client)
 		expectError bool
 	}{
@@ -102,11 +101,11 @@ func TestFinalize(t *testing.T) {
 
 			ctx := t.Context()
 
-			_, err := s.Finalize(ctx, test.obj)
+			_, finalizeErr := s.Finalize(ctx, test.obj)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, finalizeErr)
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, finalizeErr)
 			}
 
 		})
@@ -116,7 +115,7 @@ func TestFinalize(t *testing.T) {
 func TestProcess(t *testing.T) {
 	testCases := []struct {
 		name        string
-		obj         runtimeobject.RuntimeObject
+		obj         *v1alpha1.Account
 		k8sMocks    func(client *mocks.Client)
 		expectError bool
 	}{
@@ -152,11 +151,11 @@ func TestProcess(t *testing.T) {
 
 			s := workspacetype.New(cl)
 
-			_, err := s.Process(t.Context(), test.obj)
+			_, processErr := s.Process(t.Context(), test.obj)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, processErr)
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, processErr)
 			}
 		})
 	}

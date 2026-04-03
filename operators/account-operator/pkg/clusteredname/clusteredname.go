@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
@@ -14,12 +14,12 @@ type ClusteredName struct {
 	ClusterID logicalcluster.Name
 }
 
-func GetClusteredName(ctx context.Context, instance runtimeobject.RuntimeObject) (ClusteredName, bool) {
+func GetClusteredName(ctx context.Context, obj client.Object) (ClusteredName, bool) {
 	clusterName, ok := mccontext.ClusterFrom(ctx)
 	cn := ClusteredName{
 		NamespacedName: types.NamespacedName{
-			Name:      instance.GetName(),
-			Namespace: instance.GetNamespace(),
+			Name:      obj.GetName(),
+			Namespace: obj.GetNamespace(),
 		},
 	}
 	if ok {
@@ -28,8 +28,8 @@ func GetClusteredName(ctx context.Context, instance runtimeobject.RuntimeObject)
 	return cn, ok
 }
 
-func MustGetClusteredName(ctx context.Context, instance runtimeobject.RuntimeObject) ClusteredName {
-	if cn, ok := GetClusteredName(ctx, instance); ok {
+func MustGetClusteredName(ctx context.Context, obj client.Object) ClusteredName {
+	if cn, ok := GetClusteredName(ctx, obj); ok {
 		return cn
 	}
 	panic("cluster not found in context, cannot requeue")

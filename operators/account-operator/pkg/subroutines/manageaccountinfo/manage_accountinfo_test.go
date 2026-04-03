@@ -22,7 +22,6 @@ import (
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/manageaccountinfo"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 )
@@ -52,17 +51,6 @@ func TestManageAccountInfoGetName(t *testing.T) {
 	assert.Equal(t, manageaccountinfo.ManageAccountInfoSubroutineName, (&manageaccountinfo.ManageAccountInfoSubroutine{}).GetName())
 }
 
-func TestManageAccountInfoFinalizers(t *testing.T) {
-	assert.Equal(t, []string{}, (&manageaccountinfo.ManageAccountInfoSubroutine{}).Finalizers(nil))
-}
-
-func TestManageAccountInfoFinalize(t *testing.T) {
-	s := manageaccountinfo.New(nil, "")
-	result, err := s.Finalize(t.Context(), nil)
-	assert.Nil(t, err)
-	assert.Zero(t, result.RequeueAfter)
-}
-
 func TestManageAccountInfoProcess(t *testing.T) {
 	accountObj := func(tp v1alpha1.AccountType) *v1alpha1.Account {
 		return &v1alpha1.Account{
@@ -73,7 +61,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		obj           runtimeobject.RuntimeObject
+		obj           *v1alpha1.Account
 		clusters      map[string]cluster.Cluster
 		expectError   bool
 		expectRequeue bool
@@ -287,7 +275,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "parent account info not found",
+			name: "parent account info not found requeues",
 			clusters: map[string]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
@@ -322,8 +310,8 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					return c
 				}(),
 			},
-			obj:         accountObj(v1alpha1.AccountTypeAccount),
-			expectError: true,
+			obj:           accountObj(v1alpha1.AccountTypeAccount),
+			expectRequeue: true,
 		},
 		{
 			name: "org account success",
@@ -374,7 +362,8 @@ func TestManageAccountInfoProcess(t *testing.T) {
 			mgr, err := mcmanager.New(emptyConfig, testProvider, mcmanager.Options{})
 			assert.NoError(t, err)
 
-			s := manageaccountinfo.New(mgr, "")
+			s, newErr := manageaccountinfo.New(mgr, "")
+			assert.NoError(t, newErr)
 			ctx := t.Context()
 
 			log := testlogger.New()
@@ -384,11 +373,16 @@ func TestManageAccountInfoProcess(t *testing.T) {
 				ctx = mccontext.WithCluster(ctx, "test-cluster")
 			}
 
-			_, processErr := s.Process(ctx, test.obj)
+			res, processErr := s.Process(ctx, test.obj)
 			if test.expectError {
-				assert.Error(t, processErr.Err())
+				assert.Error(t, processErr)
 			} else {
-				assert.Nil(t, processErr)
+				assert.NoError(t, processErr)
+			}
+			if test.expectRequeue {
+				assert.NotZero(t, res.Requeue())
+			} else {
+				assert.Zero(t, res.Requeue())
 			}
 		})
 	}

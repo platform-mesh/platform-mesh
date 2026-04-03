@@ -37,6 +37,7 @@ import (
 	"github.com/platform-mesh/account-operator/internal/config"
 	"github.com/platform-mesh/account-operator/internal/controller"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/manageaccountinfo"
+	"github.com/platform-mesh/account-operator/pkg/subroutines/workspace"
 )
 
 const (
@@ -99,7 +100,8 @@ func (s *AccountTestSuite) SetupSuite() {
 	cfg.Subroutines.WorkspaceType.Enabled = true
 	cfg.Kcp.ProviderWorkspace = core.RootCluster.Path().String()
 	dCfg := &platformmeshconfig.CommonServiceConfig{}
-	accountReconciler := controller.NewAccountReconciler(logger, s.mgr, cfg, s.rootOrgsClient)
+	accountReconciler, err := controller.NewAccountReconciler(logger, s.mgr, cfg, s.rootOrgsClient)
+	s.Require().NoError(err)
 	s.Require().NoError(accountReconciler.SetupWithManager(s.mgr, dCfg, logger))
 	s.startManager()
 
@@ -158,11 +160,11 @@ func (s *AccountTestSuite) TestWorkspaceCreation() {
 		if err := s.rootOrgsDefaultClient.Get(testContext, types.NamespacedName{Name: accountName}, updatedAccount); err != nil {
 			return false
 		}
-		return meta.IsStatusConditionTrue(updatedAccount.Status.Conditions, "WorkspaceSubroutine_Ready")
+		return meta.IsStatusConditionTrue(updatedAccount.Status.Conditions, workspace.WorkspaceSubroutineName)
 	}, defaultTestTimeout, defaultTickInterval)
 
 	s.verifyWorkspace(testContext, "default", accountName)
-	s.verifyCondition(updatedAccount.Status.Conditions, "WorkspaceSubroutine_Ready", metav1.ConditionTrue, "Complete")
+	s.verifyCondition(updatedAccount.Status.Conditions, workspace.WorkspaceSubroutineName, metav1.ConditionTrue, "Complete")
 }
 
 func (s *AccountTestSuite) TestAccountInfoCreationForOrganization() {
@@ -177,7 +179,7 @@ func (s *AccountTestSuite) TestAccountInfoCreationForOrganization() {
 		if err := s.rootOrgsClient.Get(testContext, types.NamespacedName{Name: accountName}, createdAccount); err != nil {
 			return false
 		}
-		return meta.IsStatusConditionTrue(createdAccount.Status.Conditions, "ManageAccountInfoSubroutine_Ready")
+		return meta.IsStatusConditionTrue(createdAccount.Status.Conditions, manageaccountinfo.ManageAccountInfoSubroutineName)
 	}, defaultTestTimeout, defaultTickInterval)
 
 	accountInfo := &v1alpha1.AccountInfo{}

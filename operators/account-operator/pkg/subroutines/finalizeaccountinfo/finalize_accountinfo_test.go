@@ -18,7 +18,6 @@ import (
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/finalizeaccountinfo"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 )
@@ -42,26 +41,21 @@ func (p *Provider) IndexField(_ context.Context, _ client.Object, _ string, _ cl
 }
 
 func TestFinalizeAccountInfoGetName(t *testing.T) {
-	s := finalizeaccountinfo.New(nil)
+	s, err := finalizeaccountinfo.New(nil)
+	assert.NoError(t, err)
 	assert.Equal(t, finalizeaccountinfo.FinalizeAccountInfoSubroutineName, s.GetName())
 }
 
 func TestFinalizeAccountInfoFinalizers(t *testing.T) {
-	s := finalizeaccountinfo.New(nil)
+	s, err := finalizeaccountinfo.New(nil)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{finalizeaccountinfo.AccountInfoFinalizer}, s.Finalizers(nil))
-}
-
-func TestFinalizeAccountInfoProcess(t *testing.T) {
-	s := finalizeaccountinfo.New(nil)
-	result, err := s.Process(t.Context(), nil)
-	assert.Nil(t, err)
-	assert.Zero(t, result.RequeueAfter)
 }
 
 func TestFinalizeAccountInfoFinalize(t *testing.T) {
 	testCases := []struct {
 		name          string
-		obj           runtimeobject.RuntimeObject
+		obj           *v1alpha1.AccountInfo
 		clusters      map[string]cluster.Cluster
 		expectError   bool
 		expectRequeue bool
@@ -143,7 +137,8 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 			mgr, err := mcmanager.New(emptyConfig, testProvider, mcmanager.Options{})
 			assert.NoError(t, err)
 
-			s := finalizeaccountinfo.New(mgr)
+			s, err := finalizeaccountinfo.New(mgr)
+			assert.NoError(t, err)
 			ctx := t.Context()
 			log := testlogger.New()
 			ctx = logger.SetLoggerInContext(ctx, log.Logger)
@@ -151,12 +146,12 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 
 			result, processErr := s.Finalize(ctx, tc.obj)
 			if tc.expectError {
-				assert.Error(t, processErr.Err())
+				assert.Error(t, processErr)
 			} else {
-				assert.Nil(t, processErr)
+				assert.NoError(t, processErr)
 			}
 			if tc.expectRequeue {
-				assert.True(t, result.RequeueAfter > 0)
+				assert.True(t, result.Requeue() > 0)
 			}
 		})
 	}
