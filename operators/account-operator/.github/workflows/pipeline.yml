@@ -15,6 +15,7 @@ permissions:
   issues: write
   packages: write
   pull-requests: write
+  attestations: write
 
 concurrency:
   group: ${{ github.ref }}
