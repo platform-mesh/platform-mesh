@@ -42,7 +42,7 @@ type AccountReconciler struct {
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.OperatorConfig, orgsClient client.Client) (*AccountReconciler, error) {
+func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.OperatorConfig) (*AccountReconciler, error) {
 	localMgr := mgr.GetLocalManager()
 	localCfg := rest.CopyConfig(localMgr.GetConfig())
 	serverCA := string(localCfg.CAData)
@@ -50,11 +50,11 @@ func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.
 	subs := []subroutines.Subroutine{}
 
 	if cfg.Subroutines.WorkspaceType.Enabled {
-		subs = append(subs, workspacetype.New(orgsClient))
+		subs = append(subs, workspacetype.New(mgr))
 	}
 
 	if cfg.Subroutines.Workspace.Enabled {
-		wsSub, err := workspace.New(mgr, orgsClient)
+		wsSub, err := workspace.New(mgr)
 		if err != nil {
 			return nil, fmt.Errorf("creating Workspace subroutine: %w", err)
 		}

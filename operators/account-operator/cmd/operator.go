@@ -20,17 +20,16 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/platform-mesh/golang-commons/traces"
 	"github.com/spf13/cobra"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -96,7 +95,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 			log.Fatal().Err(err).Msg("unable to get in-cluster config")
 		}
 	}
-	provider, err := apiexport.New(restCfg, operatorCfg.Kcp.ApiExportEndpointSliceName, apiexport.Options{
+	provider, err := pathaware.New(restCfg, operatorCfg.Kcp.ApiExportEndpointSliceName, apiexport.Options{
 		Log:    &ctrl.Log,
 		Scheme: scheme,
 	})
@@ -123,12 +122,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to start manager")
 	}
 
-	orgsClient, err := buildOrgsClient(mgr.GetLocalManager())
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to create orgs client")
-	}
-
-	accountReconciler, err := controller.NewAccountReconciler(log, mgr, operatorCfg, orgsClient)
+	accountReconciler, err := controller.NewAccountReconciler(log, mgr, operatorCfg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create account reconciler")
 	}
@@ -177,22 +171,4 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("problem running manager")
 	}
-}
-
-func buildOrgsClient(mgr ctrl.Manager) (client.Client, error) {
-	cfg := rest.CopyConfig(mgr.GetConfig())
-
-	parsed, err := url.Parse(cfg.Host)
-	if err != nil {
-		log.Error().Err(err).Msg("unable to parse host")
-		return nil, err
-	}
-
-	parsed.Path = "/clusters/root:orgs"
-
-	cfg.Host = parsed.String()
-
-	return client.New(cfg, client.Options{
-		Scheme: scheme,
-	})
 }

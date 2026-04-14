@@ -24,13 +24,13 @@ import (
 )
 
 func TestGetName(t *testing.T) {
-	s, err := workspace.New(nil, nil)
+	s, err := workspace.New(nil)
 	require.NoError(t, err)
 	assert.Equal(t, workspace.WorkspaceSubroutineName, s.GetName())
 }
 
 func TestFinalizers(t *testing.T) {
-	s, err := workspace.New(nil, nil)
+	s, err := workspace.New(nil)
 	require.NoError(t, err)
 	assert.Equal(t, []string{workspace.WorkspaceSubroutineFinalizer}, s.Finalizers(nil))
 }
@@ -109,7 +109,7 @@ func TestFinalize(t *testing.T) {
 				test.k8sMocks(client)
 			}
 
-			s, err := workspace.New(mgr, nil)
+			s, err := workspace.New(mgr)
 			require.NoError(t, err)
 
 			ctx := t.Context()
@@ -268,24 +268,32 @@ func TestProcess(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
+			mgr := mocks.NewManager(t)
+			cluster := mocks.NewCluster(t)
+			orgsCluster := mocks.NewCluster(t)
 			orgsClient := mocks.NewClient(t)
+
 			if test.orgsK8sMocks != nil {
 				test.orgsK8sMocks(orgsClient)
 			}
 
-			mgr := mocks.NewManager(t)
-			cluster := mocks.NewCluster(t)
-
-			mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
+			mgr.EXPECT().
+				GetCluster(mock.Anything, "root:orgs").
+				Return(orgsCluster, nil).
+				Maybe()
+			mgr.EXPECT().
+				GetCluster(mock.Anything, mock.Anything).
+				Return(cluster, nil)
 
 			client := mocks.NewClient(t)
 			cluster.EXPECT().GetClient().Return(client)
+			orgsCluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 
 			if test.k8sMocks != nil {
 				test.k8sMocks(client)
 			}
 
-			s, err := workspace.New(mgr, orgsClient)
+			s, err := workspace.New(mgr)
 			require.NoError(t, err)
 
 			ctx := t.Context()

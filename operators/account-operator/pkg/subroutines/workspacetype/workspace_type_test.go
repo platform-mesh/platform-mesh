@@ -91,13 +91,16 @@ func TestFinalize(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-
 			cl := mocks.NewClient(t)
+			cluster := mocks.NewCluster(t)
+			mgr := mocks.NewManager(t)
 			if test.k8sMocks != nil {
 				test.k8sMocks(cl)
 			}
+			mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(cluster, nil)
+			cluster.EXPECT().GetClient().Return(cl)
 
-			s := workspacetype.New(cl)
+			s := workspacetype.New(mgr)
 
 			ctx := t.Context()
 
@@ -145,11 +148,15 @@ func TestProcess(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			cl := mocks.NewClient(t)
+			cluster := mocks.NewCluster(t)
+			mgr := mocks.NewManager(t)
 			if test.k8sMocks != nil {
 				test.k8sMocks(cl)
 			}
+			mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(cluster, nil).Twice()
+			cluster.EXPECT().GetClient().Return(cl).Twice()
 
-			s := workspacetype.New(cl)
+			s := workspacetype.New(mgr)
 
 			_, processErr := s.Process(t.Context(), test.obj)
 			if test.expectError {
@@ -187,7 +194,12 @@ func TestProcess_PreservesAuthenticationConfigurations(t *testing.T) {
 		WithObjects(existingOrgWst, existingAccWst).
 		Build()
 
-	s := workspacetype.New(fakeClient)
+	cluster := mocks.NewCluster(t)
+	mgr := mocks.NewManager(t)
+	mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(cluster, nil).Twice()
+	cluster.EXPECT().GetClient().Return(fakeClient).Twice()
+
+	s := workspacetype.New(mgr)
 
 	account := &v1alpha1.Account{
 		ObjectMeta: metav1.ObjectMeta{Name: "test"},

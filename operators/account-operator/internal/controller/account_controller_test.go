@@ -100,7 +100,7 @@ func (s *AccountTestSuite) SetupSuite() {
 	cfg.Subroutines.WorkspaceType.Enabled = true
 	cfg.Kcp.ProviderWorkspace = core.RootCluster.Path().String()
 	dCfg := &platformmeshconfig.CommonServiceConfig{}
-	accountReconciler, err := controller.NewAccountReconciler(logger, s.mgr, cfg, s.rootOrgsClient)
+	accountReconciler, err := controller.NewAccountReconciler(logger, s.mgr, cfg)
 	s.Require().NoError(err)
 	s.Require().NoError(accountReconciler.SetupWithManager(s.mgr, dCfg, logger))
 	s.startManager()

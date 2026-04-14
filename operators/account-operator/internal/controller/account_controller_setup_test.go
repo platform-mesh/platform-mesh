@@ -8,9 +8,10 @@ import (
 	"os"
 	"time"
 
-	apiexport "github.com/kcp-dev/multicluster-provider/apiexport"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
 	mcc "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/sdk/apis/core"
@@ -179,7 +180,7 @@ func (s *AccountTestSuite) setupManager() {
 	providerConfig.Host += fmt.Sprintf("/clusters/%s", s.platformMeshSysPath)
 
 	axplogr := s.logger.ComponentLogger("apiexport_provider").Logr()
-	provider, err := apiexport.New(providerConfig, "core.platform-mesh.io", apiexport.Options{
+	provider, err := pathaware.New(providerConfig, "core.platform-mesh.io", apiexport.Options{
 		Scheme: s.scheme,
 		Log:    &axplogr,
 	})

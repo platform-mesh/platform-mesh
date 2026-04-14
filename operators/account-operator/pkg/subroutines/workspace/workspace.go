@@ -8,6 +8,7 @@ import (
 	conditionsapi "github.com/kcp-dev/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
 	conditionshelper "github.com/kcp-dev/sdk/apis/third_party/conditions/util/conditions"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
+	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/subroutines"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -33,21 +34,19 @@ const (
 )
 
 type WorkspaceSubroutine struct {
-	mgr        mcmanager.Manager
-	limiter    workqueue.TypedRateLimiter[*v1alpha1.Account]
-	orgsClient client.Client
+	mgr     mcmanager.Manager
+	limiter workqueue.TypedRateLimiter[*v1alpha1.Account]
 }
 
-func New(mgr mcmanager.Manager, orgsClient client.Client) (*WorkspaceSubroutine, error) {
+func New(mgr mcmanager.Manager) (*WorkspaceSubroutine, error) {
 	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*v1alpha1.Account](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 	return &WorkspaceSubroutine{
-		mgr:        mgr,
-		limiter:    rl,
-		orgsClient: orgsClient,
+		mgr:     mgr,
+		limiter: rl,
 	}, nil
 }
 
@@ -149,8 +148,16 @@ func (r *WorkspaceSubroutine) Process(ctx context.Context, obj client.Object) (s
 // TODO: could potentially work without the orgsClient when we look up the
 // orgs workspaceid on startup
 func (r *WorkspaceSubroutine) checkWorkspaceTypeReady(ctx context.Context, workspaceTypeName string) (bool, error) {
+	cluster, err := r.mgr.GetCluster(ctx, orgsWorkspacePath)
+	if err != nil {
+		return false, err
+	}
+	clusterClient := cluster.GetClient()
+
+	log := logger.LoadLoggerFromContext(ctx)
+	log.Info().Msg("Getting workspace using retrieved client")
 	wst := &kcptenancyv1alpha.WorkspaceType{}
-	if err := r.orgsClient.Get(ctx, client.ObjectKey{Name: workspaceTypeName}, wst); err != nil {
+	if err := clusterClient.Get(ctx, client.ObjectKey{Name: workspaceTypeName}, wst); err != nil {
 		if kerrors.IsNotFound(err) {
 			return false, nil
 		}

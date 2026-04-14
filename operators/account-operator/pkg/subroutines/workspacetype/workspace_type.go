@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/util"
@@ -31,12 +32,12 @@ const (
 )
 
 type WorkspaceTypeSubroutine struct {
-	orgsClient client.Client
+	mgr mcmanager.Manager
 }
 
-func New(orgsClient client.Client) *WorkspaceTypeSubroutine {
+func New(mgr mcmanager.Manager) *WorkspaceTypeSubroutine {
 	return &WorkspaceTypeSubroutine{
-		orgsClient: orgsClient,
+		mgr: mgr,
 	}
 }
 
@@ -68,8 +69,14 @@ func (w *WorkspaceTypeSubroutine) Process(ctx context.Context, obj client.Object
 }
 
 func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context, desiredWst kcptenancyv1alpha.WorkspaceType) error {
+	orgsCluster, err := w.mgr.GetCluster(ctx, orgsWorkspacePath)
+	if err != nil {
+		return err
+	}
+	orgsClusterClient := orgsCluster.GetClient()
+
 	wst := &kcptenancyv1alpha.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: desiredWst.Name}}
-	_, err := controllerutil.CreateOrPatch(ctx, w.orgsClient, wst, func() error {
+	_, err = controllerutil.CreateOrPatch(ctx, orgsClusterClient, wst, func() error {
 		if wst.Labels == nil {
 			wst.Labels = make(map[string]string)
 		}
@@ -91,17 +98,23 @@ func (w *WorkspaceTypeSubroutine) Finalize(ctx context.Context, obj client.Objec
 		return subroutines.OK(), nil
 	}
 
+	orgsCluster, err := w.mgr.GetCluster(ctx, "root:orgs")
+	if err != nil {
+		return subroutines.OK(), err
+	}
+	orgsClusterClient := orgsCluster.GetClient()
+
 	orgWorkspaceTypeName := util.GetWorkspaceTypeName(instance.Name, instance.Spec.Type)
 	accountWorkspaceTypeName := util.GetWorkspaceTypeName(instance.Name, v1alpha1.AccountTypeAccount)
 
-	if err := w.orgsClient.Delete(ctx, &kcptenancyv1alpha.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: orgWorkspaceTypeName}}); err != nil {
+	if err := orgsClusterClient.Delete(ctx, &kcptenancyv1alpha.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: orgWorkspaceTypeName}}); err != nil {
 		if !kerrors.IsNotFound(err) {
 			log.Error().Err(err).Str("name", orgWorkspaceTypeName).Msg("failed to delete org workspace type")
 			return subroutines.OK(), err
 		}
 	}
 
-	if err := w.orgsClient.Delete(ctx, &kcptenancyv1alpha.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: accountWorkspaceTypeName}}); err != nil {
+	if err := orgsClusterClient.Delete(ctx, &kcptenancyv1alpha.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: accountWorkspaceTypeName}}); err != nil {
 		if !kerrors.IsNotFound(err) {
 			log.Error().Err(err).Str("name", accountWorkspaceTypeName).Msg("failed to delete account workspace type")
 			return subroutines.OK(), err
