@@ -79,6 +79,16 @@ tasks:
     cmds:
       - "{{ .LOCAL_BIN}}/kcp start"
 
+  fuzz:
+    desc: "Run fuzz tests with a configurable duration (default 30s per target)"
+    vars:
+      FUZZTIME: '{{.FUZZTIME | default "30s"}}'
+    cmds:
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAccountRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAccountInfoRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAccountValidateCreate -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAccountValidateUpdate -fuzztime={{.FUZZTIME}} -count=1
+
   docker:kind:
     desc: "Build container image with current tag from kind cluster and load it"
     vars:
