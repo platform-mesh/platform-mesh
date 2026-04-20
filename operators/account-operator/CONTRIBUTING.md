@@ -33,6 +33,13 @@ kubectl patch deployment platform-mesh-account-operator -n platform-mesh-system 
 kubectl rollout restart deployment platform-mesh-account-operator -n platform-mesh-system && \
 kubectl rollout status deployment platform-mesh-account-operator -n platform-mesh-system
 ```
+
+## Generative AI
+
+If you use generative AI tools while preparing a contribution, you remain responsible for the correctness, safety, licensing, and maintainability of the submitted change.
+
+If you use Claude while contributing, do not assume it will automatically pick up this repository's `AGENTS.md`. Explicitly provide or reference `AGENTS.md` at the start of the session so Claude has the repository-specific instructions before it suggests or applies changes.
+
 ## Issues
 We use GitHub issues to track bugs. Please ensure your description is
 clear and includes sufficient instructions to reproduce the issue.
