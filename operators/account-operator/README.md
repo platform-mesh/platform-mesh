@@ -2,6 +2,7 @@
 > This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
 
 # platform-mesh - account-operator
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/account-operator/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/account-operator)
 ![Build Status](https://github.com/platform-mesh/account-operator/actions/workflows/pipeline.yml/badge.svg)
 
 ## Description
