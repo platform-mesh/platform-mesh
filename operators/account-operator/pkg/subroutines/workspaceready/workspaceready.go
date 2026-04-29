@@ -3,6 +3,7 @@ package workspaceready
 import (
 	"context"
 	"fmt"
+	"time"
 
 	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
@@ -13,6 +14,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/account-operator/internal/metrics"
 	"github.com/platform-mesh/account-operator/pkg/clusteredname"
 )
 
@@ -66,5 +68,9 @@ func (r *WorkspaceReadySubroutine) Process(ctx context.Context, obj client.Objec
 	}
 
 	r.limiter.Forget(instance)
+
+	duration := time.Since(instance.CreationTimestamp.Time).Seconds()
+	metrics.WorkspaceReadyDuration.WithLabelValues(string(instance.Spec.Type)).Observe(duration)
+
 	return subroutines.OK(), nil
 }

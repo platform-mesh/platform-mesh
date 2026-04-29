@@ -11,6 +11,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	mcruntime "sigs.k8s.io/multicluster-runtime"
+
+	"github.com/platform-mesh/account-operator/internal/metrics"
 )
 
 func SetupAccountWebhookWithManager(mgr ctrl.Manager, organizationNameDenyList []string, accountTypeAllowList []AccountType) error {
@@ -47,45 +49,57 @@ type AccountValidator struct {
 
 func (v *AccountValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	account := obj.(*Account)
+	accountType := string(account.Spec.Type)
 
 	if !slices.Contains(v.AccountTypeAllowList, account.Spec.Type) {
+		metrics.WebhookValidations.WithLabelValues("create", "denied", accountType).Inc()
 		return nil, fmt.Errorf("account type %s not in allowlist", account.Spec.Type)
 	}
 
 	if account.Spec.Type != AccountTypeOrg {
+		metrics.WebhookValidations.WithLabelValues("create", "allowed", accountType).Inc()
 		return nil, nil
 	}
 
 	if len(strings.TrimSpace(account.Name)) < 3 {
+		metrics.WebhookValidations.WithLabelValues("create", "denied", accountType).Inc()
 		return nil, fmt.Errorf("organization name %q is too short, must be at least 3 characters", account.Name)
 	}
 
 	if slices.Contains(v.OrganizationNameDenyList, account.Name) {
+		metrics.WebhookValidations.WithLabelValues("create", "denied", accountType).Inc()
 		return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
 	}
 
+	metrics.WebhookValidations.WithLabelValues("create", "allowed", accountType).Inc()
 	return nil, nil
 }
 
 func (v *AccountValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	account := newObj.(*Account)
+	accountType := string(account.Spec.Type)
 
 	if !slices.Contains(v.AccountTypeAllowList, account.Spec.Type) {
+		metrics.WebhookValidations.WithLabelValues("update", "denied", accountType).Inc()
 		return nil, fmt.Errorf("account type %s not in allowlist", account.Spec.Type)
 	}
 
 	if account.Spec.Type != AccountTypeOrg {
+		metrics.WebhookValidations.WithLabelValues("update", "allowed", accountType).Inc()
 		return nil, nil
 	}
 
 	if len(strings.TrimSpace(account.Name)) < 3 {
+		metrics.WebhookValidations.WithLabelValues("update", "denied", accountType).Inc()
 		return nil, fmt.Errorf("organization name %q is too short, must be at least 3 characters", account.Name)
 	}
 
 	if slices.Contains(v.OrganizationNameDenyList, account.Name) {
+		metrics.WebhookValidations.WithLabelValues("update", "denied", accountType).Inc()
 		return nil, fmt.Errorf("organization name %q is not allowed", account.Name)
 	}
 
+	metrics.WebhookValidations.WithLabelValues("update", "allowed", accountType).Inc()
 	return nil, nil
 }
 

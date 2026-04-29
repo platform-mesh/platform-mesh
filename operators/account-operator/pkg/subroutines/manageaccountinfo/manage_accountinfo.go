@@ -19,6 +19,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/account-operator/internal/metrics"
 	"github.com/platform-mesh/account-operator/pkg/clusteredname"
 )
 
@@ -111,6 +112,8 @@ func (r *ManageAccountInfoSubroutine) Process(ctx context.Context, obj client.Ob
 		}
 
 		r.limiter.Forget(instance)
+		duration := time.Since(instance.CreationTimestamp.Time).Seconds()
+		metrics.OrgProvisioningDuration.WithLabelValues().Observe(duration)
 		return subroutines.OK(), nil
 	}
 

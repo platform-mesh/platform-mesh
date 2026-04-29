@@ -21,6 +21,7 @@ import (
 
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/internal/config"
+	"github.com/platform-mesh/account-operator/internal/metrics"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/manageaccountinfo"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/workspace"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/workspaceready"
@@ -40,6 +41,7 @@ type AccountReconciler struct {
 	cfg         config.OperatorConfig
 	lifecycle   *lifecycle.Lifecycle
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
+	mgr         mcmanager.Manager
 }
 
 func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.OperatorConfig) (*AccountReconciler, error) {
@@ -90,6 +92,7 @@ func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.
 		cfg:         cfg,
 		lifecycle:   lc,
 		rateLimiter: rl,
+		mgr:         mgr,
 	}, nil
 }
 
@@ -108,5 +111,23 @@ func (r *AccountReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platfor
 }
 
 func (r *AccountReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req)
+	accountType := "unknown"
+
+	if clusterRef, err := r.mgr.GetCluster(ctx, req.ClusterName); err == nil {
+		account := &v1alpha1.Account{}
+		if err := clusterRef.GetClient().Get(ctx, req.NamespacedName, account); err == nil {
+			accountType = string(account.Spec.Type)
+		}
+	}
+
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	switch {
+	case err != nil:
+		metrics.AccountsReconciled.WithLabelValues(accountType, "error").Inc()
+	case result.RequeueAfter > 0:
+		metrics.AccountsReconciled.WithLabelValues(accountType, "requeue").Inc()
+	default:
+		metrics.AccountsReconciled.WithLabelValues(accountType, "success").Inc()
+	}
+	return result, err
 }

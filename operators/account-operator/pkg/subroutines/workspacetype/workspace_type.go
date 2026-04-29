@@ -14,6 +14,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/account-operator/internal/metrics"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/util"
 )
 
@@ -55,12 +56,12 @@ func (w *WorkspaceTypeSubroutine) Process(ctx context.Context, obj client.Object
 	orgWst := generateOrgWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName, instance.Name)
 	accWst := generateAccountWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName, instance.Name)
 
-	if err := w.createOrPatchWorkspaceType(ctx, orgWst); err != nil {
+	if err := w.createOrPatchWorkspaceType(ctx, orgWst, "org"); err != nil {
 		log.Error().Err(err).Str("name", orgWst.Name).Msg("failed to create or update org workspace type")
 		return subroutines.OK(), err
 	}
 
-	if err := w.createOrPatchWorkspaceType(ctx, accWst); err != nil {
+	if err := w.createOrPatchWorkspaceType(ctx, accWst, "account"); err != nil {
 		log.Error().Err(err).Str("name", accWst.Name).Msg("failed to create or update account workspace type")
 		return subroutines.OK(), err
 	}
@@ -68,7 +69,7 @@ func (w *WorkspaceTypeSubroutine) Process(ctx context.Context, obj client.Object
 	return subroutines.OK(), nil
 }
 
-func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context, desiredWst kcptenancyv1alpha.WorkspaceType) error {
+func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context, desiredWst kcptenancyv1alpha.WorkspaceType, wstKind string) error {
 	orgsCluster, err := w.mgr.GetCluster(ctx, orgsWorkspacePath)
 	if err != nil {
 		return err
@@ -76,7 +77,7 @@ func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context
 	orgsClusterClient := orgsCluster.GetClient()
 
 	wst := &kcptenancyv1alpha.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: desiredWst.Name}}
-	_, err = controllerutil.CreateOrPatch(ctx, orgsClusterClient, wst, func() error {
+	result, err := controllerutil.CreateOrPatch(ctx, orgsClusterClient, wst, func() error {
 		if wst.Labels == nil {
 			wst.Labels = make(map[string]string)
 		}
@@ -88,7 +89,11 @@ func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context
 		wst.Spec.LimitAllowedChildren = desiredWst.Spec.LimitAllowedChildren
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	metrics.WorkspaceTypeOperations.WithLabelValues(string(result), wstKind).Inc()
+	return nil
 }
 
 func (w *WorkspaceTypeSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
