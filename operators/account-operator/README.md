@@ -3,7 +3,7 @@
 
 # platform-mesh - account-operator
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/account-operator/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/account-operator)
-![Build Status](https://github.com/platform-mesh/account-operator/actions/workflows/pipeline.yml/badge.svg)
+![Build Status](https://github.com/platform-mesh/account-operator/actions/workflows/ci.yml/badge.svg)
 
 ## Description
 

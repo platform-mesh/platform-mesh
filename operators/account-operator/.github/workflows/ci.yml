@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    uses: platform-mesh/.github/.github/workflows/job-golang-lint.yml@main
+    with:
+      useTask: true
+
+  test:
+    uses: platform-mesh/.github/.github/workflows/job-golang-test-source.yml@main
+    with:
+      useTask: true
+      useLocalCoverageConfig: true
+
+  docker-build:
+    uses: platform-mesh/.github/.github/workflows/job-docker-build.yml@main
+    with:
+      imageTagName: ghcr.io/platform-mesh/account-operator
+
+  quality-gate:
+    if: always()
+    permissions: {}
+    needs: [lint, test, docker-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check results
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ]]; then
+            echo "lint failed"
+            exit 1
+          fi
+          if [[ "${{ needs.test.result }}" != "success" ]]; then
+            echo "test failed"
+            exit 1
+          fi
+          if [[ "${{ needs.docker-build.result }}" != "success" ]]; then
+            echo "docker-build failed"
+            exit 1
+          fi

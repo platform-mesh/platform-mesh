@@ -1,0 +1,69 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+  issues: write
+  packages: write
+  pull-requests: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lint:
+    uses: platform-mesh/.github/.github/workflows/job-golang-lint.yml@main
+    with:
+      useTask: true
+
+  test:
+    uses: platform-mesh/.github/.github/workflows/job-golang-test-source.yml@main
+    secrets: inherit
+    with:
+      useTask: true
+      useLocalCoverageConfig: true
+
+  create-version:
+    uses: platform-mesh/.github/.github/workflows/job-create-version.yml@main
+    secrets: inherit
+
+  docker-build-push:
+    needs: [create-version, lint, test]
+    uses: platform-mesh/.github/.github/workflows/job-docker-build-push.yml@main
+    with:
+      imageTagName: ghcr.io/platform-mesh/account-operator
+      version: ${{ needs.create-version.outputs.version }}
+      multiarch: true
+    secrets: inherit
+
+  update-version:
+    needs: [create-version, docker-build-push]
+    uses: platform-mesh/.github/.github/workflows/job-chart-version-update.yml@main
+    secrets: inherit
+    with:
+      appVersion: ${{ needs.create-version.outputs.version }}
+      chart: account-operator
+      targetRepository: platform-mesh/helm-charts
+
+  sbom:
+    needs: [create-version, docker-build-push]
+    uses: platform-mesh/.github/.github/workflows/job-sbom.yml@main
+    with:
+      imageReference: ghcr.io/platform-mesh/account-operator:${{ needs.create-version.outputs.version }}
+
+  image-ocm:
+    needs: [create-version, docker-build-push, sbom]
+    uses: platform-mesh/.github/.github/workflows/job-image-ocm.yml@main
+    secrets: inherit
+    with:
+      imageReference: ghcr.io/platform-mesh/account-operator:${{ needs.create-version.outputs.version }}
+      appVersion: ${{ needs.create-version.outputs.version }}
+      repoName: account-operator
+      commit: ${{ github.sha }}
