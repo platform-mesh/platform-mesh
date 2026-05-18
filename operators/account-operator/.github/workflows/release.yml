@@ -6,12 +6,7 @@ on:
       - main
 
 permissions:
-  contents: write
-  id-token: write
-  issues: write
-  packages: write
-  pull-requests: write
-  attestations: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -19,33 +14,39 @@ concurrency:
 
 jobs:
   lint:
-    uses: platform-mesh/.github/.github/workflows/job-golang-lint.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-golang-lint.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     with:
       useTask: true
 
   test:
-    uses: platform-mesh/.github/.github/workflows/job-golang-test-source.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-golang-test-source.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     secrets: inherit
     with:
       useTask: true
       useLocalCoverageConfig: true
 
   create-version:
-    uses: platform-mesh/.github/.github/workflows/job-create-version.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-create-version.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     secrets: inherit
+    permissions:
+      contents: write
 
   docker-build-push:
     needs: [create-version, lint, test]
-    uses: platform-mesh/.github/.github/workflows/job-docker-build-push.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-docker-build-push.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     with:
       imageTagName: ghcr.io/platform-mesh/account-operator
       version: ${{ needs.create-version.outputs.version }}
       multiarch: true
-    secrets: inherit
 
   update-version:
     needs: [create-version, docker-build-push]
-    uses: platform-mesh/.github/.github/workflows/job-chart-version-update.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-chart-version-update.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     secrets: inherit
     with:
       appVersion: ${{ needs.create-version.outputs.version }}
@@ -54,14 +55,18 @@ jobs:
 
   sbom:
     needs: [create-version, docker-build-push]
-    uses: platform-mesh/.github/.github/workflows/job-sbom.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-sbom.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
+    permissions:
+      packages: read
     with:
       imageReference: ghcr.io/platform-mesh/account-operator:${{ needs.create-version.outputs.version }}
 
   image-ocm:
     needs: [create-version, docker-build-push, sbom]
-    uses: platform-mesh/.github/.github/workflows/job-image-ocm.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-image-ocm.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     secrets: inherit
+    permissions:
+      packages: write
     with:
       imageReference: ghcr.io/platform-mesh/account-operator:${{ needs.create-version.outputs.version }}
       appVersion: ${{ needs.create-version.outputs.version }}

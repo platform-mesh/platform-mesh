@@ -15,18 +15,18 @@ concurrency:
 
 jobs:
   lint:
-    uses: platform-mesh/.github/.github/workflows/job-golang-lint.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-golang-lint.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     with:
       useTask: true
 
   test:
-    uses: platform-mesh/.github/.github/workflows/job-golang-test-source.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-golang-test-source.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     with:
       useTask: true
       useLocalCoverageConfig: true
 
   docker-build:
-    uses: platform-mesh/.github/.github/workflows/job-docker-build.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-docker-build.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     with:
       imageTagName: ghcr.io/platform-mesh/account-operator
 
