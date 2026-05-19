@@ -6,13 +6,11 @@ on:
       - opened
       - synchronize
 
-permissions:
-  contents: read
-
 jobs:
   auto-labeler:
     if: github.event.pull_request.head.repo.full_name == github.repository
     uses: platform-mesh/.github/.github/workflows/job-auto-labeler.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     permissions:
+      contents: read
       pull-requests: write
       issues: write

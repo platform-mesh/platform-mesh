@@ -1,16 +1,16 @@
 name: OpenSSF Scorecard
 on:
-    push:
-        branches: [main]
-    schedule:
-        - cron: '30 4 * * 1'
-    workflow_dispatch:
-
-permissions: read-all
+  push:
+    branches: [main]
+  schedule:
+    - cron: '30 4 * * 1'
+  workflow_dispatch:
 
 jobs:
-    scorecard:
-        uses: platform-mesh/.github/.github/workflows/job-ossf-scorecard.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
-        permissions:
-            security-events: write
-            id-token: write
+  scorecard:
+    uses: platform-mesh/.github/.github/workflows/job-ossf-scorecard.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
+    permissions:
+      security-events: write
+      id-token: write
+      contents: read
+      actions: read

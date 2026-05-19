@@ -57,6 +57,7 @@ jobs:
     needs: [create-version, docker-build-push]
     uses: platform-mesh/.github/.github/workflows/job-sbom.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     permissions:
+      contents: read
       packages: read
     with:
       imageReference: ghcr.io/platform-mesh/account-operator:${{ needs.create-version.outputs.version }}
@@ -66,6 +67,7 @@ jobs:
     uses: platform-mesh/.github/.github/workflows/job-image-ocm.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0
     secrets: inherit
     permissions:
+      contents: read
       packages: write
     with:
       imageReference: ghcr.io/platform-mesh/account-operator:${{ needs.create-version.outputs.version }}
