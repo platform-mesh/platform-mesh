@@ -3,3 +3,4 @@ kcp/assets/oidc-dex/values.yaml
 kcp/assets/cert-manager/cloudflare-secret.yaml
 lets-encrypt-r3.pem
 google-we1.pem
+/bin/
