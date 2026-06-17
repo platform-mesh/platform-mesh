@@ -1,0 +1,8 @@
+apiVersion: tenancy.kcp.io/v1alpha1
+kind: Workspace
+metadata:
+  name: orgs
+spec:
+  type:
+    name: orgs
+    path: root

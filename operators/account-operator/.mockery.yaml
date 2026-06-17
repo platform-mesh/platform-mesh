@@ -1,0 +1,24 @@
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+recursive: false
+require-template-schema-exists: true
+template: testify
+template-schema: '{{.Template}}.schema.json'
+structname: '{{.InterfaceName}}'
+dir: 'pkg/subroutines/mocks'
+pkgname: mocks
+packages:
+  sigs.k8s.io/controller-runtime/pkg/client:
+    config:
+      include-interface-regex: Client
+      filename: mock_K8Service.go
+  sigs.k8s.io/controller-runtime/pkg/cluster:
+    config:
+      include-interface-regex: Cluster
+      filename: mock_K8Cluster.go
+  sigs.k8s.io/multicluster-runtime/pkg/manager:
+    config:
+      include-interface-regex: Manager
+      filename: mock_MCManager.go
