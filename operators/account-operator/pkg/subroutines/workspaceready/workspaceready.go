@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/account-operator/internal/metrics"
@@ -52,7 +53,7 @@ func (r *WorkspaceReadySubroutine) Process(ctx context.Context, obj client.Objec
 	instance := obj.(*v1alpha1.Account)
 	cn := clusteredname.MustGetClusteredName(ctx, obj)
 
-	clusterRef, err := r.mgr.GetCluster(ctx, cn.ClusterID.String())
+	clusterRef, err := r.mgr.GetCluster(ctx, multicluster.ClusterName(cn.ClusterID))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting cluster: %w", err)
 	}

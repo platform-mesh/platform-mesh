@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/account-operator/internal/metrics"
@@ -60,7 +61,7 @@ func (r *ManageAccountInfoSubroutine) Process(ctx context.Context, obj client.Ob
 	log := logger.LoadLoggerFromContext(ctx)
 	cn := clusteredname.MustGetClusteredName(ctx, obj)
 
-	clusterRef, err := r.mgr.GetCluster(ctx, string(cn.ClusterID))
+	clusterRef, err := r.mgr.GetCluster(ctx, multicluster.ClusterName(cn.ClusterID))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting cluster: %w", err)
 	}
@@ -91,7 +92,7 @@ func (r *ManageAccountInfoSubroutine) Process(ctx context.Context, obj client.Ob
 		URL:                currentWorkspaceUrl,
 	}
 
-	accountCluster, err := r.mgr.GetCluster(ctx, accountWorkspace.Spec.Cluster)
+	accountCluster, err := r.mgr.GetCluster(ctx, multicluster.ClusterName(accountWorkspace.Spec.Cluster))
 	if err != nil {
 		return subroutines.OK(), err
 	}

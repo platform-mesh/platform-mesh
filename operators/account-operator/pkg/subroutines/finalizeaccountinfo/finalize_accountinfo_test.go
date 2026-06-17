@@ -25,10 +25,10 @@ import (
 var _ multicluster.Provider = &Provider{}
 
 type Provider struct {
-	clusters map[string]cluster.Cluster
+	clusters map[multicluster.ClusterName]cluster.Cluster
 }
 
-func (p *Provider) Get(_ context.Context, clusterName string) (cluster.Cluster, error) {
+func (p *Provider) Get(_ context.Context, clusterName multicluster.ClusterName) (cluster.Cluster, error) {
 	cluster, ok := p.clusters[clusterName]
 	if !ok {
 		return nil, fmt.Errorf("cluster not found: %s", clusterName)
@@ -56,7 +56,7 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 	testCases := []struct {
 		name          string
 		obj           *v1alpha1.AccountInfo
-		clusters      map[string]cluster.Cluster
+		clusters      map[multicluster.ClusterName]cluster.Cluster
 		expectError   bool
 		expectRequeue bool
 	}{
@@ -68,7 +68,7 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 					Finalizers: []string{finalizeaccountinfo.AccountInfoFinalizer},
 				},
 			},
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
@@ -92,7 +92,7 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 					Finalizers: []string{finalizeaccountinfo.AccountInfoFinalizer},
 				},
 			},
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
@@ -116,7 +116,7 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 					Finalizers: []string{finalizeaccountinfo.AccountInfoFinalizer},
 				},
 			},
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)

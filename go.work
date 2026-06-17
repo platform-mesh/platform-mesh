@@ -3,4 +3,8 @@ go 1.26.1
 use (
 	./apis
 	./operators/account-operator
+	./operators/security-operator
 )
+
+// kcp-dev/multicluster-provider has an internal replace directive that breaks go work sync
+replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.7.1

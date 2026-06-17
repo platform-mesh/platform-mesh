@@ -30,11 +30,11 @@ var _ multicluster.Provider = &Provider{}
 
 // Provider is a provider that only embeds clusters.Clusters.
 type Provider struct {
-	clusters map[string]cluster.Cluster
+	clusters map[multicluster.ClusterName]cluster.Cluster
 }
 
 // Get implements multicluster.Provider.
-func (p *Provider) Get(_ context.Context, clusterName string) (cluster.Cluster, error) {
+func (p *Provider) Get(_ context.Context, clusterName multicluster.ClusterName) (cluster.Cluster, error) {
 	cluster, ok := p.clusters[clusterName]
 	if !ok {
 		return nil, fmt.Errorf("cluster not found: %s", clusterName)
@@ -62,13 +62,13 @@ func TestManageAccountInfoProcess(t *testing.T) {
 	testCases := []struct {
 		name          string
 		obj           *v1alpha1.Account
-		clusters      map[string]cluster.Cluster
+		clusters      map[multicluster.ClusterName]cluster.Cluster
 		expectError   bool
 		expectRequeue bool
 	}{
 		{
 			name: "should successfully create accountinfo object",
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 
@@ -141,13 +141,13 @@ func TestManageAccountInfoProcess(t *testing.T) {
 		},
 		{
 			name:        "current cluster get fails",
-			clusters:    map[string]cluster.Cluster{}, // context set, but cluster not registered
+			clusters:    map[multicluster.ClusterName]cluster.Cluster{}, // context set, but cluster not registered
 			obj:         accountObj(v1alpha1.AccountTypeAccount),
 			expectError: true,
 		},
 		{
 			name: "workspace retrieval error",
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
@@ -164,7 +164,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 		},
 		{
 			name: "workspace not ready requeues",
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
@@ -192,7 +192,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 		},
 		{
 			name: "workspace URL empty",
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
@@ -220,7 +220,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 		},
 		{
 			name: "workspace URL invalid",
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
@@ -248,7 +248,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 		},
 		{
 			name: "account cluster retrieval fails",
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
@@ -276,7 +276,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 		},
 		{
 			name: "parent account info not found requeues",
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
@@ -315,7 +315,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 		},
 		{
 			name: "org account success",
-			clusters: map[string]cluster.Cluster{
+			clusters: map[multicluster.ClusterName]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
