@@ -61,7 +61,8 @@ tasks:
   mockery:
     deps: [setup:mockery]
     cmds:
-      - "{{.LOCAL_BIN}}/mockery"
+      - "cd operators/account-operator; ../../{{.LOCAL_BIN}}/mockery"
+      - "cd operators/security-operator; ../../{{.LOCAL_BIN}}/mockery"
   manifests:
     deps: [setup:controller-gen,setup:kcp-api-gen]
     cmds:
@@ -69,7 +70,7 @@ tasks:
   generate:
     cmds:
       - task: manifests
-      # - task: mockery
+      - task: mockery
       - "cd apis; ../{{.LOCAL_BIN}}/controller-gen object paths=./..."
       - "{{.LOCAL_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
   build:
