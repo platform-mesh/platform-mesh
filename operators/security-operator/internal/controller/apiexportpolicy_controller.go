@@ -6,7 +6,6 @@ import (
 	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
@@ -82,16 +81,16 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(
-			&accountsv1alpha1.Account{},
+			&corev1alpha1.Account{},
 			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
-					acc, ok := obj.(*accountsv1alpha1.Account)
+					acc, ok := obj.(*corev1alpha1.Account)
 					if !ok {
 						return nil
 					}
 
 					// we need to enqueue only when a new org is ready
-					if acc.Spec.Type != accountsv1alpha1.AccountTypeOrg || !meta.IsStatusConditionTrue(acc.GetConditions(), "Ready") {
+					if acc.Spec.Type != corev1alpha1.AccountTypeOrg || !meta.IsStatusConditionTrue(acc.GetConditions(), "Ready") {
 						return nil
 					}
 

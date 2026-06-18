@@ -3,20 +3,18 @@ package subroutine
 import (
 	"context"
 	"fmt"
-	"os"
-	"slices"
-	"strings"
-	"time"
-
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	iclient "github.com/platform-mesh/platform-mesh/operators/security-operator/internal/client"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/config"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/fga"
 	"github.com/platform-mesh/subroutines"
+	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"slices"
+	"strings"
+	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,7 +76,7 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context: %w", err)
 	}
 
-	var ai accountsv1alpha1.AccountInfo
+	var ai v1alpha1.AccountInfo
 	if err := cluster.GetClient().Get(ctx, client.ObjectKey{
 		Name: "account",
 	}, &ai); err != nil && !kerrors.IsNotFound(err) {
@@ -91,7 +89,7 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
-	var acc accountsv1alpha1.Account
+	var acc v1alpha1.Account
 	if err := orgsClient.Get(ctx, client.ObjectKey{
 		Name: ai.Spec.Account.Name,
 	}, &acc); err != nil {

@@ -180,8 +180,6 @@ github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4
 github.com/pingcap/errors v0.11.4/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
-github.com/platform-mesh/account-operator v0.14.53 h1:81R7lxQ7MjifJOkARpNm9BjCjFlGpXlCo3AEVEtl0BY=
-github.com/platform-mesh/account-operator v0.14.53/go.mod h1:7nugJcOBF7CMs0m9y48M4V+/saDmncMhUUlLwpj8mcA=
 github.com/platform-mesh/golang-commons v0.17.9 h1:Yzr0IKsUFNrgrnUMg6VyOp+tEX9z0aRGsDdfhHxxNAQ=
 github.com/platform-mesh/golang-commons v0.17.9/go.mod h1:hPR2CpavgAMwtGCKDn9+RR1+Tacqt683VRe9bsiHMAM=
 github.com/platform-mesh/subroutines v0.4.3 h1:b/Op25a+N2x9H09Gmzyjl7/8HkHiJ5YEzCur95eU37c=

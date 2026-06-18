@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	accountsv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/fga"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/subroutine"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/subroutine/mocks"

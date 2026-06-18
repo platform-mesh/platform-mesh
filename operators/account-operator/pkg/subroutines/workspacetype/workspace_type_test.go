@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/account-operator/pkg/subroutines/mocks"
@@ -97,7 +98,7 @@ func TestFinalize(t *testing.T) {
 			if test.k8sMocks != nil {
 				test.k8sMocks(cl)
 			}
-			mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(cluster, nil)
+			mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(cluster, nil)
 			cluster.EXPECT().GetClient().Return(cl)
 
 			s := workspacetype.New(mgr)
@@ -153,7 +154,7 @@ func TestProcess(t *testing.T) {
 			if test.k8sMocks != nil {
 				test.k8sMocks(cl)
 			}
-			mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(cluster, nil).Twice()
+			mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(cluster, nil).Twice()
 			cluster.EXPECT().GetClient().Return(cl).Twice()
 
 			s := workspacetype.New(mgr)
@@ -196,7 +197,7 @@ func TestProcess_PreservesAuthenticationConfigurations(t *testing.T) {
 
 	cluster := mocks.NewCluster(t)
 	mgr := mocks.NewManager(t)
-	mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(cluster, nil).Twice()
+	mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(cluster, nil).Twice()
 	cluster.EXPECT().GetClient().Return(fakeClient).Twice()
 
 	s := workspacetype.New(mgr)

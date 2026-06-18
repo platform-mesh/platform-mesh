@@ -2,10 +2,6 @@ package subroutine
 
 import (
 	"context"
-	"testing"
-	"time"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	secopv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/subroutine/mocks"
@@ -14,6 +10,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"testing"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,8 +103,8 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*accountv1alpha1.Account)
-						acc.Spec.Type = accountv1alpha1.AccountTypeAccount // Not organization type
+						acc := obj.(*secopv1alpha1.Account)
+						acc.Spec.Type = secopv1alpha1.AccountTypeAccount // Not organization type
 						email := "user@test.io"
 						acc.Spec.Creator = &email
 						return nil
@@ -129,8 +127,8 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*accountv1alpha1.Account)
-						acc.Spec.Type = accountv1alpha1.AccountTypeOrg
+						acc := obj.(*secopv1alpha1.Account)
+						acc.Spec.Type = secopv1alpha1.AccountTypeOrg
 						email := "owner@acme.io"
 						acc.Spec.Creator = &email
 						return nil
@@ -169,8 +167,8 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*accountv1alpha1.Account)
-						acc.Spec.Type = accountv1alpha1.AccountTypeOrg
+						acc := obj.(*secopv1alpha1.Account)
+						acc.Spec.Type = secopv1alpha1.AccountTypeOrg
 						email := "owner@beta.io"
 						acc.Spec.Creator = &email
 						return nil

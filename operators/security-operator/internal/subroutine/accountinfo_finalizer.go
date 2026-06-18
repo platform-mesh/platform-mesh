@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger"
+	accountv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"

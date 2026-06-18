@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	accountsv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/config"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/subroutine/mocks"
 	"github.com/platform-mesh/subroutines"

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/subroutine/mocks"
@@ -435,23 +434,23 @@ func TestTupleManager_ListWithKey(t *testing.T) {
 	})
 }
 
-func testAccountAndInfo(accountName, clusterID string) (accountv1alpha1.Account, accountv1alpha1.AccountInfo) {
+func testAccountAndInfo(accountName, clusterID string) (v1alpha1.Account, v1alpha1.AccountInfo) {
 	creator := "user:alice"
-	acc := accountv1alpha1.Account{
+	acc := v1alpha1.Account{
 		ObjectMeta: metav1.ObjectMeta{Name: accountName},
-		Spec: accountv1alpha1.AccountSpec{
+		Spec: v1alpha1.AccountSpec{
 			Creator: &creator,
 		},
 	}
-	ai := accountv1alpha1.AccountInfo{
+	ai := v1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: accountv1alpha1.AccountInfoSpec{
-			Account: accountv1alpha1.AccountLocation{
+		Spec: v1alpha1.AccountInfoSpec{
+			Account: v1alpha1.AccountLocation{
 				Name:               accountName,
 				GeneratedClusterId: clusterID,
 				OriginClusterId:    clusterID,
 			},
-			ParentAccount: &accountv1alpha1.AccountLocation{
+			ParentAccount: &v1alpha1.AccountLocation{
 				Name:            "parent-account",
 				OriginClusterId: clusterID,
 			},

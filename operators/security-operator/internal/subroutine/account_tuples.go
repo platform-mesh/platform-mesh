@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	iclient "github.com/platform-mesh/platform-mesh/operators/security-operator/internal/client"
@@ -69,7 +68,7 @@ func (s *AccountTuplesSubroutine) reconcile(ctx context.Context, obj client.Obje
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting client for parent account cluster: %w", err)
 	}
-	var acc accountsv1alpha1.Account
+	var acc v1alpha1.Account
 	if err := parentAccountClient.Get(ctx, client.ObjectKey{
 		Name: accountPath.Base(),
 	}, &acc); err != nil {

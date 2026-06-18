@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
+	accountv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/metrics"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/lifecycle"

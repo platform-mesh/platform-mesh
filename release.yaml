@@ -1,0 +1,28 @@
+# release.yaml — components that can be released from this monorepo.
+#
+# Each component is an independent version line. `cmd/release` (task release --
+# <component>) finds the latest git tag carrying the component's `prefix`,
+# bumps it (patch by default), and creates + pushes the new tag. The matching
+# workflow under .github/workflows/<name>.yml is triggered by that tag and does
+# the actual build/sign/release work.
+#
+# Releases are component-scoped: tagging `account-operator/v1.2.3` builds only
+# that operator, never the others in the monorepo.
+
+# defaultBump is used when neither --minor/--major nor --tag is given.
+defaultBump: patch
+
+components:
+  - name: account-operator
+    # The version is appended directly to prefix, e.g. prefix
+    # "account-operator/v" + "1.2.3" = "account-operator/v1.2.3".
+    prefix: account-operator/v
+    triggers: >-
+      builds + pushes the signed, immutable account-operator image, cuts a
+      GitHub release, bumps the Helm chart and publishes the OCM component
+
+  - name: security-operator
+    prefix: security-operator/v
+    triggers: >-
+      builds + pushes the signed, immutable security-operator image, cuts a
+      GitHub release, bumps the Helm chart and publishes the OCM component

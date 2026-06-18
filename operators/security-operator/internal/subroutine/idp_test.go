@@ -2,10 +2,6 @@ package subroutine
 
 import (
 	"context"
-	"testing"
-	"time"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	secopv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/config"
@@ -15,6 +11,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"testing"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -113,8 +111,8 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*accountv1alpha1.Account)
-						acc.Spec.Type = accountv1alpha1.AccountTypeAccount // Not organization type
+						acc := obj.(*secopv1alpha1.Account)
+						acc.Spec.Type = secopv1alpha1.AccountTypeAccount // Not organization type
 						return nil
 					}).Once()
 			},
@@ -135,8 +133,8 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*accountv1alpha1.Account)
-						acc.Spec.Type = accountv1alpha1.AccountTypeOrg
+						acc := obj.(*secopv1alpha1.Account)
+						acc.Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
@@ -167,10 +165,10 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						accountInfo := obj.(*accountv1alpha1.AccountInfo)
-						accountInfo.Spec.OIDC = &accountv1alpha1.OIDCInfo{
+						accountInfo := obj.(*secopv1alpha1.AccountInfo)
+						accountInfo.Spec.OIDC = &secopv1alpha1.OIDCInfo{
 							IssuerURL: "https://old.example.com/keycloak/realms/acme",
-							Clients: map[string]accountv1alpha1.ClientInfo{
+							Clients: map[string]secopv1alpha1.ClientInfo{
 								"old-client": {ClientID: "old-client-id"},
 							},
 						}
@@ -196,8 +194,8 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*accountv1alpha1.Account)
-						acc.Spec.Type = accountv1alpha1.AccountTypeOrg
+						acc := obj.(*secopv1alpha1.Account)
+						acc.Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
@@ -240,7 +238,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "delta"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						obj.(*accountv1alpha1.Account).Spec.Type = accountv1alpha1.AccountTypeOrg
+						obj.(*secopv1alpha1.Account).Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "delta"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
@@ -261,7 +259,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "epsilon"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						obj.(*accountv1alpha1.Account).Spec.Type = accountv1alpha1.AccountTypeOrg
+						obj.(*secopv1alpha1.Account).Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "epsilon"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
@@ -289,7 +287,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "zeta"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						obj.(*accountv1alpha1.Account).Spec.Type = accountv1alpha1.AccountTypeOrg
+						obj.(*secopv1alpha1.Account).Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "zeta"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
@@ -318,7 +316,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "eta"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						obj.(*accountv1alpha1.Account).Spec.Type = accountv1alpha1.AccountTypeOrg
+						obj.(*secopv1alpha1.Account).Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "eta"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
@@ -350,7 +348,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "theta"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						obj.(*accountv1alpha1.Account).Spec.Type = accountv1alpha1.AccountTypeOrg
+						obj.(*secopv1alpha1.Account).Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "theta"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
@@ -384,7 +382,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "iota"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						obj.(*accountv1alpha1.Account).Spec.Type = accountv1alpha1.AccountTypeOrg
+						obj.(*secopv1alpha1.Account).Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "iota"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
@@ -404,9 +402,9 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				// AccountInfo already matches the desired state — no Patch expected
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						obj.(*accountv1alpha1.AccountInfo).Spec.OIDC = &accountv1alpha1.OIDCInfo{
+						obj.(*secopv1alpha1.AccountInfo).Spec.OIDC = &secopv1alpha1.OIDCInfo{
 							IssuerURL: "https://example.com/keycloak/realms/iota",
-							Clients: map[string]accountv1alpha1.ClientInfo{
+							Clients: map[string]secopv1alpha1.ClientInfo{
 								"iota":            {ClientID: "iota-id"},
 								kubectlClientName: {ClientID: "kubectl-id"},
 							},
@@ -428,7 +426,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "kappa"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						obj.(*accountv1alpha1.Account).Spec.Type = accountv1alpha1.AccountTypeOrg
+						obj.(*secopv1alpha1.Account).Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "kappa"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
@@ -464,7 +462,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "lambda"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						obj.(*accountv1alpha1.Account).Spec.Type = accountv1alpha1.AccountTypeOrg
+						obj.(*secopv1alpha1.Account).Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "lambda"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
@@ -506,8 +504,8 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "gamma"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*accountv1alpha1.Account)
-						acc.Spec.Type = accountv1alpha1.AccountTypeOrg
+						acc := obj.(*secopv1alpha1.Account)
+						acc.Spec.Type = secopv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()

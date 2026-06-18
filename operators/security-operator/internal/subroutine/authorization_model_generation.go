@@ -4,11 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"slices"
-	"strings"
-	"text/template"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	iclient "github.com/platform-mesh/platform-mesh/operators/security-operator/internal/client"
@@ -17,6 +12,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+	"slices"
+	"strings"
+	"text/template"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -116,7 +114,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 		return subroutines.OK(), fmt.Errorf("listing APIBindings: %w", err)
 	}
 
-	var toDeleteAccountInfo accountv1alpha1.AccountInfo
+	var toDeleteAccountInfo securityv1alpha1.AccountInfo
 	err = bindingCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &toDeleteAccountInfo)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get account info for binding deletion")
@@ -134,7 +132,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 			return subroutines.OK(), fmt.Errorf("getting cluster for binding: %w", err)
 		}
 
-		var accountInfo accountv1alpha1.AccountInfo
+		var accountInfo securityv1alpha1.AccountInfo
 		err = bindingWsCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
 			// If the accountinfo does not exist, skip this binding and continue with others
@@ -231,7 +229,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("getting cluster from context: %w", err)
 	}
 
-	var accountInfo accountv1alpha1.AccountInfo
+	var accountInfo securityv1alpha1.AccountInfo
 	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting AccountInfo: %w", err)

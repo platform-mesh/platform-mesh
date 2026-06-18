@@ -5,6 +5,9 @@ lets-encrypt-r3.pem
 google-we1.pem
 /bin/
 
+# Compiled release tool binary left by `go build ./...` in its module
+/cmd/release/release
+
 # Go workspace is local-only; builds use module replaces and always run from the monorepo
 go.work
 go.work.sum

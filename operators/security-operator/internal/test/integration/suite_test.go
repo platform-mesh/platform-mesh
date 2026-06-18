@@ -3,12 +3,6 @@ package test
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/url"
-	"testing"
-	"time"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
@@ -17,10 +11,14 @@ import (
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/controller"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"io"
+	"net/url"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/yaml"
+	"testing"
+	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,7 +75,7 @@ func init() {
 	utilruntime.Must(apisv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(accountv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(securityv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(securityv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(apisv1alpha2.AddToScheme(scheme.Scheme))
 }
@@ -260,12 +258,12 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	})
 }
 
-func (suite *IntegrationSuite) createAccount(ctx context.Context, client client.Client, accountName string, accountType accountv1alpha1.AccountType, t *testing.T) {
-	account := &accountv1alpha1.Account{
+func (suite *IntegrationSuite) createAccount(ctx context.Context, client client.Client, accountName string, accountType securityv1alpha1.AccountType, t *testing.T) {
+	account := &securityv1alpha1.Account{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: accountName,
 		},
-		Spec: accountv1alpha1.AccountSpec{
+		Spec: securityv1alpha1.AccountSpec{
 			Type: accountType,
 		},
 	}
@@ -277,27 +275,27 @@ func (suite *IntegrationSuite) createAccount(ctx context.Context, client client.
 }
 
 func (suite *IntegrationSuite) createAccountInfo(ctx context.Context, accountClient client.Client, accountName, orgName string, accountPath, orgPath logicalcluster.Path, t *testing.T) {
-	accountInfo := &accountv1alpha1.AccountInfo{
+	accountInfo := &securityv1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "account",
 		},
-		Spec: accountv1alpha1.AccountInfoSpec{
-			Organization: accountv1alpha1.AccountLocation{
+		Spec: securityv1alpha1.AccountInfoSpec{
+			Organization: securityv1alpha1.AccountLocation{
 				Name:               orgName,
 				GeneratedClusterId: orgPath.String(),
 				OriginClusterId:    orgPath.String(),
 				Path:               orgPath.String(),
-				Type:               accountv1alpha1.AccountTypeOrg,
+				Type:               securityv1alpha1.AccountTypeOrg,
 			},
-			Account: accountv1alpha1.AccountLocation{
+			Account: securityv1alpha1.AccountLocation{
 				Name:               accountName,
 				GeneratedClusterId: accountPath.String(),
 				OriginClusterId:    accountPath.String(),
 				Path:               accountPath.String(),
-				Type:               accountv1alpha1.AccountTypeAccount,
+				Type:               securityv1alpha1.AccountTypeAccount,
 			},
-			FGA: accountv1alpha1.FGAInfo{
-				Store: accountv1alpha1.StoreInfo{
+			FGA: securityv1alpha1.FGAInfo{
+				Store: securityv1alpha1.StoreInfo{
 					Id: "test-store-id",
 				},
 			},

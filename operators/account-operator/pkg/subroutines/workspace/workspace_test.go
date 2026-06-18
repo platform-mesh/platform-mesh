@@ -21,6 +21,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 func TestGetName(t *testing.T) {
@@ -278,7 +279,7 @@ func TestProcess(t *testing.T) {
 			}
 
 			mgr.EXPECT().
-				GetCluster(mock.Anything, "root:orgs").
+				GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).
 				Return(orgsCluster, nil).
 				Maybe()
 			mgr.EXPECT().

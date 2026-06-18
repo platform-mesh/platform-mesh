@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/platform-mesh/golang-commons/sentry"
 	corev1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
@@ -243,6 +242,6 @@ func init() {
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(accountsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }

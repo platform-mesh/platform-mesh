@@ -6,9 +6,18 @@ vars:
   ENVTEST_K8S_VERSION: "1.31.0"
   ENVTEST_VERSION: release-0.19
   CRD_DIRECTORY: config/crd/bases
-  KCP_APIGEN_VERSION: v0.30.1
-  KCP_VERSION: 0.30.1
+  KCP_APIGEN_VERSION: v0.32.0
+  KCP_VERSION: 0.32.0
   GOLANGCI_LINT_VERSION: v2.8.0
+  # Go modules in this monorepo (no root module; go.work is local-only). Tasks
+  # that span the repo iterate this list instead of relying on `./...` at root.
+  GO_MODULES: apis operators/account-operator operators/security-operator cmd/release
+  # Library modules: plain unit tests, no kcp/envtest needed.
+  GO_LIB_MODULES: apis cmd/release
+  # Operator modules: each has a self-contained Taskfile that sets up kcp/envtest
+  # in its own bin and runs the full suite (incl. integration). Root test/cover
+  # delegate to those rather than re-implementing the setup.
+  OPERATOR_MODULES: operators/account-operator operators/security-operator
   GOARCH:
     sh: go env GOARCH
   GOOS:
@@ -74,41 +83,66 @@ tasks:
       - "cd apis; ../{{.LOCAL_BIN}}/controller-gen object paths=./..."
       - "{{.LOCAL_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
   build:
+    # No root module (go.work is local-only); build each module on its own.
+    env:
+      GOWORK: "off"
     cmds:
-      - go build ./...
+      - for: {var: GO_MODULES}
+        cmd: cd {{.ITEM}} && go build ./...
   docker-build:
     cmds:
       - docker build .
+  release:
+    desc: Cut a release tag for a component (e.g. `task release -- account-operator`). Components are declared in release.yaml; pass --dry-run to preview.
+    dir: cmd/release
+    # GOWORK=off so this runs as its own module (the repo builds without go.work,
+    # which is local-only). The tool resolves the repo root and release.yaml via
+    # `git rev-parse --show-toplevel`, so running from cmd/release is fine.
+    env:
+      GOWORK: "off"
+    cmds:
+      - go run . {{.CLI_ARGS}}
   ## Testing
   fmt:
+    env:
+      GOWORK: "off"
     cmds:
-      - go fmt ./...
+      - for: {var: GO_MODULES}
+        cmd: cd {{.ITEM}} && go fmt ./...
   lint:
     deps: [setup:golangci-lint]
+    env:
+      GOWORK: "off"
     cmds:
       - task: fmt
-      - "{{.LOCAL_BIN}}/golangci-lint run --timeout 15m ./..."
-  envtest:
+      # Run golangci-lint inside each module; resolve the binary by repo root so
+      # the path is correct regardless of the module's depth.
+      - for: {var: GO_MODULES}
+        cmd: cd {{.ITEM}} && "$(git rev-parse --show-toplevel)/{{.LOCAL_BIN}}/golangci-lint" run --timeout 15m ./...
+  # Unit tests for the library modules (apis, cmd/release). No kcp/envtest; the
+  # repo has no root module, so run inside each module with GOWORK=off (CI-style).
+  test:libs:
     internal: true
     env:
       GOPRIVATE: github.com/platform-mesh
-      KUBEBUILDER_ASSETS:
-        sh: $(pwd)/{{.LOCAL_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir $(pwd)/{{.LOCAL_BIN}} -p path
-      TEST_KCP_ASSETS:
-        sh: echo $(pwd)/{{.LOCAL_BIN}}
       GO111MODULE: on
+      GOWORK: "off"
     cmds:
-      - go test -count=1 ./... {{.ADDITIONAL_COMMAND_ARGS}}
+      - for: {var: GO_LIB_MODULES}
+        cmd: cd {{.ITEM}} && go test -count=1 ./... {{.ADDITIONAL_COMMAND_ARGS}}
   test:
-    deps: [setup:envtest, setup:kcp]
+    desc: Run all module tests — library modules here, each operator via its own self-contained Taskfile (which sets up kcp/envtest in its bin).
     cmds:
-      - task: envtest
+      - task: test:libs
+      - for: {var: OPERATOR_MODULES}
+        cmd: task --dir {{.ITEM}} test
   cover:
-    deps: [setup:envtest, setup:kcp]
     cmds:
-      - task: envtest
+      - task: test:libs
         vars:
           ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic
+      - for: {var: OPERATOR_MODULES}
+        cmd: task --dir {{.ITEM}} cover
   validate:
     cmds:
       - task: lint

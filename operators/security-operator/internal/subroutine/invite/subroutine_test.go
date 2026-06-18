@@ -4,11 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/config"
@@ -17,8 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
+	"net/http"
+	"net/http/httptest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	"testing"
 
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -72,20 +70,20 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						accountInfo := &accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{
+						accountInfo := &v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{
 									Name: "acme",
 								},
-								OIDC: &accountsv1alpha1.OIDCInfo{
+								OIDC: &v1alpha1.OIDCInfo{
 									IssuerURL: "https://keycloak/realms/acme",
-									Clients: map[string]accountsv1alpha1.ClientInfo{
+									Clients: map[string]v1alpha1.ClientInfo{
 										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						*o.(*v1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -141,20 +139,20 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						accountInfo := &accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{
+						accountInfo := &v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{
 									Name: "acme",
 								},
-								OIDC: &accountsv1alpha1.OIDCInfo{
+								OIDC: &v1alpha1.OIDCInfo{
 									IssuerURL: "https://keycloak/realms/acme",
-									Clients: map[string]accountsv1alpha1.ClientInfo{
+									Clients: map[string]v1alpha1.ClientInfo{
 										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						*o.(*v1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -201,14 +199,14 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						accountInfo := &accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{
+						accountInfo := &v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{
 									Name: "acme",
 								},
 							},
 						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						*o.(*v1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -230,20 +228,20 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						accountInfo := &accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{
+						accountInfo := &v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{
 									Name: "acme",
 								},
-								OIDC: &accountsv1alpha1.OIDCInfo{
+								OIDC: &v1alpha1.OIDCInfo{
 									IssuerURL: "https://keycloak/realms/acme",
-									Clients: map[string]accountsv1alpha1.ClientInfo{
+									Clients: map[string]v1alpha1.ClientInfo{
 										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						*o.(*v1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -293,20 +291,20 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						accountInfo := &accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{
+						accountInfo := &v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{
 									Name: "acme",
 								},
-								OIDC: &accountsv1alpha1.OIDCInfo{
+								OIDC: &v1alpha1.OIDCInfo{
 									IssuerURL: "https://keycloak/realms/acme",
-									Clients: map[string]accountsv1alpha1.ClientInfo{
+									Clients: map[string]v1alpha1.ClientInfo{
 										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						*o.(*v1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -344,20 +342,20 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						accountInfo := &accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{
+						accountInfo := &v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{
 									Name: "acme",
 								},
-								OIDC: &accountsv1alpha1.OIDCInfo{
+								OIDC: &v1alpha1.OIDCInfo{
 									IssuerURL: "https://keycloak/realms/acme",
-									Clients: map[string]accountsv1alpha1.ClientInfo{
+									Clients: map[string]v1alpha1.ClientInfo{
 										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						*o.(*v1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -398,14 +396,14 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						accountInfo := &accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{
+						accountInfo := &v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{
 									Name: "",
 								},
 							},
 						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						*o.(*v1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -423,15 +421,15 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						accountInfo := &accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{
+						accountInfo := &v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{
 									Name: "acme",
 								},
 								OIDC: nil,
 							},
 						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						*o.(*v1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -455,18 +453,18 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						accountInfo := &accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{
+						accountInfo := &v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{
 									Name: "acme",
 								},
-								OIDC: &accountsv1alpha1.OIDCInfo{
+								OIDC: &v1alpha1.OIDCInfo{
 									IssuerURL: "https://keycloak/realms/acme",
-									Clients:   map[string]accountsv1alpha1.ClientInfo{},
+									Clients:   map[string]v1alpha1.ClientInfo{},
 								},
 							},
 						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						*o.(*v1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -485,9 +483,9 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
+						*o.(*v1alpha1.AccountInfo) = v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{Name: "acme"},
 							},
 						}
 						return nil
@@ -508,9 +506,9 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
+						*o.(*v1alpha1.AccountInfo) = v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{Name: "acme"},
 							},
 						}
 						return nil
@@ -531,11 +529,11 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
-								OIDC: &accountsv1alpha1.OIDCInfo{
-									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+						*o.(*v1alpha1.AccountInfo) = v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &v1alpha1.OIDCInfo{
+									Clients: map[string]v1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
 								},
 							},
 						}
@@ -562,11 +560,11 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
-								OIDC: &accountsv1alpha1.OIDCInfo{
-									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+						*o.(*v1alpha1.AccountInfo) = v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &v1alpha1.OIDCInfo{
+									Clients: map[string]v1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
 								},
 							},
 						}
@@ -596,11 +594,11 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
-								OIDC: &accountsv1alpha1.OIDCInfo{
-									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+						*o.(*v1alpha1.AccountInfo) = v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &v1alpha1.OIDCInfo{
+									Clients: map[string]v1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
 								},
 							},
 						}
@@ -636,11 +634,11 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
-								OIDC: &accountsv1alpha1.OIDCInfo{
-									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+						*o.(*v1alpha1.AccountInfo) = v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &v1alpha1.OIDCInfo{
+									Clients: map[string]v1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
 								},
 							},
 						}
@@ -676,11 +674,11 @@ func TestSubroutineProcess(t *testing.T) {
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
-							Spec: accountsv1alpha1.AccountInfoSpec{
-								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
-								OIDC: &accountsv1alpha1.OIDCInfo{
-									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+						*o.(*v1alpha1.AccountInfo) = v1alpha1.AccountInfo{
+							Spec: v1alpha1.AccountInfoSpec{
+								Organization: v1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &v1alpha1.OIDCInfo{
+									Clients: map[string]v1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
 								},
 							},
 						}

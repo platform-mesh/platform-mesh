@@ -3,10 +3,6 @@ package subroutine
 import (
 	"context"
 	"fmt"
-	"slices"
-	"strings"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	iclient "github.com/platform-mesh/platform-mesh/operators/security-operator/internal/client"
@@ -16,6 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"slices"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -92,13 +90,13 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
-	var account accountv1alpha1.Account
+	var account v1alpha1.Account
 	err = orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, &account)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get account resource %w", err)
 	}
 
-	if account.Spec.Type != accountv1alpha1.AccountTypeOrg {
+	if account.Spec.Type != v1alpha1.AccountTypeOrg {
 		log.Debug().Str("workspace", workspaceName).Msg("account is not of type organization, skipping idp creation")
 		return subroutines.OK(), nil
 	}
@@ -173,7 +171,7 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 }
 
 func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, workspaceName string, idp *v1alpha1.IdentityProviderConfiguration) error {
-	accountInfo := accountv1alpha1.AccountInfo{
+	accountInfo := v1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
 	}
 	if err := cl.Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo); err != nil {
@@ -181,14 +179,14 @@ func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, 
 	}
 
 	desiredIssuerURL := fmt.Sprintf("https://%s/keycloak/realms/%s", i.baseDomain, workspaceName)
-	desiredClients := make(map[string]accountv1alpha1.ClientInfo)
+	desiredClients := make(map[string]v1alpha1.ClientInfo)
 	for clientName, managedClient := range idp.Status.ManagedClients {
-		desiredClients[clientName] = accountv1alpha1.ClientInfo{
+		desiredClients[clientName] = v1alpha1.ClientInfo{
 			ClientID: managedClient.ClientID,
 		}
 	}
 
-	desiredOIDC := &accountv1alpha1.OIDCInfo{
+	desiredOIDC := &v1alpha1.OIDCInfo{
 		IssuerURL: desiredIssuerURL,
 		Clients:   desiredClients,
 	}

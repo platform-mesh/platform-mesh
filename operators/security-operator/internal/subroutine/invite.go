@@ -3,8 +3,6 @@ package subroutine
 import (
 	"context"
 	"fmt"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	iclient "github.com/platform-mesh/platform-mesh/operators/security-operator/internal/client"
@@ -77,13 +75,13 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj client.Object) (su
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
-	var account accountv1alpha1.Account
+	var account v1alpha1.Account
 	err = orgsClient.Get(ctx, types.NamespacedName{Name: wsName}, &account)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get account resource %w", err)
 	}
 
-	if account.Spec.Type != accountv1alpha1.AccountTypeOrg {
+	if account.Spec.Type != v1alpha1.AccountTypeOrg {
 		log.Info().Str("workspace", wsName).Msg("account is not of type organization, skipping invite creation")
 		return subroutines.OK(), nil
 	}

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	corev1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/config"
@@ -29,7 +28,7 @@ func getAPIExportPolicyTestScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(accountsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	return scheme
 }
@@ -260,17 +259,17 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "account",
 						},
-						Spec: accountsv1alpha1.AccountInfoSpec{
-							Account: accountsv1alpha1.AccountLocation{
+						Spec: corev1alpha1.AccountInfoSpec{
+							Account: corev1alpha1.AccountLocation{
 								Name:            "acme-account",
 								OriginClusterId: "acme-cluster-id",
-								Type:            accountsv1alpha1.AccountTypeOrg,
+								Type:            corev1alpha1.AccountTypeOrg,
 							},
-							Organization: accountsv1alpha1.AccountLocation{
+							Organization: corev1alpha1.AccountLocation{
 								Name: "acme-org",
 							},
 						},
@@ -336,17 +335,17 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "account",
 						},
-						Spec: accountsv1alpha1.AccountInfoSpec{
-							Account: accountsv1alpha1.AccountLocation{
+						Spec: corev1alpha1.AccountInfoSpec{
+							Account: corev1alpha1.AccountLocation{
 								Name:            "acme-account",
 								OriginClusterId: "acme-cluster-id",
-								Type:            accountsv1alpha1.AccountTypeOrg,
+								Type:            corev1alpha1.AccountTypeOrg,
 							},
-							Organization: accountsv1alpha1.AccountLocation{
+							Organization: corev1alpha1.AccountLocation{
 								Name: "acme-org",
 							},
 						},
@@ -411,20 +410,20 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 
 				// All client with AccountInfo list
 				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					if list, ok := ol.(*accountsv1alpha1.AccountInfoList); ok {
-						list.Items = []accountsv1alpha1.AccountInfo{
+					if list, ok := ol.(*corev1alpha1.AccountInfoList); ok {
+						list.Items = []corev1alpha1.AccountInfo{
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-1"},
-								Spec: accountsv1alpha1.AccountInfoSpec{
-									Account:      accountsv1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
-									Organization: accountsv1alpha1.AccountLocation{Name: "org1"},
+								Spec: corev1alpha1.AccountInfoSpec{
+									Account:      corev1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: corev1alpha1.AccountTypeOrg},
+									Organization: corev1alpha1.AccountLocation{Name: "org1"},
 								},
 							},
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-2"},
-								Spec: accountsv1alpha1.AccountInfoSpec{
-									Account:      accountsv1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
-									Organization: accountsv1alpha1.AccountLocation{Name: "org2"},
+								Spec: corev1alpha1.AccountInfoSpec{
+									Account:      corev1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: corev1alpha1.AccountTypeOrg},
+									Organization: corev1alpha1.AccountLocation{Name: "org2"},
 								},
 							},
 						}
@@ -539,17 +538,17 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "account",
 						},
-						Spec: accountsv1alpha1.AccountInfoSpec{
-							Account: accountsv1alpha1.AccountLocation{
+						Spec: corev1alpha1.AccountInfoSpec{
+							Account: corev1alpha1.AccountLocation{
 								Name:            "acme-account",
 								OriginClusterId: "acme-cluster-id",
-								Type:            accountsv1alpha1.AccountTypeOrg,
+								Type:            corev1alpha1.AccountTypeOrg,
 							},
-							Organization: accountsv1alpha1.AccountLocation{
+							Organization: corev1alpha1.AccountLocation{
 								Name: "acme-org",
 							},
 						},
@@ -602,17 +601,17 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "account",
 						},
-						Spec: accountsv1alpha1.AccountInfoSpec{
-							Account: accountsv1alpha1.AccountLocation{
+						Spec: corev1alpha1.AccountInfoSpec{
+							Account: corev1alpha1.AccountLocation{
 								Name:            "acme-account",
 								OriginClusterId: "acme-cluster-id",
-								Type:            accountsv1alpha1.AccountTypeOrg,
+								Type:            corev1alpha1.AccountTypeOrg,
 							},
-							Organization: accountsv1alpha1.AccountLocation{
+							Organization: corev1alpha1.AccountLocation{
 								Name: "acme-org",
 							},
 						},
@@ -664,20 +663,20 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 
 				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					if list, ok := ol.(*accountsv1alpha1.AccountInfoList); ok {
-						list.Items = []accountsv1alpha1.AccountInfo{
+					if list, ok := ol.(*corev1alpha1.AccountInfoList); ok {
+						list.Items = []corev1alpha1.AccountInfo{
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-1"},
-								Spec: accountsv1alpha1.AccountInfoSpec{
-									Account:      accountsv1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
-									Organization: accountsv1alpha1.AccountLocation{Name: "org1"},
+								Spec: corev1alpha1.AccountInfoSpec{
+									Account:      corev1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: corev1alpha1.AccountTypeOrg},
+									Organization: corev1alpha1.AccountLocation{Name: "org1"},
 								},
 							},
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-2"},
-								Spec: accountsv1alpha1.AccountInfoSpec{
-									Account:      accountsv1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
-									Organization: accountsv1alpha1.AccountLocation{Name: "org2"},
+								Spec: corev1alpha1.AccountInfoSpec{
+									Account:      corev1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: corev1alpha1.AccountTypeOrg},
+									Organization: corev1alpha1.AccountLocation{Name: "org2"},
 								},
 							},
 						}
@@ -876,14 +875,14 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 				// Mock provider cluster ID lookup
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
-					list := ol.(*accountsv1alpha1.AccountInfoList)
-					list.Items = []accountsv1alpha1.AccountInfo{
-						{Spec: accountsv1alpha1.AccountInfoSpec{
-							Account: accountsv1alpha1.AccountLocation{Type: accountsv1alpha1.AccountTypeAccount},
+					list := ol.(*corev1alpha1.AccountInfoList)
+					list.Items = []corev1alpha1.AccountInfo{
+						{Spec: corev1alpha1.AccountInfoSpec{
+							Account: corev1alpha1.AccountLocation{Type: corev1alpha1.AccountTypeAccount},
 						}},
-						{Spec: accountsv1alpha1.AccountInfoSpec{
-							Account:      accountsv1alpha1.AccountLocation{Type: accountsv1alpha1.AccountTypeOrg},
-							Organization: accountsv1alpha1.AccountLocation{Name: "org1"},
+						{Spec: corev1alpha1.AccountInfoSpec{
+							Account:      corev1alpha1.AccountLocation{Type: corev1alpha1.AccountTypeOrg},
+							Organization: corev1alpha1.AccountLocation{Name: "org1"},
 						}},
 					}
 					return nil
@@ -907,11 +906,11 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 				// Mock provider cluster ID lookup
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
-					list := ol.(*accountsv1alpha1.AccountInfoList)
-					list.Items = []accountsv1alpha1.AccountInfo{
-						{Spec: accountsv1alpha1.AccountInfoSpec{
-							Account:      accountsv1alpha1.AccountLocation{Type: accountsv1alpha1.AccountTypeOrg, Name: "org1"},
-							Organization: accountsv1alpha1.AccountLocation{Name: "org1"},
+					list := ol.(*corev1alpha1.AccountInfoList)
+					list.Items = []corev1alpha1.AccountInfo{
+						{Spec: corev1alpha1.AccountInfoSpec{
+							Account:      corev1alpha1.AccountLocation{Type: corev1alpha1.AccountTypeOrg, Name: "org1"},
+							Organization: corev1alpha1.AccountLocation{Name: "org1"},
 						}},
 					}
 					return nil
@@ -971,9 +970,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
 				scheme := getAPIExportPolicyTestScheme()
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				providerClient := newProviderClient(scheme)
 				// Mock provider cluster ID lookup
@@ -995,9 +994,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
 				scheme := getAPIExportPolicyTestScheme()
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				providerClient := newProviderClient(scheme)
 				// Mock provider cluster ID lookup
@@ -1021,9 +1020,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
 				scheme := getAPIExportPolicyTestScheme()
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				providerClient := newProviderClient(scheme)
 				// Mock provider cluster ID lookup
@@ -1048,9 +1047,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
 				scheme := getAPIExportPolicyTestScheme()
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				// Empty cluster client — Status().Patch will fail with NotFound for "test-policy"
 				clusterClient := fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -1165,9 +1164,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				providerClient := newProviderClient(scheme)
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
-					list := ol.(*accountsv1alpha1.AccountInfoList)
-					list.Items = []accountsv1alpha1.AccountInfo{
-						{Spec: accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "org1"}}},
+					list := ol.(*corev1alpha1.AccountInfoList)
+					list.Items = []corev1alpha1.AccountInfo{
+						{Spec: corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "org1"}}},
 					}
 					return nil
 				})
@@ -1189,9 +1188,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				providerClient := newProviderClient(scheme)
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
-					list := ol.(*accountsv1alpha1.AccountInfoList)
-					list.Items = []accountsv1alpha1.AccountInfo{
-						{Spec: accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "org1"}}},
+					list := ol.(*corev1alpha1.AccountInfoList)
+					list.Items = []corev1alpha1.AccountInfo{
+						{Spec: corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "org1"}}},
 					}
 					return nil
 				})
@@ -1231,9 +1230,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				providerClient := newProviderClient(scheme)
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil).Once()
 				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("", assert.AnError)
@@ -1254,9 +1253,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				providerClient := newProviderClient(scheme)
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&accountsv1alpha1.AccountInfo{
+					WithObjects(&corev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil).Once()
 				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("store-id", nil)

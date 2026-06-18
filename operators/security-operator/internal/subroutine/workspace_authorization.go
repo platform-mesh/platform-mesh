@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	accountsv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	iclient "github.com/platform-mesh/platform-mesh/operators/security-operator/internal/client"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/config"
 	"github.com/platform-mesh/subroutines"

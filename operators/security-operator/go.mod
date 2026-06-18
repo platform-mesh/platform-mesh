@@ -15,7 +15,6 @@ require (
 	github.com/kcp-dev/sdk v0.31.2
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
-	github.com/platform-mesh/account-operator v0.14.53
 	github.com/platform-mesh/golang-commons v0.17.9
 	github.com/platform-mesh/subroutines v0.4.3
 	github.com/prometheus/client_golang v1.23.2

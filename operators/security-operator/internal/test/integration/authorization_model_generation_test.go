@@ -2,12 +2,10 @@ package test
 
 import (
 	"context"
-	"strings"
-	"time"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	securityv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
+	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -84,8 +82,8 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), "org"))
 	testClient := cli.Cluster(testOrgPath)
 
-	suite.createAccount(ctx, testClient, testAccount1Name, accountv1alpha1.AccountTypeAccount, suite.T())
-	suite.createAccount(ctx, testClient, testAccount2Name, accountv1alpha1.AccountTypeAccount, suite.T())
+	suite.createAccount(ctx, testClient, testAccount1Name, securityv1alpha1.AccountTypeAccount, suite.T())
+	suite.createAccount(ctx, testClient, testAccount2Name, securityv1alpha1.AccountTypeAccount, suite.T())
 
 	_, testAccount1Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount1Name), envtest.WithType(core.RootCluster.Path(), "account"))
 	_, testAccount2Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount2Name), envtest.WithType(core.RootCluster.Path(), "account"))

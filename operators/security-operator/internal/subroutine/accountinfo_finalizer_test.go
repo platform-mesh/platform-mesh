@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	accountv1alpha1 "github.com/platform-mesh/platform-mesh/apis/core/v1alpha1"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/subroutine"
 	"github.com/platform-mesh/platform-mesh/operators/security-operator/internal/subroutine/mocks"
 	"github.com/platform-mesh/subroutines"
