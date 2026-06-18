@@ -1,0 +1,31 @@
+# Path mappings for account-operator -> platform-mesh monorepo
+# Format: <old-path-prefix> <new-path-prefix>
+# Empty new-path means the files will be deleted from history
+
+# API types move to shared apis module
+api/ apis/core/
+
+# Operator code moves to operators/account-operator/
+cmd/ operators/account-operator/cmd/
+internal/ operators/account-operator/internal/
+pkg/ operators/account-operator/pkg/
+main.go operators/account-operator/main.go
+Dockerfile operators/account-operator/Dockerfile
+
+# Config (CRDs, RBAC, etc.)
+config/ operators/account-operator/config/
+
+# Keep hack scripts
+hack/ operators/account-operator/hack/
+
+# Test files
+test/ operators/account-operator/test/
+
+# Files to drop (repo-specific, will be recreated in monorepo)
+# .github/
+# .gitignore
+# go.mod
+# go.sum
+# renovate.json
+# CODEOWNERS
+# etc. - these are not listed, so they'll be dropped
