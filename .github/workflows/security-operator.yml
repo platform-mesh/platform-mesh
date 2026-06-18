@@ -239,3 +239,6 @@ jobs:
       appVersion: ${{ needs.version.outputs.version }}
       repoName: security-operator
       commit: ${{ github.sha }}
+      # Store the OCM component under this repo (owned by its GITHUB_TOKEN),
+      # not the org root, to avoid cross-repo package permissions.
+      ocmRegistryUrl: ghcr.io/platform-mesh/platform-mesh
