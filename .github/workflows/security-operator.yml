@@ -1,0 +1,241 @@
+name: security-operator
+
+# Per-operator pipeline for operators/security-operator.
+#   - Pull requests:      build the image only (no push).
+#   - Push to main:       build and push the mutable :latest image.
+#   - Push a git tag
+#     security-operator/v*: build and push the dedicated, immutable version
+#                           image, sign it, cut a GitHub release, bump the chart
+#                           and publish the signed OCM component.
+#
+# Releases are component-scoped: tagging `security-operator/v1.2.3` only builds
+# this operator, never the others in the monorepo.
+#
+# Build context is the repository ROOT (the operator module depends on the
+# shared ./apis module via a relative replace, ../../apis), so the image is
+# built with -f operators/security-operator/Dockerfile .
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'security-operator/v*'
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    paths:
+      - 'operators/security-operator/**'
+      - 'apis/**'
+      - '.github/workflows/security-operator.yml'
+
+permissions:
+  contents: write
+  id-token: write
+  issues: write
+  packages: write
+  pull-requests: write
+  attestations: write
+
+concurrency:
+  group: security-operator-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: ghcr.io/platform-mesh/platform-mesh/security-operator
+  DOCKERFILE: operators/security-operator/Dockerfile
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Quality jobs (every event)
+  #
+  # Scoped to this operator's module. The shared reusable jobs assume a single
+  # module at the repo root; this monorepo has none (each module lives under
+  # operators/<name> and resolves ./apis via a relative replace).
+  # ──────────────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: operators/security-operator
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: operators/security-operator/go.mod
+          cache: true
+      - name: Enable git CLI clones using GITHUB_TOKEN
+        run: |
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task lint
+
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: operators/security-operator
+    env:
+      GOPRIVATE: github.com/platform-mesh
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: operators/security-operator/go.mod
+          cache: true
+      - name: Enable git CLI clones using GITHUB_TOKEN
+        run: |
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task test
+
+  # ──────────────────────────────────────────────
+  # PR: build only, never push.
+  # ──────────────────────────────────────────────
+  docker-build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+      - name: Build image
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          push: false
+          platforms: linux/amd64
+          tags: ${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
+
+  # ──────────────────────────────────────────────
+  # main: build and push the mutable :latest image.
+  # ──────────────────────────────────────────────
+  docker-build-latest:
+    if: github.ref == 'refs/heads/main'
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+      - name: Build and push :latest
+        id: build
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ env.IMAGE_NAME }}:latest
+          secrets: |
+            github_token=${{ secrets.GITHUB_TOKEN }}
+            common_repository_token=${{ secrets.COMMON_REPOSITORY_TOKEN }}
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+      - name: Sign container image
+        run: cosign sign --yes ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+
+  # ──────────────────────────────────────────────
+  # Tag security-operator/v*: dedicated immutable version release.
+  # ──────────────────────────────────────────────
+  version:
+    if: startsWith(github.ref, 'refs/tags/security-operator/')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - name: Derive version from tag
+        id: v
+        run: echo "version=${GITHUB_REF#refs/tags/security-operator/}" >> "$GITHUB_OUTPUT"
+
+  docker-build-push:
+    if: startsWith(github.ref, 'refs/tags/security-operator/')
+    needs: [version, lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+      - name: Build and push version
+        id: build
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ env.IMAGE_NAME }}:${{ needs.version.outputs.version }}
+          secrets: |
+            github_token=${{ secrets.GITHUB_TOKEN }}
+            common_repository_token=${{ secrets.COMMON_REPOSITORY_TOKEN }}
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+      - name: Sign container image
+        run: cosign sign --yes ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+      - name: Create Release
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
+        with:
+          allowUpdates: true
+          draft: false
+          makeLatest: true
+          generateReleaseNotes: true
+          tag: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  update-version:
+    if: startsWith(github.ref, 'refs/tags/security-operator/')
+    needs: [version, docker-build-push]
+    uses: platform-mesh/.github/.github/workflows/job-chart-version-update.yml@main
+    secrets: inherit
+    with:
+      appVersion: ${{ needs.version.outputs.version }}
+      chart: security-operator
+      targetRepository: platform-mesh/helm-charts
+
+  sbom:
+    if: startsWith(github.ref, 'refs/tags/security-operator/')
+    needs: [version, docker-build-push]
+    uses: platform-mesh/.github/.github/workflows/job-sbom.yml@main
+    with:
+      imageReference: ghcr.io/platform-mesh/platform-mesh/security-operator:${{ needs.version.outputs.version }}
+
+  image-ocm:
+    if: startsWith(github.ref, 'refs/tags/security-operator/')
+    needs: [version, docker-build-push, sbom]
+    uses: platform-mesh/.github/.github/workflows/job-image-ocm.yml@main
+    secrets: inherit
+    with:
+      imageReference: ghcr.io/platform-mesh/platform-mesh/security-operator:${{ needs.version.outputs.version }}
+      appVersion: ${{ needs.version.outputs.version }}
+      repoName: security-operator
+      commit: ${{ github.sha }}
