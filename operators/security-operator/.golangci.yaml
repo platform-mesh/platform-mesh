@@ -1,0 +1,21 @@
+version: "2"
+formatters:
+  enable:
+    - gci
+    - gofmt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(k8s.io)
+        - prefix(github.com/kcp-dev)
+        - blank
+        - dot
+      custom-order: true
+  exclusions:
+    generated: disable
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

@@ -1,0 +1,85 @@
+include-auto-generated: true
+packages:
+  github.com/openfga/api/proto/openfga/v1:
+    config:
+      dir: internal/subroutine/mocks
+      filename: mock_OpenFGAServiceClient.go
+      pkgname: mocks
+    interfaces:
+      OpenFGAServiceClient:
+
+  sigs.k8s.io/controller-runtime/pkg/client:
+    config:
+      dir: internal/subroutine/mocks
+      filename: mock_Client.go
+      pkgname: mocks
+    interfaces:
+      Client:
+
+  sigs.k8s.io/controller-runtime/pkg/manager:
+    config:
+      dir: internal/subroutine/mocks
+      pkgname: mocks
+    interfaces:
+      Manager:
+        config:
+          filename: mock_CTRLManager.go
+          structname: MockCTRLManager
+
+  sigs.k8s.io/multicluster-runtime/pkg/manager:
+    config:
+      dir: internal/subroutine/mocks
+      pkgname: mocks
+    interfaces:
+      Manager:
+        config:
+          filename: mock_Manager.go
+          structname: MockManager
+
+  sigs.k8s.io/controller-runtime/pkg/cluster:
+      config:
+        dir: internal/subroutine/mocks
+        filename: mock_Cluster.go
+        pkgname: mocks
+      interfaces:
+        Cluster:
+
+  k8s.io/client-go/discovery:
+      config:
+        dir: internal/subroutine/mocks
+        filename: mock_DiscoveryInterface.go
+        pkgname: mocks
+      interfaces:
+        DiscoveryInterface:
+
+  github.com/platform-mesh/platform-mesh/operators/security-operator/internal/client:
+    config:
+      dir: internal/subroutine/mocks
+      pkgname: mocks
+      all: true
+    interfaces:
+      KCPClientGetter:
+        config:
+          filename: mock_KCPClientGetter.go
+      KCPCombinedClientGetter:
+        config:
+          filename: mock_KCPCombinedClientGetter.go
+      Lister:
+        config:
+          filename: mock_Lister.go
+
+  github.com/platform-mesh/platform-mesh/operators/security-operator/pkg/clientreg:
+    config:
+      dir: internal/subroutine/mocks
+      filename: mock_TokenRefresher.go
+      pkgname: mocks
+    interfaces:
+      TokenRefresher:
+
+  github.com/platform-mesh/platform-mesh/operators/security-operator/internal/fga:
+    config:
+      dir: internal/subroutine/mocks
+      filename: mock_StoreIDGetter.go
+      pkgname: mocks
+    interfaces:
+      StoreIDGetter:

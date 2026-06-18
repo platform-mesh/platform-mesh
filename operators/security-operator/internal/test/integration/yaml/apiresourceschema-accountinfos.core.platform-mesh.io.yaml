@@ -1,0 +1,152 @@
+apiVersion: apis.kcp.io/v1alpha1
+kind: APIResourceSchema
+metadata:
+  creationTimestamp: null
+  name: v250715-5b899f6.accountinfos.core.platform-mesh.io
+spec:
+  group: core.platform-mesh.io
+  names:
+    kind: AccountInfo
+    listKind: AccountInfoList
+    plural: accountinfos
+    singular: accountinfo
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      description: AccountInfo is the Schema for the accountinfo API
+      properties:
+        apiVersion:
+          description: |-
+            APIVersion defines the versioned schema of this representation of an object.
+            Servers should convert recognized schemas to the latest internal value, and
+            may reject unrecognized values.
+            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+          type: string
+        kind:
+          description: |-
+            Kind is a string value representing the REST resource this object represents.
+            Servers may infer this from the endpoint the client submits requests to.
+            Cannot be updated.
+            In CamelCase.
+            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: AccountInfoSpec defines the desired state of Account
+          properties:
+            account:
+              properties:
+                generatedClusterId:
+                  description: The GeneratedClusterId represents the cluster id of
+                    the workspace that was generated for a given account
+                  type: string
+                name:
+                  type: string
+                originClusterId:
+                  description: |-
+                    The OriginClusterId represents the cluster id of the workspace that holds the account resource that
+                    lead to this workspace
+                  type: string
+                path:
+                  type: string
+                type:
+                  type: string
+                url:
+                  type: string
+              required:
+              - generatedClusterId
+              - name
+              - originClusterId
+              - path
+              - type
+              - url
+              type: object
+            clusterInfo:
+              properties:
+                ca:
+                  type: string
+              required:
+              - ca
+              type: object
+            fga:
+              properties:
+                store:
+                  properties:
+                    id:
+                      type: string
+                  required:
+                  - id
+                  type: object
+              required:
+              - store
+              type: object
+            organization:
+              properties:
+                generatedClusterId:
+                  description: The GeneratedClusterId represents the cluster id of
+                    the workspace that was generated for a given account
+                  type: string
+                name:
+                  type: string
+                originClusterId:
+                  description: |-
+                    The OriginClusterId represents the cluster id of the workspace that holds the account resource that
+                    lead to this workspace
+                  type: string
+                path:
+                  type: string
+                type:
+                  type: string
+                url:
+                  type: string
+              required:
+              - generatedClusterId
+              - name
+              - originClusterId
+              - path
+              - type
+              - url
+              type: object
+            parentAccount:
+              properties:
+                generatedClusterId:
+                  description: The GeneratedClusterId represents the cluster id of
+                    the workspace that was generated for a given account
+                  type: string
+                name:
+                  type: string
+                originClusterId:
+                  description: |-
+                    The OriginClusterId represents the cluster id of the workspace that holds the account resource that
+                    lead to this workspace
+                  type: string
+                path:
+                  type: string
+                type:
+                  type: string
+                url:
+                  type: string
+              required:
+              - generatedClusterId
+              - name
+              - originClusterId
+              - path
+              - type
+              - url
+              type: object
+          required:
+          - account
+          - clusterInfo
+          - fga
+          - organization
+          type: object
+        status:
+          description: AccountInfoStatus defines the observed state of AccountInfo
+          type: object
+      type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,194 @@
+version: "3"
+
+vars:
+  LOCAL_BIN: bin
+  CONTROLLER_TOOLS_VERSION: v0.16.4
+  ENVTEST_K8S_VERSION: "1.31.0"
+  ENVTEST_VERSION: release-0.19
+  CRD_DIRECTORY: config/crd/bases
+  KCP_APIGEN_VERSION: v0.30.1
+  KCP_VERSION: 0.30.1
+  GOLANGCI_LINT_VERSION: v2.8.0
+  GOARCH:
+    sh: go env GOARCH
+  GOOS:
+    sh: go env GOOS
+tasks:
+  default:
+    cmds:
+      - task --list-all
+  ## Setup
+  setup:controller-gen:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/controller-gen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-tools/cmd/controller-gen@{{.CONTROLLER_TOOLS_VERSION}}
+  setup:envtest:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/setup-envtest || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-runtime/tools/setup-envtest@{{.ENVTEST_VERSION}}
+  setup:golangci-lint:
+    internal: true
+    vars:
+      CURRENT_VERSION:
+        sh: "{{.LOCAL_BIN}}/golangci-lint --version 2>/dev/null | grep -oE 'v[0-9]+\\.[0-9]+\\.[0-9]+' | head -1 || echo 'none'"
+    cmds:
+      - |
+        if [ ! -s {{.LOCAL_BIN}}/golangci-lint ] || [ "{{.CURRENT_VERSION}}" != "{{.GOLANGCI_LINT_VERSION}}" ]; then
+          echo "Installing golangci-lint {{.GOLANGCI_LINT_VERSION}} (current: {{.CURRENT_VERSION}})"
+          rm -f {{.LOCAL_BIN}}/golangci-lint
+          GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
+        fi
+  setup:docker-compose:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/docker-compose || ( GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/docker/compose/v2/cmd@latest && mv $(pwd)/{{.LOCAL_BIN}}/cmd $(pwd)/{{.LOCAL_BIN}}/docker-compose )
+  setup:go-test-coverage:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/go-test-coverage || ( GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vladopajic/go-test-coverage/v2@latest )
+  setup:kcp-api-gen:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/apigen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/kcp-dev/sdk/cmd/apigen@{{.KCP_APIGEN_VERSION}}
+  setup:kcp:
+    cmds:
+      - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-tool.sh https://github.com/kcp-dev/kcp/releases/download/v{{ .KCP_VERSION }}/kcp_{{ .KCP_VERSION }}_{{ .GOOS }}_{{ .GOARCH }}.tar.gz kcp {{.KCP_VERSION}}
+  setup:mockery:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/mockery || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vektra/mockery/v3@v3.7.0
+  ## Development
+  mockery:
+    deps: [setup:mockery]
+    cmds:
+      - "{{.LOCAL_BIN}}/mockery"
+  manifests:
+    deps: [setup:controller-gen,setup:kcp-api-gen]
+    cmds:
+      - "{{.LOCAL_BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+  generate:
+    cmds:
+      - task: manifests
+      - task: mockery
+      - "{{.LOCAL_BIN}}/controller-gen object paths=./..."
+      - "{{.LOCAL_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
+  build:
+    cmds:
+      - go build ./...
+  docker-build:
+    cmds:
+      - docker build .
+  ## Testing
+  fmt:
+    cmds:
+      - go fmt ./...
+  lint:
+    deps: [setup:golangci-lint]
+    cmds:
+      - task: fmt
+      - "{{.LOCAL_BIN}}/golangci-lint run --timeout 15m ./..."
+  envtest:
+    internal: true
+    env:
+      GOPRIVATE: github.com/platform-mesh 
+      KUBEBUILDER_ASSETS:
+        sh: $(pwd)/{{.LOCAL_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir $(pwd)/{{.LOCAL_BIN}} -p path
+      TEST_KCP_ASSETS:
+        sh: echo $(pwd)/{{.LOCAL_BIN}}
+      GO111MODULE: on
+    cmds:
+      - go test -count=1 ./... {{.ADDITIONAL_COMMAND_ARGS}}
+  test:
+    deps: [setup:envtest, setup:kcp]
+    cmds:
+      - task: envtest
+  cover:
+    deps: [setup:envtest, setup:kcp]
+    cmds:
+      - task: envtest
+        vars:
+          ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic
+  validate:
+    cmds:
+      - task: lint
+      - task: test
+  assert-coverage:
+    deps: [setup:go-test-coverage]
+    cmds:
+      - task: cover
+      - "{{.LOCAL_BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
+  install:
+    cmds:
+      - kubectl apply -f config/crd/bases
+  uninstall:
+    cmds:
+      - kubectl delete -f config/crd/bases
+  run:
+    cmds:
+      - go run ./cmd/main.go operator
+
+  fuzz:
+    desc: "Run fuzz tests with a configurable duration (default 30s per target)"
+    vars:
+      FUZZTIME: '{{.FUZZTIME | default "30s"}}'
+    cmds:
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzStoreRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAuthorizationModelRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAPIExportPolicyRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzIdentityProviderConfigurationRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzInviteRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./internal/webhook/ -run=^$ -fuzz=FuzzIdentityProviderConfigurationValidateCreate -fuzztime={{.FUZZTIME}} -count=1
+
+  docker:kind:load:
+    desc: "Build container image with current tag from kind cluster and load it into kind"
+    vars:
+      CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+      IMAGE_TAG:
+        sh: kubectl get deployment security-operator -n {{.DEPLOYMENT_NAMESPACE}} -o jsonpath='{.spec.template.spec.containers[0].image}' | cut -d':' -f2
+      IMAGE_NAME: ghcr.io/platform-mesh/security-operator:{{.IMAGE_TAG}}
+    cmds:
+      - |
+        if [ -z "{{.IMAGE_TAG}}" ]; then
+          echo "Error: Could not determine IMAGE_TAG from deployment security-operator in namespace {{.DEPLOYMENT_NAMESPACE}}"
+          exit 1
+        fi
+      - echo "Building image with tag {{.IMAGE_TAG}} using {{.CONTAINER_RUNTIME}}"
+      - "{{.CONTAINER_RUNTIME}} build -t {{.IMAGE_NAME}} ."
+      - |
+        if [ "{{.CONTAINER_RUNTIME}}" = "podman" ]; then
+          {{.CONTAINER_RUNTIME}} save {{.IMAGE_NAME}} -o /tmp/kind-image.tar
+          kind load image-archive /tmp/kind-image.tar --name {{.KIND_CLUSTER}}
+          rm -f /tmp/kind-image.tar
+        else
+          kind load docker-image {{.IMAGE_NAME}} --name {{.KIND_CLUSTER}}
+        fi
+      - echo "Image loaded into kind cluster {{.KIND_CLUSTER}}"
+  docker:kind:restart:
+    desc: "Restart security-operator deployments to pick up new image"
+    vars:
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+    cmds:
+      - kubectl rollout restart deployment/security-operator -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/security-operator-generator -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/security-operator-initializer -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/security-operator-terminator -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/security-operator-system -n {{.DEPLOYMENT_NAMESPACE}}
+      - echo "All deployments restarted"
+  docker:kind:
+    desc: "Build container image, load it into kind cluster, and restart deployments"
+    vars:
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+      CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
+    cmds:
+      - task: docker:kind:load
+        vars:
+          DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
+          CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME}}'
+          KIND_CLUSTER: '{{.KIND_CLUSTER}}'
+      - task: docker:kind:restart
+        vars:
+          DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
+

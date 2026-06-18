@@ -3,3 +3,8 @@ kcp/assets/oidc-dex/values.yaml
 kcp/assets/cert-manager/cloudflare-secret.yaml
 lets-encrypt-r3.pem
 google-we1.pem
+/bin/
+
+# Go workspace is local-only; builds use module replaces and always run from the monorepo
+go.work
+go.work.sum

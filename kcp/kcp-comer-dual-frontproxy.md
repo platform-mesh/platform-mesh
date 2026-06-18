@@ -101,10 +101,11 @@ Set up OIDC following the same process as the [base setup](README.md#optional-oi
 kubectl get secret -n kcp-comer kcp-admin-frontproxy \
   -o jsonpath='{.data.kubeconfig}' | base64 -d > kcp-admin-kubeconfig-comer.yaml
 
+# This will not work, as it needs OIDC pre-configured
+
 # Test with OIDC (should redirect to authentication)
 KUBECONFIG=kcp-admin-kubeconfig-comer.yaml kubectl get shards
 ```
-
 Expected output shows edge-proxied URLs:
 ```
 NAME    REGION   URL                                               EXTERNAL URL                                   AGE

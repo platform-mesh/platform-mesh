@@ -1,0 +1,42 @@
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIExport
+metadata:
+  name: core.platform-mesh.io
+spec:
+  resources:
+  - group: core.platform-mesh.io
+    name: accountinfos
+    schema: v260617-b890f56.accountinfos.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: accounts
+    schema: v260617-b890f56.accounts.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: apiexportpolicies
+    schema: v260617-b890f56.apiexportpolicies.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: authorizationmodels
+    schema: v260617-b890f56.authorizationmodels.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: identityproviderconfigurations
+    schema: v260617-b890f56.identityproviderconfigurations.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: invites
+    schema: v260617-b890f56.invites.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: stores
+    schema: v260617-b890f56.stores.core.platform-mesh.io
+    storage:
+      crd: {}
+status: {}
