@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package github
 
 import (
@@ -52,11 +68,11 @@ func (c *Client) GetProjectItemsFull(ctx context.Context, projectID string, incl
 							EndCursor   graphql.String
 						}
 						Nodes []struct {
-							ID         graphql.ID
-							IsArchived graphql.Boolean
-							Type       graphql.String
-							CreatedAt  graphql.String
-							UpdatedAt  graphql.String
+							ID          graphql.ID
+							IsArchived  graphql.Boolean
+							Type        graphql.String
+							CreatedAt   graphql.String
+							UpdatedAt   graphql.String
 							FieldValues struct {
 								Nodes []struct {
 									Typename graphql.String `graphql:"__typename"`
@@ -111,7 +127,7 @@ func (c *Client) GetProjectItemsFull(ctx context.Context, projectID string, incl
 							} `graphql:"fieldValues(first: 50)"`
 							Content struct {
 								Typename graphql.String `graphql:"__typename"`
-								Issue struct {
+								Issue    struct {
 									ID        graphql.ID
 									Number    graphql.Int
 									Title     graphql.String
@@ -337,7 +353,7 @@ func parseTimePtr(s string) *time.Time {
 
 // extractFieldValue extracts a field value and adds it to the map
 func extractFieldValue(fieldValues map[string]string, fv struct {
-	Typename graphql.String `graphql:"__typename"`
+	Typename  graphql.String `graphql:"__typename"`
 	TextField struct {
 		Field struct {
 			Common struct {
