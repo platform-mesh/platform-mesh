@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	operatorcfg "github.com/platform-mesh/backup-operator/pkg/config"
-	"github.com/platform-mesh/backup-operator/pkg/topology"
+	operatorcfg "go.platform-mesh.io/backup-operator/pkg/config"
+	"go.platform-mesh.io/backup-operator/pkg/topology"
 )
 
 // rfcSampleDigest is a valid sha256 digest used in the RFC 009 sample document.

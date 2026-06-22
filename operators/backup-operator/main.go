@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/platform-mesh/backup-operator/cmd"
+	"go.platform-mesh.io/backup-operator/cmd"
 )
 
 func main() {

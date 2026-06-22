@@ -21,16 +21,16 @@ import (
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
-	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/spf13/cobra"
+	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/platform-mesh/backup-operator/pkg/controller"
-	"github.com/platform-mesh/backup-operator/pkg/topology/projector"
+	"go.platform-mesh.io/backup-operator/pkg/controller"
+	"go.platform-mesh.io/backup-operator/pkg/topology/projector"
 )
 
 var operatorCmd = &cobra.Command{

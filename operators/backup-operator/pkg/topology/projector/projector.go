@@ -7,7 +7,7 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/platform-mesh/backup-operator/pkg/topology"
+	"go.platform-mesh.io/backup-operator/pkg/topology"
 )
 
 const configMapName = "backup-topology-schemas"

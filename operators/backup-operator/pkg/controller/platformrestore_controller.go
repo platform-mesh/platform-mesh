@@ -19,16 +19,16 @@ package controller
 import (
 	"context"
 
-	"github.com/platform-mesh/subroutines"
-	"github.com/platform-mesh/subroutines/conditions"
-	"github.com/platform-mesh/subroutines/lifecycle"
+	"go.platform-mesh.io/subroutines"
+	"go.platform-mesh.io/subroutines/conditions"
+	"go.platform-mesh.io/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/platform-mesh/backup-operator/api/v1alpha1"
+	"go.platform-mesh.io/apis/backup/v1alpha1"
 )
 
 // PlatformRestoreReconciler reconciles PlatformRestore resources.
