@@ -5,6 +5,16 @@ metadata:
 spec:
   resources:
   - group: core.platform-mesh.io
+    name: accountinfos
+    schema: v260622-69fb9437.accountinfos.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: accounts
+    schema: v260622-69fb9437.accounts.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
     name: apiexportpolicies
     schema: v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
     storage:

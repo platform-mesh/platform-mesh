@@ -22,47 +22,32 @@ includes:
     dir: .
 
 vars:
-  LOCAL_BIN: bin
-  # Shared codegen/lint tools come from the repo-root bin (root `tools:` tasks).
-  ROOT_BIN:
-    sh: echo "$(git rev-parse --show-toplevel)/bin"
-  ENVTEST_K8S_VERSION: "1.31.0"
-  ENVTEST_VERSION: release-0.19
   CRD_DIRECTORY: config/crd/bases
-  GOARCH:
-    sh: go env GOARCH
-  GOOS:
-    sh: go env GOOS
+
 tasks:
   default:
     cmds:
       - task --list-all
-  ## Setup (e2e assets + misc — codegen/lint tools live in the root tools Taskfile)
-  setup:envtest:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/setup-envtest || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-runtime/tools/setup-envtest@{{.ENVTEST_VERSION}}
-  setup:docker-compose:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/docker-compose || ( GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/docker/compose/v2/cmd@latest && mv $(pwd)/{{.LOCAL_BIN}}/cmd $(pwd)/{{.LOCAL_BIN}}/docker-compose )
-  setup:go-test-coverage:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/go-test-coverage || ( GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vladopajic/go-test-coverage/v2@latest )
+
   ## Development
   mockery:
+    deps: [tools:mockery]
     cmds:
-      - "{{.ROOT_BIN}}/mockery"
+      - "{{.BIN}}/mockery"
   manifests:
     cmds:
-      - "{{.ROOT_BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+      - task: tools:generate-crds
+        vars:
+          PATH: /core/...
+          OUTPUT: '{{.CRD_DIRECTORY}}'
   generate:
     cmds:
       - task: manifests
       - task: mockery
-      - "{{.ROOT_BIN}}/controller-gen object paths=./..."
-      - "{{.ROOT_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
+      - task: tools:generate-deepcopy
+        vars:
+          PATH: /core/...
+      - "{{.BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
   build:
     cmds:
       - go build ./...
@@ -79,15 +64,16 @@ tasks:
       - task: tools:lint
   envtest:
     internal: true
+    deps: [tools:kcp, tools:envtest]
     env:
-      GOPRIVATE: github.com/platform-mesh
-      KUBEBUILDER_ASSETS:
-        sh: $(pwd)/{{.LOCAL_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir $(pwd)/{{.LOCAL_BIN}} -p path
       # Shared kcp installed by tools:kcp into the root bin.
-      TEST_KCP_ASSETS: '{{.ROOT_BIN}}'
-      GO111MODULE: on
+      TEST_KCP_ASSETS: '{{.BIN}}'
     cmds:
-      - go test -count=1 {{.TEST_PACKAGES | default "./..."}} {{.ADDITIONAL_COMMAND_ARGS}}
+      - |
+        set -ex
+        export KUBEBUILDER_ASSETS=$({{.BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
+        go test -count=1 {{.TEST_PACKAGES | default "./..."}} {{.ADDITIONAL_COMMAND_ARGS}}
+
   # Integration (envtest) lives in ./internal/test/integration; everything else is unit.
   test:
     desc: Run unit tests (no kcp/envtest).
@@ -95,13 +81,11 @@ tasks:
       - go test -count=1 $(go list ./... | grep -v '/internal/test/integration$')
   test-e2e:
     desc: Run envtest integration tests (uses the shared kcp from the root bin).
-    deps: [setup:envtest, tools:kcp]
     cmds:
       - task: envtest
         vars:
           TEST_PACKAGES: ./internal/test/integration/...
   cover:
-    deps: [setup:envtest, tools:kcp]
     cmds:
       - task: envtest
         vars:
@@ -111,10 +95,10 @@ tasks:
       - task: lint
       - task: test
   assert-coverage:
-    deps: [setup:go-test-coverage]
+    deps: [tools:go-test-coverage]
     cmds:
       - task: cover
-      - "{{.LOCAL_BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
+      - "{{.BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
   install:
     cmds:
       - kubectl apply -f config/crd/bases

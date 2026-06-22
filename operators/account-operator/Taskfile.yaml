@@ -22,27 +22,30 @@ includes:
     dir: .
 
 vars:
-  # Shared codegen/lint tools come from the repo-root bin (root `tools:` tasks).
-  ROOT_BIN:
-    sh: echo "$(git rev-parse --show-toplevel)/bin"
   CRD_DIRECTORY: config/crd
   TEST_SETUP_DIRECTORY: test/setup/01-platform-mesh-system
-  GOARCH:
-    sh: go env GOARCH
-  GOOS:
-    sh: go env GOOS
+
 tasks:
   ## Development
   manifests:
-    deps: [tools:controller-gen]
     cmds:
-      - "{{.ROOT_BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+      - task: tools:generate-crds
+        vars:
+          PATH: /core/...
+          OUTPUT: '{{.CRD_DIRECTORY}}'
   generate:
     cmds:
       - task: manifests
-      - "{{.ROOT_BIN}}/controller-gen object:headerFile=hack/boilerplate.go.txt paths=./..."
-      - "{{.ROOT_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
-      - "{{.ROOT_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir {{ .TEST_SETUP_DIRECTORY }}"
+      - task: tools:generate-deepcopy
+        vars:
+          PATH: /core/...
+      - "{{.BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
+      - "{{.BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir {{ .TEST_SETUP_DIRECTORY }}"
+  generate:mocks:
+    desc: Generate mocks using mockery
+    deps: [tools:mockery]
+    cmds:
+      - "{{.BIN}}/mockery"
   build:
     desc: Build the account-operator.
     cmds:
@@ -67,19 +70,19 @@ tasks:
     desc: Run envtest integration tests (uses the shared kcp from the root bin).
     deps: [tools:kcp, tools:gomplate]
     env:
-      TEST_KCP_ASSETS: '{{.ROOT_BIN}}'
+      TEST_KCP_ASSETS: '{{.BIN}}'
     cmds:
       - go test -count=1 ./internal/controller/... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
     deps: [tools:kcp, tools:gomplate]
     env:
-      TEST_KCP_ASSETS: '{{.ROOT_BIN}}'
+      TEST_KCP_ASSETS: '{{.BIN}}'
     cmds:
       - go test -count=1 ./... -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
   start-kcp:
     deps: [tools:kcp]
     cmds:
-      - "{{.ROOT_BIN}}/kcp start"
+      - "{{.BIN}}/kcp start"
 
   fuzz:
     desc: "Run fuzz tests with a configurable duration (default 30s per target)"

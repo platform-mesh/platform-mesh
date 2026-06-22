@@ -4,27 +4,21 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: platformrestores.backup.platform-mesh.io
+  name: identityproviderconfigurations.core.platform-mesh.io
 spec:
-  group: backup.platform-mesh.io
+  group: core.platform-mesh.io
   names:
-    kind: PlatformRestore
-    listKind: PlatformRestoreList
-    plural: platformrestores
-    singular: platformrestore
+    kind: IdentityProviderConfiguration
+    listKind: IdentityProviderConfigurationList
+    plural: identityproviderconfigurations
+    singular: identityproviderconfiguration
   scope: Cluster
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .status.phase
-      name: Phase
-      type: string
-    - jsonPath: .status.conditions[?(@.type=="Ready")].status
-      name: Ready
-      type: string
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: PlatformRestore is the Schema for the platformrestores API
+        description: IdentityProviderConfiguration is the Schema for the identityproviderconfigurations
+          API
         properties:
           apiVersion:
             description: |-
@@ -44,67 +38,54 @@ spec:
           metadata:
             type: object
           spec:
-            description: PlatformRestoreSpec defines the desired state of PlatformRestore
+            description: spec defines the desired state of IdentityProviderConfiguration
             properties:
-              repair:
-                properties:
-                  delete:
-                    type: boolean
-                type: object
-              source:
-                properties:
-                  backupID:
-                    type: string
-                  storage:
-                    properties:
-                      s3:
-                        properties:
-                          bucket:
-                            minLength: 1
-                            type: string
-                          credentialsRef:
-                            description: |-
-                              LocalObjectReference contains enough information to let you locate the
-                              referenced object inside the same namespace.
-                            properties:
-                              name:
-                                default: ""
-                                description: |-
-                                  Name of the referent.
-                                  This field is effectively required, but due to backwards compatibility is
-                                  allowed to be empty. Instances of this type with an empty value here are
-                                  almost certainly wrong.
-                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                type: string
-                            type: object
-                            x-kubernetes-map-type: atomic
-                          endpoint:
-                            minLength: 1
-                            type: string
-                          region:
-                            type: string
-                        required:
-                        - bucket
-                        - credentialsRef
-                        - endpoint
-                        type: object
-                    required:
-                    - s3
-                    type: object
-                required:
-                - backupID
-                - storage
-                type: object
-              topologyValidation:
-                enum:
-                - Strict
-                type: string
+              clients:
+                items:
+                  properties:
+                    clientName:
+                      type: string
+                    clientType:
+                      enum:
+                      - confidential
+                      - public
+                      type: string
+                    postLogoutRedirectUris:
+                      items:
+                        type: string
+                      type: array
+                    redirectUris:
+                      items:
+                        type: string
+                      type: array
+                    secretRef:
+                      description: |-
+                        SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                        in any namespace
+                      properties:
+                        name:
+                          description: name is unique within a namespace to reference
+                            a secret resource.
+                          type: string
+                        namespace:
+                          description: namespace defines the space within which the
+                            secret name must be unique.
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                  required:
+                  - clientName
+                  - clientType
+                  - redirectUris
+                  type: object
+                type: array
+              registrationAllowed:
+                type: boolean
             required:
-            - source
-            - topologyValidation
+            - clients
             type: object
           status:
-            description: PlatformRestoreStatus defines the observed state of PlatformRestore
+            description: status defines the observed state of IdentityProviderConfiguration
             properties:
               conditions:
                 items:
@@ -162,41 +143,39 @@ spec:
                   - type
                   type: object
                 type: array
-              nextReconcileTime:
-                format: date-time
-                type: string
-              observedGeneration:
-                format: int64
-                type: integer
-              phase:
-                enum:
-                - ValidatingTopology
-                - RestoringEtcd
-                - RestoringCNPG
-                - RestoringVelero
-                - Repairing
-                - Succeeded
-                - Failed
-                type: string
-              repair:
-                properties:
-                  orphanTuplesDeleted:
-                    type: integer
-                  orphanTuplesDryRun:
-                    type: integer
-                  orphanTuplesFound:
-                    type: integer
-                type: object
-              topologyValidation:
-                properties:
-                  matches:
-                    type: boolean
-                  sourceDigest:
-                    type: string
-                  targetDigest:
-                    type: string
+              managedClients:
+                additionalProperties:
+                  description: ManagedClient tracks a client that is managed by the
+                    operator.
+                  properties:
+                    clientId:
+                      type: string
+                    registrationClientUri:
+                      type: string
+                    secretRef:
+                      description: |-
+                        SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                        in any namespace
+                      properties:
+                        name:
+                          description: name is unique within a namespace to reference
+                            a secret resource.
+                          type: string
+                        namespace:
+                          description: namespace defines the space within which the
+                            secret name must be unique.
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                  required:
+                  - clientId
+                  - registrationClientUri
+                  - secretRef
+                  type: object
                 type: object
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

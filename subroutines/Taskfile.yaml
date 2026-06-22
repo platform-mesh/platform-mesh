@@ -14,16 +14,18 @@
 
 version: "3"
 
-vars:
-  GOLANGCI_LINT_VERSION: v2.1.6
-  ENVTEST_VERSION: release-0.23
-  GO_TEST_COVERAGE_VERSION: v2.17.1
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
 
 tasks:
   lint:
     desc: Run golangci-lint
     cmds:
-      - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}} run --fix ./...
+      - task: tools:lint
 
   test:
     desc: Run unit tests

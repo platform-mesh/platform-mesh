@@ -25,4 +25,29 @@ spec:
     schema: v260109-82344be.accounts.core.platform-mesh.io
     storage:
       crd: {}
+  - group: core.platform-mesh.io
+    name: apiexportpolicies
+    schema: v260622-69fb9437.apiexportpolicies.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: authorizationmodels
+    schema: v260622-69fb9437.authorizationmodels.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: identityproviderconfigurations
+    schema: v260622-69fb9437.identityproviderconfigurations.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: invites
+    schema: v260622-69fb9437.invites.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: stores
+    schema: v260622-69fb9437.stores.core.platform-mesh.io
+    storage:
+      crd: {}
 status: {}

@@ -115,6 +115,12 @@ tasks:
       - test -s {{.BIN}}/go-test-coverage
     cmds:
       - GOBIN={{.BIN}} GOWORK=off go install github.com/vladopajic/go-test-coverage/v2@{{.GO_TEST_COVERAGE_VERSION}}
+  docker-compose:
+    internal: true
+    status:
+      - test -s {{.BIN}}/docker-compose
+    cmds:
+      - GOBIN={{.BIN}} GOWORK=off go install github.com/docker/compose/v2/cmd@latest && mv {{.BIN}}/cmd {{.BIN}}/docker-compose
 
   generate-crds:
     internal: true

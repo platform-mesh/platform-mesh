@@ -12,46 +12,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+recursive: false
+require-template-schema-exists: true
 template: testify
+template-data:
+  boilerplate-file: ../hack/boilerplate/boilerplate.go.txt
 packages:
+  github.com/openfga/api/proto/openfga/v1:
+    config:
+      dir: directive/mocks
+      include-auto-generated: true
+      pkgname: mocks
+    interfaces:
+      OpenFGAServiceClient:
+        config:
+          filename: mock_OpenFGAServiceClient.go
+          structname: OpenFGAServiceClient
+
+  go.platform-mesh.io/golang-commons/fga/store:
+    config:
+      dir: fga/store/mocks
+      pkgname: mocks
+    interfaces:
+      FGAStoreHelper:
+        config:
+          filename: mock_FGAStoreHelper.go
+          structname: FGAStoreHelper
+
+  go.platform-mesh.io/golang-commons/policy_services:
+    config:
+      dir: fga/policy_services/mocks
+      pkgname: mocks
+    interfaces:
+      TenantIdReader:
+        config:
+          filename: mock_TenantIdReader.go
+          structname: TenantIdReader
+
   sigs.k8s.io/controller-runtime/pkg/client:
     config:
       dir: controller/lifecycle/mocks
       pkgname: mocks
-      filename: client.go
     interfaces:
       Client:
         config:
+          filename: client.go
           structname: Client
       SubResourceWriter:
         config:
           filename: sub_resource_client.go
           structname: SubResourceWriter
-  github.com/openfga/api/proto/openfga/v1:
-    config:
-      dir: directive/mocks
-      pkgname: mocks
-      filename: mock_OpenFGAServiceClient.go
-      include-auto-generated: true
-    interfaces:
-      OpenFGAServiceClient:
-        config:
-          structname: OpenFGAServiceClient
-  go.platform-mesh.io/golang-commons/fga/store:
-    config:
-      dir: fga/store/mocks
-      pkgname: mocks
-      filename: mock_FGAStoreHelper.go
-    interfaces:
-      FGAStoreHelper:
-        config:
-          structname: FGAStoreHelper
-  go.platform-mesh.io/golang-commons/policy_services:
-    config:
-      dir: fga/policy_services/mocks
-      pkgname: mocks
-      filename: mock_TenantIdReader.go
-    interfaces:
-      TenantIdReader:
-        config:
-          structname: TenantIdReader

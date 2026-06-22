@@ -14,34 +14,26 @@
 
 version: '3'
 
-vars:
-  LOCAL_BIN: bin
-  MOCKERY_VERSION: v3.6.4
-  GO_TEST_COVERAGE_VERSION: v2.17.1
-tasks:
-  ## Setup
-  setup:mockery:
-    internal: true
-    cmds:
-      - '{{.LOCAL_BIN}}/mockery version 2>/dev/null | grep -q {{.MOCKERY_VERSION}} || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vektra/mockery/v3@{{.MOCKERY_VERSION}}'
-  setup:golangci-lint:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../tools/Taskfile.yaml
+    dir: .
 
+tasks:
   ## Development
   mockery:
-    deps: [setup:mockery]
+    deps: [tools:mockery]
     cmds:
-      - "{{.LOCAL_BIN}}/mockery"
+      - "{{.BIN}}/mockery"
   fmt:
     cmds:
       - go fmt ./...
   lint:
-    deps: [setup:golangci-lint, mockery]
     cmds:
       - task: fmt
-      - "{{.LOCAL_BIN}}/golangci-lint run --timeout 15m ./..."
+      - task: tools:lint
   build:
     cmds:
       - go build ./...
@@ -53,8 +45,6 @@ tasks:
       - go test ./jwt/ -run=^$ -fuzz=FuzzNew -fuzztime={{.FUZZTIME}} -count=1
       - go test ./jwt/ -run=^$ -fuzz=FuzzGetURIValue -fuzztime={{.FUZZTIME}} -count=1
   test:
-    env:
-      GO111MODULE: on
     deps:
       - task: mockery
     cmds:

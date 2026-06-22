@@ -4,27 +4,24 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: platformrestores.backup.platform-mesh.io
+  name: stores.core.platform-mesh.io
 spec:
-  group: backup.platform-mesh.io
+  group: core.platform-mesh.io
   names:
-    kind: PlatformRestore
-    listKind: PlatformRestoreList
-    plural: platformrestores
-    singular: platformrestore
+    kind: Store
+    listKind: StoreList
+    plural: stores
+    singular: store
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.phase
-      name: Phase
-      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: PlatformRestore is the Schema for the platformrestores API
+        description: Store is the Schema for the stores API.
         properties:
           apiVersion:
             description: |-
@@ -44,68 +41,33 @@ spec:
           metadata:
             type: object
           spec:
-            description: PlatformRestoreSpec defines the desired state of PlatformRestore
+            description: StoreSpec defines the desired state of Store.
             properties:
-              repair:
-                properties:
-                  delete:
-                    type: boolean
-                type: object
-              source:
-                properties:
-                  backupID:
-                    type: string
-                  storage:
-                    properties:
-                      s3:
-                        properties:
-                          bucket:
-                            minLength: 1
-                            type: string
-                          credentialsRef:
-                            description: |-
-                              LocalObjectReference contains enough information to let you locate the
-                              referenced object inside the same namespace.
-                            properties:
-                              name:
-                                default: ""
-                                description: |-
-                                  Name of the referent.
-                                  This field is effectively required, but due to backwards compatibility is
-                                  allowed to be empty. Instances of this type with an empty value here are
-                                  almost certainly wrong.
-                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                type: string
-                            type: object
-                            x-kubernetes-map-type: atomic
-                          endpoint:
-                            minLength: 1
-                            type: string
-                          region:
-                            type: string
-                        required:
-                        - bucket
-                        - credentialsRef
-                        - endpoint
-                        type: object
-                    required:
-                    - s3
-                    type: object
-                required:
-                - backupID
-                - storage
-                type: object
-              topologyValidation:
-                enum:
-                - Strict
+              coreModule:
                 type: string
+              tuples:
+                items:
+                  properties:
+                    object:
+                      type: string
+                    relation:
+                      type: string
+                    user:
+                      type: string
+                  required:
+                  - object
+                  - relation
+                  - user
+                  type: object
+                type: array
             required:
-            - source
-            - topologyValidation
+            - coreModule
             type: object
           status:
-            description: PlatformRestoreStatus defines the observed state of PlatformRestore
+            description: StoreStatus defines the observed state of Store.
             properties:
+              authorizationModelId:
+                type: string
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -162,40 +124,23 @@ spec:
                   - type
                   type: object
                 type: array
-              nextReconcileTime:
-                format: date-time
+              managedTuples:
+                items:
+                  properties:
+                    object:
+                      type: string
+                    relation:
+                      type: string
+                    user:
+                      type: string
+                  required:
+                  - object
+                  - relation
+                  - user
+                  type: object
+                type: array
+              storeId:
                 type: string
-              observedGeneration:
-                format: int64
-                type: integer
-              phase:
-                enum:
-                - ValidatingTopology
-                - RestoringEtcd
-                - RestoringCNPG
-                - RestoringVelero
-                - Repairing
-                - Succeeded
-                - Failed
-                type: string
-              repair:
-                properties:
-                  orphanTuplesDeleted:
-                    type: integer
-                  orphanTuplesDryRun:
-                    type: integer
-                  orphanTuplesFound:
-                    type: integer
-                type: object
-              topologyValidation:
-                properties:
-                  matches:
-                    type: boolean
-                  sourceDigest:
-                    type: string
-                  targetDigest:
-                    type: string
-                type: object
             type: object
         type: object
     served: true

@@ -45,14 +45,18 @@ tasks:
     cmds:
       - "{{.BIN}}/mockery"
   manifests:
-    deps: [tools:controller-gen]
     cmds:
-      - "{{.BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+      - task: tools:generate-crds
+        vars:
+          PATH: /ui/...
+          OUTPUT: '{{.CRD_DIRECTORY}}'
   generate:
-    deps: [tools:controller-gen, tools:apigen]
+    deps: [tools:apigen]
     cmds:
       - task: manifests
-      - "{{.BIN}}/controller-gen object:headerFile={{.HACK}}/boilerplate/boilerplate.go.txt paths=./..."
+      - task: tools:generate-deepcopy
+        vars:
+          PATH: /ui/...
       - task: schemagen
       - "{{.BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
       - "{{.BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./test/setup"

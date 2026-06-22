@@ -27,10 +27,6 @@ includes:
     taskfile: ../tools/Taskfile.yaml
     dir: .
 
-vars:
-  ROOT_BIN:
-    sh: echo "$(git rev-parse --show-toplevel)/bin"
-
 tasks:
   build:
     desc: Build the apis module.
@@ -47,7 +43,9 @@ tasks:
   generate:
     desc: Regenerate deepcopy code for the apis types.
     cmds:
-      - GOWORK=off {{.ROOT_BIN}}/controller-gen object paths=./...
+      - task: tools:generate-deepcopy
+        vars:
+          PATH: /...
   test:
     desc: Run apis unit tests.
     cmds:
