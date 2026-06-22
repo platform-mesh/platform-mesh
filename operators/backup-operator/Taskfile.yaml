@@ -63,13 +63,11 @@ tasks:
       - go test ./...
   test-e2e:
     deps: [tools:kcp, tools:gomplate, tools:envtest]
-    vars:
-      ASSETS:
-        sh: 'echo "${KUBEBUILDER_ASSETS:-$({{.ROOT_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.ROOT_BIN}} -p path)}"'
-    env:
-      KUBEBUILDER_ASSETS: "{{.ASSETS}}"
     cmds:
-      - go test -tags integration ./... {{.ADDITIONAL_COMMAND_ARGS}}
+      - |
+        set -ex
+        export KUBEBUILDER_ASSETS=$({{.ROOT_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.ROOT_BIN}} -p path)
+        go test -tags integration ./... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
     cmds:
       - task: test
