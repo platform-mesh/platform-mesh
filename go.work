@@ -3,6 +3,7 @@ go 1.25.7
 use (
 	./apis
 	./cmd/release
+	./golang-commons
 	./operators/account-operator
 	./operators/security-operator
 	./subroutines
@@ -10,3 +11,8 @@ use (
 
 // kcp-dev/multicluster-provider has an internal replace directive that breaks go work sync
 replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.7.1
+
+// Force to use a newer version that is compatible with the newer genproto multi-module approach;
+// See https://github.com/googleapis/go-genproto/issues/1015 for more information. This replace
+// can be removed if none of our dependencies require both the old and new modules.
+replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20230525234044-86246a831fb4
