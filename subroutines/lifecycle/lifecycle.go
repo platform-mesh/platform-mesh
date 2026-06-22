@@ -7,13 +7,13 @@ import (
 	"slices"
 	"time"
 
-	"github.com/platform-mesh/subroutines"
-	"github.com/platform-mesh/subroutines/conditions"
-	subroutinemetrics "github.com/platform-mesh/subroutines/metrics"
-	"github.com/platform-mesh/subroutines/spread"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.platform-mesh.io/subroutines"
+	"go.platform-mesh.io/subroutines/conditions"
+	subroutinemetrics "go.platform-mesh.io/subroutines/metrics"
+	"go.platform-mesh.io/subroutines/spread"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-var tracer = otel.Tracer("github.com/platform-mesh/subroutines/lifecycle")
+var tracer = otel.Tracer("go.platform-mesh.io/subroutines/lifecycle")
 
 const (
 	// statusFieldInitializers is the status field name for initializer markers.

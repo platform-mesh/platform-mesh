@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/platform-mesh/subroutines"
+	"go.platform-mesh.io/subroutines"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 )

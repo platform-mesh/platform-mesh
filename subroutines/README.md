@@ -1,8 +1,8 @@
 # Platform Mesh - subroutines
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/subroutines/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/subroutines)
-[![CI](https://github.com/platform-mesh/subroutines/actions/workflows/ci.yml/badge.svg)](https://github.com/platform-mesh/subroutines/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/platform-mesh/subroutines.svg)](https://pkg.go.dev/github.com/platform-mesh/subroutines)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/go.platform-mesh.io/subroutines/badge)](https://scorecard.dev/viewer/?uri=go.platform-mesh.io/subroutines)
+[![CI](https://go.platform-mesh.io/subroutines/actions/workflows/ci.yml/badge.svg)](https://go.platform-mesh.io/subroutines/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/go.platform-mesh.io/subroutines.svg)](https://pkg.go.dev/go.platform-mesh.io/subroutines)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## Description
@@ -20,15 +20,15 @@ subroutines is a lifecycle engine for Kubernetes controllers built on [multiclus
 Add the dependency to your Go module:
 
 ```
-go get github.com/platform-mesh/subroutines
+go get go.platform-mesh.io/subroutines
 ```
 
 ### Quick start
 
 ```go
 import (
-    "github.com/platform-mesh/subroutines/conditions"
-    "github.com/platform-mesh/subroutines/lifecycle"
+    "go.platform-mesh.io/subroutines/conditions"
+    "go.platform-mesh.io/subroutines/lifecycle"
 )
 
 lc := lifecycle.New(mgr, "MyController", func() client.Object { return &v1alpha1.MyResource{} },
@@ -68,11 +68,11 @@ subroutines.Stop("done")                                        // stop chain, n
 
 | Package | Description |
 |---------|-------------|
-| [`subroutines`](https://pkg.go.dev/github.com/platform-mesh/subroutines) | Core interfaces (`Subroutine`, `Processor`, `Finalizer`, `Initializer`, `Terminator`) and `Result` type |
-| [`lifecycle`](https://pkg.go.dev/github.com/platform-mesh/subroutines/lifecycle) | Orchestration engine — executes subroutines, manages finalizers, patches status |
-| [`conditions`](https://pkg.go.dev/github.com/platform-mesh/subroutines/conditions) | Per-subroutine and aggregate `Ready` condition management |
-| [`spread`](https://pkg.go.dev/github.com/platform-mesh/subroutines/spread) | Reconciliation spreading to distribute load over time |
-| [`metrics`](https://pkg.go.dev/github.com/platform-mesh/subroutines/metrics) | Prometheus metrics for subroutine execution |
+| [`subroutines`](https://pkg.go.dev/go.platform-mesh.io/subroutines) | Core interfaces (`Subroutine`, `Processor`, `Finalizer`, `Initializer`, `Terminator`) and `Result` type |
+| [`lifecycle`](https://pkg.go.dev/go.platform-mesh.io/subroutines/lifecycle) | Orchestration engine — executes subroutines, manages finalizers, patches status |
+| [`conditions`](https://pkg.go.dev/go.platform-mesh.io/subroutines/conditions) | Per-subroutine and aggregate `Ready` condition management |
+| [`spread`](https://pkg.go.dev/go.platform-mesh.io/subroutines/spread) | Reconciliation spreading to distribute load over time |
+| [`metrics`](https://pkg.go.dev/go.platform-mesh.io/subroutines/metrics) | Prometheus metrics for subroutine execution |
 
 ## Requirements
 
