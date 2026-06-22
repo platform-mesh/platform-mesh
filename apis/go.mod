@@ -1,10 +1,9 @@
 module go.platform-mesh.io/apis
 
-go 1.26.0
+go 1.25.7
 
 require (
 	github.com/kcp-dev/sdk v0.31.2
-	github.com/platform-mesh/extension-manager-operator/api v0.9.9
 	github.com/platform-mesh/golang-commons v0.17.9
 	github.com/platform-mesh/subroutines v0.4.2
 	github.com/prometheus/client_golang v1.23.2
