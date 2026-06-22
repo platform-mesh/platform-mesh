@@ -3,7 +3,7 @@ module go.platform-mesh.io/backup-operator
 go 1.25.7
 
 require (
-	github.com/kcp-dev/multicluster-provider v0.5.1
+	github.com/kcp-dev/multicluster-provider v0.7.1
 	github.com/kcp-dev/sdk v0.31.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10

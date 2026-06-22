@@ -37,7 +37,10 @@ vars:
   BIN: '{{.TOPLEVEL}}/bin'
   HACK: '{{.TOPLEVEL}}/hack'
   CONTROLLER_TOOLS_VERSION: v0.16.4
+  ENVTEST_K8S_VERSION: "1.35.0"
+  ENVTEST_VERSION: release-0.23
   GOLANGCI_LINT_VERSION: 2.12.2
+  GOMPLATE_VERSION: v4.3.0
   MOCKERY_VERSION: v3.7.0
   KCP_APIGEN_VERSION: v0.30.1
   # kcp release used by the operators' envtest suites (see component test-e2e).
@@ -52,10 +55,10 @@ tasks:
   # `task tools` installs everything; `task tools:all` is an explicit alias.
   default:
     desc: Install all shared tools into the root bin.
-    deps: [controller-gen, golangci-lint, mockery, apigen]
+    deps: [controller-gen, golangci-lint, mockery, apigen, gomplate, boilerplate]
   all:
     desc: Install all shared tools into the root bin.
-    deps: [controller-gen, golangci-lint, mockery, apigen]
+    deps: [controller-gen, golangci-lint, mockery, apigen, gomplate, boilerplate]
 
   controller-gen:
     desc: Install controller-gen into the root bin.
@@ -94,4 +97,18 @@ tasks:
     desc: Verifies the boilerplate comment in each source file.
     cmds:
       - ./hack/verify_boilerplate.py --boilerplate-dir hack/boilerplate/
-
+  envtest:
+    internal: true
+    status:
+      - test -s {{.BIN}}/setup-envtest
+    cmds:
+      - GOBIN={{.BIN}} GOWORK=off go install sigs.k8s.io/controller-runtime/tools/setup-envtest@{{.ENVTEST_VERSION}}
+  gomplate:
+    internal: true
+    status:
+      - test -s {{.BIN}}/gomplate
+    env:
+      UNCOMPRESSED: "true"
+      UGET_VERSIONED_BINARIES: "false"
+    cmds:
+      - "{{.HACK}}/uget.sh https://github.com/hairyhenderson/gomplate/releases/download/{VERSION}/gomplate_{GOOS}-{GOARCH} gomplate {{.GOMPLATE_VERSION}} 'gomplate_*'"

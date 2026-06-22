@@ -5,6 +5,7 @@ use (
 	./cmd/release
 	./golang-commons
 	./operators/account-operator
+	./operators/backup-operator
 	./operators/security-operator
 	./subroutines
 )

@@ -107,8 +107,7 @@ github.com/kcp-dev/apimachinery/v2 v2.31.2 h1:/GKCEzPlsfnaMDq2/VE6KJGE9yiAZAg9Mc
 github.com/kcp-dev/apimachinery/v2 v2.31.2/go.mod h1:ta+d3xQkLYWBEEg8ICed+PekW3MckEYqXG4amq6Uk9Y=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
-github.com/kcp-dev/multicluster-provider v0.5.1 h1:2qMZzLPvzClT2ks+AMyE97PD+2lrDv3r0wDCKBxsr7E=
-github.com/kcp-dev/multicluster-provider v0.5.1/go.mod h1:eJohrSXqLmpjfTSFBbZMoq4Osr57UKg9ZokvhCPNmHc=
+github.com/kcp-dev/multicluster-provider v0.7.1 h1:Adqvt+ECTgVizkam+QxzNi1mun1IixSg9as4xZS+gqw=
 github.com/kcp-dev/sdk v0.31.2 h1:rkC17VLz3qudi2NPBGQ3Wca3Pf1cuhgFeYtvzOk2g/w=
 github.com/kcp-dev/sdk v0.31.2/go.mod h1:kpnItkVRkVuFgs8382zlrPgkvJdDZZiRTffQrFTPedY=
 github.com/klauspost/compress v1.18.5 h1:/h1gH5Ce+VWNLSWqPzOVn6XBO+vJbCNGvjoaGBFW2IE=
