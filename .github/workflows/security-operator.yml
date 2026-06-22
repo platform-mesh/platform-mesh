@@ -96,6 +96,29 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - run: task test-${{ env.COMPONENT }}
 
+  # Integration (envtest) suite: downloads the shared kcp (tools:kcp) and runs
+  # the kcp-backed tests under internal/test/integration.
+  test-e2e:
+    runs-on: ubuntu-latest
+    env:
+      GOPRIVATE: github.com/platform-mesh
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: operators/security-operator/go.mod
+          cache: true
+      - name: Enable git CLI clones using GITHUB_TOKEN
+        run: |
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task test-e2e-${{ env.COMPONENT }}
+
   # ──────────────────────────────────────────────
   # PR: build only, never push.
   # ──────────────────────────────────────────────
@@ -121,7 +144,7 @@ jobs:
   # ──────────────────────────────────────────────
   docker-build-latest:
     if: github.ref == 'refs/heads/main'
-    needs: [lint, test]
+    needs: [lint, test, test-e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -170,7 +193,7 @@ jobs:
 
   docker-build-push:
     if: startsWith(github.ref, 'refs/tags/security-operator/')
-    needs: [version, lint, test]
+    needs: [version, lint, test, test-e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: write

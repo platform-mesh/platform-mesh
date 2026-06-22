@@ -30,21 +30,19 @@ vars:
   ENVTEST_VERSION: release-0.17
   CRD_DIRECTORY: config/crd
   TEST_SETUP_DIRECTORY: test/setup/01-platform-mesh-system
-  KCP_VERSION: 0.30.0
   GOMPLATE_VERSION: v4.3.0
   GOARCH:
     sh: go env GOARCH
   GOOS:
     sh: go env GOOS
 tasks:
-  ## Setup (e2e assets only — codegen/lint tools live in the root tools Taskfile)
-  setup:kcp:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-tool.sh https://github.com/kcp-dev/kcp/releases/download/v{{ .KCP_VERSION }}/kcp_{{ .KCP_VERSION }}_{{ .GOOS }}_{{ .GOARCH }}.tar.gz kcp {{.KCP_VERSION}}
+  ## Setup (e2e assets only — kcp + codegen/lint tools live in the root tools Taskfile)
   setup:gomplate:
     internal: true
     cmds:
+      # mkdir is required because kcp (which previously created bin/) now lives in
+      # the root bin; without it curl -o fails when the component bin is absent.
+      - mkdir -p {{.LOCAL_BIN}}
       - test -s {{.LOCAL_BIN}}/gomplate || curl -o {{.LOCAL_BIN}}/gomplate -sSL https://github.com/hairyhenderson/gomplate/releases/download/{{ .GOMPLATE_VERSION }}/gomplate_{{ .GOOS }}-{{ .GOARCH }} && chmod +x {{.LOCAL_BIN}}/gomplate && chmod 755 {{.LOCAL_BIN}}/gomplate
 
   ## Development
@@ -78,18 +76,22 @@ tasks:
     cmds:
       - go test -count=1 $(go list ./... | grep -v '/internal/controller$')
   test-e2e:
-    desc: Run envtest integration tests (downloads kcp).
-    deps: [setup:kcp, setup:gomplate]
+    desc: Run envtest integration tests (uses the shared kcp from the root bin).
+    deps: [tools:kcp, setup:gomplate]
+    env:
+      TEST_KCP_ASSETS: '{{.ROOT_BIN}}'
     cmds:
       - go test -count=1 ./internal/controller/... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
-    deps: [setup:kcp, setup:gomplate]
+    deps: [tools:kcp, setup:gomplate]
+    env:
+      TEST_KCP_ASSETS: '{{.ROOT_BIN}}'
     cmds:
       - go test -count=1 ./... -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
   start-kcp:
-    deps: [setup:kcp]
+    deps: [tools:kcp]
     cmds:
-      - "{{ .LOCAL_BIN}}/kcp start"
+      - "{{.ROOT_BIN}}/kcp start"
 
   fuzz:
     desc: "Run fuzz tests with a configurable duration (default 30s per target)"

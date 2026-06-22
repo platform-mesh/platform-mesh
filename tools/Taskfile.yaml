@@ -25,9 +25,11 @@ version: "3"
 # the binaries from the root bin (see each component's ROOT_BIN var) and depend
 # on these tasks via the root's per-component targets.
 #
-# Note: e2e assets (kcp, gomplate, setup-envtest) are intentionally NOT here —
-# the operators' envtest suites load kcp from their own ./bin (hardcoded
-# BinaryAssetsDirectory), so those stay component-local.
+# kcp is shared here too: the operators' envtest suites resolve the kcp binary
+# via the TEST_KCP_ASSETS env var (which overrides each suite's per-config
+# BinaryAssetsDirectory), so the component test-e2e targets point that at the
+# root bin and depend on `tools:kcp`. The remaining e2e assets (gomplate,
+# setup-envtest) are still installed component-locally.
 
 vars:
   TOPLEVEL:
@@ -38,6 +40,8 @@ vars:
   GOLANGCI_LINT_VERSION: 2.12.2
   MOCKERY_VERSION: v3.7.0
   KCP_APIGEN_VERSION: v0.30.1
+  # kcp release used by the operators' envtest suites (see component test-e2e).
+  KCP_VERSION: 0.31.1
 
 env:
   UGET_DIRECTORY: '{{.BIN}}'
@@ -81,6 +85,11 @@ tasks:
       - GOBIN={{.BIN}} GOWORK=off go install github.com/kcp-dev/sdk/cmd/apigen@{{.KCP_APIGEN_VERSION}}
     status:
       - test -s {{.BIN}}/apigen
+  kcp:
+    silent: true
+    desc: Install kcp into the root bin (shared by the operators' envtest suites).
+    cmds:
+      - UGET_VERSIONED_BINARIES=false {{.HACK}}/uget.sh https://github.com/kcp-dev/kcp/releases/download/v{VERSION}/kcp_{VERSION}_{GOOS}_{GOARCH}.tar.gz kcp {{.KCP_VERSION}}
   boilerplate:
     desc: Verifies the boilerplate comment in each source file.
     cmds:

@@ -30,7 +30,7 @@ spec:
     state: Accepted
     identityHash: ""
   - resource: logicalclusters
-    group: apis.kcp.io
+    group: core.kcp.io
     selector:
       matchAll: true
     verbs: ["*"]

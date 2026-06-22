@@ -15,7 +15,6 @@ vars:
   ENVTEST_K8S_VERSION: "1.31.0"
   ENVTEST_VERSION: release-0.19
   CRD_DIRECTORY: config/crd/bases
-  KCP_VERSION: 0.30.1
   GOARCH:
     sh: go env GOARCH
   GOOS:
@@ -37,9 +36,6 @@ tasks:
     internal: true
     cmds:
       - test -s {{.LOCAL_BIN}}/go-test-coverage || ( GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vladopajic/go-test-coverage/v2@latest )
-  setup:kcp:
-    cmds:
-      - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-tool.sh https://github.com/kcp-dev/kcp/releases/download/v{{ .KCP_VERSION }}/kcp_{{ .KCP_VERSION }}_{{ .GOOS }}_{{ .GOARCH }}.tar.gz kcp {{.KCP_VERSION}}
   ## Development
   mockery:
     cmds:
@@ -73,8 +69,8 @@ tasks:
       GOPRIVATE: github.com/platform-mesh
       KUBEBUILDER_ASSETS:
         sh: $(pwd)/{{.LOCAL_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir $(pwd)/{{.LOCAL_BIN}} -p path
-      TEST_KCP_ASSETS:
-        sh: echo $(pwd)/{{.LOCAL_BIN}}
+      # Shared kcp installed by tools:kcp into the root bin.
+      TEST_KCP_ASSETS: '{{.ROOT_BIN}}'
       GO111MODULE: on
     cmds:
       - go test -count=1 {{.TEST_PACKAGES | default "./..."}} {{.ADDITIONAL_COMMAND_ARGS}}
@@ -84,14 +80,14 @@ tasks:
     cmds:
       - go test -count=1 $(go list ./... | grep -v '/internal/test/integration$')
   test-e2e:
-    desc: Run envtest integration tests (downloads kcp).
-    deps: [setup:envtest, setup:kcp]
+    desc: Run envtest integration tests (uses the shared kcp from the root bin).
+    deps: [setup:envtest, tools:kcp]
     cmds:
       - task: envtest
         vars:
           TEST_PACKAGES: ./internal/test/integration/...
   cover:
-    deps: [setup:envtest, setup:kcp]
+    deps: [setup:envtest, tools:kcp]
     cmds:
       - task: envtest
         vars:

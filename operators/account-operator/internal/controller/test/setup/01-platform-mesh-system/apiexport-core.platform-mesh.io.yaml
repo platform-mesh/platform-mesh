@@ -24,7 +24,7 @@ spec:
       verbs: ["*"]
       identityHash: ""
     - resource: logicalclusters
-      group: apis.kcp.io
+      group: core.kcp.io
       all: true
       verbs: ["*"]
       identityHash: ""
