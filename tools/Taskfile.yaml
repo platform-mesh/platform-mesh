@@ -28,8 +28,7 @@ version: "3"
 # kcp is shared here too: the operators' envtest suites resolve the kcp binary
 # via the TEST_KCP_ASSETS env var (which overrides each suite's per-config
 # BinaryAssetsDirectory), so the component test-e2e targets point that at the
-# root bin and depend on `tools:kcp`. The remaining e2e assets (gomplate,
-# setup-envtest) are still installed component-locally.
+# root bin and depend on `tools:kcp`.
 
 vars:
   TOPLEVEL:
