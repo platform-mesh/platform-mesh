@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 
-	"github.com/platform-mesh/golang-commons/sentry"
+	"go.platform-mesh.io/golang-commons/sentry"
 )
 
 type requestValidate struct {

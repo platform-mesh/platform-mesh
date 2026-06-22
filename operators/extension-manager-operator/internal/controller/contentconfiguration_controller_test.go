@@ -11,8 +11,8 @@ import (
 
 	"github.com/jarcoal/httpmock"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
-	platformmeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
+	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/logger"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,10 +38,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
-	"github.com/platform-mesh/extension-manager-operator/internal/config"
-	commonTesting "github.com/platform-mesh/extension-manager-operator/pkg/util/testing"
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation/validation_test"
+	"go.platform-mesh.io/apis/ui/v1alpha1"
+	"go.platform-mesh.io/extension-manager-operator/internal/config"
+	commonTesting "go.platform-mesh.io/extension-manager-operator/pkg/util/testing"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation/validation_test"
 )
 
 const (

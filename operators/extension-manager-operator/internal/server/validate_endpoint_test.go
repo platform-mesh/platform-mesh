@@ -9,13 +9,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/platform-mesh/golang-commons/errors"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.platform-mesh.io/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation/mocks"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation/mocks"
 )
 
 type responseError struct {

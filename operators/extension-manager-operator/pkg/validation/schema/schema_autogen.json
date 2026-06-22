@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/platform-mesh/extension-manager-operator/pkg/validation/content-configuration",
+  "$id": "https://go.platform-mesh.io/extension-manager-operator/pkg/validation/content-configuration",
   "$ref": "#/$defs/ContentConfiguration",
   "$defs": {
     "Category": {

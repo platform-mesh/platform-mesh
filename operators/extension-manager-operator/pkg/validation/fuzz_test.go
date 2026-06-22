@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation/validation_test"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation/validation_test"
 )
 
 // FuzzValidate fuzzes the content-configuration parse/validate boundary.

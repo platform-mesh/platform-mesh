@@ -7,8 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/apis/ui/v1alpha1"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
 type UrlSuffixTransformer struct{}

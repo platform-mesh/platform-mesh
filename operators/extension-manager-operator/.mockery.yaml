@@ -1,7 +1,7 @@
 with-expecter: true
 packages:
   # internal
-  github.com/platform-mesh/extension-manager-operator/pkg/validation:
+  go.platform-mesh.io/extension-manager-operator/pkg/validation:
     config:
       dir: pkg/validation/mocks
       outpkg: mocks

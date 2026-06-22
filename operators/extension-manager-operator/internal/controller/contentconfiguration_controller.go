@@ -20,12 +20,12 @@ import (
 	"context"
 	"net/http"
 
-	platformmeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/filter"
-	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/subroutines"
-	"github.com/platform-mesh/subroutines/conditions"
-	"github.com/platform-mesh/subroutines/lifecycle"
+	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/controller/filter"
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/subroutines"
+	"go.platform-mesh.io/subroutines/conditions"
+	"go.platform-mesh.io/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -34,10 +34,10 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
-	"github.com/platform-mesh/extension-manager-operator/internal/config"
-	extsub "github.com/platform-mesh/extension-manager-operator/pkg/subroutines"
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/apis/ui/v1alpha1"
+	"go.platform-mesh.io/extension-manager-operator/internal/config"
+	extsub "go.platform-mesh.io/extension-manager-operator/pkg/subroutines"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
 var contentConfigurationReconcilerName = "ContentConfigurationReconcilerCR"

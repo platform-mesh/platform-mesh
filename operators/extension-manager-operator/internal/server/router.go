@@ -5,10 +5,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-http-utils/headers"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/rs/cors"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
 func CreateRouter(

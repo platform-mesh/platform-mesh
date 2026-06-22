@@ -9,7 +9,7 @@ import (
 
 	"github.com/invopop/jsonschema"
 
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
 func reflectContentConfiguration() {

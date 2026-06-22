@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/apis/ui/v1alpha1"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
 func TestUrlSuffixTransformer_Transform(t *testing.T) {

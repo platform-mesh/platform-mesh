@@ -22,15 +22,15 @@ import (
 	"net/http"
 	"time"
 
-	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
-	"github.com/platform-mesh/golang-commons/traces"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
+	"go.platform-mesh.io/golang-commons/traces"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/platform-mesh/extension-manager-operator/internal/server"
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/extension-manager-operator/internal/server"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
 var serverCmd = &cobra.Command{

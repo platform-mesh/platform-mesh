@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 
-	commonTesting "github.com/platform-mesh/extension-manager-operator/pkg/util/testing"
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation/validation_test"
+	commonTesting "go.platform-mesh.io/extension-manager-operator/pkg/util/testing"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation/validation_test"
 )
 
 func TestValidate(t *testing.T) {

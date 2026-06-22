@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/platform-mesh/extension-manager-operator/cmd"
+	"go.platform-mesh.io/extension-manager-operator/cmd"
 )
 
 func main() {

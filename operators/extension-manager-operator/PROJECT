@@ -9,7 +9,7 @@ plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: extension-manager-operator
-repo: github.com/platform-mesh/extension-manager-operator
+repo: github.com/platform-mesh/platform-mesh
 resources:
 - api:
     crdVersion: v1
@@ -18,13 +18,13 @@ resources:
   domain: platform-mesh.io
   group: ui
   kind: ContentConfiguration
-  path: github.com/platform-mesh/extension-manager-operator/api/v1alpha1
+  path: go.platform-mesh.io/apis/ui/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
   domain: ui.platform-mesh.io
   group: ui
   kind: ProviderMetadata
-  path: github.com/platform-mesh/extension-manager-operator/api/v1alpha1
+  path: go.platform-mesh.io/apis/ui/v1alpha1
   version: v1alpha1
 version: "3"

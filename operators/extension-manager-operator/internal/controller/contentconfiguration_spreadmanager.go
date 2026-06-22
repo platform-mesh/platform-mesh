@@ -8,9 +8,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/platform-mesh/subroutines/spread"
+	"go.platform-mesh.io/subroutines/spread"
 
-	"github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
+	"go.platform-mesh.io/apis/ui/v1alpha1"
 )
 
 // contentConfigurationSpreadManager implements lifecycle.SpreadManager to

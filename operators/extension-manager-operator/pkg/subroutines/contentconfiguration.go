@@ -7,15 +7,15 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/subroutines"
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/subroutines"
 	"k8s.io/apimachinery/pkg/api/meta"
 	apimachinery "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
-	"github.com/platform-mesh/extension-manager-operator/pkg/transformer"
-	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/apis/ui/v1alpha1"
+	"go.platform-mesh.io/extension-manager-operator/pkg/transformer"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
 const (
@@ -172,7 +172,7 @@ func (r *ContentConfigurationSubroutine) getRemoteConfig(url string, log *logger
 	// TODO
 	// we need to check the size of the received body before loading it to memory.
 	// In case it exceeds a certain size we should reject it.
-	// https://github.com/platform-mesh/extension-manager-operator/pull/23#discussion_r1622598363
+	// https://go.platform-mesh.io/extension-manager-operator/pull/23#discussion_r1622598363
 
 	return body, nil
 }

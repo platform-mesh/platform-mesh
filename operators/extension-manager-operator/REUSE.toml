@@ -1,6 +1,6 @@
 version = 1
 SPDX-PackageName = "extension-manager-operator"
-SPDX-PackageDownloadLocation = "https://github.com/platform-mesh/extension-manager-operator"
+SPDX-PackageDownloadLocation = "https://github.com/platform-mesh/platform-mesh"
 
 [[annotations]]
 path = "**"
