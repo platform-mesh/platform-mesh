@@ -248,9 +248,8 @@ jobs:
           name: ${{ github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Disabled for now — re-enable by restoring the tag condition on `if`.
   update-version:
-    if: false # startsWith(github.ref, 'refs/tags/security-operator/')
+    if: startsWith(github.ref, 'refs/tags/security-operator/')
     needs: [version, docker-build-push]
     uses: platform-mesh/.github/.github/workflows/job-chart-version-update.yml@main
     secrets: inherit
