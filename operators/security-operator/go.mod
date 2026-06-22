@@ -1,6 +1,6 @@
 module go.platform-mesh.io/security-operator
 
-go 1.26.0
+go 1.25.7
 
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
@@ -23,7 +23,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	go.platform-mesh.io/apis v0.0.0-20260622122527-e12b466d38ab
+	go.platform-mesh.io/apis v0.0.0-20260622133610-fe2f9154f2a9
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af

@@ -1,6 +1,6 @@
 module go.platform-mesh.io/account-operator
 
-go 1.26.0
+go 1.25.7
 
 require (
 	github.com/go-logr/logr v1.4.3
@@ -15,7 +15,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
-	go.platform-mesh.io/apis v0.0.0-20260622122527-e12b466d38ab
+	go.platform-mesh.io/apis v0.0.0-20260622133610-fe2f9154f2a9
 	k8s.io/api v0.35.4
 	k8s.io/apimachinery v0.35.4
 	k8s.io/client-go v0.35.4
