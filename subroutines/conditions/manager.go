@@ -3,7 +3,7 @@ package conditions
 import (
 	"fmt"
 
-	"github.com/platform-mesh/subroutines"
+	"go.platform-mesh.io/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/api/meta"

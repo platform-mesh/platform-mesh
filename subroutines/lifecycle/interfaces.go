@@ -3,7 +3,7 @@ package lifecycle
 import (
 	"time"
 
-	"github.com/platform-mesh/subroutines"
+	"go.platform-mesh.io/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
