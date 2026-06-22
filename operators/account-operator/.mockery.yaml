@@ -23,6 +23,8 @@ template-schema: '{{.Template}}.schema.json'
 structname: '{{.InterfaceName}}'
 dir: 'pkg/subroutines/mocks'
 pkgname: mocks
+template-data:
+  boilerplate-file: ../../hack/boilerplate/boilerplate.go.txt
 packages:
   sigs.k8s.io/controller-runtime/pkg/client:
     config:

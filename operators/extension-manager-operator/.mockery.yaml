@@ -19,6 +19,8 @@ log-level: info
 recursive: false
 require-template-schema-exists: true
 template: testify
+template-data:
+  boilerplate-file: ../../hack/boilerplate/boilerplate.go.txt
 packages:
   go.platform-mesh.io/extension-manager-operator/pkg/validation:
     config:

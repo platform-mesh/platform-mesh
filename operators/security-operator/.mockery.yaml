@@ -12,23 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+all: false
+force-file-write: true
+formatter: goimports
 include-auto-generated: true
+log-level: info
+recursive: false
+require-template-schema-exists: true
+template: testify
+template-data:
+  boilerplate-file: ../../hack/boilerplate/boilerplate.go.txt
 packages:
   github.com/openfga/api/proto/openfga/v1:
     config:
       dir: internal/subroutine/mocks
-      filename: mock_OpenFGAServiceClient.go
       pkgname: mocks
     interfaces:
       OpenFGAServiceClient:
+        config:
+          filename: mock_OpenFGAServiceClient.go
 
   sigs.k8s.io/controller-runtime/pkg/client:
     config:
       dir: internal/subroutine/mocks
-      filename: mock_Client.go
       pkgname: mocks
     interfaces:
       Client:
+        config:
+          filename: mock_Client.go
 
   sigs.k8s.io/controller-runtime/pkg/manager:
     config:
@@ -51,26 +62,27 @@ packages:
           structname: MockManager
 
   sigs.k8s.io/controller-runtime/pkg/cluster:
-      config:
-        dir: internal/subroutine/mocks
-        filename: mock_Cluster.go
-        pkgname: mocks
-      interfaces:
-        Cluster:
-
-  k8s.io/client-go/discovery:
-      config:
-        dir: internal/subroutine/mocks
-        filename: mock_DiscoveryInterface.go
-        pkgname: mocks
-      interfaces:
-        DiscoveryInterface:
-
-  github.com/platform-mesh/security-operator/internal/client:
     config:
       dir: internal/subroutine/mocks
       pkgname: mocks
-      all: true
+    interfaces:
+      Cluster:
+        config:
+          filename: mock_Cluster.go
+
+  k8s.io/client-go/discovery:
+    config:
+      dir: internal/subroutine/mocks
+      pkgname: mocks
+    interfaces:
+      DiscoveryInterface:
+        config:
+          filename: mock_DiscoveryInterface.go
+
+  go.platform-mesh.io/security-operator/internal/client:
+    config:
+      dir: internal/subroutine/mocks
+      pkgname: mocks
     interfaces:
       KCPClientGetter:
         config:
@@ -82,18 +94,20 @@ packages:
         config:
           filename: mock_Lister.go
 
-  github.com/platform-mesh/security-operator/pkg/clientreg:
+  go.platform-mesh.io/security-operator/internal/fga:
     config:
       dir: internal/subroutine/mocks
-      filename: mock_TokenRefresher.go
-      pkgname: mocks
-    interfaces:
-      TokenRefresher:
-
-  github.com/platform-mesh/security-operator/internal/fga:
-    config:
-      dir: internal/subroutine/mocks
-      filename: mock_StoreIDGetter.go
       pkgname: mocks
     interfaces:
       StoreIDGetter:
+        config:
+          filename: mock_StoreIDGetter.go
+
+  go.platform-mesh.io/security-operator/pkg/clientreg:
+    config:
+      dir: internal/subroutine/mocks
+      pkgname: mocks
+    interfaces:
+      TokenRefresher:
+        config:
+          filename: mock_TokenRefresher.go
