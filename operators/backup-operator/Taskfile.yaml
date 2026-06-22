@@ -22,25 +22,18 @@ includes:
     dir: .
 
 vars:
-  # Shared codegen/lint tools come from the repo-root bin (root `tools:` tasks).
-  ROOT_BIN:
-    sh: echo "$(git rev-parse --show-toplevel)/bin"
   CRD_DIRECTORY: config/crd
-  GOARCH:
-    sh: go env GOARCH
-  GOOS:
-    sh: go env GOOS
 
 tasks:
   ## Development
   manifests:
     deps: [tools:controller-gen]
     cmds:
-      - "{{.ROOT_BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+      - "{{.BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
   generate:
     cmds:
       - task: manifests
-      - "{{.ROOT_BIN}}/controller-gen object:headerFile=hack/boilerplate.go.txt paths=./..."
+      - "{{.BIN}}/controller-gen object:headerFile={{.HACK}}/boilerplate/boilerplate.go.txt paths=./..."
   build:
     desc: Build the backup-operator.
     cmds:
@@ -66,7 +59,7 @@ tasks:
     cmds:
       - |
         set -ex
-        export KUBEBUILDER_ASSETS=$({{.ROOT_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.ROOT_BIN}} -p path)
+        export KUBEBUILDER_ASSETS=$({{.BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
         go test -tags integration ./... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
     cmds:
