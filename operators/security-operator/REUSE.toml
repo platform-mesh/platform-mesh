@@ -14,7 +14,7 @@
 
 version = 1
 SPDX-PackageName = "security-operator"
-SPDX-PackageDownloadLocation = "https://github.com/platform-mesh/security-operator"
+SPDX-PackageDownloadLocation = "https://github.com/platform-mesh/platform-mesh"
 
 [[annotations]]
 path = "**"

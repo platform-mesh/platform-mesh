@@ -1,10 +1,5 @@
 # Platform Mesh - subroutines
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/go.platform-mesh.io/subroutines/badge)](https://scorecard.dev/viewer/?uri=go.platform-mesh.io/subroutines)
-[![CI](https://go.platform-mesh.io/subroutines/actions/workflows/ci.yml/badge.svg)](https://go.platform-mesh.io/subroutines/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/go.platform-mesh.io/subroutines.svg)](https://pkg.go.dev/go.platform-mesh.io/subroutines)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-
 ## Description
 
 subroutines is a lifecycle engine for Kubernetes controllers built on [multicluster-runtime](https://github.com/platform-mesh/multicluster-runtime). It offers explicit Result-based flow control, opt-in condition/status management, and built-in observability.

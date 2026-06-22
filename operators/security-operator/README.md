@@ -2,11 +2,9 @@
 > This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
 
 # platform-mesh - security-operator
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/security-operator/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/security-operator)
-![build status](https://github.com/platform-mesh/security-operator/actions/workflows/ci.yml/badge.svg)
 
 ## Description
-Security-operator is responsible for security related configuration in Platform-mesh. 
+Security-operator is responsible for security related configuration in Platform-mesh.
 
 ## API description
 - **Store** - serves as CRD representation of OpenFGA store entity. Stores are created during logical clusters initialization phase or at deployment phase of Platform-mesh installation. When created, dedicated controller will create a **store** in OpenFGA.
@@ -18,7 +16,7 @@ Security-operator is responsible for security related configuration in Platform-
 ## Features
 - **Initialization of logical clusters** - This feature consist of 2 parts:
     - **organization level logical clusters** - operator creates **Store**, **IDP**, **Invite**, **WorkspaceAuthenticationConfiguration** resources to initialize an organization
-    - **account level logical clusters** - operator creates additional tuples in organization's store for accounts hieracy 
+    - **account level logical clusters** - operator creates additional tuples in organization's store for accounts hieracy
 - **Authorization Model generation** - to execute authorization checks in OpenFGA against custom resource which are created by the use, operator generatos Authorization Model for each resource in ApiExport when the ApiExport is bound (ApiBinding is created). The model is created in the workspace where **ApiExport** and **ApiResourceSchema** resource live.
 - **OIDC management** - Keycloak serves as the internal Identity Provider within Platform Mesh. After IDP resource is created and reconciled successfully, **WorkspaceAuthenticationConfiguration** resource is created and configured to use keycloak as identity provider for kcp authentication
 - **ApiExport bindability control** - ApiExportPolicy controller creates all necessary tuples in OpenFGA to support authorization checks for **bind** kcp's verb. More information about this [ApiExportPolicy ADR](https://github.com/platform-mesh/architecture/blob/main/adr/002-apiexport-binding-access-control.md)
@@ -27,7 +25,7 @@ Security-operator is responsible for security related configuration in Platform-
 ## Getting started
 
 - For running and building the security-operator, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository.
-- To deploy the security-operator to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository. 
+- To deploy the security-operator to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository.
 
 ## Releasing
 

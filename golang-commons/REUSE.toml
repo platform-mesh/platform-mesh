@@ -14,7 +14,7 @@
 
 version = 1
 SPDX-PackageName = "golang-commons"
-SPDX-PackageDownloadLocation = "https://go.platform-mesh.io/golang-commons"
+SPDX-PackageDownloadLocation = "https://github.com/platform-mesh/platform-mesh"
 
 [[annotations]]
 path = "**"

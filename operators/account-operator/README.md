@@ -2,8 +2,6 @@
 > This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
 
 # platform-mesh - account-operator
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/account-operator/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/account-operator)
-![Build Status](https://github.com/platform-mesh/account-operator/actions/workflows/ci.yml/badge.svg)
 
 ## Description
 
@@ -19,7 +17,7 @@ The platform-mesh account-operator manages the core Account resource which is a 
 ## Getting started
 
 - For running and building the account-operator, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository.
-- To deploy the account-operator to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository. 
+- To deploy the account-operator to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository.
 
 ## Releasing
 

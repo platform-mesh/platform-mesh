@@ -1,9 +1,5 @@
 # Platform Mesh - golang-commons
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/go.platform-mesh.io/golang-commons/badge)](https://scorecard.dev/viewer/?uri=go.platform-mesh.io/golang-commons)
-![Build Status](https://go.platform-mesh.io/golang-commons/actions/workflows/ci.yml/badge.svg)
-[![REUSE status](
-https://api.reuse.software/badge/go.platform-mesh.io/golang-commons)](https://api.reuse.software/info/go.platform-mesh.io/golang-commons)
 ## Description
 
 golang-commons contains golang library packages to be reused across microservices and operators/controllers. The scope includes, but is not limited to:

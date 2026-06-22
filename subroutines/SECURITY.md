@@ -8,7 +8,7 @@ If you discover a security vulnerability in this project, please report it respo
 
 Instead, please report them via GitHub's private vulnerability reporting feature:
 
-1. Go to the [Security tab](https://go.platform-mesh.io/subroutines/security) of this repository.
+1. Go to the [Security tab](https://github.com/platform-mesh/platform-mesh/security) of this repository.
 2. Click **"Report a vulnerability"**.
 3. Provide a description of the vulnerability and steps to reproduce it.
 

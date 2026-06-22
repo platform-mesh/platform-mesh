@@ -3,11 +3,6 @@
 
 # Platform Mesh - Extension Manager Operator
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/go.platform-mesh.io/extension-manager-operator/badge)](https://scorecard.dev/viewer/?uri=go.platform-mesh.io/extension-manager-operator)
-![Build Status](https://go.platform-mesh.io/extension-manager-operator/actions/workflows/ci.yml/badge.svg)
-[![REUSE status](
-https://api.reuse.software/badge/go.platform-mesh.io/extension-manager-operator)](https://api.reuse.software/info/go.platform-mesh.io/extension-manager-operator)
-
 ## Description
 
 The extension-manager-operator implements the lifecycle management of a Kubernetes CRD `ContentConfiguration` resource, which is a Kubernetes Resource/API for configuration of Micro Frontends in Platform Mesh.
@@ -44,10 +39,10 @@ The release is performed automatically through a GitHub Actions Workflow. New Ve
 The extension-manager-operators an installation of go. Checkout the [go.mod](go.mod) for the required go version and dependencies.
 
 ## Support, Feedback, Contributing
-This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://go.platform-mesh.io/extension-manager-operator/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, as well as additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md).
+This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://github.com/platform-mesh/platform-mesh/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, as well as additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md).
 
 ## Security / Disclosure
-If you find any bug that may be a security problem, please follow our instructions at [in our security policy](https://go.platform-mesh.io/extension-manager-operator/security/policy) on how to report it. Please do not create GitHub issues for security-related doubts or problems.
+If you find any bug that may be a security problem, please follow our instructions at [in our security policy](https://github.com/platform-mesh/platform-mesh/security/policy) on how to report it. Please do not create GitHub issues for security-related doubts or problems.
 
 ## Contributing
 
