@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"k8s.io/client-go/util/workqueue"
@@ -28,7 +29,7 @@ import (
 )
 
 type ClusterGetter interface {
-	GetCluster(ctx context.Context, clusterName string) (cluster.Cluster, error)
+	GetCluster(ctx context.Context, clusterName multicluster.ClusterName) (cluster.Cluster, error)
 }
 
 type LifecycleManager struct {

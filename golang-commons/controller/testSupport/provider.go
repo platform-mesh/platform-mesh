@@ -6,6 +6,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 type FakeProvider struct {
@@ -16,7 +17,7 @@ func NewFakeProvider(cfg *rest.Config) *FakeProvider {
 	return &FakeProvider{cfg: cfg}
 }
 
-func (f FakeProvider) Get(context.Context, string) (cluster.Cluster, error) {
+func (f FakeProvider) Get(context.Context, multicluster.ClusterName) (cluster.Cluster, error) {
 	return cluster.New(f.cfg, nil)
 }
 

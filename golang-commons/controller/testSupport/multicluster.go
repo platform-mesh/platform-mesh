@@ -12,11 +12,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 type FakeManager struct{ Client client.Client }
 
-func (f *FakeManager) GetCluster(context.Context, string) (cluster.Cluster, error) {
+func (f *FakeManager) GetCluster(context.Context, multicluster.ClusterName) (cluster.Cluster, error) {
 	return &FakeCluster{client: f.Client}, nil
 }
 

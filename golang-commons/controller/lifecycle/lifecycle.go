@@ -36,7 +36,7 @@ func Reconcile(ctx context.Context, nName types.NamespacedName, instance runtime
 	log := l.Log().MustChildLoggerWithAttributes("name", nName.Name, "namespace", nName.Namespace, "reconcile_id", string(controller.ReconcileIDFromContext(ctx)))
 	cluster, ok := mccontext.ClusterFrom(ctx)
 	if ok {
-		log = log.MustChildLoggerWithAttributes("cluster", cluster)
+		log = log.MustChildLoggerWithAttributes("cluster", cluster.String())
 	}
 	sentryTags := sentry.Tags{"namespace": nName.Namespace, "name": nName.Name}
 
