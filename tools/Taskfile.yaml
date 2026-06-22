@@ -94,10 +94,6 @@ tasks:
     desc: Install kcp into the root bin (shared by the operators' envtest suites).
     cmds:
       - UGET_VERSIONED_BINARIES=false {{.HACK}}/uget.sh https://github.com/kcp-dev/kcp/releases/download/v{VERSION}/kcp_{VERSION}_{GOOS}_{GOARCH}.tar.gz kcp {{.KCP_VERSION}}
-  boilerplate:
-    desc: Verifies the boilerplate comment in each source file.
-    cmds:
-      - ./hack/verify_boilerplate.py --boilerplate-dir hack/boilerplate/
   envtest:
     internal: true
     status:

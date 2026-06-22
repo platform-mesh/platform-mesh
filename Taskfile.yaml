@@ -53,12 +53,16 @@ tasks:
     desc: Runs all check targets in sequence.
     cmds:
       - task: lint
-      - task: tools:boilerplate
+      - task: boilerplate
   lint:
     desc: Lint every component.
     cmds:
       - for: {var: COMPONENTS}
         cmd: task lint-{{.ITEM}}
+  boilerplate:
+    desc: Verifies the boilerplate comment in each source file.
+    cmds:
+      - ./hack/verify_boilerplate.py --boilerplate-dir hack/boilerplate/
   test:
     desc: Run unit tests for every component.
     cmds:
