@@ -1,29 +1,49 @@
-with-expecter: true
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+recursive: false
+require-template-schema-exists: true
+template: testify
 packages:
-  # internal
   go.platform-mesh.io/extension-manager-operator/pkg/validation:
     config:
       dir: pkg/validation/mocks
-      outpkg: mocks
+      pkgname: mocks
     interfaces:
       ExtensionConfiguration:
         config:
-          mockname: ExtensionConfiguration
-
-  # external
+          structname: ExtensionConfiguration
+          filename: mock_ExtensionConfiguration.go
   net/http:
     config:
       dir: pkg/validation/mocks
-      outpkg: mocks
+      pkgname: mocks
     interfaces:
       ResponseWriter:
         config:
-          mockname: ResponseWriter
+          structname: ResponseWriter
+          filename: mock_ResponseWriter.go
   sigs.k8s.io/controller-runtime/pkg/client:
     config:
       dir: pkg/subroutines/mocks
-      outpkg: mocks
+      pkgname: mocks
     interfaces:
       Client:
         config:
-          mockname: Client
+          structname: Client
+          filename: mock_Client.go
