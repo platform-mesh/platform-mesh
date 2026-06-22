@@ -25,7 +25,7 @@ import (
 	conditionshelper "github.com/kcp-dev/sdk/apis/third_party/conditions/util/conditions"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/subroutines"
+	"go.platform-mesh.io/subroutines"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

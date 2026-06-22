@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
-	"github.com/platform-mesh/subroutines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
@@ -17,6 +16,7 @@ import (
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/subroutine/idp"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
+	"go.platform-mesh.io/subroutines"
 	"golang.org/x/oauth2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"

@@ -22,7 +22,7 @@ import (
 
 	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/subroutines"
+	"go.platform-mesh.io/subroutines"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"

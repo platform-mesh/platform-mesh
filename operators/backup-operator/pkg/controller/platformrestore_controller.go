@@ -19,9 +19,9 @@ package controller
 import (
 	"context"
 
-	"github.com/platform-mesh/subroutines"
-	"github.com/platform-mesh/subroutines/conditions"
-	"github.com/platform-mesh/subroutines/lifecycle"
+	"go.platform-mesh.io/subroutines"
+	"go.platform-mesh.io/subroutines/conditions"
+	"go.platform-mesh.io/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"

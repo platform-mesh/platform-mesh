@@ -8,7 +8,7 @@ require (
 	github.com/kcp-dev/sdk v0.30.1
 	github.com/platform-mesh/account-operator v0.12.32
 	github.com/platform-mesh/golang-commons v0.13.23
-	github.com/platform-mesh/subroutines v0.2.6
+	go.platform-mesh.io/subroutines v0.2.6
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0

@@ -34,11 +34,11 @@ import (
 
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/platform-mesh/subroutines"
-	"github.com/platform-mesh/subroutines/lifecycle"
 	"go.platform-mesh.io/account-operator/internal/config"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/finalizeaccountinfo"
 	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/subroutines"
+	"go.platform-mesh.io/subroutines/lifecycle"
 )
 
 const accountInfoReconcilerName = "AccountInfoReconciler"

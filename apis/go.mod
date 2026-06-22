@@ -1,21 +1,21 @@
 module go.platform-mesh.io/apis
 
-go 1.26.0
+go 1.26.3
 
 require (
 	github.com/kcp-dev/sdk v0.31.2
 	github.com/platform-mesh/extension-manager-operator/api v0.9.9
 	github.com/platform-mesh/golang-commons v0.17.9
-	github.com/platform-mesh/subroutines v0.4.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
-	k8s.io/api v0.35.4
-	k8s.io/apiextensions-apiserver v0.35.4
-	k8s.io/apimachinery v0.36.0
-	k8s.io/client-go v0.35.4
+	go.platform-mesh.io/subroutines v0.0.0-20260622100944-010f91729b05
+	k8s.io/api v0.36.0
+	k8s.io/apiextensions-apiserver v0.36.0
+	k8s.io/apimachinery v0.36.2
+	k8s.io/client-go v0.36.0
 	k8s.io/kube-openapi v0.0.0-20260618221249-bc653b64f974
-	sigs.k8s.io/controller-runtime v0.23.3
-	sigs.k8s.io/multicluster-runtime v0.23.3
+	sigs.k8s.io/controller-runtime v0.24.1
+	sigs.k8s.io/multicluster-runtime v0.24.1
 )
 
 require (
@@ -43,7 +43,6 @@ require (
 	github.com/go-openapi/swag/stringutils v0.26.0 // indirect
 	github.com/go-openapi/swag/typeutils v0.26.0 // indirect
 	github.com/go-openapi/swag/yamlutils v0.26.0 // indirect
-	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -61,7 +60,6 @@ require (
 	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
-	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/x448/float16 v0.8.4 // indirect

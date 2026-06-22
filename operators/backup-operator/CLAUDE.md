@@ -48,7 +48,7 @@ Both types implement the `subroutines` conditions accessor interface (`GetCondit
 Follows the **account-operator** conventions exactly:
 
 - Controllers live in `internal/controller/`.
-- Each controller holds a `*lifecycle.Lifecycle` from `github.com/platform-mesh/subroutines/lifecycle` and delegates `Reconcile()` to it.
+- Each controller holds a `*lifecycle.Lifecycle` from `go.platform-mesh.io/subroutines/lifecycle` and delegates `Reconcile()` to it.
 - Reconcilers are registered with the **multicluster-runtime** manager via `mcbuilder.ControllerManagedBy(mgr)` (not the standard controller-runtime builder).
 - The manager is created with a **path-aware KCP provider** (`github.com/kcp-dev/multicluster-provider/path-aware`), enabling reconciliation across kcp logical clusters.
 
@@ -56,8 +56,8 @@ Follows the **account-operator** conventions exactly:
 `main.go` → `cmd.Execute()` → Cobra root (`cmd/root.go`) registers the scheme and adds the `operator` sub-command → `cmd/operator.go` builds the `mcmanager`, wires both controllers, and calls `mgr.Start()`.
 
 ### Code generation
-`zz_generated.deepcopy.go` is produced by `controller-gen object:headerFile=hack/boilerplate.go.txt paths=./...`.  
-CRD YAMLs in `config/crd/` are produced by `controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config=config/crd`.  
+`zz_generated.deepcopy.go` is produced by `controller-gen object:headerFile=hack/boilerplate.go.txt paths=./...`.
+CRD YAMLs in `config/crd/` are produced by `controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config=config/crd`.
 Both are committed and must be regenerated whenever API types change (`task generate`).
 
 ### Dependency versions
@@ -65,5 +65,5 @@ Pinned to match the account-operator exactly:
 - `sigs.k8s.io/controller-runtime v0.23.3`
 - `sigs.k8s.io/multicluster-runtime v0.23.1`
 - `k8s.io/api`, `k8s.io/apimachinery`, `k8s.io/client-go` — all `v0.35.4`
-- `github.com/platform-mesh/subroutines v0.3.3`
+- `go.platform-mesh.io/subroutines v0.3.3`
 - `github.com/kcp-dev/multicluster-provider v0.5.1`

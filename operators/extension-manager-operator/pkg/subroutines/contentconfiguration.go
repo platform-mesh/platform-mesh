@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/subroutines"
+	"go.platform-mesh.io/subroutines"
 	"k8s.io/apimachinery/pkg/api/meta"
 	apimachinery "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"

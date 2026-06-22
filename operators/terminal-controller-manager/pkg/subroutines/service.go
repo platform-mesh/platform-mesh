@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/subroutines"
 	"github.com/platform-mesh/terminal-controller-manager/api/v1alpha1"
+	"go.platform-mesh.io/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
