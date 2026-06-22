@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/rs/zerolog/log"
 	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/subroutines"

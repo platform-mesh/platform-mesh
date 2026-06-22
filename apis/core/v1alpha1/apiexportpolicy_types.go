@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+	lifecycleapi "go.platform-mesh.io/golang-commons/controller/lifecycle/api"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

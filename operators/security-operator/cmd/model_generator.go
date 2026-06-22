@@ -5,9 +5,9 @@ import (
 	"crypto/tls"
 	"fmt"
 
-	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/spf13/cobra"
 	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	platformeshcontext "go.platform-mesh.io/golang-commons/context"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/controller"
 	ctrl "sigs.k8s.io/controller-runtime"

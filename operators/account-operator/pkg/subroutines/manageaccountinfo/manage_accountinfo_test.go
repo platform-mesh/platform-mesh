@@ -35,11 +35,11 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
 	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger/testlogger"
 )
 
 var _ multicluster.Provider = &Provider{}

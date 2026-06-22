@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	platformeshcontext "github.com/platform-mesh/golang-commons/context"
-	"github.com/platform-mesh/golang-commons/sentry"
 	"github.com/spf13/cobra"
 	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	platformeshcontext "go.platform-mesh.io/golang-commons/context"
+	"go.platform-mesh.io/golang-commons/sentry"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/controller"
 	fga2 "go.platform-mesh.io/security-operator/internal/fga"

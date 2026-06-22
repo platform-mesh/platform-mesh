@@ -5,8 +5,8 @@ import (
 	"crypto/tls"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/spf13/cobra"
+	platformeshcontext "go.platform-mesh.io/golang-commons/context"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/controller"

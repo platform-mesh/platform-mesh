@@ -7,10 +7,10 @@ import (
 	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 )
 

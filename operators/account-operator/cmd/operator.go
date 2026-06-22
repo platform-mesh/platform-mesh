@@ -24,9 +24,9 @@ import (
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
-	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
-	"github.com/platform-mesh/golang-commons/traces"
 	"github.com/spf13/cobra"
+	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
+	"go.platform-mesh.io/golang-commons/traces"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"

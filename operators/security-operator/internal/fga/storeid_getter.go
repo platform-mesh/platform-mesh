@@ -7,7 +7,7 @@ import (
 
 	"github.com/jellydator/ttlcache/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 

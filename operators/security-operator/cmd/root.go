@@ -4,9 +4,9 @@ import (
 	"errors"
 
 	"github.com/go-logr/logr"
-	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/spf13/cobra"
+	platformeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/security-operator/internal/config"
 	ctrl "sigs.k8s.io/controller-runtime"
 

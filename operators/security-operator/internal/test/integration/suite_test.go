@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	platformeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/controller"
