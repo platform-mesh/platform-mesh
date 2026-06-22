@@ -6,6 +6,7 @@ use (
 	./golang-commons
 	./operators/account-operator
 	./operators/backup-operator
+	./operators/extension-manager-operator
 	./operators/security-operator
 	./subroutines
 )

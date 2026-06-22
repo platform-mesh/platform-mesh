@@ -1336,7 +1336,6 @@ github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/f
 github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncjaFoBhdsK/akog=
 github.com/rogpeppe/go-internal v1.12.0/go.mod h1:E+RYuTGaKKdloAfM02xzb0FW3Paa99yedzYV+kq4uf4=
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
-github.com/rs/cors v1.11.1/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
 github.com/rs/xid v1.2.1/go.mod h1:+uKXf+4Djp6Md1KODXJxgGQPKngRmWyn10oCKFzNHOQ=
 github.com/rs/xid v1.6.0/go.mod h1:7XoLgs4eV+QndskICGsho+ADou8ySMSjJKDIan90Nz0=
 github.com/rs/zerolog v1.21.0/go.mod h1:ZPhntP/xmq1nnND05hhpAh2QMhSsA4UN3MGZ6O2J3hM=
@@ -1599,7 +1598,9 @@ go.opentelemetry.io/proto/otlp v1.7.1/go.mod h1:b2rVh6rfI/s2pHWNlB7ILJcRALpcNDzK
 go.opentelemetry.io/proto/otlp v1.9.0/go.mod h1:xE+Cx5E/eEHw+ISFkwPLwCZefwVjY+pqKg1qcK03+/4=
 go.platform-mesh.io/apis v0.0.0-20260622122527-e12b466d38ab/go.mod h1:oJLBH8/hifu56PqrnGQsr+n1ijw6jMwTKD+uRoFN8PM=
 go.platform-mesh.io/apis v0.0.0-20260622145940-383b09051f2a/go.mod h1:m0eJ52+0rOhCG0U8FSQkrc3wHfVTDAEJEGx8pCMiyIU=
+go.platform-mesh.io/golang-commons v0.0.0-20260622163530-6da3dc047e52/go.mod h1:DWOpNDsJNI8QDpJuegdtHUwsgmkamaSqBU8YQiYTcIY=
 go.platform-mesh.io/subroutines v0.0.0-20260622133610-fe2f9154f2a9/go.mod h1:AvyfyWGWHzL0mKS1oEuGzlTuVq28RoQpKDqdm6XArmc=
+go.platform-mesh.io/subroutines v0.0.0-20260622163530-6da3dc047e52/go.mod h1:QIZAK/3AfBAZi90Lj4qFSgIsk9on1Gf3HB7i6Ms1WX0=
 go.uber.org/atomic v1.3.2/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
 go.uber.org/atomic v1.5.0/go.mod h1:sABNBOSYdrvTF6hTgEIbc7YasKWGhgEQZyfxyTvoXHQ=
 go.uber.org/atomic v1.6.0/go.mod h1:sABNBOSYdrvTF6hTgEIbc7YasKWGhgEQZyfxyTvoXHQ=

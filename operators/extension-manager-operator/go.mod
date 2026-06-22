@@ -2,8 +2,6 @@ module go.platform-mesh.io/extension-manager-operator
 
 go 1.25.7
 
-replace dario.cat/mergo => github.com/imdario/mergo v1.0.2
-
 require (
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-http-utils/headers v0.0.0-20181008091004-fed159eddc2a
@@ -12,7 +10,8 @@ require (
 	github.com/invopop/jsonschema v0.14.0
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.5.1
+	github.com/kcp-dev/multicluster-provider v0.7.1
+	github.com/kcp-dev/multicluster-provider/client v0.7.1
 	github.com/kcp-dev/sdk v0.31.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
@@ -23,8 +22,8 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.platform-mesh.io/apis v0.0.0-20260622163530-6da3dc047e52
-	go.platform-mesh.io/golang-commons v0.0.0-20260622151009-aa3b9ac4f77d
-	go.platform-mesh.io/subroutines v0.0.0-20260622151009-aa3b9ac4f77d
+	go.platform-mesh.io/golang-commons v0.0.0-20260622163530-6da3dc047e52
+	go.platform-mesh.io/subroutines v0.0.0-20260622163530-6da3dc047e52
 	golang.org/x/sync v0.21.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.35.4
@@ -72,7 +71,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kcp-dev/apimachinery/v2 v2.31.2 // indirect
