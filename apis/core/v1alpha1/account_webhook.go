@@ -22,16 +22,13 @@ import (
 	"slices"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	mcruntime "sigs.k8s.io/multicluster-runtime"
 )
 
 func SetupAccountWebhookWithManager(mgr ctrl.Manager, organizationNameDenyList []string, accountTypeAllowList []AccountType) error {
-	return mcruntime.NewWebhookManagedBy(mgr).
-		For(&Account{}).
+	return mcruntime.NewWebhookManagedBy(mgr, &Account{}).
 		WithDefaulter(&AccountDefaulter{}).
 		WithValidator(&AccountValidator{OrganizationNameDenyList: organizationNameDenyList, AccountTypeAllowList: accountTypeAllowList}).
 		Complete()
@@ -40,9 +37,7 @@ func SetupAccountWebhookWithManager(mgr ctrl.Manager, organizationNameDenyList [
 type AccountDefaulter struct{}
 
 // Default implements admission.CustomDefaulter.
-func (a *AccountDefaulter) Default(ctx context.Context, obj runtime.Object) error {
-	account := obj.(*Account)
-
+func (a *AccountDefaulter) Default(ctx context.Context, account *Account) error {
 	req, err := admission.RequestFromContext(ctx)
 	if err != nil {
 		return err
@@ -53,16 +48,15 @@ func (a *AccountDefaulter) Default(ctx context.Context, obj runtime.Object) erro
 	return nil
 }
 
-var _ webhook.CustomDefaulter = &AccountDefaulter{} // nolint:staticcheck
-var _ webhook.CustomValidator = &AccountValidator{} // nolint:staticcheck
+var _ admission.Defaulter[*Account] = &AccountDefaulter{} // nolint:staticcheck
+var _ admission.Validator[*Account] = &AccountValidator{} // nolint:staticcheck
 
 type AccountValidator struct {
 	OrganizationNameDenyList []string
 	AccountTypeAllowList     []AccountType
 }
 
-func (v *AccountValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	account := obj.(*Account)
+func (v *AccountValidator) ValidateCreate(ctx context.Context, account *Account) (admission.Warnings, error) {
 	accountType := string(account.Spec.Type)
 
 	if !slices.Contains(v.AccountTypeAllowList, account.Spec.Type) {
@@ -89,8 +83,8 @@ func (v *AccountValidator) ValidateCreate(ctx context.Context, obj runtime.Objec
 	return nil, nil
 }
 
-func (v *AccountValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	account := newObj.(*Account)
+func (v *AccountValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *Account) (admission.Warnings, error) {
+	account := newObj
 	accountType := string(account.Spec.Type)
 
 	if !slices.Contains(v.AccountTypeAllowList, account.Spec.Type) {
@@ -117,6 +111,6 @@ func (v *AccountValidator) ValidateUpdate(ctx context.Context, oldObj, newObj ru
 	return nil, nil
 }
 
-func (v *AccountValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *AccountValidator) ValidateDelete(ctx context.Context, account *Account) (admission.Warnings, error) {
 	return nil, nil
 }

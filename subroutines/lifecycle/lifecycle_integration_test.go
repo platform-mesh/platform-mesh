@@ -40,7 +40,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	defer env.Stop()
 
 	s := runtime.NewScheme()
-	require.NoError(t, metav1.AddToGroupVersion(s, schema.GroupVersion{Group: "test.io", Version: "v1alpha1"}))
+	metav1.AddToGroupVersion(s, schema.GroupVersion{Group: "test.io", Version: "v1alpha1"})
 	s.AddKnownTypeWithName(testGVK, &testObject{})
 
 	cl, err := client.New(cfg, client.Options{Scheme: s})
