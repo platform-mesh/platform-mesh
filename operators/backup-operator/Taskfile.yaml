@@ -57,23 +57,27 @@ tasks:
     cmds:
       - task: fmt
       - task: tools:lint
-  envtest:
-    deps: [tools:envtest]
+  test:
+    deps: [tools:kcp, tools:gomplate]
+    cmds:
+      - go test ./...
+  test-e2e:
+    deps: [tools:kcp, tools:gomplate, tools:envtest]
     vars:
       ASSETS:
         sh: 'echo "${KUBEBUILDER_ASSETS:-$({{.ROOT_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.ROOT_BIN}} -p path)}"'
     env:
       KUBEBUILDER_ASSETS: "{{.ASSETS}}"
     cmds:
-      - go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
-  test:
-    deps: [tools:kcp, tools:gomplate]
-    cmds:
-      - task: envtest
+      - go test -tags integration ./... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
-    deps: [tools:kcp, tools:gomplate]
     cmds:
-      - task: envtest
+      - task: test
+        vars:
+          ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+  cover-e2e:
+    cmds:
+      - task: test-e2e
         vars:
           ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
 
