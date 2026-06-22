@@ -5,6 +5,7 @@ use (
 	./cmd/release
 	./operators/account-operator
 	./operators/security-operator
+	./subroutines
 )
 
 // kcp-dev/multicluster-provider has an internal replace directive that breaks go work sync
