@@ -10,6 +10,9 @@
 //	                                               GitHub release, chart bump, SBOM, OCM
 //	backup-operator    backup-operator/v<X.Y.Z>    backup-operator.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
+//	extension-manager-operator   extension-manager-operator/v<X.Y.Z>
+//	                                               extension-manager-operator.yml: signed image,
+//	                                               GitHub release, chart bump, SBOM, OCM
 //	security-operator  security-operator/v<X.Y.Z>  security-operator.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
 //
@@ -62,10 +65,11 @@ type component struct {
 var componentOrder = []string{"apis", "account-operator", "backup-operator", "security-operator"}
 
 var components = map[string]component{
-	"apis":              {"apis/v", "go-gettable module tag for go.platform-mesh.io/apis (no image)"},
-	"account-operator":  {"account-operator/v", "account-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
-	"backup-operator":   {"backup-operator/v", "backup-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
-	"security-operator": {"security-operator/v", "security-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"apis":                       {"apis/v", "go-gettable module tag for go.platform-mesh.io/apis (no image)"},
+	"account-operator":           {"account-operator/v", "account-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"backup-operator":            {"backup-operator/v", "backup-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"extension-manager-operator": {"extension-manager-operator/v", "extension-manager-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"security-operator":          {"security-operator/v", "security-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 }
 
 func main() {
@@ -387,11 +391,12 @@ Usage:
   release <component|all> [flags]
 
 Components:
-  apis               apis/v<X.Y.Z>               (go-gettable module tag, no image)
-  account-operator   account-operator/v<X.Y.Z>   (signed image + release + chart + SBOM + OCM)
-  backup-operator    backup-operator/v<X.Y.Z>    (signed image + release + chart + SBOM + OCM)
-  security-operator  security-operator/v<X.Y.Z>  (signed image + release + chart + SBOM + OCM)
-  all                every component (independent versions)
+  apis                         apis/v<X.Y.Z>                         (go-gettable module tag, no image)
+  account-operator             account-operator/v<X.Y.Z>             (signed image + release + chart + SBOM + OCM)
+  backup-operator              backup-operator/v<X.Y.Z>              (signed image + release + chart + SBOM + OCM)
+  extension-manager-operator   extension-manager-operator/v<X.Y.Z>   (signed image + release + chart + SBOM + OCM)
+  security-operator            security-operator/v<X.Y.Z>            (signed image + release + chart + SBOM + OCM)
+  all                          every component                       (independent versions)
 
 Flags:
   --tag <vX.Y.Z>   set the exact version (single component only)
