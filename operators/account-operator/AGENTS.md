@@ -30,7 +30,7 @@ This is not a standard controller-runtime operator. Read this before touching re
   - **`orgsClient`** (built in `cmd/operator.go:buildOrgsClient` by rewriting the host to `/clusters/root:orgs`) — passed to subroutines that must operate in the orgs workspace (`WorkspaceType`, `Workspace`).
 
 ### Reconciliation: subroutine chain
-Both controllers delegate `Reconcile` to `lifecycle.Lifecycle.Reconcile` from `github.com/platform-mesh/subroutines`, which runs an ordered list of `subroutines.Subroutine` implementations.
+Both controllers delegate `Reconcile` to `lifecycle.Lifecycle.Reconcile` from `go.platform-mesh.io/subroutines`, which runs an ordered list of `subroutines.Subroutine` implementations.
 
 - `AccountReconciler` runs: `workspacetype` → `workspace` → `manageaccountinfo` → `workspaceready`, each gated by a flag in `config.SubroutinesConfig`.
 - `AccountInfoReconciler` runs only `finalizeaccountinfo`, gated by `--controllers-account-info-enabled`.

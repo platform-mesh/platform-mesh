@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"fmt"
 
-	"github.com/platform-mesh/subroutines/conditions"
+	"go.platform-mesh.io/subroutines/conditions"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

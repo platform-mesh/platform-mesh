@@ -9,12 +9,12 @@ import (
 
 	"github.com/coreos/go-oidc"
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/subroutines"
 	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/pkg/clientreg"
 	"go.platform-mesh.io/security-operator/pkg/clientreg/keycloak"
+	"go.platform-mesh.io/subroutines"
 	"golang.org/x/oauth2/clientcredentials"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"

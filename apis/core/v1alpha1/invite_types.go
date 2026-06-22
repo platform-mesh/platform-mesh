@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/platform-mesh/subroutines/conditions"
+	"go.platform-mesh.io/subroutines/conditions"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
