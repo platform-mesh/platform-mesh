@@ -39,7 +39,7 @@ includes:
     dir: .
 
 vars:
-  COMPONENTS: apis account-operator backup-operator extension-manager-operator kcp-migration-operator resource-sharding-operator search-operator search-service security-operator terminal-controller-manager rebac-authz-webhook virtual-workspaces
+  COMPONENTS: apis account-operator backup-operator extension-manager-operator kcp-migration-operator resource-sharding-operator search-operator security-operator terminal-controller-manager iam-service virtual-workspaces
 
 tasks:
   default:

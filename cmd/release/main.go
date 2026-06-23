@@ -43,6 +43,8 @@ limitations under the License.
 //	                                               GitHub release, chart bump, SBOM, OCM
 //	terminal-controller-manager   terminal-controller-manager/v<X.Y.Z>
 //	                                               terminal-controller-manager.yml: signed image,
+//	iam-service   iam-service/v<X.Y.Z>             iam-service.yml: signed image,
+//	                                               GitHub release, chart bump, SBOM, OCM
 //	                                               GitHub release, chart bump, SBOM, OCM
 //	rebac-authz-webhook   rebac-authz-webhook/v<X.Y.Z>
 //	                                               rebac-authz-webhook.yml: signed image,
@@ -102,6 +104,7 @@ var componentOrder = []string{
 	"account-operator",
 	"backup-operator",
 	"extension-manager-operator",
+	"iam-service",
 	"kcp-migration-operator",
 	"resource-sharding-operator",
 	"search-operator",
@@ -117,6 +120,7 @@ var components = map[string]component{
 	"account-operator":            {"account-operator/v", "account-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"backup-operator":             {"backup-operator/v", "backup-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"extension-manager-operator":  {"extension-manager-operator/v", "extension-manager-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"iam-service":                 {"iam-service/v", "iam-service.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"kcp-migration-operator":      {"kcp-migration-operator/v", "kcp-migration-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"resource-sharding-operator":  {"resource-sharding-operator/v", "resource-sharding-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"search-operator":             {"search-operator/v", "search-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
@@ -456,7 +460,9 @@ Components:
   search-operator              search-operator/v<X.Y.Z>              (signed image + release + chart + SBOM + OCM)
   search-service               search-service/v<X.Y.Z>               (signed image + release + chart + SBOM + OCM)
   terminal-controller-manager  terminal-controller-manager/v<X.Y.Z>  (signed image + release + chart + SBOM + OCM)
+  iam-service                  iam-service/v<X.Y.Z>                  (signed image + release + chart + SBOM + OCM)
   rebac-authz-webhook          rebac-authz-webhook/v<X.Y.Z>          (signed image + release + chart + SBOM + OCM)
+  terminal-controller-manager  terminal-controller-manager/v<X.Y.Z>  (signed image + release + chart + SBOM + OCM)
   virtual-workspaces           virtual-workspaces/v<X.Y.Z>           (signed image + release + chart + SBOM + OCM)
   all                          every component                       (independent versions)
 
