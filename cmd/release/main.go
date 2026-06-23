@@ -42,6 +42,9 @@ limitations under the License.
 //	terminal-controller-manager   terminal-controller-manager/v<X.Y.Z>
 //	                                               terminal-controller-manager.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
+//	virtual-workspaces   virtual-workspaces/v<X.Y.Z>
+//	                                               virtual-workspaces.yml: signed image,
+//	                                               GitHub release, chart bump, SBOM, OCM
 //
 // It finds the component's latest existing tag, bumps it (patch by default),
 // and creates + pushes the new tag — the release workflow does the rest.
@@ -99,6 +102,7 @@ var componentOrder = []string{
 	"search-operator",
 	"security-operator",
 	"terminal-controller-manager",
+	"virtual-workspaces",
 }
 
 var components = map[string]component{
@@ -111,6 +115,7 @@ var components = map[string]component{
 	"search-operator":             {"search-operator/v", "search-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"security-operator":           {"security-operator/v", "security-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"terminal-controller-manager": {"terminal-controller-manager/v", "terminal-controller-manager.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"virtual-workspaces":          {"virtual-workspaces/v", "virtual-workspaces.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 }
 
 func main() {
@@ -441,6 +446,7 @@ Components:
   security-operator            security-operator/v<X.Y.Z>            (signed image + release + chart + SBOM + OCM)
   search-operator              search-operator/v<X.Y.Z>              (signed image + release + chart + SBOM + OCM)
   terminal-controller-manager  terminal-controller-manager/v<X.Y.Z>  (signed image + release + chart + SBOM + OCM)
+  virtual-workspaces           virtual-workspaces/v<X.Y.Z>           (signed image + release + chart + SBOM + OCM)
   all                          every component                       (independent versions)
 
 Flags:

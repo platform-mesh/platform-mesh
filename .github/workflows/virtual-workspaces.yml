@@ -1,0 +1,345 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: virtual-workspaces
+
+# Per-operator pipeline for services/virtual-workspaces.
+#   - Pull requests:     build the image only (no push).
+#   - Push to main:      build and push the mutable :latest image.
+#   - Push a git tag
+#     virtual-workspaces/v*: build and push the dedicated, immutable version
+#                            image, sign it, cut a GitHub release, bump the chart
+#                            and publish the signed OCM component.
+#
+# Releases are component-scoped: tagging `virtual-workspaces/v1.2.3` only builds
+# this operator, never the others in the monorepo.
+#
+# Build context is the repository ROOT (the operator module is linked to the
+# shared ./apis module through the repository-root go.work file), so the image
+# is built with -f services/virtual-workspaces/Dockerfile .
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'virtual-workspaces/v*'
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    paths:
+      - 'services/virtual-workspaces/**'
+      - 'apis/**'
+      - 'go.work'
+      - 'go.work.sum'
+      - '.github/workflows/virtual-workspaces.yml'
+
+permissions:
+  contents: write
+  id-token: write
+  issues: write
+  packages: write
+  pull-requests: write
+  attestations: write
+
+concurrency:
+  group: virtual-workspaces-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPONENT: virtual-workspaces
+  IMAGE_NAME: ghcr.io/platform-mesh/platform-mesh/virtual-workspaces
+  DOCKERFILE: services/virtual-workspaces/Dockerfile
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Quality jobs (every event).
+  #
+  # Run from the repo root via the root Taskfile's per-component targets so the
+  # go.work workspace (which links ./apis) is in scope.
+  # ──────────────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: services/virtual-workspaces/go.mod
+          cache: true
+      - name: Enable git CLI clones using GITHUB_TOKEN
+        run: |
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task lint-${{ env.COMPONENT }}
+
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GOPRIVATE: github.com/platform-mesh
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: services/virtual-workspaces/go.mod
+          cache: true
+      - name: Enable git CLI clones using GITHUB_TOKEN
+        run: |
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task test-${{ env.COMPONENT }}
+
+  # Integration (envtest) suite: downloads the shared kcp (tools:kcp) and runs
+  # the kcp-backed controller tests under internal/controller.
+  test-e2e:
+    runs-on: ubuntu-latest
+    env:
+      GOPRIVATE: github.com/platform-mesh
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: services/virtual-workspaces/go.mod
+          cache: true
+      - name: Enable git CLI clones using GITHUB_TOKEN
+        run: |
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task test-e2e-${{ env.COMPONENT }}
+
+  # ──────────────────────────────────────────────
+  # PR: build only, never push.
+  # ──────────────────────────────────────────────
+  docker-build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image (no push)
+        run: |
+          task images-${{ env.COMPONENT }} \
+            VERSION=pr-${{ github.event.pull_request.number }} \
+            REPO=${{ github.repository }} \
+            PLATFORMS=linux/amd64 \
+            PUSH=false
+
+  # ──────────────────────────────────────────────
+  # main: build and push the mutable :latest image.
+  # ──────────────────────────────────────────────
+  docker-build-latest:
+    if: github.ref == 'refs/heads/main'
+    needs: [lint, test, test-e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      # Full image reference (name@digest) for downstream jobs. The env context
+      # is not available in a reusable-workflow `with:` block, so we assemble the
+      # ref here inside the step (where env works) and pass it via needs.
+      imageRef: ${{ steps.build.outputs.imageRef }}
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push :latest
+        id: build
+        run: |
+          task images-${{ env.COMPONENT }} \
+            VERSION=latest \
+            REPO=${{ github.repository }} \
+            PLATFORMS=linux/amd64,linux/arm64 \
+            PUSH=true \
+            METADATA_FILE="${{ runner.temp }}/metadata.json"
+          digest=$(jq -r '."containerimage.digest"' "${{ runner.temp }}/metadata.json")
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "imageRef=${IMAGE_NAME}@${digest}" >> "$GITHUB_OUTPUT"
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+      - name: Sign container image
+        run: cosign sign --yes ${{ steps.build.outputs.imageRef }}
+
+  trivy-image:
+    if: github.ref == 'refs/heads/main'
+    needs: [docker-build-latest]
+    uses: platform-mesh/.github/.github/workflows/job-trivy-image.yml@main
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    with:
+      imageRef: ${{ needs.docker-build-latest.outputs.imageRef }}
+
+  # ──────────────────────────────────────────────
+  # Tag virtual-workspaces/v*: dedicated immutable version release.
+  # ──────────────────────────────────────────────
+  version:
+    if: startsWith(github.ref, 'refs/tags/virtual-workspaces/')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - name: Derive version from tag
+        id: v
+        # vX.Y.Z (keeps the leading v) — used for the image tag and OCM.
+        run: echo "version=${GITHUB_REF#refs/tags/virtual-workspaces/}" >> "$GITHUB_OUTPUT"
+
+  docker-build-push:
+    if: startsWith(github.ref, 'refs/tags/virtual-workspaces/')
+    needs: [version, lint, test, test-e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push version
+        id: build
+        run: |
+          task images-${{ env.COMPONENT }} \
+            VERSION=${{ needs.version.outputs.version }} \
+            REPO=${{ github.repository }} \
+            PLATFORMS=linux/amd64,linux/arm64 \
+            PUSH=true \
+            METADATA_FILE="${{ runner.temp }}/metadata.json"
+          echo "digest=$(jq -r '."containerimage.digest"' "${{ runner.temp }}/metadata.json")" >> "$GITHUB_OUTPUT"
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+      - name: Sign container image
+        run: cosign sign --yes ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+      # Generate SBOMs from the pushed image (by digest) and attach them to the
+      # image as signed cosign attestations — verifiable with
+      # `cosign verify-attestation`. The SBOMs are also kept as workflow artifacts.
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: cyclonedx-json
+          output-file: sbom-cyclonedx.json
+          upload-release-assets: false
+          upload-artifact: false
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: sbom-spdx.json
+          upload-release-assets: false
+          upload-artifact: false
+      # The image-ocm job downloads this `sbom` artifact and embeds both files
+      # as OCM resources (sbom-cyclonedx / sbom-spdx).
+      - name: Upload SBOM artifact (consumed by image-ocm)
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: sbom
+          path: |
+            sbom-cyclonedx.json
+            sbom-spdx.json
+          retention-days: 1
+      - name: Attest SBOMs to image
+        run: |
+          cosign attest --yes --type cyclonedx --predicate sbom-cyclonedx.json \
+            ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          cosign attest --yes --type spdxjson --predicate sbom-spdx.json \
+            ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+      - name: Create Release
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
+        with:
+          allowUpdates: true
+          draft: false
+          makeLatest: true
+          generateReleaseNotes: true
+          tag: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  update-version:
+    if: startsWith(github.ref, 'refs/tags/virtual-workspaces/')
+    needs: [version, docker-build-push]
+    uses: platform-mesh/.github/.github/workflows/job-chart-version-update.yml@main
+    secrets: inherit
+    with:
+      appVersion: ${{ needs.version.outputs.version }}
+      chart: virtual-workspaces
+      targetRepository: platform-mesh/helm-charts
+
+  image-ocm:
+    if: startsWith(github.ref, 'refs/tags/virtual-workspaces/')
+    needs: [version, docker-build-push]
+    uses: platform-mesh/.github/.github/workflows/job-image-ocm.yml@main
+    secrets: inherit
+    with:
+      imageReference: ghcr.io/platform-mesh/platform-mesh/virtual-workspaces:${{ needs.version.outputs.version }}
+      appVersion: ${{ needs.version.outputs.version }}
+      # The reusable job signs with "<repoName>.platform-mesh" and OCM requires
+      # that to equal the signing cert's CN. The monorepo's shared OCM cert has
+      # CN "platform-mesh.platform-mesh", so repoName must be platform-mesh. The
+      # per-component OCM component identity is preserved via componentName.
+      repoName: platform-mesh
+      componentName: github.com/platform-mesh/images/virtual-workspaces
+      commit: ${{ github.sha }}
+      # Store the OCM component under this repo (owned by its GITHUB_TOKEN),
+      # not the org root, to avoid cross-repo package permissions.
+      ocmRegistryUrl: ghcr.io/platform-mesh/platform-mesh
+
+  trivy-sbom:
+    if: startsWith(github.ref, 'refs/tags/virtual-workspaces/')
+    needs: [version, docker-build-push, image-ocm]
+    uses: platform-mesh/.github/.github/workflows/job-trivy-sbom.yml@main
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    with:
+      componentName: github.com/platform-mesh/images/virtual-workspaces
+      componentVersion: ${{ needs.version.outputs.version }}
