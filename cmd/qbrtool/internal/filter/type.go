@@ -19,7 +19,7 @@ package filter
 import (
 	"strings"
 
-	"github.com/platform-mesh/qbrtool/internal/models"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 // TypeFilter filters items by type

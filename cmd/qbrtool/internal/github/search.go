@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/platform-mesh/qbrtool/internal/models"
 	"github.com/shurcooL/graphql"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 // SearchArchivedItems searches for issues/PRs that are archived in the project

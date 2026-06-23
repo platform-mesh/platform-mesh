@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/platform-mesh/qbrtool/internal/models"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 var cvePattern = regexp.MustCompile(`CVE-\d{4}-\d{4,}`)

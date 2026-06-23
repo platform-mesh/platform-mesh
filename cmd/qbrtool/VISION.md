@@ -355,7 +355,7 @@ cat analysis.md | llm "Format this as an executive QBR summary with highlights"
 │      Status (single_select): Backlog, In Progress, Done...                 │
 │      IssueType (single_select): Epic, Task                                 │
 │      Priority (single_select): P0, P1, P2                                  │
-│      Domain (single_select): Platform Mesh, KCP                            │
+│      Domain (single_select): Platform Mesh, kcp                            │
 │                                                                             │
 │                                                                             │
 │  Step 2: Export Quarter Data                                                │

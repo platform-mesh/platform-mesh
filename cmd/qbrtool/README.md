@@ -17,14 +17,14 @@ A Go CLI tool for exporting and analyzing GitHub Project Board items. Supports d
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.25 or later
 - GitHub CLI (`gh`) for authentication (recommended)
 
 ### Installation
 
 ```bash
-git clone https://github.com/platform-mesh/qbrtool.git
-cd qbrtool
+git clone https://github.com/platform-mesh/platform-mesh
+cd cmd/qbrtool
 make build
 ```
 
@@ -69,7 +69,7 @@ Available fields for platform-mesh/1 (Platform Mesh & Kube Projects - Backlog):
   Status (single_select): Backlog, In Progress, Blocked/Waiting, In-Review, Done, Ongoing, Demo'd
   Priority (single_select): P0, P1, P2
   IssueType (single_select): Epic, Task
-  Domain (single_select): Platform Mesh, KCP
+  Domain (single_select): Platform Mesh, kcp
   Milestone (milestone)
   ...
 

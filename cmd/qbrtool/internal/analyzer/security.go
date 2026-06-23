@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/platform-mesh/qbrtool/internal/models"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 // SecurityAnalyzer detects security related items

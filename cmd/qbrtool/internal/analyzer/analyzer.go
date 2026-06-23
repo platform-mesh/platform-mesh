@@ -16,7 +16,7 @@ limitations under the License.
 
 package analyzer
 
-import "github.com/platform-mesh/qbrtool/internal/models"
+import "go.platform-mesh.io/qbrtool/internal/models"
 
 // Analyzer is an interface for analyzing project items
 type Analyzer interface {

@@ -23,11 +23,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/platform-mesh/qbrtool/internal/exporter"
-	"github.com/platform-mesh/qbrtool/internal/filter"
-	"github.com/platform-mesh/qbrtool/internal/github"
-	"github.com/platform-mesh/qbrtool/internal/models"
 	"github.com/spf13/cobra"
+	"go.platform-mesh.io/qbrtool/internal/exporter"
+	"go.platform-mesh.io/qbrtool/internal/filter"
+	"go.platform-mesh.io/qbrtool/internal/github"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 var (

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/platform-mesh/qbrtool/internal/models"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 // Operator represents the comparison operator for dynamic filters

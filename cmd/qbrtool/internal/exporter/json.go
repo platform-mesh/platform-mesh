@@ -19,7 +19,7 @@ package exporter
 import (
 	"time"
 
-	"github.com/platform-mesh/qbrtool/internal/models"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 // Metadata contains export metadata

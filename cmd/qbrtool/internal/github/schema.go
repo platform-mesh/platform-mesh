@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/platform-mesh/qbrtool/internal/models"
 	"github.com/shurcooL/graphql"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 // GetProjectSchema fetches the complete schema for a project

@@ -16,7 +16,7 @@ limitations under the License.
 
 package filter
 
-import "github.com/platform-mesh/qbrtool/internal/models"
+import "go.platform-mesh.io/qbrtool/internal/models"
 
 // Filter is an interface for filtering project items
 type Filter interface {

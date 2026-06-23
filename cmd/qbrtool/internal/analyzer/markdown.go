@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/platform-mesh/qbrtool/internal/exporter"
-	"github.com/platform-mesh/qbrtool/internal/models"
+	"go.platform-mesh.io/qbrtool/internal/exporter"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 // WriteMarkdown writes analysis results as a markdown report.

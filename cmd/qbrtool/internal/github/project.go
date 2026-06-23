@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/platform-mesh/qbrtool/internal/models"
 	"github.com/shurcooL/graphql"
+	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
 // GetProjectID returns the project ID for the given organization and project number
