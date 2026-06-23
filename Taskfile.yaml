@@ -39,7 +39,7 @@ includes:
     dir: .
 
 vars:
-  COMPONENTS: apis account-operator backup-operator extension-manager-operator kcp-migration-operator resource-sharding-operator security-operator
+  COMPONENTS: apis account-operator backup-operator extension-manager-operator kcp-migration-operator resource-sharding-operator search-operator security-operator terminal-controller-manager
 
 tasks:
   default:
