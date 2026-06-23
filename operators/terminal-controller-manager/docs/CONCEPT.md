@@ -620,7 +620,7 @@ Configuration is controlled via controller flags (viper-based):
 ```go
 package main
 
-import "github.com/platform-mesh/terminal-controller-manager/cmd"
+import "go.platform-mesh.io/terminal-controller-manager/cmd"
 
 func main() {
     cmd.Execute()

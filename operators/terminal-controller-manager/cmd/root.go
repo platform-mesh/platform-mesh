@@ -17,12 +17,12 @@ limitations under the License.
 package cmd
 
 import (
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	platformmeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/terminal-controller-manager/api/v1alpha1"
-	"github.com/platform-mesh/terminal-controller-manager/internal/config"
 	"github.com/spf13/cobra"
+	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/apis/terminal/v1alpha1"
+	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/terminal-controller-manager/internal/config"
 	ctrl "sigs.k8s.io/controller-runtime"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -49,7 +49,7 @@ func init() {
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(accountv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(gatewayv1.Install(scheme))
 	//+kubebuilder:scaffold:scheme
 

@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/platform-mesh/terminal-controller-manager/cmd"
+	"go.platform-mesh.io/terminal-controller-manager/cmd"
 )
 
 func main() {

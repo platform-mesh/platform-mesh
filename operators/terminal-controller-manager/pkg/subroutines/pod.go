@@ -23,10 +23,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/subroutines"
-	"github.com/platform-mesh/terminal-controller-manager/api/v1alpha1"
+	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/apis/terminal/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -127,7 +127,7 @@ func (r *PodSubroutine) Process(ctx context.Context, obj client.Object) (subrout
 	clusterClient := cluster.GetClient()
 
 	// Look up AccountInfo to get workspace URL
-	accountInfo := &accountv1alpha1.AccountInfo{}
+	accountInfo := &corev1alpha1.AccountInfo{}
 	if err := clusterClient.Get(ctx, client.ObjectKey{Name: DefaultAccountInfoName}, accountInfo); err != nil {
 		if kerrors.IsNotFound(err) {
 			log.Warn().Msg("AccountInfo not found, waiting for it to be created")
