@@ -6,7 +6,7 @@ spec:
   resources:
   - group: marketplace.platform-mesh.io
     name: marketplaceentries
-    schema: v260504-775fa18.marketplaceentries.marketplace.platform-mesh.io
+    schema: v260623-482e10b2.marketplaceentries.marketplace.platform-mesh.io
     storage:
       crd: {}
 status: {}

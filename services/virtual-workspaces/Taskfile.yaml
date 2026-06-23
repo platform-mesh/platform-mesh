@@ -14,44 +14,38 @@
 
 version: "3"
 
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
+
 vars:
-  LOCAL_BIN: bin
-  CONTROLLER_TOOLS_VERSION: v0.18.0
   CRD_DIRECTORY: config/crd/bases
-  KCP_APIGEN_VERSION: v0.30.0
-  GOARCH:
-    sh: go env GOARCH
-  GOOS:
-    sh: go env GOOS
+
 tasks:
   default:
     cmds:
       - task --list-all
-  ## Setup
-  setup:controller-gen:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/controller-gen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-tools/cmd/controller-gen@{{.CONTROLLER_TOOLS_VERSION}}
-  setup:kcp-api-gen:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/apigen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/kcp-dev/sdk/cmd/apigen@{{.KCP_APIGEN_VERSION}}
+
   ## Development
   manifests:
-    deps: [setup:controller-gen,setup:kcp-api-gen]
     cmds:
-      - "{{.LOCAL_BIN}}/controller-gen crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+      - task: tools:generate-crds
+        vars:
+          PATH: /marketplace/...
+          OUTPUT: '{{.CRD_DIRECTORY}}'
   generate:
     cmds:
       - task: manifests
-      - "{{.LOCAL_BIN}}/controller-gen object paths=./..."
-      - "{{.LOCAL_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
-  fuzz:
-    desc: "Run fuzz tests with a configurable duration (default 30s per target)"
-    vars:
-      FUZZTIME: '{{.FUZZTIME | default "30s"}}'
+      - task: tools:generate-deepcopy
+        vars:
+          PATH: /marketplace/...
+      - "{{.BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
+  build:
     cmds:
-      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzMarketplaceEntryRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go build ./...
   docker-build:
     cmds:
       - docker build .
@@ -78,3 +72,22 @@ tasks:
         fi
       - kubectl rollout restart deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}}
       - echo "Image loaded and deployment restarted"
+
+  ## Testing
+  fmt:
+    cmds:
+      - go fmt ./...
+  lint:
+    cmds:
+      - task: fmt
+      - task: tools:lint
+  test:
+    deps: [tools:envtest]
+    cmds:
+      - |
+        set -ex
+        export KUBEBUILDER_ASSETS=$({{.BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
+        go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
+  test-e2e: # alias to appease the global taskfile
+    cmds:
+      - task: test

@@ -1,7 +1,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260504-775fa18.marketplaceentries.marketplace.platform-mesh.io
+  name: v260623-482e10b2.marketplaceentries.marketplace.platform-mesh.io
 spec:
   group: marketplace.platform-mesh.io
   names:
@@ -175,7 +175,7 @@ spec:
                               This is the identity for a given APIExport that the APIResourceSchema belongs to.
                               The hash can be found on APIExport and APIResourceSchema's status.
                               It will be empty for core types.
-                              Note that one must look this up for a particular KCP instance.
+                              Note that one must look this up for a particular kcp instance.
                             type: string
                           resource:
                             description: |-

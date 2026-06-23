@@ -60,3 +60,4 @@ tasks:
       FUZZTIME: '{{.FUZZTIME | default "30s"}}'
     cmds:
       - go test ./terminal/ -run=^$ -fuzz=FuzzTerminalRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./marketplace/ -run=^$ -fuzz=FuzzMarketplaceEntryRoundTrip -fuzztime={{.FUZZTIME}} -count=1
