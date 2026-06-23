@@ -144,6 +144,17 @@ tasks:
           exit 1
         fi
         cd "$dir" && go mod tidy -diff && go list -m all >/dev/null
+  "boilerplate-*":
+    desc: "Verify boilerplate for one component (e.g. task boilerplate-apis)."
+    cmds:
+      - |
+        comp='{{index .MATCH 0}}'
+        dir=$(ls -d "$comp" "operators/$comp" "services/$comp" 2>/dev/null | head -1)
+        if [ -z "$dir" ]; then
+          echo "unknown component '$comp' (not under ./, ./operators/ or ./services/)" >&2
+          exit 1
+        fi
+        root=$PWD && cd "$dir" && "$root/hack/verify_boilerplate.py" --boilerplate-dir "$root/hack/boilerplate/"
   "images-*":
     desc: "Build (and optionally push) one component's image (e.g. task images-account-operator VERSION=v0.1.0 PUSH=true)."
     vars:
