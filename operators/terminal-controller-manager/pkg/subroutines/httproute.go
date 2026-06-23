@@ -37,6 +37,14 @@ const (
 	HTTPRouteSubroutineName      = "HTTPRouteSubroutine"
 	HTTPRouteSubroutineFinalizer = "terminal.platform-mesh.io/httproute-finalizer"
 	HTTPRouteRequeueAfter        = 5 * time.Second
+
+	nameLabel         = "app.kubernetes.io/name"
+	instanceLabel     = "app.kubernetes.io/instance"
+	managedByLabel    = "app.kubernetes.io/managed-by"
+	terminalNameLabel = "terminal.platform-mesh.io/terminal-name"
+
+	nameLabelValue = "terminal"
+	managedBy      = "terminal-controller-manager"
 )
 
 // HTTPRouteSubroutine manages terminal HTTPRoutes on the runtime cluster
@@ -141,10 +149,10 @@ func (r *HTTPRouteSubroutine) mutateHTTPRoute(route *gatewayv1.HTTPRoute, termin
 	servicePort := gatewayv1.PortNumber(TerminalServicePort)
 
 	route.Labels = map[string]string{
-		"app.kubernetes.io/name":                  "terminal",
-		"app.kubernetes.io/instance":              terminal.Name,
-		"app.kubernetes.io/managed-by":            "terminal-controller-manager",
-		"terminal.platform-mesh.io/terminal-name": terminal.Name,
+		nameLabel:         nameLabelValue,
+		instanceLabel:     terminal.Name,
+		managedByLabel:    managedBy,
+		terminalNameLabel: terminal.Name,
 	}
 	// URL rewrite to strip prefix - ttyd expects requests at root /
 	replacePath := "/"

@@ -120,14 +120,14 @@ func (r *ServiceSubroutine) Process(ctx context.Context, obj client.Object) (sub
 
 func (r *ServiceSubroutine) mutateService(service *corev1.Service, terminal *v1alpha1.Terminal) {
 	service.Labels = map[string]string{
-		"app.kubernetes.io/name":                  "terminal",
-		"app.kubernetes.io/instance":              terminal.Name,
-		"app.kubernetes.io/managed-by":            "terminal-controller-manager",
-		"terminal.platform-mesh.io/terminal-name": terminal.Name,
+		nameLabel:         nameLabelValue,
+		instanceLabel:     terminal.Name,
+		managedByLabel:    managedBy,
+		terminalNameLabel: terminal.Name,
 	}
 	service.Spec.Type = corev1.ServiceTypeClusterIP
 	service.Spec.Selector = map[string]string{
-		"terminal.platform-mesh.io/terminal-name": terminal.Name,
+		terminalNameLabel: terminal.Name,
 	}
 	service.Spec.Ports = []corev1.ServicePort{
 		{

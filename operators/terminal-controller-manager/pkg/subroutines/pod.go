@@ -241,10 +241,10 @@ func (r *PodSubroutine) buildTerminalPod(terminal *v1alpha1.Terminal, podName, w
 			Name:      podName,
 			Namespace: r.namespace,
 			Labels: map[string]string{
-				"app.kubernetes.io/name":                  "terminal",
-				"app.kubernetes.io/instance":              terminal.Name,
-				"app.kubernetes.io/managed-by":            "terminal-controller-manager",
-				"terminal.platform-mesh.io/terminal-name": terminal.Name,
+				nameLabel:         nameLabelValue,
+				instanceLabel:     terminal.Name,
+				managedByLabel:    managedBy,
+				terminalNameLabel: terminal.Name,
 			},
 		},
 		Spec: corev1.PodSpec{
