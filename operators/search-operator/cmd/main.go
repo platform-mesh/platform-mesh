@@ -46,6 +46,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	searchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
 
 	"go.platform-mesh.io/search-operator/internal/config"
 	"go.platform-mesh.io/search-operator/internal/controller"
@@ -68,6 +69,7 @@ func init() {
 
 	// Add our types
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(searchv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
