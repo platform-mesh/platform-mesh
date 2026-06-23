@@ -36,7 +36,7 @@ import (
 
 	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 
-	"go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/search-operator/internal/metrics"
 )
 

@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 // stripPathFromConfig returns a copy of cfg with the URL path cleared,
@@ -50,7 +51,7 @@ func stripPathFromConfig(cfg *rest.Config) (*rest.Config, error) {
 // getWorkspaceClusterAndPath reads the LogicalCluster singleton from the
 // current workspace and returns its cluster ID and path annotation
 // (e.g. "root:orgs:acme").
-func getWorkspaceClusterAndPath(ctx context.Context, mgr mcmanager.Manager) (clusterID string, workspacePath string, err error) {
+func getWorkspaceClusterAndPath(ctx context.Context, mgr mcmanager.Manager) (clusterID multicluster.ClusterName, workspacePath string, err error) {
 	id, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
 		return "", "", fmt.Errorf("cluster not found in context")

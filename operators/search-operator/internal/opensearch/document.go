@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 // DefaultIndexMapping returns the default OpenSearch index mapping for workspace and resource documents.
@@ -275,13 +277,13 @@ func (d *WorkspaceDocument) AddPermission(user, relation, object string) {
 }
 
 // NewResourceDocument creates a new resource document with default values
-func NewResourceDocument(id, kind, name, namespace, clusterName, workspacePath string) *ResourceDocument {
+func NewResourceDocument(id, kind, name, namespace string, clusterName multicluster.ClusterName, workspacePath string) *ResourceDocument {
 	return &ResourceDocument{
 		ID:            id,
 		Kind:          kind,
 		Name:          name,
 		Namespace:     namespace,
-		ClusterName:   clusterName,
+		ClusterName:   string(clusterName),
 		WorkspacePath: workspacePath,
 		UpdatedAt:     time.Now(),
 	}

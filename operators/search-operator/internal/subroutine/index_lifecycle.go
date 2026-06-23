@@ -32,7 +32,7 @@ import (
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/search-operator/internal/metrics"
 	"go.platform-mesh.io/search-operator/internal/opensearch"
 )
@@ -255,14 +255,14 @@ func (s *IndexLifecycleSubroutine) Finalize(ctx context.Context, instance runtim
 	if indexName == "" {
 		log.Warn().
 			Str("name", searchIndex.GetName()).
-			Str("workspace", workspaceName).
+			Str("workspace", workspaceName.String()).
 			Msg("SearchIndex has no indexName in status; skipping OpenSearch cleanup")
 		return ctrl.Result{}, nil
 	}
 
 	log.Info().
 		Str("name", searchIndex.GetName()).
-		Str("reconcileWorkspace", workspaceName).
+		Str("reconcileWorkspace", workspaceName.String()).
 		Str("indexName", indexName).
 		Msg("finalizing SearchIndex")
 

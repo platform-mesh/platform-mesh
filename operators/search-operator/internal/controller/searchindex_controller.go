@@ -29,7 +29,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/search-operator/internal/opensearch"
 	"go.platform-mesh.io/search-operator/internal/subroutine"
 )

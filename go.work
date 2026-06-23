@@ -9,6 +9,7 @@ use (
 	./operators/extension-manager-operator
 	./operators/kcp-migration-operator
 	./operators/resource-sharding-operator
+	./operators/search-operator
 	./operators/security-operator
 	./subroutines
 )

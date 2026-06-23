@@ -24,8 +24,9 @@ import (
 
 	accountv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	"go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/search-operator/internal/opensearch"
 )
 
@@ -150,11 +151,11 @@ func TestMapResourceToFGAObject(t *testing.T) {
 		name        string
 		group       string
 		kind        string
-		clusterID   string
+		clusterID   multicluster.ClusterName
 		accountInfo *accountv1alpha1.AccountInfo
 		wantGroup   string
 		wantKind    string
-		wantCluster string
+		wantCluster multicluster.ClusterName
 	}{
 		{
 			name:        "account maps to search account using OriginClusterId",
@@ -270,7 +271,7 @@ func TestResolveAccountInfoLookupClusters(t *testing.T) {
 	}
 
 	got := resolveAccountInfoLookupClusters(resource, "ctx-cluster", "resource-cluster")
-	want := []string{"resource-cluster", "ctx-cluster", "spec-cluster"}
+	want := []multicluster.ClusterName{"resource-cluster", "ctx-cluster", "spec-cluster"}
 	if len(got) != len(want) {
 		t.Fatalf("resolveAccountInfoLookupClusters() len = %d, want %d (%v)", len(got), len(want), got)
 	}
