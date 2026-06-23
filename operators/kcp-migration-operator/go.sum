@@ -196,8 +196,7 @@ go.platform-mesh.io/apis v0.0.0-20260622192504-abc212e78567 h1:RPgqb463lsPLWK7/A
 go.platform-mesh.io/apis v0.0.0-20260622192504-abc212e78567/go.mod h1:uUrbk5GXLp8zn90MeZH0opW4whWkPoQ83jD5ZBDm5TE=
 go.platform-mesh.io/golang-commons v0.0.0-20260622151009-aa3b9ac4f77d h1:aIupuMXMNEvGaGR5me72hF1uqJDhWRQzUH0XIK1htHk=
 go.platform-mesh.io/golang-commons v0.0.0-20260622151009-aa3b9ac4f77d/go.mod h1:DWOpNDsJNI8QDpJuegdtHUwsgmkamaSqBU8YQiYTcIY=
-go.uber.org/goleak v1.3.1-0.20241121203838-4ff5fa6529ee h1:uOMbcH1Dmxv45VkkpZQYoerZFeDncWpjbN7ATiQOO7c=
-go.uber.org/goleak v1.3.1-0.20241121203838-4ff5fa6529ee/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
+go.uber.org/goleak v1.3.1-0.20251210191316-2b7fd8a0d244 h1:OdZ8e4E9yDUGiis9x2ta/Ec5yhMAKT6ZivRvakyxC7E=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
 go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
 go.uber.org/zap v1.28.0 h1:IZzaP1Fv73/T/pBMLk4VutPl36uNC+OSUh3JLG3FIjo=
