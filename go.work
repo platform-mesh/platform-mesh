@@ -11,6 +11,7 @@ use (
 	./operators/resource-sharding-operator
 	./operators/search-operator
 	./operators/security-operator
+	./operators/terminal-controller-manager
 	./subroutines
 )
 

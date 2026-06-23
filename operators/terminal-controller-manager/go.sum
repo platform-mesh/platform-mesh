@@ -96,8 +96,7 @@ github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/gofuzz v1.2.0 h1:xRy4A+RhZaiKjJ1bPfwQ8sedCA+YS2YcCHW6ec7JMi0=
 github.com/google/gofuzz v1.2.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
-github.com/google/pprof v0.0.0-20250403155104-27863c87afa6 h1:BHT72Gu3keYf3ZEu2J0b1vyeLSOYI8bm5wbJM/8yDe8=
-github.com/google/pprof v0.0.0-20250403155104-27863c87afa6/go.mod h1:boTsfXsheKC2y+lKOCMpSfarhxDeIzfZG1jqGcPl3cA=
+github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83 h1:z2ogiKUYzX5Is6zr/vP9vJGqPwcdqsWjOt+V8J7+bTc=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 h1:5VipnvEpbqr2gA2VbM+nYVbkIF28c5ZQfqCBQ5g2xfk=
@@ -110,8 +109,7 @@ github.com/kcp-dev/apimachinery/v2 v2.31.2 h1:/GKCEzPlsfnaMDq2/VE6KJGE9yiAZAg9Mc
 github.com/kcp-dev/apimachinery/v2 v2.31.2/go.mod h1:ta+d3xQkLYWBEEg8ICed+PekW3MckEYqXG4amq6Uk9Y=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
-github.com/kcp-dev/multicluster-provider v0.5.1 h1:2qMZzLPvzClT2ks+AMyE97PD+2lrDv3r0wDCKBxsr7E=
-github.com/kcp-dev/multicluster-provider v0.5.1/go.mod h1:eJohrSXqLmpjfTSFBbZMoq4Osr57UKg9ZokvhCPNmHc=
+github.com/kcp-dev/multicluster-provider v0.7.1 h1:Adqvt+ECTgVizkam+QxzNi1mun1IixSg9as4xZS+gqw=
 github.com/kcp-dev/sdk v0.31.2 h1:rkC17VLz3qudi2NPBGQ3Wca3Pf1cuhgFeYtvzOk2g/w=
 github.com/kcp-dev/sdk v0.31.2/go.mod h1:kpnItkVRkVuFgs8382zlrPgkvJdDZZiRTffQrFTPedY=
 github.com/klauspost/compress v1.18.5 h1:/h1gH5Ce+VWNLSWqPzOVn6XBO+vJbCNGvjoaGBFW2IE=
