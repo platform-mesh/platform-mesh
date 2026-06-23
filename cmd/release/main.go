@@ -35,6 +35,8 @@ limitations under the License.
 //	resource-sharding-operator   resource-sharding-operator/v<X.Y.Z>
 //	                                               resource-sharding-operator.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
+//	search-operator    search-operator/v<X.Y.Z>    search-operator.yml: signed image,
+//	                                               GitHub release, chart bump, SBOM, OCM
 //	security-operator  security-operator/v<X.Y.Z>  security-operator.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
 //
@@ -84,7 +86,16 @@ type component struct {
 // apis is first: the operators depend on the apis module, so when releasing
 // `all` the apis tag is cut before the operators that will eventually `require`
 // that published version.
-var componentOrder = []string{"apis", "account-operator", "backup-operator", "extension-manager-operator", "kcp-migration-operator", "resource-sharding-operator", "security-operator"}
+var componentOrder = []string{
+	"apis",
+	"account-operator",
+	"backup-operator",
+	"extension-manager-operator",
+	"kcp-migration-operator",
+	"resource-sharding-operator",
+	"search-operator",
+	"security-operator",
+}
 
 var components = map[string]component{
 	"apis":                       {"apis/v", "go-gettable module tag for go.platform-mesh.io/apis (no image)"},
@@ -93,6 +104,7 @@ var components = map[string]component{
 	"extension-manager-operator": {"extension-manager-operator/v", "extension-manager-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"kcp-migration-operator":     {"kcp-migration-operator/v", "kcp-migration-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"resource-sharding-operator": {"resource-sharding-operator/v", "resource-sharding-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"search-operator":            {"search-operator/v", "search-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"security-operator":          {"security-operator/v", "security-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 }
 
@@ -422,6 +434,7 @@ Components:
   kcp-migration-operator       kcp-migration-operator/v<X.Y.Z>       (signed image + release + chart + SBOM + OCM)
   resource-sharding-operator   resource-sharding-operator/v<X.Y.Z>   (signed image + release + chart + SBOM + OCM)
   security-operator            security-operator/v<X.Y.Z>            (signed image + release + chart + SBOM + OCM)
+  search-operator              search-operator/v<X.Y.Z>              (signed image + release + chart + SBOM + OCM)
   all                          every component                       (independent versions)
 
 Flags:
