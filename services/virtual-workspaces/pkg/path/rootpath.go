@@ -23,9 +23,9 @@ import (
 	"github.com/kcp-dev/kcp/pkg/server/filters"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/virtual-workspace-framework/framework"
-	"github.com/platform-mesh/virtual-workspaces/pkg/authorization"
-	"github.com/platform-mesh/virtual-workspaces/pkg/proxy"
-	"github.com/platform-mesh/virtual-workspaces/pkg/storage"
+	"go.platform-mesh.io/virtual-workspaces/pkg/authorization"
+	"go.platform-mesh.io/virtual-workspaces/pkg/proxy"
+	"go.platform-mesh.io/virtual-workspaces/pkg/storage"
 
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/klog/v2"

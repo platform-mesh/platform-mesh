@@ -16,7 +16,7 @@ limitations under the License.
 
 package main
 
-import "github.com/platform-mesh/virtual-workspaces/cmd"
+import "go.platform-mesh.io/virtual-workspaces/cmd"
 
 func main() {
 	cmd.Execute()

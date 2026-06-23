@@ -22,9 +22,9 @@ import (
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/authorization"
 	"github.com/spf13/cobra"
 
-	"github.com/platform-mesh/virtual-workspaces/pkg/authentication"
-	"github.com/platform-mesh/virtual-workspaces/pkg/contentconfiguration"
-	"github.com/platform-mesh/virtual-workspaces/pkg/marketplace"
+	"go.platform-mesh.io/virtual-workspaces/pkg/authentication"
+	"go.platform-mesh.io/virtual-workspaces/pkg/contentconfiguration"
+	"go.platform-mesh.io/virtual-workspaces/pkg/marketplace"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -41,7 +41,7 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
-	extensionapiv1alpha1 "github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
+	extensionapiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 
 	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
 	virtualrootapiserver "github.com/kcp-dev/virtual-workspace-framework/pkg/rootapiserver"

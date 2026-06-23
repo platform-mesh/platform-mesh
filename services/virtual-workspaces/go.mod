@@ -1,4 +1,4 @@
-module github.com/platform-mesh/virtual-workspaces
+module go.platform-mesh.io/virtual-workspaces
 
 go 1.26.2
 
@@ -9,7 +9,7 @@ require (
 	github.com/kcp-dev/multicluster-provider v0.7.1
 	github.com/kcp-dev/sdk v0.31.2
 	github.com/kcp-dev/virtual-workspace-framework v0.31.2
-	github.com/platform-mesh/extension-manager-operator/api v0.4.9
+	go.platform-mesh.io/apis/ui v0.0.0-20260622145940-383b09051f2a
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1

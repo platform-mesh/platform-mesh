@@ -6,7 +6,7 @@ domain: platform-mesh.io
 layout:
 - go.kubebuilder.io/v4
 projectName: virtual-workspaces
-repo: github.com/platform-mesh/virtual-workspaces
+repo: go.platform-mesh.io/virtual-workspaces
 resources:
 - api:
     crdVersion: v1
@@ -14,6 +14,6 @@ resources:
   domain: platform-mesh.io
   group: marketplace
   kind: MarketplaceEntry
-  path: github.com/platform-mesh/virtual-workspaces/api/v1alpha1
+  path: go.platform-mesh.io/apis/marketplace/v1alpha1
   version: v1alpha1
 version: "3"

@@ -3,8 +3,8 @@
 
 # Platform-Mesh virtual workspaces
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/virtual-workspaces/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/virtual-workspaces)
-![Build Status](https://github.com/platform-mesh/virtual-workspaces/actions/workflows/ci.yml/badge.svg)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/go.platform-mesh.io/virtual-workspaces/badge)](https://scorecard.dev/viewer/?uri=go.platform-mesh.io/virtual-workspaces)
+![Build Status](https://go.platform-mesh.io/virtual-workspaces/actions/workflows/ci.yml/badge.svg)
 
 ## Description
 
@@ -70,7 +70,7 @@ All the released versions will be available through access to GitHub (as any oth
 The virtual-workspaces requires a installation of go. Checkout the [go.mod](go.mod) for the required go version and dependencies.
 
 ## Security / Disclosure
-If you find any bug that may be a security problem, please follow our instructions at [in our security policy](https://github.com/platform-mesh/virtual-workspaces/security/policy) on how to report it. Please do not create GitHub issues for security-related doubts or problems.
+If you find any bug that may be a security problem, please follow our instructions at [in our security policy](https://go.platform-mesh.io/virtual-workspaces/security/policy) on how to report it. Please do not create GitHub issues for security-related doubts or problems.
 
 ## Contributing
 

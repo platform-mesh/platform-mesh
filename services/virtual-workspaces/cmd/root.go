@@ -19,9 +19,9 @@ package cmd
 import (
 	"flag"
 
-	"github.com/platform-mesh/virtual-workspaces/pkg/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"go.platform-mesh.io/virtual-workspaces/pkg/config"
 	genericapiserveroptions "k8s.io/apiserver/pkg/server/options"
 	"k8s.io/klog/v2"
 )

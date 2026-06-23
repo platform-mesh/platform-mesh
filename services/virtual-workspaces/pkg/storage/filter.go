@@ -27,9 +27,9 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
-	extensionapiv1alpha1 "github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
-	"github.com/platform-mesh/virtual-workspaces/api/v1alpha1"
-	"github.com/platform-mesh/virtual-workspaces/pkg/config"
+	"go.platform-mesh.io/apis/marketplace/v1alpha1"
+	extensionapiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
+	"go.platform-mesh.io/virtual-workspaces/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
