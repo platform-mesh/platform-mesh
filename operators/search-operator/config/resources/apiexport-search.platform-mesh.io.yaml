@@ -1,0 +1,12 @@
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIExport
+metadata:
+  name: search.platform-mesh.io
+spec:
+  resources:
+  - group: search.platform-mesh.io
+    name: searchindices
+    schema: v260623-9a2e7423.searchindices.search.platform-mesh.io
+    storage:
+      crd: {}
+status: {}

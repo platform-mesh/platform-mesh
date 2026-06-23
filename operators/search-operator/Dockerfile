@@ -1,33 +1,61 @@
-# Build the manager binary
-FROM golang:1.26@sha256:b54cbf583d390341599d7bcbc062425c081105cc5ef6d170ced98ef9d047c716 AS builder
-ARG TARGETOS
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build the manager binary.
+#
+# NOTE: the build context is the repository ROOT, not this directory.
+# The operator module is linked to the shared ./apis module through the
+# repository-root go.work file, so the workspace and apis source must be
+# present in the build:
+#   docker build -f operators/search-operator/Dockerfile .
+FROM --platform=$BUILDPLATFORM golang:1.26.4-bookworm@sha256:5f68ec6805843bd3981a951ffada82a26a0bd2631045c8f7dba483fa868f5ec5 AS builder
 ARG TARGETARCH
 
 WORKDIR /workspace
 
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
+# Go workspace + the modules this image needs.
+COPY go.work go.work
+COPY go.work.sum go.work.sum
+COPY apis/ apis/
+COPY operators/search-operator/ operators/search-operator/
+
+# Drop every workspace module except the ones copied above, so the workspace
+# resolves with only apis + this operator — regardless of what else go.work lists
+# (other operators, cmd/* tools, ...). This is a textual edit of go.work, so the
+# dropped modules don't need to exist in the build context.
+RUN for m in $(go work edit -json | sed -n 's/.*"DiskPath": "\(.*\)".*/\1/p'); do \
+      case "$m" in \
+        ./apis|./operators/search-operator) ;; \
+        *) go work edit -dropuse "$m" ;; \
+      esac; \
+    done
+
+WORKDIR /workspace/operators/search-operator
+
+# cache deps before building so that source changes don't invalidate the layer
 RUN go mod download
-# Copy the go source
-COPY cmd/ cmd/
-COPY api/ api/
-COPY internal/ internal/
 
 # Build
-# the GOARCH has not a default value to allow the binary be built according to the host where the command
-# was called. For example, if we call make docker-build in a local env which has the Apple Silicon M1 SO
-# the docker BUILDPLATFORM arg will be linux/arm64 when for Apple x86 it will be linux/amd64. Therefore,
-# by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/manager main.go
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot@sha256:e3f945647ffb95b5839c07038d64f9811adf17308b9121d8a2b87b6a22a80a39
-WORKDIR /
-COPY --from=builder /workspace/manager .
-USER 65532:65532
+FROM scratch
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-ENTRYPOINT ["/manager"]
+ENV USER_UID=1001
+ENV GROUP_UID=1001
+COPY --from=builder --chown=${USER_UID}:${GROUP_UID}  /workspace/manager /operator/manager
+
+USER ${USER_UID}:${GROUP_UID}
+ENTRYPOINT ["/operator/manager"]

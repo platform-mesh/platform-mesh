@@ -7,7 +7,7 @@ domain: platform-mesh.io
 layout:
 - go.kubebuilder.io/v4
 projectName: search-operator
-repo: github.com/platform-mesh/search-operator
+repo: github.com/platform-mesh/platform-mesh
 resources:
 - api:
     crdVersion: v1
