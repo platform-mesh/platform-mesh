@@ -14,68 +14,37 @@
 
 version: '3'
 
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
+
 vars:
-  LOCAL_BIN: bin
-  GOLANGCI_LINT_VERSION: v2.8.0
-  CONTROLLER_TOOLS_VERSION: v0.20.0
-  ENVTEST_K8S_VERSION: "1.29.0"
-  ENVTEST_VERSION: release-0.17
   CRD_DIRECTORY: config/crd/bases
-  KCP_APIGEN_VERSION: v0.30.0
-  KCP_VERSION: 0.30.0
-  GOMPLATE_VERSION: v4.3.0
-  GOARCH:
-    sh: go env GOARCH
-  GOOS:
-    sh: go env GOOS
 
 tasks:
-  ## Setup
-  setup:controller-gen:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/controller-gen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-tools/cmd/controller-gen@{{.CONTROLLER_TOOLS_VERSION}}
-
-  setup:kcp:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-tool.sh https://github.com/kcp-dev/kcp/releases/download/v{{ .KCP_VERSION }}/kcp_{{ .KCP_VERSION }}_{{ .GOOS }}_{{ .GOARCH }}.tar.gz kcp {{.KCP_VERSION}}
-
-  setup:gomplate:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/gomplate || curl -o {{.LOCAL_BIN}}/gomplate -sSL https://github.com/hairyhenderson/gomplate/releases/download/{{ .GOMPLATE_VERSION }}/gomplate_{{ .GOOS }}-{{ .GOARCH }} && chmod +x {{.LOCAL_BIN}}/gomplate && chmod 755 {{.LOCAL_BIN}}/gomplate
-
-  setup:golangci-lint:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
-
-  setup:kcp-api-gen:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/apigen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/kcp-dev/sdk/cmd/apigen@{{.KCP_APIGEN_VERSION}}
-
-  setup:envtest:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/setup-envtest || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-runtime/tools/setup-envtest@{{.ENVTEST_VERSION}}
-
   ## Development
   manifests:
-    deps: [setup:controller-gen, setup:kcp-api-gen]
     cmds:
-      - "{{.LOCAL_BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+      - task: tools:generate-crds
+        vars:
+          PATH: /terminal/...
+          OUTPUT: '{{.CRD_DIRECTORY}}'
 
   generate:
+    deps: [tools:apigen]
     cmds:
       - task: manifests
-      - "{{.LOCAL_BIN}}/controller-gen object:headerFile=hack/boilerplate.go.txt paths=./..."
-      - "{{.LOCAL_BIN}}/apigen --input-dir config/crd/bases --output-dir ./config/resources"
+      - task: tools:generate-deepcopy
+        vars:
+          PATH: /terminal/...
+      - "{{.BIN}}/apigen --input-dir config/crd/bases --output-dir ./config/resources"
 
   build:
     cmds:
-      - go build -o bin/manager main.go
+      - go build ./...
 
   run:
     cmds:
@@ -104,23 +73,30 @@ tasks:
       - go fmt ./...
 
   lint:
-    deps: [setup:golangci-lint]
     cmds:
       - task: fmt
-      - "{{.LOCAL_BIN}}/golangci-lint run --timeout 15m ./..."
+      - task: tools:lint
 
   envtest:
-    deps: [setup:envtest]
+    internal: true
+    deps: [tools:kcp, tools:envtest]
+    env:
+      # Shared kcp installed by tools:kcp into the root bin.
+      TEST_KCP_ASSETS: '{{.BIN}}'
     cmds:
-      - go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
+      - |
+        set -ex
+        export KUBEBUILDER_ASSETS=$({{.BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
+        go test -count=1 {{.TEST_PACKAGES | default "./..."}} {{.ADDITIONAL_COMMAND_ARGS}}
 
   test:
-    deps: [setup:kcp, setup:gomplate]
     cmds:
       - task: envtest
+  test-e2e: # alias to appease the global taskfile
+    cmds:
+      - task: test
 
   cover:
-    deps: [setup:kcp, setup:gomplate]
     cmds:
       - task: envtest
         vars:
@@ -132,9 +108,9 @@ tasks:
       - task: test
 
   start-kcp:
-    deps: [setup:kcp]
+    deps: [tools:kcp]
     cmds:
-      - "{{ .LOCAL_BIN}}/kcp start"
+      - "{{.BIN}}/kcp start"
 
   docker:kind:
     desc: "Build container image with current tag from kind cluster and load it"
@@ -159,13 +135,6 @@ tasks:
         fi
       - kubectl rollout restart deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}}
       - echo "Image loaded and deployment restarted"
-
-  fuzz:
-    desc: "Run fuzz tests with a configurable duration (default 30s per target)"
-    vars:
-      FUZZTIME: '{{.FUZZTIME | default "30s"}}'
-    cmds:
-      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzTerminalRoundTrip -fuzztime={{.FUZZTIME}} -count=1
 
   test-ui:
     desc: "Serve test UI for WebSocket testing"

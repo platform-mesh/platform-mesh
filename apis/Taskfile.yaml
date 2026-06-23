@@ -54,3 +54,9 @@ tasks:
     desc: No e2e tests for the apis module.
     cmds:
       - 'echo "apis: no e2e tests"'
+  fuzz:
+    desc: "Run fuzz tests with a configurable duration (default 30s per target)"
+    vars:
+      FUZZTIME: '{{.FUZZTIME | default "30s"}}'
+    cmds:
+      - go test ./terminal/ -run=^$ -fuzz=FuzzTerminalRoundTrip -fuzztime={{.FUZZTIME}} -count=1
