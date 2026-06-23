@@ -24,8 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	securityv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -109,10 +108,10 @@ func TestService_AssignRolesToUsers_WithInvites_UserExists(t *testing.T) {
 		AccountPath: "root:org:test-account",
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				GeneratedClusterId: "cluster-123",
 			},
 		},
@@ -171,7 +170,7 @@ func TestService_AssignRolesToUsers_WithInvites_UserDoesNotExist(t *testing.T) {
 
 	// Create scheme with security operator API
 	scheme := runtime.NewScheme()
-	err := securityv1alpha1.AddToScheme(scheme)
+	err := pmcorev1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	mockWsClient := fake.NewClientBuilder().
@@ -200,10 +199,10 @@ func TestService_AssignRolesToUsers_WithInvites_UserDoesNotExist(t *testing.T) {
 		AccountPath: "root:org:test-account",
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				GeneratedClusterId: "cluster-123",
 			},
 		},
@@ -283,10 +282,10 @@ func TestService_AssignRolesToUsers_WithInvites_InvalidRole(t *testing.T) {
 		AccountPath: "root:org:test-account",
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				GeneratedClusterId: "cluster-123",
 			},
 		},
@@ -361,10 +360,10 @@ func TestService_AssignRolesToUsers_WithBothChangesAndInvites(t *testing.T) {
 		AccountPath: "root:org:test-account",
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				GeneratedClusterId: "cluster-123",
 			},
 		},
@@ -451,10 +450,10 @@ func TestService_AssignRolesToUsers_WithInvites_IDMCheckError(t *testing.T) {
 		AccountPath: "root:org:test-account",
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				GeneratedClusterId: "cluster-123",
 			},
 		},
@@ -532,10 +531,10 @@ func TestService_AssignRolesToUsers_WithInvites_WorkspaceClientError(t *testing.
 		AccountPath: "root:org:test-account",
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				GeneratedClusterId: "cluster-123",
 			},
 		},
@@ -596,7 +595,7 @@ func TestService_AssignRolesToUsers_WithInvites_InvalidEmail(t *testing.T) {
 
 	// Create scheme with security operator API
 	scheme := runtime.NewScheme()
-	err := securityv1alpha1.AddToScheme(scheme)
+	err := pmcorev1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	mockWsClient := fake.NewClientBuilder().
@@ -625,10 +624,10 @@ func TestService_AssignRolesToUsers_WithInvites_InvalidEmail(t *testing.T) {
 		AccountPath: "root:org:test-account",
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				GeneratedClusterId: "cluster-123",
 			},
 		},

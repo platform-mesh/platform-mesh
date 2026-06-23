@@ -41,7 +41,6 @@ tasks:
     cmds:
       - go fmt ./...
   lint:
-    deps: [mockery]
     cmds:
       - task: fmt
       - task: tools:lint

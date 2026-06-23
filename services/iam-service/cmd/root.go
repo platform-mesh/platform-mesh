@@ -20,8 +20,7 @@ import (
 	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/spf13/cobra"
-	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	securityv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,10 +42,9 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	utilruntime.Must(accountsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(apisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(securityv1alpha1.AddToScheme(scheme))
 	rootCmd.AddCommand(serverCmd)
 
 	defaultCfg = platformmeshcontext.NewDefaultConfig()

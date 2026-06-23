@@ -296,7 +296,7 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 	allUsers := make([]*graph.User, 0)
 	var failedPages []int
 	pageSize := s.cfg.Keycloak.PageSize
-	var currentPage int = 0
+	var currentPage = 0
 
 	log.Debug().
 		Str("realm", realm).
