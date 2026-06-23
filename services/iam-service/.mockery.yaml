@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-with-expecter: true
+all: false
+force-file-write: true
+formatter: goimports
+log-level: info
+recursive: false
+require-template-schema-exists: true
+template: testify
+template-data:
+  boilerplate-file: ../../hack/boilerplate/boilerplate.go.txt
 packages:
   # External dependencies only - following the principle of only mocking external services
   # Internal service interfaces should use real implementations in tests
@@ -21,95 +29,103 @@ packages:
   github.com/openfga/api/proto/openfga/v1:
     config:
       dir: pkg/fga/mocks
-      outpkg: mocks
+      include-auto-generated: true
+      pkgname: mocks
     interfaces:
       OpenFGAServiceClient:
         config:
-          mockname: OpenFGAServiceClient
+          filename: mock_OpenFGAServiceClient.go
+          structname: OpenFGAServiceClient
+
+  # kcp SDK interfaces
+  github.com/kcp-dev/sdk/client/clientset/versioned:
+    config:
+      dir: pkg/accountinfo/mocks
+      include-auto-generated: true
+      pkgname: mocks
+    interfaces:
+      Interface:
+        config:
+          filename: mock_Interface.go
+          structname: Interface
+
+  github.com/kcp-dev/sdk/client/clientset/versioned/cluster:
+    config:
+      dir: pkg/accountinfo/mocks
+      include-auto-generated: true
+      pkgname: mocks
+    interfaces:
+      ClusterInterface:
+        config:
+          filename: mock_ClusterInterface.go
+          structname: ClusterInterface
+
+  github.com/kcp-dev/sdk/client/clientset/versioned/typed/core/v1alpha1:
+    config:
+      dir: pkg/accountinfo/mocks
+      include-auto-generated: true
+      pkgname: mocks
+    interfaces:
+      CoreV1alpha1Interface:
+        config:
+          filename: mock_CoreV1alpha1Interface.go
+          structname: CoreV1alpha1Interface
+      LogicalClusterInterface:
+        config:
+          filename: mock_LogicalClusterInterface.go
+          structname: LogicalClusterInterface
 
   # Platform-mesh commons FGA store helper - External dependency
   go.platform-mesh.io/golang-commons/fga/store:
     config:
       dir: pkg/fga/mocks
-      outpkg: mocks
+      pkgname: mocks
     interfaces:
       FGAStoreHelper:
         config:
-          mockname: FGAStoreHelper
+          filename: mock_FGAStoreHelper.go
+          structname: FGAStoreHelper
 
-  # Keycloak HTTP client - External service interface (wraps external Keycloak API)
-  go.platform-mesh.io/iam-service/pkg/keycloak:
-    config:
-      dir: pkg/keycloak/mocks
-      outpkg: mocks
-    interfaces:
-      KeycloakClientInterface:
-        config:
-          mockname: KeycloakClientInterface
-
+  # AccountInfo Retriever
   go.platform-mesh.io/iam-service/pkg/accountinfo:
     config:
       dir: pkg/accountinfo/mocks
-      outpkg: mocks
+      pkgname: mocks
     interfaces:
       Retriever:
         config:
-          mockname: Retriever
-
-  github.com/kcp-dev/sdk/client/clientset/versioned/cluster:
-    config:
-      dir: pkg/accountinfo/mocks
-      outpkg: mocks
-    interfaces:
-      ClusterInterface:
-        config:
-          mockname: ClusterInterface
-
-  github.com/kcp-dev/sdk/client/clientset/versioned:
-    config:
-      dir: pkg/accountinfo/mocks
-      outpkg: mocks
-    interfaces:
-      CoreV1alpha1Interface:
-        config:
-          mockname: CoreV1alpha1Interface
-      Interface:
-        config:
-          mockname: Interface
-
-  github.com/kcp-dev/sdk/client/clientset/versioned/typed/core/v1alpha1:
-    config:
-      dir: pkg/accountinfo/mocks
-      outpkg: mocks
-    interfaces:
-      CoreV1alpha1Interface:
-        config:
-          mockname: CoreV1alpha1Interface
-      LogicalClusterInterface:
-        config:
-          mockname: LogicalClusterInterface
-
-  # Workspace ClientFactory - External dependency for KCP workspace client creation
-  go.platform-mesh.io/iam-service/pkg/workspace:
-    config:
-      dir: pkg/fga/mocks
-      outpkg: mocks
-    interfaces:
-      ClientFactory:
-        config:
-          mockname: ClientFactory
+          filename: mock_Retriever.go
+          structname: Retriever
 
   # IDMUserChecker - External IDM service dependency (could be Keycloak or other IDM systems)
   go.platform-mesh.io/iam-service/pkg/fga:
     config:
       dir: pkg/fga/mocks
-      outpkg: mocks
+      pkgname: mocks
     interfaces:
       IDMUserChecker:
         config:
-          mockname: IDMUserChecker
+          filename: mock_IDMUserChecker.go
+          structname: IDMUserChecker
 
+  # Keycloak HTTP client - External service interface (wraps external Keycloak API)
+  go.platform-mesh.io/iam-service/pkg/keycloak:
+    config:
+      dir: pkg/keycloak/mocks
+      pkgname: mocks
+    interfaces:
+      KeycloakClientInterface:
+        config:
+          filename: mock_KeycloakClientInterface.go
+          structname: KeycloakClientInterface
 
-
-
-
+  # Workspace ClientFactory - External dependency for KCP workspace client creation
+  go.platform-mesh.io/iam-service/pkg/workspace:
+    config:
+      dir: pkg/fga/mocks
+      pkgname: mocks
+    interfaces:
+      ClientFactory:
+        config:
+          filename: mock_ClientFactory.go
+          structname: ClientFactory
