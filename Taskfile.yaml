@@ -155,6 +155,12 @@ tasks:
           exit 1
         fi
         root=$PWD && cd "$dir" && "$root/hack/verify_boilerplate.py" --boilerplate-dir "$root/hack/boilerplate/"
+  "verify-*":
+    desc: "Run all checks for one component (e.g. task verify-account-operator)."
+    cmds:
+      - task: lint-{{index .MATCH 0}}
+      - task: tidy-check-{{index .MATCH 0}}
+      - task: boilerplate-{{index .MATCH 0}}
   "images-*":
     desc: "Build (and optionally push) one component's image (e.g. task images-account-operator VERSION=v0.1.0 PUSH=true)."
     vars:
