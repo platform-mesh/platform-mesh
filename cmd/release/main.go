@@ -39,6 +39,9 @@ limitations under the License.
 //	                                               GitHub release, chart bump, SBOM, OCM
 //	security-operator  security-operator/v<X.Y.Z>  security-operator.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
+//	terminal-controller-manager   terminal-controller-manager/v<X.Y.Z>
+//	                                               terminal-controller-manager.yml: signed image,
+//	                                               GitHub release, chart bump, SBOM, OCM
 //
 // It finds the component's latest existing tag, bumps it (patch by default),
 // and creates + pushes the new tag — the release workflow does the rest.
@@ -95,17 +98,19 @@ var componentOrder = []string{
 	"resource-sharding-operator",
 	"search-operator",
 	"security-operator",
+	"terminal-controller-manager",
 }
 
 var components = map[string]component{
-	"apis":                       {"apis/v", "go-gettable module tag for go.platform-mesh.io/apis (no image)"},
-	"account-operator":           {"account-operator/v", "account-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
-	"backup-operator":            {"backup-operator/v", "backup-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
-	"extension-manager-operator": {"extension-manager-operator/v", "extension-manager-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
-	"kcp-migration-operator":     {"kcp-migration-operator/v", "kcp-migration-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
-	"resource-sharding-operator": {"resource-sharding-operator/v", "resource-sharding-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
-	"search-operator":            {"search-operator/v", "search-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
-	"security-operator":          {"security-operator/v", "security-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"apis":                        {"apis/v", "go-gettable module tag for go.platform-mesh.io/apis (no image)"},
+	"account-operator":            {"account-operator/v", "account-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"backup-operator":             {"backup-operator/v", "backup-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"extension-manager-operator":  {"extension-manager-operator/v", "extension-manager-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"kcp-migration-operator":      {"kcp-migration-operator/v", "kcp-migration-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"resource-sharding-operator":  {"resource-sharding-operator/v", "resource-sharding-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"search-operator":             {"search-operator/v", "search-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"security-operator":           {"security-operator/v", "security-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"terminal-controller-manager": {"terminal-controller-manager/v", "terminal-controller-manager.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 }
 
 func main() {
@@ -435,6 +440,7 @@ Components:
   resource-sharding-operator   resource-sharding-operator/v<X.Y.Z>   (signed image + release + chart + SBOM + OCM)
   security-operator            security-operator/v<X.Y.Z>            (signed image + release + chart + SBOM + OCM)
   search-operator              search-operator/v<X.Y.Z>              (signed image + release + chart + SBOM + OCM)
+  terminal-controller-manager  terminal-controller-manager/v<X.Y.Z>  (signed image + release + chart + SBOM + OCM)
   all                          every component                       (independent versions)
 
 Flags:
