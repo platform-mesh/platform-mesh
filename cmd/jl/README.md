@@ -1,16 +1,15 @@
-# OpenMFP - jl
+# jl
 
-jl is a utility cli that can be used to explore json based log files and log streams. It is especially useful when 
-exploring kubernetes log streams.
+jl is a utility cli that can be used to explore json based log files and log streams. It is especially useful when
+exploring Kubernetes log streams.
 
 # Installation
-
 
 ## Installation from source
 - Checkout this repository
 - Use `go install .` from the top-level directory of the clone.
 
-# Usage 
+# Usage
 
 ```bash
 # Show kubernetes log streams
@@ -28,7 +27,7 @@ jl -i data/input.log -f message,reconcile_id
 # Show logs stored in a file but focus only on the message property, display only rows that match the select expressions
 jl -i data/input.log -rf message,level --select=reconcile_id=fcdc26ae-7feb-4bf2-9058-f0c6666bc356 --select=level=info
 
-```    
+```
 
 ## Code of Conduct
 

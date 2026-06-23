@@ -26,7 +26,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/openmfp/jl/internal/util"
+	"go.platform-mesh.io/jl/internal/util"
 )
 
 const (

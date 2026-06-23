@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/openmfp/jl/cmd"
+	"go.platform-mesh.io/jl/cmd"
 )
 
 func main() {
