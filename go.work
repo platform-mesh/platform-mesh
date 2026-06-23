@@ -2,6 +2,7 @@ go 1.25.7
 
 use (
 	./apis
+	./cmd/jl
 	./cmd/release
 	./golang-commons
 	./operators/account-operator
