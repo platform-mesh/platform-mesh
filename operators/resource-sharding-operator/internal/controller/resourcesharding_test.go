@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//nolint:goconst
 package controller
 
 import (
@@ -23,6 +24,7 @@ import (
 	"go.platform-mesh.io/apis/sharding/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -158,7 +160,7 @@ func (s *ResourceShardingSuite) TestSelfHealing() {
 	cm := &unstructured.Unstructured{}
 	cm.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"})
 	cm.SetName("test-heal-cm")
-	cm.SetNamespace("default")
+	cm.SetNamespace(corev1.NamespaceDefault)
 	cm.Object["data"] = map[string]interface{}{"key": "value"}
 	s.Require().NoError(s.k8sClient.Create(s.ctx, cm))
 	defer func() {
@@ -169,7 +171,7 @@ func (s *ResourceShardingSuite) TestSelfHealing() {
 	s.Eventually(func() bool {
 		var fetched unstructured.Unstructured
 		fetched.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"})
-		if err := s.k8sClient.Get(s.ctx, types.NamespacedName{Name: "test-heal-cm", Namespace: "default"}, &fetched); err != nil {
+		if err := s.k8sClient.Get(s.ctx, types.NamespacedName{Name: "test-heal-cm", Namespace: corev1.NamespaceDefault}, &fetched); err != nil {
 			return false
 		}
 		_, exists := fetched.GetLabels()["test.healing.io/shard"]
@@ -179,7 +181,7 @@ func (s *ResourceShardingSuite) TestSelfHealing() {
 	// Remove the label
 	var fetched unstructured.Unstructured
 	fetched.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"})
-	s.Require().NoError(s.k8sClient.Get(s.ctx, types.NamespacedName{Name: "test-heal-cm", Namespace: "default"}, &fetched))
+	s.Require().NoError(s.k8sClient.Get(s.ctx, types.NamespacedName{Name: "test-heal-cm", Namespace: corev1.NamespaceDefault}, &fetched))
 
 	labels := fetched.GetLabels()
 	delete(labels, "test.healing.io/shard")
@@ -190,7 +192,7 @@ func (s *ResourceShardingSuite) TestSelfHealing() {
 	s.Eventually(func() bool {
 		var refetched unstructured.Unstructured
 		refetched.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"})
-		if err := s.k8sClient.Get(s.ctx, types.NamespacedName{Name: "test-heal-cm", Namespace: "default"}, &refetched); err != nil {
+		if err := s.k8sClient.Get(s.ctx, types.NamespacedName{Name: "test-heal-cm", Namespace: corev1.NamespaceDefault}, &refetched); err != nil {
 			return false
 		}
 		_, exists := refetched.GetLabels()["test.healing.io/shard"]

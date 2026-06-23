@@ -22,6 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/discovery"
 )
 
@@ -39,7 +40,7 @@ func SetupWithManager(mgr ctrl.Manager, opts ...SetupOptions) error {
 
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
-		namespace = "default"
+		namespace = corev1.NamespaceDefault
 	}
 	serviceName := os.Getenv("WEBHOOK_SERVICE_NAME")
 	if serviceName == "" {

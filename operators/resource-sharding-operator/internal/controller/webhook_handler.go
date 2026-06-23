@@ -54,17 +54,17 @@ func (h *ShardAssignHandler) Handle(_ context.Context, req admission.Request) ad
 	}
 	logger.Info("webhook assigning shard", "shard", shard)
 
-	var patch []map[string]interface{}
+	var patch []map[string]any
 	if labels == nil {
-		patch = []map[string]interface{}{
+		patch = []map[string]any{
 			{
 				"op":    "add",
 				"path":  "/metadata/labels",
-				"value": map[string]string{running.LabelKey: shard},
+				"value": map[string]string{running.LabelKey: shard}, //nolint:goconst
 			},
 		}
 	} else {
-		patch = []map[string]interface{}{
+		patch = []map[string]any{
 			{
 				"op":    "add",
 				"path":  "/metadata/labels/" + escapeJSONPointer(running.LabelKey),

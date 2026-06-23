@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
+//nolint:goconst
 var (
 	shardDistribution = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{

@@ -51,6 +51,9 @@ tasks:
         set -ex
         export KUBEBUILDER_ASSETS=$({{.BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
         go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
+  test-e2e: # alias to appease the global taskfile
+    cmds:
+      - task: test
   cover:
     cmds:
       - task: test
