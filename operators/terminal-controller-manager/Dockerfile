@@ -18,7 +18,7 @@
 # The operator module is linked to the shared ./apis module through the
 # repository-root go.work file, so the workspace and apis source must be
 # present in the build:
-#   docker build -f operators/security-operator/Dockerfile .
+#   docker build -f operators/terminal-controller-manager/Dockerfile .
 FROM golang:1.26@sha256:87a41d2539e5671777734e91f467499ed5eafb1fb1f77221dff2744db7a51775 AS builder
 ARG TARGETOS
 ARG TARGETARCH
@@ -29,7 +29,7 @@ WORKDIR /workspace
 COPY go.work go.work
 COPY go.work.sum go.work.sum
 COPY apis/ apis/
-COPY operators/security-operator/ operators/security-operator/
+COPY operators/terminal-controller-manager/ operators/terminal-controller-manager/
 
 # Drop every workspace module except the ones copied above, so the workspace
 # resolves with only apis + this operator — regardless of what else go.work lists
@@ -37,12 +37,12 @@ COPY operators/security-operator/ operators/security-operator/
 # dropped modules don't need to exist in the build context.
 RUN for m in $(go work edit -json | sed -n 's/.*"DiskPath": "\(.*\)".*/\1/p'); do \
       case "$m" in \
-        ./apis|./operators/security-operator) ;; \
+        ./apis|./operators/terminal-controller-manager) ;; \
         *) go work edit -dropuse "$m" ;; \
       esac; \
     done
 
-WORKDIR /workspace/operators/security-operator
+WORKDIR /workspace/operators/terminal-controller-manager
 
 # cache deps before building so that source changes don't invalidate the layer
 RUN go mod download

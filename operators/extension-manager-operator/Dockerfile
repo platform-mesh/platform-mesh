@@ -18,7 +18,7 @@
 # The operator module is linked to the shared ./apis module through the
 # repository-root go.work file, so the workspace and apis source must be
 # present in the build:
-#   docker build -f operators/backup-operator/Dockerfile .
+#   docker build -f operators/extension-manager-operator/Dockerfile .
 FROM --platform=$BUILDPLATFORM golang:1.26.4-bookworm@sha256:5f68ec6805843bd3981a951ffada82a26a0bd2631045c8f7dba483fa868f5ec5 AS builder
 ARG TARGETARCH
 
