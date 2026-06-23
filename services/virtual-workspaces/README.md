@@ -8,7 +8,7 @@
 
 ## Description
 
-The platform-mesh virtual-workspaces are used to provide custom, deep kcp based extensions for platform-mesh. It prepares and exposed relevant information for depending UIs with means of using an custom apiserver implementation from kubernetes and KCP.
+The platform-mesh virtual-workspaces are used to provide custom, deep kcp based extensions for platform-mesh. It prepares and exposed relevant information for depending UIs with means of using an custom apiserver implementation from kubernetes and kcp.
 
 ## Features
 - Exposes a virtual workspaces to select the right contentconfigurations for a given workspace context
