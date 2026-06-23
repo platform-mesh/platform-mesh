@@ -1,11 +1,27 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cmd
 
 import (
-	platformmeshcontext "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/resource-sharding-operator/api/v1alpha1"
-	"github.com/platform-mesh/resource-sharding-operator/internal/config"
 	"github.com/spf13/cobra"
+	"go.platform-mesh.io/apis/sharding/v1alpha1"
+	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/resource-sharding-operator/internal/config"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"

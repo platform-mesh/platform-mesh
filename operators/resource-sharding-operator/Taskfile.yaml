@@ -1,63 +1,69 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 version: '3'
 
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
+
 vars:
-  LOCAL_BIN: bin
-  GOLANGCI_LINT_VERSION: v2.8.0
-  CONTROLLER_TOOLS_VERSION: v0.20.0
-  ENVTEST_K8S_VERSION: "1.29.0"
   CRD_DIRECTORY: config/crd
-  GOARCH:
-    sh: go env GOARCH
-  GOOS:
-    sh: go env GOOS
 
 tasks:
-  setup:controller-gen:
-    internal: true
-    cmds:
-    - test -s {{.LOCAL_BIN}}/controller-gen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-tools/cmd/controller-gen@{{.CONTROLLER_TOOLS_VERSION}}
-  setup:golangci-lint:
-    internal: true
-    cmds:
-    - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
-  setup:envtest:
-    internal: true
-    cmds:
-    - test -s {{.LOCAL_BIN}}/setup-envtest || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-
   manifests:
-    deps: [ setup:controller-gen ]
     cmds:
-    - "{{.LOCAL_BIN}}/controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config={{.CRD_DIRECTORY}}"
+      - task: tools:generate-crds
+        vars:
+          PATH: /sharding/...
+          OUTPUT: '{{.CRD_DIRECTORY}}'
   generate:
     cmds:
-    - task: manifests
-    - "{{.LOCAL_BIN}}/controller-gen object:headerFile=hack/boilerplate.go.txt paths=./..."
+      - task: manifests
+      - task: tools:generate-deepcopy
+        vars:
+          PATH: /sharding/...
   fmt:
     cmds:
-    - go fmt ./...
+      - go fmt ./...
   lint:
-    deps: [ setup:golangci-lint ]
     cmds:
-    - task: fmt
-    - "{{.LOCAL_BIN}}/golangci-lint run --timeout 15m ./..."
+      - task: fmt
+      - task: tools:lint
   test:
-    deps: [setup:envtest]
+    deps: [tools:envtest]
     cmds:
-    - KUBEBUILDER_ASSETS="$({{.LOCAL_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir $(pwd)/{{.LOCAL_BIN}} -p path)" go test -race ./... {{.ADDITIONAL_COMMAND_ARGS}}
+      - |
+        set -ex
+        export KUBEBUILDER_ASSETS=$({{.BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
+        go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
     cmds:
-    - task: test
-      vars:
-        ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+      - task: test
+        vars:
+          ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
   build:
     cmds:
-    - CGO_ENABLED=0 go build -ldflags '-w -s' -o bin/manager main.go
+      - go build ./...
   docker-build:
     vars:
       IMAGE_TAG: '{{.IMAGE_TAG | default "dev"}}'
     cmds:
-    - docker build -t ghcr.io/platform-mesh/resource-sharding-operator:{{.IMAGE_TAG}} .
+      - docker build -t ghcr.io/platform-mesh/resource-sharding-operator:{{.IMAGE_TAG}} .
   docker:kind:
     desc: "Build container image and load into Kind cluster"
     vars:
@@ -66,10 +72,10 @@ tasks:
       DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
       IMAGE_TAG: '{{.IMAGE_TAG | default "dev"}}'
     cmds:
-    - docker build -t ghcr.io/platform-mesh/resource-sharding-operator:{{.IMAGE_TAG}} .
-    - kind load docker-image ghcr.io/platform-mesh/resource-sharding-operator:{{.IMAGE_TAG}} --name {{.KIND_CLUSTER}}
-    - kubectl rollout restart deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}}
+      - docker build -t ghcr.io/platform-mesh/resource-sharding-operator:{{.IMAGE_TAG}} .
+      - kind load docker-image ghcr.io/platform-mesh/resource-sharding-operator:{{.IMAGE_TAG}} --name {{.KIND_CLUSTER}}
+      - kubectl rollout restart deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}}
   validate:
     cmds:
-    - task: lint
-    - task: test
+      - task: lint
+      - task: test

@@ -1,6 +1,0 @@
-apiVersion: v2
-name: resource-sharding-operator
-description: A Helm chart to deploy the resource-sharding-operator
-type: application
-version: 0.1.0
-appVersion: "v0.1.0"

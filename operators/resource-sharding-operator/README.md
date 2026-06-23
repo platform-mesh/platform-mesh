@@ -3,8 +3,6 @@
 
 # resource-sharding-operator
 
-![Build Status](https://github.com/platform-mesh/resource-sharding-operator/actions/workflows/pipeline.yml/badge.svg)
-
 ## Description
 
 The resource-sharding-operator automatically assigns Kubernetes resources to named shards by applying a label. Downstream operator replicas then filter their watches by shard label, so each replica only caches and reconciles its assigned subset of resources.
@@ -67,7 +65,7 @@ Releases are performed automatically through a GitHub Actions workflow.
 
 ## Security / Disclosure
 
-If you find a bug that may be a security problem, please follow our instructions in the [security policy](https://github.com/platform-mesh/resource-sharding-operator/security/policy) on how to report it. Do not create GitHub issues for security-related concerns.
+If you find a bug that may be a security problem, please follow our instructions in the [security policy](https://github.com/platform-mesh/platform-mesh/security/policy) on how to report it. Do not create GitHub issues for security-related concerns.
 
 ## Contributing
 
