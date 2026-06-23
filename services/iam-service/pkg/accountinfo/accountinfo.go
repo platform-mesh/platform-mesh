@@ -27,10 +27,11 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 type Retriever interface {
-	Get(ctx context.Context, accountPath string) (*accountsv1alpha1.AccountInfo, error)
+	Get(ctx context.Context, accountPath multicluster.ClusterName) (*accountsv1alpha1.AccountInfo, error)
 }
 
 type accountInfoRetriever struct {
@@ -49,7 +50,7 @@ func New(mgr mcmanager.Manager, clusterClient kcpclientset.ClusterInterface) (Re
 	}, nil
 }
 
-func (a *accountInfoRetriever) Get(ctx context.Context, accountPath string) (*accountsv1alpha1.AccountInfo, error) {
+func (a *accountInfoRetriever) Get(ctx context.Context, accountPath multicluster.ClusterName) (*accountsv1alpha1.AccountInfo, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	//FIXME: This lock was necessary as we saw race conditions when processing multiple requests in parallel
@@ -76,7 +77,7 @@ func (a *accountInfoRetriever) Get(ctx context.Context, accountPath string) (*ac
 	return ai, nil
 }
 
-func (a *accountInfoRetriever) getClusterLock(clusterName string) *sync.Mutex {
+func (a *accountInfoRetriever) getClusterLock(clusterName multicluster.ClusterName) *sync.Mutex {
 	lock, _ := a.clusterLocks.LoadOrStore(clusterName, &sync.Mutex{})
 	return lock.(*sync.Mutex)
 }

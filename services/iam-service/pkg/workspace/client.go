@@ -23,11 +23,12 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 // ClientFactory creates a client for a specific KCP workspace
 type ClientFactory interface {
-	New(ctx context.Context, accountPath string) (client.Client, error)
+	New(ctx context.Context, accountPath multicluster.ClusterName) (client.Client, error)
 }
 
 // KCPClient implements ClientFactory for KCP workspaces
@@ -43,7 +44,7 @@ func NewClientFactory(mgr mcmanager.Manager) *KCPClient {
 }
 
 // New creates a new client for the specified workspace path
-func (f *KCPClient) New(ctx context.Context, accountPath string) (client.Client, error) {
+func (f *KCPClient) New(ctx context.Context, accountPath multicluster.ClusterName) (client.Client, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 	cluster, err := f.mgr.GetCluster(ctx, accountPath)
 	if err != nil {

@@ -34,15 +34,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"go.platform-mesh.io/iam-service/pkg/accountinfo/mocks"
 )
 
 type Provider struct {
-	clusters map[string]cluster.Cluster
+	clusters map[multicluster.ClusterName]cluster.Cluster
 }
 
-func (p *Provider) Get(ctx context.Context, clusterName string) (cluster.Cluster, error) {
+func (p *Provider) Get(ctx context.Context, clusterName multicluster.ClusterName) (cluster.Cluster, error) {
 	cluster, ok := p.clusters[clusterName]
 	if !ok {
 		return nil, fmt.Errorf("cluster not found: %s", clusterName)
@@ -91,7 +92,7 @@ func TestAccountInfoRetriever_Get_NilDependencies(t *testing.T) {
 	log, _ := logger.New(logger.DefaultConfig())
 	ctx = logger.SetLoggerInContext(ctx, log)
 
-	accountPath := "test-account"
+	accountPath := multicluster.ClusterName("test-account")
 
 	// The method panics with nil dependencies - this demonstrates the need for proper initialization
 	assert.Panics(t, func() {
@@ -152,7 +153,7 @@ func TestAccountInfoRetriever_Get_NotFound(t *testing.T) {
 func TestNew_WithValidInputs(t *testing.T) {
 	// Create a basic manager and cluster interface to test successful construction
 	emptyConfig := &rest.Config{}
-	testProvider := &Provider{clusters: map[string]cluster.Cluster{}}
+	testProvider := &Provider{clusters: map[multicluster.ClusterName]cluster.Cluster{}}
 
 	mgr, err := mcmanager.New(emptyConfig, testProvider, mcmanager.Options{})
 	require.NoError(t, err)
@@ -235,7 +236,7 @@ func TestAccountInfoRetriever_Get_Success(t *testing.T) {
 	err := accountsv1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	testclusters := map[string]cluster.Cluster{
+	testclusters := map[multicluster.ClusterName]cluster.Cluster{
 		"test-cluster": func() cluster.Cluster {
 			c := accountmocks.NewCluster(t)
 			cl := accountmocks.NewClient(t)
@@ -284,7 +285,7 @@ func TestAccountInfoRetriever_NoCluster(t *testing.T) {
 	err := accountsv1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	testclusters := map[string]cluster.Cluster{}
+	testclusters := map[multicluster.ClusterName]cluster.Cluster{}
 	testProvider := &Provider{clusters: testclusters}
 	emptyConfig := &rest.Config{}
 

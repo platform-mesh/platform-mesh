@@ -38,6 +38,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	accountinfomocks "go.platform-mesh.io/iam-service/pkg/accountinfo/mocks"
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
@@ -49,7 +50,7 @@ type mockWSClient struct {
 	client client.Client
 }
 
-func (m *mockWSClient) New(_ context.Context, _ string) (client.Client, error) {
+func (m *mockWSClient) New(_ context.Context, _ multicluster.ClusterName) (client.Client, error) {
 	return m.client, nil
 }
 

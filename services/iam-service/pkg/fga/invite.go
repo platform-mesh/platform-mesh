@@ -30,6 +30,7 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"go.platform-mesh.io/iam-service/pkg/graph"
 	"go.platform-mesh.io/iam-service/pkg/roles"
@@ -67,7 +68,7 @@ func (s *Service) checkAndInviteUser(ctx context.Context, userEmail string, rctx
 	if rctx.Group == "core.platform-mesh.io" && rctx.Kind == "Account" {
 		path = fmt.Sprintf("%s:%s", path, rctx.Resource.Name)
 	}
-	wsClient, err := s.wsClientFactory.New(ctx, path)
+	wsClient, err := s.wsClientFactory.New(ctx, multicluster.ClusterName(path))
 	if err != nil {
 		return errors.Wrap(err, "failed to create workspace client for path %s", path)
 	}

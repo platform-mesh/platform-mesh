@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"go.platform-mesh.io/iam-service/pkg/accountinfo"
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
@@ -106,7 +107,7 @@ func (a AuthorizedDirective) Authorized(ctx context.Context, _ any, next graphql
 	if rctx.Group == "core.platform-mesh.io" && rctx.Kind == "Account" {
 		path = fmt.Sprintf("%s:%s", path, rctx.Resource.Name)
 	}
-	ai, err := a.air.Get(ctx, path)
+	ai, err := a.air.Get(ctx, multicluster.ClusterName(path))
 	if err != nil { // coverage-ignore
 		return nil, errors.Wrap(err, "failed to get account info from kcp context")
 	}
@@ -125,7 +126,7 @@ func (a AuthorizedDirective) Authorized(ctx context.Context, _ any, next graphql
 	ctx = appcontext.SetClusterId(ctx, clusterId)
 
 	// Test if resource exists
-	wsClient, err := a.wcClient.New(ctx, rctx.AccountPath)
+	wsClient, err := a.wcClient.New(ctx, multicluster.ClusterName(rctx.AccountPath))
 	if err != nil { // coverage-ignore
 		return nil, errors.Wrap(err, "failed to get workspace client")
 	}
