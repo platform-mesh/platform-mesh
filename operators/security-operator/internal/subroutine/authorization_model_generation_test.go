@@ -133,6 +133,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					return nil
 				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if _, ok := o.(*corev1alpha1.ProviderPermissions); ok {
+						return kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "providerpermissions"}, "pp")
+					}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
 						rs.Spec.Group = "group"
 						rs.Spec.Names.Plural = "things"
@@ -172,6 +178,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					return nil
 				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if _, ok := o.(*corev1alpha1.ProviderPermissions); ok {
+						return kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "providerpermissions"}, "pp")
+					}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
 						rs.Spec.Group = "group"
 						rs.Spec.Names.Plural = "foos"
@@ -198,6 +210,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
 						return nil
+					}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if _, ok := o.(*corev1alpha1.ProviderPermissions); ok {
+						return kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "providerpermissions"}, "pp")
 					}
 					return nil
 				}).Once()
@@ -263,6 +281,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					return nil
 				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if _, ok := o.(*corev1alpha1.ProviderPermissions); ok {
+						return kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "providerpermissions"}, "pp")
+					}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
 						rs.Spec.Group = "veryverylonggroup.platform-mesh.org"
 						rs.Spec.Names.Plural = "plural"
@@ -296,6 +320,63 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
 				manager.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("export-cluster")).Return(nil, assert.AnError)
+			},
+		},
+		{
+			name:    "generate model with ProviderPermissions not found",
+			binding: newApiBinding("foo", "bar"),
+			mockSetup: func(manager *mocks.MockManager, lister *mocks.MockLister, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(kcpClient)
+				mockAccountInfo(kcpClient, "org", "origin")
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
+						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+						ae.Name = "test-export"
+						return nil
+					}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-export"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if _, ok := o.(*corev1alpha1.ProviderPermissions); ok {
+						return kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "providerpermissions"}, "test-export")
+					}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
+						rs.Spec.Group = "group"
+						rs.Spec.Names.Plural = "foos"
+						rs.Spec.Names.Singular = "foo"
+						rs.Spec.Scope = apiextensionsv1.ClusterScoped
+						return nil
+					}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				kcpClient.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Maybe()
+				kcpClient.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+			},
+		},
+		{
+			name:        "error on ProviderPermissions fetch (not NotFound)",
+			binding:     newApiBinding("foo", "bar"),
+			expectError: true,
+			mockSetup: func(manager *mocks.MockManager, lister *mocks.MockLister, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(kcpClient)
+				mockAccountInfo(kcpClient, "org", "origin")
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
+						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+						ae.Name = "test-export"
+						return nil
+					}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-export"}, mock.Anything).Return(assert.AnError)
 			},
 		},
 	}

@@ -54,6 +54,10 @@ func toK8sName(parts ...string) string {
 	return strings.Trim(name, "-")
 }
 
+func resourceToPermissionKey(singular, group string) string {
+	return group + "." + singular
+}
+
 func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, lister iclient.Lister) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
 		mgr:    mcMgr,
@@ -71,6 +75,7 @@ type AuthorizationModelGenerationSubroutine struct {
 	lister iclient.Lister
 }
 
+// modelTpl is used by authorization_model.go for discovery-based model generation.
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
 
 {{ if eq .Scope "Cluster" }}
@@ -95,23 +100,47 @@ type {{ .Group }}_{{ .Singular }}
 		define member: [role#assignee] or owner or member from parent
 		define owner: [role#assignee] or owner from parent
 
-		define get: member
-		define update: member
-		define delete: member
-		define patch: member
-		define watch: member
-
+		define get: {{ or .Get "member" }}
+		define update: {{ or .Update "member" }}
+		define delete: {{ or .Delete "member" }}
+		define patch: {{ or .Patch "member" }}
+		define watch: {{ or .Watch "member" }}
+{{ range .Roles }}
+		define {{ .ID }}: {{ .Definition }}
+{{ end }}
+{{ range $name, $def := .AdditionalPermissions }}
+		define {{ $name }}: {{ $def }}
+{{ end }}
 		define manage_iam_roles: owner
 		define get_iam_roles: member
 		define get_iam_users: member
 
 `))
 
+// modelInput is used for model generation with optional ProviderPermissions overrides.
 type modelInput struct {
 	Name     string
 	Group    string
 	Singular string
 	Scope    string
+
+	Get    string
+	Update string
+	Delete string
+	Patch  string
+	Watch  string
+
+	Roles                 []corev1alpha1.RoleDefinition
+	AdditionalPermissions map[string]string
+}
+
+func getRolesForResource(resourceRoles []corev1alpha1.ResourceRoles, permissionKey string) []corev1alpha1.RoleDefinition {
+	for _, rr := range resourceRoles {
+		if rr.GroupResource == permissionKey {
+			return rr.Roles
+		}
+	}
+	return nil
 }
 
 // Finalize implements subroutines.Finalizer.
@@ -234,10 +263,10 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	binding := obj.(*kcpapisv1alpha2.APIBinding)
 
-	internalAPIBindings := []string{"core.platform-mesh.io", "system.platform-mesh.io"}
+	internalAPIBindings := []string{"core.platform-mesh.io", "system.platform-mesh.io", "providers.platform-mesh.io"}
 
 	if slices.Contains(internalAPIBindings, binding.Spec.Reference.Export.Name) || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
-		// If the APIExport is the core.platform-mesh.io, system.platform-mesh.io we can skip the model generation.
+		// If the APIExport is the core.platform-mesh.io, system.platform-mesh.io, providers.platform-mesh.io we can skip the model generation.
 		return subroutines.OK(), nil
 	}
 
@@ -263,6 +292,14 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("getting APIExport: %w", err)
 	}
 
+	providerPermissions := &corev1alpha1.ProviderPermissions{}
+	err = apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: apiExport.Name}, providerPermissions)
+	if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+		providerPermissions = nil
+	} else if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting ProviderPermissions: %w", err)
+	}
+
 	for _, latestResourceSchema := range apiExport.Spec.Resources {
 		var resourceSchema kcpapisv1alpha1.APIResourceSchema
 		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema.Schema}, &resourceSchema)
@@ -278,14 +315,30 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 			group = resourceSchema.Spec.Group[len(longestRelationName)-50:]
 		}
 
-		var buffer bytes.Buffer
-		err = modelTpl.Execute(&buffer, modelInput{
+		permissionKey := resourceToPermissionKey(resourceSchema.Spec.Names.Singular, resourceSchema.Spec.Group)
+
+		input := modelInput{
 			Name:     resourceSchema.Spec.Names.Plural,
 			Group:    strings.ReplaceAll(group, ".", "_"),
 			Singular: resourceSchema.Spec.Names.Singular,
 			Scope:    string(resourceSchema.Spec.Scope),
-		})
-		if err != nil {
+		}
+
+		if providerPermissions != nil {
+			if resourcePerms, ok := providerPermissions.Spec.Permissions[permissionKey]; ok {
+				input.Get = resourcePerms.DefaultPermissions.Get
+				input.Update = resourcePerms.DefaultPermissions.Update
+				input.Delete = resourcePerms.DefaultPermissions.Delete
+				input.Patch = resourcePerms.DefaultPermissions.Patch
+				input.Watch = resourcePerms.DefaultPermissions.Watch
+				input.AdditionalPermissions = resourcePerms.AdditionalPermissions
+			}
+
+			input.Roles = getRolesForResource(providerPermissions.Spec.Roles, permissionKey)
+		}
+
+		var buffer bytes.Buffer
+		if err := modelTpl.Execute(&buffer, input); err != nil {
 			return subroutines.OK(), fmt.Errorf("executing model template: %w", err)
 		}
 
@@ -307,6 +360,22 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		})
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("creating or updating AuthorizationModel: %w", err)
+		}
+	}
+
+	if providerPermissions != nil {
+		providerPermissions.Status.ObservedGeneration = providerPermissions.Generation
+		meta.SetStatusCondition(&providerPermissions.Status.Conditions, metav1.Condition{
+			Type:               "Applied",
+			Status:             metav1.ConditionTrue,
+			ObservedGeneration: providerPermissions.Generation,
+			LastTransitionTime: metav1.Now(),
+			Reason:             "AuthorizationModelsGenerated",
+			Message:            "ProviderPermissions successfully applied to all AuthorizationModels",
+		})
+
+		if err := apiExportCluster.GetClient().Status().Update(ctx, providerPermissions); err != nil {
+			return subroutines.OK(), fmt.Errorf("updating ProviderPermissions status: %w", err)
 		}
 	}
 
