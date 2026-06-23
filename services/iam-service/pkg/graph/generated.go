@@ -601,7 +601,8 @@ schema{
     mutation: Mutation
 }
 
-directive @authorized(permission: String!) on FIELD_DEFINITION`, BuiltIn: false},
+directive @authorized(permission: String!) on FIELD_DEFINITION
+`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -623,17 +624,17 @@ func (ec *executionContext) dir_authorized_args(ctx context.Context, rawArgs map
 func (ec *executionContext) field_Mutation_assignRolesToUsers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNResourceContext2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNResourceContext2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext)
 	if err != nil {
 		return nil, err
 	}
 	args["context"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "changes", ec.unmarshalOUserRoleChange2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoleChangeᚄ)
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "changes", ec.unmarshalOUserRoleChange2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoleChangeᚄ)
 	if err != nil {
 		return nil, err
 	}
 	args["changes"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "invites", ec.unmarshalOInviteInput2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐInviteInputᚄ)
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "invites", ec.unmarshalOInviteInput2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐInviteInputᚄ)
 	if err != nil {
 		return nil, err
 	}
@@ -644,12 +645,12 @@ func (ec *executionContext) field_Mutation_assignRolesToUsers_args(ctx context.C
 func (ec *executionContext) field_Mutation_removeRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNResourceContext2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNResourceContext2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext)
 	if err != nil {
 		return nil, err
 	}
 	args["context"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRemoveRoleInput2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRemoveRoleInput)
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRemoveRoleInput2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRemoveRoleInput)
 	if err != nil {
 		return nil, err
 	}
@@ -671,12 +672,12 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Query_knownUsers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sortBy", ec.unmarshalOSortByInput2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐSortByInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sortBy", ec.unmarshalOSortByInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐSortByInput)
 	if err != nil {
 		return nil, err
 	}
 	args["sortBy"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalOPageInput2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐPageInput)
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalOPageInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐPageInput)
 	if err != nil {
 		return nil, err
 	}
@@ -687,7 +688,7 @@ func (ec *executionContext) field_Query_knownUsers_args(ctx context.Context, raw
 func (ec *executionContext) field_Query_roles_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNResourceContext2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNResourceContext2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext)
 	if err != nil {
 		return nil, err
 	}
@@ -709,7 +710,7 @@ func (ec *executionContext) field_Query_user_args(ctx context.Context, rawArgs m
 func (ec *executionContext) field_Query_users_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNResourceContext2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context", ec.unmarshalNResourceContext2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext)
 	if err != nil {
 		return nil, err
 	}
@@ -719,12 +720,12 @@ func (ec *executionContext) field_Query_users_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["roleFilters"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "sortBy", ec.unmarshalOSortByInput2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐSortByInput)
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "sortBy", ec.unmarshalOSortByInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐSortByInput)
 	if err != nil {
 		return nil, err
 	}
 	args["sortBy"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalOPageInput2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐPageInput)
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalOPageInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐPageInput)
 	if err != nil {
 		return nil, err
 	}
@@ -813,7 +814,7 @@ func (ec *executionContext) _Mutation_assignRolesToUsers(ctx context.Context, fi
 			next = directive1
 			return next
 		},
-		ec.marshalNRoleAssignmentResult2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRoleAssignmentResult,
+		ec.marshalNRoleAssignmentResult2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleAssignmentResult,
 		true,
 		true,
 	)
@@ -880,7 +881,7 @@ func (ec *executionContext) _Mutation_removeRole(ctx context.Context, field grap
 			next = directive1
 			return next
 		},
-		ec.marshalNRoleRemovalResult2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRoleRemovalResult,
+		ec.marshalNRoleRemovalResult2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleRemovalResult,
 		true,
 		true,
 	)
@@ -1063,7 +1064,7 @@ func (ec *executionContext) _Query_roles(ctx context.Context, field graphql.Coll
 			next = directive1
 			return next
 		},
-		ec.marshalNRole2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRole,
+		ec.marshalNRole2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRole,
 		true,
 		true,
 	)
@@ -1130,7 +1131,7 @@ func (ec *executionContext) _Query_users(ctx context.Context, field graphql.Coll
 			next = directive1
 			return next
 		},
-		ec.marshalNUserConnection2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserConnection,
+		ec.marshalNUserConnection2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserConnection,
 		true,
 		true,
 	)
@@ -1179,7 +1180,7 @@ func (ec *executionContext) _Query_knownUsers(ctx context.Context, field graphql
 			return ec.resolvers.Query().KnownUsers(ctx, fc.Args["sortBy"].(*SortByInput), fc.Args["page"].(*PageInput))
 		},
 		nil,
-		ec.marshalNUserConnection2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserConnection,
+		ec.marshalNUserConnection2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserConnection,
 		true,
 		true,
 	)
@@ -1228,7 +1229,7 @@ func (ec *executionContext) _Query_user(ctx context.Context, field graphql.Colle
 			return ec.resolvers.Query().User(ctx, fc.Args["userId"].(string))
 		},
 		nil,
-		ec.marshalOUser2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUser,
+		ec.marshalOUser2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUser,
 		true,
 		false,
 	)
@@ -1278,7 +1279,7 @@ func (ec *executionContext) _Query_me(ctx context.Context, field graphql.Collect
 			return ec.resolvers.Query().Me(ctx)
 		},
 		nil,
-		ec.marshalOUser2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUser,
+		ec.marshalOUser2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUser,
 		true,
 		false,
 	)
@@ -1802,7 +1803,7 @@ func (ec *executionContext) _UserConnection_users(ctx context.Context, field gra
 			return obj.Users, nil
 		},
 		nil,
-		ec.marshalNUserRoles2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserRolesᚄ,
+		ec.marshalNUserRoles2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserRolesᚄ,
 		true,
 		true,
 	)
@@ -1837,7 +1838,7 @@ func (ec *executionContext) _UserConnection_pageInfo(ctx context.Context, field 
 			return obj.PageInfo, nil
 		},
 		nil,
-		ec.marshalNPageInfo2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐPageInfo,
+		ec.marshalNPageInfo2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐPageInfo,
 		true,
 		true,
 	)
@@ -1905,7 +1906,7 @@ func (ec *executionContext) _UserRoles_user(ctx context.Context, field graphql.C
 			return obj.User, nil
 		},
 		nil,
-		ec.marshalNUser2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUser,
+		ec.marshalNUser2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUser,
 		true,
 		true,
 	)
@@ -1944,7 +1945,7 @@ func (ec *executionContext) _UserRoles_roles(ctx context.Context, field graphql.
 			return obj.Roles, nil
 		},
 		nil,
-		ec.marshalNRole2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRoleᚄ,
+		ec.marshalNRole2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleᚄ,
 		true,
 		true,
 	)
@@ -3590,7 +3591,7 @@ func (ec *executionContext) unmarshalInputResourceContext(ctx context.Context, o
 			it.Kind = data
 		case "resource":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("resource"))
-			data, err := ec.unmarshalNResource2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐResource(ctx, v)
+			data, err := ec.unmarshalNResource2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐResource(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3624,14 +3625,14 @@ func (ec *executionContext) unmarshalInputSortByInput(ctx context.Context, obj a
 		switch k {
 		case "field":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("field"))
-			data, err := ec.unmarshalNUserSortField2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserSortField(ctx, v)
+			data, err := ec.unmarshalNUserSortField2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserSortField(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Field = data
 		case "direction":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("direction"))
-			data, err := ec.unmarshalNSortDirection2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐSortDirection(ctx, v)
+			data, err := ec.unmarshalNSortDirection2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐSortDirection(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4597,12 +4598,12 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
-func (ec *executionContext) unmarshalNInviteInput2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐInviteInput(ctx context.Context, v any) (*InviteInput, error) {
+func (ec *executionContext) unmarshalNInviteInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐInviteInput(ctx context.Context, v any) (*InviteInput, error) {
 	res, err := ec.unmarshalInputInviteInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNPageInfo2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐPageInfo(ctx context.Context, sel ast.SelectionSet, v *PageInfo) graphql.Marshaler {
+func (ec *executionContext) marshalNPageInfo2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐPageInfo(ctx context.Context, sel ast.SelectionSet, v *PageInfo) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4612,22 +4613,22 @@ func (ec *executionContext) marshalNPageInfo2ᚖgithubᚗcomᚋplatformᚑmesh�
 	return ec._PageInfo(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNRemoveRoleInput2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRemoveRoleInput(ctx context.Context, v any) (RemoveRoleInput, error) {
+func (ec *executionContext) unmarshalNRemoveRoleInput2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRemoveRoleInput(ctx context.Context, v any) (RemoveRoleInput, error) {
 	res, err := ec.unmarshalInputRemoveRoleInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNResource2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐResource(ctx context.Context, v any) (*Resource, error) {
+func (ec *executionContext) unmarshalNResource2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐResource(ctx context.Context, v any) (*Resource, error) {
 	res, err := ec.unmarshalInputResource(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNResourceContext2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext(ctx context.Context, v any) (ResourceContext, error) {
+func (ec *executionContext) unmarshalNResourceContext2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext(ctx context.Context, v any) (ResourceContext, error) {
 	res, err := ec.unmarshalInputResourceContext(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNRole2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx context.Context, sel ast.SelectionSet, v []*Role) graphql.Marshaler {
+func (ec *executionContext) marshalNRole2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx context.Context, sel ast.SelectionSet, v []*Role) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -4651,7 +4652,7 @@ func (ec *executionContext) marshalNRole2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋ
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalORole2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx, sel, v[i])
+			ret[i] = ec.marshalORole2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -4665,7 +4666,7 @@ func (ec *executionContext) marshalNRole2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋ
 	return ret
 }
 
-func (ec *executionContext) marshalNRole2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRoleᚄ(ctx context.Context, sel ast.SelectionSet, v []*Role) graphql.Marshaler {
+func (ec *executionContext) marshalNRole2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleᚄ(ctx context.Context, sel ast.SelectionSet, v []*Role) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -4689,7 +4690,7 @@ func (ec *executionContext) marshalNRole2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋ
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNRole2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx, sel, v[i])
+			ret[i] = ec.marshalNRole2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -4709,7 +4710,7 @@ func (ec *executionContext) marshalNRole2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋ
 	return ret
 }
 
-func (ec *executionContext) marshalNRole2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx context.Context, sel ast.SelectionSet, v *Role) graphql.Marshaler {
+func (ec *executionContext) marshalNRole2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx context.Context, sel ast.SelectionSet, v *Role) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4719,11 +4720,11 @@ func (ec *executionContext) marshalNRole2ᚖgithubᚗcomᚋplatformᚑmeshᚋiam
 	return ec._Role(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNRoleAssignmentResult2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRoleAssignmentResult(ctx context.Context, sel ast.SelectionSet, v RoleAssignmentResult) graphql.Marshaler {
+func (ec *executionContext) marshalNRoleAssignmentResult2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleAssignmentResult(ctx context.Context, sel ast.SelectionSet, v RoleAssignmentResult) graphql.Marshaler {
 	return ec._RoleAssignmentResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNRoleAssignmentResult2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRoleAssignmentResult(ctx context.Context, sel ast.SelectionSet, v *RoleAssignmentResult) graphql.Marshaler {
+func (ec *executionContext) marshalNRoleAssignmentResult2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleAssignmentResult(ctx context.Context, sel ast.SelectionSet, v *RoleAssignmentResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4733,11 +4734,11 @@ func (ec *executionContext) marshalNRoleAssignmentResult2ᚖgithubᚗcomᚋplatf
 	return ec._RoleAssignmentResult(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNRoleRemovalResult2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRoleRemovalResult(ctx context.Context, sel ast.SelectionSet, v RoleRemovalResult) graphql.Marshaler {
+func (ec *executionContext) marshalNRoleRemovalResult2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleRemovalResult(ctx context.Context, sel ast.SelectionSet, v RoleRemovalResult) graphql.Marshaler {
 	return ec._RoleRemovalResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNRoleRemovalResult2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRoleRemovalResult(ctx context.Context, sel ast.SelectionSet, v *RoleRemovalResult) graphql.Marshaler {
+func (ec *executionContext) marshalNRoleRemovalResult2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleRemovalResult(ctx context.Context, sel ast.SelectionSet, v *RoleRemovalResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4747,13 +4748,13 @@ func (ec *executionContext) marshalNRoleRemovalResult2ᚖgithubᚗcomᚋplatform
 	return ec._RoleRemovalResult(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNSortDirection2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐSortDirection(ctx context.Context, v any) (SortDirection, error) {
+func (ec *executionContext) unmarshalNSortDirection2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐSortDirection(ctx context.Context, v any) (SortDirection, error) {
 	var res SortDirection
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSortDirection2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐSortDirection(ctx context.Context, sel ast.SelectionSet, v SortDirection) graphql.Marshaler {
+func (ec *executionContext) marshalNSortDirection2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐSortDirection(ctx context.Context, sel ast.SelectionSet, v SortDirection) graphql.Marshaler {
 	return v
 }
 
@@ -4803,7 +4804,7 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	return ret
 }
 
-func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUser(ctx context.Context, sel ast.SelectionSet, v *User) graphql.Marshaler {
+func (ec *executionContext) marshalNUser2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUser(ctx context.Context, sel ast.SelectionSet, v *User) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4813,11 +4814,11 @@ func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋplatformᚑmeshᚋiam
 	return ec._User(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNUserConnection2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserConnection(ctx context.Context, sel ast.SelectionSet, v UserConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNUserConnection2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserConnection(ctx context.Context, sel ast.SelectionSet, v UserConnection) graphql.Marshaler {
 	return ec._UserConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNUserConnection2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserConnection(ctx context.Context, sel ast.SelectionSet, v *UserConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNUserConnection2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserConnection(ctx context.Context, sel ast.SelectionSet, v *UserConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4827,12 +4828,12 @@ func (ec *executionContext) marshalNUserConnection2ᚖgithubᚗcomᚋplatformᚑ
 	return ec._UserConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNUserRoleChange2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoleChange(ctx context.Context, v any) (*UserRoleChange, error) {
+func (ec *executionContext) unmarshalNUserRoleChange2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoleChange(ctx context.Context, v any) (*UserRoleChange, error) {
 	res, err := ec.unmarshalInputUserRoleChange(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNUserRoles2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserRolesᚄ(ctx context.Context, sel ast.SelectionSet, v []*UserRoles) graphql.Marshaler {
+func (ec *executionContext) marshalNUserRoles2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserRolesᚄ(ctx context.Context, sel ast.SelectionSet, v []*UserRoles) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -4856,7 +4857,7 @@ func (ec *executionContext) marshalNUserRoles2ᚕᚖgithubᚗcomᚋplatformᚑme
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNUserRoles2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoles(ctx, sel, v[i])
+			ret[i] = ec.marshalNUserRoles2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoles(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -4876,7 +4877,7 @@ func (ec *executionContext) marshalNUserRoles2ᚕᚖgithubᚗcomᚋplatformᚑme
 	return ret
 }
 
-func (ec *executionContext) marshalNUserRoles2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoles(ctx context.Context, sel ast.SelectionSet, v *UserRoles) graphql.Marshaler {
+func (ec *executionContext) marshalNUserRoles2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoles(ctx context.Context, sel ast.SelectionSet, v *UserRoles) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4886,13 +4887,13 @@ func (ec *executionContext) marshalNUserRoles2ᚖgithubᚗcomᚋplatformᚑmesh�
 	return ec._UserRoles(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNUserSortField2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserSortField(ctx context.Context, v any) (UserSortField, error) {
+func (ec *executionContext) unmarshalNUserSortField2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserSortField(ctx context.Context, v any) (UserSortField, error) {
 	var res UserSortField
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNUserSortField2githubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserSortField(ctx context.Context, sel ast.SelectionSet, v UserSortField) graphql.Marshaler {
+func (ec *executionContext) marshalNUserSortField2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserSortField(ctx context.Context, sel ast.SelectionSet, v UserSortField) graphql.Marshaler {
 	return v
 }
 
@@ -5197,7 +5198,7 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
-func (ec *executionContext) unmarshalOInviteInput2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐInviteInputᚄ(ctx context.Context, v any) ([]*InviteInput, error) {
+func (ec *executionContext) unmarshalOInviteInput2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐInviteInputᚄ(ctx context.Context, v any) ([]*InviteInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -5207,7 +5208,7 @@ func (ec *executionContext) unmarshalOInviteInput2ᚕᚖgithubᚗcomᚋplatform�
 	res := make([]*InviteInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNInviteInput2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐInviteInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNInviteInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐInviteInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -5215,7 +5216,7 @@ func (ec *executionContext) unmarshalOInviteInput2ᚕᚖgithubᚗcomᚋplatform�
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalOPageInput2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐPageInput(ctx context.Context, v any) (*PageInput, error) {
+func (ec *executionContext) unmarshalOPageInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐPageInput(ctx context.Context, v any) (*PageInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -5223,14 +5224,14 @@ func (ec *executionContext) unmarshalOPageInput2ᚖgithubᚗcomᚋplatformᚑmes
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalORole2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx context.Context, sel ast.SelectionSet, v *Role) graphql.Marshaler {
+func (ec *executionContext) marshalORole2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx context.Context, sel ast.SelectionSet, v *Role) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Role(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOSortByInput2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐSortByInput(ctx context.Context, v any) (*SortByInput, error) {
+func (ec *executionContext) unmarshalOSortByInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐSortByInput(ctx context.Context, v any) (*SortByInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -5292,14 +5293,14 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return res
 }
 
-func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUser(ctx context.Context, sel ast.SelectionSet, v *User) graphql.Marshaler {
+func (ec *executionContext) marshalOUser2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUser(ctx context.Context, sel ast.SelectionSet, v *User) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOUserRoleChange2ᚕᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoleChangeᚄ(ctx context.Context, v any) ([]*UserRoleChange, error) {
+func (ec *executionContext) unmarshalOUserRoleChange2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoleChangeᚄ(ctx context.Context, v any) ([]*UserRoleChange, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -5309,7 +5310,7 @@ func (ec *executionContext) unmarshalOUserRoleChange2ᚕᚖgithubᚗcomᚋplatfo
 	res := make([]*UserRoleChange, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNUserRoleChange2ᚖgithubᚗcomᚋplatformᚑmeshᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoleChange(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNUserRoleChange2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserRoleChange(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}

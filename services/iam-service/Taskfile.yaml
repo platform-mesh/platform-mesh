@@ -14,54 +14,40 @@
 
 version: '3'
 
-vars:
-  LOCAL_BIN: bin
-tasks:
-  ## Setup
-  setup:mockery:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/mockery || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vektra/mockery/v2@v2.53.5
-  setup:golangci-lint:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-  setup:go-test-coverage:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/go-test-coverage || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vladopajic/go-test-coverage/v2@latest
-  setup:oapi-codegen:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/oapi-codegen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
 
+tasks:
   ## Development
   generate:
-    deps: [mockery]
     cmds:
       - task: mockery
       - go generate ./...
   generate:keycloak:
     desc: "Generate minimal Keycloak client from OpenAPI spec"
-    deps: [setup:oapi-codegen]
+    deps: [tools:oapi-codegen]
     cmds:
-      - "{{.LOCAL_BIN}}/oapi-codegen -config oapi-codegen.yaml keycloak-minimal.json"
+      - "{{.BIN}}/oapi-codegen -config oapi-codegen.yaml keycloak-minimal.json"
       - echo "Generated minimal Keycloak client in pkg/keycloak/client/client.go"
   mockery:
-    deps: [setup:mockery]
+    deps: [tools:mockery]
     cmds:
-      - "{{.LOCAL_BIN}}/mockery"
+      - "{{.BIN}}/mockery"
   fmt:
     cmds:
       - go fmt ./...
   lint:
-    deps: [setup:golangci-lint, mockery]
+    deps: [mockery]
     cmds:
       - task: fmt
-      - "{{.LOCAL_BIN}}/golangci-lint run --timeout=15m"
+      - task: tools:lint
   build:
-      cmds:
-        - go build ./...
+    cmds:
+      - go build ./...
   run:
     dotenv: [".env"]
     cmds:
@@ -77,10 +63,13 @@ tasks:
       - task: setup:go-test-coverage
       - task: test
     cmds:
-        - "{{.LOCAL_BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
+        - "{{.BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
   test:
     deps:
       - task: unittest
+  test-e2e: # alias to appease the global taskfile
+    cmds:
+      - task: test
   fuzz:
     desc: "Run fuzz tests with a configurable duration (default 30s per target)"
     vars:

@@ -42,6 +42,7 @@ vars:
   GOMPLATE_VERSION: v4.3.0
   GO_TEST_COVERAGE_VERSION: v2.18.8
   MOCKERY_VERSION: v3.7.0
+  OAPI_VERSION: v2.7.1
   KCP_APIGEN_VERSION: v0.30.1
   # kcp release used by the operators' envtest suites (see component test-e2e).
   KCP_VERSION: 0.31.1
@@ -120,6 +121,12 @@ tasks:
       - test -s {{.BIN}}/docker-compose
     cmds:
       - GOBIN={{.BIN}} GOWORK=off go install github.com/docker/compose/v2/cmd@latest && mv {{.BIN}}/cmd {{.BIN}}/docker-compose
+  oapi-codegen:
+    internal: true
+    status:
+      - test -s {{.BIN}}/oapi-codegen
+    cmds:
+      - GOBIN={{.BIN}} GOWORK=off go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@{{.OAPI_VERSION}}
 
   generate-crds:
     internal: true
