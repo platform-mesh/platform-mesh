@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.20.0
+    controller-gen.kubebuilder.io/version: v0.16.4
   name: terminals.terminal.platform-mesh.io
 spec:
   group: terminal.platform-mesh.io
@@ -35,7 +35,7 @@ spec:
       openAPIV3Schema:
         description: |-
           Terminal is the Schema for the terminals API.
-          Create a Terminal resource in a KCP workspace to get an interactive shell
+          Create a Terminal resource in a kcp workspace to get an interactive shell
           with kubectl configured to access that workspace.
         properties:
           apiVersion:
@@ -150,7 +150,7 @@ spec:
                   Used in the HTTPRoute path to prevent unauthorized access.
                 type: string
               workspacePath:
-                description: WorkspacePath is the resolved KCP workspace path where
+                description: WorkspacePath is the resolved kcp workspace path where
                   this terminal was created
                 type: string
             type: object

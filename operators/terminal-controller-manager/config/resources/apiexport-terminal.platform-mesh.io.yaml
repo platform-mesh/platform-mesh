@@ -14,7 +14,7 @@ spec:
   resources:
   - group: terminal.platform-mesh.io
     name: terminals
-    schema: v260216-62483c5.terminals.terminal.platform-mesh.io
+    schema: v260623-56451538.terminals.terminal.platform-mesh.io
     storage:
       crd: {}
 status: {}
