@@ -142,7 +142,7 @@ func TestAuthorized_HappyPath(t *testing.T) {
 	fgaClient.EXPECT().Check(mock.Anything, mock.Anything).Return(checkResponse, nil)
 
 	ai := createTestAccountInfo()
-	accountInfoRetriever.EXPECT().Get(mock.Anything, "root:orgs:test").Return(ai, nil)
+	accountInfoRetriever.EXPECT().Get(mock.Anything, multicluster.ClusterName("root:orgs:test")).Return(ai, nil)
 
 	// Setup fake workspace client
 	fakeClient := setupFakeClient(t, ai)
@@ -278,7 +278,7 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 				return ctx
 			},
 			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient, air *accountinfomocks.Retriever) {
-				air.EXPECT().Get(mock.Anything, "root:orgs:test").Return(nil, fmt.Errorf("account not found"))
+				air.EXPECT().Get(mock.Anything, multicluster.ClusterName("root:orgs:test")).Return(nil, fmt.Errorf("account not found"))
 			},
 			expectedError: "failed to get account info from kcp context",
 		},
@@ -313,7 +313,7 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 			},
 			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient, air *accountinfomocks.Retriever) {
 				ai := createTestAccountInfo()
-				air.EXPECT().Get(mock.Anything, "root:orgs:test").Return(ai, nil)
+				air.EXPECT().Get(mock.Anything, multicluster.ClusterName("root:orgs:test")).Return(ai, nil)
 			},
 			expectedError: "unauthorized",
 		},
@@ -362,7 +362,7 @@ func TestAuthorized_ResourceNotExists(t *testing.T) {
 	accountInfoRetriever := accountinfomocks.NewRetriever(t)
 
 	ai := createTestAccountInfo()
-	accountInfoRetriever.EXPECT().Get(mock.Anything, "root:orgs:test").Return(ai, nil)
+	accountInfoRetriever.EXPECT().Get(mock.Anything, multicluster.ClusterName("root:orgs:test")).Return(ai, nil)
 
 	// Setup fake workspace client without the resource
 	fakeClient := setupFakeClient(t) // Empty client, resource doesn't exist
@@ -432,7 +432,7 @@ func TestAuthorized_NotAllowed(t *testing.T) {
 	fgaClient.EXPECT().Check(mock.Anything, mock.Anything).Return(checkResponse, nil)
 
 	ai := createTestAccountInfo()
-	accountInfoRetriever.EXPECT().Get(mock.Anything, "root:orgs:test").Return(ai, nil)
+	accountInfoRetriever.EXPECT().Get(mock.Anything, multicluster.ClusterName("root:orgs:test")).Return(ai, nil)
 
 	// Setup fake workspace client with resource
 	fakeClient := setupFakeClient(t, ai)

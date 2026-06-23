@@ -52,8 +52,6 @@ tasks:
     cmds:
       - go run ./main.go serve
   unittest:
-    deps:
-      - task: mockery
     cmds:
       - go clean -testcache
       - go test -coverprofile=cover.out ./...

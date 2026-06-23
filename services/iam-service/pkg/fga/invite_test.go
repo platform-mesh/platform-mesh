@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
 	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
@@ -233,7 +234,7 @@ func TestService_AssignRolesToUsers_WithInvites_UserDoesNotExist(t *testing.T) {
 		nil, nil).Once()
 
 	// Mock workspace client creation (path is appended with resource name for Account)
-	mockWsFactory.EXPECT().New(mock.Anything, "root:org:test-account:test-account").Return(mockWsClient, nil).Once()
+	mockWsFactory.EXPECT().New(mock.Anything, multicluster.ClusterName("root:org:test-account:test-account")).Return(mockWsClient, nil).Once()
 
 	// Mock Write calls for role assignment (2 writes per role: assignee + role tuple)
 	client.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
@@ -565,7 +566,7 @@ func TestService_AssignRolesToUsers_WithInvites_WorkspaceClientError(t *testing.
 		nil, nil).Once()
 
 	// Mock workspace client creation - returns error
-	mockWsFactory.EXPECT().New(mock.Anything, "root:org:test-account:test-account").Return(nil, assert.AnError).Once()
+	mockWsFactory.EXPECT().New(mock.Anything, multicluster.ClusterName("root:org:test-account:test-account")).Return(nil, assert.AnError).Once()
 
 	// Mock Write calls for role assignment (code continues despite invite error)
 	client.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
@@ -658,7 +659,7 @@ func TestService_AssignRolesToUsers_WithInvites_InvalidEmail(t *testing.T) {
 		nil, nil).Once()
 
 	// Mock workspace client creation
-	mockWsFactory.EXPECT().New(mock.Anything, "root:org:test-account:test-account").Return(mockWsClient, nil).Once()
+	mockWsFactory.EXPECT().New(mock.Anything, multicluster.ClusterName("root:org:test-account:test-account")).Return(mockWsClient, nil).Once()
 
 	// Mock Write calls for role assignment (code continues despite invite error)
 	client.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {

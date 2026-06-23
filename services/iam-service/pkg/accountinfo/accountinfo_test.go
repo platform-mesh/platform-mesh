@@ -226,7 +226,7 @@ func TestAccountInfoRetriever_Get_NilContext(t *testing.T) {
 
 	// This will panic with nil dependencies
 	assert.Panics(t, func() {
-		_, _ = retriever.Get(context.Background(), "test-account")
+		_, _ = retriever.Get(context.Background(), multicluster.ClusterName("test-account"))
 	})
 }
 
@@ -274,7 +274,7 @@ func TestAccountInfoRetriever_Get_Success(t *testing.T) {
 	assert.NotNil(t, retriever)
 	assert.NoError(t, err)
 
-	ai, err := retriever.Get(ctx, "test-cluster")
+	ai, err := retriever.Get(ctx, multicluster.ClusterName("test-cluster"))
 	assert.NotNil(t, ai)
 	assert.NoError(t, err)
 }
@@ -302,7 +302,7 @@ func TestAccountInfoRetriever_NoCluster(t *testing.T) {
 	assert.NotNil(t, retriever)
 	assert.NoError(t, err)
 
-	ai, err := retriever.Get(ctx, "test-cluster")
+	ai, err := retriever.Get(ctx, multicluster.ClusterName("test-cluster"))
 	assert.Nil(t, ai)
 	assert.Error(t, err)
 }
@@ -319,6 +319,6 @@ func TestAccountInfoRetriever_Get_EmptyAccountPath(t *testing.T) {
 
 	// This will panic with nil dependencies
 	assert.Panics(t, func() {
-		_, _ = retriever.Get(ctx, "")
+		_, _ = retriever.Get(ctx, multicluster.ClusterName(""))
 	})
 }
