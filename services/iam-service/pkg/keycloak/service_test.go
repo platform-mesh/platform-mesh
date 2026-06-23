@@ -26,12 +26,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"k8s.io/utils/ptr"
 
-	"github.com/platform-mesh/iam-service/pkg/cache"
-	"github.com/platform-mesh/iam-service/pkg/config"
-	appcontext "github.com/platform-mesh/iam-service/pkg/context"
-	"github.com/platform-mesh/iam-service/pkg/graph"
-	keycloakClient "github.com/platform-mesh/iam-service/pkg/keycloak/client"
-	"github.com/platform-mesh/iam-service/pkg/keycloak/mocks"
+	"go.platform-mesh.io/iam-service/pkg/cache"
+	"go.platform-mesh.io/iam-service/pkg/config"
+	appcontext "go.platform-mesh.io/iam-service/pkg/context"
+	"go.platform-mesh.io/iam-service/pkg/graph"
+	keycloakClient "go.platform-mesh.io/iam-service/pkg/keycloak/client"
+	"go.platform-mesh.io/iam-service/pkg/keycloak/mocks"
 )
 
 func createKeycloakTestConfig(baseURL, clientID, clientSecret string, cacheEnabled bool, cacheTTL time.Duration) *config.ServiceConfig {

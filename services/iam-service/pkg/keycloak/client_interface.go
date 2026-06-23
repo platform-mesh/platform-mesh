@@ -19,7 +19,7 @@ package keycloak
 import (
 	"context"
 
-	keycloakClient "github.com/platform-mesh/iam-service/pkg/keycloak/client"
+	keycloakClient "go.platform-mesh.io/iam-service/pkg/keycloak/client"
 )
 
 // KeycloakClientInterface defines the subset of Keycloak client methods we use

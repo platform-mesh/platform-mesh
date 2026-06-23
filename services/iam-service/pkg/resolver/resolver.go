@@ -17,9 +17,9 @@ limitations under the License.
 package resolver
 
 import (
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	"github.com/platform-mesh/iam-service/pkg/resolver/api"
+	"go.platform-mesh.io/iam-service/pkg/resolver/api"
 )
 
 //go:generate go run github.com/99designs/gqlgen@v0.17.81 generate

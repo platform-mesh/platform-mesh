@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"testing"
 
-	accountmocks "github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	accountmocks "go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
+	"go.platform-mesh.io/golang-commons/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"

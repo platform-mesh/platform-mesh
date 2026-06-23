@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/platform-mesh/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/errors"
 )
 
 // contextKey is a private type for context keys to avoid collisions

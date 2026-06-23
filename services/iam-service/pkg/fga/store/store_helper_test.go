@@ -25,7 +25,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/stretchr/testify/assert"
 
-	fgamocks "github.com/platform-mesh/iam-service/pkg/fga/mocks"
+	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
 )
 
 func TestNewFGAStoreHelper(t *testing.T) {

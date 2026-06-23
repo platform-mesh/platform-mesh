@@ -21,7 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/platform-mesh/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 func TestDefaultPager_PaginateUserRoles_DefaultValues(t *testing.T) {

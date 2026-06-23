@@ -2,8 +2,8 @@
 > This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
 
 # Platform Mesh - iam-service
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/iam-service/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/iam-service)
-![Build Status](https://github.com/platform-mesh/iam-service/actions/workflows/ci.yml/badge.svg)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/go.platform-mesh.io/iam-service/badge)](https://scorecard.dev/viewer/?uri=go.platform-mesh.io/iam-service)
+![Build Status](https://go.platform-mesh.io/iam-service/actions/workflows/ci.yml/badge.svg)
 
 ## Description
 
@@ -17,7 +17,7 @@ The platform-mesh iam-service offers a graphql API for user management. The serv
 - JWT token validation against KCP
 
 
-## Getting Started 
+## Getting Started
 - For running and building the iam-service, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository.
 - To deploy the iam-service to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository.
 

@@ -24,14 +24,14 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	pmconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	pmconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	"github.com/platform-mesh/iam-service/pkg/config"
-	"github.com/platform-mesh/iam-service/pkg/graph"
-	"github.com/platform-mesh/iam-service/pkg/resolver"
+	"go.platform-mesh.io/iam-service/pkg/config"
+	"go.platform-mesh.io/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/resolver"
 )
 
 // testResolverService is a minimal service implementation for router HTTP tests

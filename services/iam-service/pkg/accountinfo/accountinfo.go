@@ -22,9 +22,9 @@ import (
 	"sync"
 
 	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/account-operator/pkg/subroutines/manageaccountinfo"
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
+	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )

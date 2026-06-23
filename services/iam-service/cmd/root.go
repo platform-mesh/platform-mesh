@@ -19,15 +19,15 @@ package cmd
 import (
 	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	platformmeshcontext "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/spf13/cobra"
+	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	securityv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
-	"github.com/platform-mesh/iam-service/pkg/config"
+	"go.platform-mesh.io/iam-service/pkg/config"
 )
 
 var (

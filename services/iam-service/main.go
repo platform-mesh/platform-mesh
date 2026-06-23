@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/platform-mesh/iam-service/cmd"
+	"go.platform-mesh.io/iam-service/cmd"
 )
 
 func main() {

@@ -29,12 +29,12 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/golang-commons/errors"
-	"github.com/platform-mesh/golang-commons/logger"
-	pmmws "github.com/platform-mesh/golang-commons/middleware"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.platform-mesh.io/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/logger"
+	pmmws "go.platform-mesh.io/golang-commons/middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/client-go/rest"
@@ -44,22 +44,22 @@ import (
 
 	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
 
-	"github.com/platform-mesh/iam-service/pkg/accountinfo"
-	"github.com/platform-mesh/iam-service/pkg/config"
-	"github.com/platform-mesh/iam-service/pkg/directive"
-	"github.com/platform-mesh/iam-service/pkg/graph"
-	"github.com/platform-mesh/iam-service/pkg/keycloak"
-	kcpmiddleware "github.com/platform-mesh/iam-service/pkg/middleware/kcp"
-	keycloakmw "github.com/platform-mesh/iam-service/pkg/middleware/keycloak"
-	"github.com/platform-mesh/iam-service/pkg/resolver"
-	"github.com/platform-mesh/iam-service/pkg/resolver/pm"
-	"github.com/platform-mesh/iam-service/pkg/workspace"
+	"go.platform-mesh.io/iam-service/pkg/accountinfo"
+	"go.platform-mesh.io/iam-service/pkg/config"
+	"go.platform-mesh.io/iam-service/pkg/directive"
+	"go.platform-mesh.io/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/keycloak"
+	kcpmiddleware "go.platform-mesh.io/iam-service/pkg/middleware/kcp"
+	keycloakmw "go.platform-mesh.io/iam-service/pkg/middleware/keycloak"
+	"go.platform-mesh.io/iam-service/pkg/resolver"
+	"go.platform-mesh.io/iam-service/pkg/resolver/pm"
+	"go.platform-mesh.io/iam-service/pkg/workspace"
 
-	pmcontext "github.com/platform-mesh/golang-commons/context"
+	pmcontext "go.platform-mesh.io/golang-commons/context"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	iamRouter "github.com/platform-mesh/iam-service/pkg/router"
+	iamRouter "go.platform-mesh.io/iam-service/pkg/router"
 )
 
 var serverCmd = &cobra.Command{

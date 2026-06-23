@@ -22,19 +22,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/stretchr/testify/assert"
+	"go.platform-mesh.io/golang-commons/logger"
 	"k8s.io/utils/ptr"
 
-	"github.com/platform-mesh/iam-service/pkg/config"
-	"github.com/platform-mesh/iam-service/pkg/fga"
-	"github.com/platform-mesh/iam-service/pkg/fga/mocks"
-	"github.com/platform-mesh/iam-service/pkg/graph"
-	"github.com/platform-mesh/iam-service/pkg/keycloak"
-	"github.com/platform-mesh/iam-service/pkg/pager"
-	"github.com/platform-mesh/iam-service/pkg/resolver"
-	"github.com/platform-mesh/iam-service/pkg/roles"
-	"github.com/platform-mesh/iam-service/pkg/sorter"
+	"go.platform-mesh.io/iam-service/pkg/config"
+	"go.platform-mesh.io/iam-service/pkg/fga"
+	"go.platform-mesh.io/iam-service/pkg/fga/mocks"
+	"go.platform-mesh.io/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/keycloak"
+	"go.platform-mesh.io/iam-service/pkg/pager"
+	"go.platform-mesh.io/iam-service/pkg/resolver"
+	"go.platform-mesh.io/iam-service/pkg/roles"
+	"go.platform-mesh.io/iam-service/pkg/sorter"
 )
 
 // Removed mockResolverService - we only mock external dependencies now

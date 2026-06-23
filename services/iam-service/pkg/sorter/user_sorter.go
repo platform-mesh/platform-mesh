@@ -20,8 +20,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/platform-mesh/iam-service/pkg/config"
-	"github.com/platform-mesh/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/config"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 // UserSorter defines the interface for sorting user-related data

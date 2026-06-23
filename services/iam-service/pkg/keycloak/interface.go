@@ -19,7 +19,7 @@ package keycloak
 import (
 	"context"
 
-	"github.com/platform-mesh/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 // KeycloakService defines the interface for Keycloak user management operations

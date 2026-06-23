@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/platform-mesh/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 func TestNewFileBasedRolesRetriever_Success(t *testing.T) {

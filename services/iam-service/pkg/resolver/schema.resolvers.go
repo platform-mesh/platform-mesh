@@ -7,7 +7,7 @@ package resolver
 import (
 	"context"
 
-	"github.com/platform-mesh/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 // AssignRolesToUsers is the resolver for the assignRolesToUsers field.

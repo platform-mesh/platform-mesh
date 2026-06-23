@@ -24,13 +24,13 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/context/keys"
-	"github.com/platform-mesh/golang-commons/jwt"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/context/keys"
+	"go.platform-mesh.io/golang-commons/jwt"
+	"go.platform-mesh.io/golang-commons/logger"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,10 +39,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	accountinfomocks "github.com/platform-mesh/iam-service/pkg/accountinfo/mocks"
-	appcontext "github.com/platform-mesh/iam-service/pkg/context"
-	fgamocks "github.com/platform-mesh/iam-service/pkg/fga/mocks"
-	"github.com/platform-mesh/iam-service/pkg/graph"
+	accountinfomocks "go.platform-mesh.io/iam-service/pkg/accountinfo/mocks"
+	appcontext "go.platform-mesh.io/iam-service/pkg/context"
+	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 type mockWSClient struct {

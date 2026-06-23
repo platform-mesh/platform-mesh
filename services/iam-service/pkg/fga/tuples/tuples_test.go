@@ -19,11 +19,11 @@ package tuples
 import (
 	"testing"
 
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/platform-mesh/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 func TestGenerateContextualTuples_WithNamespace(t *testing.T) {

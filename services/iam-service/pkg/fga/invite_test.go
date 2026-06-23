@@ -21,20 +21,20 @@ import (
 	"testing"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/logger"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	securityv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	appcontext "github.com/platform-mesh/iam-service/pkg/context"
-	fgamocks "github.com/platform-mesh/iam-service/pkg/fga/mocks"
-	"github.com/platform-mesh/iam-service/pkg/graph"
+	appcontext "go.platform-mesh.io/iam-service/pkg/context"
+	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 func TestEmailToLabelValue(t *testing.T) {

@@ -80,7 +80,7 @@ resolver:
 # gqlgen will search for any type names in the schema in these go packages
 # if they match it will use them, otherwise it will generate them.
 autobind:
-#  - "github.com/platform-mesh/iam-service/graph/model"
+#  - "go.platform-mesh.io/iam-service/graph/model"
 
 # This section declares type mapping between the GraphQL and go type systems
 #
@@ -89,34 +89,34 @@ autobind:
 # your liking
 #models:
 #  User:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.User
+#    model: go.platform-mesh.io/iam-service/pkg/graph.User
 #  Policy:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.Policy
+#    model: go.platform-mesh.io/iam-service/pkg/graph.Policy
 #  Team:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.Team
+#    model: go.platform-mesh.io/iam-service/pkg/graph.Team
 #  TeamConnection:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.TeamConnection
+#    model: go.platform-mesh.io/iam-service/pkg/graph.TeamConnection
 #  UserConnection:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.UserConnection
+#    model: go.platform-mesh.io/iam-service/pkg/graph.UserConnection
 #  Invite:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.Invite
+#    model: go.platform-mesh.io/iam-service/pkg/graph.Invite
 #  PageInfo:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.PageInfo
+#    model: go.platform-mesh.io/iam-service/pkg/graph.PageInfo
 #  Role:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.Role
+#    model: go.platform-mesh.io/iam-service/pkg/graph.Role
 #  Permission:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.Permission
+#    model: go.platform-mesh.io/iam-service/pkg/graph.Permission
 #  Change:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.Change
+#    model: go.platform-mesh.io/iam-service/pkg/graph.Change
 #  TeamInput:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.TeamInput
+#    model: go.platform-mesh.io/iam-service/pkg/graph.TeamInput
 #  TenantInfo:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.TenantInfo
+#    model: go.platform-mesh.io/iam-service/pkg/graph.TenantInfo
 #  GrantedUser:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.GrantedUser
+#    model: go.platform-mesh.io/iam-service/pkg/graph.GrantedUser
 #  GrantedUserConnection:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.GrantedUserConnection
+#    model: go.platform-mesh.io/iam-service/pkg/graph.GrantedUserConnection
 #  EntityInput:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.EntityInput
+#    model: go.platform-mesh.io/iam-service/pkg/graph.EntityInput
 #  UserInput:
-#    model: github.com/platform-mesh/iam-service/pkg/graph.UserInput
+#    model: go.platform-mesh.io/iam-service/pkg/graph.UserInput

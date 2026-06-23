@@ -20,19 +20,19 @@ import (
 	"context"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	pmcontext "github.com/platform-mesh/golang-commons/context"
+	pmcontext "go.platform-mesh.io/golang-commons/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/platform-mesh/iam-service/pkg/config"
-	"github.com/platform-mesh/iam-service/pkg/fga"
-	"github.com/platform-mesh/iam-service/pkg/graph"
-	"github.com/platform-mesh/iam-service/pkg/keycloak"
-	"github.com/platform-mesh/iam-service/pkg/pager"
-	"github.com/platform-mesh/iam-service/pkg/resolver/api"
-	serrors "github.com/platform-mesh/iam-service/pkg/resolver/errors"
-	"github.com/platform-mesh/iam-service/pkg/resolver/transformer"
-	"github.com/platform-mesh/iam-service/pkg/sorter"
-	"github.com/platform-mesh/iam-service/pkg/workspace"
+	"go.platform-mesh.io/iam-service/pkg/config"
+	"go.platform-mesh.io/iam-service/pkg/fga"
+	"go.platform-mesh.io/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/keycloak"
+	"go.platform-mesh.io/iam-service/pkg/pager"
+	"go.platform-mesh.io/iam-service/pkg/resolver/api"
+	serrors "go.platform-mesh.io/iam-service/pkg/resolver/errors"
+	"go.platform-mesh.io/iam-service/pkg/resolver/transformer"
+	"go.platform-mesh.io/iam-service/pkg/sorter"
+	"go.platform-mesh.io/iam-service/pkg/workspace"
 )
 
 var _ api.ResolverService = (*Service)(nil)

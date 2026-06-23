@@ -19,7 +19,7 @@ package keycloak
 import (
 	"regexp"
 
-	"github.com/platform-mesh/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/errors"
 )
 
 type KeycloakIDMRetriever struct{}

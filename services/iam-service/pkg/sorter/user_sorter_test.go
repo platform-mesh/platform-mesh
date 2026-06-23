@@ -19,9 +19,9 @@ package sorter
 import (
 	"testing"
 
-	"github.com/platform-mesh/iam-service/pkg/config"
-	"github.com/platform-mesh/iam-service/pkg/graph"
 	"github.com/stretchr/testify/assert"
+	"go.platform-mesh.io/iam-service/pkg/config"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 func TestNewUserSorter(t *testing.T) {

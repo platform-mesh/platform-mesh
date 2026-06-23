@@ -21,10 +21,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/platform-mesh/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/platform-mesh/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 // RoleDefinition represents a single role definition

@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"testing"
 
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	accountmocks "github.com/platform-mesh/account-operator/pkg/subroutines/mocks"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	accountmocks "go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
+	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/platform-mesh/iam-service/pkg/accountinfo/mocks"
+	"go.platform-mesh.io/iam-service/pkg/accountinfo/mocks"
 )
 
 type Provider struct {
