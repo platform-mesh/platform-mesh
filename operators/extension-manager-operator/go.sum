@@ -161,6 +161,7 @@ github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee/go.mod h1:yWu
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/onsi/ginkgo/v2 v2.28.1 h1:S4hj+HbZp40fNKuLUQOYLDgZLwNUVn19N3Atb98NCyI=
+github.com/onsi/ginkgo/v2 v2.28.1/go.mod h1:CLtbVInNckU3/+gC8LzkGUb9oF+e8W8TdUsxPwvdOgE=
 github.com/onsi/gomega v1.39.1 h1:1IJLAad4zjPn2PsnhH70V4DKRFlrCzGBNrNaru+Vf28=
 github.com/onsi/gomega v1.39.1/go.mod h1:hL6yVALoTOxeWudERyfppUcZXjMwIMLnuSfruD2lcfg=
 github.com/pb33f/ordered-map/v2 v2.3.1 h1:5319HDO0aw4DA4gzi+zv4FXU9UlSs3xGZ40wcP1nBjY=
@@ -236,7 +237,9 @@ go.opentelemetry.io/proto/otlp v1.10.0/go.mod h1:/CV4QoCR/S9yaPj8utp3lvQPoqMtxXd
 go.platform-mesh.io/apis v0.0.0-20260622163530-6da3dc047e52 h1:KN0k0HBV4XDxv7UyF8fkX+RmWB6MFFCSlA2hbDBM6YI=
 go.platform-mesh.io/apis v0.0.0-20260622163530-6da3dc047e52/go.mod h1:uUrbk5GXLp8zn90MeZH0opW4whWkPoQ83jD5ZBDm5TE=
 go.platform-mesh.io/golang-commons v0.0.0-20260622163530-6da3dc047e52 h1:7oChf4AwJG2WY6BEqRzHDFCDcitw8pGrRoAMp5s5tMw=
+go.platform-mesh.io/golang-commons v0.0.0-20260622163530-6da3dc047e52/go.mod h1:DWOpNDsJNI8QDpJuegdtHUwsgmkamaSqBU8YQiYTcIY=
 go.platform-mesh.io/subroutines v0.0.0-20260622163530-6da3dc047e52 h1:trpfO8AGi+JPx3G+pofu0+B6YZZhOzqX0B3R+VFqYf8=
+go.platform-mesh.io/subroutines v0.0.0-20260622163530-6da3dc047e52/go.mod h1:QIZAK/3AfBAZi90Lj4qFSgIsk9on1Gf3HB7i6Ms1WX0=
 go.uber.org/goleak v1.3.1-0.20241121203838-4ff5fa6529ee h1:uOMbcH1Dmxv45VkkpZQYoerZFeDncWpjbN7ATiQOO7c=
 go.uber.org/goleak v1.3.1-0.20241121203838-4ff5fa6529ee/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
