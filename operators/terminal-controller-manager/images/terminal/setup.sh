@@ -134,7 +134,7 @@ export -f __update_token__
 # Ignore token update commands in history
 export HISTIGNORE="__update_token__*"
 
-echo "[setup] Connected to KCP workspace: ${KCP_WORKSPACE_URL}"
+echo "[setup] Connected to kcp workspace: ${KCP_WORKSPACE_URL}"
 echo "[setup] KUBECONFIG=${KUBECONFIG}"
 echo ""
 echo "Welcome to the Platform Mesh Terminal!"

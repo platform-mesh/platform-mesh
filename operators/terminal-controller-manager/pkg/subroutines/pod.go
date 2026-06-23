@@ -158,9 +158,9 @@ func (r *PodSubroutine) Process(ctx context.Context, obj client.Object) (subrout
 		instance.Status.SessionID = uuid.New().String()
 	}
 
-	// Capture creator identity from annotations (set by KCP from OIDC token)
+	// Capture creator identity from annotations (set by kcp from OIDC token)
 	if instance.Status.CreatedBy == "" {
-		// KCP sets user identity in annotations like "kcp.io/user-info"
+		// kcp sets user identity in annotations like "kcp.io/user-info"
 		if userInfo, ok := instance.Annotations["kcp.io/user-info"]; ok {
 			instance.Status.CreatedBy = userInfo
 		} else if creator, ok := instance.Annotations["kcp.io/creator"]; ok {

@@ -59,7 +59,7 @@ type TerminalStatus struct {
 	// +optional
 	PodName string `json:"podName,omitempty"`
 
-	// WorkspacePath is the resolved KCP workspace path where this terminal was created
+	// WorkspacePath is the resolved kcp workspace path where this terminal was created
 	// +optional
 	WorkspacePath string `json:"workspacePath,omitempty"`
 
@@ -86,7 +86,7 @@ type TerminalStatus struct {
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Terminal is the Schema for the terminals API.
-// Create a Terminal resource in a KCP workspace to get an interactive shell
+// Create a Terminal resource in a kcp workspace to get an interactive shell
 // with kubectl configured to access that workspace.
 type Terminal struct {
 	metav1.TypeMeta   `json:",inline"`

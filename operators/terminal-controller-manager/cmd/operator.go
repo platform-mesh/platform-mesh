@@ -80,11 +80,11 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		}
 	}()
 
-	// KCP config for watching Terminal CRs via APIExport
+	// kcp config for watching Terminal CRs via APIExport
 	// Uses --kcp-kubeconfig flag if set, otherwise falls back to in-cluster config
 	kcpCfg, err := loadKcpConfig(operatorCfg.Kcp.Kubeconfig)
 	if err != nil {
-		log.Fatal().Err(err).Msg("unable to load KCP kubeconfig")
+		log.Fatal().Err(err).Msg("unable to load kcp kubeconfig")
 	}
 	kcpCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)
@@ -151,15 +151,15 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	}
 }
 
-// loadKcpConfig loads the kubeconfig for KCP.
+// loadKcpConfig loads the kubeconfig for kcp.
 // If kubeconfigPath is provided, it loads from that file.
 // Otherwise, it falls back to in-cluster config.
 func loadKcpConfig(kubeconfigPath string) (*rest.Config, error) {
 	if kubeconfigPath != "" {
-		log.Info().Str("kubeconfig", kubeconfigPath).Msg("loading KCP config from file")
+		log.Info().Str("kubeconfig", kubeconfigPath).Msg("loading kcp config from file")
 		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	}
 
-	log.Info().Msg("loading KCP config from in-cluster")
+	log.Info().Msg("loading kcp config from in-cluster")
 	return rest.InClusterConfig()
 }

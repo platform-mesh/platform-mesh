@@ -35,7 +35,7 @@ type SubroutinesConfig struct {
 
 type KCPConfig struct {
 	APIExportEndpointSliceName string
-	// Kubeconfig is the path to the kubeconfig file for connecting to KCP.
+	// Kubeconfig is the path to the kubeconfig file for connecting to kcp.
 	// If empty, falls back to in-cluster config.
 	Kubeconfig string
 }
@@ -91,8 +91,8 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&c.Subroutines.Service.Enabled, "subroutines-service-enabled", c.Subroutines.Service.Enabled, "Enable service subroutine")
 	fs.BoolVar(&c.Subroutines.HTTPRoute.Enabled, "subroutines-httproute-enabled", c.Subroutines.HTTPRoute.Enabled, "Enable HTTPRoute subroutine")
 
-	fs.StringVar(&c.Kcp.APIExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.Kcp.APIExportEndpointSliceName, "Set KCP APIExportEndpointSlice name")
-	fs.StringVar(&c.Kcp.Kubeconfig, "kcp-kubeconfig", c.Kcp.Kubeconfig, "Path to the kubeconfig file for connecting to KCP")
+	fs.StringVar(&c.Kcp.APIExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.Kcp.APIExportEndpointSliceName, "Set kcp APIExportEndpointSlice name")
+	fs.StringVar(&c.Kcp.Kubeconfig, "kcp-kubeconfig", c.Kcp.Kubeconfig, "Path to the kubeconfig file for connecting to kcp")
 
 	fs.StringVar(&c.Terminal.Image, "terminal-image", c.Terminal.Image, "Terminal container image")
 	fs.StringVar(&c.Terminal.Namespace, "terminal-namespace", c.Terminal.Namespace, "Runtime namespace for terminal resources")

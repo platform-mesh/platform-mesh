@@ -2,9 +2,9 @@
 
 ## Context
 
-Platform-mesh needs a browser-based terminal to connect to KCP (Kubernetes Control Plane) for running kubectl commands. Users should be able to open a terminal in the UI and interact with their KCP workspaces using kubectl and KCP plugins.
+Platform-mesh needs a browser-based terminal to connect to kcp (Kubernetes-like Control Planes) for running kubectl commands. Users should be able to open a terminal in the UI and interact with their kcp workspaces using kubectl and kcp plugins.
 
-This implementation is inspired by [Gardener's terminal-controller-manager](https://github.com/gardener/terminal-controller-manager) but tailored specifically for KCP and platform-mesh architecture.
+This implementation is inspired by [Gardener's terminal-controller-manager](https://github.com/gardener/terminal-controller-manager) but tailored specifically for kcp and platform-mesh architecture.
 
 ## Architecture Overview
 
@@ -27,7 +27,7 @@ This implementation is inspired by [Gardener's terminal-controller-manager](http
 │                              │                                       │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │  Terminal Controller Manager                                   │  │
-│  │  ├─ Watches Terminal CRDs (via KCP APIExport)                  │  │
+│  │  ├─ Watches Terminal CRDs (via kcp APIExport)                  │  │
 │  │  ├─ Creates terminal pods, services, HTTPRoutes                │  │
 │  │  └─ Manages terminal lifetime (auto-cleanup after 2h)          │  │
 │  └───────────────────────────────────────────────────────────────┘  │
@@ -36,7 +36,7 @@ This implementation is inspired by [Gardener's terminal-controller-manager](http
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │  Terminal Pod (ephemeral)                                      │  │
 │  │  ├─ ttyd WebSocket server on port 8080                         │  │
-│  │  ├─ kubectl + KCP plugins + k9s pre-installed                  │  │
+│  │  ├─ kubectl + kcp plugins + k9s pre-installed                  │  │
 │  │  ├─ Reads token from stdin, validates user, creates kubeconfig │  │
 │  │  └─ Drops to interactive shell                                 │  │
 │  └───────────────────────────────────────────────────────────────┘  │
@@ -46,7 +46,7 @@ This implementation is inspired by [Gardener's terminal-controller-manager](http
           │ Watch Terminal CRs              │ kubectl commands
           ▼                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  KCP API Server                                                     │
+│  kcp API Server                                                     │
 │  └─ User's workspace                                                │
 │     ├─ Terminal CRs created here (user-facing API)                  │
 │     └─ AccountInfo provides workspace URL and CA cert               │
@@ -59,14 +59,14 @@ The operator follows a **split-cluster architecture**:
 
 | Cluster | Resources | Purpose |
 |---------|-----------|---------|
-| KCP (virtual workspaces) | Terminal CRs, AccountInfo | User-facing API, watched via APIExport |
+| kcp (virtual workspaces) | Terminal CRs, AccountInfo | User-facing API, watched via APIExport |
 | Runtime cluster | Terminal pods, services, HTTPRoutes, controller | Actual pod execution, Gateway routing |
 
 This means:
-- Users create `Terminal` resources in their KCP workspace
-- Controller watches across all KCP workspaces via multicluster-runtime + apiexport provider
+- Users create `Terminal` resources in their kcp workspace
+- Controller watches across all kcp workspaces via multicluster-runtime + apiexport provider
 - Pods, Services, and HTTPRoutes are created on the runtime cluster where the controller runs
-- The controller needs two clients: one for KCP (watching CRs) and one for runtime (managing resources)
+- The controller needs two clients: one for kcp (watching CRs) and one for runtime (managing resources)
 
 ## Key Design Decisions
 
@@ -118,7 +118,7 @@ This means:
 
 ## How It Works
 
-1. **User requests terminal** - Frontend creates a `Terminal` custom resource in their KCP workspace
+1. **User requests terminal** - Frontend creates a `Terminal` custom resource in their kcp workspace
 2. **Controller reconciles** - Reads AccountInfo to get workspace URL and CA cert, creates pod, service, and HTTPRoute
 3. **Session ID generated** - UUID stored in status.sessionId for non-guessable URL path
 4. **Resources created** - Pod with ttyd, ClusterIP Service, HTTPRoute pointing to the gateway
@@ -149,7 +149,7 @@ status:
   # UUID for non-guessable URL path
   sessionId: "550e8400-e29b-41d4-a716-446655440000"
 
-  # User identity from KCP (sub claim from OIDC token)
+  # User identity from kcp (sub claim from OIDC token)
   createdBy: "user@example.com"
 
   # Name of the created pod on runtime cluster
@@ -175,7 +175,7 @@ Note: The spec is intentionally empty. All configuration is controlled by the pl
 | Responsibility | Description |
 |----------------|-------------|
 | Watch Terminal CRDs | Reconcile desired state to actual state via APIExport |
-| Create Terminal Pods | With ttyd, kubectl, KCP plugins, k9s (no credentials) |
+| Create Terminal Pods | With ttyd, kubectl, kcp plugins, k9s (no credentials) |
 | Create Services | ClusterIP service exposing pod port 8080 |
 | Create HTTPRoutes | Gateway API routes with session-ID-based paths |
 | Handle Lifecycle | TTL-based cleanup (default 2h) |
@@ -194,7 +194,7 @@ Terminal Created
          ▼
 ┌──────────────────┐
 │ Generate Session │ (UUID for URL path)
-│ Capture Creator  │ (from KCP annotations)
+│ Capture Creator  │ (from kcp annotations)
 └────────┬─────────┘
          │
          ▼
@@ -238,7 +238,7 @@ Terminal Created
 
 **Installed Tools:**
 - kubectl (latest stable)
-- KCP kubectl plugins (`kubectl ws`, `kubectl kcp`)
+- kcp kubectl plugins (`kubectl ws`, `kubectl kcp`)
 - k9s (terminal UI for Kubernetes)
 - ttyd (WebSocket terminal server)
 - bash, curl, jq, vim
@@ -374,7 +374,7 @@ chmod 600 "${KUBECONFIG}"
 # Clear token from environment
 unset TOKEN
 
-echo "[setup] Connected to KCP workspace: ${KCP_WORKSPACE_URL}"
+echo "[setup] Connected to kcp workspace: ${KCP_WORKSPACE_URL}"
 echo ""
 echo "Welcome to the Platform Mesh Terminal!"
 echo ""
@@ -467,14 +467,14 @@ kind: ClusterRole
 metadata:
   name: terminal-controller-manager
 rules:
-  # Terminal CRD management (on KCP)
+  # Terminal CRD management (on kcp)
   - apiGroups: ["terminal.platform-mesh.io"]
     resources: ["terminals"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["terminal.platform-mesh.io"]
     resources: ["terminals/status"]
     verbs: ["get", "update", "patch"]
-  # AccountInfo read (on KCP)
+  # AccountInfo read (on kcp)
   - apiGroups: ["account.platform-mesh.io"]
     resources: ["accountinfos"]
     verbs: ["get", "list", "watch"]
@@ -508,7 +508,7 @@ rules:
 ### Phase 1: Core Controller (MVP) ✅
 - [x] Terminal CRD definition (empty spec, status-driven)
 - [x] Basic controller reconciliation (create pod, service, HTTPRoute)
-- [x] Terminal pod image with ttyd, kubectl, KCP plugins, k9s
+- [x] Terminal pod image with ttyd, kubectl, kcp plugins, k9s
 - [x] Setup script for token injection and user validation
 - [x] Lifetime-based cleanup (2h default)
 - [x] Session ID generation for URL security
@@ -600,8 +600,8 @@ Configuration is controlled via controller flags (viper-based):
 | `--gateway-name` | `k8sapi-gateway` | Gateway name for HTTPRoutes |
 | `--gateway-namespace` | `platform-mesh-system` | Gateway namespace |
 | `--gateway-hostnames` | `portal.localhost,*.portal.localhost` | Hostnames for HTTPRoutes |
-| `--kcp-api-export-endpoint-slice-name` | `terminal.platform-mesh.io` | KCP APIExport name |
-| `--kcp-kubeconfig` | (in-cluster) | Path to KCP kubeconfig |
+| `--kcp-api-export-endpoint-slice-name` | `terminal.platform-mesh.io` | kcp APIExport name |
+| `--kcp-kubeconfig` | (in-cluster) | Path to kcp kubeconfig |
 
 ## Technical Implementation
 
@@ -610,7 +610,7 @@ Configuration is controlled via controller flags (viper-based):
 | Dependency | Purpose |
 |------------|---------|
 | [multicluster-runtime](https://github.com/kubernetes-sigs/multicluster-runtime) | Multi-cluster controller framework |
-| [multicluster-provider](https://github.com/kcp-dev/multicluster-provider) | KCP APIExport provider for workspace discovery |
+| [multicluster-provider](https://github.com/kcp-dev/multicluster-provider) | kcp APIExport provider for workspace discovery |
 | platform-mesh/golang-commons | Lifecycle management, logging, configuration |
 | gateway-api | HTTPRoute for terminal routing |
 | ttyd | WebSocket terminal server in pod |
@@ -631,16 +631,16 @@ func main() {
 
 ```go
 func RunController(_ *cobra.Command, _ []string) {
-    // KCP config for watching Terminal CRs via APIExport
+    // kcp config for watching Terminal CRs via APIExport
     kcpCfg, _ := loadKcpConfig(operatorCfg.Kcp.Kubeconfig)
 
     // Runtime cluster config for pod/service/HTTPRoute management
     runtimeCfg := ctrl.GetConfigOrDie()
 
-    // Create KCP APIExport provider
+    // Create kcp APIExport provider
     provider, _ := apiexport.New(kcpCfg, operatorCfg.Kcp.APIExportEndpointSliceName, ...)
 
-    // Create multicluster manager (connects to KCP)
+    // Create multicluster manager (connects to kcp)
     mgr, _ := mcmanager.New(kcpCfg, provider, ...)
 
     // Create runtime client for local resources
@@ -652,7 +652,7 @@ func RunController(_ *cobra.Command, _ []string) {
 ```
 
 **Key Pattern:**
-- `mcmanager` with `apiexport.Provider` → Watches Terminal CRs across KCP workspaces
+- `mcmanager` with `apiexport.Provider` → Watches Terminal CRs across kcp workspaces
 - `client.New(runtimeCfg)` → Manages pods, services, HTTPRoutes on runtime cluster
 
 ### Subroutine Pattern
@@ -661,7 +661,7 @@ Each subroutine handles a specific resource type:
 
 ```go
 type PodSubroutine struct {
-    mgr            mcmanager.Manager  // For accessing KCP workspace clients
+    mgr            mcmanager.Manager  // For accessing kcp workspace clients
     runtimeClient  client.Client      // For managing pods on runtime cluster
     // ...
 }
@@ -669,7 +669,7 @@ type PodSubroutine struct {
 func (r *PodSubroutine) Process(ctx context.Context, ro runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
     terminal := ro.(*v1alpha1.Terminal)
 
-    // Get workspace info from KCP
+    // Get workspace info from kcp
     clusterName, _ := mccontext.ClusterFrom(ctx)
     cluster, _ := r.mgr.GetCluster(ctx, clusterName)
     accountInfo := &accountv1alpha1.AccountInfo{}
@@ -720,11 +720,11 @@ func (r *PodSubroutine) Finalize(ctx context.Context, ro runtimeobject.RuntimeOb
 
 | Aspect | Gardener | Platform-Mesh |
 |--------|----------|---------------|
-| Target | Shoots, Seeds, Garden | KCP Workspaces |
+| Target | Shoots, Seeds, Garden | kcp Workspaces |
 | Auth | ServiceAccount, ShootRef | OIDC tokens (frontend-injected) |
 | Token Storage | Secrets in cluster | Never stored (tmpfs only) |
 | WebSocket | Dashboard proxies | ttyd + Gateway API HTTPRoutes |
-| Clusters | Multi-cluster (host/target) | Split-cluster (KCP + runtime) |
+| Clusters | Multi-cluster (host/target) | Split-cluster (kcp + runtime) |
 | Frontend | Vue.js | Angular |
 | CRD | Full spec with target/host | Empty spec (controller-driven) |
 | Terminal Server | Custom exec proxy | ttyd |
@@ -735,6 +735,6 @@ func (r *PodSubroutine) Finalize(ctx context.Context, ro runtimeobject.RuntimeOb
 - [Gardener terminal-controller-manager](https://github.com/gardener/terminal-controller-manager)
 - [ttyd - Share your terminal over the web](https://github.com/tsl0922/ttyd)
 - [xterm.js](https://xtermjs.org/)
-- [KCP](https://github.com/kcp-dev/kcp)
+- [kcp](https://github.com/kcp-dev/kcp)
 - [Gateway API](https://gateway-api.sigs.k8s.io/)
 - [multicluster-runtime](https://github.com/kubernetes-sigs/multicluster-runtime)

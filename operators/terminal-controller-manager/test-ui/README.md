@@ -6,7 +6,7 @@ A minimal test UI for testing the terminal controller against a local Kind clust
 
 1. Running Kind cluster with platform-mesh deployed
 2. Terminal controller deployed and running
-3. A Terminal CR created in a KCP workspace
+3. A Terminal CR created in a kcp workspace
 4. An OIDC token (from Keycloak)
 
 ## Usage
@@ -32,7 +32,7 @@ kubectl port-forward svc/terminal-controller-manager 8080:8080 -n platform-mesh-
 ### 3. Create a Terminal CR
 
 ```bash
-# Apply a test terminal resource in your KCP workspace
+# Apply a test terminal resource in your kcp workspace
 kubectl apply -f - <<EOF
 apiVersion: terminal.platform-mesh.io/v1alpha1
 kind: Terminal
@@ -80,7 +80,7 @@ curl -X POST "https://keycloak.example.com/realms/platform-mesh/protocol/openid-
 
 ### Token errors
 - Token may be expired, get a fresh one
-- Check if token is valid for the target KCP workspace
+- Check if token is valid for the target kcp workspace
 
 ### Terminal not ready
 - Check Terminal CR status: `kubectl get terminal test-terminal -o yaml`

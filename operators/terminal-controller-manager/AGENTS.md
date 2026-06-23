@@ -1,5 +1,5 @@
 ## Repository Description
-- `terminal-controller-manager` manages browser-based terminal sessions for KCP workspaces through a Kubernetes controller and terminal pod image.
+- `terminal-controller-manager` manages browser-based terminal sessions for kcp workspaces through a Kubernetes controller and terminal pod image.
 - `Terminal` resources drive ephemeral terminal pods that provide workspace access from the browser. The repo also contains the terminal image under `images/terminal`.
 - This is a Go service built around [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime), [multicluster-runtime](https://github.com/kubernetes-sigs/multicluster-runtime), and generated Kubernetes APIs.
 - Read the org-wide [AGENTS.md](https://github.com/platform-mesh/.github/blob/main/AGENTS.md) for general conventions.
@@ -21,11 +21,11 @@
 - `test-ui`: local browser UI for websocket testing.
 
 ## Architecture
-This service splits responsibility between KCP-backed `Terminal` resources and runtime-cluster infrastructure objects such as pods, services, and HTTPRoutes.
+This service splits responsibility between kcp-backed `Terminal` resources and runtime-cluster infrastructure objects such as pods, services, and HTTPRoutes.
 
 ### Runtime model
-- `cmd/operator.go` builds a multicluster manager against KCP using an APIExport provider and a separate runtime-cluster client for pod/service/route management.
-- `--kcp-kubeconfig` controls the KCP watch config. The runtime cluster still comes from the standard controller-runtime config.
+- `cmd/operator.go` builds a multicluster manager against kcp using an APIExport provider and a separate runtime-cluster client for pod/service/route management.
+- `--kcp-kubeconfig` controls the kcp watch config. The runtime cluster still comes from the standard controller-runtime config.
 - Leader election and manager lifecycle are local to the runtime cluster, while `Terminal` reconciliation happens through multicluster-runtime.
 
 ### Reconciliation model
@@ -34,12 +34,12 @@ This service splits responsibility between KCP-backed `Terminal` resources and r
 - Cache sync period is tied to `terminal-lifetime`, so lifetime changes affect reconciliation behavior directly.
 
 ### Domain model
-- `Terminal` resources represent browser terminal sessions in KCP workspaces.
+- `Terminal` resources represent browser terminal sessions in kcp workspaces.
 - The operator creates and maintains the runtime infrastructure needed to expose a terminal session: pod, service, and HTTPRoute.
 - The repo also owns the terminal image under `images/terminal`, but controller changes and image changes should stay separate unless the task truly spans both.
 
 ### Configuration and tests
-- `internal/config/config.go` defines toggles for each subroutine plus KCP, terminal, and gateway flags.
+- `internal/config/config.go` defines toggles for each subroutine plus kcp, terminal, and gateway flags.
 - Tests are split between normal Go tests and browser/websocket-oriented local checks using `test-ui`.
 
 ## Commands

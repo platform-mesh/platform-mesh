@@ -1,17 +1,17 @@
 # Terminal Controller Manager
 
-A Kubernetes controller for managing browser-based terminal sessions to KCP workspaces.
+A Kubernetes controller for managing browser-based terminal sessions to kcp workspaces.
 
 ## Overview
 
-Terminal Controller Manager watches `Terminal` custom resources and creates ephemeral pods that provide kubectl access to KCP workspaces. Users connect to these pods via WebSocket (exec API) from a browser-based terminal (xterm.js).
+Terminal Controller Manager watches `Terminal` custom resources and creates ephemeral pods that provide kubectl access to kcp workspaces. Users connect to these pods via WebSocket (exec API) from a browser-based terminal (xterm.js).
 
 **Inspired by:** [Gardener's terminal-controller-manager](https://github.com/gardener/terminal-controller-manager)
 
 ## Architecture
 
 ```
-Browser (xterm.js) → WebSocket exec → Terminal Pod → kubectl → KCP Workspace
+Browser (xterm.js) → WebSocket exec → Terminal Pod → kubectl → kcp Workspace
                                            ↑
                             Terminal Controller Manager
                             (watches Terminal CRDs, creates pods)
