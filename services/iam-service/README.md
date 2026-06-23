@@ -2,8 +2,6 @@
 > This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
 
 # Platform Mesh - iam-service
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/go.platform-mesh.io/iam-service/badge)](https://scorecard.dev/viewer/?uri=go.platform-mesh.io/iam-service)
-![Build Status](https://go.platform-mesh.io/iam-service/actions/workflows/ci.yml/badge.svg)
 
 ## Description
 
@@ -12,9 +10,9 @@ The platform-mesh iam-service offers a graphql API for user management. The serv
 ## Features
 - GraphQL API for user and role management
 - Management of Tuples in OpenFGA
-- Multi-cluster resource coordination via KCP
+- Multi-cluster resource coordination via kcp
 - Keycloak integration for identity provider support
-- JWT token validation against KCP
+- JWT token validation against kcp
 
 
 ## Getting Started
@@ -28,7 +26,7 @@ All the released versions will be available through access to GitHub (as any oth
 
 ## Requirements
 
-The iam-service requires an installation of go. Checkout the [go.mod](go.mod) for the required go version and dependencies.
+The iam-service requires an installation of Go. Checkout the [go.mod](go.mod) for the required Go version and dependencies.
 
 ## Contributing
 
