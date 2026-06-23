@@ -54,11 +54,17 @@ tasks:
     cmds:
       - task: lint
       - task: boilerplate
+      - task: tidy-check
   lint:
     desc: Lint every component.
     cmds:
       - for: {var: COMPONENTS}
         cmd: task lint-{{.ITEM}}
+  tidy-check:
+    desc: Each go.mod must be self-contained (tidy + deps resolve without go.work).
+    cmds:
+      - for: {var: COMPONENTS}
+        cmd: task tidy-check-{{.ITEM}}
   boilerplate:
     desc: Verifies the boilerplate comment in each source file.
     cmds:
@@ -125,6 +131,19 @@ tasks:
     cmds:
       - task: _run
         vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: build}
+  "tidy-check-*":
+    desc: "Verify one module is self-contained (e.g. task tidy-check-apis)."
+    env:
+      GOWORK: "off"
+    cmds:
+      - |
+        comp='{{index .MATCH 0}}'
+        dir=$(ls -d "$comp" "operators/$comp" "services/$comp" 2>/dev/null | head -1)
+        if [ -z "$dir" ]; then
+          echo "unknown component '$comp' (not under ./, ./operators/ or ./services/)" >&2
+          exit 1
+        fi
+        cd "$dir" && go mod tidy -diff && go list -m all >/dev/null
   "images-*":
     desc: "Build (and optionally push) one component's image (e.g. task images-account-operator VERSION=v0.1.0 PUSH=true)."
     vars:
@@ -238,7 +257,31 @@ tasks:
   # Workspace helpers
   # ---------------------------------------------------------------------------
   tidy:
-    desc: Tidy the self-contained apis module and re-sync the workspace.
+    desc: Tidy every module's go.mod (standalone) and re-sync the workspace.
     cmds:
-      - cd apis && GOWORK=off go mod tidy
+      - for: {var: COMPONENTS}
+        cmd: task tidy-{{.ITEM}}
       - go work sync
+  "tidy-*":
+    desc: "Tidy one module's go.mod (e.g. task tidy-apis)."
+    env:
+      GOWORK: "off"
+    cmds:
+      - |
+        comp='{{index .MATCH 0}}'
+        dir=$(ls -d "$comp" "operators/$comp" "services/$comp" 2>/dev/null | head -1)
+        if [ -z "$dir" ]; then
+          echo "unknown component '$comp' (not under ./, ./operators/ or ./services/)" >&2
+          exit 1
+        fi
+        # Forward version-pin replaces from go.work into the module's go.mod so
+        # it resolves standalone, e.g. in docker builds.
+        replaces=$(GOWORK= go work edit -json | jq -r '.Replace[] | "\(.Old.Path)=\(.New.Path)@\(.New.Version)"')
+        cd "$dir"
+        for r in $replaces; do go mod edit -replace="$r"; done
+        go mod tidy
+        # Drop old replaces and those whose Old path isn't referenced by this module.
+        deps=$(go list -m -f '{{`{{.Path}}`}}' all)
+        for r in $(go mod edit -json | jq -r '.Replace[]?.Old.Path'); do
+          grep -qxF "$r" <<<"$deps" || go mod edit -dropreplace="$r"
+        done
