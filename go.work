@@ -3,6 +3,7 @@ go 1.25.7
 use (
 	./apis
 	./cmd/jl
+	./cmd/qbrtool
 	./cmd/release
 	./golang-commons
 	./operators/account-operator
