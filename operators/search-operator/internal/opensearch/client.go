@@ -32,10 +32,10 @@ import (
 	"github.com/opensearch-project/opensearch-go/v4"
 	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	"github.com/opensearch-project/opensearch-go/v4/opensearchutil"
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	"github.com/platform-mesh/search-operator/internal/config"
-	"github.com/platform-mesh/search-operator/internal/metrics"
+	"go.platform-mesh.io/search-operator/internal/config"
+	"go.platform-mesh.io/search-operator/internal/metrics"
 )
 
 // Client wraps the OpenSearch client with convenience methods

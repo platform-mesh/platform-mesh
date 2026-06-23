@@ -16,7 +16,7 @@ resources:
   domain: platform-mesh.io
   group: core
   kind: SearchIndex
-  path: github.com/platform-mesh/search-operator/api/v1alpha1
+  path: go.platform-mesh.io/search-operator/api/v1alpha1
   version: v1alpha1
 version: "3"
 

@@ -20,10 +20,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/builder"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/multicluster"
+	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
+	"go.platform-mesh.io/golang-commons/logger"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,9 +32,9 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/platform-mesh/search-operator/internal/config"
-	"github.com/platform-mesh/search-operator/internal/opensearch"
-	"github.com/platform-mesh/search-operator/internal/subroutine"
+	"go.platform-mesh.io/search-operator/internal/config"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
+	"go.platform-mesh.io/search-operator/internal/subroutine"
 )
 
 type IndexableResourceReconciler struct {

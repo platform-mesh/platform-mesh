@@ -26,7 +26,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -45,12 +45,11 @@ import (
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 
-	corev1alpha1 "github.com/platform-mesh/search-operator/api/v1alpha1"
-	"github.com/platform-mesh/search-operator/internal/config"
-	"github.com/platform-mesh/search-operator/internal/controller"
-	"github.com/platform-mesh/search-operator/internal/opensearch"
+	"go.platform-mesh.io/search-operator/internal/config"
+	"go.platform-mesh.io/search-operator/internal/controller"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -69,7 +68,6 @@ func init() {
 
 	// Add our types
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(accountv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

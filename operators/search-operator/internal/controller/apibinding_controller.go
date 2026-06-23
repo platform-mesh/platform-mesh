@@ -24,10 +24,10 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/builder"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/multicluster"
+	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
+	"go.platform-mesh.io/golang-commons/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -37,7 +37,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/platform-mesh/search-operator/internal/subroutine"
+	"go.platform-mesh.io/search-operator/internal/subroutine"
 )
 
 // APIBindingReconciler watches APIBinding resources across all workspaces

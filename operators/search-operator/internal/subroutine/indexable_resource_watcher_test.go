@@ -22,11 +22,11 @@ import (
 	"testing"
 	"time"
 
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	accountv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/platform-mesh/search-operator/api/v1alpha1"
-	"github.com/platform-mesh/search-operator/internal/opensearch"
+	"go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
 )
 
 func TestBuildPayloadSeparatesRawJSONFromText(t *testing.T) {

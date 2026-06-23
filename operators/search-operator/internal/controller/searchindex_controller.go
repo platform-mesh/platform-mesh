@@ -19,19 +19,19 @@ package controller
 import (
 	"context"
 
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/builder"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/multicluster"
+	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
+	"go.platform-mesh.io/golang-commons/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/platform-mesh/search-operator/api/v1alpha1"
-	"github.com/platform-mesh/search-operator/internal/opensearch"
-	"github.com/platform-mesh/search-operator/internal/subroutine"
+	"go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
+	"go.platform-mesh.io/search-operator/internal/subroutine"
 )
 
 // SearchIndexReconciler reconciles a SearchIndex object

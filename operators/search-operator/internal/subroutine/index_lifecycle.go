@@ -22,19 +22,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
+	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
+	"go.platform-mesh.io/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/logger"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/platform-mesh/search-operator/api/v1alpha1"
-	"github.com/platform-mesh/search-operator/internal/metrics"
-	"github.com/platform-mesh/search-operator/internal/opensearch"
+	"go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/search-operator/internal/metrics"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
 )
 
 // IndexLifecycleSubroutine manages the lifecycle of OpenSearch indices
