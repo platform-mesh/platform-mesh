@@ -41,7 +41,7 @@ func stripPathFromConfig(cfg *rest.Config) (*rest.Config, error) {
 	out := rest.CopyConfig(cfg)
 	parsed, err := url.Parse(out.Host)
 	if err != nil {
-		return nil, fmt.Errorf("parse KCP host URL: %w", err)
+		return nil, fmt.Errorf("parse kcp host URL: %w", err)
 	}
 	parsed.Path = ""
 	out.Host = parsed.String()
@@ -102,7 +102,7 @@ func getOrgClusterID(ctx context.Context, orgsClient client.Client, orgName stri
 	return ws.Spec.Cluster, nil
 }
 
-// buildWorkspaceScopedClient constructs a client targeting the given KCP
+// buildWorkspaceScopedClient constructs a client targeting the given kcp
 // workspace path (e.g. "root:orgs:acme") using rootCfg as the base URL.
 func buildWorkspaceScopedClient(rootCfg *rest.Config, scheme *runtime.Scheme, workspacePath string) (client.Client, error) {
 	cfg := rest.CopyConfig(rootCfg)

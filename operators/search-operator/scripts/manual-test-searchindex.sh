@@ -24,7 +24,7 @@ usage() {
   cat <<'EOF'
 Usage: manual-test-searchindex.sh [options]
 
-Manual SearchIndex test for local KCP Platform Mesh setup.
+Manual SearchIndex test for local kcp Platform Mesh setup.
 Default target workspace is root:orgs.
 
 Options:
@@ -34,8 +34,8 @@ Options:
   -h, --help          Show this help
 
 Environment overrides:
-  KCP_KUBECONFIG      KCP kubeconfig path
-  KCP_SERVER          KCP workspace server URL (default: https://localhost:8443/clusters/root:orgs)
+  KCP_KUBECONFIG      kcp kubeconfig path
+  KCP_SERVER          kcp workspace server URL (default: https://localhost:8443/clusters/root:orgs)
   SEARCHINDEX_NAME    Name of SearchIndex resource. In root:orgs this should be the org workspace name.
   INDEX_PREFIX        spec.indexPrefix value
   TIMEOUT_SECONDS     Wait timeout for status.indexName
@@ -118,7 +118,7 @@ echo "Searchindex name: ${SEARCHINDEX_NAME}"
 echo "Index prefix: ${INDEX_PREFIX}"
 
 echo $KUBECONFIG
-# Updates the KCP path in the local kubeconfig
+# Updates the kcp path in the local kubeconfig
 
 echo "Checking SearchIndex API availability..."
 if ! kubectl api-resources --server="${KCP_SERVER}" | grep "searchindices"; then

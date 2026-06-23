@@ -24,7 +24,7 @@ import (
 // Config holds the configuration for the search-operator
 type Config struct {
 	KCP struct {
-		// Kubeconfig is the path to the KCP kubeconfig file
+		// Kubeconfig is the path to the kcp kubeconfig file
 		Kubeconfig string `mapstructure:"kcp-kubeconfig" envconfig:"default=/api-kubeconfig/kubeconfig"`
 	} `mapstructure:",squash"`
 

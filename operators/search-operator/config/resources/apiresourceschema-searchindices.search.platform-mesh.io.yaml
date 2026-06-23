@@ -1,7 +1,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260623-9a2e7423.searchindices.search.platform-mesh.io
+  name: v260623-3da051b6.searchindices.search.platform-mesh.io
 spec:
   group: search.platform-mesh.io
   names:
@@ -71,7 +71,7 @@ spec:
               format: int32
               type: integer
             organizationClusterID:
-              description: OrganizationClusterID immutable KCP cluster ID (LogicalCluster's
+              description: OrganizationClusterID immutable kcp cluster ID (LogicalCluster's
                 kcp.io/cluster annotation); used as OpenSearch index name
               pattern: ^[a-z0-9][a-z0-9-]*$
               type: string

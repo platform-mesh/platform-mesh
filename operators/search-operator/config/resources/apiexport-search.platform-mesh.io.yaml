@@ -6,7 +6,7 @@ spec:
   resources:
   - group: search.platform-mesh.io
     name: searchindices
-    schema: v260623-9a2e7423.searchindices.search.platform-mesh.io
+    schema: v260623-3da051b6.searchindices.search.platform-mesh.io
     storage:
       crd: {}
 status: {}

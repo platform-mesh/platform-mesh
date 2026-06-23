@@ -1,11 +1,11 @@
 ## Repository Description
-- `search-operator` manages `SearchIndex` resources and indexes searchable workspace data into OpenSearch across KCP workspaces.
+- `search-operator` manages `SearchIndex` resources and indexes searchable workspace data into OpenSearch across kcp workspaces.
 - The main moving parts are the multicluster manager, the `SearchIndex` lifecycle reconciler, and the per-resource indexing controllers created for configured searchable GVKs.
 - This is a Go operator built around [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime), [multicluster-runtime](https://github.com/kubernetes-sigs/multicluster-runtime), and [multicluster-provider](https://github.com/kcp-dev/multicluster-provider).
 - Read the org-wide [AGENTS.md](https://github.com/platform-mesh/.github/blob/main/AGENTS.md) for general conventions.
 
 ## Core Principles
-- Keep changes small and local. Indexing behavior spans KCP, controller lifecycle logic, and OpenSearch writes.
+- Keep changes small and local. Indexing behavior spans kcp, controller lifecycle logic, and OpenSearch writes.
 - Prefer existing controller and lifecycle patterns over introducing a second reconciliation style.
 - Verify behavior before finishing. Start with focused tests, then broader validation if needed.
 - Keep this file focused on agent execution and repository-specific constraints.
@@ -40,7 +40,7 @@ This is not a plain single-cluster controller-runtime operator.
 ## Commands
 - `task fmt` — format Go code.
 - `task lint` — run formatting plus golangci-lint.
-- `task test` — run the standard local test flow with envtest and KCP tooling.
+- `task test` — run the standard local test flow with envtest and kcp tooling.
 - `task cover` — run tests with coverage output.
 - `task validate` — run the standard validation flow.
 - `task manifests` — regenerate CRDs.
@@ -61,7 +61,7 @@ This is not a plain single-cluster controller-runtime operator.
 
 ## Do Not
 - Edit generated API files manually.
-- Treat indexing behavior, KCP watches, or OpenSearch writes as low-risk local-only changes.
+- Treat indexing behavior, kcp watches, or OpenSearch writes as low-risk local-only changes.
 - Update `.testcoverage.yml` unless the task explicitly requires it.
 
 ## Hard Boundaries

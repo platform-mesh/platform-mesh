@@ -47,7 +47,7 @@ WORKDIR /workspace/operators/search-operator
 RUN go mod download
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/manager main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/manager ./cmd/main.go
 
 FROM scratch
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo

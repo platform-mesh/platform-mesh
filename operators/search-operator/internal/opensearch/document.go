@@ -168,9 +168,9 @@ type WorkspaceDocument struct {
 	Name string `json:"name"` // Human-readable name
 	Type string `json:"type"` // "workspace", "account", or "organization"
 
-	// KCP-specific fields
+	// kcp-specific fields
 	ClusterName string `json:"cluster_name"` // Logical cluster name
-	Path        string `json:"path"`         // Full path in the KCP hierarchy
+	Path        string `json:"path"`         // Full path in the kcp hierarchy
 
 	// Organization context (for permission scoping)
 	OrganizationID   string `json:"organization_id,omitempty"`

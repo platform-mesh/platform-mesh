@@ -2,49 +2,49 @@
 
 ```mermaid
 flowchart TB
-    subgraph KCP["KCP Cluster"]
+    subgraph kcp["kcp Cluster"]
         subgraph PMSys["platform-mesh-system workspace"]
             APIExport["APIExport<br/>core.platform-mesh.io"]
         end
-        
+
         subgraph OrgWS["Organization Workspace"]
             OrgBinding["APIBinding<br/>→ core.platform-mesh.io"]
             OrgAccountInfo["AccountInfo<br/>name: acme-org<br/>type: organization"]
         end
-        
+
         subgraph AccWS["Account Workspace"]
             AccBinding["APIBinding<br/>→ core.platform-mesh.io"]
             AccAccountInfo["AccountInfo<br/>name: dev-team<br/>type: account<br/>org: acme-org"]
         end
     end
-    
+
     subgraph Operator["search-operator"]
         Provider["multicluster-provider<br/>(watches APIExport)"]
         APIBindingCtrl["APIBindingReconciler"]
         WatcherSub["APIBindingWatcherSubroutine<br/>(logs events)"]
         IndexingSub["WorkspaceIndexingSubroutine<br/>(indexes to OpenSearch)"]
     end
-    
+
     subgraph OS["OpenSearch"]
         Index["platform-mesh-workspaces<br/>index"]
         Doc1["Doc: workspace-org-123<br/>name: acme-org<br/>type: organization<br/>permissions: [...]"]
         Doc2["Doc: workspace-acc-456<br/>name: dev-team<br/>type: account<br/>org: acme-org<br/>permissions: [...]"]
     end
-    
+
     APIExport -.->|exposes APIs| OrgWS
     APIExport -.->|exposes APIs| AccWS
-    
+
     Provider -->|watches| APIExport
     Provider -->|receives events from| OrgBinding
     Provider -->|receives events from| AccBinding
-    
+
     APIBindingCtrl --> WatcherSub
     APIBindingCtrl --> IndexingSub
-    
+
     IndexingSub -->|reads| OrgAccountInfo
     IndexingSub -->|reads| AccAccountInfo
     IndexingSub -->|writes| Index
-    
+
     Index --> Doc1
     Index --> Doc2
 ```
@@ -53,29 +53,29 @@ flowchart TB
 sequenceDiagram
     participant User
     participant Platform as Platform Mesh
-    participant KCP as KCP
+    participant kcp as kcp
     participant AccOp as account-operator
     participant SearchOp as search-operator
     participant OS as OpenSearch
 
     User->>Platform: Create new account "dev-team"
-    Platform->>KCP: Create workspace
-    KCP-->>Platform: Workspace created (cluster: acc-456)
-    
-    Platform->>KCP: Create APIBinding to core.platform-mesh.io
-    AccOp->>KCP: Create AccountInfo resource
-    
+    Platform->>kcp: Create workspace
+    kcp-->>Platform: Workspace created (cluster: acc-456)
+
+    Platform->>kcp: Create APIBinding to core.platform-mesh.io
+    AccOp->>kcp: Create AccountInfo resource
+
     Note over SearchOp: multicluster-provider<br/>detects APIBinding
-    
-    KCP-->>SearchOp: APIBinding reconcile event
-    SearchOp->>KCP: Get AccountInfo from workspace
-    KCP-->>SearchOp: AccountInfo{name: dev-team, org: acme-org}
-    
+
+    kcp-->>SearchOp: APIBinding reconcile event
+    SearchOp->>kcp: Get AccountInfo from workspace
+    kcp-->>SearchOp: AccountInfo{name: dev-team, org: acme-org}
+
     SearchOp->>SearchOp: Build WorkspaceDocument<br/>+ OpenFGA permission tuples
-    
+
     SearchOp->>OS: Index document (id: workspace-acc-456)
     OS-->>SearchOp: Indexed successfully
-    
+
     Note over OS: Document now searchable<br/>with permission filtering
 ```
 
@@ -212,11 +212,11 @@ go run cmd/main.go
 test by manually adding a searchindex resource:
 
 ```sh
-export KUBCONFIG=<path to an KCP admin kubeconfig>
+export KUBCONFIG=<path to an kcp admin kubeconfig>
 kubectl apply -f ./scripts/searchindex-test-resource.yaml --server="https://localhost:8443/clusters/root:orgs"
 ```
 
-observe logs of successful reconciliation (start with KCP kubeconfig configured with path :root:platform-mesh-system):
+observe logs of successful reconciliation (start with kcp kubeconfig configured with path :root:platform-mesh-system):
 
 ```sh
 # In shell:
@@ -229,7 +229,7 @@ check if the url with your new index name in the path returns the desired values
 
 `https://opensearch.portal.localhost:8443/<index name>`
 
-observe 
+observe
 
 ## License
 

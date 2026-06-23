@@ -46,13 +46,13 @@ import (
 type apiBindingWatcherSubroutine struct {
 	mgr         mcmanager.Manager
 	orgsClient  client.Client // scoped to root:orgs for Workspace lookups
-	rootCfg     *rest.Config  // clean base KCP REST config (no path) for building workspace clients
+	rootCfg     *rest.Config  // clean base kcp REST config (no path) for building workspace clients
 	indexPrefix string
 }
 
 // NewAPIBindingWatcherSubroutine creates a new APIBinding watcher subroutine.
 // orgsClient must be scoped to the root:orgs workspace.
-// localCfg must be the admin KCP REST config.
+// localCfg must be the admin kcp REST config.
 func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient client.Client, localCfg *rest.Config, indexPrefix string) (*apiBindingWatcherSubroutine, error) {
 	rootCfg, err := stripPathFromConfig(localCfg)
 	if err != nil {

@@ -58,11 +58,11 @@ type IndexableResourceWatcherSubroutine struct {
 	osClient      *opensearch.Client
 	apiExportName string
 	indexPrefix   string
-	rootCfg       *rest.Config // base KCP REST config (path stripped) for workspace-scoped clients
+	rootCfg       *rest.Config // base kcp REST config (path stripped) for workspace-scoped clients
 }
 
 // NewIndexableResourceWatcherSubroutine creates a new IndexableResource watcher subroutine.
-// localCfg must be the admin KCP REST config
+// localCfg must be the admin kcp REST config
 func NewIndexableResourceWatcherSubroutine(mgr mcmanager.Manager, allClient client.Client, orgsClient client.Client, osClient *opensearch.Client, apiExportName string, indexPrefix string, localCfg *rest.Config) (*IndexableResourceWatcherSubroutine, error) {
 	rootCfg, err := stripPathFromConfig(localCfg)
 	if err != nil {
@@ -545,7 +545,7 @@ func resolveSpecClusterID(resource *unstructured.Unstructured) multicluster.Clus
 	return multicluster.ClusterName(strings.TrimSpace(clusterID))
 }
 
-// getAccountInfoFromWorkspacePath builds a workspace-scoped REST client from the base KCP
+// getAccountInfoFromWorkspacePath builds a workspace-scoped REST client from the base kcp
 // config and fetches the singleton AccountInfo named "account" from that workspace.
 func (s *IndexableResourceWatcherSubroutine) getAccountInfoFromWorkspacePath(ctx context.Context, accountWorkspacePath string) (*corev1alpha1.AccountInfo, error) {
 	cl, err := buildWorkspaceScopedClient(s.rootCfg, s.mgr.GetLocalManager().GetScheme(), accountWorkspacePath)
