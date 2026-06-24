@@ -245,6 +245,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					}
 					return nil
 				}).Once()
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					if _, ok := list.(*corev1alpha1.ProviderPermissionsList); ok {
+						return nil
+					}
+					return nil
+				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 		},
@@ -315,9 +321,9 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					}
 					return nil
 				}).Once()
-				kcpClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-export"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					if _, ok := o.(*corev1alpha1.ProviderPermissions); ok {
-						return kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "providerpermissions"}, "test-export")
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					if _, ok := list.(*corev1alpha1.ProviderPermissionsList); ok {
+						return nil
 					}
 					return nil
 				}).Once()
@@ -337,7 +343,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			},
 		},
 		{
-			name:        "error on ProviderPermissions fetch (not NotFound)",
+			name:        "error on ProviderPermissions list",
 			binding:     newApiBinding("foo", "bar"),
 			expectError: true,
 			mockSetup: func(manager *mocks.MockManager, lister *mocks.MockLister, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
@@ -353,7 +359,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					}
 					return nil
 				}).Once()
-				kcpClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-export"}, mock.Anything).Return(assert.AnError)
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 		},
 	}

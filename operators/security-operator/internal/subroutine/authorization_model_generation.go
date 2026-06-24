@@ -291,12 +291,18 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("getting APIExport: %w", err)
 	}
 
-	providerPermissions := &corev1alpha1.ProviderPermissions{}
-	err = apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: apiExport.Name}, providerPermissions)
-	if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
-		providerPermissions = nil
-	} else if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting ProviderPermissions: %w", err)
+	var providerPermissionsList corev1alpha1.ProviderPermissionsList
+	err = apiExportCluster.GetClient().List(ctx, &providerPermissionsList)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("listing ProviderPermissions: %w", err)
+	}
+
+	var providerPermissions *corev1alpha1.ProviderPermissions
+	for i := range providerPermissionsList.Items {
+		if providerPermissionsList.Items[i].Spec.APIExportRef.Name == apiExport.Name {
+			providerPermissions = &providerPermissionsList.Items[i]
+			break
+		}
 	}
 
 	for _, latestResourceSchema := range apiExport.Spec.Resources {
