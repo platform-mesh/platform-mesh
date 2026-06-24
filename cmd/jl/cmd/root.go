@@ -111,7 +111,7 @@ func ViewLog(_ *cobra.Command, _ []string) { // coverage-ignore
 			return
 		}
 		txt := scanner.Text()
-		var result interface{}
+		var result any
 		err := json.Unmarshal([]byte(txt), &result)
 		if err != nil {
 			if showNoJson {
@@ -122,7 +122,7 @@ func ViewLog(_ *cobra.Command, _ []string) { // coverage-ignore
 			continue
 		}
 
-		data := result.(map[string]interface{})
+		data := result.(map[string]any)
 		sortedKeys := generateKeys(data)
 		printLine(sortedKeys, data)
 		printedLines++
@@ -134,7 +134,7 @@ func ViewLog(_ *cobra.Command, _ []string) { // coverage-ignore
 	}
 }
 
-func printLine(sortedKeys []string, data map[string]interface{}) {
+func printLine(sortedKeys []string, data map[string]any) {
 	if len(selector) > 0 {
 		for _, s := range selector {
 			segments := strings.Split(s, "=")
@@ -197,7 +197,7 @@ func printLine(sortedKeys []string, data map[string]interface{}) {
 	}
 }
 
-func generateKeys(data map[string]interface{}) []string {
+func generateKeys(data map[string]any) []string {
 	sortedKeys := make([]string, 0, len(data))
 	keys := make([]string, 0, len(data))
 	toSkip := util.RemoveEmptyStrings(strings.Split(skip, ","))
