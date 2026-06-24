@@ -17,6 +17,9 @@ limitations under the License.
 package config
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/pflag"
 )
 
@@ -27,8 +30,9 @@ type KcpConfig struct {
 }
 
 type OperatorConfig struct {
-	Kcp       KcpConfig
-	Namespace string
+	Kcp        KcpConfig
+	Namespace  string
+	Standalone bool
 }
 
 func NewOperatorConfig() OperatorConfig {
@@ -40,7 +44,15 @@ func NewOperatorConfig() OperatorConfig {
 	}
 }
 
+func (c *OperatorConfig) Validate() error {
+	if strings.TrimSpace(c.Namespace) == "" {
+		return fmt.Errorf("--namespace must not be empty")
+	}
+	return nil
+}
+
 func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.Kcp.ApiExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.Kcp.ApiExportEndpointSliceName, "Set APIExportEndpointSlice name")
 	fs.StringVar(&c.Namespace, "namespace", c.Namespace, "Namespace in which the operator manages resources")
+	fs.BoolVar(&c.Standalone, "standalone", c.Standalone, "Run without KCP: watch the host cluster directly via a single-cluster provider")
 }
