@@ -169,7 +169,7 @@ require (
 	k8s.io/api v0.35.4 // indirect
 	k8s.io/cloud-provider v0.0.0 // indirect
 	k8s.io/cluster-bootstrap v0.0.0 // indirect
-	k8s.io/component-base v0.35.1 // indirect
+	k8s.io/component-base v0.35.4 // indirect
 	k8s.io/component-helpers v0.0.0 // indirect
 	k8s.io/controller-manager v0.0.0 // indirect
 	k8s.io/csi-translation-lib v0.0.0 // indirect

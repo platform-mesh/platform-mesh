@@ -13,6 +13,7 @@ use (
 	./operators/search-operator
 	./operators/security-operator
 	./operators/terminal-controller-manager
+	./services/rebac-authz-webhook
 	./services/virtual-workspaces
 	./subroutines
 )
