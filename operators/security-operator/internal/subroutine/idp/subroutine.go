@@ -24,21 +24,22 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"golang.org/x/oauth2/clientcredentials"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/pkg/clientreg"
 	"go.platform-mesh.io/security-operator/pkg/clientreg/keycloak"
 	"go.platform-mesh.io/subroutines"
-	"golang.org/x/oauth2/clientcredentials"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 type subroutine struct {
@@ -89,8 +90,8 @@ func (s *subroutine) newOIDCClient(realmName string) (clientreg.Client, *keycloa
 	return oidcClient, adminClient
 }
 
-func (s *subroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	idpToDelete := obj.(*corev1alpha1.IdentityProviderConfiguration)
+func (s *subroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	idpToDelete := obj.(*pmcorev1alpha1.IdentityProviderConfiguration)
 	log := logger.LoadLoggerFromContext(ctx)
 	realmName := idpToDelete.Name
 
@@ -99,7 +100,7 @@ func (s *subroutine) Finalize(ctx context.Context, obj client.Object) (subroutin
 	for _, clientToDelete := range idpToDelete.Spec.Clients {
 		registrationAccessToken, err := s.readRegistrationAccessToken(ctx, clientToDelete.SecretRef)
 		if err != nil {
-			if kerrors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				log.Info().Str("secretName", clientToDelete.SecretRef.Name).Msg("Secret not found, client was likely deleted")
 				continue
 			}
@@ -146,14 +147,14 @@ func (s *subroutine) Finalize(ctx context.Context, obj client.Object) (subroutin
 	return subroutines.OK(), nil
 }
 
-func (s *subroutine) Finalizers(_ client.Object) []string {
+func (s *subroutine) Finalizers(_ ctrlruntimeclient.Object) []string {
 	return []string{"core.platform-mesh.io/idp-finalizer"}
 }
 
 func (s *subroutine) GetName() string { return "IdentityProviderConfiguration" }
 
-func (s *subroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	idpConfig := obj.(*corev1alpha1.IdentityProviderConfiguration)
+func (s *subroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	idpConfig := obj.(*pmcorev1alpha1.IdentityProviderConfiguration)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	cl, err := s.mgr.ClusterFromContext(ctx)
@@ -173,7 +174,7 @@ func (s *subroutine) Process(ctx context.Context, obj client.Object) (subroutine
 		return subroutines.OK(), err
 	}
 
-	managedClients := make(map[string]corev1alpha1.ManagedClient)
+	managedClients := make(map[string]pmcorev1alpha1.ManagedClient)
 	for i := range idpConfig.Spec.Clients {
 		clientConfig := &idpConfig.Spec.Clients[i]
 
@@ -186,7 +187,7 @@ func (s *subroutine) Process(ctx context.Context, obj client.Object) (subroutine
 			return subroutines.OK(), fmt.Errorf("failed to create or update kubernetes secret: %w", err)
 		}
 
-		managedClients[clientConfig.ClientName] = corev1alpha1.ManagedClient{
+		managedClients[clientConfig.ClientName] = pmcorev1alpha1.ManagedClient{
 			ClientID:              clientInfo.ClientID,
 			RegistrationClientURI: clientInfo.RegistrationClientURI,
 			SecretRef:             clientConfig.SecretRef,
@@ -196,7 +197,7 @@ func (s *subroutine) Process(ctx context.Context, obj client.Object) (subroutine
 	// Update status
 	original := idpConfig.DeepCopy()
 	idpConfig.Status.ManagedClients = managedClients
-	if err := kcpClient.Status().Patch(ctx, idpConfig, client.MergeFrom(original)); err != nil {
+	if err := kcpClient.Status().Patch(ctx, idpConfig, ctrlruntimeclient.MergeFrom(original)); err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to patch IDP status: %w", err)
 	}
 
@@ -247,10 +248,10 @@ func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.Admi
 	return nil
 }
 
-func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *corev1alpha1.IdentityProviderConfiguration, oidcClient clientreg.Client, log *logger.Logger) error {
+func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *pmcorev1alpha1.IdentityProviderConfiguration, oidcClient clientreg.Client, log *logger.Logger) error {
 	for clientName, managedClient := range idpConfig.Status.ManagedClients {
 		exists := slices.ContainsFunc(idpConfig.Spec.Clients,
-			func(c corev1alpha1.IdentityProviderClientConfig) bool {
+			func(c pmcorev1alpha1.IdentityProviderClientConfig) bool {
 				return c.ClientName == clientName
 			},
 		)
@@ -262,7 +263,7 @@ func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *corev1
 
 		registrationAccessToken, err := s.readRegistrationAccessToken(ctx, managedClient.SecretRef)
 		if err != nil {
-			if kerrors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				log.Info().Str("secretName", managedClient.SecretRef.Name).Msg("Secret not found, client was likely deleted")
 				continue
 			}
@@ -291,14 +292,14 @@ func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *corev1
 	return nil
 }
 
-func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *corev1alpha1.IdentityProviderConfiguration, clientConfig *corev1alpha1.IdentityProviderClientConfig, realmName string, oidcClient clientreg.Client, adminClient *keycloak.AdminClient) (clientreg.ClientInformation, error) {
+func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *pmcorev1alpha1.IdentityProviderConfiguration, clientConfig *pmcorev1alpha1.IdentityProviderClientConfig, realmName string, oidcClient clientreg.Client, adminClient *keycloak.AdminClient) (clientreg.ClientInformation, error) {
 	existingClient, err := adminClient.GetClientByName(ctx, clientConfig.ClientName)
 	if err != nil {
 		return clientreg.ClientInformation{}, fmt.Errorf("failed to check if client exists: %w", err)
 	}
 
 	authMethod := clientreg.TokenEndpointAuthMethodClientSecretBasic
-	if clientConfig.ClientType == corev1alpha1.IdentityProviderClientTypePublic {
+	if clientConfig.ClientType == pmcorev1alpha1.IdentityProviderClientTypePublic {
 		authMethod = clientreg.TokenEndpointAuthMethodNone
 	}
 
@@ -316,7 +317,7 @@ func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *corev1alph
 
 	// Client exists, update it
 	registrationAccessToken, err := s.readRegistrationAccessToken(ctx, clientConfig.SecretRef)
-	if err != nil && !kerrors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return clientreg.ClientInformation{}, fmt.Errorf("failed to get registration access token from secret: %w", err)
 	}
 
@@ -335,7 +336,7 @@ func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *corev1alph
 
 func (s *subroutine) readRegistrationAccessToken(ctx context.Context, secretRef corev1.SecretReference) (string, error) {
 	secret := &corev1.Secret{}
-	key := client.ObjectKey{Name: secretRef.Name, Namespace: secretRef.Namespace}
+	key := ctrlruntimeclient.ObjectKey{Name: secretRef.Name, Namespace: secretRef.Namespace}
 	orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))
 	if err != nil {
 		return "", fmt.Errorf("getting orgs client: %w", err)
@@ -346,7 +347,7 @@ func (s *subroutine) readRegistrationAccessToken(ctx context.Context, secretRef 
 	return string(secret.Data["registration_access_token"]), nil
 }
 
-func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig *corev1alpha1.IdentityProviderClientConfig, clientInfo clientreg.ClientInformation, idpName string) error {
+func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig *pmcorev1alpha1.IdentityProviderClientConfig, clientInfo clientreg.ClientInformation, idpName string) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clientConfig.SecretRef.Name,

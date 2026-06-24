@@ -28,8 +28,9 @@ import (
 	"go.platform-mesh.io/security-operator/internal/metrics"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/subroutines/lifecycle"
+
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
@@ -40,7 +41,7 @@ import (
 )
 
 func NewAPIBindingReconciler(logger *logger.Logger, mcMgr mcmanager.Manager, lister iclient.Lister, cfg *config.Config) *APIBindingReconciler {
-	lc := lifecycle.New(mcMgr, "APIBindingReconciler", func() client.Object {
+	lc := lifecycle.New(mcMgr, "APIBindingReconciler", func() ctrlruntimeclient.Object {
 		return &kcpapisv1alpha2.APIBinding{}
 	}, subroutine.NewAuthorizationModelGenerationSubroutine(mcMgr, lister))
 

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
@@ -32,7 +32,7 @@ const kcpPathAnnotation = "kcp.io/path"
 // LogicalClusters belonging to an Account of type "org", i.e. is a child of the
 // "root:orgs" cluster.
 func LogicalClusterIsAccountTypeOrg() predicate.Predicate {
-	return predicate.NewPredicateFuncs(func(object client.Object) bool {
+	return predicate.NewPredicateFuncs(func(object ctrlruntimeclient.Object) bool {
 		lc, ok := object.(*kcpcorev1alpha1.LogicalCluster)
 		if !ok {
 			panic(fmt.Errorf("received non-LogicalCluster resource in LogicalClusterIsAccountTypeOrg predicate"))

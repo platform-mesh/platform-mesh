@@ -23,8 +23,9 @@ import (
 
 	"github.com/jellydator/ttlcache/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"go.platform-mesh.io/golang-commons/logger"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"go.platform-mesh.io/golang-commons/logger"
 )
 
 // StoreIDGetter should return the OpenFGA store ID for a store name.

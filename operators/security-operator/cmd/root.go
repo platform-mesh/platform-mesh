@@ -21,13 +21,14 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
+
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/security-operator/internal/config"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (

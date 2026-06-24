@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
@@ -32,15 +32,15 @@ import (
 	"go.platform-mesh.io/security-operator/internal/subroutine/invite"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
+
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"k8s.io/client-go/util/workqueue"
 )
 
 type InviteReconciler struct {
@@ -60,8 +60,8 @@ func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
-	lc := lifecycle.New(mgr, "InviteReconciler", func() client.Object {
-		return &corev1alpha1.Invite{}
+	lc := lifecycle.New(mgr, "InviteReconciler", func() ctrlruntimeclient.Object {
+		return &pmcorev1alpha1.Invite{}
 	}, inviteSubroutine).
 		WithConditions(conditions.NewManager())
 
@@ -92,7 +92,7 @@ func (r *InviteReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platform
 	predicates := []predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("invite").
-		For(&corev1alpha1.Invite{}).
+		For(&pmcorev1alpha1.Invite{}).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

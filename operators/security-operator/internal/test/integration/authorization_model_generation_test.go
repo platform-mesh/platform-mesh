@@ -21,24 +21,24 @@ import (
 	"strings"
 	"time"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
-	kcpapiv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/sdk/apis/core"
 )
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	ctx := suite.T().Context()
-	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})
+	cli, err := clusterclient.New(suite.kcpConfig, ctrlruntimeclient.Options{})
 	suite.Require().NoError(err)
 
 	resourceSchemaName := "v1.testresources.process.test.example.com"
@@ -66,9 +66,9 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	_ = suite.createTestAPIBinding(ctx, testAccountClient, apiExportName, suite.platformMeshSysPath.String(), apiExportName)
 
 	expectedModelName := "process-test-example-com-testresources-generator-test-process"
-	var model corev1alpha1.AuthorizationModel
+	var model pmcorev1alpha1.AuthorizationModel
 	suite.Assert().Eventually(func() bool {
-		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
+		err := suite.platformMeshSystemClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: expectedModelName}, &model)
 		return err == nil
 	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should be created by controller")
 
@@ -78,7 +78,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	ctx := suite.T().Context()
-	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})
+	cli, err := clusterclient.New(suite.kcpConfig, ctrlruntimeclient.Options{})
 	suite.Require().NoError(err)
 
 	pluralResourceSchemaName := "testresources"
@@ -99,8 +99,8 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), "org"))
 	testClient := cli.Cluster(testOrgPath)
 
-	suite.createAccount(ctx, testClient, testAccount1Name, corev1alpha1.AccountTypeAccount, suite.T())
-	suite.createAccount(ctx, testClient, testAccount2Name, corev1alpha1.AccountTypeAccount, suite.T())
+	suite.createAccount(ctx, testClient, testAccount1Name, pmcorev1alpha1.AccountTypeAccount, suite.T())
+	suite.createAccount(ctx, testClient, testAccount2Name, pmcorev1alpha1.AccountTypeAccount, suite.T())
 
 	_, testAccount1Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount1Name), envtest.WithType(core.RootCluster.Path(), "account"))
 	_, testAccount2Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount2Name), envtest.WithType(core.RootCluster.Path(), "account"))
@@ -116,36 +116,36 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 
 	// Wait for APIBindings to be bound (status populated with APIExportClusterName)
 	suite.Assert().Eventually(func() bool {
-		var binding1, binding2 kcpapiv1alpha1.APIBinding
-		if err := testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &binding1); err != nil {
+		var binding1, binding2 kcpapisv1alpha1.APIBinding
+		if err := testAccount1Client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: apiBinding1.Name}, &binding1); err != nil {
 			return false
 		}
-		if err := testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &binding2); err != nil {
+		if err := testAccount2Client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: apiBinding2.Name}, &binding2); err != nil {
 			return false
 		}
-		return binding1.Status.Phase == kcpapiv1alpha1.APIBindingPhaseBound &&
-			binding2.Status.Phase == kcpapiv1alpha1.APIBindingPhaseBound
+		return binding1.Status.Phase == kcpapisv1alpha1.APIBindingPhaseBound &&
+			binding2.Status.Phase == kcpapisv1alpha1.APIBindingPhaseBound
 	}, 10*time.Second, 200*time.Millisecond, "APIBindings should be bound before checking finalizers")
 
 	expectedModelName := "generator-test-example-com-testresources-generator-test-finalize"
-	var model corev1alpha1.AuthorizationModel
+	var model pmcorev1alpha1.AuthorizationModel
 	suite.Assert().Eventually(func() bool {
-		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
+		err := suite.platformMeshSystemClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: expectedModelName}, &model)
 		return err == nil
 	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should exist after reconciliations")
 
-	var testApiBinding1, testApiBinding2 kcpapiv1alpha1.APIBinding
-	suite.Require().NoError(testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1))
-	suite.Require().NoError(testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &testApiBinding2))
+	var testApiBinding1, testApiBinding2 kcpapisv1alpha1.APIBinding
+	suite.Require().NoError(testAccount1Client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1))
+	suite.Require().NoError(testAccount2Client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: apiBinding2.Name}, &testApiBinding2))
 
 	expectedFinalizers := []string{"apis.kcp.io/apibinding-finalizer", "core.platform-mesh.io/apibinding-finalizer"}
 
 	suite.Assert().Eventually(func() bool {
-		var testApiBinding1, testApiBinding2 kcpapiv1alpha1.APIBinding
-		if err := testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1); err != nil {
+		var testApiBinding1, testApiBinding2 kcpapisv1alpha1.APIBinding
+		if err := testAccount1Client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1); err != nil {
 			return false
 		}
-		if err := testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &testApiBinding2); err != nil {
+		if err := testAccount2Client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: apiBinding2.Name}, &testApiBinding2); err != nil {
 			return false
 		}
 		return suite.Equal(expectedFinalizers, testApiBinding1.Finalizers) &&
@@ -156,14 +156,14 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	suite.Require().NoError(err)
 
 	suite.Assert().Eventually(func() bool {
-		var binding kcpapiv1alpha1.APIBinding
-		err := testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &binding)
-		return kerrors.IsNotFound(err)
+		var binding kcpapisv1alpha1.APIBinding
+		err := testAccount1Client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: apiBinding1.Name}, &binding)
+		return apierrors.IsNotFound(err)
 	}, 10*time.Second, 200*time.Millisecond, "APIBinding1 should be deleted")
 
 	suite.Assert().Eventually(func() bool {
-		var authModel corev1alpha1.AuthorizationModel
-		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &authModel)
+		var authModel pmcorev1alpha1.AuthorizationModel
+		err := suite.platformMeshSystemClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: expectedModelName}, &authModel)
 		return err == nil && authModel.DeletionTimestamp.IsZero()
 	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should still exist after deleting first binding")
 
@@ -171,27 +171,27 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	suite.Require().NoError(err)
 
 	suite.Assert().Eventually(func() bool {
-		var binding kcpapiv1alpha1.APIBinding
-		err := testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &binding)
-		return kerrors.IsNotFound(err)
+		var binding kcpapisv1alpha1.APIBinding
+		err := testAccount2Client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: apiBinding2.Name}, &binding)
+		return apierrors.IsNotFound(err)
 	}, 10*time.Second, 200*time.Millisecond, "APIBinding2 should be deleted")
 
 	suite.Assert().Eventually(func() bool {
-		var authModel corev1alpha1.AuthorizationModel
-		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &authModel)
-		return kerrors.IsNotFound(err)
+		var authModel pmcorev1alpha1.AuthorizationModel
+		err := suite.platformMeshSystemClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: expectedModelName}, &authModel)
+		return apierrors.IsNotFound(err)
 	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should be deleted after deleting both bindings")
 }
 
-func (suite *IntegrationSuite) createTestAPIResourceSchema(ctx context.Context, client client.Client, name, group, plural, singular string, scope apiextensionsv1.ResourceScope) {
+func (suite *IntegrationSuite) createTestAPIResourceSchema(ctx context.Context, client ctrlruntimeclient.Client, name, group, plural, singular string, scope apiextensionsv1.ResourceScope) {
 	kind := strings.ToUpper(singular[:1]) + singular[1:]
 	listKind := kind + "List"
 
-	schema := &kcpapiv1alpha1.APIResourceSchema{
+	schema := &kcpapisv1alpha1.APIResourceSchema{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: kcpapiv1alpha1.APIResourceSchemaSpec{
+		Spec: kcpapisv1alpha1.APIResourceSchemaSpec{
 			Group: group,
 			Names: apiextensionsv1.CustomResourceDefinitionNames{
 				Kind:     kind,
@@ -200,7 +200,7 @@ func (suite *IntegrationSuite) createTestAPIResourceSchema(ctx context.Context, 
 				Singular: singular,
 			},
 			Scope: scope,
-			Versions: []kcpapiv1alpha1.APIResourceVersion{
+			Versions: []kcpapisv1alpha1.APIResourceVersion{
 				{
 					Name:    "v1alpha1",
 					Served:  true,
@@ -223,42 +223,42 @@ func (suite *IntegrationSuite) createTestAPIResourceSchema(ctx context.Context, 
 	}
 
 	err := client.Create(ctx, schema)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	suite.T().Logf("created test APIResourceSchema: %s", name)
 }
 
-func (suite *IntegrationSuite) createTestAPIExport(ctx context.Context, client client.Client, name string, resourceSchemas []string) {
-	apiExport := &kcpapiv1alpha1.APIExport{
+func (suite *IntegrationSuite) createTestAPIExport(ctx context.Context, client ctrlruntimeclient.Client, name string, resourceSchemas []string) {
+	apiExport := &kcpapisv1alpha1.APIExport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: kcpapiv1alpha1.APIExportSpec{
+		Spec: kcpapisv1alpha1.APIExportSpec{
 			LatestResourceSchemas: resourceSchemas,
-			PermissionClaims: []kcpapiv1alpha1.PermissionClaim{
-				{GroupResource: kcpapiv1alpha1.GroupResource{Group: "apis.kcp.io", Resource: "apibindings"}, All: true, IdentityHash: ""},
-				{GroupResource: kcpapiv1alpha1.GroupResource{Group: "apis.kcp.io", Resource: "apiexports"}, All: true, IdentityHash: ""},
-				{GroupResource: kcpapiv1alpha1.GroupResource{Group: "apis.kcp.io", Resource: "apiresourceschemas"}, All: true, IdentityHash: ""},
+			PermissionClaims: []kcpapisv1alpha1.PermissionClaim{
+				{GroupResource: kcpapisv1alpha1.GroupResource{Group: "apis.kcp.io", Resource: "apibindings"}, All: true, IdentityHash: ""},
+				{GroupResource: kcpapisv1alpha1.GroupResource{Group: "apis.kcp.io", Resource: "apiexports"}, All: true, IdentityHash: ""},
+				{GroupResource: kcpapisv1alpha1.GroupResource{Group: "apis.kcp.io", Resource: "apiresourceschemas"}, All: true, IdentityHash: ""},
 			},
 		},
 	}
 
 	err := client.Create(ctx, apiExport)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	suite.T().Logf("created test APIExport: %s", name)
 }
 
-func (suite *IntegrationSuite) createTestAPIBinding(ctx context.Context, client client.Client, name, exportPath, exportName string) *kcpapiv1alpha1.APIBinding {
-	binding := &kcpapiv1alpha1.APIBinding{
+func (suite *IntegrationSuite) createTestAPIBinding(ctx context.Context, client ctrlruntimeclient.Client, name, exportPath, exportName string) *kcpapisv1alpha1.APIBinding {
+	binding := &kcpapisv1alpha1.APIBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: kcpapiv1alpha1.APIBindingSpec{
-			Reference: kcpapiv1alpha1.BindingReference{
-				Export: &kcpapiv1alpha1.ExportBindingReference{
+		Spec: kcpapisv1alpha1.APIBindingSpec{
+			Reference: kcpapisv1alpha1.BindingReference{
+				Export: &kcpapisv1alpha1.ExportBindingReference{
 					Path: exportPath,
 					Name: exportName,
 				},
@@ -267,7 +267,7 @@ func (suite *IntegrationSuite) createTestAPIBinding(ctx context.Context, client 
 	}
 
 	err := client.Create(ctx, binding)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	suite.T().Logf("created APIBinding '%s'", name)

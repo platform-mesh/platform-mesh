@@ -22,20 +22,21 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/controller"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
@@ -81,7 +82,7 @@ var modelGeneratorCmd = &cobra.Command{
 		}
 		runtimeScheme := runtime.NewScheme()
 		utilruntime.Must(appsv1.AddToScheme(runtimeScheme))
-		utilruntime.Must(corev1alpha1.AddToScheme(runtimeScheme))
+		utilruntime.Must(pmcorev1alpha1.AddToScheme(runtimeScheme))
 
 		if mgrOpts.Scheme == nil {
 			log.Error().Err(fmt.Errorf("scheme should not be nil")).Msg("scheme should not be nil")

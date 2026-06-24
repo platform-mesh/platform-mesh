@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,7 +38,7 @@ func FuzzIdentityProviderConfigurationValidateCreate(f *testing.F) {
 			denyList = splitCSV(denyListCSV)
 		}
 
-		idp := &corev1alpha1.IdentityProviderConfiguration{
+		idp := &pmcorev1alpha1.IdentityProviderConfiguration{
 			ObjectMeta: metav1.ObjectMeta{Name: name},
 		}
 		v := &identityProviderConfigurationValidator{

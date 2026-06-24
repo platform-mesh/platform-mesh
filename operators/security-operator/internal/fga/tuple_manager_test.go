@@ -26,10 +26,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"google.golang.org/grpc"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
-	"google.golang.org/grpc"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -43,7 +44,7 @@ func TestTupleManager_Apply(t *testing.T) {
 		err := mgr.Apply(context.Background(), nil)
 		assert.NoError(t, err)
 
-		err = mgr.Apply(context.Background(), []corev1alpha1.Tuple{})
+		err = mgr.Apply(context.Background(), []pmcorev1alpha1.Tuple{})
 		assert.NoError(t, err)
 	})
 
@@ -60,7 +61,7 @@ func TestTupleManager_Apply(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		tuples := []corev1alpha1.Tuple{
+		tuples := []pmcorev1alpha1.Tuple{
 			{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 			{Object: "doc:2", Relation: "owner", User: "user:bob"},
 		}
@@ -76,7 +77,7 @@ func TestTupleManager_Apply(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		tuples := []corev1alpha1.Tuple{
+		tuples := []pmcorev1alpha1.Tuple{
 			{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 		}
 
@@ -94,7 +95,7 @@ func TestTupleManager_Delete(t *testing.T) {
 		err := mgr.Delete(context.Background(), nil)
 		assert.NoError(t, err)
 
-		err = mgr.Delete(context.Background(), []corev1alpha1.Tuple{})
+		err = mgr.Delete(context.Background(), []pmcorev1alpha1.Tuple{})
 		assert.NoError(t, err)
 	})
 
@@ -111,7 +112,7 @@ func TestTupleManager_Delete(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		tuples := []corev1alpha1.Tuple{
+		tuples := []pmcorev1alpha1.Tuple{
 			{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 			{Object: "doc:2", Relation: "owner", User: "user:bob"},
 		}
@@ -127,7 +128,7 @@ func TestTupleManager_Delete(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		tuples := []corev1alpha1.Tuple{
+		tuples := []pmcorev1alpha1.Tuple{
 			{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 		}
 
@@ -147,7 +148,7 @@ func TestTupleManager_Apply_verifies_tuple_contents(t *testing.T) {
 	log := testlogger.New()
 	mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-	tuples := []corev1alpha1.Tuple{
+	tuples := []pmcorev1alpha1.Tuple{
 		{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 		{Object: "doc:2", Relation: "owner", User: "user:bob"},
 	}
@@ -177,7 +178,7 @@ func TestTupleManager_Delete_verifies_tuple_contents(t *testing.T) {
 	log := testlogger.New()
 	mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-	tuples := []corev1alpha1.Tuple{
+	tuples := []pmcorev1alpha1.Tuple{
 		{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 		{Object: "doc:2", Relation: "owner", User: "user:bob"},
 	}
@@ -200,7 +201,7 @@ func TestIsTupleOfAccountFilter_returnsFalseForAllTuplesWhenGeneratedClusterIdEm
 	filter := IsTupleOfAccountFilter(ai.Spec.Account.GeneratedClusterId)
 
 	// Any tuple should be rejected when GeneratedClusterId is empty
-	tuples := []corev1alpha1.Tuple{
+	tuples := []pmcorev1alpha1.Tuple{
 		{Object: "account:1mj722nrt4jo3ggn/test-account", Relation: "viewer", User: "user:alice"},
 		{Object: "account:1yrj2fwqtxcxbm1v/other-account", Relation: "owner", User: "user:bob"},
 		{Object: "doc:1", Relation: "viewer", User: "user:charlie"},
@@ -252,7 +253,7 @@ func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	require.NoError(t, err)
 
 	// allTuples: database managed by mocks (Write appends/deletes, Read returns current state)
-	allTuples := make([]corev1alpha1.Tuple, 0)
+	allTuples := make([]pmcorev1alpha1.Tuple, 0)
 
 	client := mocks.NewMockOpenFGAServiceClient(t)
 	log := testlogger.New()
@@ -261,14 +262,14 @@ func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	client.EXPECT().Write(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, req *openfgav1.WriteRequest, opts ...grpc.CallOption) (*openfgav1.WriteResponse, error) {
 		if req.Writes != nil {
 			for _, k := range req.Writes.TupleKeys {
-				allTuples = append(allTuples, corev1alpha1.Tuple{
+				allTuples = append(allTuples, pmcorev1alpha1.Tuple{
 					Object: k.Object, Relation: k.Relation, User: k.User,
 				})
 			}
 		}
 		if req.Deletes != nil {
 			for _, k := range req.Deletes.TupleKeys {
-				allTuples = slices.DeleteFunc(allTuples, func(t corev1alpha1.Tuple) bool {
+				allTuples = slices.DeleteFunc(allTuples, func(t pmcorev1alpha1.Tuple) bool {
 					return t.Object == k.Object && t.Relation == k.Relation && t.User == k.User
 				})
 			}
@@ -320,7 +321,7 @@ func TestTupleManager_ListWithFilter(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		result, err := mgr.ListWithFilter(context.Background(), func(t corev1alpha1.Tuple) bool { return true })
+		result, err := mgr.ListWithFilter(context.Background(), func(t pmcorev1alpha1.Tuple) bool { return true })
 		assert.Error(t, err)
 		assert.Nil(t, result)
 	})
@@ -337,7 +338,7 @@ func TestTupleManager_ListWithFilter(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		result, err := mgr.ListWithFilter(context.Background(), func(t corev1alpha1.Tuple) bool { return true })
+		result, err := mgr.ListWithFilter(context.Background(), func(t pmcorev1alpha1.Tuple) bool { return true })
 		assert.NoError(t, err)
 		assert.Len(t, result, 1)
 		assert.Equal(t, "doc:1", result[0].Object)
@@ -362,7 +363,7 @@ func TestTupleManager_ListWithFilter(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		result, err := mgr.ListWithFilter(context.Background(), func(t corev1alpha1.Tuple) bool { return true })
+		result, err := mgr.ListWithFilter(context.Background(), func(t pmcorev1alpha1.Tuple) bool { return true })
 		assert.NoError(t, err)
 		assert.Len(t, result, 2)
 	})
@@ -450,23 +451,23 @@ func TestTupleManager_ListWithKey(t *testing.T) {
 	})
 }
 
-func testAccountAndInfo(accountName, clusterID string) (corev1alpha1.Account, corev1alpha1.AccountInfo) {
+func testAccountAndInfo(accountName, clusterID string) (pmcorev1alpha1.Account, pmcorev1alpha1.AccountInfo) {
 	creator := "user:alice"
-	acc := corev1alpha1.Account{
+	acc := pmcorev1alpha1.Account{
 		ObjectMeta: metav1.ObjectMeta{Name: accountName},
-		Spec: corev1alpha1.AccountSpec{
+		Spec: pmcorev1alpha1.AccountSpec{
 			Creator: &creator,
 		},
 	}
-	ai := corev1alpha1.AccountInfo{
+	ai := pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: corev1alpha1.AccountInfoSpec{
-			Account: corev1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               accountName,
 				GeneratedClusterId: clusterID,
 				OriginClusterId:    clusterID,
 			},
-			ParentAccount: &corev1alpha1.AccountLocation{
+			ParentAccount: &pmcorev1alpha1.AccountLocation{
 				Name:            "parent-account",
 				OriginClusterId: clusterID,
 			},
@@ -475,7 +476,7 @@ func testAccountAndInfo(accountName, clusterID string) (corev1alpha1.Account, co
 	return acc, ai
 }
 
-func tuplesToOpenFGA(tuples []corev1alpha1.Tuple) []*openfgav1.Tuple {
+func tuplesToOpenFGA(tuples []pmcorev1alpha1.Tuple) []*openfgav1.Tuple {
 	out := make([]*openfgav1.Tuple, 0, len(tuples))
 	for _, t := range tuples {
 		out = append(out, &openfgav1.Tuple{

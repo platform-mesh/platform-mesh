@@ -20,15 +20,16 @@ import (
 	"context"
 	"time"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/security-operator/internal/metrics"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/subroutines/lifecycle"
+
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
@@ -42,8 +43,8 @@ type AccountInfoReconciler struct {
 }
 
 func NewAccountInfoReconciler(log *logger.Logger, mcMgr mcmanager.Manager) *AccountInfoReconciler {
-	lc := lifecycle.New(mcMgr, "AccountInfoReconciler", func() client.Object {
-		return &corev1alpha1.AccountInfo{}
+	lc := lifecycle.New(mcMgr, "AccountInfoReconciler", func() ctrlruntimeclient.Object {
+		return &pmcorev1alpha1.AccountInfo{}
 	}, subroutine.NewAccountInfoFinalizerSubroutine(mcMgr))
 
 	return &AccountInfoReconciler{
@@ -71,7 +72,7 @@ func (r *AccountInfoReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *pla
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("accountinfo").
-		For(&corev1alpha1.AccountInfo{}).
+		For(&pmcorev1alpha1.AccountInfo{}).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

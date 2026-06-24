@@ -20,7 +20,8 @@ import (
 	"slices"
 
 	"github.com/rs/zerolog/log"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
@@ -28,7 +29,7 @@ import (
 
 func HasInitializerPredicate(initializerName string) predicate.Predicate {
 	initializer := kcpcorev1alpha1.LogicalClusterInitializer(initializerName)
-	return predicate.NewPredicateFuncs(func(object client.Object) bool {
+	return predicate.NewPredicateFuncs(func(object ctrlruntimeclient.Object) bool {
 		lc, ok := object.(*kcpcorev1alpha1.LogicalCluster)
 		if !ok {
 			log.Error().Msg("received non-LogicalCluster resource in HasInitializer predicate")

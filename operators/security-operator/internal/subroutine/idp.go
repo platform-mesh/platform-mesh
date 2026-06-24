@@ -23,14 +23,12 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -38,6 +36,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
@@ -48,7 +49,7 @@ const (
 )
 
 func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) (*IDPSubroutine, error) {
-	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*corev1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
+	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
@@ -75,22 +76,22 @@ type IDPSubroutine struct {
 	kubectlClientRedirectURLs []string
 	baseDomain                string
 	registrationAllowed       bool
-	limiter                   workqueue.TypedRateLimiter[*corev1alpha1.IdentityProviderConfiguration]
+	limiter                   workqueue.TypedRateLimiter[*pmcorev1alpha1.IdentityProviderConfiguration]
 }
 
 func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
 
 // Initialize implements subroutines.Initializer.
-func (i *IDPSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (i *IDPSubroutine) Initialize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return i.reconcile(ctx, obj)
 }
 
 // Process implements subroutines.Processor.
-func (i *IDPSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (i *IDPSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return i.reconcile(ctx, obj)
 }
 
-func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (i *IDPSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
@@ -107,21 +108,21 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
-	var account corev1alpha1.Account
+	var account pmcorev1alpha1.Account
 	err = orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, &account)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get account resource %w", err)
 	}
 
-	if account.Spec.Type != corev1alpha1.AccountTypeOrg {
+	if account.Spec.Type != pmcorev1alpha1.AccountTypeOrg {
 		log.Debug().Str("workspace", workspaceName).Msg("account is not of type organization, skipping idp creation")
 		return subroutines.OK(), nil
 	}
 
-	clients := []corev1alpha1.IdentityProviderClientConfig{
+	clients := []pmcorev1alpha1.IdentityProviderClientConfig{
 		{
 			ClientName:             workspaceName,
-			ClientType:             corev1alpha1.IdentityProviderClientTypeConfidential,
+			ClientType:             pmcorev1alpha1.IdentityProviderClientTypeConfidential,
 			RedirectURIs:           append(i.additionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, i.baseDomain)),
 			PostLogoutRedirectURIs: []string{fmt.Sprintf("https://%s.%s/logout*", workspaceName, i.baseDomain)},
 			SecretRef: corev1.SecretReference{
@@ -131,7 +132,7 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 		},
 		{
 			ClientName:   kubectlClientName,
-			ClientType:   corev1alpha1.IdentityProviderClientTypePublic,
+			ClientType:   pmcorev1alpha1.IdentityProviderClientTypePublic,
 			RedirectURIs: i.kubectlClientRedirectURLs,
 			SecretRef: corev1.SecretReference{
 				Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, kubectlClientName),
@@ -140,7 +141,7 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 		},
 	}
 
-	idp := &corev1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
+	idp := &pmcorev1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 	_, err = controllerutil.CreateOrPatch(ctx, orgsClient, idp, func() error {
 		idp.Spec.RegistrationAllowed = i.registrationAllowed
 
@@ -187,8 +188,8 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 	return subroutines.OK(), nil
 }
 
-func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, workspaceName string, idp *corev1alpha1.IdentityProviderConfiguration) error {
-	accountInfo := corev1alpha1.AccountInfo{
+func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl ctrlruntimeclient.Client, workspaceName string, idp *pmcorev1alpha1.IdentityProviderConfiguration) error {
+	accountInfo := pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
 	}
 	if err := cl.Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo); err != nil {
@@ -196,14 +197,14 @@ func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, 
 	}
 
 	desiredIssuerURL := fmt.Sprintf("https://%s/keycloak/realms/%s", i.baseDomain, workspaceName)
-	desiredClients := make(map[string]corev1alpha1.ClientInfo)
+	desiredClients := make(map[string]pmcorev1alpha1.ClientInfo)
 	for clientName, managedClient := range idp.Status.ManagedClients {
-		desiredClients[clientName] = corev1alpha1.ClientInfo{
+		desiredClients[clientName] = pmcorev1alpha1.ClientInfo{
 			ClientID: managedClient.ClientID,
 		}
 	}
 
-	desiredOIDC := &corev1alpha1.OIDCInfo{
+	desiredOIDC := &pmcorev1alpha1.OIDCInfo{
 		IssuerURL: desiredIssuerURL,
 		Clients:   desiredClients,
 	}
@@ -216,15 +217,15 @@ func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, 
 	original := accountInfo.DeepCopy()
 	accountInfo.Spec.OIDC = desiredOIDC
 
-	if err := cl.Patch(ctx, &accountInfo, client.MergeFrom(original)); err != nil {
+	if err := cl.Patch(ctx, &accountInfo, ctrlruntimeclient.MergeFrom(original)); err != nil {
 		return fmt.Errorf("failed to patch accountInfo: %w", err)
 	}
 	return nil
 }
 
 // ensureClient updates only clients managed by this subroutine
-func ensureClient(existing []corev1alpha1.IdentityProviderClientConfig, desired corev1alpha1.IdentityProviderClientConfig) []corev1alpha1.IdentityProviderClientConfig {
-	idx := slices.IndexFunc(existing, func(c corev1alpha1.IdentityProviderClientConfig) bool {
+func ensureClient(existing []pmcorev1alpha1.IdentityProviderClientConfig, desired pmcorev1alpha1.IdentityProviderClientConfig) []pmcorev1alpha1.IdentityProviderClientConfig {
+	idx := slices.IndexFunc(existing, func(c pmcorev1alpha1.IdentityProviderClientConfig) bool {
 		return c.ClientName == desired.ClientName
 	})
 

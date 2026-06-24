@@ -21,32 +21,33 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 type workspaceAuthSubroutine struct {
-	runtimeClient   client.Client
+	runtimeClient   ctrlruntimeclient.Client
 	mgr             mcmanager.Manager
 	kcpClientGetter iclient.KCPClientGetter
 	cfg             config.Config
 }
 
-func NewWorkspaceAuthConfigurationSubroutine(runtimeClient client.Client, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) *workspaceAuthSubroutine {
+func NewWorkspaceAuthConfigurationSubroutine(runtimeClient ctrlruntimeclient.Client, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) *workspaceAuthSubroutine {
 	return &workspaceAuthSubroutine{
 		runtimeClient:   runtimeClient,
 		mgr:             mgr,
@@ -63,16 +64,16 @@ var (
 func (r *workspaceAuthSubroutine) GetName() string { return "workspaceAuthConfiguration" }
 
 // Initialize implements subroutines.Initializer.
-func (r *workspaceAuthSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (r *workspaceAuthSubroutine) Initialize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return r.reconcile(ctx, obj)
 }
 
 // Process implements subroutines.Processor.
-func (r *workspaceAuthSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (r *workspaceAuthSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return r.reconcile(ctx, obj)
 }
 
-func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
@@ -82,7 +83,7 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Obje
 
 	var domainCASecret corev1.Secret
 	if r.cfg.DomainCALookup {
-		err := r.runtimeClient.Get(ctx, client.ObjectKey{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, &domainCASecret)
+		err := r.runtimeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, &domainCASecret)
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("failed to get domain CA secret: %w", err)
 		}
@@ -93,7 +94,7 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Obje
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
 	}
 
-	var accountInfo corev1alpha1.AccountInfo
+	var accountInfo pmcorev1alpha1.AccountInfo
 	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get AccountInfo: %w", err)
@@ -112,33 +113,33 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Obje
 	}
 	audiences = append(audiences, r.cfg.AdditionalAudiences...)
 
-	jwtAuthenticationConfiguration := kcptenancyv1alphav1.JWTAuthenticator{
-		Issuer: kcptenancyv1alphav1.Issuer{
+	jwtAuthenticationConfiguration := kcptenancyv1alpha1.JWTAuthenticator{
+		Issuer: kcptenancyv1alpha1.Issuer{
 			URL:                 fmt.Sprintf("https://%s/keycloak/realms/%s", r.cfg.BaseDomain, workspaceName),
-			AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
+			AudienceMatchPolicy: kcptenancyv1alpha1.AudienceMatchPolicyMatchAny,
 			Audiences:           audiences,
 		},
-		ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
-			Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
+		ClaimMappings: kcptenancyv1alpha1.ClaimMappings{
+			Groups: kcptenancyv1alpha1.PrefixedClaimOrExpression{
 				Claim:  r.cfg.GroupClaim,
 				Prefix: ptr.To(""),
 			},
-			Username: kcptenancyv1alphav1.PrefixedClaimOrExpression{}, // to be set based on environment
+			Username: kcptenancyv1alpha1.PrefixedClaimOrExpression{}, // to be set based on environment
 		},
 	}
 
 	// If production - default behavior - only verified emails.
 	if !r.cfg.DevelopmentAllowUnverifiedEmails {
-		jwtAuthenticationConfiguration.ClaimMappings.Username = kcptenancyv1alphav1.PrefixedClaimOrExpression{
+		jwtAuthenticationConfiguration.ClaimMappings.Username = kcptenancyv1alpha1.PrefixedClaimOrExpression{
 			Claim:  r.cfg.UserClaim,
 			Prefix: ptr.To(""),
 		}
 	} else {
 		// Development mode - allow both verified and unverified emails.
-		jwtAuthenticationConfiguration.ClaimMappings.Username = kcptenancyv1alphav1.PrefixedClaimOrExpression{
+		jwtAuthenticationConfiguration.ClaimMappings.Username = kcptenancyv1alpha1.PrefixedClaimOrExpression{
 			Expression: "claims.email",
 		}
-		jwtAuthenticationConfiguration.ClaimValidationRules = []kcptenancyv1alphav1.ClaimValidationRule{
+		jwtAuthenticationConfiguration.ClaimValidationRules = []kcptenancyv1alpha1.ClaimValidationRule{
 			{
 				Expression: "claims.?email_verified.orValue(true) == true || claims.?email_verified.orValue(true) == false",
 				Message:    "Allowing both verified and unverified emails",
@@ -151,10 +152,10 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Obje
 		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
 
-	authConfig := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
+	authConfig := &kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 	_, err = controllerutil.CreateOrUpdate(ctx, orgsClient, authConfig, func() error {
-		authConfig.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
-			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
+		authConfig.Spec = kcptenancyv1alpha1.WorkspaceAuthenticationConfigurationSpec{
+			JWT: []kcptenancyv1alpha1.JWTAuthenticator{
 				jwtAuthenticationConfiguration,
 			},
 		}
@@ -177,13 +178,13 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Obje
 	return subroutines.OK(), nil
 }
 
-func (r *workspaceAuthSubroutine) patchWorkspaceTypes(ctx context.Context, cl client.Client, workspaceName string) error {
-	wsTypeList := &kcptenancyv1alphav1.WorkspaceTypeList{}
-	if err := cl.List(ctx, wsTypeList, client.MatchingLabels{"core.platform-mesh.io/org": workspaceName}); err != nil {
+func (r *workspaceAuthSubroutine) patchWorkspaceTypes(ctx context.Context, cl ctrlruntimeclient.Client, workspaceName string) error {
+	wsTypeList := &kcptenancyv1alpha1.WorkspaceTypeList{}
+	if err := cl.List(ctx, wsTypeList, ctrlruntimeclient.MatchingLabels{"core.platform-mesh.io/org": workspaceName}); err != nil {
 		return fmt.Errorf("failed to list WorkspaceTypes: %w", err)
 	}
 
-	desiredAuthConfig := []kcptenancyv1alphav1.AuthenticationConfigurationReference{
+	desiredAuthConfig := []kcptenancyv1alpha1.AuthenticationConfigurationReference{
 		{Name: workspaceName},
 	}
 
@@ -196,7 +197,7 @@ func (r *workspaceAuthSubroutine) patchWorkspaceTypes(ctx context.Context, cl cl
 		original := wsType.DeepCopy()
 		wsType.Spec.AuthenticationConfigurations = desiredAuthConfig
 
-		if err := cl.Patch(ctx, &wsType, client.MergeFrom(original)); err != nil {
+		if err := cl.Patch(ctx, &wsType, ctrlruntimeclient.MergeFrom(original)); err != nil {
 			return fmt.Errorf("failed to patch WorkspaceType %s: %w", wsType.Name, err)
 		}
 		log.Debug().Msg(fmt.Sprintf("patched workspaceType %s with authentication configuration", wsType.Name))

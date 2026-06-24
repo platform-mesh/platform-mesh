@@ -21,7 +21,8 @@ import (
 	"fmt"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/security-operator/internal/metrics"
 )
@@ -38,7 +39,7 @@ type TupleManager struct {
 	logger               logger.Logger
 }
 
-type TupleFilter func(t corev1alpha1.Tuple) bool
+type TupleFilter func(t pmcorev1alpha1.Tuple) bool
 
 func NewTupleManager(client openfgav1.OpenFGAServiceClient, storeID, authorizationModelID string, log *logger.Logger) *TupleManager {
 	return &TupleManager{
@@ -51,7 +52,7 @@ func NewTupleManager(client openfgav1.OpenFGAServiceClient, storeID, authorizati
 
 // Apply writes a given set of tuples within a single transaction and ignores
 // duplicate writes.
-func (m *TupleManager) Apply(ctx context.Context, tuples []corev1alpha1.Tuple) error {
+func (m *TupleManager) Apply(ctx context.Context, tuples []pmcorev1alpha1.Tuple) error {
 	if len(tuples) == 0 {
 		return nil
 	}
@@ -85,7 +86,7 @@ func (m *TupleManager) Apply(ctx context.Context, tuples []corev1alpha1.Tuple) e
 
 // Delete deletes a given set of tuples within a single transaction and ignores
 // duplicate deletions.
-func (m *TupleManager) Delete(ctx context.Context, tuples []corev1alpha1.Tuple) error {
+func (m *TupleManager) Delete(ctx context.Context, tuples []pmcorev1alpha1.Tuple) error {
 	if len(tuples) == 0 {
 		return nil
 	}
@@ -119,12 +120,12 @@ func (m *TupleManager) Delete(ctx context.Context, tuples []corev1alpha1.Tuple) 
 
 // ListWithFilter gets all tuples in the store and returns a list of all tuples
 // that match the given filter.
-func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) ([]corev1alpha1.Tuple, error) {
+func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) ([]pmcorev1alpha1.Tuple, error) {
 	if filter == nil {
 		return nil, fmt.Errorf("filter function cannot be nil")
 	}
 
-	var result []corev1alpha1.Tuple
+	var result []pmcorev1alpha1.Tuple
 	var continuationToken string
 	for {
 		resp, err := m.client.Read(ctx, &openfgav1.ReadRequest{
@@ -141,7 +142,7 @@ func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) (
 			if t.Key == nil {
 				continue
 			}
-			tuple := corev1alpha1.Tuple{
+			tuple := pmcorev1alpha1.Tuple{
 				Object:   t.Key.Object,
 				Relation: t.Key.Relation,
 				User:     t.Key.User,
@@ -163,8 +164,8 @@ func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) (
 
 // ListWithKey reads tuples from the store filtered by the given
 // ReadRequestTupleKey.
-func (m *TupleManager) ListWithKey(ctx context.Context, key *openfgav1.ReadRequestTupleKey) ([]corev1alpha1.Tuple, error) {
-	var result []corev1alpha1.Tuple
+func (m *TupleManager) ListWithKey(ctx context.Context, key *openfgav1.ReadRequestTupleKey) ([]pmcorev1alpha1.Tuple, error) {
+	var result []pmcorev1alpha1.Tuple
 	var continuationToken string
 	for {
 		resp, err := m.client.Read(ctx, &openfgav1.ReadRequest{
@@ -181,7 +182,7 @@ func (m *TupleManager) ListWithKey(ctx context.Context, key *openfgav1.ReadReque
 			if t.Key == nil {
 				continue
 			}
-			result = append(result, corev1alpha1.Tuple{
+			result = append(result, pmcorev1alpha1.Tuple{
 				Object:   t.Key.Object,
 				Relation: t.Key.Relation,
 				User:     t.Key.User,

@@ -24,15 +24,16 @@ import (
 	"github.com/coreos/go-oidc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/oauth2"
+
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/pkg/clientreg/keycloak"
-	"golang.org/x/oauth2"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var initContainerCfg config.InitContainerConfig
@@ -81,7 +82,7 @@ var initContainerCmd = &cobra.Command{
 
 		k8sCfg := ctrl.GetConfigOrDie()
 
-		k8sClient, err := client.New(k8sCfg, client.Options{})
+		k8sClient, err := ctrlruntimeclient.New(k8sCfg, ctrlruntimeclient.Options{})
 		if err != nil {
 			return fmt.Errorf("failed to create Kubernetes client: %w", err)
 		}

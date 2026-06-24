@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/spf13/pflag"
+
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 

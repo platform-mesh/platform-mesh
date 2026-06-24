@@ -20,25 +20,24 @@ import (
 	"context"
 	"fmt"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/pkg/provider"
 )
 
 type KCPClientGetter interface {
-	NewClientForLogicalCluster(ctx context.Context, cluster string) (client.Client, error)
-	NewClientFromContext(ctx context.Context) (client.Client, error)
+	NewClientForLogicalCluster(ctx context.Context, cluster string) (ctrlruntimeclient.Client, error)
+	NewClientFromContext(ctx context.Context) (ctrlruntimeclient.Client, error)
 }
 
 type Lister interface {
-	List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
+	List(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error
 }
 
 type KCPCombinedClientGetter interface {
@@ -57,7 +56,7 @@ func NewManagerKCPClientGetter(mgr mcmanager.Manager, provider *provider.Provide
 	return &ManagerKCPClientGetter{mgr: mgr, provider: provider}
 }
 
-func (f *ManagerKCPClientGetter) NewClientForLogicalCluster(ctx context.Context, cluster string) (client.Client, error) {
+func (f *ManagerKCPClientGetter) NewClientForLogicalCluster(ctx context.Context, cluster string) (ctrlruntimeclient.Client, error) {
 	kcpCluster, err := f.mgr.GetCluster(ctx, multicluster.ClusterName(cluster))
 	if err != nil {
 		return nil, fmt.Errorf("getting cluster: %w", err)
@@ -66,7 +65,7 @@ func (f *ManagerKCPClientGetter) NewClientForLogicalCluster(ctx context.Context,
 	return kcpCluster.GetClient(), nil
 }
 
-func (f *ManagerKCPClientGetter) NewClientFromContext(ctx context.Context) (client.Client, error) {
+func (f *ManagerKCPClientGetter) NewClientFromContext(ctx context.Context) (ctrlruntimeclient.Client, error) {
 	cl, err := f.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting cluster from context: %w", err)
@@ -75,7 +74,7 @@ func (f *ManagerKCPClientGetter) NewClientFromContext(ctx context.Context) (clie
 	return cl.GetClient(), nil
 }
 
-func (f *ManagerKCPClientGetter) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+func (f *ManagerKCPClientGetter) List(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
 	return f.provider.Lister().List(ctx, list, opts...)
 }
 
@@ -88,7 +87,7 @@ func NewProviderLister(provider *provider.Provider) *ProviderLister {
 }
 
 // List lists resources across all clusters on all cshards.
-func (p *ProviderLister) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+func (p *ProviderLister) List(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
 	return p.provider.Lister().List(ctx, list, opts...)
 }
 
@@ -106,12 +105,12 @@ func NewConfigSchemeKCPClientGetter(config *rest.Config, scheme *runtime.Scheme)
 	}
 }
 
-func (f *ConfigSchemeKCPClientGetter) NewClientForLogicalCluster(ctx context.Context, cluster string) (client.Client, error) {
+func (f *ConfigSchemeKCPClientGetter) NewClientForLogicalCluster(ctx context.Context, cluster string) (ctrlruntimeclient.Client, error) {
 	_ = ctx
 	return NewForLogicalCluster(f.config, f.scheme, logicalcluster.Name(cluster))
 }
 
-func (f *ConfigSchemeKCPClientGetter) NewClientFromContext(ctx context.Context) (client.Client, error) {
+func (f *ConfigSchemeKCPClientGetter) NewClientFromContext(ctx context.Context) (ctrlruntimeclient.Client, error) {
 	clusterName, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
 		return nil, fmt.Errorf("no cluster set in context, use ReconcilerWithCluster helper when building the controller")

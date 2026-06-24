@@ -24,19 +24,19 @@ import (
 	"strings"
 	"text/template"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
@@ -115,7 +115,7 @@ type modelInput struct {
 }
 
 // Finalize implements subroutines.Finalizer.
-func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	bindingToDelete := obj.(*kcpapisv1alpha2.APIBinding)
@@ -131,7 +131,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 		return subroutines.OK(), fmt.Errorf("listing APIBindings: %w", err)
 	}
 
-	var toDeleteAccountInfo corev1alpha1.AccountInfo
+	var toDeleteAccountInfo pmcorev1alpha1.AccountInfo
 	err = bindingCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &toDeleteAccountInfo)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get account info for binding deletion")
@@ -149,9 +149,9 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 			return subroutines.OK(), fmt.Errorf("getting cluster for binding: %w", err)
 		}
 
-		var accountInfo corev1alpha1.AccountInfo
+		var accountInfo pmcorev1alpha1.AccountInfo
 		err = bindingWsCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
-		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+		if apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
 			// If the accountinfo does not exist, skip this binding and continue with others
 			continue
 		}
@@ -196,13 +196,13 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 		}
 
 		authModelName := toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, toDeleteAccountInfo.Spec.Organization.Name)
-		err = apiExportClient.Delete(ctx, &corev1alpha1.AuthorizationModel{
+		err = apiExportClient.Delete(ctx, &pmcorev1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: authModelName,
 			},
 		})
 		if err != nil {
-			if kerrors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				// If the model does not exist, we can skip the deletion.
 				log.Info().Msg(fmt.Sprintf("authorization model %s does not exist", authModelName))
 				continue
@@ -217,7 +217,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 }
 
 // Finalizers implements subroutines.Finalizer.
-func (a *AuthorizationModelGenerationSubroutine) Finalizers(obj client.Object) []string {
+func (a *AuthorizationModelGenerationSubroutine) Finalizers(obj ctrlruntimeclient.Object) []string {
 	binding := obj.(*kcpapisv1alpha2.APIBinding)
 	if strings.Contains(binding.Name, "platform-mesh.io") || strings.Contains(binding.Name, "kcp.io") {
 		return []string{}
@@ -231,7 +231,7 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 }
 
 // Process implements subroutines.Processor.
-func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	binding := obj.(*kcpapisv1alpha2.APIBinding)
 
 	internalAPIBindings := []string{"core.platform-mesh.io", "system.platform-mesh.io"}
@@ -246,7 +246,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("getting cluster from context: %w", err)
 	}
 
-	var accountInfo corev1alpha1.AccountInfo
+	var accountInfo pmcorev1alpha1.AccountInfo
 	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting AccountInfo: %w", err)
@@ -289,16 +289,16 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 			return subroutines.OK(), fmt.Errorf("executing model template: %w", err)
 		}
 
-		model := corev1alpha1.AuthorizationModel{
+		model := pmcorev1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, accountInfo.Spec.Organization.Name),
 			},
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, apiExportCluster.GetClient(), &model, func() error {
-			model.Spec = corev1alpha1.AuthorizationModelSpec{
+			model.Spec = pmcorev1alpha1.AuthorizationModelSpec{
 				Model: buffer.String(),
-				StoreRef: corev1alpha1.WorkspaceStoreRef{
+				StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
 					Name:    accountInfo.Spec.Organization.Name,
 					Cluster: accountInfo.Spec.Organization.OriginClusterId,
 				},

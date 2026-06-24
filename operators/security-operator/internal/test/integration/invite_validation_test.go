@@ -22,9 +22,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -55,11 +56,11 @@ func (suite *IntegrationSuite) TestInviteEmailValidation() {
 
 	for _, tt := range tests {
 		suite.T().Run(tt.name, func(t *testing.T) {
-			invite := &corev1alpha1.Invite{
+			invite := &pmcorev1alpha1.Invite{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "email-validation-" + strings.ToLower(tt.name) + "-",
 				},
-				Spec: corev1alpha1.InviteSpec{Email: tt.email},
+				Spec: pmcorev1alpha1.InviteSpec{Email: tt.email},
 			}
 
 			err := suite.platformMeshSystemClient.Create(ctx, invite)
@@ -67,7 +68,7 @@ func (suite *IntegrationSuite) TestInviteEmailValidation() {
 				require.Error(t, err)
 				require.Truef(
 					t,
-					kerrors.IsInvalid(err) || kerrors.IsBadRequest(err),
+					apierrors.IsInvalid(err) || apierrors.IsBadRequest(err),
 					"expected validation error when creating Invite with invalid spec.email, got: %v",
 					err,
 				)
@@ -76,7 +77,7 @@ func (suite *IntegrationSuite) TestInviteEmailValidation() {
 
 			require.NoError(t, err)
 			t.Cleanup(func() {
-				if err := suite.platformMeshSystemClient.Delete(ctx, invite); err != nil && !kerrors.IsNotFound(err) {
+				if err := suite.platformMeshSystemClient.Delete(ctx, invite); err != nil && !apierrors.IsNotFound(err) {
 					t.Logf("failed to delete Invite %q: %v", invite.Name, err)
 				}
 			})

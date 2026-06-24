@@ -26,21 +26,22 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"google.golang.org/protobuf/encoding/protojson"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/util"
 	"go.platform-mesh.io/subroutines"
-	"google.golang.org/protobuf/encoding/protojson"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 const (
@@ -111,18 +112,18 @@ var _ subroutines.Processor = &authorizationModelSubroutine{}
 
 func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
 
-func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, store *corev1alpha1.Store) (corev1alpha1.AuthorizationModelList, error) {
+func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, store *pmcorev1alpha1.Store) (pmcorev1alpha1.AuthorizationModelList, error) {
 	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
-		return corev1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
+		return pmcorev1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
 	}
 
-	allAuthorizationModels := corev1alpha1.AuthorizationModelList{}
+	allAuthorizationModels := pmcorev1alpha1.AuthorizationModelList{}
 	if err := lister.List(ctx, &allAuthorizationModels); err != nil {
-		return corev1alpha1.AuthorizationModelList{}, err
+		return pmcorev1alpha1.AuthorizationModelList{}, err
 	}
 
-	var extendingModules corev1alpha1.AuthorizationModelList
+	var extendingModules pmcorev1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
 		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != string(storeClusterKey) {
 			continue
@@ -133,9 +134,9 @@ func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, s
 	return extendingModules, nil
 }
 
-func (a *authorizationModelSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := obj.(*corev1alpha1.Store)
+	store := obj.(*pmcorev1alpha1.Store)
 
 	extendingModules, err := getRelatedAuthorizationModels(ctx, a.lister, store)
 	if err != nil {
@@ -144,12 +145,12 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj client.O
 	}
 
 	moduleFiles := []language.ModuleFile{{
-		Name:     fmt.Sprintf("%s.fga", client.ObjectKeyFromObject(store)),
+		Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(store)),
 		Contents: store.Spec.CoreModule,
 	}}
 	for _, module := range extendingModules.Items {
 		moduleFiles = append(moduleFiles, language.ModuleFile{
-			Name:     fmt.Sprintf("%s.fga", client.ObjectKeyFromObject(&module)),
+			Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(&module)),
 			Contents: module.Spec.Model,
 		})
 	}

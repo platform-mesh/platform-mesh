@@ -26,32 +26,33 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/controller"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/yaml"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/yaml"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
 	_ "embed"
 )
@@ -89,11 +90,11 @@ var (
 )
 
 func init() {
-	utilruntime.Must(apisv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(corev1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(apisv1alpha2.AddToScheme(scheme.Scheme))
+	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme.Scheme))
 }
 
 type IntegrationSuite struct {
@@ -102,7 +103,7 @@ type IntegrationSuite struct {
 	kcpConfig                    *rest.Config
 	apiExportEndpointSliceConfig *rest.Config
 	platformMeshSysPath          logicalcluster.Path
-	platformMeshSystemClient     client.Client
+	platformMeshSystemClient     ctrlruntimeclient.Client
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -139,7 +140,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	ctx := suite.T().Context()
 
 	var err error
-	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})
+	cli, err := clusterclient.New(suite.kcpConfig, ctrlruntimeclient.Options{})
 	suite.Require().NoError(err)
 
 	rootClient := cli.Cluster(core.RootCluster.Path())
@@ -152,64 +153,64 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	// register api-resource schemas
 	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML, InviteSchemaYAML}
 	for _, schemaYAML := range schemas {
-		var schema apisv1alpha1.APIResourceSchema
+		var schema kcpapisv1alpha1.APIResourceSchema
 		suite.Require().NoError(yaml.Unmarshal(schemaYAML, &schema))
 		err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &schema)
-		if err != nil && !kerrors.IsAlreadyExists(err) {
+		if err != nil && !apierrors.IsAlreadyExists(err) {
 			suite.Require().NoError(err)
 		}
 		suite.T().Logf("created APIResourceSchema: %s", schema.Name)
 	}
 	suite.Require().NoError(err)
 
-	var apiExport apisv1alpha1.APIExport
+	var apiExport kcpapisv1alpha1.APIExport
 	suite.Require().NoError(yaml.Unmarshal(ApiExportPlatformMeshSystemYAML, &apiExport))
 
 	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &apiExport)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 
-	var platformMeshBinding apisv1alpha2.APIBinding
+	var platformMeshBinding kcpapisv1alpha2.APIBinding
 	suite.Require().NoError(yaml.Unmarshal(ApiBindingCorePlatformMeshYAML, &platformMeshBinding))
 
 	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &platformMeshBinding)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	t.Log("created APIBinding 'core.platform-mesh.io' in platform-mesh-system workspace")
 	suite.Assert().Eventually(func() bool {
-		var binding apisv1alpha2.APIBinding
-		if err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, client.ObjectKey{Name: platformMeshBinding.Name}, &binding); err != nil {
+		var binding kcpapisv1alpha2.APIBinding
+		if err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, ctrlruntimeclient.ObjectKey{Name: platformMeshBinding.Name}, &binding); err != nil {
 			return false
 		}
-		return binding.Status.Phase == apisv1alpha2.APIBindingPhaseBound
+		return binding.Status.Phase == kcpapisv1alpha2.APIBindingPhaseBound
 	}, 10*time.Second, 200*time.Millisecond, "APIBinding core.platform-mesh.io should be bound")
 
 	// Create WorkspaceTypes in root workspace
-	var orgWorkspaceType tenancyv1alpha1.WorkspaceType
+	var orgWorkspaceType kcptenancyv1alpha1.WorkspaceType
 	suite.Require().NoError(yaml.Unmarshal(WorkspaceTypeOrgYAML, &orgWorkspaceType))
 
 	err = rootClient.Create(ctx, &orgWorkspaceType)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	t.Log("created WorkspaceType 'org' in root workspace")
 
-	var orgsWorkspaceType tenancyv1alpha1.WorkspaceType
+	var orgsWorkspaceType kcptenancyv1alpha1.WorkspaceType
 	suite.Require().NoError(yaml.Unmarshal(WorkspaceTypeOrgsYAML, &orgsWorkspaceType))
 
 	err = rootClient.Create(ctx, &orgsWorkspaceType)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	t.Log("created WorkspaceType 'orgs' in root workspace")
 
-	var accountWorkspaceType tenancyv1alpha1.WorkspaceType
+	var accountWorkspaceType kcptenancyv1alpha1.WorkspaceType
 	suite.Require().NoError(yaml.Unmarshal(WorkspaceTypeAccountYAML, &accountWorkspaceType))
 
 	err = rootClient.Create(ctx, &accountWorkspaceType)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	t.Log("created WorkspaceType 'account' in root workspace")
@@ -218,9 +219,9 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	orgsWs, orgsClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, core.RootCluster.Path(), envtest.WithName("orgs"), envtest.WithType(core.RootCluster.Path(), "orgs"))
 	t.Logf("orgs workspace path (%s), cluster id (%s)", orgsClusterPath, orgsWs.Spec.Cluster)
 
-	var endpointSlice apisv1alpha1.APIExportEndpointSlice
+	var endpointSlice kcpapisv1alpha1.APIExportEndpointSlice
 	suite.Assert().Eventually(func() bool {
-		err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, client.ObjectKey{Name: "core.platform-mesh.io"}, &endpointSlice)
+		err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, ctrlruntimeclient.ObjectKey{Name: "core.platform-mesh.io"}, &endpointSlice)
 		if err != nil {
 			return false
 		}
@@ -274,51 +275,51 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	})
 }
 
-func (suite *IntegrationSuite) createAccount(ctx context.Context, client client.Client, accountName string, accountType corev1alpha1.AccountType, t *testing.T) {
-	account := &corev1alpha1.Account{
+func (suite *IntegrationSuite) createAccount(ctx context.Context, client ctrlruntimeclient.Client, accountName string, accountType pmcorev1alpha1.AccountType, t *testing.T) {
+	account := &pmcorev1alpha1.Account{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: accountName,
 		},
-		Spec: corev1alpha1.AccountSpec{
+		Spec: pmcorev1alpha1.AccountSpec{
 			Type: accountType,
 		},
 	}
 	err := client.Create(ctx, account)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	t.Logf("created account '%s' (type: %s)", accountName, accountType)
 }
 
-func (suite *IntegrationSuite) createAccountInfo(ctx context.Context, accountClient client.Client, accountName, orgName string, accountPath, orgPath logicalcluster.Path, t *testing.T) {
-	accountInfo := &corev1alpha1.AccountInfo{
+func (suite *IntegrationSuite) createAccountInfo(ctx context.Context, accountClient ctrlruntimeclient.Client, accountName, orgName string, accountPath, orgPath logicalcluster.Path, t *testing.T) {
+	accountInfo := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "account",
 		},
-		Spec: corev1alpha1.AccountInfoSpec{
-			Organization: corev1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Organization: pmcorev1alpha1.AccountLocation{
 				Name:               orgName,
 				GeneratedClusterId: orgPath.String(),
 				OriginClusterId:    orgPath.String(),
 				Path:               orgPath.String(),
-				Type:               corev1alpha1.AccountTypeOrg,
+				Type:               pmcorev1alpha1.AccountTypeOrg,
 			},
-			Account: corev1alpha1.AccountLocation{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               accountName,
 				GeneratedClusterId: accountPath.String(),
 				OriginClusterId:    accountPath.String(),
 				Path:               accountPath.String(),
-				Type:               corev1alpha1.AccountTypeAccount,
+				Type:               pmcorev1alpha1.AccountTypeAccount,
 			},
-			FGA: corev1alpha1.FGAInfo{
-				Store: corev1alpha1.StoreInfo{
+			FGA: pmcorev1alpha1.FGAInfo{
+				Store: pmcorev1alpha1.StoreInfo{
 					Id: "test-store-id",
 				},
 			},
 		},
 	}
 	err := accountClient.Create(ctx, accountInfo)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	t.Logf("created accountInfo 'account' in %s workspace", accountPath)

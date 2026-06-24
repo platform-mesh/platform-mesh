@@ -24,16 +24,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
@@ -119,9 +120,9 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientFromContext(mock.Anything).Return(wsClient, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
-					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*corev1alpha1.Account)
-						acc.Spec.Type = corev1alpha1.AccountTypeAccount // Not organization type
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+						acc := obj.(*pmcorev1alpha1.Account)
+						acc.Spec.Type = pmcorev1alpha1.AccountTypeAccount // Not organization type
 						email := "user@test.io"
 						acc.Spec.Creator = &email
 						return nil
@@ -143,9 +144,9 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientFromContext(mock.Anything).Return(wsClient, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Account")).
-					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*corev1alpha1.Account)
-						acc.Spec.Type = corev1alpha1.AccountTypeOrg
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+						acc := obj.(*pmcorev1alpha1.Account)
+						acc.Spec.Type = pmcorev1alpha1.AccountTypeOrg
 						email := "owner@acme.io"
 						acc.Spec.Creator = &email
 						return nil
@@ -153,15 +154,15 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
 					Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "acme")).Once()
 				wsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
-					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
-						inv := obj.(*corev1alpha1.Invite)
+					RunAndReturn(func(_ context.Context, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
+						inv := obj.(*pmcorev1alpha1.Invite)
 						inv.Spec.Email = "owner@acme.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
 						return nil
 					}).Once()
 				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
-					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						inv := obj.(*corev1alpha1.Invite)
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+						inv := obj.(*pmcorev1alpha1.Invite)
 						inv.Spec.Email = "owner@acme.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
 						return nil
@@ -183,9 +184,9 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientFromContext(mock.Anything).Return(wsClient, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Account")).
-					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						acc := obj.(*corev1alpha1.Account)
-						acc.Spec.Type = corev1alpha1.AccountTypeOrg
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+						acc := obj.(*pmcorev1alpha1.Account)
+						acc.Spec.Type = pmcorev1alpha1.AccountTypeOrg
 						email := "owner@beta.io"
 						acc.Spec.Creator = &email
 						return nil
@@ -193,15 +194,15 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
 					Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "beta")).Once()
 				wsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
-					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
-						inv := obj.(*corev1alpha1.Invite)
+					RunAndReturn(func(_ context.Context, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
+						inv := obj.(*pmcorev1alpha1.Invite)
 						inv.Spec.Email = "owner@beta.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
 						return nil
 					}).Once()
 				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
-					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
-						inv := obj.(*corev1alpha1.Invite)
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+						inv := obj.(*pmcorev1alpha1.Invite)
 						inv.Spec.Email = "owner@beta.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
 						return nil

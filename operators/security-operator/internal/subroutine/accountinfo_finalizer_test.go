@@ -23,13 +23,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
@@ -73,7 +74,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 			mockSetup: func(manager *mocks.MockManager, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
 					list := ol.(*kcpapisv1alpha2.APIBindingList)
 					list.Items = []kcpapisv1alpha2.APIBinding{}
 					return nil
@@ -87,7 +88,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 			mockSetup: func(manager *mocks.MockManager, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
 					list := ol.(*kcpapisv1alpha2.APIBindingList)
 					list.Items = []kcpapisv1alpha2.APIBinding{
 						{
@@ -108,7 +109,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 			mockSetup: func(manager *mocks.MockManager, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
 					list := ol.(*kcpapisv1alpha2.APIBindingList)
 					list.Items = []kcpapisv1alpha2.APIBinding{
 						{
@@ -130,7 +131,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 			mockSetup: func(manager *mocks.MockManager, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
 					list := ol.(*kcpapisv1alpha2.APIBindingList)
 					list.Items = []kcpapisv1alpha2.APIBinding{
 						{
@@ -158,7 +159,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 			mockSetup: func(manager *mocks.MockManager, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
 					list := ol.(*kcpapisv1alpha2.APIBindingList)
 					list.Items = []kcpapisv1alpha2.APIBinding{
 						{
@@ -193,7 +194,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 			}
 
 			sub := subroutine.NewAccountInfoFinalizerSubroutine(manager)
-			result, err := sub.Finalize(context.Background(), &corev1alpha1.AccountInfo{})
+			result, err := sub.Finalize(context.Background(), &pmcorev1alpha1.AccountInfo{})
 
 			if test.expectError {
 				assert.NotNil(t, err)

@@ -22,13 +22,15 @@ import (
 	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/subroutines"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
@@ -50,13 +52,13 @@ var _ subroutines.Subroutine = &storeSubroutine{}
 
 func (s *storeSubroutine) GetName() string { return "Store" }
 
-func (s *storeSubroutine) Finalizers(_ client.Object) []string {
+func (s *storeSubroutine) Finalizers(_ ctrlruntimeclient.Object) []string {
 	return []string{"core.platform-mesh.io/fga-store"}
 }
 
-func (s *storeSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *storeSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := obj.(*corev1alpha1.Store)
+	store := obj.(*pmcorev1alpha1.Store)
 
 	if store.Status.StoreID == "" {
 		return subroutines.OK(), nil
@@ -82,9 +84,9 @@ func (s *storeSubroutine) Finalize(ctx context.Context, obj client.Object) (subr
 	return subroutines.OK(), nil
 }
 
-func (s *storeSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *storeSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := obj.(*corev1alpha1.Store)
+	store := obj.(*pmcorev1alpha1.Store)
 
 	if store.Status.StoreID == "" {
 		log.Info().Msg("Store ID not set, trying to find store by name")

@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
@@ -33,8 +33,10 @@ import (
 	"go.platform-mesh.io/security-operator/internal/subroutine/idp"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
+
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -42,8 +44,6 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"k8s.io/client-go/util/workqueue"
 )
 
 type IdentityProviderConfigurationReconciler struct {
@@ -63,8 +63,8 @@ func NewIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanag
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
-	lc := lifecycle.New(mgr, "IdentityProviderConfigurationReconciler", func() client.Object {
-		return &corev1alpha1.IdentityProviderConfiguration{}
+	lc := lifecycle.New(mgr, "IdentityProviderConfigurationReconciler", func() ctrlruntimeclient.Object {
+		return &pmcorev1alpha1.IdentityProviderConfiguration{}
 	}, idpSubroutine).
 		WithConditions(conditions.NewManager())
 
@@ -95,7 +95,7 @@ func (r *IdentityProviderConfigurationReconciler) SetupWithManager(mgr mcmanager
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("identityprovider").
-		For(&corev1alpha1.IdentityProviderConfiguration{}, mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
+		For(&pmcorev1alpha1.IdentityProviderConfiguration{}, mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
 			return strings.HasPrefix(string(clusterName), config.SystemProviderName)
 		})).
 		WithOptions(opts).

@@ -23,14 +23,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 func TestTupleGetName(t *testing.T) {
@@ -46,7 +47,7 @@ func TestTupleFinalizers(t *testing.T) {
 func TestTupleProcessWithStore(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *corev1alpha1.Store
+		store       *pmcorev1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -54,9 +55,9 @@ func TestTupleProcessWithStore(t *testing.T) {
 	}{
 		{
 			name: "should process and add tuples to the store",
-			store: &corev1alpha1.Store{
-				Spec: corev1alpha1.StoreSpec{
-					Tuples: []corev1alpha1.Tuple{
+			store: &pmcorev1alpha1.Store{
+				Spec: pmcorev1alpha1.StoreSpec{
+					Tuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -74,10 +75,10 @@ func TestTupleProcessWithStore(t *testing.T) {
 						},
 					},
 				},
-				Status: corev1alpha1.StoreStatus{
+				Status: pmcorev1alpha1.StoreStatus{
 					StoreID:              "store-id",
 					AuthorizationModelID: "auth-model-id",
-					ManagedTuples: []corev1alpha1.Tuple{
+					ManagedTuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -92,9 +93,9 @@ func TestTupleProcessWithStore(t *testing.T) {
 		},
 		{
 			name: "should process and add/remove tuples to the store",
-			store: &corev1alpha1.Store{
-				Spec: corev1alpha1.StoreSpec{
-					Tuples: []corev1alpha1.Tuple{
+			store: &pmcorev1alpha1.Store{
+				Spec: pmcorev1alpha1.StoreSpec{
+					Tuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -112,10 +113,10 @@ func TestTupleProcessWithStore(t *testing.T) {
 						},
 					},
 				},
-				Status: corev1alpha1.StoreStatus{
+				Status: pmcorev1alpha1.StoreStatus{
 					StoreID:              "store-id",
 					AuthorizationModelID: "auth-model-id",
-					ManagedTuples: []corev1alpha1.Tuple{
+					ManagedTuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -131,9 +132,9 @@ func TestTupleProcessWithStore(t *testing.T) {
 		},
 		{
 			name: "should stop processing if an error occurs",
-			store: &corev1alpha1.Store{
-				Spec: corev1alpha1.StoreSpec{
-					Tuples: []corev1alpha1.Tuple{
+			store: &pmcorev1alpha1.Store{
+				Spec: pmcorev1alpha1.StoreSpec{
+					Tuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -151,10 +152,10 @@ func TestTupleProcessWithStore(t *testing.T) {
 						},
 					},
 				},
-				Status: corev1alpha1.StoreStatus{
+				Status: pmcorev1alpha1.StoreStatus{
 					StoreID:              "store-id",
 					AuthorizationModelID: "auth-model-id",
-					ManagedTuples: []corev1alpha1.Tuple{
+					ManagedTuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -198,7 +199,7 @@ func TestTupleProcessWithStore(t *testing.T) {
 func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *corev1alpha1.AuthorizationModel
+		store       *pmcorev1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -206,18 +207,18 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 	}{
 		{
 			name: "should process and add tuples to the authorization model",
-			store: &corev1alpha1.AuthorizationModel{
+			store: &pmcorev1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha1.StoreRefLabelKey: "store",
+						pmcorev1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: corev1alpha1.AuthorizationModelSpec{
-					StoreRef: corev1alpha1.WorkspaceStoreRef{
+				Spec: pmcorev1alpha1.AuthorizationModelSpec{
+					StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
 						Name:    "store",
 						Cluster: "store-cluster",
 					},
-					Tuples: []corev1alpha1.Tuple{
+					Tuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -247,10 +248,10 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				storeClient := mocks.NewMockClient(t)
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
-				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					store := o.(*corev1alpha1.Store)
-					*store = corev1alpha1.Store{
-						Status: corev1alpha1.StoreStatus{
+				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+					store := o.(*pmcorev1alpha1.Store)
+					*store = pmcorev1alpha1.Store{
+						Status: pmcorev1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
@@ -261,18 +262,18 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 		},
 		{
 			name: "should process and add/remove tuples to the authorization model",
-			store: &corev1alpha1.AuthorizationModel{
+			store: &pmcorev1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha1.StoreRefLabelKey: "store",
+						pmcorev1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: corev1alpha1.AuthorizationModelSpec{
-					StoreRef: corev1alpha1.WorkspaceStoreRef{
+				Spec: pmcorev1alpha1.AuthorizationModelSpec{
+					StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
 						Name:    "store",
 						Cluster: "store-cluster",
 					},
-					Tuples: []corev1alpha1.Tuple{
+					Tuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -290,8 +291,8 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 						},
 					},
 				},
-				Status: corev1alpha1.AuthorizationModelStatus{
-					ManagedTuples: []corev1alpha1.Tuple{
+				Status: pmcorev1alpha1.AuthorizationModelStatus{
+					ManagedTuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -312,10 +313,10 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				storeClient := mocks.NewMockClient(t)
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
-				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					store := o.(*corev1alpha1.Store)
-					*store = corev1alpha1.Store{
-						Status: corev1alpha1.StoreStatus{
+				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+					store := o.(*pmcorev1alpha1.Store)
+					*store = pmcorev1alpha1.Store{
+						Status: pmcorev1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
@@ -359,7 +360,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *corev1alpha1.AuthorizationModel
+		store       *pmcorev1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -367,20 +368,20 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 	}{
 		{
 			name: "should finalize the authorization model",
-			store: &corev1alpha1.AuthorizationModel{
+			store: &pmcorev1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha1.StoreRefLabelKey: "store",
+						pmcorev1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: corev1alpha1.AuthorizationModelSpec{
-					StoreRef: corev1alpha1.WorkspaceStoreRef{
+				Spec: pmcorev1alpha1.AuthorizationModelSpec{
+					StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
 						Name:    "store",
 						Cluster: "store-cluster",
 					},
 				},
-				Status: corev1alpha1.AuthorizationModelStatus{
-					ManagedTuples: []corev1alpha1.Tuple{
+				Status: pmcorev1alpha1.AuthorizationModelStatus{
+					ManagedTuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -401,10 +402,10 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				storeClient := mocks.NewMockClient(t)
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
-				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					store := o.(*corev1alpha1.Store)
-					*store = corev1alpha1.Store{
-						Status: corev1alpha1.StoreStatus{
+				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+					store := o.(*pmcorev1alpha1.Store)
+					*store = pmcorev1alpha1.Store{
+						Status: pmcorev1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
@@ -448,7 +449,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 func TestTupleFinalizationWithStore(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *corev1alpha1.Store
+		store       *pmcorev1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -456,9 +457,9 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 	}{
 		{
 			name: "should finalize the authorization model",
-			store: &corev1alpha1.Store{
-				Status: corev1alpha1.StoreStatus{
-					ManagedTuples: []corev1alpha1.Tuple{
+			store: &pmcorev1alpha1.Store{
+				Status: pmcorev1alpha1.StoreStatus{
+					ManagedTuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -474,9 +475,9 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 		},
 		{
 			name: "should stop finalizing the authorization model if an error occurs",
-			store: &corev1alpha1.Store{
-				Status: corev1alpha1.StoreStatus{
-					ManagedTuples: []corev1alpha1.Tuple{
+			store: &pmcorev1alpha1.Store{
+				Status: pmcorev1alpha1.StoreStatus{
+					ManagedTuples: []pmcorev1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",

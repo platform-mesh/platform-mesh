@@ -23,19 +23,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
@@ -59,12 +60,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"test-workspace": {ClientID: "test-workspace-client"},
 										"kubectl":        {ClientID: "kubectl-client"},
 									},
@@ -74,30 +75,30 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
+					Return(apierrors.NewNotFound(kcptenancyv1alpha1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+						wac := obj.(*kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration)
 						assert.Equal(t, "test-workspace", wac.Name)
 						assert.Equal(t, "https://test.domain/keycloak/realms/test-workspace", wac.Spec.JWT[0].Issuer.URL)
-						assert.Equal(t, kcptenancyv1alphav1.AudienceMatchPolicyMatchAny, wac.Spec.JWT[0].Issuer.AudienceMatchPolicy)
+						assert.Equal(t, kcptenancyv1alpha1.AudienceMatchPolicyMatchAny, wac.Spec.JWT[0].Issuer.AudienceMatchPolicy)
 						assert.Equal(t, "groups", wac.Spec.JWT[0].ClaimMappings.Groups.Claim)
 						assert.Equal(t, "email", wac.Spec.JWT[0].ClaimMappings.Username.Claim)
 						return nil
 					}).Once()
 
 				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
-						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+					RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+						wtList := list.(*kcptenancyv1alpha1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alpha1.WorkspaceType{
 							{ObjectMeta: metav1.ObjectMeta{Name: "test-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "test-workspace"}}},
 							{ObjectMeta: metav1.ObjectMeta{Name: "test-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "test-workspace"}}},
 						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+						wt := obj.(*kcptenancyv1alpha1.WorkspaceType)
 						assert.Equal(t, "test-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
 					}).Times(2)
@@ -117,12 +118,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "example.com", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"existing-workspace": {ClientID: "existing-workspace-client"},
 										"kubectl":            {ClientID: "kubectl-client"},
 									},
@@ -132,13 +133,13 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "existing-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						wac := obj.(*kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration)
 						wac.Name = "existing-workspace"
-						wac.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
-							JWT: []kcptenancyv1alphav1.JWTAuthenticator{
+						wac.Spec = kcptenancyv1alpha1.WorkspaceAuthenticationConfigurationSpec{
+							JWT: []kcptenancyv1alpha1.JWTAuthenticator{
 								{
-									Issuer: kcptenancyv1alphav1.Issuer{
+									Issuer: kcptenancyv1alpha1.Issuer{
 										URL: "https://old.domain/keycloak/realms/existing-workspace",
 									},
 								},
@@ -147,25 +148,25 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Update(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.UpdateOption) error {
+						wac := obj.(*kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration)
 						assert.Equal(t, "existing-workspace", wac.Name)
 						assert.Equal(t, "https://example.com/keycloak/realms/existing-workspace", wac.Spec.JWT[0].Issuer.URL)
 						return nil
 					}).Once()
 
 				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
-						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+					RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+						wtList := list.(*kcptenancyv1alpha1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alpha1.WorkspaceType{
 							{ObjectMeta: metav1.ObjectMeta{Name: "existing-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "existing-workspace"}}},
 							{ObjectMeta: metav1.ObjectMeta{Name: "existing-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "existing-workspace"}}},
 						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+						wt := obj.(*kcptenancyv1alpha1.WorkspaceType)
 						assert.Equal(t, "existing-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
 					}).Times(2)
@@ -211,12 +212,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"test-workspace": {ClientID: "test-workspace-client"},
 										"kubectl":        {ClientID: "kubectl-client"},
 									},
@@ -226,7 +227,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
+					Return(apierrors.NewNotFound(kcptenancyv1alpha1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					Return(errors.New("create failed")).Once()
 			},
@@ -245,12 +246,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"test-workspace": {ClientID: "test-workspace-client"},
 										"kubectl":        {ClientID: "kubectl-client"},
 									},
@@ -260,8 +261,8 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						wac := obj.(*kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration)
 						wac.Name = "test-workspace"
 						return nil
 					}).Once()
@@ -283,12 +284,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"test-workspace": {ClientID: "test-workspace-client"},
 										"kubectl":        {ClientID: "kubectl-client"},
 									},
@@ -315,12 +316,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"single-workspace": {ClientID: "single-workspace-client"},
 										"kubectl":          {ClientID: "kubectl-client"},
 									},
@@ -330,27 +331,27 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "single-workspace")).Once()
+					Return(apierrors.NewNotFound(kcptenancyv1alpha1.Resource("workspaceauthenticationconfigurations"), "single-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+						wac := obj.(*kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration)
 						assert.Equal(t, "single-workspace", wac.Name)
 						assert.Equal(t, "https://test.domain/keycloak/realms/single-workspace", wac.Spec.JWT[0].Issuer.URL)
 						return nil
 					}).Once()
 
 				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
-						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+					RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+						wtList := list.(*kcptenancyv1alpha1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alpha1.WorkspaceType{
 							{ObjectMeta: metav1.ObjectMeta{Name: "single-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "single-workspace"}}},
 							{ObjectMeta: metav1.ObjectMeta{Name: "single-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "single-workspace"}}},
 						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+						wt := obj.(*kcptenancyv1alpha1.WorkspaceType)
 						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
 					}).Times(2)
@@ -375,12 +376,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"single-workspace": {ClientID: "single-workspace-client"},
 										"kubectl":          {ClientID: "kubectl-client"},
 									},
@@ -390,7 +391,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, mock.Anything, mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 						secret := obj.(*corev1.Secret)
 						secret.Data = map[string][]byte{
 							"tls.crt": []byte("dummy-ca-data"),
@@ -399,27 +400,27 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "single-workspace")).Once()
+					Return(apierrors.NewNotFound(kcptenancyv1alpha1.Resource("workspaceauthenticationconfigurations"), "single-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+						wac := obj.(*kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration)
 						assert.Equal(t, "single-workspace", wac.Name)
 						assert.Equal(t, "https://test.domain/keycloak/realms/single-workspace", wac.Spec.JWT[0].Issuer.URL)
 						return nil
 					}).Once()
 
 				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
-						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+					RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+						wtList := list.(*kcptenancyv1alpha1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alpha1.WorkspaceType{
 							{ObjectMeta: metav1.ObjectMeta{Name: "single-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "single-workspace"}}},
 							{ObjectMeta: metav1.ObjectMeta{Name: "single-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "single-workspace"}}},
 						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+						wt := obj.(*kcptenancyv1alpha1.WorkspaceType)
 						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
 					}).Times(2)
@@ -439,12 +440,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"test-workspace": {ClientID: "test-workspace-client"},
 										"kubectl":        {ClientID: "kubectl-client"},
 									},
@@ -454,7 +455,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
+					Return(apierrors.NewNotFound(kcptenancyv1alpha1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).Return(nil).Once()
 
 				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
@@ -475,12 +476,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"test-workspace": {ClientID: "test-workspace-client"},
 										"kubectl":        {ClientID: "kubectl-client"},
 									},
@@ -490,13 +491,13 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
+					Return(apierrors.NewNotFound(kcptenancyv1alpha1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).Return(nil).Once()
 
 				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
-						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+					RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+						wtList := list.(*kcptenancyv1alpha1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alpha1.WorkspaceType{
 							{ObjectMeta: metav1.ObjectMeta{Name: "test-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "test-workspace"}}},
 						}
 						return nil
@@ -546,12 +547,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"dev-workspace": {ClientID: "dev-workspace-client"},
 										"kubectl":       {ClientID: "kubectl-client"},
 									},
@@ -561,14 +562,14 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "dev-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "dev-workspace")).Once()
+					Return(apierrors.NewNotFound(kcptenancyv1alpha1.Resource("workspaceauthenticationconfigurations"), "dev-workspace")).Once()
 
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+						wac := obj.(*kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration)
 						assert.Equal(t, "dev-workspace", wac.Name)
 						assert.Equal(t, "https://dev.domain/keycloak/realms/dev-workspace", wac.Spec.JWT[0].Issuer.URL)
-						assert.Equal(t, kcptenancyv1alphav1.AudienceMatchPolicyMatchAny, wac.Spec.JWT[0].Issuer.AudienceMatchPolicy)
+						assert.Equal(t, kcptenancyv1alpha1.AudienceMatchPolicyMatchAny, wac.Spec.JWT[0].Issuer.AudienceMatchPolicy)
 						assert.Equal(t, "groups", wac.Spec.JWT[0].ClaimMappings.Groups.Claim)
 						assert.Equal(t, "claims.email", wac.Spec.JWT[0].ClaimMappings.Username.Expression)
 						assert.Equal(t, "", wac.Spec.JWT[0].ClaimMappings.Username.Claim)
@@ -579,17 +580,17 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
-						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+					RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+						wtList := list.(*kcptenancyv1alpha1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alpha1.WorkspaceType{
 							{ObjectMeta: metav1.ObjectMeta{Name: "dev-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "dev-workspace"}}},
 							{ObjectMeta: metav1.ObjectMeta{Name: "dev-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "dev-workspace"}}},
 						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+						wt := obj.(*kcptenancyv1alpha1.WorkspaceType)
 						assert.Equal(t, "dev-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
 					}).Times(2)
@@ -626,10 +627,10 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
 								OIDC: nil,
 							},
 						}
@@ -651,12 +652,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{},
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{},
 								},
 							},
 						}
@@ -678,12 +679,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"test-workspace": {ClientID: ""},
 									},
 								},
@@ -712,12 +713,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"test-workspace": {ClientID: "test-workspace-client"},
 										"kubectl":        {ClientID: "kubectl-client"},
 									},
@@ -727,19 +728,19 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
+					Return(apierrors.NewNotFound(kcptenancyv1alpha1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+						wac := obj.(*kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration)
 						assert.Equal(t, "test-workspace", wac.Name)
 						assert.ElementsMatch(t, []string{"test-workspace-client", "kubectl-client", "extra-aud-1", "extra-aud-2"}, wac.Spec.JWT[0].Issuer.Audiences)
 						return nil
 					}).Once()
 
 				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
-						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{}
+					RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+						wtList := list.(*kcptenancyv1alpha1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alpha1.WorkspaceType{}
 						return nil
 					}).Once()
 			},
@@ -763,12 +764,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*corev1alpha1.AccountInfo) = corev1alpha1.AccountInfo{
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						*obj.(*pmcorev1alpha1.AccountInfo) = pmcorev1alpha1.AccountInfo{
 							ObjectMeta: metav1.ObjectMeta{Name: "account"},
-							Spec: corev1alpha1.AccountInfoSpec{
-								OIDC: &corev1alpha1.OIDCInfo{
-									Clients: map[string]corev1alpha1.ClientInfo{
+							Spec: pmcorev1alpha1.AccountInfoSpec{
+								OIDC: &pmcorev1alpha1.OIDCInfo{
+									Clients: map[string]pmcorev1alpha1.ClientInfo{
 										"test-workspace": {ClientID: "test-workspace-client"},
 										"kubectl":        {ClientID: "kubectl-client"},
 									},
@@ -778,10 +779,10 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
+					Return(apierrors.NewNotFound(kcptenancyv1alpha1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+					RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+						wac := obj.(*kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration)
 						assert.Equal(t, "test-workspace", wac.Name)
 						assert.ElementsMatch(t, []string{"test-workspace-client", "kubectl-client"}, wac.Spec.JWT[0].Issuer.Audiences)
 						assert.Len(t, wac.Spec.JWT[0].Issuer.Audiences, 2)
@@ -789,9 +790,9 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
-						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{}
+					RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+						wtList := list.(*kcptenancyv1alpha1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alpha1.WorkspaceType{}
 						return nil
 					}).Once()
 			},

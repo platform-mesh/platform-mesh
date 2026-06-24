@@ -25,17 +25,18 @@ import (
 	"net/url"
 
 	"github.com/coreos/go-oidc"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"golang.org/x/oauth2/clientcredentials"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/subroutines"
-	"golang.org/x/oauth2/clientcredentials"
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 
 	"k8s.io/client-go/util/workqueue"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 const (
@@ -51,7 +52,7 @@ type subroutine struct {
 	keycloak           *http.Client
 	kcpClientGetter    client.KCPClientGetter
 	setDefaultPassword bool
-	limiter            workqueue.TypedRateLimiter[*corev1alpha1.Invite]
+	limiter            workqueue.TypedRateLimiter[*pmcorev1alpha1.Invite]
 }
 
 type keycloakUser struct {
@@ -89,7 +90,7 @@ func New(ctx context.Context, cfg *config.Config, kcpClientGetter client.KCPClie
 
 	httpClient := cCfg.Client(ctx)
 
-	lim, err := ratelimiter.NewStaticThenExponentialRateLimiter[*corev1alpha1.Invite](
+	lim, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.Invite](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
@@ -109,8 +110,8 @@ var _ subroutines.Processor = &subroutine{}
 
 func (s *subroutine) GetName() string { return "Invite" }
 
-func (s *subroutine) Process(ctx context.Context, obj k8sclient.Object) (subroutines.Result, error) {
-	invite := obj.(*corev1alpha1.Invite)
+func (s *subroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	invite := obj.(*pmcorev1alpha1.Invite)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	log.Debug().Str("email", invite.Spec.Email).Msg("Processing invite")
@@ -131,8 +132,8 @@ func (s *subroutine) Process(ctx context.Context, obj k8sclient.Object) (subrout
 		return subroutines.OK(), fmt.Errorf("failed to get client for cluster %q: %w", clusterName, err)
 	}
 
-	var accountInfo corev1alpha1.AccountInfo
-	if err := cl.Get(ctx, k8sclient.ObjectKey{Name: "account"}, &accountInfo); err != nil {
+	var accountInfo pmcorev1alpha1.AccountInfo
+	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "account"}, &accountInfo); err != nil {
 		log.Err(err).Msg("Failed to get AccountInfo")
 		return subroutines.OK(), err
 	}

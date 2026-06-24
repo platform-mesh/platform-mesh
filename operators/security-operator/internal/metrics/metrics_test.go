@@ -21,6 +21,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/suite"
+
 	"go.platform-mesh.io/security-operator/internal/metrics"
 )
 

@@ -22,13 +22,15 @@ import (
 	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/fga"
 	platformmeshpath "go.platform-mesh.io/security-operator/internal/platformmesh"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/kcp-dev/logicalcluster/v3"
@@ -48,16 +50,16 @@ type AccountTuplesSubroutine struct {
 }
 
 // Process implements subroutines.Processor.
-func (s *AccountTuplesSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *AccountTuplesSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return s.reconcile(ctx, obj)
 }
 
 // Initialize implements subroutines.Initializer.
-func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return s.reconcile(ctx, obj)
 }
 
-func (s *AccountTuplesSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *AccountTuplesSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	accountPath, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc)
@@ -84,8 +86,8 @@ func (s *AccountTuplesSubroutine) reconcile(ctx context.Context, obj client.Obje
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting client for parent account cluster: %w", err)
 	}
-	var acc corev1alpha1.Account
-	if err := parentAccountClient.Get(ctx, client.ObjectKey{
+	var acc pmcorev1alpha1.Account
+	if err := parentAccountClient.Get(ctx, ctrlruntimeclient.ObjectKey{
 		Name: accountPath.Base(),
 	}, &acc); err != nil {
 		return subroutines.OK(), fmt.Errorf("getting Account in parent account cluster: %w", err)
@@ -117,7 +119,7 @@ func (s *AccountTuplesSubroutine) reconcile(ctx context.Context, obj client.Obje
 }
 
 // Terminate implements subroutines.Terminator.
-func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	accountPath, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc)
@@ -143,7 +145,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, obj client.Obje
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("listing tuples referencing Account: %w", err)
 	}
-	accountTuples := make([]corev1alpha1.Tuple, 0, len(accountReferenceTuples)*2)
+	accountTuples := make([]pmcorev1alpha1.Tuple, 0, len(accountReferenceTuples)*2)
 	accountTuples = append(accountTuples, accountReferenceTuples...)
 
 	// From tuples referencing the account, parse potential roles specific to the account.
@@ -197,7 +199,7 @@ func (s *AccountTuplesSubroutine) clusterAndIDFromLogicalClusterForPath(ctx cont
 	if err != nil {
 		return "", lc, fmt.Errorf("getting account cluster client: %w", err)
 	}
-	if err := clusterClient.Get(ctx, client.ObjectKey{
+	if err := clusterClient.Get(ctx, ctrlruntimeclient.ObjectKey{
 		Name: "cluster",
 	}, &lc); err != nil {
 		return "", lc, fmt.Errorf("getting account's LogicalCluster: %w", err)

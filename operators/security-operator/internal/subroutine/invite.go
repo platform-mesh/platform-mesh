@@ -21,13 +21,11 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
@@ -66,16 +67,16 @@ type inviteSubroutine struct {
 func (w *inviteSubroutine) GetName() string { return "InviteInitializationSubroutine" }
 
 // Initialize implements subroutines.Initializer.
-func (w *inviteSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (w *inviteSubroutine) Initialize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return w.reconcile(ctx, obj)
 }
 
 // Process implements subroutines.Processor.
-func (w *inviteSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (w *inviteSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return w.reconcile(ctx, obj)
 }
 
-func (w *inviteSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (w *inviteSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	wsName := getWorkspaceName(lc)
@@ -92,13 +93,13 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj client.Object) (su
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
-	var account corev1alpha1.Account
+	var account pmcorev1alpha1.Account
 	err = orgsClient.Get(ctx, types.NamespacedName{Name: wsName}, &account)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get account resource %w", err)
 	}
 
-	if account.Spec.Type != corev1alpha1.AccountTypeOrg {
+	if account.Spec.Type != pmcorev1alpha1.AccountTypeOrg {
 		log.Info().Str("workspace", wsName).Msg("account is not of type organization, skipping invite creation")
 		return subroutines.OK(), nil
 	}
@@ -109,7 +110,7 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj client.Object) (su
 	}
 
 	// the Invite resource is created in :root:orgs:<new org> workspace
-	invite := &corev1alpha1.Invite{ObjectMeta: metav1.ObjectMeta{Name: wsName}}
+	invite := &pmcorev1alpha1.Invite{ObjectMeta: metav1.ObjectMeta{Name: wsName}}
 	_, err = controllerutil.CreateOrUpdate(ctx, client, invite, func() error {
 		invite.Spec.Email = *account.Spec.Creator
 

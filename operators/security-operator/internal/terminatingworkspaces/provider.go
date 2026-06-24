@@ -20,13 +20,13 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	mcpcache "github.com/kcp-dev/multicluster-provider/pkg/cache"
@@ -64,7 +64,7 @@ type Options struct {
 	// to [kcpcorev1alpha1.LogicalCluster]. This might be useful when using this provider
 	// against custom virtual workspaces that are not the APIExport one but share
 	// the same endpoint semantics.
-	ObjectToWatch client.Object
+	ObjectToWatch ctrlruntimeclient.Object
 
 	// Handlers are lifecycle handlers, ran for each logical cluster in the provider represented
 	// by LogicalCluster object.
@@ -84,7 +84,7 @@ func New(cfg *rest.Config, workspaceTypeName string, options Options) (*Provider
 	p, err := provider.NewProvider(cfg, workspaceTypeName, provider.Options{
 		Scheme:              options.Scheme,
 		EndpointSliceObject: &kcptenancyv1alpha1.WorkspaceType{},
-		ExtractURLsFromEndpointSlice: func(obj client.Object) ([]string, error) {
+		ExtractURLsFromEndpointSlice: func(obj ctrlruntimeclient.Object) ([]string, error) {
 			wst := obj.(*kcptenancyv1alpha1.WorkspaceType)
 			var urls []string
 			for _, endpoint := range wst.Status.VirtualWorkspaces {

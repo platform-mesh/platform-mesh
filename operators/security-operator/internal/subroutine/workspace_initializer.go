@@ -24,17 +24,17 @@ import (
 	"strings"
 	"time"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
@@ -76,16 +76,16 @@ type workspaceInitializer struct {
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
 // Initialize implements subroutines.Initializer.
-func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (w *workspaceInitializer) Initialize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return w.reconcile(ctx, obj)
 }
 
 // Process implements subroutines.Processor.
-func (w *workspaceInitializer) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (w *workspaceInitializer) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return w.reconcile(ctx, obj)
 }
 
-func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (w *workspaceInitializer) reconcile(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	cluster, err := w.mgr.ClusterFromContext(ctx)
@@ -93,12 +93,12 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context: %w", err)
 	}
 
-	var ai corev1alpha1.AccountInfo
-	if err := cluster.GetClient().Get(ctx, client.ObjectKey{
+	var ai pmcorev1alpha1.AccountInfo
+	if err := cluster.GetClient().Get(ctx, ctrlruntimeclient.ObjectKey{
 		Name: "account",
-	}, &ai); err != nil && !kerrors.IsNotFound(err) {
+	}, &ai); err != nil && !apierrors.IsNotFound(err) {
 		return subroutines.OK(), fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err)
-	} else if kerrors.IsNotFound(err) {
+	} else if apierrors.IsNotFound(err) {
 		return subroutines.StopWithRequeue(5*time.Second, "AccountInfo not found yet, requeueing"), nil
 	}
 
@@ -106,14 +106,14 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
-	var acc corev1alpha1.Account
-	if err := orgsClient.Get(ctx, client.ObjectKey{
+	var acc pmcorev1alpha1.Account
+	if err := orgsClient.Get(ctx, ctrlruntimeclient.ObjectKey{
 		Name: ai.Spec.Account.Name,
 	}, &acc); err != nil {
 		return subroutines.OK(), fmt.Errorf("getting Account in platform-mesh-system: %w", err)
 	}
 
-	store := corev1alpha1.Store{
+	store := pmcorev1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
@@ -133,7 +133,7 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 		return subroutines.OK(), fmt.Errorf("building tuples for organization: %w", err)
 	}
 	if w.cfg.AllowMemberTuplesEnabled { // TODO: remove this flag once the feature is tested and stable
-		tuples = append(tuples, []corev1alpha1.Tuple{
+		tuples = append(tuples, []pmcorev1alpha1.Tuple{
 			{
 				Object:   "role:authenticated",
 				Relation: "assignee",
@@ -148,7 +148,7 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 	}
 
 	if result, err := controllerutil.CreateOrUpdate(ctx, orgsClient, &store, func() error {
-		store.Spec = corev1alpha1.StoreSpec{
+		store.Spec = pmcorev1alpha1.StoreSpec{
 			CoreModule: w.coreModule,
 		}
 		store.Spec.Tuples = tuples

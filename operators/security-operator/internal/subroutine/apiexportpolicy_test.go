@@ -24,18 +24,19 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
@@ -43,8 +44,8 @@ import (
 func getAPIExportPolicyTestScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	return scheme
 }
@@ -62,19 +63,19 @@ func TestAPIExportPolicySubroutine_Finalizers(t *testing.T) {
 func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *corev1alpha1.APIExportPolicy
+		policy      *pmcorev1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "should fail when getting provider cluster ID fails - GetCluster fails",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -89,12 +90,12 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "should fail when expression starts with wrong prefix",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -111,12 +112,12 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "should handle wildcard expression with root:orgs path - List fails",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -164,19 +165,19 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *corev1alpha1.APIExportPolicy
+		policy      *pmcorev1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "should fail when getting provider cluster ID fails",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -191,12 +192,12 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 		},
 		{
 			name: "should handle finalize with wildcard expression - NewClientForLogicalCluster fails",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -244,20 +245,20 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 	tests := []struct {
 		name                string
-		policy              *corev1alpha1.APIExportPolicy
+		policy              *pmcorev1alpha1.APIExportPolicy
 		setupMocks          func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg                 *config.Config
 		expectError         bool
-		expectedTupleWrites []corev1alpha1.Tuple
+		expectedTupleWrites []pmcorev1alpha1.Tuple
 	}{
 		{
 			name: "should write correct FGA tuple for single org expression",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -275,17 +276,17 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "account",
 						},
-						Spec: corev1alpha1.AccountInfoSpec{
-							Account: corev1alpha1.AccountLocation{
+						Spec: pmcorev1alpha1.AccountInfoSpec{
+							Account: pmcorev1alpha1.AccountLocation{
 								Name:            "acme-account",
 								OriginClusterId: "acme-cluster-id",
-								Type:            corev1alpha1.AccountTypeOrg,
+								Type:            pmcorev1alpha1.AccountTypeOrg,
 							},
-							Organization: corev1alpha1.AccountLocation{
+							Organization: pmcorev1alpha1.AccountLocation{
 								Name: "acme-org",
 							},
 						},
@@ -295,12 +296,12 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Cluster client for status patch
 				clusterClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1alpha1.APIExportPolicy{
+					WithObjects(&pmcorev1alpha1.APIExportPolicy{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "test-policy",
 						},
 					}).
-					WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
+					WithStatusSubresource(&pmcorev1alpha1.APIExportPolicy{}).
 					Build()
 
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil)
@@ -328,12 +329,12 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 		},
 		{
 			name: "should write correct FGA tuple with bind_inherited for wildcard expression",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -351,17 +352,17 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "account",
 						},
-						Spec: corev1alpha1.AccountInfoSpec{
-							Account: corev1alpha1.AccountLocation{
+						Spec: pmcorev1alpha1.AccountInfoSpec{
+							Account: pmcorev1alpha1.AccountLocation{
 								Name:            "acme-account",
 								OriginClusterId: "acme-cluster-id",
-								Type:            corev1alpha1.AccountTypeOrg,
+								Type:            pmcorev1alpha1.AccountTypeOrg,
 							},
-							Organization: corev1alpha1.AccountLocation{
+							Organization: pmcorev1alpha1.AccountLocation{
 								Name: "acme-org",
 							},
 						},
@@ -371,12 +372,12 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Cluster client for status patch
 				clusterClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1alpha1.APIExportPolicy{
+					WithObjects(&pmcorev1alpha1.APIExportPolicy{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "test-policy",
 						},
 					}).
-					WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
+					WithStatusSubresource(&pmcorev1alpha1.APIExportPolicy{}).
 					Build()
 
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil)
@@ -404,12 +405,12 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 		},
 		{
 			name: "should write FGA tuples for all orgs when root:orgs:* expression is used",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -425,21 +426,21 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 
 				// All client with AccountInfo list
-				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					if list, ok := ol.(*corev1alpha1.AccountInfoList); ok {
-						list.Items = []corev1alpha1.AccountInfo{
+				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
+					if list, ok := ol.(*pmcorev1alpha1.AccountInfoList); ok {
+						list.Items = []pmcorev1alpha1.AccountInfo{
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-1"},
-								Spec: corev1alpha1.AccountInfoSpec{
-									Account:      corev1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: corev1alpha1.AccountTypeOrg},
-									Organization: corev1alpha1.AccountLocation{Name: "org1"},
+								Spec: pmcorev1alpha1.AccountInfoSpec{
+									Account:      pmcorev1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: pmcorev1alpha1.AccountTypeOrg},
+									Organization: pmcorev1alpha1.AccountLocation{Name: "org1"},
 								},
 							},
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-2"},
-								Spec: corev1alpha1.AccountInfoSpec{
-									Account:      corev1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: corev1alpha1.AccountTypeOrg},
-									Organization: corev1alpha1.AccountLocation{Name: "org2"},
+								Spec: pmcorev1alpha1.AccountInfoSpec{
+									Account:      pmcorev1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: pmcorev1alpha1.AccountTypeOrg},
+									Organization: pmcorev1alpha1.AccountLocation{Name: "org2"},
 								},
 							},
 						}
@@ -450,10 +451,10 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Cluster client for status patch
 				clusterClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1alpha1.APIExportPolicy{
+					WithObjects(&pmcorev1alpha1.APIExportPolicy{
 						ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
 					}).
-					WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
+					WithStatusSubresource(&pmcorev1alpha1.APIExportPolicy{}).
 					Build()
 
 				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id-org1", nil)
@@ -524,19 +525,19 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *corev1alpha1.APIExportPolicy
+		policy      *pmcorev1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "should delete FGA tuple for single org expression",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -554,17 +555,17 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "account",
 						},
-						Spec: corev1alpha1.AccountInfoSpec{
-							Account: corev1alpha1.AccountLocation{
+						Spec: pmcorev1alpha1.AccountInfoSpec{
+							Account: pmcorev1alpha1.AccountLocation{
 								Name:            "acme-account",
 								OriginClusterId: "acme-cluster-id",
-								Type:            corev1alpha1.AccountTypeOrg,
+								Type:            pmcorev1alpha1.AccountTypeOrg,
 							},
-							Organization: corev1alpha1.AccountLocation{
+							Organization: pmcorev1alpha1.AccountLocation{
 								Name: "acme-org",
 							},
 						},
@@ -594,12 +595,12 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 		},
 		{
 			name: "should delete FGA tuple with bind_inherited for wildcard expression",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -617,17 +618,17 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "account",
 						},
-						Spec: corev1alpha1.AccountInfoSpec{
-							Account: corev1alpha1.AccountLocation{
+						Spec: pmcorev1alpha1.AccountInfoSpec{
+							Account: pmcorev1alpha1.AccountLocation{
 								Name:            "acme-account",
 								OriginClusterId: "acme-cluster-id",
-								Type:            corev1alpha1.AccountTypeOrg,
+								Type:            pmcorev1alpha1.AccountTypeOrg,
 							},
-							Organization: corev1alpha1.AccountLocation{
+							Organization: pmcorev1alpha1.AccountLocation{
 								Name: "acme-org",
 							},
 						},
@@ -657,12 +658,12 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 		},
 		{
 			name: "should delete FGA tuples for all orgs when root:orgs:* expression is used",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef: pmcorev1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -678,21 +679,21 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 				// Mock provider cluster ID lookup
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 
-				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					if list, ok := ol.(*corev1alpha1.AccountInfoList); ok {
-						list.Items = []corev1alpha1.AccountInfo{
+				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
+					if list, ok := ol.(*pmcorev1alpha1.AccountInfoList); ok {
+						list.Items = []pmcorev1alpha1.AccountInfo{
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-1"},
-								Spec: corev1alpha1.AccountInfoSpec{
-									Account:      corev1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: corev1alpha1.AccountTypeOrg},
-									Organization: corev1alpha1.AccountLocation{Name: "org1"},
+								Spec: pmcorev1alpha1.AccountInfoSpec{
+									Account:      pmcorev1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: pmcorev1alpha1.AccountTypeOrg},
+									Organization: pmcorev1alpha1.AccountLocation{Name: "org1"},
 								},
 							},
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-2"},
-								Spec: corev1alpha1.AccountInfoSpec{
-									Account:      corev1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: corev1alpha1.AccountTypeOrg},
-									Organization: corev1alpha1.AccountLocation{Name: "org2"},
+								Spec: pmcorev1alpha1.AccountInfoSpec{
+									Account:      pmcorev1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: pmcorev1alpha1.AccountTypeOrg},
+									Organization: pmcorev1alpha1.AccountLocation{Name: "org2"},
 								},
 							},
 						}
@@ -763,7 +764,7 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 	}
 }
 
-func newProviderClient(scheme *runtime.Scheme) client.Client {
+func newProviderClient(scheme *runtime.Scheme) ctrlruntimeclient.Client {
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(&kcpcorev1alpha1.LogicalCluster{
@@ -778,16 +779,16 @@ func newProviderClient(scheme *runtime.Scheme) client.Client {
 func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *corev1alpha1.APIExportPolicy
+		policy      *pmcorev1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "getClusterIDFromPath: Get LogicalCluster fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -801,9 +802,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "getClusterIDFromPath: kcp.io/cluster annotation missing",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -820,9 +821,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteRemovedExpressions: internal getClusterIDFromPath fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -838,13 +839,13 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteRemovedExpressions: removed expression triggers delete failure",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:other"},
 				},
-				Status: corev1alpha1.APIExportPolicyStatus{
+				Status: pmcorev1alpha1.APIExportPolicyStatus{
 					// "root:orgs:other" is still in spec → continue; "root:orgs:acme" is removed → delete
 					ManagedAllowExpressions: []string{"root:orgs:other", "root:orgs:acme"},
 				},
@@ -861,9 +862,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "orgs: List AccountInfo fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -879,9 +880,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "orgs: non-org type skipped, storeIDGetter fails for org account",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -890,15 +891,15 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 				providerClient := newProviderClient(scheme)
 				// Mock provider cluster ID lookup
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
-				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
-					list := ol.(*corev1alpha1.AccountInfoList)
-					list.Items = []corev1alpha1.AccountInfo{
-						{Spec: corev1alpha1.AccountInfoSpec{
-							Account: corev1alpha1.AccountLocation{Type: corev1alpha1.AccountTypeAccount},
+				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+					list := ol.(*pmcorev1alpha1.AccountInfoList)
+					list.Items = []pmcorev1alpha1.AccountInfo{
+						{Spec: pmcorev1alpha1.AccountInfoSpec{
+							Account: pmcorev1alpha1.AccountLocation{Type: pmcorev1alpha1.AccountTypeAccount},
 						}},
-						{Spec: corev1alpha1.AccountInfoSpec{
-							Account:      corev1alpha1.AccountLocation{Type: corev1alpha1.AccountTypeOrg},
-							Organization: corev1alpha1.AccountLocation{Name: "org1"},
+						{Spec: pmcorev1alpha1.AccountInfoSpec{
+							Account:      pmcorev1alpha1.AccountLocation{Type: pmcorev1alpha1.AccountTypeOrg},
+							Organization: pmcorev1alpha1.AccountLocation{Name: "org1"},
 						}},
 					}
 					return nil
@@ -910,9 +911,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "orgs: fga.Write fails when applying tuple",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -921,12 +922,12 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 				providerClient := newProviderClient(scheme)
 				// Mock provider cluster ID lookup
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
-				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
-					list := ol.(*corev1alpha1.AccountInfoList)
-					list.Items = []corev1alpha1.AccountInfo{
-						{Spec: corev1alpha1.AccountInfoSpec{
-							Account:      corev1alpha1.AccountLocation{Type: corev1alpha1.AccountTypeOrg, Name: "org1"},
-							Organization: corev1alpha1.AccountLocation{Name: "org1"},
+				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+					list := ol.(*pmcorev1alpha1.AccountInfoList)
+					list.Items = []pmcorev1alpha1.AccountInfo{
+						{Spec: pmcorev1alpha1.AccountInfoSpec{
+							Account:      pmcorev1alpha1.AccountLocation{Type: pmcorev1alpha1.AccountTypeOrg, Name: "org1"},
+							Organization: pmcorev1alpha1.AccountLocation{Name: "org1"},
 						}},
 					}
 					return nil
@@ -939,9 +940,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "non-orgs: NewForLogicalCluster fails for workspace",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -957,9 +958,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "non-orgs: Get AccountInfo fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -977,18 +978,18 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "non-orgs: storeIDGetter fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
 				scheme := getAPIExportPolicyTestScheme()
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				providerClient := newProviderClient(scheme)
 				// Mock provider cluster ID lookup
@@ -1001,18 +1002,18 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "non-orgs: fga.Write fails when applying tuple",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
 				scheme := getAPIExportPolicyTestScheme()
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				providerClient := newProviderClient(scheme)
 				// Mock provider cluster ID lookup
@@ -1026,19 +1027,19 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "ClusterFromContext fails",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
 				scheme := getAPIExportPolicyTestScheme()
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				providerClient := newProviderClient(scheme)
 				// Mock provider cluster ID lookup
@@ -1053,19 +1054,19 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "Status Patch fails",
-			policy: &corev1alpha1.APIExportPolicy{
+			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
 				scheme := getAPIExportPolicyTestScheme()
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				// Empty cluster client — Status().Patch will fail with NotFound for "test-policy"
 				clusterClient := fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -1112,16 +1113,16 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *corev1alpha1.APIExportPolicy
+		policy      *pmcorev1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "deleteTuplesForExpression: parseAllowExpression fails for invalid expression",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"wrong:path:expression"},
 				},
 			},
@@ -1135,9 +1136,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression orgs: GetAllClient fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -1152,9 +1153,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression orgs: List AccountInfo fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -1169,9 +1170,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression orgs: storeIDGetter fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -1179,10 +1180,10 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				scheme := getAPIExportPolicyTestScheme()
 				providerClient := newProviderClient(scheme)
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
-				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
-					list := ol.(*corev1alpha1.AccountInfoList)
-					list.Items = []corev1alpha1.AccountInfo{
-						{Spec: corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "org1"}}},
+				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+					list := ol.(*pmcorev1alpha1.AccountInfoList)
+					list.Items = []pmcorev1alpha1.AccountInfo{
+						{Spec: pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "org1"}}},
 					}
 					return nil
 				})
@@ -1193,9 +1194,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression orgs: fga.Write (Delete) fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -1203,10 +1204,10 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				scheme := getAPIExportPolicyTestScheme()
 				providerClient := newProviderClient(scheme)
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
-				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
-					list := ol.(*corev1alpha1.AccountInfoList)
-					list.Items = []corev1alpha1.AccountInfo{
-						{Spec: corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "org1"}}},
+				lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+					list := ol.(*pmcorev1alpha1.AccountInfoList)
+					list.Items = []pmcorev1alpha1.AccountInfo{
+						{Spec: pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "org1"}}},
 					}
 					return nil
 				})
@@ -1218,9 +1219,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression non-orgs: NewForLogicalCluster fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -1235,9 +1236,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression non-orgs: storeIDGetter fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -1246,9 +1247,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				providerClient := newProviderClient(scheme)
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil).Once()
 				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("", assert.AnError)
@@ -1258,9 +1259,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression non-orgs: fga.Write (Delete) fails",
-			policy: &corev1alpha1.APIExportPolicy{
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmcorev1alpha1.APIExportPolicy{
+				Spec: pmcorev1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -1269,9 +1270,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				providerClient := newProviderClient(scheme)
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
 				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&corev1alpha1.AccountInfo{
+					WithObjects(&pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       corev1alpha1.AccountInfoSpec{Organization: corev1alpha1.AccountLocation{Name: "acme-org"}},
+						Spec:       pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil).Once()
 				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("store-id", nil)

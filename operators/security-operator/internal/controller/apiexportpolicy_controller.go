@@ -22,7 +22,8 @@ import (
 	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -33,8 +34,11 @@ import (
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
+
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrhandler "sigs.k8s.io/controller-runtime/pkg/handler"
@@ -46,9 +50,6 @@ import (
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/kcp-dev/logicalcluster/v3"
 )
 
@@ -58,8 +59,8 @@ type APIExportPolicyReconciler struct {
 }
 
 func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, lister iclient.Lister, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPClientGetter) *APIExportPolicyReconciler {
-	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() client.Object {
-		return &corev1alpha1.APIExportPolicy{}
+	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() ctrlruntimeclient.Object {
+		return &pmcorev1alpha1.APIExportPolicy{}
 	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, cfg, storeIDGetter, lister, kcpClientGetter)).
 		WithConditions(conditions.NewManager())
 
@@ -89,7 +90,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("apiexportpolicy").
-		For(&corev1alpha1.APIExportPolicy{},
+		For(&pmcorev1alpha1.APIExportPolicy{},
 			mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
 				return strings.HasPrefix(string(clusterName), config.SystemProviderName)
 			}),
@@ -97,16 +98,16 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(
-			&corev1alpha1.Account{},
-			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
-				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
-					acc, ok := obj.(*corev1alpha1.Account)
+			&pmcorev1alpha1.Account{},
+			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[ctrlruntimeclient.Object, mcreconcile.Request] {
+				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj ctrlruntimeclient.Object) []mcreconcile.Request {
+					acc, ok := obj.(*pmcorev1alpha1.Account)
 					if !ok {
 						return nil
 					}
 
 					// we need to enqueue only when a new org is ready
-					if acc.Spec.Type != corev1alpha1.AccountTypeOrg || !meta.IsStatusConditionTrue(acc.GetConditions(), "Ready") {
+					if acc.Spec.Type != pmcorev1alpha1.AccountTypeOrg || !meta.IsStatusConditionTrue(acc.GetConditions(), "Ready") {
 						return nil
 					}
 
@@ -121,7 +122,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 }
 
 func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager) []mcreconcile.Request {
-	var policies corev1alpha1.APIExportPolicyList
+	var policies pmcorev1alpha1.APIExportPolicyList
 
 	cluster, err := mgr.GetCluster(ctx, config.MultiProviderName(config.SystemProviderName, config.OrgsClusterPath))
 	if err != nil {

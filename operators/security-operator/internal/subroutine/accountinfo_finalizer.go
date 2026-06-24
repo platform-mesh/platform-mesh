@@ -20,10 +20,11 @@ import (
 	"context"
 	"time"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -51,13 +52,13 @@ func (a *AccountInfoFinalizerSubroutine) GetName() string {
 	return "AccountInfoFinalizer"
 }
 
-func (a *AccountInfoFinalizerSubroutine) Finalizers(_ client.Object) []string {
+func (a *AccountInfoFinalizerSubroutine) Finalizers(_ ctrlruntimeclient.Object) []string {
 	return []string{AccountInfoFinalizer}
 }
 
-func (a *AccountInfoFinalizerSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (a *AccountInfoFinalizerSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	_ = obj.(*corev1alpha1.AccountInfo)
+	_ = obj.(*pmcorev1alpha1.AccountInfo)
 
 	cluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {

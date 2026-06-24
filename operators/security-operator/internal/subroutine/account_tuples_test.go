@@ -24,14 +24,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
@@ -54,7 +55,7 @@ func newAccountLogicalCluster() *kcpcorev1alpha1.LogicalCluster {
 func mockParentLogicalCluster(kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient) {
 	kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
 	parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).
-		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 			if lc, ok := o.(*kcpcorev1alpha1.LogicalCluster); ok {
 				lc.Annotations = map[string]string{"kcp.io/cluster": parentClusterID}
 				lc.Spec.Owner = &kcpcorev1alpha1.LogicalClusterOwner{Cluster: "grand-cluster-id"}
@@ -79,8 +80,8 @@ func TestAccountTuplesSubroutine_Process(t *testing.T) {
 	kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
 	creator := "user@example.com"
 	parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myaccount"}, mock.Anything).
-		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-			if acc, ok := o.(*corev1alpha1.Account); ok {
+		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+			if acc, ok := o.(*pmcorev1alpha1.Account); ok {
 				acc.Spec.Creator = &creator
 			}
 			return nil
@@ -215,8 +216,8 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
 				creator := "user@example.com"
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myaccount"}, mock.Anything).
-					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						if acc, ok := o.(*corev1alpha1.Account); ok {
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						if acc, ok := o.(*pmcorev1alpha1.Account); ok {
 							acc.Spec.Creator = &creator
 						}
 						return nil
@@ -234,8 +235,8 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
 				creator := "user@example.com"
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myaccount"}, mock.Anything).
-					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						if acc, ok := o.(*corev1alpha1.Account); ok {
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						if acc, ok := o.(*pmcorev1alpha1.Account); ok {
 							acc.Spec.Creator = &creator
 						}
 						return nil

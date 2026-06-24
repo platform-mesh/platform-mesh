@@ -22,15 +22,16 @@ import (
 	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 type tupleSubroutine struct {
@@ -39,19 +40,19 @@ type tupleSubroutine struct {
 }
 
 // Finalize implements subroutines.Finalizer.
-func (t *tupleSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	var storeID string
 	var authorizationModelID string
-	var managedTuples []corev1alpha1.Tuple
+	var managedTuples []pmcorev1alpha1.Tuple
 
 	switch o := obj.(type) {
-	case *corev1alpha1.Store:
+	case *pmcorev1alpha1.Store:
 		storeID = o.Status.StoreID
 		authorizationModelID = o.Status.AuthorizationModelID
 		managedTuples = o.Status.ManagedTuples
-	case *corev1alpha1.AuthorizationModel:
+	case *pmcorev1alpha1.AuthorizationModel:
 		managedTuples = o.Status.ManagedTuples
 
 		storeCluster, err := t.mgr.GetCluster(ctx, multicluster.ClusterName(o.Spec.StoreRef.Cluster))
@@ -59,7 +60,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj client.Object) (subr
 			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
 		}
 
-		var store corev1alpha1.Store
+		var store pmcorev1alpha1.Store
 		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
 			Name: o.Spec.StoreRef.Name,
 		}, &store)
@@ -77,9 +78,9 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj client.Object) (subr
 	}
 
 	switch o := obj.(type) {
-	case *corev1alpha1.Store:
+	case *pmcorev1alpha1.Store:
 		o.Status.ManagedTuples = nil
-	case *corev1alpha1.AuthorizationModel:
+	case *pmcorev1alpha1.AuthorizationModel:
 		o.Status.ManagedTuples = nil
 	}
 
@@ -87,7 +88,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj client.Object) (subr
 }
 
 // Finalizers implements subroutines.Finalizer.
-func (t *tupleSubroutine) Finalizers(_ client.Object) []string {
+func (t *tupleSubroutine) Finalizers(_ ctrlruntimeclient.Object) []string {
 	return []string{"core.platform-mesh.io/fga-tuples"}
 }
 
@@ -95,22 +96,22 @@ func (t *tupleSubroutine) Finalizers(_ client.Object) []string {
 func (t *tupleSubroutine) GetName() string { return "TupleSubroutine" }
 
 // Process implements subroutines.Processor.
-func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (t *tupleSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	var storeID string
 	var authorizationModelID string
-	var specTuples []corev1alpha1.Tuple
-	var managedTuples []corev1alpha1.Tuple
+	var specTuples []pmcorev1alpha1.Tuple
+	var managedTuples []pmcorev1alpha1.Tuple
 
 	switch o := obj.(type) {
-	case *corev1alpha1.Store:
+	case *pmcorev1alpha1.Store:
 		storeID = o.Status.StoreID
 		authorizationModelID = o.Status.AuthorizationModelID
 
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
-	case *corev1alpha1.AuthorizationModel:
+	case *pmcorev1alpha1.AuthorizationModel:
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
 
@@ -119,7 +120,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subro
 			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
 		}
 
-		var store corev1alpha1.Store
+		var store pmcorev1alpha1.Store
 		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
 			Name: o.Spec.StoreRef.Name,
 		}, &store)
@@ -136,9 +137,9 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subro
 		return subroutines.OK(), err
 	}
 
-	var tuplesToDelete []corev1alpha1.Tuple
+	var tuplesToDelete []pmcorev1alpha1.Tuple
 	for _, tuple := range managedTuples {
-		if slices.IndexFunc(specTuples, func(s corev1alpha1.Tuple) bool {
+		if slices.IndexFunc(specTuples, func(s pmcorev1alpha1.Tuple) bool {
 			return s.Object == tuple.Object && s.Relation == tuple.Relation && s.User == tuple.User
 		}) == -1 {
 			tuplesToDelete = append(tuplesToDelete, tuple)
@@ -149,9 +150,9 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subro
 	}
 
 	switch o := obj.(type) {
-	case *corev1alpha1.Store:
+	case *pmcorev1alpha1.Store:
 		o.Status.ManagedTuples = specTuples
-	case *corev1alpha1.AuthorizationModel:
+	case *pmcorev1alpha1.AuthorizationModel:
 		o.Status.ManagedTuples = specTuples
 	}
 
