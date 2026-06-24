@@ -27,7 +27,7 @@ import (
 
 type (
 	Tags   map[string]string
-	Extras map[string]interface{}
+	Extras map[string]any
 )
 
 const maxErrorDepth = 10
@@ -177,6 +177,6 @@ func (t Tags) Add(key, value string) {
 }
 
 // Add adds a new extra data field
-func (e Extras) Add(key string, value interface{}) {
+func (e Extras) Add(key string, value any) {
 	e[key] = value
 }

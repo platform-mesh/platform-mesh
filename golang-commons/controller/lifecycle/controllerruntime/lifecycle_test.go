@@ -23,12 +23,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
@@ -36,6 +30,13 @@ import (
 	pmtesting "go.platform-mesh.io/golang-commons/controller/testSupport"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
+	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func TestLifecycle(t *testing.T) {
@@ -123,7 +124,7 @@ func TestLifecycle(t *testing.T) {
 			assert.NotNil(t, result)
 			assert.NoError(t, err)
 
-			err = fakeClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, testApiObject)
+			err = fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name, Namespace: namespace}, testApiObject)
 			assert.NoError(t, err)
 			assert.Equal(t, "valueFromContext", testApiObject.Status.Some)
 		})
@@ -205,7 +206,7 @@ func (r *testReconciler) Reconcile(ctx context.Context, req controllerruntime.Re
 	return r.lifecycleManager.Reconcile(ctx, req, &pmtesting.TestApiObject{})
 }
 
-func createLifecycleManager(subroutines []subroutine.Subroutine, c client.Client) (*LifecycleManager, *testlogger.TestLogger) {
+func createLifecycleManager(subroutines []subroutine.Subroutine, c ctrlruntimeclient.Client) (*LifecycleManager, *testlogger.TestLogger) {
 	log := testlogger.New()
 	mgr := NewLifecycleManager(subroutines, "test-operator", "test-controller", c, log.Logger)
 	return mgr, log

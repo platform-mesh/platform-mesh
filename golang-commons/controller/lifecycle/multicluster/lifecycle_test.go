@@ -21,25 +21,25 @@ import (
 	goerrors "errors"
 	"testing"
 
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	pmtesting "go.platform-mesh.io/golang-commons/controller/testSupport"
 	operrors "go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
 func TestLifecycle(t *testing.T) {
@@ -54,7 +54,7 @@ func TestLifecycle(t *testing.T) {
 
 	t.Run("Should setup with manager ok", func(t *testing.T) {
 		// Arrange
-		instance := &v1.Namespace{}
+		instance := &corev1.Namespace{}
 		fakeClient := pmtesting.CreateFakeClient(t, instance)
 
 		mgr, log := createLifecycleManager([]subroutine.Subroutine{}, fakeClient)
@@ -163,7 +163,7 @@ func TestLifecycle(t *testing.T) {
 			assert.NotNil(t, result)
 			assert.NoError(t, err)
 
-			err = fakeClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, testApiObject)
+			err = fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name, Namespace: namespace}, testApiObject)
 			assert.NoError(t, err)
 			assert.Equal(t, "valueFromContext", testApiObject.Status.Some)
 		})
@@ -215,7 +215,7 @@ func (r *testReconciler) Reconcile(ctx context.Context, req mcreconcile.Request)
 	return r.lifecycleManager.Reconcile(ctx, req, &pmtesting.TestApiObject{})
 }
 
-func createLifecycleManager(subroutines []subroutine.Subroutine, client client.Client) (*LifecycleManager, *testlogger.TestLogger) {
+func createLifecycleManager(subroutines []subroutine.Subroutine, client ctrlruntimeclient.Client) (*LifecycleManager, *testlogger.TestLogger) {
 	log := testlogger.New()
 	clusterGetter := &pmtesting.FakeManager{Client: client}
 	m := NewLifecycleManager(subroutines, "test-operator", "test-controller", clusterGetter, log.Logger)

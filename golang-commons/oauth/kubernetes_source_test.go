@@ -25,7 +25,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
 	"go.platform-mesh.io/golang-commons/oauth"
+
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

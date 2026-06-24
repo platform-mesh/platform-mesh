@@ -22,14 +22,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func TestRetry(t *testing.T) {
 
 	t.Run("Is retryable with an internal error", func(t *testing.T) {
 		// Arrange
-		e := k8sErrors.NewServiceUnavailable("na")
+		e := apierrors.NewServiceUnavailable("na")
 
 		// Act
 		retriable, result := IsRetriable(e)
@@ -53,7 +54,7 @@ func TestRetry(t *testing.T) {
 
 	t.Run("Is retryable with a clientDelay", func(t *testing.T) {
 		// Arrange
-		e := k8sErrors.NewTimeoutError("oh nose", 5)
+		e := apierrors.NewTimeoutError("oh nose", 5)
 
 		// Act
 		retriable, result := IsRetriable(e)

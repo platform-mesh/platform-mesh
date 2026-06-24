@@ -17,14 +17,14 @@ limitations under the License.
 package builder
 
 import (
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/controllerruntime"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/multicluster"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/logger"
+
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 type Builder struct {
@@ -80,7 +80,7 @@ func (b *Builder) WithInitializer(initializer string) *Builder {
 	return b
 }
 
-func (b *Builder) BuildControllerRuntime(cl client.Client) *controllerruntime.LifecycleManager {
+func (b *Builder) BuildControllerRuntime(cl ctrlruntimeclient.Client) *controllerruntime.LifecycleManager {
 	lm := controllerruntime.NewLifecycleManager(b.subroutines, b.operatorName, b.controllerName, cl, b.log)
 	if b.withConditionManagement {
 		lm.WithConditionManagement()

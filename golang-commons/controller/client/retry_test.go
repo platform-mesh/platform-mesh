@@ -21,16 +21,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"go.platform-mesh.io/golang-commons/controller/testSupport"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestRetry(t *testing.T) {
 	o := &testSupport.TestApiObject{
-		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "test"},
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"},
 	}
 	c := testSupport.CreateFakeClient(t, o)
 
@@ -39,7 +40,7 @@ func TestRetry(t *testing.T) {
 		ctx := context.Background()
 
 		// Act
-		err := RetryStatusUpdate(ctx, func(object client.Object) client.Object {
+		err := RetryStatusUpdate(ctx, func(object ctrlruntimeclient.Object) ctrlruntimeclient.Object {
 			return object
 		}, o, c)
 
@@ -52,7 +53,7 @@ func TestRetry(t *testing.T) {
 		ctx := context.Background()
 
 		// Act
-		err := RetryUpdate(ctx, func(object client.Object) client.Object {
+		err := RetryUpdate(ctx, func(object ctrlruntimeclient.Object) ctrlruntimeclient.Object {
 			return object
 		}, o, c)
 
@@ -64,33 +65,33 @@ func TestRetry(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		newObject := &testSupport.TestApiObject{
-			ObjectMeta: v1.ObjectMeta{Name: "test1", Namespace: "test1"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test1", Namespace: "test1"},
 		}
 
 		// Act
-		err := RetryUpdate(ctx, func(object client.Object) client.Object {
+		err := RetryUpdate(ctx, func(object ctrlruntimeclient.Object) ctrlruntimeclient.Object {
 			return object
 		}, newObject, c)
 
 		// Assert
 		assert.Error(t, err)
-		assert.True(t, errors.IsNotFound(err))
+		assert.True(t, apierrors.IsNotFound(err))
 	})
 
 	t.Run("Retry Status update and fail", func(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		newObject := &testSupport.TestApiObject{
-			ObjectMeta: v1.ObjectMeta{Name: "test1", Namespace: "test1"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test1", Namespace: "test1"},
 		}
 
 		// Act
-		err := RetryStatusUpdate(ctx, func(object client.Object) client.Object {
+		err := RetryStatusUpdate(ctx, func(object ctrlruntimeclient.Object) ctrlruntimeclient.Object {
 			return object
 		}, newObject, c)
 
 		// Assert
 		assert.Error(t, err)
-		assert.True(t, errors.IsNotFound(err))
+		assert.True(t, apierrors.IsNotFound(err))
 	})
 }

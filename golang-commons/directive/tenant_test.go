@@ -22,24 +22,25 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/ptr"
 
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/logger"
+
+	"k8s.io/utils/ptr"
 )
 
 func TestSetTenantToContextForTechnicalUsers(t *testing.T) {
 	tests := []struct {
 		name           string
 		ctx            context.Context
-		args           map[string]interface{}
+		args           map[string]any
 		expectedTenant string
 		expectError    bool
 	}{
 		{
 			name: "Technical user with tenantId",
 			ctx:  pmcontext.AddIsTechnicalIssuerToContext(context.Background()),
-			args: map[string]interface{}{
+			args: map[string]any{
 				"tenantId": "tenant123",
 			},
 			expectedTenant: "tenant123",
@@ -48,7 +49,7 @@ func TestSetTenantToContextForTechnicalUsers(t *testing.T) {
 		{
 			name: "Technical user with nil tenantId",
 			ctx:  pmcontext.AddIsTechnicalIssuerToContext(context.Background()),
-			args: map[string]interface{}{
+			args: map[string]any{
 				"tenantId": (*string)(nil),
 			},
 			expectedTenant: "",
@@ -57,7 +58,7 @@ func TestSetTenantToContextForTechnicalUsers(t *testing.T) {
 		{
 			name: "Non-technical user without spiffee",
 			ctx:  context.Background(),
-			args: map[string]interface{}{
+			args: map[string]any{
 				"tenantId": "tenant123",
 			},
 			expectedTenant: "",
@@ -66,7 +67,7 @@ func TestSetTenantToContextForTechnicalUsers(t *testing.T) {
 		{
 			name: "Non-technical user with spiffee",
 			ctx:  pmcontext.AddSpiffeToContext(context.Background(), "spiffee123"),
-			args: map[string]interface{}{
+			args: map[string]any{
 				"tenantId": "tenant123",
 			},
 			expectedTenant: "tenant123",
@@ -75,7 +76,7 @@ func TestSetTenantToContextForTechnicalUsers(t *testing.T) {
 		{
 			name: "Non-technical user with spiffee (*string)",
 			ctx:  pmcontext.AddIsTechnicalIssuerToContext(context.Background()),
-			args: map[string]interface{}{
+			args: map[string]any{
 				"tenantId": ptr.To("tenant123"),
 			},
 			expectedTenant: "tenant123",
@@ -84,7 +85,7 @@ func TestSetTenantToContextForTechnicalUsers(t *testing.T) {
 		{
 			name: "Non-technical user with spiffee (*string empty)",
 			ctx:  pmcontext.AddIsTechnicalIssuerToContext(context.Background()),
-			args: map[string]interface{}{
+			args: map[string]any{
 				"tenantId": ptr.To(""),
 			},
 			expectedTenant: "",

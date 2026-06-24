@@ -26,6 +26,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/machinebox/graphql"
 	"github.com/stretchr/testify/assert"
+
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 )
 
@@ -35,7 +36,7 @@ type graphMockClient struct {
 	callCount   int
 }
 
-func (mc *graphMockClient) Run(_ context.Context, _ *graphql.Request, resp interface{}) error {
+func (mc *graphMockClient) Run(_ context.Context, _ *graphql.Request, resp any) error {
 	mc.callCount = mc.callCount + 1
 
 	if mc.tenantError != nil {

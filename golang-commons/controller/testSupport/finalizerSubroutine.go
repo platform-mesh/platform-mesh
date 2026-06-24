@@ -20,17 +20,17 @@ import (
 	"context"
 	"time"
 
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
 	"go.platform-mesh.io/golang-commons/errors"
+
+	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const SubroutineFinalizer = "finalizer"
 
 type FinalizerSubroutine struct {
-	Client       client.Client
+	Client       ctrlruntimeclient.Client
 	Err          error
 	RequeueAfter time.Duration
 }

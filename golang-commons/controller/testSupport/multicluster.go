@@ -26,12 +26,12 @@ import (
 	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
-type FakeManager struct{ Client client.Client }
+type FakeManager struct{ Client ctrlruntimeclient.Client }
 
 func (f *FakeManager) GetCluster(context.Context, multicluster.ClusterName) (cluster.Cluster, error) {
 	return &FakeCluster{client: f.Client}, nil
@@ -39,7 +39,7 @@ func (f *FakeManager) GetCluster(context.Context, multicluster.ClusterName) (clu
 
 var _ cluster.Cluster = (*FakeCluster)(nil)
 
-type FakeCluster struct{ client client.Client }
+type FakeCluster struct{ client ctrlruntimeclient.Client }
 
 func (f FakeCluster) GetHTTPClient() *http.Client {
 	return nil
@@ -57,11 +57,11 @@ func (f FakeCluster) GetScheme() *runtime.Scheme {
 	return nil
 }
 
-func (f FakeCluster) GetClient() client.Client {
+func (f FakeCluster) GetClient() ctrlruntimeclient.Client {
 	return f.client
 }
 
-func (f FakeCluster) GetFieldIndexer() client.FieldIndexer {
+func (f FakeCluster) GetFieldIndexer() ctrlruntimeclient.FieldIndexer {
 	return nil
 }
 
@@ -73,7 +73,7 @@ func (f FakeCluster) GetRESTMapper() meta.RESTMapper {
 	return nil
 }
 
-func (f FakeCluster) GetAPIReader() client.Reader {
+func (f FakeCluster) GetAPIReader() ctrlruntimeclient.Reader {
 	return nil
 }
 

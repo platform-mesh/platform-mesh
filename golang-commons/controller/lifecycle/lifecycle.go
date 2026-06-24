@@ -22,17 +22,6 @@ import (
 	"slices"
 
 	"go.opentelemetry.io/otel"
-	"k8s.io/apimachinery/pkg/api/equality"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/api"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
@@ -41,9 +30,21 @@ import (
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/golang-commons/sentry"
+
+	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
-func Reconcile(ctx context.Context, nName types.NamespacedName, instance runtimeobject.RuntimeObject, cl client.Client, l api.Lifecycle) (ctrl.Result, error) {
+func Reconcile(ctx context.Context, nName types.NamespacedName, instance runtimeobject.RuntimeObject, cl ctrlruntimeclient.Client, l api.Lifecycle) (ctrl.Result, error) {
 	ctx, span := otel.Tracer(l.Config().OperatorName).Start(ctx, fmt.Sprintf("%s.Reconcile", l.Config().ControllerName))
 	defer span.End()
 
@@ -63,7 +64,7 @@ func Reconcile(ctx context.Context, nName types.NamespacedName, instance runtime
 
 	err := cl.Get(ctx, nName, instance)
 	if err != nil {
-		if kerrors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			log.Info().Msg("instance not found. It was likely deleted")
 			return ctrl.Result{}, nil
 		}
@@ -88,7 +89,7 @@ func Reconcile(ctx context.Context, nName types.NamespacedName, instance runtime
 		return ctrl.Result{}, ferr
 	}
 
-	var condArr []v1.Condition
+	var condArr []metav1.Condition
 	if l.ConditionsManager() != nil {
 		condArr = util.MustToInterface[api.RuntimeObjectConditions](instance, log).GetConditions()
 		l.ConditionsManager().SetInstanceConditionUnknownIfNotSet(&condArr, instance.GetGeneration())
@@ -127,11 +128,11 @@ func Reconcile(ctx context.Context, nName types.NamespacedName, instance runtime
 		if err != nil {
 			if l.ConditionsManager() != nil {
 				l.ConditionsManager().SetSubroutineCondition(&condArr, instance.GetGeneration(), s, result, err, inDeletion, log)
-				l.ConditionsManager().SetInstanceConditionReady(&condArr, instance.GetGeneration(), v1.ConditionFalse)
+				l.ConditionsManager().SetInstanceConditionReady(&condArr, instance.GetGeneration(), metav1.ConditionFalse)
 				util.MustToInterface[api.RuntimeObjectConditions](instance, log).SetConditions(condArr)
 			}
 			if !retry {
-				MarkResourceAsFinal(instance, log, condArr, v1.ConditionFalse, l)
+				MarkResourceAsFinal(instance, log, condArr, metav1.ConditionFalse, l)
 			}
 			if !l.Config().ReadOnly {
 				_ = updateStatus(ctx, cl, originalCopy, instance, log, generationChanged, sentryTags)
@@ -155,10 +156,10 @@ func Reconcile(ctx context.Context, nName types.NamespacedName, instance runtime
 
 	if result.RequeueAfter == 0 {
 		// Reconciliation was successful
-		MarkResourceAsFinal(instance, log, condArr, v1.ConditionTrue, l)
+		MarkResourceAsFinal(instance, log, condArr, metav1.ConditionTrue, l)
 	} else {
 		if l.ConditionsManager() != nil {
-			l.ConditionsManager().SetInstanceConditionReady(&condArr, instance.GetGeneration(), v1.ConditionFalse)
+			l.ConditionsManager().SetInstanceConditionReady(&condArr, instance.GetGeneration(), metav1.ConditionFalse)
 		}
 	}
 
@@ -193,10 +194,10 @@ func Reconcile(ctx context.Context, nName types.NamespacedName, instance runtime
 	}
 
 	if l.Spreader() != nil && instance.GetDeletionTimestamp().IsZero() {
-		original := instance.DeepCopyObject().(client.Object)
+		original := instance.DeepCopyObject().(ctrlruntimeclient.Object)
 		removed := l.Spreader().RemoveRefreshLabelIfExists(instance)
 		if removed {
-			updateErr := cl.Patch(ctx, instance, client.MergeFrom(original))
+			updateErr := cl.Patch(ctx, instance, ctrlruntimeclient.MergeFrom(original))
 			if updateErr != nil {
 				return HandleClientError("failed to update instance", log, err, generationChanged, sentryTags)
 			}
@@ -207,7 +208,7 @@ func Reconcile(ctx context.Context, nName types.NamespacedName, instance runtime
 	return result, nil
 }
 
-func reconcileSubroutine(ctx context.Context, instance runtimeobject.RuntimeObject, s subroutine.Subroutine, cl client.Client, l api.Lifecycle, log *logger.Logger, generationChanged bool, sentryTags map[string]string) (ctrl.Result, bool, error) {
+func reconcileSubroutine(ctx context.Context, instance runtimeobject.RuntimeObject, s subroutine.Subroutine, cl ctrlruntimeclient.Client, l api.Lifecycle, log *logger.Logger, generationChanged bool, sentryTags map[string]string) (ctrl.Result, bool, error) {
 	subroutineLogger := log.ChildLogger("subroutine", s.GetName())
 	ctx = logger.SetLoggerInContext(ctx, subroutineLogger)
 	subroutineLogger.Debug().Msg("start subroutine")
@@ -262,7 +263,7 @@ func reconcileSubroutine(ctx context.Context, instance runtimeobject.RuntimeObje
 	return result, false, nil
 }
 
-func containsFinalizer(o client.Object, subroutineFinalizers []string) bool {
+func containsFinalizer(o ctrlruntimeclient.Object, subroutineFinalizers []string) bool {
 	for _, subroutineFinalizer := range subroutineFinalizers {
 		if controllerutil.ContainsFinalizer(o, subroutineFinalizer) {
 			return true
@@ -271,14 +272,14 @@ func containsFinalizer(o client.Object, subroutineFinalizers []string) bool {
 	return false
 }
 
-func removeFinalizerIfNeeded(ctx context.Context, instance runtimeobject.RuntimeObject, s subroutine.Subroutine, result ctrl.Result, readonly bool, cl client.Client) errors.OperatorError {
+func removeFinalizerIfNeeded(ctx context.Context, instance runtimeobject.RuntimeObject, s subroutine.Subroutine, result ctrl.Result, readonly bool, cl ctrlruntimeclient.Client) errors.OperatorError {
 	if readonly {
 		return nil
 	}
 
 	if result.RequeueAfter == 0 {
 		update := false
-		original := instance.DeepCopyObject().(client.Object)
+		original := instance.DeepCopyObject().(ctrlruntimeclient.Object)
 		for _, f := range s.Finalizers(instance) {
 			needsUpdate := controllerutil.RemoveFinalizer(instance, f)
 			if needsUpdate {
@@ -286,7 +287,7 @@ func removeFinalizerIfNeeded(ctx context.Context, instance runtimeobject.Runtime
 			}
 		}
 		if update {
-			err := cl.Patch(ctx, instance, client.MergeFrom(original))
+			err := cl.Patch(ctx, instance, ctrlruntimeclient.MergeFrom(original))
 			if err != nil {
 				return errors.NewOperatorError(errors.Wrap(err, "failed to update instance"), true, false)
 			}
@@ -296,12 +297,12 @@ func removeFinalizerIfNeeded(ctx context.Context, instance runtimeobject.Runtime
 	return nil
 }
 
-func removeTerminator(ctx context.Context, instance runtimeobject.RuntimeObject, cl client.Client, terminator string) error {
+func removeTerminator(ctx context.Context, instance runtimeobject.RuntimeObject, cl ctrlruntimeclient.Client, terminator string) error {
 	if terminator == "" {
 		return nil
 	}
 
-	original := instance.DeepCopyObject().(client.Object)
+	original := instance.DeepCopyObject().(ctrlruntimeclient.Object)
 
 	currentUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(instance)
 	if err != nil {
@@ -328,19 +329,19 @@ func removeTerminator(ctx context.Context, instance runtimeobject.RuntimeObject,
 		return fmt.Errorf("failed to convert unstructured to instance: %w", err)
 	}
 
-	if err := cl.Status().Patch(ctx, instance.(client.Object), client.MergeFrom(original)); err != nil {
+	if err := cl.Status().Patch(ctx, instance.(ctrlruntimeclient.Object), ctrlruntimeclient.MergeFrom(original)); err != nil {
 		return fmt.Errorf("failed to patch instance status: %w", err)
 	}
 
 	return nil
 }
 
-func removeInitializer(ctx context.Context, instance runtimeobject.RuntimeObject, cl client.Client, initializer string) error {
+func removeInitializer(ctx context.Context, instance runtimeobject.RuntimeObject, cl ctrlruntimeclient.Client, initializer string) error {
 	if initializer == "" {
 		return nil
 	}
 
-	original := instance.DeepCopyObject().(client.Object)
+	original := instance.DeepCopyObject().(ctrlruntimeclient.Object)
 
 	currentUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(instance)
 	if err != nil {
@@ -367,14 +368,14 @@ func removeInitializer(ctx context.Context, instance runtimeobject.RuntimeObject
 		return fmt.Errorf("failed to convert unstructured to instance: %w", err)
 	}
 
-	if err := cl.Status().Patch(ctx, instance.(client.Object), client.MergeFrom(original)); err != nil {
+	if err := cl.Status().Patch(ctx, instance.(ctrlruntimeclient.Object), ctrlruntimeclient.MergeFrom(original)); err != nil {
 		return fmt.Errorf("failed to patch instance status: %w", err)
 	}
 
 	return nil
 }
 
-func updateStatus(ctx context.Context, cl client.Client, original runtime.Object, current runtimeobject.RuntimeObject, log *logger.Logger, generationChanged bool, sentryTags sentry.Tags) error {
+func updateStatus(ctx context.Context, cl ctrlruntimeclient.Client, original runtime.Object, current runtimeobject.RuntimeObject, log *logger.Logger, generationChanged bool, sentryTags sentry.Tags) error {
 	currentUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(current)
 	if err != nil {
 		return err
@@ -403,7 +404,7 @@ func updateStatus(ctx context.Context, cl client.Client, original runtime.Object
 	log.Info().Msg("updating resource status")
 	err = cl.Status().Update(ctx, current)
 	if err != nil {
-		if kerrors.IsConflict(err) {
+		if apierrors.IsConflict(err) {
 			log.Warn().Err(err).Msg("cannot update reconciliation Conditions, kubernetes client error")
 		} else {
 			log.Error().Err(err).Msg("cannot update status, kubernetes client error")
@@ -426,7 +427,7 @@ func HandleClientError(msg string, log *logger.Logger, err error, generationChan
 	return ctrl.Result{}, err
 }
 
-func MarkResourceAsFinal(instance runtimeobject.RuntimeObject, log *logger.Logger, conditions []v1.Condition, status v1.ConditionStatus, l api.Lifecycle) {
+func MarkResourceAsFinal(instance runtimeobject.RuntimeObject, log *logger.Logger, conditions []metav1.Condition, status metav1.ConditionStatus, l api.Lifecycle) {
 	if l.Spreader() != nil && instance.GetDeletionTimestamp().IsZero() {
 		instanceStatusObj := util.MustToInterface[api.RuntimeObjectSpreadReconcileStatus](instance, log)
 		l.Spreader().SetNextReconcileTime(instanceStatusObj, log)
@@ -438,7 +439,7 @@ func MarkResourceAsFinal(instance runtimeobject.RuntimeObject, log *logger.Logge
 	}
 }
 
-func AddFinalizersIfNeeded(ctx context.Context, cl client.Client, instance runtimeobject.RuntimeObject, subroutines []subroutine.Subroutine, readonly bool) error {
+func AddFinalizersIfNeeded(ctx context.Context, cl ctrlruntimeclient.Client, instance runtimeobject.RuntimeObject, subroutines []subroutine.Subroutine, readonly bool) error {
 	if readonly {
 		return nil
 	}
@@ -448,7 +449,7 @@ func AddFinalizersIfNeeded(ctx context.Context, cl client.Client, instance runti
 	}
 
 	update := false
-	original := instance.DeepCopyObject().(client.Object)
+	original := instance.DeepCopyObject().(ctrlruntimeclient.Object)
 	for _, s := range subroutines {
 		if len(s.Finalizers(instance)) > 0 {
 			needsUpdate := AddFinalizerIfNeeded(instance, s)
@@ -458,7 +459,7 @@ func AddFinalizersIfNeeded(ctx context.Context, cl client.Client, instance runti
 		}
 	}
 	if update {
-		err := cl.Patch(ctx, instance, client.MergeFrom(original))
+		err := cl.Patch(ctx, instance, ctrlruntimeclient.MergeFrom(original))
 		if err != nil {
 			return err
 		}

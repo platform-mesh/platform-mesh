@@ -20,7 +20,7 @@ import (
 	"context"
 
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
@@ -39,6 +39,6 @@ func (f FakeProvider) Get(context.Context, multicluster.ClusterName) (cluster.Cl
 
 // IndexField indexes the given object by the given field on all engaged
 // clusters, current and future.
-func (f FakeProvider) IndexField(context.Context, client.Object, string, client.IndexerFunc) error {
+func (f FakeProvider) IndexField(context.Context, ctrlruntimeclient.Object, string, ctrlruntimeclient.IndexerFunc) error {
 	return nil
 }

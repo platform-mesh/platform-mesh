@@ -22,16 +22,16 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var defaultBackoff = wait.Backoff{Duration: 500 * time.Millisecond, Factor: 2, Steps: 5}
 
-type UpdateFunc func(client.Object) client.Object
+type UpdateFunc func(ctrlruntimeclient.Object) ctrlruntimeclient.Object
 
-func RetryStatusUpdate(ctx context.Context, adjust UpdateFunc, obj client.Object, cl client.Client) error {
+func RetryStatusUpdate(ctx context.Context, adjust UpdateFunc, obj ctrlruntimeclient.Object, cl ctrlruntimeclient.Client) error {
 	operation := func() error {
-		err := cl.Get(ctx, client.ObjectKeyFromObject(obj), obj)
+		err := cl.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(obj), obj)
 		if err != nil {
 			return err
 		}
@@ -40,9 +40,9 @@ func RetryStatusUpdate(ctx context.Context, adjust UpdateFunc, obj client.Object
 	return retry.RetryOnConflict(defaultBackoff, operation)
 }
 
-func RetryUpdate(ctx context.Context, adjust UpdateFunc, obj client.Object, cl client.Client) error {
+func RetryUpdate(ctx context.Context, adjust UpdateFunc, obj ctrlruntimeclient.Object, cl ctrlruntimeclient.Client) error {
 	operation := func() error {
-		err := cl.Get(ctx, client.ObjectKeyFromObject(obj), obj)
+		err := cl.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(obj), obj)
 		if err != nil {
 			return err
 		}

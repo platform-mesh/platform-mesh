@@ -20,13 +20,13 @@ import (
 	"math/rand/v2"
 	"time"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/api"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/util"
 	"go.platform-mesh.io/golang-commons/logger"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const ReconcileRefreshLabel = "platform-mesh.io/refresh-reconcile"
@@ -72,7 +72,7 @@ func (s *Spreader) SetNextReconcileTime(instanceStatusObj api.RuntimeObjectSprea
 	nextReconcileTime := getNextReconcileTime(border)
 
 	log.Debug().Int64("minutes-till-next-execution", int64(nextReconcileTime.Minutes())).Msg("Setting next reconcile time for the instance")
-	instanceStatusObj.SetNextReconcileTime(v1.NewTime(time.Now().Add(nextReconcileTime)))
+	instanceStatusObj.SetNextReconcileTime(metav1.NewTime(time.Now().Add(nextReconcileTime)))
 }
 
 // UpdateObservedGeneration updates the observed generation of the instance struct
@@ -90,7 +90,7 @@ func (s *Spreader) ReconcileRequired(instance runtimeobject.RuntimeObject, log *
 
 	instanceStatusObj := util.MustToInterface[api.RuntimeObjectSpreadReconcileStatus](instance, log)
 	generationChanged := instance.GetGeneration() != instanceStatusObj.GetObservedGeneration()
-	isAfterNextReconcileTime := v1.Now().UTC().After(instanceStatusObj.GetNextReconcileTime().UTC())
+	isAfterNextReconcileTime := metav1.Now().UTC().After(instanceStatusObj.GetNextReconcileTime().UTC())
 	_, refreshRequested := instance.GetLabels()[ReconcileRefreshLabel]
 
 	return generationChanged || isAfterNextReconcileTime || refreshRequested

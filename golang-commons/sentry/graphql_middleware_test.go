@@ -25,10 +25,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/gqlerror"
-	"go.platform-mesh.io/golang-commons/logger"
 
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/jwt"
+	"go.platform-mesh.io/golang-commons/logger"
 	testlogger "go.platform-mesh.io/golang-commons/logger/testlogger"
 )
 

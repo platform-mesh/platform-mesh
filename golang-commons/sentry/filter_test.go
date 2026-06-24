@@ -21,12 +21,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	pmerrors "go.platform-mesh.io/golang-commons/errors"
+
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestIsTerminatingNSError(t *testing.T) {
@@ -35,8 +36,8 @@ func TestIsTerminatingNSError(t *testing.T) {
 		Resource: "aResource",
 	}
 
-	conflictError := errors.NewConflict(gvr, "aName", fmt.Errorf("aMessage"))
-	conflictError.ErrStatus.Details.Causes = []metav1.StatusCause{{Type: v1.NamespaceTerminatingCause}}
+	conflictError := apierrors.NewConflict(gvr, "aName", fmt.Errorf("aMessage"))
+	conflictError.ErrStatus.Details.Causes = []metav1.StatusCause{{Type: corev1.NamespaceTerminatingCause}}
 	isTerminating := isTerminatingNSError(conflictError)
 	assert.True(t, isTerminating)
 }
@@ -47,8 +48,8 @@ func TestShouldBeProcessedNegative(t *testing.T) {
 		Resource: "aResource",
 	}
 
-	conflictError := errors.NewConflict(gvr, "aName", fmt.Errorf("aMessage"))
-	conflictError.ErrStatus.Details.Causes = []metav1.StatusCause{{Type: v1.NamespaceTerminatingCause}}
+	conflictError := apierrors.NewConflict(gvr, "aName", fmt.Errorf("aMessage"))
+	conflictError.ErrStatus.Details.Causes = []metav1.StatusCause{{Type: corev1.NamespaceTerminatingCause}}
 	shouldBeProcessed := ShouldBeProcessed(conflictError)
 	assert.False(t, shouldBeProcessed)
 }
@@ -59,7 +60,7 @@ func TestShouldBeProcessedPositive(t *testing.T) {
 		Resource: "aResource",
 	}
 
-	conflictError := errors.NewConflict(gvr, "aName", fmt.Errorf("aMessage"))
+	conflictError := apierrors.NewConflict(gvr, "aName", fmt.Errorf("aMessage"))
 	shouldBeProcessed := ShouldBeProcessed(conflictError)
 	assert.True(t, shouldBeProcessed)
 }

@@ -21,18 +21,6 @@ import (
 	"fmt"
 	"log"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cluster"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"k8s.io/client-go/util/workqueue"
-
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/api"
@@ -42,6 +30,17 @@ import (
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/spread"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/logger"
+
+	"k8s.io/client-go/util/workqueue"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
 type ClusterGetter interface {

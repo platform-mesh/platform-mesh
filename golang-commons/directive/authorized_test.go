@@ -28,11 +28,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vektah/gqlparser/v2/gqlerror"
+
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/context/keys"
-	logger "go.platform-mesh.io/golang-commons/logger/testlogger"
-
 	"go.platform-mesh.io/golang-commons/directive/mocks"
+	logger "go.platform-mesh.io/golang-commons/logger/testlogger"
 )
 
 const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
@@ -65,7 +65,7 @@ func TestAuthorized(t *testing.T) {
 			name:            "should error if the entityParamName is not part of the arguments for a nested value",
 			entityParamName: "non-existent.nested",
 			graphqlArgs: map[string]any{
-				"non-existent": map[string]interface{}{},
+				"non-existent": map[string]any{},
 			},
 			expectedError: fmt.Errorf("unable to extract param from request for given paramName %q", "non-existent.nested"),
 		},
@@ -155,7 +155,7 @@ func TestAuthorized(t *testing.T) {
 			entityParamName: "nested.value",
 			entityType:      String("value"),
 			graphqlArgs: map[string]any{
-				"nested": map[string]interface{}{
+				"nested": map[string]any{
 					"value": "something",
 				},
 			},
@@ -175,8 +175,8 @@ func TestAuthorized(t *testing.T) {
 			entityParamName: "nested.value.stuff",
 			entityType:      String("value"),
 			graphqlArgs: map[string]any{
-				"nested": map[string]interface{}{
-					"value": map[string]interface{}{
+				"nested": map[string]any{
+					"value": map[string]any{
 						"stuff": "test",
 					},
 				},
@@ -237,7 +237,7 @@ func TestAuthorized(t *testing.T) {
 				test.fgaMocks(openfgaMock)
 			}
 
-			nextFn := func(ctx context.Context) (interface{}, error) { return nil, nil }
+			nextFn := func(ctx context.Context) (any, error) { return nil, nil }
 
 			log := logger.New()
 
@@ -291,7 +291,7 @@ func TestAuthorizedWithSpiffeeHeader(t *testing.T) {
 		},
 	})
 
-	nextFn := func(ctx context.Context) (interface{}, error) { return nil, nil }
+	nextFn := func(ctx context.Context) (any, error) { return nil, nil }
 	_, err := Authorized(openfgaMock, logger.New().Logger)(ctx, nil, nextFn, "member", String("project"), nil, "projectId")
 	assert.NoError(t, err)
 
@@ -355,7 +355,7 @@ func TestAuthorizedEdgeCases2(t *testing.T) {
 				test.fgaMocks(openfgaMock)
 			}
 
-			nextFn := func(ctx context.Context) (interface{}, error) { return nil, nil }
+			nextFn := func(ctx context.Context) (any, error) { return nil, nil }
 
 			log := logger.New()
 
@@ -413,7 +413,7 @@ func TestAuthorizedEdgeCases(t *testing.T) {
 				test.fgaMocks(openfgaMock)
 			}
 
-			nextFn := func(ctx context.Context) (interface{}, error) { return nil, nil }
+			nextFn := func(ctx context.Context) (any, error) { return nil, nil }
 
 			log := logger.New()
 
@@ -481,7 +481,7 @@ func TestAuthorizedEdgeCases(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 
-			nextFn := func(ctx context.Context) (interface{}, error) { return nil, nil }
+			nextFn := func(ctx context.Context) (any, error) { return nil, nil }
 
 			log := logger.New()
 

@@ -22,10 +22,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/logger"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSetRequestIdWithIncomingHeader(t *testing.T) {

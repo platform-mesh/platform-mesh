@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/jwt"
 )

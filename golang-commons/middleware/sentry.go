@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+
 	"go.platform-mesh.io/golang-commons/logger"
 )
 

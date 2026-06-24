@@ -24,11 +24,12 @@ import (
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/openfga/openfga/pkg/server"
 	"github.com/openfga/openfga/pkg/storage/memory"
-	"go.platform-mesh.io/golang-commons/fga/helpers"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/test/bufconn"
+
+	"go.platform-mesh.io/golang-commons/fga/helpers"
 )
 
 type config struct {

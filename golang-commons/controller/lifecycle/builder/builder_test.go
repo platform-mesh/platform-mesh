@@ -21,12 +21,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/rest"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	pmtesting "go.platform-mesh.io/golang-commons/controller/testSupport"
 	"go.platform-mesh.io/golang-commons/logger"
+
+	"k8s.io/client-go/rest"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 func TestNewBuilder_Defaults(t *testing.T) {

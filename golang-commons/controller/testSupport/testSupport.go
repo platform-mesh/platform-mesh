@@ -21,17 +21,15 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
+	"go.platform-mesh.io/golang-commons/errors"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"go.platform-mesh.io/golang-commons/errors"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const FailureScenarioSubroutineFinalizer = "failuresubroutine"
@@ -103,7 +101,7 @@ func (m *NotImplementingSpreadReconciles) DeepCopyInto(out *NotImplementingSprea
 }
 
 type ChangeStatusSubroutine struct {
-	Client client.Client
+	Client ctrlruntimeclient.Client
 }
 
 func (c ChangeStatusSubroutine) Process(_ context.Context, runtimeObj runtimeobject.RuntimeObject) (controllerruntime.Result, errors.OperatorError) {

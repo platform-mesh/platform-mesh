@@ -19,11 +19,11 @@ package jwt
 import "strings"
 
 type rawClaims struct {
-	RawAudiences  interface{} `json:"aud"` // RawAudiences could be a []string or string depending on the serialization in IdP site
-	RawEmail      string      `json:"email,omitempty"`
-	RawMail       string      `json:"mail,omitempty"`
-	RawGivenName  string      `json:"given_name,omitempty"`
-	RawFamilyName string      `json:"family_name,omitempty"`
+	RawAudiences  any    `json:"aud"` // RawAudiences could be a []string or string depending on the serialization in IdP site
+	RawEmail      string `json:"email,omitempty"`
+	RawMail       string `json:"mail,omitempty"`
+	RawGivenName  string `json:"given_name,omitempty"`
+	RawFamilyName string `json:"family_name,omitempty"`
 }
 
 type rawWebToken struct {
@@ -60,7 +60,7 @@ func (r rawWebToken) getAudiences() (audiences []string) {
 	switch audienceList := r.RawAudiences.(type) {
 	case string:
 		audiences = []string{audienceList}
-	case []interface{}:
+	case []any:
 		for _, val := range audienceList {
 			aud, ok := val.(string)
 			if ok {

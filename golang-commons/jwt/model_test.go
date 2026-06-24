@@ -30,12 +30,12 @@ var joseTestKey = []byte("0123456789abcdef0123456789abcdef") // 32 bytes
 func TestNew_Success(t *testing.T) {
 	tests := []struct {
 		name       string
-		claims     map[string]interface{}
+		claims     map[string]any
 		expectedWT WebToken
 	}{
 		{
 			name: "basic issuer claim",
-			claims: map[string]interface{}{
+			claims: map[string]any{
 				"iss": "my-issuer",
 			},
 			expectedWT: WebToken{
@@ -46,7 +46,7 @@ func TestNew_Success(t *testing.T) {
 		},
 		{
 			name: "with first_name and last_name",
-			claims: map[string]interface{}{
+			claims: map[string]any{
 				"iss":        "test-issuer",
 				"sub":        "test-subject",
 				"first_name": "John",
@@ -65,7 +65,7 @@ func TestNew_Success(t *testing.T) {
 		},
 		{
 			name: "with given_name and family_name",
-			claims: map[string]interface{}{
+			claims: map[string]any{
 				"iss":         "test-issuer",
 				"sub":         "test-subject",
 				"given_name":  "Jonathan",
@@ -84,7 +84,7 @@ func TestNew_Success(t *testing.T) {
 		},
 		{
 			name: "prefer first_name/last_name over given_name/family_name",
-			claims: map[string]interface{}{
+			claims: map[string]any{
 				"iss":         "test-issuer",
 				"sub":         "test-subject",
 				"first_name":  "John",
@@ -105,7 +105,7 @@ func TestNew_Success(t *testing.T) {
 		},
 		{
 			name: "fallback to given_name/family_name when first_name/last_name are empty",
-			claims: map[string]interface{}{
+			claims: map[string]any{
 				"iss":         "test-issuer",
 				"sub":         "test-subject",
 				"first_name":  "",
@@ -126,7 +126,7 @@ func TestNew_Success(t *testing.T) {
 		},
 		{
 			name: "partial fallback - first_name present, last_name empty",
-			claims: map[string]interface{}{
+			claims: map[string]any{
 				"iss":         "test-issuer",
 				"sub":         "test-subject",
 				"first_name":  "John",

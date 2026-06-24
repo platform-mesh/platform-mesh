@@ -23,6 +23,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/machinebox/graphql"
+
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/logger"
 )
@@ -43,7 +44,7 @@ type TenantRetrieverService struct {
 }
 
 type GraphqlClient interface {
-	Run(ctx context.Context, req *graphql.Request, resp interface{}) error
+	Run(ctx context.Context, req *graphql.Request, resp any) error
 }
 
 type TenantIdReader interface {

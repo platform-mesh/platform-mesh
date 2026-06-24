@@ -21,15 +21,6 @@ import (
 	"fmt"
 	"log"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"k8s.io/client-go/util/workqueue"
-
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/api"
@@ -39,11 +30,19 @@ import (
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/spread"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/logger"
+
+	"k8s.io/client-go/util/workqueue"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type LifecycleManager struct {
 	log                *logger.Logger
-	client             client.Client
+	client             ctrlruntimeclient.Client
 	config             api.Config
 	subroutines        []subroutine.Subroutine
 	spreader           *spread.Spreader
@@ -52,7 +51,7 @@ type LifecycleManager struct {
 	rateLimiter        workqueue.TypedRateLimiter[reconcile.Request]
 }
 
-func NewLifecycleManager(subroutines []subroutine.Subroutine, operatorName string, controllerName string, client client.Client, log *logger.Logger) *LifecycleManager {
+func NewLifecycleManager(subroutines []subroutine.Subroutine, operatorName string, controllerName string, client ctrlruntimeclient.Client, log *logger.Logger) *LifecycleManager {
 	log = log.MustChildLoggerWithAttributes("operator", operatorName, "controller", controllerName)
 	return &LifecycleManager{
 		log:         log,

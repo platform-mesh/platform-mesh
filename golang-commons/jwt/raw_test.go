@@ -25,13 +25,13 @@ import (
 func TestRawWebToken_GetAudiences(t *testing.T) {
 	tests := []struct {
 		name           string
-		rawAudiences   interface{}
+		rawAudiences   any
 		expectedResult []string
 		expectedLen    int
 	}{
 		{
 			name: "slice of interfaces with mixed types",
-			rawAudiences: []interface{}{
+			rawAudiences: []any{
 				"audience1",
 				"audience2",
 				1812, // wrong audience type
@@ -53,13 +53,13 @@ func TestRawWebToken_GetAudiences(t *testing.T) {
 		},
 		{
 			name:           "empty slice",
-			rawAudiences:   []interface{}{},
+			rawAudiences:   []any{},
 			expectedResult: nil,
 			expectedLen:    0,
 		},
 		{
 			name: "slice with only invalid types",
-			rawAudiences: []interface{}{
+			rawAudiences: []any{
 				1812,
 				true,
 				42.5,

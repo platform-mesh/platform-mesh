@@ -19,8 +19,8 @@ package sentry
 import (
 	"errors"
 
-	v1 "k8s.io/api/core/v1"
-	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func ShouldBeProcessed(err error) bool {
@@ -32,11 +32,11 @@ func ShouldBeProcessed(err error) bool {
 }
 
 func isTerminatingNSError(err error) bool {
-	status := apiErrors.APIStatus(nil)
+	status := apierrors.APIStatus(nil)
 
 	if errors.As(err, &status) && status.Status().Details != nil {
 		for _, cause := range status.Status().Details.Causes {
-			if cause.Type == v1.NamespaceTerminatingCause {
+			if cause.Type == corev1.NamespaceTerminatingCause {
 				return true
 			}
 		}

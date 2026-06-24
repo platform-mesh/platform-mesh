@@ -22,10 +22,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	pmtesting "go.platform-mesh.io/golang-commons/controller/testSupport"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestGetNextReconcilationTime(t *testing.T) {
@@ -50,7 +51,7 @@ func TestGetNextReconcilationTime(t *testing.T) {
 func TestOnNextReconcile(t *testing.T) {
 	nextReconcile := time.Now().Add(10 * time.Minute)
 	instanceStatusObj := pmtesting.TestStatus{
-		NextReconcileTime: v1.NewTime(nextReconcile),
+		NextReconcileTime: metav1.NewTime(nextReconcile),
 	}
 	s := NewSpreader()
 	apiObject := &pmtesting.ImplementingSpreadReconciles{TestApiObject: pmtesting.TestApiObject{Status: instanceStatusObj}}
@@ -99,7 +100,7 @@ func TestUpdateObservedGeneration(t *testing.T) {
 	}
 	apiObject := &pmtesting.ImplementingSpreadReconciles{TestApiObject: pmtesting.TestApiObject{
 		Status: instanceStatusObj,
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Generation: 1,
 		},
 	},
@@ -116,7 +117,7 @@ func TestUpdateObservedGeneration(t *testing.T) {
 func TestRemoveRefreshLabel(t *testing.T) {
 	s := NewSpreader()
 	apiObject := &pmtesting.TestApiObject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{ReconcileRefreshLabel: ""},
 		},
 	}
@@ -129,7 +130,7 @@ func TestRemoveRefreshLabel(t *testing.T) {
 func TestRemoveRefreshLabelFilledWithValue(t *testing.T) {
 	s := NewSpreader()
 	apiObject := &pmtesting.TestApiObject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{ReconcileRefreshLabel: "true"},
 		},
 	}
@@ -143,7 +144,7 @@ func TestRemoveRefreshLabelFilledWithValue(t *testing.T) {
 func TestRemoveRefreshLabelNoLabels(t *testing.T) {
 	s := NewSpreader()
 	apiObject := &pmtesting.TestApiObject{
-		ObjectMeta: v1.ObjectMeta{},
+		ObjectMeta: metav1.ObjectMeta{},
 	}
 	s.RemoveRefreshLabelIfExists(apiObject)
 
@@ -163,12 +164,12 @@ func TestReconcileRequired(t *testing.T) {
 	// Case 1: Generation changed
 	apiObject1 := &pmtesting.ImplementingSpreadReconciles{
 		TestApiObject: pmtesting.TestApiObject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Generation: 2,
 			},
 			Status: pmtesting.TestStatus{
 				ObservedGeneration: 1,
-				NextReconcileTime:  v1.NewTime(future),
+				NextReconcileTime:  metav1.NewTime(future),
 			},
 		},
 	}
@@ -177,12 +178,12 @@ func TestReconcileRequired(t *testing.T) {
 	// Case 2: After next reconcile time
 	apiObject2 := &pmtesting.ImplementingSpreadReconciles{
 		TestApiObject: pmtesting.TestApiObject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
 			},
 			Status: pmtesting.TestStatus{
 				ObservedGeneration: 1,
-				NextReconcileTime:  v1.NewTime(past),
+				NextReconcileTime:  metav1.NewTime(past),
 			},
 		},
 	}
@@ -191,13 +192,13 @@ func TestReconcileRequired(t *testing.T) {
 	// Case 3: Refresh label present
 	apiObject3 := &pmtesting.ImplementingSpreadReconciles{
 		TestApiObject: pmtesting.TestApiObject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
 				Labels:     map[string]string{ReconcileRefreshLabel: ""},
 			},
 			Status: pmtesting.TestStatus{
 				ObservedGeneration: 1,
-				NextReconcileTime:  v1.NewTime(future),
+				NextReconcileTime:  metav1.NewTime(future),
 			},
 		},
 	}
@@ -206,12 +207,12 @@ func TestReconcileRequired(t *testing.T) {
 	// Case 4: No condition met
 	apiObject4 := &pmtesting.ImplementingSpreadReconciles{
 		TestApiObject: pmtesting.TestApiObject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
 			},
 			Status: pmtesting.TestStatus{
 				ObservedGeneration: 1,
-				NextReconcileTime:  v1.NewTime(future),
+				NextReconcileTime:  metav1.NewTime(future),
 			},
 		},
 	}

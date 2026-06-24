@@ -23,7 +23,7 @@ import (
 // SentryErrors defines functions that a SentryError should provide
 type SentryErrors interface {
 	error
-	AddExtra(key string, value interface{})
+	AddExtra(key string, value any)
 	AddTag(key, value string)
 	GetTags() Tags
 	GetExtras() Extras
@@ -64,7 +64,7 @@ func (e Error) GetTags() Tags {
 }
 
 // AddExtra adds extra data to be sent to Sentry
-func (e *Error) AddExtra(key string, value interface{}) {
+func (e *Error) AddExtra(key string, value any) {
 	e.extras.Add(key, value)
 }
 

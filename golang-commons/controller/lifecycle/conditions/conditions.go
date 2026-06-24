@@ -19,12 +19,12 @@ package conditions
 import (
 	"fmt"
 
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
+	"go.platform-mesh.io/golang-commons/logger"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	"go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
-	"go.platform-mesh.io/golang-commons/logger"
 )
 
 const (

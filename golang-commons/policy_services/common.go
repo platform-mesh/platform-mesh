@@ -45,7 +45,7 @@ func createClient(ctx context.Context, iamApiUrl string) *graphql.Client {
 	return client
 }
 
-func run(ctx context.Context, client GraphqlClient, request *graphql.Request, resp interface{}, timeout time.Duration) error {
+func run(ctx context.Context, client GraphqlClient, request *graphql.Request, resp any, timeout time.Duration) error {
 	auth, err := pmcontext.GetAuthHeaderFromContext(ctx)
 	if err != nil || len(auth) == 0 {
 		return fmt.Errorf("the request context does not contain an auth header under the key %q. You can use authz.context to set it", jwt.AuthHeaderCtxKey)

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"go.platform-mesh.io/golang-commons/directive/mocks"
 )
 

@@ -45,14 +45,14 @@ type StackTracer interface {
 
 // Sentinel is used to create compile-time errors that are intended to be value only, with
 // no associated stack trace.
-func Sentinel(msg string, args ...interface{}) error {
+func Sentinel(msg string, args ...any) error {
 	return fmt.Errorf(msg, args...)
 }
 
 // New acts as pkg/errors.New does, producing a stack traced error, but supports
 // interpolating of message parameters. Use this when you want the stack trace to start at
 // the place you create the error.
-func New(msg string, args ...interface{}) error {
+func New(msg string, args ...any) error {
 	return PopStack(errors.New(fmt.Sprintf(msg, args...)))
 }
 
@@ -71,7 +71,7 @@ func EnsureStack(cause error) error {
 // It differs from the pkg/errors Wrap/Wrapf by idempotently creating a stack trace,
 // meaning we won't create another stack trace when there is already a stack trace present
 // that matches our current program position.
-func Wrap(cause error, msg string, args ...interface{}) error {
+func Wrap(cause error, msg string, args ...any) error {
 	causeStackTracer := new(StackTracer)
 	if errors.As(cause, causeStackTracer) {
 		// If our cause has set a stack trace, and that trace is a child of our own function

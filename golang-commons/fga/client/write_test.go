@@ -23,6 +23,7 @@ import (
 	"github.com/jellydator/ttlcache/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/stretchr/testify/assert"
+
 	"go.platform-mesh.io/golang-commons/directive/mocks"
 )
 

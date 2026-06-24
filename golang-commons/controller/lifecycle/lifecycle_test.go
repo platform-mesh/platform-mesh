@@ -26,11 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/conditions"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/mocks"
@@ -41,6 +36,12 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/golang-commons/sentry"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestLifecycle(t *testing.T) {
@@ -276,7 +277,7 @@ func TestLifecycle(t *testing.T) {
 		assert.Equal(t, []string{"other:terminator"}, instance.Status.Terminators)
 
 		serverObject := &pmtesting.TestApiObject{}
-		getErr := fakeClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, serverObject)
+		getErr := fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name, Namespace: namespace}, serverObject)
 		assert.NoError(t, getErr)
 		assert.Equal(t, []string{"other:terminator"}, serverObject.Status.Terminators)
 	})
@@ -309,7 +310,7 @@ func TestLifecycle(t *testing.T) {
 		assert.Equal(t, []string{"other:initializer"}, instance.Status.Initializers)
 
 		serverObject := &pmtesting.TestApiObject{}
-		getErr := fakeClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, serverObject)
+		getErr := fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name, Namespace: namespace}, serverObject)
 		assert.NoError(t, getErr)
 		assert.Equal(t, []string{"other:initializer"}, serverObject.Status.Initializers)
 	})
@@ -360,7 +361,7 @@ func TestLifecycle(t *testing.T) {
 		assert.NoError(t, err)
 
 		serverObject := &pmtesting.TestApiObject{}
-		err = fakeClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, serverObject)
+		err = fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name, Namespace: namespace}, serverObject)
 		assert.NoError(t, err)
 		assert.Equal(t, serverObject.Status.Some, "other string")
 	})
@@ -635,7 +636,7 @@ func TestLifecycle(t *testing.T) {
 		assert.Equal(t, int64(1), instance.Status.ObservedGeneration)
 
 		serverObject := &pmtesting.ImplementingSpreadReconciles{}
-		err = fakeClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, serverObject)
+		err = fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name, Namespace: namespace}, serverObject)
 		assert.NoError(t, err)
 		assert.Equal(t, serverObject.Status.Some, "other string")
 		_, ok := serverObject.Labels["platform-mesh.io/refresh-reconcile"]
@@ -895,7 +896,7 @@ func TestLifecycle(t *testing.T) {
 			assert.NotNil(t, result)
 			assert.NoError(t, err)
 
-			err = fakeClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, testApiObject)
+			err = fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name, Namespace: namespace}, testApiObject)
 			assert.NoError(t, err)
 			assert.Equal(t, "valueFromContext", testApiObject.Status.Some)
 		})
@@ -963,7 +964,7 @@ func TestUpdateStatus(t *testing.T) {
 
 		clientMock.EXPECT().Status().Return(subresourceClient)
 		subresourceClient.EXPECT().Update(mock.Anything, mock.Anything, mock.Anything).
-			Return(errors.NewBadRequest("internal error"))
+			Return(apierrors.NewBadRequest("internal error"))
 
 		// When
 		err := updateStatus(context.Background(), clientMock, original, current, log, true, nil)
@@ -1067,7 +1068,7 @@ func TestRemoveTerminatorIfNeeded(t *testing.T) {
 		assert.Equal(t, []string{"other:terminator"}, instance.Status.Terminators)
 
 		serverObject := &pmtesting.TestApiObject{}
-		getErr := fakeClient.Get(context.Background(), client.ObjectKey{Name: "instance1", Namespace: "default"}, serverObject)
+		getErr := fakeClient.Get(context.Background(), ctrlruntimeclient.ObjectKey{Name: "instance1", Namespace: "default"}, serverObject)
 		assert.NoError(t, getErr)
 		assert.Equal(t, []string{"other:terminator"}, serverObject.Status.Terminators)
 	})
@@ -1122,7 +1123,7 @@ func TestRemoveInitializerIfNeeded(t *testing.T) {
 		assert.Equal(t, []string{"other:initializer"}, instance.Status.Initializers)
 
 		serverObject := &pmtesting.TestApiObject{}
-		getErr := fakeClient.Get(context.Background(), client.ObjectKey{Name: "instance1", Namespace: "default"}, serverObject)
+		getErr := fakeClient.Get(context.Background(), ctrlruntimeclient.ObjectKey{Name: "instance1", Namespace: "default"}, serverObject)
 		assert.NoError(t, getErr)
 		assert.Equal(t, []string{"other:initializer"}, serverObject.Status.Initializers)
 	})

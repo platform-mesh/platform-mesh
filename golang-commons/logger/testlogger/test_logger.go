@@ -55,11 +55,11 @@ func (l *TestLogger) HideLogOutput() *TestLogger {
 }
 
 type LogMessage struct {
-	Message    string                 `json:"message"`
-	Level      zerolog.Level          `json:"level"`
-	Service    string                 `json:"service"`
-	Error      *string                `json:"error"`
-	Attributes map[string]interface{} `json:"-"`
+	Message    string         `json:"message"`
+	Level      zerolog.Level  `json:"level"`
+	Service    string         `json:"service"`
+	Error      *string        `json:"error"`
+	Attributes map[string]any `json:"-"`
 }
 
 func (l *TestLogger) GetLogMessages() ([]LogMessage, error) {
@@ -76,7 +76,7 @@ func (l *TestLogger) GetLogMessages() ([]LogMessage, error) {
 			return nil, err
 		}
 
-		attributes := map[string]interface{}{}
+		attributes := map[string]any{}
 		err = json.Unmarshal([]byte(message), &attributes)
 		if err != nil {
 			return nil, err

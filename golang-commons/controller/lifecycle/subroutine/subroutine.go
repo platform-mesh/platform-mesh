@@ -19,10 +19,10 @@ package subroutine
 import (
 	"context"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
 	"go.platform-mesh.io/golang-commons/errors"
+
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 type Subroutine interface {

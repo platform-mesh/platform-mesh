@@ -26,10 +26,11 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/vektah/gqlparser/v2/gqlerror"
+	"google.golang.org/grpc/metadata"
+
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/fga/helpers"
 	"go.platform-mesh.io/golang-commons/logger"
-	"google.golang.org/grpc/metadata"
 )
 
 func extractNestedKeyFromArgs(args map[string]any, paramName string) (string, error) {
@@ -61,7 +62,7 @@ func extractNestedKeyFromArgs(args map[string]any, paramName string) (string, er
 			return paramValue, nil
 		}
 
-		normalizedArgs, ok = val.(map[string]interface{})
+		normalizedArgs, ok = val.(map[string]any)
 		if !ok {
 			return "", fmt.Errorf("unable to extract param from request for given paramName %q, param is of wrong type", paramName)
 		}
@@ -70,14 +71,14 @@ func extractNestedKeyFromArgs(args map[string]any, paramName string) (string, er
 	return paramValue, nil
 }
 
-func Authorized(openfgaClient openfgav1.OpenFGAServiceClient, log *logger.Logger) func(context.Context, interface{}, graphql.Resolver, string, *string, *string, string) (interface{}, error) {
+func Authorized(openfgaClient openfgav1.OpenFGAServiceClient, log *logger.Logger) func(context.Context, any, graphql.Resolver, string, *string, *string, string) (any, error) {
 	if !directiveConfiguration.DirectivesAuthorizationEnabled {
-		return func(ctx context.Context, obj interface{}, next graphql.Resolver, relation string, entityType *string, entityTypeParamName *string, entityParamName string) (interface{}, error) {
+		return func(ctx context.Context, obj any, next graphql.Resolver, relation string, entityType *string, entityTypeParamName *string, entityParamName string) (any, error) {
 			return next(ctx)
 		}
 	}
 
-	return func(ctx context.Context, obj interface{}, next graphql.Resolver, relation string, entityType *string, entityTypeParamName *string, entityParamName string) (interface{}, error) {
+	return func(ctx context.Context, obj any, next graphql.Resolver, relation string, entityType *string, entityTypeParamName *string, entityParamName string) (any, error) {
 
 		if openfgaClient == nil {
 			return nil, errors.New("OpenFGAServiceClient is nil. Cannot process request")

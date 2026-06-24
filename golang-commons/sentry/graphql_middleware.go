@@ -78,7 +78,7 @@ func GraphQLErrorPresenter(skipTenants ...string) graphql.ErrorPresenterFunc {
 
 // GraphQLRecover returns a function that can be used as GraphQL error presenter
 func GraphQLRecover(log *logger.Logger) graphql.RecoverFunc {
-	return func(ctx context.Context, err interface{}) (userMessage error) {
+	return func(ctx context.Context, err any) (userMessage error) {
 		log.Error().Interface("stack", debug.Stack()).Msgf("GraphQL panic: %v", err)
 
 		tenantID, ctxErr := pmcontext.GetTenantFromContext(ctx)
