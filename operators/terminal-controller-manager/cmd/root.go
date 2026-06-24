@@ -18,19 +18,20 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/apis/terminal/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmterminalv1alpha1 "go.platform-mesh.io/apis/terminal/v1alpha1"
 	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/terminal-controller-manager/internal/config"
-	ctrl "sigs.k8s.io/controller-runtime"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 var (
@@ -46,10 +47,10 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmterminalv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(gatewayv1.Install(scheme))
 	//+kubebuilder:scaffold:scheme
 

@@ -19,7 +19,7 @@ package controller
 import (
 	"context"
 
-	"go.platform-mesh.io/apis/terminal/v1alpha1"
+	pmterminalv1alpha1 "go.platform-mesh.io/apis/terminal/v1alpha1"
 	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -28,8 +28,9 @@ import (
 	"go.platform-mesh.io/subroutines/lifecycle"
 	"go.platform-mesh.io/terminal-controller-manager/internal/config"
 	tcmsubroutines "go.platform-mesh.io/terminal-controller-manager/pkg/subroutines"
+
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
@@ -47,7 +48,7 @@ type TerminalReconciler struct {
 	lifecycle *lifecycle.Lifecycle
 }
 
-func NewTerminalReconciler(_ *logger.Logger, mgr mcmanager.Manager, cfg config.OperatorConfig, runtimeClient client.Client) *TerminalReconciler { // coverage-ignore
+func NewTerminalReconciler(_ *logger.Logger, mgr mcmanager.Manager, cfg config.OperatorConfig, runtimeClient ctrlruntimeclient.Client) *TerminalReconciler { // coverage-ignore
 	subs := []subroutines.Subroutine{}
 
 	// Lifetime subroutine runs first to check for expired terminals
@@ -82,8 +83,8 @@ func NewTerminalReconciler(_ *logger.Logger, mgr mcmanager.Manager, cfg config.O
 
 	return &TerminalReconciler{
 		cfg: cfg,
-		lifecycle: lifecycle.New(mgr, terminalReconcilerName, func() client.Object {
-			return &v1alpha1.Terminal{}
+		lifecycle: lifecycle.New(mgr, terminalReconcilerName, func() ctrlruntimeclient.Object {
+			return &pmterminalv1alpha1.Terminal{}
 		}, subs...).WithConditions(conditions.NewManager()),
 	}
 }
@@ -96,7 +97,7 @@ func (r *TerminalReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platfo
 
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("terminal").
-		For(&v1alpha1.Terminal{}).
+		For(&pmterminalv1alpha1.Terminal{}).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

@@ -21,14 +21,14 @@ import (
 	"errors"
 	"time"
 
-	"go.platform-mesh.io/apis/terminal/v1alpha1"
+	pmterminalv1alpha1 "go.platform-mesh.io/apis/terminal/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -57,8 +57,8 @@ func (r *LifetimeSubroutine) GetName() string {
 	return LifetimeSubroutineName
 }
 
-func (r *LifetimeSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	instance := obj.(*v1alpha1.Terminal)
+func (r *LifetimeSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	instance := obj.(*pmterminalv1alpha1.Terminal)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	// Check if terminal has exceeded its lifetime
@@ -80,7 +80,7 @@ func (r *LifetimeSubroutine) Process(ctx context.Context, obj client.Object) (su
 			if err != nil {
 				return subroutines.OK(), err
 			}
-			if err := cluster.GetClient().Delete(ctx, instance); err != nil && !kerrors.IsNotFound(err) {
+			if err := cluster.GetClient().Delete(ctx, instance); err != nil && !apierrors.IsNotFound(err) {
 				return subroutines.OK(), err
 			}
 		}

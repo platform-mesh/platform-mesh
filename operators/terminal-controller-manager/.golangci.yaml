@@ -13,6 +13,10 @@
 # limitations under the License.
 
 version: "2"
+
+run:
+  allow-parallel-runners: true
+
 linters:
   default: none
   enable:
@@ -37,13 +41,6 @@ linters:
     - prealloc
 
 linters-settings:
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(k8s.io)
-      - prefix(github.com/kcp-dev)
-    skip-generated: true
   depguard:
     rules:
       main:
@@ -114,16 +111,4 @@ issues:
 
 formatters:
   enable:
-    - gci
     - gofmt
-  settings:
-    gci:
-      sections:
-        - standard
-        - default
-        - prefix(k8s.io)
-        - prefix(github.com/kcp-dev)
-      skip-generated: true
-
-run:
-  allow-parallel-runners: true

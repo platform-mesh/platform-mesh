@@ -23,20 +23,21 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/apis/terminal/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmterminalv1alpha1 "go.platform-mesh.io/apis/terminal/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 const (
@@ -49,14 +50,14 @@ const (
 // PodSubroutine manages terminal pods on the runtime cluster
 type PodSubroutine struct {
 	mgr            mcmanager.Manager
-	runtimeClient  client.Client
+	runtimeClient  ctrlruntimeclient.Client
 	terminalImage  string
 	namespace      string
 	hostAliasIP    string
 	hostAliasNames []string
 }
 
-func NewPodSubroutine(mgr mcmanager.Manager, runtimeClient client.Client, terminalImage, namespace, hostAliasIP string, hostAliasNames []string) *PodSubroutine {
+func NewPodSubroutine(mgr mcmanager.Manager, runtimeClient ctrlruntimeclient.Client, terminalImage, namespace, hostAliasIP string, hostAliasNames []string) *PodSubroutine {
 	return &PodSubroutine{
 		mgr:            mgr,
 		runtimeClient:  runtimeClient,
@@ -71,12 +72,12 @@ func (r *PodSubroutine) GetName() string {
 	return PodSubroutineName
 }
 
-func (r *PodSubroutine) Finalizers(_ client.Object) []string { // coverage-ignore
+func (r *PodSubroutine) Finalizers(_ ctrlruntimeclient.Object) []string { // coverage-ignore
 	return []string{PodSubroutineFinalizer}
 }
 
-func (r *PodSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	instance := obj.(*v1alpha1.Terminal)
+func (r *PodSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	instance := obj.(*pmterminalv1alpha1.Terminal)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	if instance.Status.PodName == "" {
@@ -84,10 +85,10 @@ func (r *PodSubroutine) Finalize(ctx context.Context, obj client.Object) (subrou
 	}
 
 	pod := &corev1.Pod{}
-	podKey := client.ObjectKey{Namespace: r.namespace, Name: instance.Status.PodName}
+	podKey := ctrlruntimeclient.ObjectKey{Namespace: r.namespace, Name: instance.Status.PodName}
 
 	if err := r.runtimeClient.Get(ctx, podKey, pod); err != nil {
-		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+		if apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
 			return subroutines.OK(), nil
 		}
 		return subroutines.OK(), err
@@ -100,7 +101,7 @@ func (r *PodSubroutine) Finalize(ctx context.Context, obj client.Object) (subrou
 
 	log.Info().Str("podName", pod.Name).Msg("deleting terminal pod")
 	if err := r.runtimeClient.Delete(ctx, pod); err != nil {
-		if kerrors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return subroutines.OK(), nil
 		}
 		return subroutines.OK(), err
@@ -109,8 +110,8 @@ func (r *PodSubroutine) Finalize(ctx context.Context, obj client.Object) (subrou
 	return subroutines.StopWithRequeue(PodRequeueAfter, "terminal pod deletion requested"), nil
 }
 
-func (r *PodSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	instance := obj.(*v1alpha1.Terminal)
+func (r *PodSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	instance := obj.(*pmterminalv1alpha1.Terminal)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	// Get cluster name from multicluster context
@@ -127,9 +128,9 @@ func (r *PodSubroutine) Process(ctx context.Context, obj client.Object) (subrout
 	clusterClient := cluster.GetClient()
 
 	// Look up AccountInfo to get workspace URL
-	accountInfo := &corev1alpha1.AccountInfo{}
-	if err := clusterClient.Get(ctx, client.ObjectKey{Name: DefaultAccountInfoName}, accountInfo); err != nil {
-		if kerrors.IsNotFound(err) {
+	accountInfo := &pmcorev1alpha1.AccountInfo{}
+	if err := clusterClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: DefaultAccountInfoName}, accountInfo); err != nil {
+		if apierrors.IsNotFound(err) {
 			log.Warn().Msg("AccountInfo not found, waiting for it to be created")
 			return subroutines.StopWithRequeue(PodRequeueAfter, "AccountInfo not found yet"), nil
 		}
@@ -173,10 +174,10 @@ func (r *PodSubroutine) Process(ctx context.Context, obj client.Object) (subrout
 
 	// Check if pod already exists
 	existingPod := &corev1.Pod{}
-	podKey := client.ObjectKey{Namespace: r.namespace, Name: podName}
+	podKey := ctrlruntimeclient.ObjectKey{Namespace: r.namespace, Name: podName}
 
 	if err := r.runtimeClient.Get(ctx, podKey, existingPod); err != nil {
-		if !kerrors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return subroutines.OK(), err
 		}
 
@@ -192,7 +193,7 @@ func (r *PodSubroutine) Process(ctx context.Context, obj client.Object) (subrout
 
 		// Update status
 		instance.Status.PodName = podName
-		instance.Status.Phase = v1alpha1.TerminalPhaseCreating
+		instance.Status.Phase = pmterminalv1alpha1.TerminalPhaseCreating
 		// Requeue to check pod status
 		return subroutines.StopWithRequeue(PodRequeueAfter, "terminal pod created, waiting for readiness"), nil
 	}
@@ -201,22 +202,22 @@ func (r *PodSubroutine) Process(ctx context.Context, obj client.Object) (subrout
 	instance.Status.PodName = podName
 	switch existingPod.Status.Phase {
 	case corev1.PodRunning:
-		instance.Status.Phase = v1alpha1.TerminalPhaseReady
+		instance.Status.Phase = pmterminalv1alpha1.TerminalPhaseReady
 		return subroutines.OK(), nil
 	case corev1.PodFailed:
-		instance.Status.Phase = v1alpha1.TerminalPhaseFailed
+		instance.Status.Phase = pmterminalv1alpha1.TerminalPhaseFailed
 		return subroutines.OK(), nil
 	case corev1.PodPending:
-		instance.Status.Phase = v1alpha1.TerminalPhaseCreating
+		instance.Status.Phase = pmterminalv1alpha1.TerminalPhaseCreating
 	default:
-		instance.Status.Phase = v1alpha1.TerminalPhasePending
+		instance.Status.Phase = pmterminalv1alpha1.TerminalPhasePending
 	}
 
 	// Pod not yet ready, requeue to check again
 	return subroutines.StopWithRequeue(PodRequeueAfter, "terminal pod is not ready yet"), nil
 }
 
-func (r *PodSubroutine) buildTerminalPod(terminal *v1alpha1.Terminal, podName, workspaceURL, clusterCA string) *corev1.Pod {
+func (r *PodSubroutine) buildTerminalPod(terminal *pmterminalv1alpha1.Terminal, podName, workspaceURL, clusterCA string) *corev1.Pod {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  "KCP_WORKSPACE_URL",

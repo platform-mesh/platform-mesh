@@ -23,12 +23,17 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/traces"
 	"go.platform-mesh.io/terminal-controller-manager/internal/controller"
+
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -36,9 +41,6 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
 )
 
 var operatorCmd = &cobra.Command{
@@ -128,7 +130,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to start manager")
 	}
 
-	runtimeClient, err := client.New(runtimeCfg, client.Options{Scheme: scheme})
+	runtimeClient, err := ctrlruntimeclient.New(runtimeCfg, ctrlruntimeclient.Options{Scheme: scheme})
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create runtime cluster client")
 	}

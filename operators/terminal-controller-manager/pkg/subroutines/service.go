@@ -21,17 +21,17 @@ import (
 	"fmt"
 	"time"
 
-	"go.platform-mesh.io/apis/terminal/v1alpha1"
+	pmterminalv1alpha1 "go.platform-mesh.io/apis/terminal/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -43,11 +43,11 @@ const (
 
 // ServiceSubroutine manages terminal services on the runtime cluster
 type ServiceSubroutine struct {
-	runtimeClient client.Client
+	runtimeClient ctrlruntimeclient.Client
 	namespace     string
 }
 
-func NewServiceSubroutine(runtimeClient client.Client, namespace string) *ServiceSubroutine {
+func NewServiceSubroutine(runtimeClient ctrlruntimeclient.Client, namespace string) *ServiceSubroutine {
 	return &ServiceSubroutine{
 		runtimeClient: runtimeClient,
 		namespace:     namespace,
@@ -58,20 +58,20 @@ func (r *ServiceSubroutine) GetName() string {
 	return ServiceSubroutineName
 }
 
-func (r *ServiceSubroutine) Finalizers(_ client.Object) []string { // coverage-ignore
+func (r *ServiceSubroutine) Finalizers(_ ctrlruntimeclient.Object) []string { // coverage-ignore
 	return []string{ServiceSubroutineFinalizer}
 }
 
-func (r *ServiceSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	instance := obj.(*v1alpha1.Terminal)
+func (r *ServiceSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	instance := obj.(*pmterminalv1alpha1.Terminal)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	serviceName := fmt.Sprintf("terminal-%s", instance.Name)
 	service := &corev1.Service{}
-	serviceKey := client.ObjectKey{Namespace: r.namespace, Name: serviceName}
+	serviceKey := ctrlruntimeclient.ObjectKey{Namespace: r.namespace, Name: serviceName}
 
 	if err := r.runtimeClient.Get(ctx, serviceKey, service); err != nil {
-		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+		if apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
 			return subroutines.OK(), nil
 		}
 		return subroutines.OK(), err
@@ -84,7 +84,7 @@ func (r *ServiceSubroutine) Finalize(ctx context.Context, obj client.Object) (su
 
 	log.Info().Str("serviceName", service.Name).Msg("deleting terminal service")
 	if err := r.runtimeClient.Delete(ctx, service); err != nil {
-		if kerrors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return subroutines.OK(), nil
 		}
 		return subroutines.OK(), err
@@ -93,8 +93,8 @@ func (r *ServiceSubroutine) Finalize(ctx context.Context, obj client.Object) (su
 	return subroutines.StopWithRequeue(ServiceRequeueAfter, "terminal service deletion requested"), nil
 }
 
-func (r *ServiceSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	instance := obj.(*v1alpha1.Terminal)
+func (r *ServiceSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	instance := obj.(*pmterminalv1alpha1.Terminal)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	serviceName := fmt.Sprintf("terminal-%s", instance.Name)
@@ -118,7 +118,7 @@ func (r *ServiceSubroutine) Process(ctx context.Context, obj client.Object) (sub
 	return subroutines.OK(), nil
 }
 
-func (r *ServiceSubroutine) mutateService(service *corev1.Service, terminal *v1alpha1.Terminal) {
+func (r *ServiceSubroutine) mutateService(service *corev1.Service, terminal *pmterminalv1alpha1.Terminal) {
 	service.Labels = map[string]string{
 		nameLabel:         nameLabelValue,
 		instanceLabel:     terminal.Name,
