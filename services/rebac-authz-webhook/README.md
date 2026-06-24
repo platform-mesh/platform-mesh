@@ -3,22 +3,19 @@
 
 # Platform Mesh - rebac-authz-webhook
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/rebac-authz-webhook/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/rebac-authz-webhook)
-![Build Status](https://github.com/platform-mesh/rebac-authz-webhook/actions/workflows/ci.yml/badge.svg)
-
 ## Description
 
 The Platform Mesh IAM Authorizaton Webhook is a kubernetes authorization webhook that uses openFGA to answer authorization requests from kubernetes.
 
-## KCP Configuration
+## kcp Configuration
 
-The webhook requires access to the Root KCP API Server (not Virtual Workspace) for API Server Discovery. This is necessary because:
+The webhook requires access to the root kcp API Server (not Virtual Workspace) for API Server Discovery. This is necessary because:
 
-- `cache.New()` inside the provider needs Root KCP API Server to discover `APIExportEndpointSlice` resources
-- Virtual Workspace kubeconfig doesn't support API Server Discovery for root KCP CRDs like `APIExportEndpointSlice`
+- `cache.New()` inside the provider needs root kcp API Server to discover `APIExportEndpointSlice` resources
+- Virtual Workspace kubeconfig doesn't support API Server Discovery for root kcp CRDs like `APIExportEndpointSlice`
 - The provider will then use Virtual Workspace URLs from the endpoint slice for actual cluster access
 
-The webhook uses `ctrl.GetConfigOrDie()` which respects the `KUBECONFIG` environment variable. The Helm chart deployment template sets this environment variable to point to a kubeconfig secret provided by the platform-mesh-operator that contains the Root KCP API Server URL.
+The webhook uses `ctrl.GetConfigOrDie()` which respects the `KUBECONFIG` environment variable. The Helm chart deployment template sets this environment variable to point to a kubeconfig secret provided by the platform-mesh-operator that contains the root kcp API Server URL.
 
 The default `apiExportEndpointSliceName` is `"core.platform-mesh.io"` (configured in the code). This can be overridden via the `--kcp-api-export-endpoint-slice-name` command-line argument if needed.
 
@@ -40,8 +37,9 @@ Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository f
 ## Code of Conduct
 
 Please refer to our [Code of Conduct](https://github.com/platform-mesh/.github/blob/main/CODE_OF_CONDUCT.md) for information on the expected conduct for contributing to Platform Mesh.
+
 ## Licensing
 
-Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available via the [REUSE tool](https://api.reuse.software/info/github.com/platform-mesh/rebac-authz-webhook). 
+Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available via the [REUSE tool](https://api.reuse.software/info/github.com/platform-mesh/platform-mesh).
 
 <p align="center"><img alt="Bundesministerium für Wirtschaft und Energie (BMWE)-EU funding logo" src="https://apeirora.eu/assets/img/BMWK-EU.png" width="400"/></p>
