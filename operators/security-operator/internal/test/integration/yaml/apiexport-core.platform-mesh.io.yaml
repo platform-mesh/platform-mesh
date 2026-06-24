@@ -24,6 +24,7 @@ spec:
   - v260108-81fc9ff.authorizationmodels.core.platform-mesh.io
   - v250718-a64f278.stores.core.platform-mesh.io
   - v260213-fbdf981.invites.core.platform-mesh.io
+  - v260624-0de8b9c.providerpermissions.core.platform-mesh.io
   permissionClaims:
     - resource: apibindings
       group: apis.kcp.io

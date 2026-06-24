@@ -73,6 +73,9 @@ var (
 	//go:embed yaml/apiresourceschema-invites.core.platform-mesh.io.yaml
 	InviteSchemaYAML []byte
 
+	//go:embed yaml/apiresourceschema-providerpermissions.core.platform-mesh.io.yaml
+	ProviderPermissionsSchemaYAML []byte
+
 	//go:embed yaml/apiexport-core.platform-mesh.io.yaml
 	ApiExportPlatformMeshSystemYAML []byte
 
@@ -151,7 +154,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	suite.platformMeshSystemClient = cli.Cluster(platformMeshSystemClusterPath)
 
 	// register api-resource schemas
-	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML, InviteSchemaYAML}
+	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML, InviteSchemaYAML, ProviderPermissionsSchemaYAML}
 	for _, schemaYAML := range schemas {
 		var schema kcpapisv1alpha1.APIResourceSchema
 		suite.Require().NoError(yaml.Unmarshal(schemaYAML, &schema))
