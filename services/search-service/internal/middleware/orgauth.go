@@ -74,7 +74,7 @@ func (m *OrgContextMiddleware) SetRequestContext() func(http.Handler) http.Handl
 				return
 			}
 
-			if !(m.localDevelopment || localHost) {
+			if !m.localDevelopment && !localHost {
 				authHeader, err := pmcontext.GetAuthHeaderFromContext(ctx)
 				if err != nil {
 					http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
