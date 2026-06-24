@@ -127,17 +127,17 @@ tasks:
       CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
       KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
       DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
-      IMAGE_TAG:
-        sh: kubectl get deployment security-operator -n {{.DEPLOYMENT_NAMESPACE}} -o jsonpath='{.spec.template.spec.containers[0].image}' | cut -d':' -f2
-      IMAGE_NAME: ghcr.io/platform-mesh/security-operator:{{.IMAGE_TAG}}
+      IMAGE_NAME:
+        sh: kubectl get deployment security-operator -n {{.DEPLOYMENT_NAMESPACE}} -o jsonpath='{.spec.template.spec.containers[0].image}'
     cmds:
       - |
-        if [ -z "{{.IMAGE_TAG}}" ]; then
-          echo "Error: Could not determine IMAGE_TAG from deployment security-operator in namespace {{.DEPLOYMENT_NAMESPACE}}"
+        if [ -z "{{.IMAGE_NAME}}" ]; then
+          echo "Error: Could not determine IMAGE_NAME from deployment security-operator in namespace {{.DEPLOYMENT_NAMESPACE}}"
           exit 1
         fi
-      - echo "Building image with tag {{.IMAGE_TAG}} using {{.CONTAINER_RUNTIME}}"
-      - "{{.CONTAINER_RUNTIME}} build -t {{.IMAGE_NAME}} ."
+      - echo "Building image {{.IMAGE_NAME}} using {{.CONTAINER_RUNTIME}}"
+      - |
+        cd ../.. && {{.CONTAINER_RUNTIME}} build -f operators/security-operator/Dockerfile -t {{.IMAGE_NAME}} .
       - |
         if [ "{{.CONTAINER_RUNTIME}}" = "podman" ]; then
           {{.CONTAINER_RUNTIME}} save {{.IMAGE_NAME}} -o /tmp/kind-image.tar
