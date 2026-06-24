@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"go.platform-mesh.io/golang-commons/logger"
-
 	"go.platform-mesh.io/search-service/internal/observability"
 )
 
@@ -112,7 +111,7 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 
 	qHash := queryHash(query)
 	fHash := filtersHash(filters)
-	var searchAfter []interface{}
+	var searchAfter []any
 	if req.Cursor != "" {
 		decoded, err := DecodeCursor(req.Cursor)
 		if err != nil {
@@ -170,7 +169,7 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 		Msg("starting search")
 
 	results := make([]SearchHit, 0, limit)
-	var nextSearchAfter []interface{}
+	var nextSearchAfter []any
 	var totalScanned int
 	var exhausted bool
 
@@ -347,7 +346,7 @@ func (s *Service) FilterValues(ctx context.Context, req FilterValuesRequest) (Fi
 	query := strings.TrimSpace(req.Query)
 	searchFields := searchableFields(indexRef.DefaultFields)
 
-	searchAfter := []interface{}(nil)
+	searchAfter := []any(nil)
 	totalScanned := 0
 	seen := make(map[string]struct{}, limit)
 	values := make([]string, 0, limit)
@@ -419,7 +418,7 @@ outer:
 func mapHit(hit OpenSearchHit, resource string) SearchHit {
 	src := hit.Source
 	if src == nil {
-		src = map[string]interface{}{}
+		src = map[string]any{}
 	}
 	return SearchHit{
 		ID:               firstString(hit.ID, stringFromMap(src, "id")),
@@ -564,7 +563,7 @@ func dedupeNonEmpty(values []string) []string {
 	return out
 }
 
-func extractFieldValues(source map[string]interface{}, fieldPath string) []string {
+func extractFieldValues(source map[string]any, fieldPath string) []string {
 	if len(source) == 0 {
 		return nil
 	}
@@ -587,34 +586,34 @@ func extractFieldValues(source map[string]interface{}, fieldPath string) []strin
 	return values
 }
 
-func collectFieldValues(current interface{}, parts []string, out map[string]struct{}) {
+func collectFieldValues(current any, parts []string, out map[string]struct{}) {
 	if len(parts) == 0 {
 		collectScalarValues(current, out)
 		return
 	}
 
 	switch typed := current.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		next, ok := typed[parts[0]]
 		if !ok {
 			return
 		}
 		collectFieldValues(next, parts[1:], out)
-	case []interface{}:
+	case []any:
 		for _, item := range typed {
 			collectFieldValues(item, parts, out)
 		}
 	}
 }
 
-func collectScalarValues(value interface{}, out map[string]struct{}) {
+func collectScalarValues(value any, out map[string]struct{}) {
 	switch typed := value.(type) {
 	case string:
 		trimmed := strings.TrimSpace(typed)
 		if trimmed != "" {
 			out[trimmed] = struct{}{}
 		}
-	case []interface{}:
+	case []any:
 		for _, item := range typed {
 			collectScalarValues(item, out)
 		}
@@ -630,7 +629,7 @@ func collectScalarValues(value interface{}, out map[string]struct{}) {
 	}
 }
 
-func stringFromMap(m map[string]interface{}, key string) string {
+func stringFromMap(m map[string]any, key string) string {
 	v, ok := m[key]
 	if !ok || v == nil {
 		return ""

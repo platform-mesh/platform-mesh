@@ -21,15 +21,14 @@ import (
 	"testing"
 
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
-
 	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 func TestBuildBatchCheckItemResourceObjectFormat(t *testing.T) {
-	hit := search.OpenSearchHit{Source: map[string]interface{}{
+	hit := search.OpenSearchHit{Source: map[string]any{
 		"fga_object": "core_platform-mesh_io_component:cluster1/ns1/comp1",
-		"permissions": []interface{}{
-			map[string]interface{}{
+		"permissions": []any{
+			map[string]any{
 				"user":     "core_platform-mesh_io_account:sap/workspaces",
 				"relation": "parent",
 				"object":   "core_platform_mesh_io_namespace:cluster1/ns1",
@@ -56,7 +55,7 @@ func TestBuildBatchCheckItemResourceObjectFormat(t *testing.T) {
 }
 
 func TestBuildBatchCheckItemDropsMissingAuthContext(t *testing.T) {
-	hit := search.OpenSearchHit{Source: map[string]interface{}{
+	hit := search.OpenSearchHit{Source: map[string]any{
 		// missing fga_object
 		"kind": "Component",
 	}}
@@ -128,10 +127,10 @@ func TestFormatUser(t *testing.T) {
 }
 
 func TestBuildAuthorizationContextFromDocumentMetadata(t *testing.T) {
-	source := map[string]interface{}{
+	source := map[string]any{
 		"fga_object": "core_platform-mesh_io_component:cluster-x/ns-y/comp-z",
-		"permissions": []interface{}{
-			map[string]interface{}{
+		"permissions": []any{
+			map[string]any{
 				"user":     "core_platform_mesh_io_account:sap/workspaces",
 				"relation": "parent",
 				"object":   "core_platform_mesh_io_namespace:cluster-x/ns-y",
@@ -150,7 +149,7 @@ func TestBuildAuthorizationContextFromDocumentMetadata(t *testing.T) {
 }
 
 func TestBuildAuthorizationContextFromDocumentMetadataNoPermissions(t *testing.T) {
-	source := map[string]interface{}{
+	source := map[string]any{
 		"fga_object": "core_platform_mesh_io_workspace:cluster-x/work-y",
 	}
 

@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"go.platform-mesh.io/golang-commons/logger"
 
+	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
@@ -181,20 +181,20 @@ type authContext struct {
 	contextualTuples []*openfgav1.TupleKey
 }
 
-func buildAuthorizationContext(log *logger.Logger, source map[string]interface{}) (authContext, bool) {
+func buildAuthorizationContext(log *logger.Logger, source map[string]any) (authContext, bool) {
 	if source == nil {
 		log.Debug().Msg("auth context build failed: source is nil")
 		return authContext{}, false
 	}
 
 	fgaObject := readString(source, "fga_object")
-	permissionsRaw, hasPermissions := source["permissions"].([]interface{})
+	permissionsRaw, hasPermissions := source["permissions"].([]any)
 
 	if fgaObject != "" {
 		tuples := make([]*openfgav1.TupleKey, 0)
 		if hasPermissions {
 			for _, p := range permissionsRaw {
-				m, ok := p.(map[string]interface{})
+				m, ok := p.(map[string]any)
 				if !ok {
 					continue
 				}
@@ -215,7 +215,7 @@ func formatUser(user string) string {
 	return strings.ReplaceAll(user, ":", ".")
 }
 
-func readString(source map[string]interface{}, key string) string {
+func readString(source map[string]any, key string) string {
 	v, ok := source[key]
 	if !ok || v == nil {
 		return ""

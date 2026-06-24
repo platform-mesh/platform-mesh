@@ -26,7 +26,6 @@ import (
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/jwt"
-
 	appcontext "go.platform-mesh.io/search-service/internal/context"
 )
 

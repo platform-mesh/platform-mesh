@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"go.platform-mesh.io/search-service/internal/config"
+
 	"k8s.io/client-go/rest"
 )
 
@@ -33,28 +34,28 @@ func TestListIndicesBuildsResourceDescriptors(t *testing.T) {
 		case "/clusters/root:orgs/apis/tenancy.kcp.io/v1alpha1/workspaces/acme":
 			writeJSON(t, w, workspacePayload("acme", "cluster-123"))
 		case "/clusters/root:orgs/apis/core.platform-mesh.io/v1alpha1/searchindexes":
-			writeJSON(t, w, searchIndexListPayload(map[string]interface{}{
-				"items": []map[string]interface{}{
+			writeJSON(t, w, searchIndexListPayload(map[string]any{
+				"items": []map[string]any{
 					{
-						"metadata": map[string]interface{}{"name": "pm-cluster-123-accounts"},
-						"spec": map[string]interface{}{
+						"metadata": map[string]any{"name": "pm-cluster-123-accounts"},
+						"spec": map[string]any{
 							"indexPrefix":           "pm",
 							"organizationClusterID": "cluster-123",
 							"defaultFields":         []string{"displayName", "description"},
 							"filterableFields":      []string{"status"},
 							"semanticFields":        []string{"description"},
 						},
-						"status": map[string]interface{}{"indexName": "pm-cluster-123-accounts"},
+						"status": map[string]any{"indexName": "pm-cluster-123-accounts"},
 					},
 					{
-						"metadata": map[string]interface{}{"name": "pm-cluster-123-products"},
-						"spec": map[string]interface{}{
+						"metadata": map[string]any{"name": "pm-cluster-123-products"},
+						"spec": map[string]any{
 							"indexPrefix":           "pm",
 							"organizationClusterID": "cluster-123",
 							"defaultFields":         []string{"name"},
 							"filterableFields":      []string{"category"},
 						},
-						"status": map[string]interface{}{"indexName": "pm-cluster-123-products"},
+						"status": map[string]any{"indexName": "pm-cluster-123-products"},
 					},
 				},
 			}))
@@ -83,15 +84,15 @@ func TestResolveIndexByResource(t *testing.T) {
 		case "/clusters/root:orgs/apis/tenancy.kcp.io/v1alpha1/workspaces/acme":
 			writeJSON(t, w, workspacePayload("acme", "cluster-123"))
 		case "/clusters/root:orgs/apis/core.platform-mesh.io/v1alpha1/searchindexes":
-			writeJSON(t, w, searchIndexListPayload(map[string]interface{}{
-				"items": []map[string]interface{}{
+			writeJSON(t, w, searchIndexListPayload(map[string]any{
+				"items": []map[string]any{
 					{
-						"metadata": map[string]interface{}{"name": "pm-cluster-123-accounts"},
-						"spec": map[string]interface{}{
+						"metadata": map[string]any{"name": "pm-cluster-123-accounts"},
+						"spec": map[string]any{
 							"indexPrefix":           "pm",
 							"organizationClusterID": "cluster-123",
 						},
-						"status": map[string]interface{}{"indexName": "pm-cluster-123-accounts"},
+						"status": map[string]any{"indexName": "pm-cluster-123-accounts"},
 					},
 				},
 			}))
@@ -120,23 +121,23 @@ func TestListIndicesReturnsErrorWhenResourceIsAmbiguous(t *testing.T) {
 		case "/clusters/root:orgs/apis/tenancy.kcp.io/v1alpha1/workspaces/acme":
 			writeJSON(t, w, workspacePayload("acme", "cluster-123"))
 		case "/clusters/root:orgs/apis/core.platform-mesh.io/v1alpha1/searchindexes":
-			writeJSON(t, w, searchIndexListPayload(map[string]interface{}{
-				"items": []map[string]interface{}{
+			writeJSON(t, w, searchIndexListPayload(map[string]any{
+				"items": []map[string]any{
 					{
-						"metadata": map[string]interface{}{"name": "pm-cluster-123-accounts"},
-						"spec": map[string]interface{}{
+						"metadata": map[string]any{"name": "pm-cluster-123-accounts"},
+						"spec": map[string]any{
 							"indexPrefix":           "pm",
 							"organizationClusterID": "cluster-123",
 						},
-						"status": map[string]interface{}{"indexName": "pm-cluster-123-accounts-a"},
+						"status": map[string]any{"indexName": "pm-cluster-123-accounts-a"},
 					},
 					{
-						"metadata": map[string]interface{}{"name": "pm-cluster-123-accounts"},
-						"spec": map[string]interface{}{
+						"metadata": map[string]any{"name": "pm-cluster-123-accounts"},
+						"spec": map[string]any{
 							"indexPrefix":           "pm",
 							"organizationClusterID": "cluster-123",
 						},
-						"status": map[string]interface{}{"indexName": "pm-cluster-123-accounts-b"},
+						"status": map[string]any{"indexName": "pm-cluster-123-accounts-b"},
 					},
 				},
 			}))
@@ -168,7 +169,7 @@ func newTestResolver(t *testing.T, base string) *SearchIndexResolver {
 	return resolver
 }
 
-func writeJSON(t *testing.T, w http.ResponseWriter, payload interface{}) {
+func writeJSON(t *testing.T, w http.ResponseWriter, payload any) {
 	t.Helper()
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
@@ -176,20 +177,20 @@ func writeJSON(t *testing.T, w http.ResponseWriter, payload interface{}) {
 	}
 }
 
-func workspacePayload(name, clusterID string) map[string]interface{} {
-	return map[string]interface{}{
+func workspacePayload(name, clusterID string) map[string]any {
+	return map[string]any{
 		"apiVersion": "tenancy.kcp.io/v1alpha1",
 		"kind":       "Workspace",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name": name,
 		},
-		"spec": map[string]interface{}{
+		"spec": map[string]any{
 			"cluster": clusterID,
 		},
 	}
 }
 
-func searchIndexListPayload(payload map[string]interface{}) map[string]interface{} {
+func searchIndexListPayload(payload map[string]any) map[string]any {
 	payload["apiVersion"] = "core.platform-mesh.io/v1alpha1"
 	payload["kind"] = "SearchIndexList"
 	return payload

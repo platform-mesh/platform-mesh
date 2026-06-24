@@ -34,21 +34,21 @@ type SearchResponse struct {
 }
 
 type SearchHit struct {
-	ID               string                 `json:"id"`
-	Score            float64                `json:"score"`
-	Resource         string                 `json:"resource,omitempty"`
-	Kind             string                 `json:"kind,omitempty"`
-	Name             string                 `json:"name,omitempty"`
-	Namespace        string                 `json:"namespace,omitempty"`
-	APIGroup         string                 `json:"apiGroup,omitempty"`
-	APIVersion       string                 `json:"apiVersion,omitempty"`
-	WorkspacePath    string                 `json:"workspacePath,omitempty"`
-	ClusterName      string                 `json:"clusterName,omitempty"`
-	OrganizationID   string                 `json:"organizationId,omitempty"`
-	OrganizationName string                 `json:"organizationName,omitempty"`
-	AccountID        string                 `json:"accountId,omitempty"`
-	AccountName      string                 `json:"accountName,omitempty"`
-	Source           map[string]interface{} `json:"source"`
+	ID               string         `json:"id"`
+	Score            float64        `json:"score"`
+	Resource         string         `json:"resource,omitempty"`
+	Kind             string         `json:"kind,omitempty"`
+	Name             string         `json:"name,omitempty"`
+	Namespace        string         `json:"namespace,omitempty"`
+	APIGroup         string         `json:"apiGroup,omitempty"`
+	APIVersion       string         `json:"apiVersion,omitempty"`
+	WorkspacePath    string         `json:"workspacePath,omitempty"`
+	ClusterName      string         `json:"clusterName,omitempty"`
+	OrganizationID   string         `json:"organizationId,omitempty"`
+	OrganizationName string         `json:"organizationName,omitempty"`
+	AccountID        string         `json:"accountId,omitempty"`
+	AccountName      string         `json:"accountName,omitempty"`
+	Source           map[string]any `json:"source"`
 }
 
 type SearchResourcesRequest struct {
@@ -96,8 +96,8 @@ type OpenSearchHit struct {
 	Index  string
 	ID     string
 	Score  float64
-	Sort   []interface{}
-	Source map[string]interface{}
+	Sort   []any
+	Source map[string]any
 }
 
 type OpenSearchPage struct {
@@ -111,7 +111,7 @@ type OpenSearchQuery struct {
 	Fields           []string
 	Filters          map[string][]string
 	Size             int
-	SearchAfter      []interface{}
+	SearchAfter      []any
 	AggregationField string
 }
 

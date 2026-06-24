@@ -25,13 +25,13 @@ import (
 const cursorVersion = 1
 
 type CursorState struct {
-	Version     int           `json:"v"`
-	Org         string        `json:"org"`
-	QueryHash   string        `json:"qh"`
-	Resource    string        `json:"r,omitempty"`
-	FiltersHash string        `json:"fh,omitempty"`
-	Limit       int           `json:"l"`
-	SearchAfter []interface{} `json:"sa"`
+	Version     int    `json:"v"`
+	Org         string `json:"org"`
+	QueryHash   string `json:"qh"`
+	Resource    string `json:"r,omitempty"`
+	FiltersHash string `json:"fh,omitempty"`
+	Limit       int    `json:"l"`
+	SearchAfter []any  `json:"sa"`
 }
 
 func EncodeCursor(state CursorState) (string, error) {

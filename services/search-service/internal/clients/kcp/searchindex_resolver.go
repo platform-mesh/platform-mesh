@@ -23,17 +23,17 @@ import (
 	"sort"
 	"strings"
 
-	"go.platform-mesh.io/apis/search/v1alpha1"
+	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-service/internal/config"
+	"go.platform-mesh.io/search-service/internal/service/search"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
-
-	"go.platform-mesh.io/search-service/internal/config"
-	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 type SearchIndexResolver struct {
@@ -152,8 +152,8 @@ func (s *SearchIndexResolver) resolveOrganizationClusterID(ctx context.Context, 
 	return clusterID, nil
 }
 
-func (s *SearchIndexResolver) listSearchIndices(ctx context.Context, orgClusterID string) (v1alpha1.SearchIndexList, error) {
-	var list v1alpha1.SearchIndexList
+func (s *SearchIndexResolver) listSearchIndices(ctx context.Context, orgClusterID string) (pmsearchv1alpha1.SearchIndexList, error) {
+	var list pmsearchv1alpha1.SearchIndexList
 
 	listOpts := metav1.ListOptions{}
 	if orgClusterID != "" {
@@ -165,9 +165,9 @@ func (s *SearchIndexResolver) listSearchIndices(ctx context.Context, orgClusterI
 		return list, err
 	}
 
-	items := make([]v1alpha1.SearchIndex, 0, len(objList.Items))
+	items := make([]pmsearchv1alpha1.SearchIndex, 0, len(objList.Items))
 	for _, item := range objList.Items {
-		searchIndex := v1alpha1.SearchIndex{}
+		searchIndex := pmsearchv1alpha1.SearchIndex{}
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Object, &searchIndex); err != nil {
 			return list, fmt.Errorf("decode SearchIndex %q: %w", item.GetName(), err)
 		}
@@ -178,7 +178,7 @@ func (s *SearchIndexResolver) listSearchIndices(ctx context.Context, orgClusterI
 	return list, nil
 }
 
-func mapSearchIndexRef(item v1alpha1.SearchIndex, orgClusterID string, cfg config.SearchIndexConfig) (search.SearchIndexRef, bool) {
+func mapSearchIndexRef(item pmsearchv1alpha1.SearchIndex, orgClusterID string, cfg config.SearchIndexConfig) (search.SearchIndexRef, bool) {
 	indexName := strings.TrimSpace(item.Status.IndexName)
 	if indexName == "" {
 		indexName = strings.TrimSpace(item.Name)

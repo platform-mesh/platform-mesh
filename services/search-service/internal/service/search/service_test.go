@@ -73,12 +73,12 @@ func (f *fakeAuthorizer) FilterAuthorized(ctx context.Context, req Authorization
 func TestSearchFillsAuthorizedPageAcrossBatches(t *testing.T) {
 	searcher := &fakeSearcher{pages: []OpenSearchPage{
 		{Hits: []OpenSearchHit{
-			{ID: "1", Score: 1, Sort: []interface{}{1.0, "1"}, Source: map[string]interface{}{"id": "1"}},
-			{ID: "2", Score: 1, Sort: []interface{}{0.9, "2"}, Source: map[string]interface{}{"id": "2"}},
+			{ID: "1", Score: 1, Sort: []any{1.0, "1"}, Source: map[string]any{"id": "1"}},
+			{ID: "2", Score: 1, Sort: []any{0.9, "2"}, Source: map[string]any{"id": "2"}},
 		}},
 		{Hits: []OpenSearchHit{
-			{ID: "3", Score: 1, Sort: []interface{}{0.8, "3"}, Source: map[string]interface{}{"id": "3"}},
-			{ID: "4", Score: 1, Sort: []interface{}{0.7, "4"}, Source: map[string]interface{}{"id": "4"}},
+			{ID: "3", Score: 1, Sort: []any{0.8, "3"}, Source: map[string]any{"id": "3"}},
+			{ID: "4", Score: 1, Sort: []any{0.7, "4"}, Source: map[string]any{"id": "4"}},
 		}},
 	}}
 	authorizer := &fakeAuthorizer{results: []AuthorizationResult{
@@ -138,10 +138,10 @@ func TestSearchRejectsMissingQuery(t *testing.T) {
 func TestSearchClampsLimitToConfiguredMax(t *testing.T) {
 	searcher := &fakeSearcher{pages: []OpenSearchPage{
 		{Hits: []OpenSearchHit{
-			{ID: "1", Score: 1, Sort: []interface{}{1.0, "1"}, Source: map[string]interface{}{"id": "1"}},
+			{ID: "1", Score: 1, Sort: []any{1.0, "1"}, Source: map[string]any{"id": "1"}},
 		}},
 		{Hits: []OpenSearchHit{
-			{ID: "2", Score: 1, Sort: []interface{}{0.9, "2"}, Source: map[string]interface{}{"id": "2"}},
+			{ID: "2", Score: 1, Sort: []any{0.9, "2"}, Source: map[string]any{"id": "2"}},
 		}},
 	}}
 	authorizer := &fakeAuthorizer{results: []AuthorizationResult{
@@ -182,9 +182,9 @@ func TestSearchClampsLimitToConfiguredMax(t *testing.T) {
 func TestFilterValuesPostFiltersAndEnforcesLimit(t *testing.T) {
 	searcher := &fakeSearcher{pages: []OpenSearchPage{
 		{Hits: []OpenSearchHit{
-			{ID: "1", Source: map[string]interface{}{"status": "Terminated"}},
-			{ID: "2", Source: map[string]interface{}{"status": "Active"}},
-			{ID: "3", Source: map[string]interface{}{"status": "Pending"}},
+			{ID: "1", Source: map[string]any{"status": "Terminated"}},
+			{ID: "2", Source: map[string]any{"status": "Active"}},
+			{ID: "3", Source: map[string]any{"status": "Pending"}},
 		}},
 	}}
 

@@ -33,7 +33,7 @@ func TestBuildQueryBodyWithoutSearchAfter(t *testing.T) {
 		t.Fatalf("BuildQueryBody returned error: %v", err)
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatalf("invalid json: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestBuildQueryBodyWithoutSearchAfter(t *testing.T) {
 		t.Fatalf("search_after should not be set")
 	}
 
-	sort := payload["sort"].([]interface{})
+	sort := payload["sort"].([]any)
 	if len(sort) != 3 {
 		t.Fatalf("expected 3 sort fields")
 	}
@@ -56,7 +56,7 @@ func TestBuildQueryBodyWithSearchAfter(t *testing.T) {
 		Query:       "hello",
 		Fields:      []string{"name"},
 		Size:        10,
-		SearchAfter: []interface{}{1.0, "id-1", "idx"},
+		SearchAfter: []any{1.0, "id-1", "idx"},
 		Filters: map[string][]string{
 			"status": {"Ready"},
 		},
@@ -65,18 +65,18 @@ func TestBuildQueryBodyWithSearchAfter(t *testing.T) {
 		t.Fatalf("BuildQueryBody returned error: %v", err)
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatalf("invalid json: %v", err)
 	}
 
-	searchAfter := payload["search_after"].([]interface{})
+	searchAfter := payload["search_after"].([]any)
 	if len(searchAfter) != 3 {
 		t.Fatalf("expected 3 search_after values")
 	}
 
-	query := payload["query"].(map[string]interface{})
-	boolQuery := query["bool"].(map[string]interface{})
+	query := payload["query"].(map[string]any)
+	boolQuery := query["bool"].(map[string]any)
 	if _, ok := boolQuery["filter"]; !ok {
 		t.Fatalf("expected filter clause")
 	}
@@ -91,12 +91,12 @@ func TestBuildQueryBodyWithoutQueryUsesMatchAll(t *testing.T) {
 		t.Fatalf("BuildQueryBody returned error: %v", err)
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatalf("invalid json: %v", err)
 	}
 
-	query := payload["query"].(map[string]interface{})
+	query := payload["query"].(map[string]any)
 	if _, ok := query["match_all"]; !ok {
 		t.Fatalf("expected match_all query")
 	}

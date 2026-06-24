@@ -24,7 +24,7 @@ func TestCursorRoundTrip(t *testing.T) {
 		Org:         "acme",
 		QueryHash:   queryHash("foo"),
 		Limit:       20,
-		SearchAfter: []interface{}{1.23, "abc"},
+		SearchAfter: []any{1.23, "abc"},
 	}
 
 	encoded, err := EncodeCursor(state)
@@ -46,7 +46,7 @@ func TestCursorRoundTrip(t *testing.T) {
 }
 
 func TestValidateCursorMismatch(t *testing.T) {
-	state := CursorState{Version: cursorVersion, Org: "acme", QueryHash: queryHash("foo"), Limit: 20, SearchAfter: []interface{}{1.0, "x"}}
+	state := CursorState{Version: cursorVersion, Org: "acme", QueryHash: queryHash("foo"), Limit: 20, SearchAfter: []any{1.0, "x"}}
 	if err := ValidateCursor(state, "other", queryHash("foo"), "", "", 20); err == nil {
 		t.Fatalf("expected org mismatch error")
 	}

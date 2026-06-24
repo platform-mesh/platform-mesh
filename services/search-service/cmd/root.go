@@ -18,9 +18,9 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+
 	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
-
 	"go.platform-mesh.io/search-service/internal/config"
 )
 

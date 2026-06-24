@@ -80,26 +80,26 @@ func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 	fields := dedupeStrings(req.Fields)
 	filters := normalizeFilters(req.Filters)
 
-	var queryClause map[string]interface{}
+	var queryClause map[string]any
 	if query == "" {
-		queryClause = map[string]interface{}{
-			"match_all": map[string]interface{}{},
+		queryClause = map[string]any{
+			"match_all": map[string]any{},
 		}
 	} else {
-		simple := map[string]interface{}{
+		simple := map[string]any{
 			"query":            query,
 			"default_operator": "and",
 		}
 		if len(fields) > 0 {
 			simple["fields"] = fields
 		}
-		queryClause = map[string]interface{}{
+		queryClause = map[string]any{
 			"simple_query_string": simple,
 		}
 	}
 
 	if len(filters) > 0 {
-		filterClauses := make([]map[string]interface{}, 0, len(filters))
+		filterClauses := make([]map[string]any, 0, len(filters))
 		keys := make([]string, 0, len(filters))
 		for key := range filters {
 			keys = append(keys, key)
@@ -115,22 +115,22 @@ func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 			if !strings.HasSuffix(keywordField, ".keyword") {
 				keywordField += ".keyword"
 			}
-			filterClauses = append(filterClauses, map[string]interface{}{
-				"terms": map[string]interface{}{
+			filterClauses = append(filterClauses, map[string]any{
+				"terms": map[string]any{
 					keywordField: values,
 				},
 			})
 		}
 
-		queryClause = map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must":   []interface{}{queryClause},
+		queryClause = map[string]any{
+			"bool": map[string]any{
+				"must":   []any{queryClause},
 				"filter": filterClauses,
 			},
 		}
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"size":  req.Size,
 		"query": queryClause,
 		"sort": []map[string]string{
@@ -153,9 +153,9 @@ func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 		if aggSize <= 0 {
 			aggSize = 10
 		}
-		body["aggs"] = map[string]interface{}{
-			"values": map[string]interface{}{
-				"terms": map[string]interface{}{
+		body["aggs"] = map[string]any{
+			"values": map[string]any{
+				"terms": map[string]any{
 					"field": keywordField,
 					"size":  aggSize,
 				},
@@ -212,11 +212,11 @@ func (c *Client) Search(ctx context.Context, query search.OpenSearchQuery) (sear
 	var payload struct {
 		Hits struct {
 			Hits []struct {
-				Index  string                 `json:"_index"`
-				ID     string                 `json:"_id"`
-				Score  float64                `json:"_score"`
-				Sort   []interface{}          `json:"sort"`
-				Source map[string]interface{} `json:"_source"`
+				Index  string         `json:"_index"`
+				ID     string         `json:"_id"`
+				Score  float64        `json:"_score"`
+				Sort   []any          `json:"sort"`
+				Source map[string]any `json:"_source"`
 			} `json:"hits"`
 		} `json:"hits"`
 		Aggregations map[string]struct {

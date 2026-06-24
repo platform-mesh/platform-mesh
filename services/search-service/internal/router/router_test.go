@@ -68,7 +68,7 @@ func withRequestContext(rc appcontext.RequestContext) func(http.Handler) http.Ha
 }
 
 func TestCreateRouterSearchSuccess(t *testing.T) {
-	svc := &fakeSearchService{response: search.SearchResponse{Results: []search.SearchHit{{ID: "1", Score: 1, Source: map[string]interface{}{"id": "1"}}}}}
+	svc := &fakeSearchService{response: search.SearchResponse{Results: []search.SearchHit{{ID: "1", Score: 1, Source: map[string]any{"id": "1"}}}}}
 	r := CreateRouter(svc, []func(http.Handler) http.Handler{withRequestContext(appcontext.RequestContext{Organization: "acme", User: "alice@example.com"})})
 
 	req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=hello&limit=15&cursor=abc&resource=accounts&filter.status=Ready", nil)
@@ -106,7 +106,7 @@ func TestCreateRouterSearchResponseContract(t *testing.T) {
 				Score:  12.34,
 				Kind:   "Component",
 				Name:   "my-component",
-				Source: map[string]interface{}{"id": "res-1", "kind": "Component"},
+				Source: map[string]any{"id": "res-1", "kind": "Component"},
 			}},
 			NextCursor: &next,
 		},
@@ -120,7 +120,7 @@ func TestCreateRouterSearchResponseContract(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rr.Code)
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("response is not valid json: %v", err)
 	}
@@ -132,11 +132,11 @@ func TestCreateRouterSearchResponseContract(t *testing.T) {
 		t.Fatalf("missing nextCursor field")
 	}
 
-	results, ok := payload["results"].([]interface{})
+	results, ok := payload["results"].([]any)
 	if !ok || len(results) != 1 {
 		t.Fatalf("expected results array with one element")
 	}
-	first, ok := results[0].(map[string]interface{})
+	first, ok := results[0].(map[string]any)
 	if !ok {
 		t.Fatalf("expected object result")
 	}

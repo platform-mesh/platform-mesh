@@ -25,7 +25,6 @@ import (
 
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/logger"
-
 	appcontext "go.platform-mesh.io/search-service/internal/context"
 	"go.platform-mesh.io/search-service/internal/service/search"
 )
