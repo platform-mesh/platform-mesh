@@ -19,7 +19,7 @@ package lifecycle
 import (
 	"context"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Action represents the type of operation a subroutine performs.
@@ -50,6 +50,6 @@ type ErrorReporter interface {
 // ErrorInfo provides context about the subroutine that failed.
 type ErrorInfo struct {
 	Subroutine string
-	Object     client.Object
+	Object     ctrlruntimeclient.Object
 	Action     Action
 }

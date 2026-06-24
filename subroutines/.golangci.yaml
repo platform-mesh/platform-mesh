@@ -28,11 +28,4 @@ linters:
 
 formatters:
   enable:
-    - gci
     - gofmt
-  settings:
-    gci:
-      sections:
-        - standard
-        - default
-        - prefix(k8s.io)

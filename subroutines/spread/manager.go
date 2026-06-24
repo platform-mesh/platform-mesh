@@ -21,9 +21,8 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -70,7 +69,7 @@ func NewManager(opts ...Option) *Manager {
 }
 
 // ReconcileRequired returns true if the object should be reconciled now.
-func (m *Manager) ReconcileRequired(obj client.Object) bool {
+func (m *Manager) ReconcileRequired(obj ctrlruntimeclient.Object) bool {
 	s, ok := obj.(SpreadReconcileStatus)
 	if !ok {
 		return true
@@ -96,7 +95,7 @@ func (m *Manager) ReconcileRequired(obj client.Object) bool {
 }
 
 // RequeueDelay returns the remaining time until the next scheduled reconciliation.
-func (m *Manager) RequeueDelay(obj client.Object) time.Duration {
+func (m *Manager) RequeueDelay(obj ctrlruntimeclient.Object) time.Duration {
 	s, ok := obj.(SpreadReconcileStatus)
 	if !ok {
 		return 0
@@ -115,7 +114,7 @@ func (m *Manager) RequeueDelay(obj client.Object) time.Duration {
 }
 
 // SetNextReconcileTime sets a random next reconcile time within the configured range.
-func (m *Manager) SetNextReconcileTime(obj client.Object) {
+func (m *Manager) SetNextReconcileTime(obj ctrlruntimeclient.Object) {
 	s, ok := obj.(SpreadReconcileStatus)
 	if !ok {
 		return
@@ -130,7 +129,7 @@ func (m *Manager) SetNextReconcileTime(obj client.Object) {
 }
 
 // UpdateObservedGeneration sets the observed generation to the current generation.
-func (m *Manager) UpdateObservedGeneration(obj client.Object) {
+func (m *Manager) UpdateObservedGeneration(obj ctrlruntimeclient.Object) {
 	s, ok := obj.(SpreadReconcileStatus)
 	if !ok {
 		return
@@ -139,7 +138,7 @@ func (m *Manager) UpdateObservedGeneration(obj client.Object) {
 }
 
 // RemoveRefreshLabel removes the refresh label and returns true if it was present.
-func (m *Manager) RemoveRefreshLabel(obj client.Object) bool {
+func (m *Manager) RemoveRefreshLabel(obj ctrlruntimeclient.Object) bool {
 	labels := obj.GetLabels()
 	if labels == nil {
 		return false

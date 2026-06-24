@@ -24,12 +24,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"go.platform-mesh.io/subroutines"
 	"go.platform-mesh.io/subroutines/conditions"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -37,6 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
 // --- Test CRD ---
@@ -96,29 +97,29 @@ func (t *testObject) SetNextReconcileTime(ts metav1.Time) { t.Status.NextReconci
 
 type processorSub struct {
 	name string
-	fn   func(ctx context.Context, obj client.Object) (subroutines.Result, error)
+	fn   func(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error)
 }
 
 func (s *processorSub) GetName() string { return s.name }
-func (s *processorSub) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *processorSub) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return s.fn(ctx, obj)
 }
 
 type finalizerSub struct {
 	name       string
-	processFn  func(ctx context.Context, obj client.Object) (subroutines.Result, error)
-	finalizeFn func(ctx context.Context, obj client.Object) (subroutines.Result, error)
+	processFn  func(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error)
+	finalizeFn func(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error)
 	finalizers []string
 }
 
 func (s *finalizerSub) GetName() string { return s.name }
-func (s *finalizerSub) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *finalizerSub) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return s.processFn(ctx, obj)
 }
-func (s *finalizerSub) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *finalizerSub) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return s.finalizeFn(ctx, obj)
 }
-func (s *finalizerSub) Finalizers(client.Object) []string { return s.finalizers }
+func (s *finalizerSub) Finalizers(ctrlruntimeclient.Object) []string { return s.finalizers }
 
 type fakeErrorReporter struct {
 	reported []ErrorInfo
@@ -158,9 +159,9 @@ func newReq(name, ns string) mcreconcile.Request {
 	}
 }
 
-func setupLifecycle(cl client.Client, subs ...subroutines.Subroutine) *Lifecycle {
+func setupLifecycle(cl ctrlruntimeclient.Client, subs ...subroutines.Subroutine) *Lifecycle {
 	mgr := &fakeManager{cl: cl}
-	return New(mgr, "test-controller", func() client.Object { return &testObject{} }, subs...)
+	return New(mgr, "test-controller", func() ctrlruntimeclient.Object { return &testObject{} }, subs...)
 }
 
 // --- Tests ---
@@ -180,7 +181,9 @@ func TestSingleProcessor(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn:   func(context.Context, client.Object) (subroutines.Result, error) { return subroutines.OK(), nil },
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
+			return subroutines.OK(), nil
+		},
 	}
 
 	lc := setupLifecycle(cl, sub).WithConditions(conditions.NewManager())
@@ -204,14 +207,14 @@ func TestProcessorError_StopsChain(t *testing.T) {
 	callOrder := []string{}
 	sub1 := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			callOrder = append(callOrder, "step1")
 			return subroutines.OK(), errors.New("step1 failed")
 		},
 	}
 	sub2 := &processorSub{
 		name: "step2",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			callOrder = append(callOrder, "step2")
 			return subroutines.OK(), nil
 		},
@@ -242,14 +245,14 @@ func TestStopWithRequeue_BreaksChain(t *testing.T) {
 	callOrder := []string{}
 	sub1 := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			callOrder = append(callOrder, "step1")
 			return subroutines.StopWithRequeue(30*time.Second, "rate limited"), nil
 		},
 	}
 	sub2 := &processorSub{
 		name: "step2",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			callOrder = append(callOrder, "step2")
 			return subroutines.OK(), nil
 		},
@@ -276,7 +279,7 @@ func TestStop_BreaksChainNoRequeue(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.Stop("precondition failed"), nil
 		},
 	}
@@ -295,14 +298,14 @@ func TestPending_ContinuesChain(t *testing.T) {
 	callOrder := []string{}
 	sub1 := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			callOrder = append(callOrder, "step1")
 			return subroutines.Pending(10*time.Second, "waiting"), nil
 		},
 	}
 	sub2 := &processorSub{
 		name: "step2",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			callOrder = append(callOrder, "step2")
 			return subroutines.OK(), nil
 		},
@@ -329,13 +332,13 @@ func TestMultiplePending_MinRequeue(t *testing.T) {
 
 	sub1 := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.Pending(30*time.Second, "waiting A"), nil
 		},
 	}
 	sub2 := &processorSub{
 		name: "step2",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.Pending(10*time.Second, "waiting B"), nil
 		},
 	}
@@ -358,11 +361,11 @@ func TestFinalizeFlow(t *testing.T) {
 	finalizeCalled := false
 	sub := &finalizerSub{
 		name: "sub1",
-		processFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		processFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			t.Fatal("Process should not be called during finalization")
 			return subroutines.OK(), nil
 		},
-		finalizeFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		finalizeFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			finalizeCalled = true
 			return subroutines.OK(), nil
 		},
@@ -393,10 +396,10 @@ func TestFinalizeWithRequeue_KeepsFinalizer(t *testing.T) {
 
 	sub := &finalizerSub{
 		name: "sub1",
-		processFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		processFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.OK(), nil
 		},
-		finalizeFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		finalizeFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.Pending(5*time.Second, "still cleaning up"), nil
 		},
 		finalizers: []string{"test.io/sub1"},
@@ -420,7 +423,7 @@ func TestReadOnlyMode(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(_ context.Context, o client.Object) (subroutines.Result, error) {
+		fn: func(_ context.Context, o ctrlruntimeclient.Object) (subroutines.Result, error) {
 			// Modify labels — should NOT be patched in read-only mode.
 			labels := o.GetLabels()
 			if labels == nil {
@@ -452,7 +455,7 @@ func TestPrepareContext(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(ctx context.Context, _ client.Object) (subroutines.Result, error) {
+		fn: func(ctx context.Context, _ ctrlruntimeclient.Object) (subroutines.Result, error) {
 			val := ctx.Value(ctxKey{})
 			assert.Equal(t, "enriched", val)
 			return subroutines.OK(), nil
@@ -460,7 +463,7 @@ func TestPrepareContext(t *testing.T) {
 	}
 
 	lc := setupLifecycle(cl, sub).
-		WithPrepareContext(func(ctx context.Context, _ client.Object) (context.Context, error) {
+		WithPrepareContext(func(ctx context.Context, _ ctrlruntimeclient.Object) (context.Context, error) {
 			prepareCalled = true
 			return context.WithValue(ctx, ctxKey{}, "enriched"), nil
 		})
@@ -476,7 +479,9 @@ func TestNoConditionsConfigured(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn:   func(context.Context, client.Object) (subroutines.Result, error) { return subroutines.OK(), nil },
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
+			return subroutines.OK(), nil
+		},
 	}
 
 	// No WithConditions call.
@@ -497,7 +502,7 @@ func TestErrorReporter_NotCalledOnStop(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.Stop("halted"), nil
 		},
 	}
@@ -517,11 +522,11 @@ func TestAddFinalizers(t *testing.T) {
 	processCalled := false
 	sub := &finalizerSub{
 		name: "sub1",
-		processFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		processFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			processCalled = true
 			return subroutines.OK(), nil
 		},
-		finalizeFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		finalizeFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.OK(), nil
 		},
 		finalizers: []string{"test.io/sub1"},
@@ -547,7 +552,7 @@ func TestOKWithRequeue(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.OKWithRequeue(15 * time.Second), nil
 		},
 	}
@@ -565,7 +570,7 @@ func TestClientInContext(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(ctx context.Context, _ client.Object) (subroutines.Result, error) {
+		fn: func(ctx context.Context, _ ctrlruntimeclient.Object) (subroutines.Result, error) {
 			ctxClient, err := subroutines.ClientFromContext(ctx)
 			require.NoError(t, err)
 			assert.NotNil(t, ctxClient)
@@ -590,10 +595,10 @@ func TestFinalizeOrder_Reversed(t *testing.T) {
 	callOrder := []string{}
 	sub1 := &finalizerSub{
 		name: "sub1",
-		processFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		processFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.OK(), nil
 		},
-		finalizeFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		finalizeFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			callOrder = append(callOrder, "sub1")
 			return subroutines.OK(), nil
 		},
@@ -601,10 +606,10 @@ func TestFinalizeOrder_Reversed(t *testing.T) {
 	}
 	sub2 := &finalizerSub{
 		name: "sub2",
-		processFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		processFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.OK(), nil
 		},
-		finalizeFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		finalizeFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			callOrder = append(callOrder, "sub2")
 			return subroutines.OK(), nil
 		},
@@ -631,7 +636,7 @@ func TestNonFinalizerSub_SkippedDuringDeletion(t *testing.T) {
 	called := false
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			called = true
 			return subroutines.OK(), nil
 		},
@@ -648,31 +653,31 @@ func TestNonFinalizerSub_SkippedDuringDeletion(t *testing.T) {
 
 type initializerSub struct {
 	name         string
-	processFn    func(context.Context, client.Object) (subroutines.Result, error)
-	initializeFn func(context.Context, client.Object) (subroutines.Result, error)
+	processFn    func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error)
+	initializeFn func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error)
 }
 
 func (s *initializerSub) GetName() string { return s.name }
-func (s *initializerSub) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *initializerSub) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return s.processFn(ctx, obj)
 }
-func (s *initializerSub) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *initializerSub) Initialize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return s.initializeFn(ctx, obj)
 }
 
 type terminatorSub struct {
 	name        string
-	finalizeFn  func(context.Context, client.Object) (subroutines.Result, error)
-	terminateFn func(context.Context, client.Object) (subroutines.Result, error)
+	finalizeFn  func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error)
+	terminateFn func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error)
 	finalizers  []string
 }
 
 func (s *terminatorSub) GetName() string { return s.name }
-func (s *terminatorSub) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *terminatorSub) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return s.finalizeFn(ctx, obj)
 }
-func (s *terminatorSub) Finalizers(client.Object) []string { return s.finalizers }
-func (s *terminatorSub) Terminate(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *terminatorSub) Finalizers(ctrlruntimeclient.Object) []string { return s.finalizers }
+func (s *terminatorSub) Terminate(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	return s.terminateFn(ctx, obj)
 }
 
@@ -686,11 +691,11 @@ func TestInitializer_CalledWhenMarkerPresent(t *testing.T) {
 	processCalled := false
 	sub := &initializerSub{
 		name: "step1",
-		processFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		processFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			processCalled = true
 			return subroutines.OK(), nil
 		},
-		initializeFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		initializeFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			initCalled = true
 			return subroutines.OK(), nil
 		},
@@ -719,11 +724,11 @@ func TestInitializer_ProcessCalledWhenNoMarker(t *testing.T) {
 	processCalled := false
 	sub := &initializerSub{
 		name: "step1",
-		processFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		processFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			processCalled = true
 			return subroutines.OK(), nil
 		},
-		initializeFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		initializeFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			initCalled = true
 			return subroutines.OK(), nil
 		},
@@ -750,11 +755,11 @@ func TestTerminator_CalledWhenMarkerPresent(t *testing.T) {
 	finalizeCalled := false
 	sub := &terminatorSub{
 		name: "sub1",
-		finalizeFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		finalizeFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			finalizeCalled = true
 			return subroutines.OK(), nil
 		},
-		terminateFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		terminateFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			terminateCalled = true
 			return subroutines.OK(), nil
 		},
@@ -782,10 +787,10 @@ func TestInitializer_NotRemovedOnPending(t *testing.T) {
 
 	sub := &initializerSub{
 		name: "step1",
-		processFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		processFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.OK(), nil
 		},
-		initializeFn: func(context.Context, client.Object) (subroutines.Result, error) {
+		initializeFn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.Pending(5*time.Second, "not ready yet"), nil
 		},
 	}
@@ -811,11 +816,19 @@ type fakeSpreadManager struct {
 	nextReconcileTimeSet bool
 }
 
-func (f *fakeSpreadManager) ReconcileRequired(client.Object) bool     { return f.reconcileRequired }
-func (f *fakeSpreadManager) RequeueDelay(client.Object) time.Duration { return f.requeueDelay }
-func (f *fakeSpreadManager) SetNextReconcileTime(client.Object)       { f.nextReconcileTimeSet = true }
-func (f *fakeSpreadManager) UpdateObservedGeneration(client.Object)   { f.observedGenUpdated = true }
-func (f *fakeSpreadManager) RemoveRefreshLabel(client.Object) bool    { return false }
+func (f *fakeSpreadManager) ReconcileRequired(ctrlruntimeclient.Object) bool {
+	return f.reconcileRequired
+}
+func (f *fakeSpreadManager) RequeueDelay(ctrlruntimeclient.Object) time.Duration {
+	return f.requeueDelay
+}
+func (f *fakeSpreadManager) SetNextReconcileTime(ctrlruntimeclient.Object) {
+	f.nextReconcileTimeSet = true
+}
+func (f *fakeSpreadManager) UpdateObservedGeneration(ctrlruntimeclient.Object) {
+	f.observedGenUpdated = true
+}
+func (f *fakeSpreadManager) RemoveRefreshLabel(ctrlruntimeclient.Object) bool { return false }
 
 func TestSpread_SkipsWhenNotDue(t *testing.T) {
 	obj := newTestObj("test", "default")
@@ -824,7 +837,7 @@ func TestSpread_SkipsWhenNotDue(t *testing.T) {
 	processCalled := false
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			processCalled = true
 			return subroutines.OK(), nil
 		},
@@ -846,7 +859,7 @@ func TestSpread_ReconcileWhenDue(t *testing.T) {
 	processCalled := false
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			processCalled = true
 			return subroutines.OK(), nil
 		},
@@ -866,7 +879,7 @@ func TestSpread_NotAdvancedOnStopWithRequeue(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.StopWithRequeue(30*time.Second, "rate limited"), nil
 		},
 	}
@@ -887,7 +900,7 @@ func TestSpread_NotAdvancedOnPendingWithRequeue(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.Pending(10*time.Second, "waiting for external resource"), nil
 		},
 	}
@@ -908,7 +921,7 @@ func TestSpread_AdvancedOnSuccess(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			return subroutines.OK(), nil
 		},
 	}
@@ -932,7 +945,7 @@ type plainObject struct {
 func (p *plainObject) DeepCopyObject() runtime.Object { cp := *p; return &cp }
 
 func TestWithConditions_PanicsForIncompatibleObject(t *testing.T) {
-	lc := New(nil, "test", func() client.Object { return &plainObject{} })
+	lc := New(nil, "test", func() ctrlruntimeclient.Object { return &plainObject{} })
 	assert.PanicsWithValue(t,
 		`lifecycle "test": object type *lifecycle.plainObject does not implement conditions.ConditionAccessor`,
 		func() { lc.WithConditions(conditions.NewManager()) },
@@ -940,7 +953,7 @@ func TestWithConditions_PanicsForIncompatibleObject(t *testing.T) {
 }
 
 func TestWithSpread_PanicsForIncompatibleObject(t *testing.T) {
-	lc := New(nil, "test", func() client.Object { return &plainObject{} })
+	lc := New(nil, "test", func() ctrlruntimeclient.Object { return &plainObject{} })
 	assert.PanicsWithValue(t,
 		`lifecycle "test": object type *lifecycle.plainObject does not implement spread.SpreadReconcileStatus`,
 		func() { lc.WithSpread(&fakeSpreadManager{}) },
@@ -954,7 +967,7 @@ func TestSpecPatch_PatchesSpecChanges(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(_ context.Context, o client.Object) (subroutines.Result, error) {
+		fn: func(_ context.Context, o ctrlruntimeclient.Object) (subroutines.Result, error) {
 			o.(*testObject).Spec.Value = "modified"
 			return subroutines.OK(), nil
 		},
@@ -977,7 +990,7 @@ func TestNoSpecPatch_IgnoresSpecChanges(t *testing.T) {
 
 	sub := &processorSub{
 		name: "step1",
-		fn: func(_ context.Context, o client.Object) (subroutines.Result, error) {
+		fn: func(_ context.Context, o ctrlruntimeclient.Object) (subroutines.Result, error) {
 			o.(*testObject).Spec.Value = "modified"
 			return subroutines.OK(), nil
 		},
@@ -1001,14 +1014,14 @@ func TestPrepareContext_Error(t *testing.T) {
 	processCalled := false
 	sub := &processorSub{
 		name: "step1",
-		fn: func(context.Context, client.Object) (subroutines.Result, error) {
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
 			processCalled = true
 			return subroutines.OK(), nil
 		},
 	}
 
 	lc := setupLifecycle(cl, sub).
-		WithPrepareContext(func(context.Context, client.Object) (context.Context, error) {
+		WithPrepareContext(func(context.Context, ctrlruntimeclient.Object) (context.Context, error) {
 			return nil, errors.New("context setup failed")
 		})
 
@@ -1020,7 +1033,7 @@ func TestPrepareContext_Error(t *testing.T) {
 
 func TestClusterFromContext_Error(t *testing.T) {
 	mgr := &fakeManagerWithError{err: errors.New("cluster not found")}
-	lc := New(mgr, "test-controller", func() client.Object { return &testObject{} })
+	lc := New(mgr, "test-controller", func() ctrlruntimeclient.Object { return &testObject{} })
 
 	_, err := lc.Reconcile(context.Background(), newReq("test", "default"))
 	require.Error(t, err)

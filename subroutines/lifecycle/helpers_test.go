@@ -19,7 +19,7 @@ package lifecycle
 import (
 	"context"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
@@ -28,7 +28,7 @@ import (
 // and only overriding ClusterFromContext.
 type fakeManager struct {
 	mcmanager.Manager
-	cl client.Client
+	cl ctrlruntimeclient.Client
 }
 
 func (f *fakeManager) ClusterFromContext(context.Context) (cluster.Cluster, error) {
@@ -37,10 +37,10 @@ func (f *fakeManager) ClusterFromContext(context.Context) (cluster.Cluster, erro
 
 type fakeCluster struct {
 	cluster.Cluster
-	cl client.Client
+	cl ctrlruntimeclient.Client
 }
 
-func (f *fakeCluster) GetClient() client.Client { return f.cl }
+func (f *fakeCluster) GetClient() ctrlruntimeclient.Client { return f.cl }
 
 type fakeManagerWithError struct {
 	mcmanager.Manager

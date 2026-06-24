@@ -20,19 +20,19 @@ import (
 	"context"
 	"errors"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type contextKey struct{}
 
 // WithClient stores a client.Client in the context.
-func WithClient(ctx context.Context, cl client.Client) context.Context {
+func WithClient(ctx context.Context, cl ctrlruntimeclient.Client) context.Context {
 	return context.WithValue(ctx, contextKey{}, cl)
 }
 
 // ClientFromContext retrieves the client.Client from the context.
-func ClientFromContext(ctx context.Context) (client.Client, error) {
-	cl, ok := ctx.Value(contextKey{}).(client.Client)
+func ClientFromContext(ctx context.Context) (ctrlruntimeclient.Client, error) {
+	cl, ok := ctx.Value(contextKey{}).(ctrlruntimeclient.Client)
 	if !ok || cl == nil {
 		return nil, errors.New("no client in context")
 	}
@@ -41,7 +41,7 @@ func ClientFromContext(ctx context.Context) (client.Client, error) {
 
 // MustClientFromContext retrieves the client.Client from the context.
 // It panics if no client is stored in the context.
-func MustClientFromContext(ctx context.Context) client.Client {
+func MustClientFromContext(ctx context.Context) ctrlruntimeclient.Client {
 	cl, err := ClientFromContext(ctx)
 	if err != nil {
 		panic(err)

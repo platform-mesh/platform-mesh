@@ -20,7 +20,9 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"go.platform-mesh.io/subroutines"
+
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 

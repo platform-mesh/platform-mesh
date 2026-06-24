@@ -20,10 +20,10 @@ import (
 	"fmt"
 
 	"go.platform-mesh.io/subroutines"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -48,7 +48,7 @@ func NewManager() *Manager {
 
 // InitUnknownConditions sets per-subroutine and Ready conditions to Unknown
 // if they are not already present.
-func (m *Manager) InitUnknownConditions(obj client.Object, subroutineNames []string) {
+func (m *Manager) InitUnknownConditions(obj ctrlruntimeclient.Object, subroutineNames []string) {
 	accessor, ok := obj.(ConditionAccessor)
 	if !ok {
 		return
@@ -63,7 +63,7 @@ func (m *Manager) InitUnknownConditions(obj client.Object, subroutineNames []str
 
 // SetSubroutineCondition maps a subroutine result/error to a condition on the object.
 // The action determines the condition name suffix (finalize/terminate actions append "Finalize").
-func (m *Manager) SetSubroutineCondition(obj client.Object, name string, result subroutines.Result, err error, isFinalize bool) {
+func (m *Manager) SetSubroutineCondition(obj ctrlruntimeclient.Object, name string, result subroutines.Result, err error, isFinalize bool) {
 	accessor, ok := obj.(ConditionAccessor)
 	if !ok {
 		return
@@ -109,7 +109,7 @@ func (m *Manager) SetSubroutineCondition(obj client.Object, name string, result 
 
 // SetSkippedConditions sets conditions for the given subroutine names to Skipped.
 // When ready is true, condition status is True; when false, condition status is False.
-func (m *Manager) SetSkippedConditions(obj client.Object, names []string, ready bool, msg string) {
+func (m *Manager) SetSkippedConditions(obj ctrlruntimeclient.Object, names []string, ready bool, msg string) {
 	accessor, ok := obj.(ConditionAccessor)
 	if !ok {
 		return
@@ -135,7 +135,7 @@ func (m *Manager) SetSkippedConditions(obj client.Object, names []string, ready 
 
 // SetReadyCondition sets the aggregate Ready condition based on the given reason.
 // The reason must be one of ReasonComplete, ReasonError, ReasonPending, or ReasonStopped.
-func (m *Manager) SetReadyCondition(obj client.Object, reason string) {
+func (m *Manager) SetReadyCondition(obj ctrlruntimeclient.Object, reason string) {
 	accessor, ok := obj.(ConditionAccessor)
 	if !ok {
 		return

@@ -26,21 +26,22 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
 	"go.platform-mesh.io/subroutines"
 	"go.platform-mesh.io/subroutines/conditions"
 	subroutinemetrics "go.platform-mesh.io/subroutines/metrics"
 	"go.platform-mesh.io/subroutines/spread"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"k8s.io/apimachinery/pkg/api/equality"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var tracer = otel.Tracer("go.platform-mesh.io/subroutines/lifecycle")
@@ -55,14 +56,14 @@ const (
 // Lifecycle orchestrates subroutine execution for a Kubernetes controller.
 type Lifecycle struct {
 	mgr            mcmanager.Manager
-	newObj         func() client.Object
+	newObj         func() ctrlruntimeclient.Object
 	controllerName string
 	subroutines    []subroutines.Subroutine
 
 	conditions     ConditionManager
 	spread         SpreadManager
 	errorReporters []ErrorReporter
-	prepareCtx     func(ctx context.Context, obj client.Object) (context.Context, error)
+	prepareCtx     func(ctx context.Context, obj ctrlruntimeclient.Object) (context.Context, error)
 	readOnly       bool
 	specPatch      bool
 	initializer    string
@@ -70,7 +71,7 @@ type Lifecycle struct {
 }
 
 // New creates a Lifecycle for the given controller.
-func New(mgr mcmanager.Manager, controllerName string, newObj func() client.Object, subs ...subroutines.Subroutine) *Lifecycle {
+func New(mgr mcmanager.Manager, controllerName string, newObj func() ctrlruntimeclient.Object, subs ...subroutines.Subroutine) *Lifecycle {
 	return &Lifecycle{
 		mgr:            mgr,
 		controllerName: controllerName,
@@ -82,7 +83,7 @@ func New(mgr mcmanager.Manager, controllerName string, newObj func() client.Obje
 // WithConditions enables condition management.
 // Panics if the object produced by newObj does not implement conditions.ConditionAccessor.
 func (l *Lifecycle) WithConditions(cm ConditionManager) *Lifecycle {
-	l.mustImplement("conditions.ConditionAccessor", func(obj client.Object) bool {
+	l.mustImplement("conditions.ConditionAccessor", func(obj ctrlruntimeclient.Object) bool {
 		_, ok := obj.(conditions.ConditionAccessor)
 		return ok
 	})
@@ -93,7 +94,7 @@ func (l *Lifecycle) WithConditions(cm ConditionManager) *Lifecycle {
 // WithSpread enables reconciliation spreading.
 // Panics if the object produced by newObj does not implement spread.SpreadReconcileStatus.
 func (l *Lifecycle) WithSpread(sm SpreadManager) *Lifecycle {
-	l.mustImplement("spread.SpreadReconcileStatus", func(obj client.Object) bool {
+	l.mustImplement("spread.SpreadReconcileStatus", func(obj ctrlruntimeclient.Object) bool {
 		_, ok := obj.(spread.SpreadReconcileStatus)
 		return ok
 	})
@@ -108,7 +109,7 @@ func (l *Lifecycle) WithErrorReporters(reporters ...ErrorReporter) *Lifecycle {
 }
 
 // WithPrepareContext sets a function to enrich the context before subroutines run.
-func (l *Lifecycle) WithPrepareContext(fn func(ctx context.Context, obj client.Object) (context.Context, error)) *Lifecycle {
+func (l *Lifecycle) WithPrepareContext(fn func(ctx context.Context, obj ctrlruntimeclient.Object) (context.Context, error)) *Lifecycle {
 	l.prepareCtx = fn
 	return l
 }
@@ -164,7 +165,7 @@ func (l *Lifecycle) Reconcile(ctx context.Context, req mcreconcile.Request) (rec
 		return reconcile.Result{}, fmt.Errorf("fetching object: %w", err)
 	}
 
-	original := obj.DeepCopyObject().(client.Object)
+	original := obj.DeepCopyObject().(ctrlruntimeclient.Object)
 	isDeleting := obj.GetDeletionTimestamp() != nil
 	generation := obj.GetGeneration()
 
@@ -376,9 +377,9 @@ func (l *Lifecycle) Reconcile(ctx context.Context, req mcreconcile.Request) (rec
 	return reconcile.Result{RequeueAfter: minRequeue}, subroutineErr
 }
 
-type actionFunc func(ctx context.Context, obj client.Object) (subroutines.Result, error)
+type actionFunc func(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error)
 
-func (l *Lifecycle) resolveAction(ctx context.Context, sub subroutines.Subroutine, obj client.Object, isDeleting bool) (actionFunc, Action) {
+func (l *Lifecycle) resolveAction(ctx context.Context, sub subroutines.Subroutine, obj ctrlruntimeclient.Object, isDeleting bool) (actionFunc, Action) {
 	if isDeleting {
 		// Terminator takes precedence when configured and marker is in status.
 		if l.terminator != "" && hasMarkerInStatus(ctx, obj, statusFieldTerminators, l.terminator) {
@@ -408,7 +409,7 @@ func (l *Lifecycle) resolveAction(ctx context.Context, sub subroutines.Subroutin
 	return nil, ""
 }
 
-func (l *Lifecycle) addFinalizers(ctx context.Context, cl client.Client, obj client.Object) (bool, error) {
+func (l *Lifecycle) addFinalizers(ctx context.Context, cl ctrlruntimeclient.Client, obj ctrlruntimeclient.Object) (bool, error) {
 	var missing []string
 	current := obj.GetFinalizers()
 	for _, sub := range l.subroutines {
@@ -425,12 +426,12 @@ func (l *Lifecycle) addFinalizers(ctx context.Context, cl client.Client, obj cli
 	if len(missing) == 0 {
 		return false, nil
 	}
-	patch := client.MergeFrom(obj.DeepCopyObject().(client.Object))
+	patch := ctrlruntimeclient.MergeFrom(obj.DeepCopyObject().(ctrlruntimeclient.Object))
 	obj.SetFinalizers(append(current, missing...))
 	return true, cl.Patch(ctx, obj, patch)
 }
 
-func (l *Lifecycle) patchChanges(ctx context.Context, cl client.Client, original, current client.Object) error {
+func (l *Lifecycle) patchChanges(ctx context.Context, cl ctrlruntimeclient.Client, original, current ctrlruntimeclient.Object) error {
 	logger := log.FromContext(ctx)
 
 	origData, err := toUnstructuredMap(original)
@@ -449,7 +450,7 @@ func (l *Lifecycle) patchChanges(ctx context.Context, cl client.Client, original
 	}
 	if needsObjectPatch {
 		logger.V(1).Info("patching object")
-		patch := client.MergeFrom(original)
+		patch := ctrlruntimeclient.MergeFrom(original)
 		if err := cl.Patch(ctx, current, patch); err != nil {
 			return fmt.Errorf("patching object: %w", err)
 		}
@@ -475,7 +476,7 @@ func (l *Lifecycle) patchChanges(ctx context.Context, cl client.Client, original
 	}
 	if !equality.Semantic.DeepEqual(getMap(origData, "status"), getMap(currData, "status")) {
 		logger.V(1).Info("patching status")
-		patch := client.MergeFrom(original)
+		patch := ctrlruntimeclient.MergeFrom(original)
 		if err := cl.Status().Patch(ctx, current, patch); err != nil {
 			return fmt.Errorf("patching status: %w", err)
 		}
@@ -484,7 +485,7 @@ func (l *Lifecycle) patchChanges(ctx context.Context, cl client.Client, original
 	return nil
 }
 
-func toUnstructuredMap(obj client.Object) (map[string]any, error) {
+func toUnstructuredMap(obj ctrlruntimeclient.Object) (map[string]any, error) {
 	return runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 }
 
@@ -497,14 +498,14 @@ func getMap(data map[string]any, key string) map[string]any {
 	return nil
 }
 
-func (l *Lifecycle) mustImplement(iface string, check func(client.Object) bool) {
+func (l *Lifecycle) mustImplement(iface string, check func(ctrlruntimeclient.Object) bool) {
 	obj := l.newObj()
 	if !check(obj) {
 		panic(fmt.Sprintf("lifecycle %q: object type %T does not implement %s", l.controllerName, obj, iface))
 	}
 }
 
-func hasAnyFinalizer(obj client.Object, fins []string) bool {
+func hasAnyFinalizer(obj ctrlruntimeclient.Object, fins []string) bool {
 	current := obj.GetFinalizers()
 	for _, f := range fins {
 		if slices.Contains(current, f) {
@@ -516,7 +517,7 @@ func hasAnyFinalizer(obj client.Object, fins []string) bool {
 
 // hasMarkerInStatus checks if a named marker exists in obj.status[field].
 // Uses unstructured conversion to avoid type assertions.
-func hasMarkerInStatus(ctx context.Context, obj client.Object, field, name string) bool {
+func hasMarkerInStatus(ctx context.Context, obj ctrlruntimeclient.Object, field, name string) bool {
 	data, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed to convert object to unstructured for marker check", "field", field, "name", name)
@@ -546,7 +547,7 @@ func hasMarkerInStatus(ctx context.Context, obj client.Object, field, name strin
 
 // removeMarkerFromStatus removes a named marker from obj.status[field] using
 // unstructured conversion. Returns true if the marker was found and removed.
-func removeMarkerFromStatus(ctx context.Context, obj client.Object, field, name string) bool {
+func removeMarkerFromStatus(ctx context.Context, obj ctrlruntimeclient.Object, field, name string) bool {
 	logger := log.FromContext(ctx)
 	data, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
