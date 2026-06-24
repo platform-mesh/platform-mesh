@@ -32,7 +32,7 @@ type ProviderPermissionsSpec struct {
 	Roles []ResourceRoles `json:"roles,omitempty"`
 
 	// Permissions defines per-resource permission configuration
-	// Key format: {group}.{resource} (e.g., "orchestrate.platform-mesh.io.httpbin")
+	// Key format: {resource}.{group} (e.g., "httpbin.orchestrate.platform-mesh.io")
 	// +optional
 	Permissions map[string]ResourcePermissions `json:"permissions,omitempty"`
 }
@@ -45,8 +45,8 @@ type APIExportReference struct {
 
 // ResourceRoles defines roles for a specific resource type.
 type ResourceRoles struct {
-	// GroupResource identifies the resource type in format "{group}.{resource}"
-	// (e.g., "orchestrate.platform-mesh.io.httpbin")
+	// GroupResource identifies the resource type in format "{resource}.{group}"
+	// (e.g., "httpbin.orchestrate.platform-mesh.io")
 	GroupResource string `json:"groupResource"`
 
 	// Roles defines the roles for this resource type

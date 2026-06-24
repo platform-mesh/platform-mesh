@@ -8,7 +8,7 @@ spec:
     kind: ProviderPermissions
     listKind: ProviderPermissionsList
     plural: providerpermissions
-    singular: providerpermissions
+    singular: providerpermission
   scope: Cluster
   versions:
   - name: v1alpha1
@@ -86,7 +86,7 @@ spec:
                 type: object
               description: |-
                 Permissions defines per-resource permission configuration
-                Key format: {group}.{resource} (e.g., "orchestrate.platform-mesh.io.httpbin")
+                Key format: {resource}.{group} (e.g., "httpbin.orchestrate.platform-mesh.io")
               type: object
             roles:
               description: Roles defines custom roles grouped by resource type
@@ -95,8 +95,8 @@ spec:
                 properties:
                   groupResource:
                     description: |-
-                      GroupResource identifies the resource type in format "{group}.{resource}"
-                      (e.g., "orchestrate.platform-mesh.io.httpbin")
+                      GroupResource identifies the resource type in format "{resource}.{group}"
+                      (e.g., "httpbin.orchestrate.platform-mesh.io")
                     type: string
                   roles:
                     description: Roles defines the roles for this resource type

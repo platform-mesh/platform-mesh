@@ -1,7 +1,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260624-0de8b9c.providerpermissions.core.platform-mesh.io
+  name: v260624-bc73f71.providerpermissions.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -86,7 +86,7 @@ spec:
                 type: object
               description: |-
                 Permissions defines per-resource permission configuration
-                Key format: {group}.{resource} (e.g., "orchestrate.platform-mesh.io.httpbin")
+                Key format: {resource}.{group} (e.g., "httpbin.orchestrate.platform-mesh.io")
               type: object
             roles:
               description: Roles defines custom roles grouped by resource type
@@ -95,8 +95,8 @@ spec:
                 properties:
                   groupResource:
                     description: |-
-                      GroupResource identifies the resource type in format "{group}.{resource}"
-                      (e.g., "orchestrate.platform-mesh.io.httpbin")
+                      GroupResource identifies the resource type in format "{resource}.{group}"
+                      (e.g., "httpbin.orchestrate.platform-mesh.io")
                     type: string
                   roles:
                     description: Roles defines the roles for this resource type

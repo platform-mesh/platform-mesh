@@ -55,7 +55,7 @@ func toK8sName(parts ...string) string {
 }
 
 func resourceToPermissionKey(singular, group string) string {
-	return group + "." + singular
+	return singular + "." + group
 }
 
 func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, lister iclient.Lister) *AuthorizationModelGenerationSubroutine {
