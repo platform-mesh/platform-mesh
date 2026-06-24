@@ -53,6 +53,8 @@ limitations under the License.
 //	                                               terminal-controller-manager.yml: signed image,
 //	iam-service   iam-service/v<X.Y.Z>             iam-service.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
+//	kubernetes-graphql-gateway   kubernetes-graphql-gateway/v<X.Y.Z>
+//	                                               kubernetes-graphql-gateway.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
 //	rebac-authz-webhook   rebac-authz-webhook/v<X.Y.Z>
 //	                                               rebac-authz-webhook.yml: signed image,
@@ -451,6 +453,7 @@ Components:
   backup-operator              backup-operator/v<X.Y.Z>              (signed image + release + chart + SBOM + OCM)
   extension-manager-operator   extension-manager-operator/v<X.Y.Z>   (signed image + release + chart + SBOM + OCM)
   kcp-migration-operator       kcp-migration-operator/v<X.Y.Z>       (signed image + release + chart + SBOM + OCM)
+  kubernetes-graphql-gateway   kubernetes-graphql-gateway/v<X.Y.Z>   (signed image + release + chart + SBOM + OCM)
   resource-sharding-operator   resource-sharding-operator/v<X.Y.Z>   (signed image + release + chart + SBOM + OCM)
   security-operator            security-operator/v<X.Y.Z>            (signed image + release + chart + SBOM + OCM)
   search-operator              search-operator/v<X.Y.Z>              (signed image + release + chart + SBOM + OCM)
