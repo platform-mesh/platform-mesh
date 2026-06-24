@@ -116,7 +116,6 @@ type {{ .Group }}_{{ .Singular }}
 
 `))
 
-// modelInput is used for model generation with optional ProviderPermissions overrides.
 type modelInput struct {
 	Name     string
 	Group    string

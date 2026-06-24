@@ -106,7 +106,7 @@ func (r *APIBindingReconciler) mapProviderPermissionsToAPIBindings(ctx context.C
 
 	var bindings kcpapisv1alpha2.APIBindingList
 	if err := r.lister.List(ctx, &bindings); err != nil {
-		r.log.Error().Err(err).Msg("failed to list APIBindings for ProviderPermissions watch")
+		r.log.Error().Err(err).Msg("failed to list APIBindings for ProviderPermissions")
 		return nil
 	}
 
@@ -131,6 +131,6 @@ func (r *APIBindingReconciler) mapProviderPermissionsToAPIBindings(ctx context.C
 		Str("providerPermissions", pp.Name).
 		Int("affectedBindings", len(requests)).
 		Msg("ProviderPermissions change enqueuing APIBinding reconciliations")
-		
+
 	return requests
 }
