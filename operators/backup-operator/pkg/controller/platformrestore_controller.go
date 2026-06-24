@@ -19,16 +19,16 @@ package controller
 import (
 	"context"
 
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/subroutines"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
+
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"go.platform-mesh.io/apis/backup/v1alpha1"
 )
 
 // PlatformRestoreReconciler reconciles PlatformRestore resources.
@@ -37,8 +37,8 @@ type PlatformRestoreReconciler struct {
 }
 
 func NewPlatformRestoreReconciler(mgr mcmanager.Manager) *PlatformRestoreReconciler {
-	lc := lifecycle.New(mgr, "PlatformRestoreReconciler", func() client.Object {
-		return &v1alpha1.PlatformRestore{}
+	lc := lifecycle.New(mgr, "PlatformRestoreReconciler", func() ctrlruntimeclient.Object {
+		return &pmbackupv1alpha1.PlatformRestore{}
 	}, []subroutines.Subroutine{}...).WithConditions(conditions.NewManager())
 
 	return &PlatformRestoreReconciler{lifecycle: lc}
@@ -47,7 +47,7 @@ func NewPlatformRestoreReconciler(mgr mcmanager.Manager) *PlatformRestoreReconci
 func (r *PlatformRestoreReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("PlatformRestoreReconciler").
-		For(&v1alpha1.PlatformRestore{}).
+		For(&pmbackupv1alpha1.PlatformRestore{}).
 		Complete(r)
 }
 

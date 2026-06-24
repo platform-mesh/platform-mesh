@@ -19,12 +19,13 @@ package topology
 import (
 	"bytes"
 	"crypto/sha256"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/xeipuuv/gojsonschema"
+
+	_ "embed"
 )
 
 //go:embed schema/v1alpha1.json

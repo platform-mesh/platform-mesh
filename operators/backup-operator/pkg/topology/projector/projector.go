@@ -20,22 +20,22 @@ import (
 	"context"
 	"fmt"
 
-	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"go.platform-mesh.io/backup-operator/pkg/topology"
+
+	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const configMapName = "backup-topology-schemas"
 
 // Projector ensures the topology schema ConfigMap is present and up-to-date.
 type Projector struct {
-	client    client.Client
+	client    ctrlruntimeclient.Client
 	namespace string
 }
 
 // New returns a Projector that manages the schema ConfigMap in namespace.
-func New(c client.Client, namespace string) *Projector {
+func New(c ctrlruntimeclient.Client, namespace string) *Projector {
 	return &Projector{client: c, namespace: namespace}
 }
 
@@ -52,7 +52,7 @@ func (p *Projector) EnsureConfigMap(ctx context.Context) error {
 			"v1alpha1.json": string(schemaData),
 		})
 
-	if err := p.client.Apply(ctx, cm, client.FieldOwner("backup-operator"), client.ForceOwnership); err != nil {
+	if err := p.client.Apply(ctx, cm, ctrlruntimeclient.FieldOwner("backup-operator"), ctrlruntimeclient.ForceOwnership); err != nil {
 		return fmt.Errorf("applying topology schema ConfigMap: %w", err)
 	}
 	return nil
