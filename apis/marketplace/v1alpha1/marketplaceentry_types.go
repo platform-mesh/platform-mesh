@@ -17,10 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 // MarketplaceEntrySpec defines the desired state of MarketplaceEntry.
@@ -34,7 +36,7 @@ type MarketplaceEntrySpec struct {
 	ProviderMetadata pmuiv1alpha1.ProviderMetadata `json:"providerMetadata"`
 
 	// PermissionClaims are the permission claims associated with the marketplace entry.
-	APIExport apisv1alpha1.APIExport `json:"apiExport"`
+	APIExport kcpapisv1alpha1.APIExport `json:"apiExport"`
 }
 
 // MarketplaceEntryStatus defines the observed state of MarketplaceEntry.
