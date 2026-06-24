@@ -42,7 +42,7 @@ func TestNoopValidatorAcceptsAnyToken(t *testing.T) {
 }
 
 func fakeClientset(authenticated bool, calls *atomic.Int32, returnErr error) *fake.Clientset {
-	cs := fake.NewSimpleClientset()
+	cs := fake.NewClientset()
 	cs.PrependReactor("create", "tokenreviews", func(action k8stesting.Action) (bool, runtime.Object, error) {
 		calls.Add(1)
 		if returnErr != nil {
@@ -132,7 +132,7 @@ func TestCacheStoresInvalidResult(t *testing.T) {
 
 func TestAPIErrorNotCached(t *testing.T) {
 	var callIdx atomic.Int32
-	cs := fake.NewSimpleClientset()
+	cs := fake.NewClientset()
 	cs.PrependReactor("create", "tokenreviews", func(action k8stesting.Action) (bool, runtime.Object, error) {
 		idx := callIdx.Add(1)
 		if idx == 1 {
