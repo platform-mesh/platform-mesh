@@ -335,7 +335,7 @@ jobs:
   trivy-sbom:
     if: startsWith(github.ref, 'refs/tags/backup-operator/')
     needs: [version, docker-build-push, image-ocm]
-    uses: platform-mesh/.github/.github/workflows/job-trivy-sbom.yml@main
+    uses: ./.github/workflows/job-trivy-sbom.yml
     permissions:
       contents: read
       packages: read

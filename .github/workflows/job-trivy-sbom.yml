@@ -1,0 +1,124 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Local (vendored) copy of platform-mesh/.github's job-trivy-sbom.yml.
+#
+# The only change from upstream is IMAGE_REPO: upstream hardcodes the org-root
+# registry (ghcr.io/<owner>), but this monorepo's `image-ocm` job publishes the
+# OCM component version to the per-repo registry (ghcr.io/<owner>/<repo>). By
+# reading from the same place `image-ocm` writes, trivy-sbom depends only on
+# `image-ocm` (which it already `needs`) — no dependency on the legacy org-root
+# `image-ocm-legacy` publish, and therefore no race between the two.
+
+name: Scan SBOM for Latest Component Version
+
+on:
+  workflow_call:
+    inputs:
+      componentName:
+        description: 'OCM component name (defaults to github.com/{org}/images/{repo})'
+        default: ''
+        type: string
+      componentVersion:
+        description: 'Component version to scan'
+        type: string
+        required: true
+      trivySeverity:
+        default: 'CRITICAL,HIGH'
+        type: string
+      trivyExitCode:
+        description: 'Trivy exit code on findings. Defaults to 0 for public repos (results go to the Security tab) and 1 for private repos (no upload, so fail the job instead).'
+        default: ''
+        type: string
+    secrets:
+      registryToken:
+        required: false
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+
+env:
+  REGISTRY_TOKEN: ${{ secrets.registryToken || secrets.GITHUB_TOKEN }}
+  # Per-repo registry (ghcr.io/<owner>/<repo>) — where this monorepo's image-ocm
+  # job publishes the OCM component version. Upstream uses ghcr.io/<owner>.
+  IMAGE_REPO: ${{ format('ghcr.io/{0}', github.repository) }}
+  COMPONENT: ${{ inputs.componentName || format('github.com/{0}/images/{1}', github.repository_owner, github.event.repository.name) }}
+
+jobs:
+  scan-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install ocm and oras
+        run: |
+          curl -sSL https://ocm.software/install.sh | sudo bash
+          curl -sSL "https://github.com/oras-project/oras/releases/download/v1.3.2/oras_1.3.2_linux_amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin oras
+
+      - name: Log in to registry
+        run: |
+          REGISTRY_HOST="${IMAGE_REPO%%/*}"
+          echo "${REGISTRY_TOKEN}" | \
+            oras login "${REGISTRY_HOST}" -u "${{ github.actor }}" --password-stdin
+
+      - name: Fetch SBOM for component version
+        env:
+          COMPONENT_VERSION: ${{ inputs.componentVersion }}
+        run: |
+          DIGEST=$(ocm get cv "${IMAGE_REPO}//${COMPONENT}:${COMPONENT_VERSION}" -o json \
+            | jq -r '.items[].component.resources[] | select(.name == "sbom-cyclonedx") | .access.localReference')
+
+          if [ -z "${DIGEST}" ] || [ "${DIGEST}" = "null" ]; then
+            echo "No SBOM resource found for ${COMPONENT_VERSION}"
+            exit 1
+          fi
+
+          oras blob fetch \
+            --output "sbom.json" \
+            "${IMAGE_REPO}/component-descriptors/${COMPONENT}@${DIGEST}"
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'sbom'
+          scan-ref: 'sbom.json'
+          severity: ${{ inputs.trivySeverity }}
+          ignore-unfixed: true
+          # Public repos report to the Security tab (don't block); private repos
+          # can't upload, so fail the job to surface findings. Override via input.
+          exit-code: ${{ inputs.trivyExitCode || (github.event.repository.private && '1' || '0') }}
+          format: ${{ github.event.repository.private == false && 'sarif' || 'table' }}
+          output: ${{ github.event.repository.private == false && 'trivy.sarif' || '' }}
+
+      - name: Normalize SARIF artifact locations
+        # Trivy's SBOM scan leaves physicalLocation.artifactLocation.uri empty for
+        # some findings (it derives the location from the scanned file name, which
+        # isn't always populated). GitHub code scanning rejects the whole SARIF if
+        # any single result has an empty location, so backfill the empties with the
+        # same "library/<file>" label Trivy already emits for the findings it does fill.
+        if: hashFiles('trivy.sarif') != '' && github.event.repository.private == false
+        run: |
+          jq '(.runs[].results[]?.locations[]?.physicalLocation.artifactLocation.uri) |= (if (. // "") == "" then "library/sbom.json" else . end)' \
+            trivy.sarif > trivy.sarif.tmp
+          mv trivy.sarif.tmp trivy.sarif
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        # Code scanning upload only works on public repos (or private repos with
+        # GitHub Advanced Security), so gate it on the repo being public.
+        if: hashFiles('trivy.sarif') != '' && github.event.repository.private == false
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy.sarif'
+          category: 'trivy-sbom-release-scan'
