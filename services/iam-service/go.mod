@@ -31,6 +31,8 @@ require (
 	sigs.k8s.io/multicluster-runtime v0.23.3
 )
 
+replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.7.1
+
 require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
