@@ -44,7 +44,7 @@ if ! kind get clusters 2>/dev/null | grep -q "^platform-mesh$"; then
 fi
 
 if [ ! -f "$KCP_KUBECONFIG" ]; then
-    echo "Error: KCP kubeconfig not found at $KCP_KUBECONFIG"
+    echo "Error: kcp kubeconfig not found at $KCP_KUBECONFIG"
     exit 1
 fi
 
