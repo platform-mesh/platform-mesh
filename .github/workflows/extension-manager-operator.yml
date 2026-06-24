@@ -333,6 +333,25 @@ jobs:
       # not the org root, to avoid cross-repo package permissions.
       ocmRegistryUrl: ghcr.io/platform-mesh/platform-mesh
 
+  image-ocm-legacy:
+    if: startsWith(github.ref, 'refs/tags/extension-manager-operator/')
+    needs: [version, docker-build-push]
+    uses: platform-mesh/.github/.github/workflows/job-image-ocm.yml@main
+    secrets: inherit
+    with:
+      imageReference: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:${{ needs.version.outputs.version }}
+      appVersion: ${{ needs.version.outputs.version }}
+      # The reusable job signs with "<repoName>.platform-mesh" and OCM requires
+      # that to equal the signing cert's CN. The monorepo's shared OCM cert has
+      # CN "platform-mesh.platform-mesh", so repoName must be platform-mesh. The
+      # per-component OCM component identity is preserved via componentName.
+      repoName: platform-mesh
+      componentName: github.com/platform-mesh/images/extension-manager-operator
+      commit: ${{ github.sha }}
+      # Store the OCM component under this repo (owned by its GITHUB_TOKEN),
+      # not the org root, to avoid cross-repo package permissions.
+      ocmRegistryUrl: ghcr.io/platform-mesh
+
   trivy-sbom:
     if: startsWith(github.ref, 'refs/tags/extension-manager-operator/')
     needs: [version, docker-build-push, image-ocm]
