@@ -22,22 +22,25 @@ import (
 	"net/http"
 	"os"
 
-	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/kcp-dev/multicluster-provider/apiexport"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"go.platform-mesh.io/extension-manager-operator/internal/controller"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/traces"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+
+	"github.com/kcp-dev/multicluster-provider/apiexport"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var operatorCmd = &cobra.Command{

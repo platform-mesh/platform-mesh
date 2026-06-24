@@ -303,15 +303,15 @@ func TestValidate(t *testing.T) {
 
 func Test_validateSchema(t *testing.T) {
 	type ContentConfigurationTypeMock struct {
-		Name    interface{} `json:"name"`
-		Surname interface{} `json:"surname"`
+		Name    any `json:"name"`
+		Surname any `json:"surname"`
 	}
 
 	schema := getJSONSchemaFixture()
 
 	tests := []struct {
 		name                  string
-		input                 interface{}
+		input                 any
 		expectedErrorMessages []string
 	}{
 		{

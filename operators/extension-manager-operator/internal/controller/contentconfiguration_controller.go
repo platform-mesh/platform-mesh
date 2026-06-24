@@ -20,24 +20,24 @@ import (
 	"context"
 	"net/http"
 
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
+	"go.platform-mesh.io/extension-manager-operator/internal/config"
+	extsub "go.platform-mesh.io/extension-manager-operator/pkg/subroutines"
+	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
+
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"go.platform-mesh.io/apis/ui/v1alpha1"
-	"go.platform-mesh.io/extension-manager-operator/internal/config"
-	extsub "go.platform-mesh.io/extension-manager-operator/pkg/subroutines"
-	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
 var contentConfigurationReconcilerName = "ContentConfigurationReconcilerCR"
@@ -52,12 +52,12 @@ func NewContentConfigurationReconciler(log *logger.Logger, mgr mcmanager.Manager
 	if cfg.SubroutinesContentConfigurationEnabled {
 		subs = append(subs, extsub.NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient))
 	}
-	lc := lifecycle.New(mgr, contentConfigurationReconcilerName, func() client.Object {
-		return &v1alpha1.ContentConfiguration{}
+	lc := lifecycle.New(mgr, contentConfigurationReconcilerName, func() ctrlruntimeclient.Object {
+		return &pmuiv1alpha1.ContentConfiguration{}
 	}, subs...).
 		WithConditions(conditions.NewManager()).
 		WithSpread(contentConfigurationSpreadManager{}).
-		WithPrepareContext(func(ctx context.Context, obj client.Object) (context.Context, error) {
+		WithPrepareContext(func(ctx context.Context, obj ctrlruntimeclient.Object) (context.Context, error) {
 			return logger.SetLoggerInContext(ctx, log.ComponentLogger("ContentConfiguration")), nil
 		})
 	return &ContentConfigurationReconciler{lifecycle: lc}
@@ -72,7 +72,7 @@ func (r *ContentConfigurationReconciler) SetupWithManager(mgr mcmanager.Manager,
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, eventPredicates...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(contentConfigurationReconcilerName).
-		For(&v1alpha1.ContentConfiguration{}).
+		For(&pmuiv1alpha1.ContentConfiguration{}).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

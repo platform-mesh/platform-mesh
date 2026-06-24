@@ -17,16 +17,16 @@ limitations under the License.
 package validation
 
 import (
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 
-	"github.com/pkg/errors"
+	_ "embed"
 )
 
 var (
@@ -130,7 +130,7 @@ func validateSchemaBytes(schema []byte, input []byte) *multierror.Error {
 // ConvertYAMLToJSON converts a YAML byte array to a JSON byte array
 func convertYAMLToJSON(yamlData []byte) ([]byte, error) {
 	// Unmarshal YAML into a map
-	var data map[string]interface{}
+	var data map[string]any
 	err := yaml.Unmarshal(yamlData, &data)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshalling YAML: %w", err)

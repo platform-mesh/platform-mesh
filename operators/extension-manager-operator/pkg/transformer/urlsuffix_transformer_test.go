@@ -21,7 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.platform-mesh.io/apis/ui/v1alpha1"
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
@@ -30,14 +30,14 @@ func TestUrlSuffixTransformer_Transform(t *testing.T) {
 	tests := []struct {
 		name          string
 		before        *validation.ContentConfiguration
-		instance      *v1alpha1.ContentConfiguration
+		instance      *pmuiv1alpha1.ContentConfiguration
 		expected      *validation.ContentConfiguration
 		expectedError bool
 	}{
 		{
 			name:          "Test UrlSuffixTransformer Transform",
 			expectedError: false,
-			instance:      &v1alpha1.ContentConfiguration{Spec: v1alpha1.ContentConfigurationSpec{RemoteConfiguration: &v1alpha1.RemoteConfiguration{URL: "https://test.com:9999/ui/cdm/config.json"}}},
+			instance:      &pmuiv1alpha1.ContentConfiguration{Spec: pmuiv1alpha1.ContentConfigurationSpec{RemoteConfiguration: &pmuiv1alpha1.RemoteConfiguration{URL: "https://test.com:9999/ui/cdm/config.json"}}},
 			before: &validation.ContentConfiguration{
 				LuigiConfigFragment: validation.LuigiConfigFragment{
 					Data: validation.LuigiConfigData{
@@ -83,7 +83,7 @@ func TestUrlSuffixTransformer_Transform(t *testing.T) {
 		{
 			name:          "Test UrlSuffixTransformer Transform with Inline Config",
 			expectedError: false,
-			instance:      &v1alpha1.ContentConfiguration{Spec: v1alpha1.ContentConfigurationSpec{InlineConfiguration: &v1alpha1.InlineConfiguration{Content: "test"}}},
+			instance:      &pmuiv1alpha1.ContentConfiguration{Spec: pmuiv1alpha1.ContentConfigurationSpec{InlineConfiguration: &pmuiv1alpha1.InlineConfiguration{Content: "test"}}},
 			before: &validation.ContentConfiguration{
 				LuigiConfigFragment: validation.LuigiConfigFragment{
 					Data: validation.LuigiConfigData{

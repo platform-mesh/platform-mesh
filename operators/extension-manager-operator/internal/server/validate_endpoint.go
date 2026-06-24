@@ -20,10 +20,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"go.platform-mesh.io/golang-commons/logger"
-
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
-
+	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/golang-commons/sentry"
 )
 

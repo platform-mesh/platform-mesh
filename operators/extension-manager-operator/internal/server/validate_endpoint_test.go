@@ -27,11 +27,11 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.platform-mesh.io/golang-commons/errors"
-	"go.platform-mesh.io/golang-commons/logger"
 
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation/mocks"
+	"go.platform-mesh.io/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/logger"
 )
 
 type responseError struct {

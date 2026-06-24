@@ -21,12 +21,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/subroutines/spread"
 
-	"go.platform-mesh.io/apis/ui/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestLegacyNextReconcileDelay_withinMax(t *testing.T) {
@@ -55,12 +55,12 @@ func TestContentConfigurationSpread_ReconcileRequired(t *testing.T) {
 	})
 
 	t.Run("generation differs from observed", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
+		cc := &pmuiv1alpha1.ContentConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
 				Generation: 2,
 				Labels:     map[string]string{},
 			},
-			Status: v1alpha1.ContentConfigurationStatus{
+			Status: pmuiv1alpha1.ContentConfigurationStatus{
 				ObservedGeneration: 1,
 				NextReconcileTime:  metav1.NewTime(time.Now().Add(time.Hour)),
 			},
@@ -69,14 +69,14 @@ func TestContentConfigurationSpread_ReconcileRequired(t *testing.T) {
 	})
 
 	t.Run("refresh label forces reconcile", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
+		cc := &pmuiv1alpha1.ContentConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
 				Labels: map[string]string{
 					spread.RefreshLabel: "true",
 				},
 			},
-			Status: v1alpha1.ContentConfigurationStatus{
+			Status: pmuiv1alpha1.ContentConfigurationStatus{
 				ObservedGeneration: 1,
 				NextReconcileTime:  metav1.NewTime(time.Now().Add(time.Hour)),
 			},
@@ -85,12 +85,12 @@ func TestContentConfigurationSpread_ReconcileRequired(t *testing.T) {
 	})
 
 	t.Run("zero next reconcile time", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
+		cc := &pmuiv1alpha1.ContentConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
 				Labels:     map[string]string{},
 			},
-			Status: v1alpha1.ContentConfigurationStatus{
+			Status: pmuiv1alpha1.ContentConfigurationStatus{
 				ObservedGeneration: 1,
 				NextReconcileTime:  metav1.Time{},
 			},
@@ -99,12 +99,12 @@ func TestContentConfigurationSpread_ReconcileRequired(t *testing.T) {
 	})
 
 	t.Run("next reconcile in future", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
+		cc := &pmuiv1alpha1.ContentConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
 				Labels:     map[string]string{},
 			},
-			Status: v1alpha1.ContentConfigurationStatus{
+			Status: pmuiv1alpha1.ContentConfigurationStatus{
 				ObservedGeneration: 1,
 				NextReconcileTime:  metav1.NewTime(time.Now().Add(30 * time.Minute)),
 			},
@@ -113,12 +113,12 @@ func TestContentConfigurationSpread_ReconcileRequired(t *testing.T) {
 	})
 
 	t.Run("next reconcile in past", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
+		cc := &pmuiv1alpha1.ContentConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
 				Labels:     map[string]string{},
 			},
-			Status: v1alpha1.ContentConfigurationStatus{
+			Status: pmuiv1alpha1.ContentConfigurationStatus{
 				ObservedGeneration: 1,
 				NextReconcileTime:  metav1.NewTime(time.Now().Add(-time.Minute)),
 			},
@@ -135,8 +135,8 @@ func TestContentConfigurationSpread_RequeueDelay(t *testing.T) {
 	})
 
 	t.Run("zero next reconcile", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
-			Status: v1alpha1.ContentConfigurationStatus{
+		cc := &pmuiv1alpha1.ContentConfiguration{
+			Status: pmuiv1alpha1.ContentConfigurationStatus{
 				NextReconcileTime: metav1.Time{},
 			},
 		}
@@ -145,8 +145,8 @@ func TestContentConfigurationSpread_RequeueDelay(t *testing.T) {
 
 	t.Run("future next reconcile", func(t *testing.T) {
 		future := time.Now().UTC().Add(7 * time.Minute)
-		cc := &v1alpha1.ContentConfiguration{
-			Status: v1alpha1.ContentConfigurationStatus{
+		cc := &pmuiv1alpha1.ContentConfiguration{
+			Status: pmuiv1alpha1.ContentConfigurationStatus{
 				NextReconcileTime: metav1.NewTime(future),
 			},
 		}
@@ -156,8 +156,8 @@ func TestContentConfigurationSpread_RequeueDelay(t *testing.T) {
 	})
 
 	t.Run("past next reconcile", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
-			Status: v1alpha1.ContentConfigurationStatus{
+		cc := &pmuiv1alpha1.ContentConfiguration{
+			Status: pmuiv1alpha1.ContentConfigurationStatus{
 				NextReconcileTime: metav1.NewTime(time.Now().Add(-time.Second)),
 			},
 		}
@@ -174,7 +174,7 @@ func TestContentConfigurationSpread_SetNextReconcileTime(t *testing.T) {
 	})
 
 	t.Run("default max uses 24h window", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{}
+		cc := &pmuiv1alpha1.ContentConfiguration{}
 		before := time.Now()
 		s.SetNextReconcileTime(cc)
 		after := time.Now()
@@ -187,9 +187,9 @@ func TestContentConfigurationSpread_SetNextReconcileTime(t *testing.T) {
 	})
 
 	t.Run("remote spec uses shorter GenerateNextReconcileTime", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
-			Spec: v1alpha1.ContentConfigurationSpec{
-				RemoteConfiguration: &v1alpha1.RemoteConfiguration{},
+		cc := &pmuiv1alpha1.ContentConfiguration{
+			Spec: pmuiv1alpha1.ContentConfigurationSpec{
+				RemoteConfiguration: &pmuiv1alpha1.RemoteConfiguration{},
 			},
 		}
 		before := time.Now()
@@ -214,7 +214,7 @@ func TestContentConfigurationSpread_UpdateObservedGeneration(t *testing.T) {
 	})
 
 	t.Run("sets observed from generation", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
+		cc := &pmuiv1alpha1.ContentConfiguration{
 			ObjectMeta: metav1.ObjectMeta{Generation: 7},
 		}
 		s.UpdateObservedGeneration(cc)
@@ -230,12 +230,12 @@ func TestContentConfigurationSpread_RemoveRefreshLabel(t *testing.T) {
 	})
 
 	t.Run("nil labels", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{}
+		cc := &pmuiv1alpha1.ContentConfiguration{}
 		require.False(t, s.RemoveRefreshLabel(cc))
 	})
 
 	t.Run("label absent", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
+		cc := &pmuiv1alpha1.ContentConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{"other": "v"},
 			},
@@ -245,7 +245,7 @@ func TestContentConfigurationSpread_RemoveRefreshLabel(t *testing.T) {
 	})
 
 	t.Run("removes refresh label", func(t *testing.T) {
-		cc := &v1alpha1.ContentConfiguration{
+		cc := &pmuiv1alpha1.ContentConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					spread.RefreshLabel: "true",

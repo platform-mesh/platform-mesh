@@ -22,9 +22,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-http-utils/headers"
 	"github.com/rs/cors"
-	"go.platform-mesh.io/golang-commons/logger"
 
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/golang-commons/logger"
 )
 
 func CreateRouter(

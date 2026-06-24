@@ -21,12 +21,11 @@ import (
 	"math/rand/v2"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/subroutines/spread"
 
-	"go.platform-mesh.io/apis/ui/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // contentConfigurationSpreadManager implements lifecycle.SpreadManager to
@@ -48,7 +47,7 @@ func nextReconcileDelay(maxReconcileTime time.Duration) time.Duration {
 	return time.Duration(jitter+int64(minimum)) * time.Minute
 }
 
-func (contentConfigurationSpreadManager) ReconcileRequired(obj client.Object) bool {
+func (contentConfigurationSpreadManager) ReconcileRequired(obj ctrlruntimeclient.Object) bool {
 	cc := mustContentConfiguration(obj)
 
 	if cc.GetGeneration() != cc.Status.ObservedGeneration {
@@ -70,7 +69,7 @@ func (contentConfigurationSpreadManager) ReconcileRequired(obj client.Object) bo
 	return time.Now().UTC().After(nrt.UTC())
 }
 
-func (contentConfigurationSpreadManager) RequeueDelay(obj client.Object) time.Duration {
+func (contentConfigurationSpreadManager) RequeueDelay(obj ctrlruntimeclient.Object) time.Duration {
 	cc := mustContentConfiguration(obj)
 
 	nrt := cc.Status.NextReconcileTime
@@ -86,7 +85,7 @@ func (contentConfigurationSpreadManager) RequeueDelay(obj client.Object) time.Du
 	return remaining
 }
 
-func (contentConfigurationSpreadManager) SetNextReconcileTime(obj client.Object) {
+func (contentConfigurationSpreadManager) SetNextReconcileTime(obj ctrlruntimeclient.Object) {
 	cc := mustContentConfiguration(obj)
 
 	border := inlineMaxReconcileDuration
@@ -98,13 +97,13 @@ func (contentConfigurationSpreadManager) SetNextReconcileTime(obj client.Object)
 	cc.Status.NextReconcileTime = metav1.NewTime(time.Now().Add(delay))
 }
 
-func (contentConfigurationSpreadManager) UpdateObservedGeneration(obj client.Object) {
+func (contentConfigurationSpreadManager) UpdateObservedGeneration(obj ctrlruntimeclient.Object) {
 	cc := mustContentConfiguration(obj)
 
 	cc.Status.ObservedGeneration = cc.GetGeneration()
 }
 
-func (contentConfigurationSpreadManager) RemoveRefreshLabel(obj client.Object) bool {
+func (contentConfigurationSpreadManager) RemoveRefreshLabel(obj ctrlruntimeclient.Object) bool {
 	cc := mustContentConfiguration(obj)
 
 	labels := cc.GetLabels()
@@ -121,8 +120,8 @@ func (contentConfigurationSpreadManager) RemoveRefreshLabel(obj client.Object) b
 	return true
 }
 
-func mustContentConfiguration(obj client.Object) *v1alpha1.ContentConfiguration {
-	cc, ok := obj.(*v1alpha1.ContentConfiguration)
+func mustContentConfiguration(obj ctrlruntimeclient.Object) *pmuiv1alpha1.ContentConfiguration {
+	cc, ok := obj.(*pmuiv1alpha1.ContentConfiguration)
 	if !ok {
 		panic(fmt.Sprintf("contentConfigurationSpread: expected ContentConfiguration, got %T", obj))
 	}

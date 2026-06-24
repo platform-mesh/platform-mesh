@@ -23,13 +23,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.platform-mesh.io/apis/ui/v1alpha1"
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 )
 
 type UrlSuffixTransformer struct{}
 
-func (*UrlSuffixTransformer) Transform(contentConfiguration *validation.ContentConfiguration, instance *v1alpha1.ContentConfiguration) error {
+func (*UrlSuffixTransformer) Transform(contentConfiguration *validation.ContentConfiguration, instance *pmuiv1alpha1.ContentConfiguration) error {
 	if instance.Spec.RemoteConfiguration != nil {
 		parsedUrl, err := url.Parse(instance.Spec.RemoteConfiguration.URL)
 		if err != nil { // coverage-ignore

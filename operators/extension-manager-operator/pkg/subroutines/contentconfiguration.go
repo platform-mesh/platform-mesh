@@ -23,15 +23,15 @@ import (
 	"io"
 	"net/http"
 
-	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/subroutines"
-	"k8s.io/apimachinery/pkg/api/meta"
-	apimachinery "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"go.platform-mesh.io/apis/ui/v1alpha1"
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/extension-manager-operator/pkg/transformer"
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/subroutines"
+
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -66,10 +66,10 @@ func (r *ContentConfigurationSubroutine) GetName() string {
 	return ContentConfigurationSubroutineName
 }
 
-func (r *ContentConfigurationSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (r *ContentConfigurationSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	instance, ok := obj.(*v1alpha1.ContentConfiguration)
+	instance, ok := obj.(*pmuiv1alpha1.ContentConfiguration)
 	if !ok {
 		return subroutines.OK(), fmt.Errorf("expected *v1alpha1.ContentConfiguration, got %T", obj)
 	}
@@ -86,7 +86,7 @@ func (r *ContentConfigurationSubroutine) Process(ctx context.Context, obj client
 	validatedConfig, valErr := r.validator.Validate(rawConfig, contentType)
 	if valErr != nil && valErr.Len() > 0 {
 		log.Err(valErr).Msg("failed to validate configuration")
-		condition := apimachinery.Condition{
+		condition := metav1.Condition{
 			Type:    ValidationConditionType,
 			Status:  ConditionStatusFalse,
 			Reason:  ValidationConditionReasonFailed,
@@ -96,7 +96,7 @@ func (r *ContentConfigurationSubroutine) Process(ctx context.Context, obj client
 		return subroutines.OK(), nil
 	}
 
-	condition := apimachinery.Condition{
+	condition := metav1.Condition{
 		Type:    ValidationConditionType,
 		Status:  ConditionStatusTrue,
 		Reason:  ValidationConditionReasonSuccess,
@@ -128,7 +128,7 @@ func (r *ContentConfigurationSubroutine) Process(ctx context.Context, obj client
 	return subroutines.OK(), nil
 }
 
-func (r *ContentConfigurationSubroutine) retrieveContentConfigurationData(instance *v1alpha1.ContentConfiguration, log *logger.Logger) (string, []byte, error) {
+func (r *ContentConfigurationSubroutine) retrieveContentConfigurationData(instance *pmuiv1alpha1.ContentConfiguration, log *logger.Logger) (string, []byte, error) {
 	var contentType string
 	var rawConfig []byte
 	// InlineConfiguration has higher priority than RemoteConfiguration

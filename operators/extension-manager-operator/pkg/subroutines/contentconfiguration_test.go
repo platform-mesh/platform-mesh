@@ -27,14 +27,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.platform-mesh.io/golang-commons/logger"
-	apimachinery "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	cachev1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/extension-manager-operator/pkg/subroutines/mocks"
 	commonTesting "go.platform-mesh.io/extension-manager-operator/pkg/util/testing"
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation/validation_test"
+	"go.platform-mesh.io/golang-commons/logger"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ContentConfigurationSubroutineTestSuite struct {
@@ -60,9 +61,9 @@ func (suite *ContentConfigurationSubroutineTestSuite) SetupTest() {
 
 func (suite *ContentConfigurationSubroutineTestSuite) TestCreateAndUpdate_OK() {
 	// Given
-	contentConfiguration := &cachev1alpha1.ContentConfiguration{
-		Spec: cachev1alpha1.ContentConfigurationSpec{
-			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+	contentConfiguration := &pmuiv1alpha1.ContentConfiguration{
+		Spec: pmuiv1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &pmuiv1alpha1.InlineConfiguration{
 				Content:     validation_test.GetValidYAML(),
 				ContentType: "yaml",
 			},
@@ -98,9 +99,9 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestCreateAndUpdate_OK() {
 
 func (suite *ContentConfigurationSubroutineTestSuite) TestCreateAndUpdate_Error() {
 	// Given
-	contentConfiguration := &cachev1alpha1.ContentConfiguration{
-		Spec: cachev1alpha1.ContentConfigurationSpec{
-			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+	contentConfiguration := &pmuiv1alpha1.ContentConfiguration{
+		Spec: pmuiv1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &pmuiv1alpha1.InlineConfiguration{
 				Content:     validation_test.GetValidYAML(),
 				ContentType: "yaml",
 			},
@@ -146,7 +147,7 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestProcessingConfig() {
 
 	tests := []struct {
 		name                 string
-		spec                 cachev1alpha1.ContentConfigurationSpec
+		spec                 pmuiv1alpha1.ContentConfigurationSpec
 		remoteURL            string
 		statusCode           int
 		expectedErr          string
@@ -154,8 +155,8 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestProcessingConfig() {
 	}{
 		{
 			name: "InlineConfigYAML_OK",
-			spec: cachev1alpha1.ContentConfigurationSpec{
-				InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+			spec: pmuiv1alpha1.ContentConfigurationSpec{
+				InlineConfiguration: &pmuiv1alpha1.InlineConfiguration{
 					Content:     validation_test.GetValidYAML(),
 					ContentType: "yaml",
 				},
@@ -164,8 +165,8 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestProcessingConfig() {
 		},
 		{
 			name: "InlineConfigYAML_ValidationError",
-			spec: cachev1alpha1.ContentConfigurationSpec{
-				InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+			spec: pmuiv1alpha1.ContentConfigurationSpec{
+				InlineConfiguration: &pmuiv1alpha1.InlineConfiguration{
 					Content:     "I am not a valid yaml",
 					ContentType: "yaml",
 				},
@@ -173,8 +174,8 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestProcessingConfig() {
 		},
 		{
 			name: "InlineConfigJSON_OK",
-			spec: cachev1alpha1.ContentConfigurationSpec{
-				InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+			spec: pmuiv1alpha1.ContentConfigurationSpec{
+				InlineConfiguration: &pmuiv1alpha1.InlineConfiguration{
 					Content:     validation_test.GetValidJSON(),
 					ContentType: "json",
 				},
@@ -183,8 +184,8 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestProcessingConfig() {
 		},
 		{
 			name: "InlineConfigJSON_ValidationError",
-			spec: cachev1alpha1.ContentConfigurationSpec{
-				InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+			spec: pmuiv1alpha1.ContentConfigurationSpec{
+				InlineConfiguration: &pmuiv1alpha1.InlineConfiguration{
 					Content:     "I am not a valid json",
 					ContentType: "json",
 				},
@@ -192,8 +193,8 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestProcessingConfig() {
 		},
 		{
 			name: "RemoteConfig_OK",
-			spec: cachev1alpha1.ContentConfigurationSpec{
-				RemoteConfiguration: &cachev1alpha1.RemoteConfiguration{
+			spec: pmuiv1alpha1.ContentConfigurationSpec{
+				RemoteConfiguration: &pmuiv1alpha1.RemoteConfiguration{
 					ContentType: "json",
 					URL:         remoteURL,
 				},
@@ -204,8 +205,8 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestProcessingConfig() {
 		},
 		{
 			name: "RemoteConfig_http_error",
-			spec: cachev1alpha1.ContentConfigurationSpec{
-				RemoteConfiguration: &cachev1alpha1.RemoteConfiguration{
+			spec: pmuiv1alpha1.ContentConfigurationSpec{
+				RemoteConfiguration: &pmuiv1alpha1.RemoteConfiguration{
 					URL: remoteURL,
 				},
 			},
@@ -215,7 +216,7 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestProcessingConfig() {
 		},
 		{
 			name:        "NoConfigProvider_Error",
-			spec:        cachev1alpha1.ContentConfigurationSpec{},
+			spec:        pmuiv1alpha1.ContentConfigurationSpec{},
 			expectedErr: "no configuration provided",
 		},
 	}
@@ -232,7 +233,7 @@ func (suite *ContentConfigurationSubroutineTestSuite) TestProcessingConfig() {
 			}
 
 			// When
-			contentConfiguration := cachev1alpha1.ContentConfiguration{
+			contentConfiguration := pmuiv1alpha1.ContentConfiguration{
 				Spec: tt.spec,
 			}
 			_, err := suite.testObj.Process(context.Background(), &contentConfiguration)
@@ -332,15 +333,15 @@ func TestService_Do(t *testing.T) {
 
 func (suite *ContentConfigurationSubroutineTestSuite) Test_IncompatibleSchemaUpdate() {
 	// Given
-	contentConfiguration := &cachev1alpha1.ContentConfiguration{
-		Spec: cachev1alpha1.ContentConfigurationSpec{
-			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+	contentConfiguration := &pmuiv1alpha1.ContentConfiguration{
+		Spec: pmuiv1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &pmuiv1alpha1.InlineConfiguration{
 				Content:     validation_test.GetValidYAML(),
 				ContentType: "yaml",
 			},
 		},
-		Status: cachev1alpha1.ContentConfigurationStatus{
-			Conditions: []apimachinery.Condition{
+		Status: pmuiv1alpha1.ContentConfigurationStatus{
+			Conditions: []metav1.Condition{
 				{
 					Type:    "Ready",
 					Status:  "True",
@@ -370,7 +371,7 @@ func (suite *ContentConfigurationSubroutineTestSuite) Test_IncompatibleSchemaUpd
 	suite.Require().Nil(cmpErr)
 	suite.Require().True(cmp)
 	suite.Require().True(
-		getCondition(contentConfiguration.Status.Conditions, ValidationConditionType).Status == apimachinery.ConditionFalse,
+		getCondition(contentConfiguration.Status.Conditions, ValidationConditionType).Status == metav1.ConditionFalse,
 	)
 	suite.Require().Equal(
 		"ValidationFailed", getCondition(contentConfiguration.Status.Conditions, ValidationConditionType).Reason,
@@ -392,11 +393,11 @@ func (suite *ContentConfigurationSubroutineTestSuite) Test_IncompatibleSchemaUpd
 	)
 }
 
-func getCondition(conditions []apimachinery.Condition, conditionType string) apimachinery.Condition { // nolint: unparam
+func getCondition(conditions []metav1.Condition, conditionType string) metav1.Condition { // nolint: unparam
 	for _, condition := range conditions {
 		if condition.Type == conditionType {
 			return condition
 		}
 	}
-	return apimachinery.Condition{}
+	return metav1.Condition{}
 }

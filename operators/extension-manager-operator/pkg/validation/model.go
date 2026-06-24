@@ -81,7 +81,7 @@ type SapIntegration struct {
 }
 
 type UrlTemplateParams struct {
-	Query interface{} `json:"query,omitempty" yaml:"query,omitempty"`
+	Query any `json:"query,omitempty" yaml:"query,omitempty"`
 }
 
 type NodeDefaults struct {
@@ -99,18 +99,18 @@ type Node struct {
 	PathSegment               string                   `json:"pathSegment,omitempty" yaml:"pathSegment,omitempty"`
 	Label                     string                   `json:"label,omitempty" yaml:"label,omitempty"`
 	Icon                      string                   `json:"icon,omitempty" yaml:"icon,omitempty"`
-	Category                  interface{}              `json:"category,omitempty" yaml:"category,omitempty" jsonschema:"anyof_ref=#/$defs/Category,anyof_type=string"`
+	Category                  any                      `json:"category,omitempty" yaml:"category,omitempty" jsonschema:"anyof_ref=#/$defs/Category,anyof_type=string"`
 	Url                       string                   `json:"url,omitempty" yaml:"url,omitempty"`
 	HideFromNav               *bool                    `json:"hideFromNav,omitempty" yaml:"hideFromNav,omitempty"`
 	VisibleForFeatureToggles  []string                 `json:"visibleForFeatureToggles,omitempty" yaml:"visibleForFeatureToggles,omitempty"`
 	VirtualTree               *bool                    `json:"virtualTree,omitempty" yaml:"virtualTree,omitempty"`
-	RequiredIFramePermissions interface{}              `json:"requiredIFramePermissions,omitempty" yaml:"requiredIFramePermissions,omitempty" jsonschema:"anyof_type=object"`
-	Compound                  interface{}              `json:"compound,omitempty" yaml:"compound,omitempty" jsonschema:"anyof_type=object"`
+	RequiredIFramePermissions any                      `json:"requiredIFramePermissions,omitempty" yaml:"requiredIFramePermissions,omitempty" jsonschema:"anyof_type=object"`
+	Compound                  any                      `json:"compound,omitempty" yaml:"compound,omitempty" jsonschema:"anyof_type=object"`
 	InitialRoute              string                   `json:"initialRoute,omitempty" yaml:"initialRoute,omitempty"`
-	LayoutConfig              interface{}              `json:"layoutConfig,omitempty" yaml:"layoutConfig,omitempty" jsonschema:"anyof_type=object"`
-	Context                   interface{}              `json:"context,omitempty" yaml:"context,omitempty" jsonschema:"anyof_type=object"`
-	Webcomponent              interface{}              `json:"webcomponent,omitempty" yaml:"webcomponent,omitempty" jsonschema:"anyof_ref=#/$defs/Webcomponent,anyof_type=boolean"`
-	LoadingIndicator          interface{}              `json:"loadingIndicator,omitempty" yaml:"loadingIndicator,omitempty" jsonschema:"anyof_type=object"`
+	LayoutConfig              any                      `json:"layoutConfig,omitempty" yaml:"layoutConfig,omitempty" jsonschema:"anyof_type=object"`
+	Context                   any                      `json:"context,omitempty" yaml:"context,omitempty" jsonschema:"anyof_type=object"`
+	Webcomponent              any                      `json:"webcomponent,omitempty" yaml:"webcomponent,omitempty" jsonschema:"anyof_ref=#/$defs/Webcomponent,anyof_type=boolean"`
+	LoadingIndicator          any                      `json:"loadingIndicator,omitempty" yaml:"loadingIndicator,omitempty" jsonschema:"anyof_type=object"`
 	DefineEntity              *DefineEntity            `json:"defineEntity,omitempty" yaml:"defineEntity,omitempty"`
 	KeepSelectedForChildren   *bool                    `json:"keepSelectedForChildren,omitempty" yaml:"keepSelectedForChildren,omitempty"`
 	Children                  []Node                   `json:"children,omitempty" yaml:"children,omitempty"`
