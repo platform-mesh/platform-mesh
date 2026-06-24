@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#
+# This configuration represents the bare minimum formatting and import-ordering
+# rules. Each component have also have its own, stricter config.
+#
+
 version: "2"
 
 run:
