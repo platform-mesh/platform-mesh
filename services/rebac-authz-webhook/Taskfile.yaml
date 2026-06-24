@@ -14,47 +14,45 @@
 
 version: "3"
 
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
+
 vars:
-  LOCAL_BIN: bin
   CRD_DIRECTORY: config/crd/bases
-  GOARCH:
-    sh: go env GOARCH
-  GOOS:
-    sh: go env GOOS
+
 tasks:
   default:
     cmds:
       - task --list-all
-  ## Setup
-  setup:mockery:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/mockery || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vektra/mockery/v3@v3.6.1
-  setup:golangci-lint:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-  setup:go-test-coverage:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/go-test-coverage || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vladopajic/go-test-coverage/v2@latest
+
   ## Development
   docker-build:
     cmds:
       - docker build .
+
+  build:
+    desc: Build the webhook.
+    cmds:
+      - go build ./...
+
   ## Testing
   fmt:
-    deps: [setup:golangci-lint]
     cmds:
-      - "{{.LOCAL_BIN}}/golangci-lint fmt ./..."
+      - '"$(UGET_PRINT_PATH=absolute task tools:golangci-lint)" fmt ./...'
   lint:
-    deps: [setup:golangci-lint]
     cmds:
       - task: fmt
-      - "{{.LOCAL_BIN}}/golangci-lint run --timeout 15m ./..."
+      - task: tools:lint
   test:
     cmds:
       - go test -count=1 ./... {{.ADDITIONAL_COMMAND_ARGS}}
+  test-e2e:
+    cmds:
+      - task: test
   cover:
     cmds:
       - task: test
@@ -73,14 +71,14 @@ tasks:
       - task: lint
       - task: test
   assert-coverage:
-    deps: [setup:go-test-coverage]
+    deps: [tools:go-test-coverage]
     cmds:
       - task: cover
-      - "{{.LOCAL_BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
+      - "{{.BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
   mockery:
-    deps: [ setup:mockery ]
+    deps: [tools:mockery]
     cmds:
-      - "{{.LOCAL_BIN}}/mockery"
+      - "{{.BIN}}/mockery"
   docker:kind:load:
     desc: "Build container image with current tag from kind cluster and load it into kind"
     vars:
