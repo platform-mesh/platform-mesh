@@ -20,15 +20,16 @@ import (
 	"context"
 	"strings"
 
-	"github.com/kcp-dev/kcp/pkg/server/filters"
-	"github.com/kcp-dev/logicalcluster/v3"
-	"github.com/kcp-dev/virtual-workspace-framework/framework"
 	"go.platform-mesh.io/virtual-workspaces/pkg/authorization"
 	"go.platform-mesh.io/virtual-workspaces/pkg/proxy"
 	"go.platform-mesh.io/virtual-workspaces/pkg/storage"
 
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/klog/v2"
+
+	"github.com/kcp-dev/kcp/pkg/server/filters"
+	"github.com/kcp-dev/logicalcluster/v3"
+	"github.com/kcp-dev/virtual-workspace-framework/framework"
 )
 
 func NewPathResolver(clusterResolver proxy.ClusterResolver, virtualWorkspaceBaseURL string) framework.RootPathResolverFunc {

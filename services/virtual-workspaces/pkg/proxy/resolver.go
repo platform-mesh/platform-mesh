@@ -20,13 +20,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-
-	"github.com/kcp-dev/kcp/pkg/server/filters"
-	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/endpoints/request"
+
+	"github.com/kcp-dev/kcp/pkg/server/filters"
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
 )
 
 // ClusterResolvers are capable of resolving a workspace path like "root:foo:bar"

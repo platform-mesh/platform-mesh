@@ -20,13 +20,13 @@ import (
 	"context"
 	"fmt"
 
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	genericapiserver "k8s.io/apiserver/pkg/server"
+
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapidefinition "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic/apidefinition"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic/apiserver"
 	dynamiccontext "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic/context"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
 type StorageProviderFunc func(ctx context.Context) (apiserver.RestProviderFunc, error)
@@ -34,14 +34,14 @@ type StorageProviderFunc func(ctx context.Context) (apiserver.RestProviderFunc, 
 type singleResourceAPIDefinitionSetProvider struct {
 	config          genericapiserver.CompletedConfig
 	gvr             schema.GroupVersionResource
-	resource        *apisv1alpha1.APIResourceSchema
+	resource        *kcpapisv1alpha1.APIResourceSchema
 	storageProvider StorageProviderFunc
 }
 
 func NewSingleResourceProvider(
 	config genericapiserver.CompletedConfig,
 	gvr schema.GroupVersionResource,
-	resource *apisv1alpha1.APIResourceSchema,
+	resource *kcpapisv1alpha1.APIResourceSchema,
 	storageProvider StorageProviderFunc,
 ) kcpapidefinition.APIDefinitionSetGetter {
 	return &singleResourceAPIDefinitionSetProvider{

@@ -22,28 +22,27 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/kcp-dev/client-go/dynamic"
-	"github.com/kcp-dev/logicalcluster/v3"
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
-	"go.platform-mesh.io/apis/marketplace/v1alpha1"
-	extensionapiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
+	pmmarketplacev1alpha1 "go.platform-mesh.io/apis/marketplace/v1alpha1"
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/virtual-workspaces/pkg/config"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/klog/v2"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/klog/v2"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+
+	"github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/logicalcluster/v3"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 )
 
 type clusterPathKey struct{}
@@ -111,7 +110,7 @@ func ContentConfigurationLookup(client dynamic.ClusterInterface, cfg config.Serv
 			path, ok := ClusterPathFrom(ctx)
 			if !ok {
 				klog.Error("cluster path not found in context")
-				return nil, kerrors.NewBadRequest("cluster path not found in context")
+				return nil, apierrors.NewBadRequest("cluster path not found in context")
 			}
 
 			apiBindings, err := client.Cluster(path).Resource(schema.GroupVersionResource{
@@ -125,8 +124,8 @@ func ContentConfigurationLookup(client dynamic.ClusterInterface, cfg config.Serv
 
 			parentPath, ok := path.Parent()
 			if !ok {
-				klog.ErrorS(kerrors.NewBadRequest("parent cluster path not found"), "path", path)
-				return nil, kerrors.NewBadRequest("parent cluster path not found")
+				klog.ErrorS(apierrors.NewBadRequest("parent cluster path not found"), "path", path)
+				return nil, apierrors.NewBadRequest("parent cluster path not found")
 			}
 
 			entityType := cfg.AccountEntityName
@@ -162,7 +161,7 @@ func ContentConfigurationLookup(client dynamic.ClusterInterface, cfg config.Serv
 				})
 
 				apiExportCCs, err := delegateLister.List(exportCtx, exportOpts)
-				if kerrors.IsNotFound(err) {
+				if apierrors.IsNotFound(err) {
 					return nil
 				}
 
@@ -212,26 +211,26 @@ func Marketplace(provider *apiexport.Provider, cfg config.ServiceConfig) forward
 			}
 
 			// Get APIBindings for this specific cluster
-			installedAPIBindings := &apisv1alpha1.APIBindingList{}
+			installedAPIBindings := &kcpapisv1alpha1.APIBindingList{}
 			if err := cl.GetClient().List(ctx, installedAPIBindings); err != nil {
 				return nil, fmt.Errorf("failed to list apibindings: %w", err)
 			}
 
 			lister := provider.Lister()
 
-			var providerList extensionapiv1alpha1.ProviderMetadataList
+			var providerList pmuiv1alpha1.ProviderMetadataList
 			if err := lister.List(ctx, &providerList); err != nil {
 				return nil, fmt.Errorf("failed to list providermetadatas: %w", err)
 			}
 
 			var results unstructured.UnstructuredList
-			results.SetGroupVersionKind(v1alpha1.GroupVersion.WithKind("MarketplaceEntryList"))
+			results.SetGroupVersionKind(pmmarketplacev1alpha1.GroupVersion.WithKind("MarketplaceEntryList"))
 
 			// For each provider, find matching APIExports across all shards
 			for _, provider := range providerList.Items {
-				exportList := &apisv1alpha1.APIExportList{}
+				exportList := &kcpapisv1alpha1.APIExportList{}
 
-				if err := lister.List(ctx, exportList, &client.ListOptions{
+				if err := lister.List(ctx, exportList, &ctrlruntimeclient.ListOptions{
 					LabelSelector: labels.SelectorFromValidatedSet(map[string]string{
 						cfg.ContentForLabel: provider.GetName(),
 					}),
@@ -244,7 +243,7 @@ func Marketplace(provider *apiexport.Provider, cfg config.ServiceConfig) forward
 						continue
 					}
 
-					idx := slices.IndexFunc(installedAPIBindings.Items, func(item apisv1alpha1.APIBinding) bool {
+					idx := slices.IndexFunc(installedAPIBindings.Items, func(item kcpapisv1alpha1.APIBinding) bool {
 						return item.Spec.Reference.Export.Name == export.Name &&
 							item.Status.APIExportClusterName == export.Annotations["kcp.io/cluster"]
 					})
@@ -257,11 +256,11 @@ func Marketplace(provider *apiexport.Provider, cfg config.ServiceConfig) forward
 					provider.ManagedFields = nil // clear managed fields to declutter the output
 					export.ManagedFields = nil
 
-					unstructuredEntry, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1alpha1.MarketplaceEntry{
+					unstructuredEntry, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&pmmarketplacev1alpha1.MarketplaceEntry{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: fmt.Sprintf("%s-%s", export.Name, provider.Name), // TODO: we might need to fix the name length to not exceed the kubernetes limit
 						},
-						Spec: v1alpha1.MarketplaceEntrySpec{
+						Spec: pmmarketplacev1alpha1.MarketplaceEntrySpec{
 							ProviderMetadata: *provider.DeepCopy(),
 							APIExport:        *export.DeepCopy(),
 							APIBindingName:   apiBindingName,
@@ -272,7 +271,7 @@ func Marketplace(provider *apiexport.Provider, cfg config.ServiceConfig) forward
 					}
 
 					us := unstructured.Unstructured{Object: unstructuredEntry}
-					us.SetGroupVersionKind(v1alpha1.GroupVersion.WithKind("MarketplaceEntry"))
+					us.SetGroupVersionKind(pmmarketplacev1alpha1.GroupVersion.WithKind("MarketplaceEntry"))
 					results.Items = append(results.Items, us)
 				}
 			}

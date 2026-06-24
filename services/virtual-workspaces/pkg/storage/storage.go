@@ -19,9 +19,6 @@ package storage
 import (
 	"context"
 
-	"github.com/kcp-dev/client-go/dynamic"
-	"github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic/apiserver"
-	registry "github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	structuralschema "k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
@@ -31,6 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/registry/rest"
+
+	"github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic/apiserver"
+	registry "github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 )
 
 func CreateStorageProviderFunc(clusterClient dynamic.ClusterInterface, filters ...registry.StorageWrapper) func(ctx context.Context) (apiserver.RestProviderFunc, error) {

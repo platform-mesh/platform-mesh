@@ -17,35 +17,32 @@ limitations under the License.
 package cmd
 
 import (
-	"github.com/kcp-dev/client-go/dynamic"
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	"github.com/kcp-dev/virtual-workspace-framework/pkg/authorization"
 	"github.com/spf13/cobra"
 
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/virtual-workspaces/pkg/authentication"
 	"go.platform-mesh.io/virtual-workspaces/pkg/contentconfiguration"
 	"go.platform-mesh.io/virtual-workspaces/pkg/marketplace"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apiserver/pkg/authentication/request/union"
+	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"k8s.io/apiserver/pkg/authentication/request/union"
-	genericapiserver "k8s.io/apiserver/pkg/server"
-
+	"github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-
-	extensionapiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
-
 	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
+	"github.com/kcp-dev/virtual-workspace-framework/pkg/authorization"
 	virtualrootapiserver "github.com/kcp-dev/virtual-workspace-framework/pkg/rootapiserver"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 )
 
 var (
@@ -57,7 +54,7 @@ func init() {
 	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(extensionapiv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmuiv1alpha1.AddToScheme(scheme))
 }
 
 var startCmd = &cobra.Command{

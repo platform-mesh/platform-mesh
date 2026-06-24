@@ -20,10 +20,9 @@ import (
 	"context"
 	"testing"
 
-	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
-	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"go.platform-mesh.io/virtual-workspaces/pkg/config"
 
 	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
@@ -33,36 +32,37 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/dynamic"
 
+	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
-
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
 
 func newCC(name string, ccLabels map[string]string, hasResult bool) unstructured.Unstructured {
 	obj := unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "ui.platform-mesh.io/v1alpha1",
 			"kind":       "ContentConfiguration",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":   name,
 				"labels": toInterfaceMap(ccLabels),
 			},
 		},
 	}
 	if hasResult {
-		obj.Object["status"] = map[string]interface{}{
-			"configurationResult": map[string]interface{}{
-				"nodes": []interface{}{},
+		obj.Object["status"] = map[string]any{
+			"configurationResult": map[string]any{
+				"nodes": []any{},
 			},
 		}
 	}
 	return obj
 }
 
-func toInterfaceMap(m map[string]string) map[string]interface{} {
-	result := make(map[string]interface{}, len(m))
+func toInterfaceMap(m map[string]string) map[string]any {
+	result := make(map[string]any, len(m))
 	for k, v := range m {
 		result[k] = v
 	}

@@ -20,14 +20,6 @@ import (
 	"context"
 	"path"
 
-	"github.com/kcp-dev/client-go/dynamic"
-	"github.com/kcp-dev/logicalcluster/v3"
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
-	"github.com/kcp-dev/virtual-workspace-framework/framework"
-	virtualworkspacesdynamic "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic"
-	kcpapidefinition "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic/apidefinition"
-	virtualrootapiserver "github.com/kcp-dev/virtual-workspace-framework/pkg/rootapiserver"
 	"go.platform-mesh.io/virtual-workspaces/pkg/apidefinition"
 	"go.platform-mesh.io/virtual-workspaces/pkg/authorization"
 	"go.platform-mesh.io/virtual-workspaces/pkg/config"
@@ -35,13 +27,21 @@ import (
 	"go.platform-mesh.io/virtual-workspaces/pkg/proxy"
 	"go.platform-mesh.io/virtual-workspaces/pkg/storage"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
-
 	genericapiserver "k8s.io/apiserver/pkg/server"
+
+	"github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
+	"github.com/kcp-dev/virtual-workspace-framework/framework"
+	virtualworkspacesdynamic "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic"
+	kcpapidefinition "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic/apidefinition"
+	virtualrootapiserver "github.com/kcp-dev/virtual-workspace-framework/pkg/rootapiserver"
 )
 
 var Name = "contentconfigurations"
@@ -80,12 +80,12 @@ func BuildVirtualWorkspace(
 					Group:    "apis.kcp.io",
 					Version:  "v1alpha1",
 					Resource: "apiresourceschemas",
-				}).Get(ctx, cfg.ResourceSchemaName, v1.GetOptions{})
+				}).Get(ctx, cfg.ResourceSchemaName, metav1.GetOptions{})
 				if err != nil {
 					return nil, err
 				}
 
-				var resourceSchema apisv1alpha1.APIResourceSchema
+				var resourceSchema kcpapisv1alpha1.APIResourceSchema
 				err = runtime.DefaultUnstructuredConverter.FromUnstructured(rawResourceSchema.Object, &resourceSchema)
 				if err != nil {
 					return nil, err

@@ -23,6 +23,7 @@ import (
 	"net/url"
 
 	"go.platform-mesh.io/virtual-workspaces/pkg/storage"
+
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authentication/request/bearertoken"
 	"k8s.io/apiserver/pkg/authentication/user"

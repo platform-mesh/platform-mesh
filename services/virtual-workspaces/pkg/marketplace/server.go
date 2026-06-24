@@ -20,14 +20,6 @@ import (
 	"context"
 	"path"
 
-	"github.com/kcp-dev/client-go/dynamic"
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
-	"github.com/kcp-dev/virtual-workspace-framework/framework"
-	virtualworkspacesdynamic "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic"
-	kcpapidefinition "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic/apidefinition"
-	virtualrootapiserver "github.com/kcp-dev/virtual-workspace-framework/pkg/rootapiserver"
 	"go.platform-mesh.io/virtual-workspaces/config/resources"
 	"go.platform-mesh.io/virtual-workspaces/pkg/apidefinition"
 	"go.platform-mesh.io/virtual-workspaces/pkg/authorization"
@@ -40,8 +32,16 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
-
 	genericapiserver "k8s.io/apiserver/pkg/server"
+
+	"github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
+	"github.com/kcp-dev/virtual-workspace-framework/framework"
+	virtualworkspacesdynamic "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic"
+	kcpapidefinition "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic/apidefinition"
+	virtualrootapiserver "github.com/kcp-dev/virtual-workspace-framework/pkg/rootapiserver"
 )
 
 var Name = "marketplace"
@@ -78,7 +78,7 @@ func BuildVirtualWorkspace(
 			ReadyChecker: framework.ReadyFunc(func() error { return nil }),
 			BootstrapAPISetManagement: func(mainConfig genericapiserver.CompletedConfig) (kcpapidefinition.APIDefinitionSetGetter, error) {
 
-				var resourceSchema apisv1alpha1.APIResourceSchema
+				var resourceSchema kcpapisv1alpha1.APIResourceSchema
 				err := yaml.Unmarshal([]byte(resources.ResourceSchema), &resourceSchema)
 				if err != nil {
 					return nil, err
