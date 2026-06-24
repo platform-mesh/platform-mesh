@@ -14,6 +14,7 @@ use (
 	./operators/security-operator
 	./operators/terminal-controller-manager
 	./services/rebac-authz-webhook
+	./services/search-service
 	./services/virtual-workspaces
 	./subroutines
 )
