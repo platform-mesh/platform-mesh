@@ -21,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -35,15 +36,15 @@ func TestEvaluateTemplate(t *testing.T) {
 		{
 			name:     "simple static string",
 			template: "root:orgs:sap",
-			data:     TemplateData{Source: map[string]interface{}{}},
+			data:     TemplateData{Source: map[string]any{}},
 			expected: "root:orgs:sap",
 		},
 		{
 			name:     "template with namespace",
 			template: "root:orgs:{{ .Source.metadata.namespace }}",
 			data: TemplateData{
-				Source: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Source: map[string]any{
+					"metadata": map[string]any{
 						"namespace": "test-ns",
 					},
 				},
@@ -54,8 +55,8 @@ func TestEvaluateTemplate(t *testing.T) {
 			name:     "template with name",
 			template: "root:{{ .Source.metadata.name }}",
 			data: TemplateData{
-				Source: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Source: map[string]any{
+					"metadata": map[string]any{
 						"name": "my-resource",
 					},
 				},
@@ -66,9 +67,9 @@ func TestEvaluateTemplate(t *testing.T) {
 			name:     "template with label",
 			template: "root:orgs:{{ index .Source.metadata.labels \"org\" }}",
 			data: TemplateData{
-				Source: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
+				Source: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{
 							"org": "sap",
 						},
 					},
@@ -80,8 +81,8 @@ func TestEvaluateTemplate(t *testing.T) {
 			name:     "template with nested spec field",
 			template: "root:{{ .Source.spec.type }}",
 			data: TemplateData{
-				Source: map[string]interface{}{
-					"spec": map[string]interface{}{
+				Source: map[string]any{
+					"spec": map[string]any{
 						"type": "account",
 					},
 				},
@@ -98,7 +99,7 @@ func TestEvaluateTemplate(t *testing.T) {
 			name:     "invalid template syntax",
 			template: "root:{{ .Source.invalid",
 			data: TemplateData{
-				Source: map[string]interface{}{},
+				Source: map[string]any{},
 			},
 			expectError: true,
 		},
@@ -106,8 +107,8 @@ func TestEvaluateTemplate(t *testing.T) {
 			name:     "missing key in template",
 			template: "root:{{ .Source.metadata.nonexistent }}",
 			data: TemplateData{
-				Source: map[string]interface{}{
-					"metadata": map[string]interface{}{},
+				Source: map[string]any{
+					"metadata": map[string]any{},
 				},
 			},
 			expectError: true,
@@ -131,10 +132,10 @@ func TestEvaluateTemplate(t *testing.T) {
 
 func TestNewTemplateData(t *testing.T) {
 	source := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "ConfigMap",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-cm",
 				"namespace": "default",
 			},
@@ -159,7 +160,7 @@ func TestEvaluateWorkspaceExpression(t *testing.T) {
 			name:       "static workspace path",
 			expression: "root:orgs:sap",
 			source: &unstructured.Unstructured{
-				Object: map[string]interface{}{},
+				Object: map[string]any{},
 			},
 			expected: "root:orgs:sap",
 		},
@@ -167,8 +168,8 @@ func TestEvaluateWorkspaceExpression(t *testing.T) {
 			name:       "dynamic workspace from namespace",
 			expression: "root:orgs:{{ .Source.metadata.namespace }}",
 			source: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"namespace": "sap",
 					},
 				},
@@ -179,9 +180,9 @@ func TestEvaluateWorkspaceExpression(t *testing.T) {
 			name:       "dynamic workspace from label",
 			expression: "root:orgs:{{ index .Source.metadata.labels \"platform-mesh.io/org\" }}",
 			source: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{
 							"platform-mesh.io/org": "my-org",
 						},
 					},
@@ -193,8 +194,8 @@ func TestEvaluateWorkspaceExpression(t *testing.T) {
 			name:       "complex workspace path with multiple fields",
 			expression: "root:{{ .Source.metadata.namespace }}:{{ .Source.metadata.name }}",
 			source: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"namespace": "orgs",
 						"name":      "sap",
 					},
@@ -206,8 +207,8 @@ func TestEvaluateWorkspaceExpression(t *testing.T) {
 			name:       "missing namespace field",
 			expression: "root:{{ .Source.metadata.namespace }}",
 			source: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{},
+				Object: map[string]any{
+					"metadata": map[string]any{},
 				},
 			},
 			expectError: true,
@@ -232,18 +233,18 @@ func TestEvaluateWorkspaceExpression(t *testing.T) {
 func TestEvaluateTemplateWithAccountResource(t *testing.T) {
 	// Test with a realistic Account resource structure
 	account := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "core.platform-mesh.io/v1alpha1",
 			"kind":       "Account",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-account",
 				"namespace": "sap",
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					"org":                    "sap",
 					"platform-mesh.io/owner": "admin",
 				},
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"type":        "account",
 				"displayName": "Test Account",
 			},

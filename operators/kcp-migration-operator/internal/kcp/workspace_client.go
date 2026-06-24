@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // WorkspaceClientFactory creates Kubernetes clients for specific kcp workspaces
@@ -33,7 +33,7 @@ import (
 type WorkspaceClientFactory interface {
 	// GetClient returns a Kubernetes client configured for the specified workspace path
 	// The workspace path should be in kcp format, e.g., "root:orgs:sap"
-	GetClient(workspacePath string) (client.Client, error)
+	GetClient(workspacePath string) (ctrlruntimeclient.Client, error)
 }
 
 // workspaceClientFactory implements WorkspaceClientFactory
@@ -44,7 +44,7 @@ type workspaceClientFactory struct {
 
 	// Client cache to avoid creating new clients for each request
 	mu      sync.RWMutex
-	clients map[string]client.Client
+	clients map[string]ctrlruntimeclient.Client
 }
 
 // NewWorkspaceClientFactory creates a new WorkspaceClientFactory from a kcp kubeconfig file
@@ -64,7 +64,7 @@ func NewWorkspaceClientFactory(kcpKubeconfigPath string, scheme *runtime.Scheme)
 		baseConfig: config,
 		scheme:     scheme,
 		baseHost:   baseHost,
-		clients:    make(map[string]client.Client),
+		clients:    make(map[string]ctrlruntimeclient.Client),
 	}, nil
 }
 
@@ -80,12 +80,12 @@ func NewWorkspaceClientFactoryFromConfig(config *rest.Config, scheme *runtime.Sc
 		baseConfig: config,
 		scheme:     scheme,
 		baseHost:   baseHost,
-		clients:    make(map[string]client.Client),
+		clients:    make(map[string]ctrlruntimeclient.Client),
 	}, nil
 }
 
 // GetClient returns a Kubernetes client configured for the specified workspace path
-func (f *workspaceClientFactory) GetClient(workspacePath string) (client.Client, error) {
+func (f *workspaceClientFactory) GetClient(workspacePath string) (ctrlruntimeclient.Client, error) {
 	if workspacePath == "" {
 		return nil, fmt.Errorf("workspace path cannot be empty")
 	}
@@ -111,7 +111,7 @@ func (f *workspaceClientFactory) GetClient(workspacePath string) (client.Client,
 	workspaceConfig := rest.CopyConfig(f.baseConfig)
 	workspaceConfig.Host = f.baseHost + "/clusters/" + workspacePath
 
-	c, err := client.New(workspaceConfig, client.Options{Scheme: f.scheme})
+	c, err := ctrlruntimeclient.New(workspaceConfig, ctrlruntimeclient.Options{Scheme: f.scheme})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client for workspace %s: %w", workspacePath, err)
 	}

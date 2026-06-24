@@ -24,18 +24,19 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"sigs.k8s.io/yaml"
 
 	"go.platform-mesh.io/kcp-migration-operator/internal/config"
 	"go.platform-mesh.io/kcp-migration-operator/internal/controller"
 	"go.platform-mesh.io/kcp-migration-operator/internal/kcp"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/yaml"
 )
 
 var syncCfg config.SyncConfig
@@ -119,7 +120,7 @@ func runSingleSync(ctx context.Context) {
 
 		// Create a temporary client to read the ConfigMap
 		inClusterConfig := ctrl.GetConfigOrDie()
-		tmpClient, err := client.New(inClusterConfig, client.Options{Scheme: scheme})
+		tmpClient, err := ctrlruntimeclient.New(inClusterConfig, ctrlruntimeclient.Options{Scheme: scheme})
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to create client for ConfigMap lookup")
 		}
@@ -136,7 +137,7 @@ func runSingleSync(ctx context.Context) {
 			namespace = "platform-mesh-system"
 		}
 
-		if err := tmpClient.Get(context.Background(), client.ObjectKey{
+		if err := tmpClient.Get(context.Background(), ctrlruntimeclient.ObjectKey{
 			Namespace: namespace,
 			Name:      syncCfg.Transform.ConfigMapName,
 		}, cm); err != nil {

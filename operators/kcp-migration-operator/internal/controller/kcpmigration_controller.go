@@ -19,20 +19,20 @@ package controller
 import (
 	"context"
 
+	pmmigrationv1alpha1 "go.platform-mesh.io/apis/migration/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/kcp-migration-operator/internal/config"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	migrationv1alpha1 "go.platform-mesh.io/apis/migration/v1alpha1"
-	"go.platform-mesh.io/kcp-migration-operator/internal/config"
 )
 
 // KCPMigrationReconciler reconciles a KCPMigration object
 type KCPMigrationReconciler struct {
-	client.Client
+	ctrlruntimeclient.Client
 	Scheme *runtime.Scheme
 	Log    *logger.Logger
 	Config *config.OperatorConfig
@@ -40,7 +40,7 @@ type KCPMigrationReconciler struct {
 
 // NewKCPMigrationReconciler creates a new KCPMigrationReconciler
 func NewKCPMigrationReconciler(
-	client client.Client,
+	client ctrlruntimeclient.Client,
 	scheme *runtime.Scheme,
 	log *logger.Logger,
 	cfg *config.OperatorConfig,
@@ -70,7 +70,7 @@ func (r *KCPMigrationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log.Info().Msg("reconciling KCPMigration")
 
 	// Fetch the KCPMigration instance
-	migration := &migrationv1alpha1.KCPMigration{}
+	migration := &pmmigrationv1alpha1.KCPMigration{}
 	if err := r.Get(ctx, req.NamespacedName, migration); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Debug().Msg("KCPMigration not found, likely deleted")
@@ -90,7 +90,7 @@ func (r *KCPMigrationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Update status phase if not set
 	if migration.Status.Phase == "" {
-		migration.Status.Phase = migrationv1alpha1.PhasePending
+		migration.Status.Phase = pmmigrationv1alpha1.PhasePending
 		if err := r.Status().Update(ctx, migration); err != nil {
 			if apierrors.IsConflict(err) {
 				log.Debug().Msg("conflict updating status, requeuing")
@@ -109,8 +109,8 @@ func (r *KCPMigrationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// 4. UpdateStatus - update migration status
 
 	// For now, just update to Running phase
-	if migration.Status.Phase == migrationv1alpha1.PhasePending {
-		migration.Status.Phase = migrationv1alpha1.PhaseRunning
+	if migration.Status.Phase == pmmigrationv1alpha1.PhasePending {
+		migration.Status.Phase = pmmigrationv1alpha1.PhaseRunning
 		migration.Status.ObservedGeneration = migration.Generation
 		if err := r.Status().Update(ctx, migration); err != nil {
 			if apierrors.IsConflict(err) {
@@ -127,7 +127,7 @@ func (r *KCPMigrationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 // SetupWithManager sets up the controller with the Manager
 func (r *KCPMigrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&migrationv1alpha1.KCPMigration{}).
+		For(&pmmigrationv1alpha1.KCPMigration{}).
 		Named("kcpmigration").
 		Complete(r)
 }

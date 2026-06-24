@@ -20,13 +20,15 @@ import (
 	"crypto/tls"
 
 	"github.com/spf13/cobra"
+
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"go.platform-mesh.io/kcp-migration-operator/internal/controller"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"go.platform-mesh.io/kcp-migration-operator/internal/controller"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var operatorCmd = &cobra.Command{

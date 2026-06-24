@@ -21,14 +21,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/kcp-migration-operator/internal/config"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-
-	"go.platform-mesh.io/kcp-migration-operator/internal/config"
 )
 
 func TestParseAPIVersion(t *testing.T) {

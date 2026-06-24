@@ -21,9 +21,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"go.platform-mesh.io/kcp-migration-operator/internal/config"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // createTestController creates a SyncController for testing
@@ -44,19 +45,19 @@ func TestPrepareTargetResource_PassThrough(t *testing.T) {
 		{
 			name: "should clean metadata and preserve data",
 			source: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "ConfigMap",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":              "test-cm",
 						"namespace":         "source-ns",
 						"uid":               "12345",
 						"resourceVersion":   "67890",
 						"creationTimestamp": "2024-01-01T00:00:00Z",
 						"generation":        int64(1),
-						"managedFields":     []interface{}{},
+						"managedFields":     []any{},
 					},
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"key": "value",
 					},
 				},
@@ -68,10 +69,10 @@ func TestPrepareTargetResource_PassThrough(t *testing.T) {
 		{
 			name: "should override namespace from config",
 			source: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "ConfigMap",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-cm",
 						"namespace": "source-ns",
 					},
@@ -87,10 +88,10 @@ func TestPrepareTargetResource_PassThrough(t *testing.T) {
 		{
 			name: "should add source tracking annotations",
 			source: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "ConfigMap",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-cm",
 						"namespace": "default",
 						"uid":       "test-uid-123",
@@ -103,14 +104,14 @@ func TestPrepareTargetResource_PassThrough(t *testing.T) {
 		{
 			name: "should preserve existing annotations",
 			source: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "ConfigMap",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-cm",
 						"namespace": "default",
 						"uid":       "test-uid-123",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							"existing-annotation": "should-be-preserved",
 						},
 					},
@@ -135,7 +136,7 @@ func TestPrepareTargetResource_PassThrough(t *testing.T) {
 			assert.Equal(t, tt.source.GetName(), target.GetName())
 
 			// Check that metadata is cleaned
-			metadata := target.Object["metadata"].(map[string]interface{})
+			metadata := target.Object["metadata"].(map[string]any)
 			if tt.checkCleanMeta {
 				assert.Nil(t, metadata["uid"])
 				assert.Nil(t, metadata["resourceVersion"])
@@ -145,7 +146,7 @@ func TestPrepareTargetResource_PassThrough(t *testing.T) {
 			}
 
 			// Check source tracking annotation exists
-			annotations := metadata["annotations"].(map[string]interface{})
+			annotations := metadata["annotations"].(map[string]any)
 			assert.Contains(t, annotations, "migration.platform-mesh.io/source-uid")
 			assert.Contains(t, annotations, "migration.platform-mesh.io/source-generation")
 
@@ -160,14 +161,14 @@ func TestPrepareTargetResource_PassThrough(t *testing.T) {
 func TestPrepareTargetResource_ClusterScopedResource(t *testing.T) {
 	// Test with a cluster-scoped resource (no namespace)
 	source := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "core.platform-mesh.io/v1alpha1",
 			"kind":       "Account",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": "test-account",
 				"uid":  "account-uid-123",
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"type":        "account",
 				"displayName": "Test Account",
 			},
@@ -190,7 +191,7 @@ func TestPrepareTargetResource_ClusterScopedResource(t *testing.T) {
 	assert.Equal(t, "Account", target.GetKind())
 
 	// Spec should be preserved
-	spec := target.Object["spec"].(map[string]interface{})
+	spec := target.Object["spec"].(map[string]any)
 	assert.Equal(t, "account", spec["type"])
 	assert.Equal(t, "Test Account", spec["displayName"])
 }
@@ -198,15 +199,15 @@ func TestPrepareTargetResource_ClusterScopedResource(t *testing.T) {
 func TestPrepareTargetResource_WithTemplate(t *testing.T) {
 	// Test transformation with template
 	source := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "fabric.foundation.sap.com/v1alpha1",
 			"kind":       "Account",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-project",
 				"namespace": "account-2bzns",
 				"uid":       "source-uid-123",
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"accountRole": "Project",
 				"displayName": "Test Project",
 				"owner":       "I123456",
@@ -276,13 +277,13 @@ spec:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			source := &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "fabric.foundation.sap.com/v1alpha1",
 					"kind":       "Account",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "test-account",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"accountRole": tt.accountRole,
 						"displayName": "Test Account",
 					},

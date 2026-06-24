@@ -23,6 +23,7 @@ import (
 	"text/template"
 
 	sprig "github.com/go-task/slim-sprig/v3"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
@@ -31,7 +32,7 @@ const copyFieldPrefix = "__COPY_FIELD__:"
 
 // TemplateData provides context for template evaluation
 type TemplateData struct {
-	Source map[string]interface{} // Full unstructured source resource
+	Source map[string]any // Full unstructured source resource
 }
 
 // NewTemplateData creates TemplateData from an unstructured resource
@@ -46,11 +47,11 @@ func customFuncs() template.FuncMap {
 	return template.FuncMap{
 		// getField safely gets a nested field from a map using dot notation
 		// Example: getField .Source "spec.displayName"
-		"getField": func(obj map[string]interface{}, path string) interface{} {
+		"getField": func(obj map[string]any, path string) any {
 			parts := strings.Split(path, ".")
-			current := interface{}(obj)
+			current := any(obj)
 			for _, part := range parts {
-				if m, ok := current.(map[string]interface{}); ok {
+				if m, ok := current.(map[string]any); ok {
 					current = m[part]
 				} else {
 					return nil
@@ -59,11 +60,11 @@ func customFuncs() template.FuncMap {
 			return current
 		},
 		// getFieldStr safely gets a nested field as string
-		"getFieldStr": func(obj map[string]interface{}, path string) string {
+		"getFieldStr": func(obj map[string]any, path string) string {
 			parts := strings.Split(path, ".")
-			current := interface{}(obj)
+			current := any(obj)
 			for _, part := range parts {
-				if m, ok := current.(map[string]interface{}); ok {
+				if m, ok := current.(map[string]any); ok {
 					current = m[part]
 				} else {
 					return ""
@@ -84,11 +85,11 @@ func customFuncs() template.FuncMap {
 }
 
 // getNestedField retrieves a nested field from a map using dot notation
-func getNestedField(obj map[string]interface{}, path string) (interface{}, bool) {
+func getNestedField(obj map[string]any, path string) (any, bool) {
 	parts := strings.Split(path, ".")
-	current := interface{}(obj)
+	current := any(obj)
 	for _, part := range parts {
-		if m, ok := current.(map[string]interface{}); ok {
+		if m, ok := current.(map[string]any); ok {
 			current, ok = m[part]
 			if !ok {
 				return nil, false
@@ -102,7 +103,7 @@ func getNestedField(obj map[string]interface{}, path string) (interface{}, bool)
 
 // resolveCopyFromMarkers walks the parsed YAML structure and replaces copyFrom markers
 // with actual values from the source
-func resolveCopyFromMarkers(obj map[string]interface{}, source map[string]interface{}) {
+func resolveCopyFromMarkers(obj map[string]any, source map[string]any) {
 	for key, value := range obj {
 		switch v := value.(type) {
 		case string:
@@ -112,11 +113,11 @@ func resolveCopyFromMarkers(obj map[string]interface{}, source map[string]interf
 					obj[key] = sourceValue
 				}
 			}
-		case map[string]interface{}:
+		case map[string]any:
 			resolveCopyFromMarkers(v, source)
-		case []interface{}:
+		case []any:
 			for i, item := range v {
-				if m, ok := item.(map[string]interface{}); ok {
+				if m, ok := item.(map[string]any); ok {
 					resolveCopyFromMarkers(m, source)
 				} else if s, ok := item.(string); ok && strings.HasPrefix(s, copyFieldPrefix) {
 					path := strings.TrimPrefix(s, copyFieldPrefix)

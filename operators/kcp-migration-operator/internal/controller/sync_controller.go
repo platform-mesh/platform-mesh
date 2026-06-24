@@ -21,25 +21,26 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
+
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/kcp-migration-operator/internal/config"
+	"go.platform-mesh.io/kcp-migration-operator/internal/kcp"
+	"go.platform-mesh.io/kcp-migration-operator/internal/transform"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"go.platform-mesh.io/kcp-migration-operator/internal/config"
-	"go.platform-mesh.io/kcp-migration-operator/internal/kcp"
-	"go.platform-mesh.io/kcp-migration-operator/internal/transform"
 )
 
 // SyncController watches source resources and syncs them to kcp workspaces
 type SyncController struct {
-	client.Client
+	ctrlruntimeclient.Client
 	Log                    *logger.Logger
 	Config                 *config.SyncConfig
 	WorkspaceClientFactory kcp.WorkspaceClientFactory
@@ -48,7 +49,7 @@ type SyncController struct {
 
 // NewSyncController creates a new SyncController
 func NewSyncController(
-	client client.Client,
+	client ctrlruntimeclient.Client,
 	log *logger.Logger,
 	cfg *config.SyncConfig,
 	workspaceFactory kcp.WorkspaceClientFactory,
@@ -171,7 +172,7 @@ func (s *SyncController) prepareTargetResource(source *unstructured.Unstructured
 	target := source.DeepCopy()
 
 	// Clean up metadata that shouldn't be copied to target
-	metadata := target.Object["metadata"].(map[string]interface{})
+	metadata := target.Object["metadata"].(map[string]any)
 
 	// Remove cluster-specific fields
 	delete(metadata, "uid")
@@ -189,9 +190,9 @@ func (s *SyncController) prepareTargetResource(source *unstructured.Unstructured
 	}
 
 	// Add annotation to track source
-	annotations, ok := metadata["annotations"].(map[string]interface{})
+	annotations, ok := metadata["annotations"].(map[string]any)
 	if !ok {
-		annotations = make(map[string]interface{})
+		annotations = make(map[string]any)
 	}
 	annotations["migration.platform-mesh.io/source-uid"] = string(source.GetUID())
 	annotations["migration.platform-mesh.io/source-generation"] = source.GetGeneration()
@@ -201,12 +202,12 @@ func (s *SyncController) prepareTargetResource(source *unstructured.Unstructured
 }
 
 // syncToKCP creates or updates the resource in kcp
-func (s *SyncController) syncToKCP(ctx context.Context, kcpClient client.Client, target *unstructured.Unstructured, log zerolog.Logger) error {
+func (s *SyncController) syncToKCP(ctx context.Context, kcpClient ctrlruntimeclient.Client, target *unstructured.Unstructured, log zerolog.Logger) error {
 	// Try to get existing resource
 	existing := &unstructured.Unstructured{}
 	existing.SetGroupVersionKind(target.GroupVersionKind())
 
-	err := kcpClient.Get(ctx, client.ObjectKey{
+	err := kcpClient.Get(ctx, ctrlruntimeclient.ObjectKey{
 		Namespace: target.GetNamespace(),
 		Name:      target.GetName(),
 	}, existing)
@@ -265,7 +266,7 @@ func (s *SyncController) SetupWithManager(mgr ctrl.Manager) error {
 
 	// Add namespace predicate if source namespace is configured
 	if s.Config.Source.Namespace != "" {
-		predicates = append(predicates, predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		predicates = append(predicates, predicate.NewPredicateFuncs(func(obj ctrlruntimeclient.Object) bool {
 			return obj.GetNamespace() == s.Config.Source.Namespace
 		}))
 	}
@@ -305,7 +306,7 @@ func (s *SyncController) buildLabelSelectorPredicate() (predicate.Predicate, err
 		Strs("labelSelectors", s.Config.Source.LabelSelectors).
 		Msg("configured label selector filtering")
 
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+	return predicate.NewPredicateFuncs(func(obj ctrlruntimeclient.Object) bool {
 		objLabels := labels.Set(obj.GetLabels())
 		for _, selector := range selectors {
 			if !selector.Matches(objLabels) {
