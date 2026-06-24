@@ -22,19 +22,19 @@ import (
 	"strings"
 	"time"
 
+	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	"go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/search-operator/internal/metrics"
 	"go.platform-mesh.io/search-operator/internal/opensearch"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 // IndexLifecycleSubroutine manages the lifecycle of OpenSearch indices
@@ -76,7 +76,7 @@ func (s *IndexLifecycleSubroutine) GetName() string {
 
 // Finalizers returns the finalizers this subroutine manages
 func (s *IndexLifecycleSubroutine) Finalizers(instance runtimeobject.RuntimeObject) []string {
-	_, ok := instance.(*v1alpha1.SearchIndex)
+	_, ok := instance.(*pmsearchv1alpha1.SearchIndex)
 	if !ok {
 		return nil
 	}
@@ -96,7 +96,7 @@ func (s *IndexLifecycleSubroutine) Process(ctx context.Context, instance runtime
 		metrics.SubroutineDuration.WithLabelValues(s.GetName()).Observe(time.Since(start).Seconds())
 	}()
 	log := logger.LoadLoggerFromContext(ctx)
-	searchIndex, ok := instance.(*v1alpha1.SearchIndex)
+	searchIndex, ok := instance.(*pmsearchv1alpha1.SearchIndex)
 	if !ok {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("expected *v1alpha1.SearchIndex, got %T", instance), false, false)
 	}
@@ -216,7 +216,7 @@ func (s *IndexLifecycleSubroutine) Process(ctx context.Context, instance runtime
 	}
 
 	if created || replicasUpdated || statusChanged {
-		searchIndex.Status.LastSyncTime = &v1.Time{Time: time.Now()}
+		searchIndex.Status.LastSyncTime = &metav1.Time{Time: time.Now()}
 		log.Info().
 			Str("name", searchIndex.GetName()).
 			Str("organizationClusterID", organizationClusterID).
@@ -237,7 +237,7 @@ func (s *IndexLifecycleSubroutine) Process(ctx context.Context, instance runtime
 // Finalize handles cleanup when the resource is being deleted
 func (s *IndexLifecycleSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
-	searchIndex, ok := instance.(*v1alpha1.SearchIndex)
+	searchIndex, ok := instance.(*pmsearchv1alpha1.SearchIndex)
 	if !ok {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("expected *v1alpha1.SearchIndex, got %T", instance), false, false)
 	}
@@ -273,7 +273,7 @@ func (s *IndexLifecycleSubroutine) Finalize(ctx context.Context, instance runtim
 	return ctrl.Result{}, nil
 }
 
-func (s *IndexLifecycleSubroutine) ensureSearchIndexMetadata(ctx context.Context, si *v1alpha1.SearchIndex, orgClusterID string) error {
+func (s *IndexLifecycleSubroutine) ensureSearchIndexMetadata(ctx context.Context, si *pmsearchv1alpha1.SearchIndex, orgClusterID string) error {
 	original := si.DeepCopy()
 	changed := false
 
@@ -302,7 +302,7 @@ func (s *IndexLifecycleSubroutine) ensureSearchIndexMetadata(ctx context.Context
 		return fmt.Errorf("get cluster from context: %w", err)
 	}
 
-	if err := cluster.GetClient().Patch(ctx, si, client.MergeFrom(original)); err != nil {
+	if err := cluster.GetClient().Patch(ctx, si, ctrlruntimeclient.MergeFrom(original)); err != nil {
 		return fmt.Errorf("patch SearchIndex metadata: %w", err)
 	}
 

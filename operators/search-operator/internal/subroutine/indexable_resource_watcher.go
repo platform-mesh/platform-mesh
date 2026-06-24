@@ -23,15 +23,18 @@ import (
 	"strings"
 	"time"
 
-	"sigs.k8s.io/yaml"
-
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/errors"
 	fgamodel "go.platform-mesh.io/golang-commons/fga/model"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-operator/internal/metrics"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,22 +42,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	searchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
-	"go.platform-mesh.io/search-operator/internal/metrics"
-	"go.platform-mesh.io/search-operator/internal/opensearch"
+	"sigs.k8s.io/yaml"
 )
 
 // IndexableResourceWatcherSubroutine watches IndexableResource resources across workspaces
 type IndexableResourceWatcherSubroutine struct {
 	mgr           mcmanager.Manager
-	allClient     client.Client
-	orgsClient    client.Client // scoped to root:orgs for Workspace lookups
+	allClient     ctrlruntimeclient.Client
+	orgsClient    ctrlruntimeclient.Client // scoped to root:orgs for Workspace lookups
 	osClient      *opensearch.Client
 	apiExportName string
 	indexPrefix   string
@@ -63,7 +62,7 @@ type IndexableResourceWatcherSubroutine struct {
 
 // NewIndexableResourceWatcherSubroutine creates a new IndexableResource watcher subroutine.
 // localCfg must be the admin kcp REST config
-func NewIndexableResourceWatcherSubroutine(mgr mcmanager.Manager, allClient client.Client, orgsClient client.Client, osClient *opensearch.Client, apiExportName string, indexPrefix string, localCfg *rest.Config) (*IndexableResourceWatcherSubroutine, error) {
+func NewIndexableResourceWatcherSubroutine(mgr mcmanager.Manager, allClient ctrlruntimeclient.Client, orgsClient ctrlruntimeclient.Client, osClient *opensearch.Client, apiExportName string, indexPrefix string, localCfg *rest.Config) (*IndexableResourceWatcherSubroutine, error) {
 	rootCfg, err := stripPathFromConfig(localCfg)
 	if err != nil {
 		return nil, err
@@ -191,12 +190,12 @@ func (s *IndexableResourceWatcherSubroutine) Process(ctx context.Context, instan
 	doc.FGAObject = buildFGAObjectName(fgaGroup, fgaKind, fgaClusterID.String(), resource.GetName(), resource.GetNamespace())
 
 	// Contextual Tuples (Permissions field), build parent hierarchy from AccountInfo
-	orgObject := buildFGAObjectName(searchv1alpha1.GroupName, searchv1alpha1.AccountKind, accountInfo.Spec.Organization.OriginClusterId, accountInfo.Spec.Organization.Name, "")
-	accountObject := buildFGAObjectName(corev1alpha1.GroupVersion.Group, searchv1alpha1.AccountKind, accountInfo.Spec.Account.OriginClusterId, accountInfo.Spec.Account.Name, "")
+	orgObject := buildFGAObjectName(pmsearchv1alpha1.GroupName, pmsearchv1alpha1.AccountKind, accountInfo.Spec.Organization.OriginClusterId, accountInfo.Spec.Organization.Name, "")
+	accountObject := buildFGAObjectName(pmcorev1alpha1.GroupVersion.Group, pmsearchv1alpha1.AccountKind, accountInfo.Spec.Account.OriginClusterId, accountInfo.Spec.Account.Name, "")
 	doc.AccountName = accountInfo.Spec.Account.Name
 	doc.AccountID = accountInfo.Spec.Account.OriginClusterId
 
-	isOrganization := gvk.Group == searchv1alpha1.GroupName && gvk.Kind == searchv1alpha1.OrganizationKind
+	isOrganization := gvk.Group == pmsearchv1alpha1.GroupName && gvk.Kind == pmsearchv1alpha1.OrganizationKind
 	parentObject := accountObject
 	if isOrganization {
 		parentObject = orgObject
@@ -249,8 +248,8 @@ func (s *IndexableResourceWatcherSubroutine) Process(ctx context.Context, instan
 	return ctrl.Result{}, nil
 }
 
-func (s *IndexableResourceWatcherSubroutine) getParentAccountInfo(ctx context.Context, log *logger.Logger, resource *unstructured.Unstructured, clusterID, resourceClusterID multicluster.ClusterName) *corev1alpha1.AccountInfo {
-	accountInfo := corev1alpha1.AccountInfo{}
+func (s *IndexableResourceWatcherSubroutine) getParentAccountInfo(ctx context.Context, log *logger.Logger, resource *unstructured.Unstructured, clusterID, resourceClusterID multicluster.ClusterName) *pmcorev1alpha1.AccountInfo {
+	accountInfo := pmcorev1alpha1.AccountInfo{}
 	accountInfoLookupClusters := resolveAccountInfoLookupClusters(resource, clusterID, resourceClusterID)
 	for _, candidateClusterID := range accountInfoLookupClusters {
 		cluster, getClusterErr := s.mgr.GetCluster(ctx, candidateClusterID)
@@ -264,12 +263,12 @@ func (s *IndexableResourceWatcherSubroutine) getParentAccountInfo(ctx context.Co
 
 		clusterClient := cluster.GetClient()
 		lookupCtx := mccontext.WithCluster(ctx, candidateClusterID)
-		getAccountInfoErr := clusterClient.Get(lookupCtx, client.ObjectKey{Name: "account"}, &accountInfo)
+		getAccountInfoErr := clusterClient.Get(lookupCtx, ctrlruntimeclient.ObjectKey{Name: "account"}, &accountInfo)
 		if getAccountInfoErr == nil {
 			break
 		}
 		if apierrors.IsNotFound(getAccountInfoErr) {
-			retryErr := clusterClient.Get(ctx, client.ObjectKey{Name: "account"}, &accountInfo)
+			retryErr := clusterClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "account"}, &accountInfo)
 			if retryErr == nil {
 				break
 			}
@@ -296,8 +295,8 @@ func (s *IndexableResourceWatcherSubroutine) getParentAccountInfo(ctx context.Co
 }
 
 // Returns the AccountInfo for the given resource if it is an Account or Organization, otherwise returns nil.
-func (s *IndexableResourceWatcherSubroutine) getAccountInfo(ctx context.Context, workspacePath string, gvk schema.GroupVersionKind, resource *unstructured.Unstructured) (*corev1alpha1.AccountInfo, error) {
-	if gvk.Group == searchv1alpha1.GroupName && (gvk.Kind == searchv1alpha1.AccountKind || gvk.Kind == searchv1alpha1.OrganizationKind) {
+func (s *IndexableResourceWatcherSubroutine) getAccountInfo(ctx context.Context, workspacePath string, gvk schema.GroupVersionKind, resource *unstructured.Unstructured) (*pmcorev1alpha1.AccountInfo, error) {
+	if gvk.Group == pmsearchv1alpha1.GroupName && (gvk.Kind == pmsearchv1alpha1.AccountKind || gvk.Kind == pmsearchv1alpha1.OrganizationKind) {
 		// account and organization are both FGA account objects with the AccountInfo
 		// in their own child workspace, use a direct lookup based on the current workspace path
 		accountWorkspacePath := workspacePath + ":" + resource.GetName()
@@ -310,8 +309,8 @@ func (s *IndexableResourceWatcherSubroutine) getAccountInfo(ctx context.Context,
 	return nil, nil
 }
 
-func getSearchIndex(ctx context.Context, orgsClient client.Client, orgID string, pluralResource string, indexPrefix string) (*searchv1alpha1.SearchIndex, error) {
-	searchIndex := &searchv1alpha1.SearchIndex{}
+func getSearchIndex(ctx context.Context, orgsClient ctrlruntimeclient.Client, orgID string, pluralResource string, indexPrefix string) (*pmsearchv1alpha1.SearchIndex, error) {
+	searchIndex := &pmsearchv1alpha1.SearchIndex{}
 	name := buildCanonicalIndexName(indexPrefix, orgID, pluralResource)
 	if err := orgsClient.Get(ctx, types.NamespacedName{Name: name}, searchIndex); err != nil {
 		return nil, fmt.Errorf("failed to get SearchIndex %q: %w", name, err)
@@ -480,17 +479,17 @@ func buildPayload(resource *unstructured.Unstructured) (string, string, error) {
 	return string(jsonBytes), string(yamlBytes), nil
 }
 
-func mapResourceToFGAObject(group, kind string, clusterID multicluster.ClusterName, accountInfo *corev1alpha1.AccountInfo) (fgaGroup, fgaKind string, fgaClusterID multicluster.ClusterName) {
+func mapResourceToFGAObject(group, kind string, clusterID multicluster.ClusterName, accountInfo *pmcorev1alpha1.AccountInfo) (fgaGroup, fgaKind string, fgaClusterID multicluster.ClusterName) {
 	fgaGroup = group
 	fgaKind = kind
 	fgaClusterID = clusterID
 
-	isAccount := group == searchv1alpha1.GroupName && kind == searchv1alpha1.AccountKind
-	isOrganization := group == searchv1alpha1.GroupName && kind == searchv1alpha1.OrganizationKind
+	isAccount := group == pmsearchv1alpha1.GroupName && kind == pmsearchv1alpha1.AccountKind
+	isOrganization := group == pmsearchv1alpha1.GroupName && kind == pmsearchv1alpha1.OrganizationKind
 	isWorkspace := group == "tenancy.kcp.io" && kind == "Workspace"
 	if isAccount || isWorkspace || isOrganization {
-		fgaGroup = searchv1alpha1.GroupName
-		fgaKind = searchv1alpha1.AccountKind
+		fgaGroup = pmsearchv1alpha1.GroupName
+		fgaKind = pmsearchv1alpha1.AccountKind
 		if accountInfo != nil {
 			switch {
 			case isOrganization:
@@ -547,14 +546,14 @@ func resolveSpecClusterID(resource *unstructured.Unstructured) multicluster.Clus
 
 // getAccountInfoFromWorkspacePath builds a workspace-scoped REST client from the base kcp
 // config and fetches the singleton AccountInfo named "account" from that workspace.
-func (s *IndexableResourceWatcherSubroutine) getAccountInfoFromWorkspacePath(ctx context.Context, accountWorkspacePath string) (*corev1alpha1.AccountInfo, error) {
+func (s *IndexableResourceWatcherSubroutine) getAccountInfoFromWorkspacePath(ctx context.Context, accountWorkspacePath string) (*pmcorev1alpha1.AccountInfo, error) {
 	cl, err := buildWorkspaceScopedClient(s.rootCfg, s.mgr.GetLocalManager().GetScheme(), accountWorkspacePath)
 	if err != nil {
 		return nil, fmt.Errorf("create scoped client for %q: %w", accountWorkspacePath, err)
 	}
 
-	accountInfo := &corev1alpha1.AccountInfo{}
-	if err := cl.Get(ctx, client.ObjectKey{Name: "account"}, accountInfo); err != nil {
+	accountInfo := &pmcorev1alpha1.AccountInfo{}
+	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "account"}, accountInfo); err != nil {
 		return nil, fmt.Errorf("get AccountInfo from %q: %w", accountWorkspacePath, err)
 	}
 

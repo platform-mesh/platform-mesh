@@ -22,17 +22,18 @@ import (
 	"net/url"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 // stripPathFromConfig returns a copy of cfg with the URL path cleared,
@@ -64,13 +65,13 @@ func getWorkspaceClusterAndPath(ctx context.Context, mgr mcmanager.Manager) (clu
 
 	// Use client.New directly — cluster.GetClient() is scoped to the APIExport
 	// virtual workspace and cannot reach core.kcp.io resources.
-	cl, err := client.New(cluster.GetConfig(), client.Options{Scheme: cluster.GetScheme()})
+	cl, err := ctrlruntimeclient.New(cluster.GetConfig(), ctrlruntimeclient.Options{Scheme: cluster.GetScheme()})
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create client for cluster %q: %w", id, err)
 	}
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
-	if err := cl.Get(ctx, client.ObjectKey{Name: kcpcorev1alpha1.LogicalClusterName}, lc); err != nil {
+	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: kcpcorev1alpha1.LogicalClusterName}, lc); err != nil {
 		return "", "", fmt.Errorf("failed to get LogicalCluster for %q: %w", id, err)
 	}
 
@@ -94,7 +95,7 @@ func extractOrgFromPath(path string) (string, error) {
 
 // getOrgClusterID returns the logical cluster ID for the named org workspace
 // by looking up its Workspace object via orgsClient (scoped to root:orgs).
-func getOrgClusterID(ctx context.Context, orgsClient client.Client, orgName string) (string, error) {
+func getOrgClusterID(ctx context.Context, orgsClient ctrlruntimeclient.Client, orgName string) (string, error) {
 	ws := &kcptenancyv1alpha1.Workspace{}
 	if err := orgsClient.Get(ctx, types.NamespacedName{Name: orgName}, ws); err != nil {
 		return "", fmt.Errorf("get Workspace %q in root:orgs: %w", orgName, err)
@@ -104,10 +105,10 @@ func getOrgClusterID(ctx context.Context, orgsClient client.Client, orgName stri
 
 // buildWorkspaceScopedClient constructs a client targeting the given kcp
 // workspace path (e.g. "root:orgs:acme") using rootCfg as the base URL.
-func buildWorkspaceScopedClient(rootCfg *rest.Config, scheme *runtime.Scheme, workspacePath string) (client.Client, error) {
+func buildWorkspaceScopedClient(rootCfg *rest.Config, scheme *runtime.Scheme, workspacePath string) (ctrlruntimeclient.Client, error) {
 	cfg := rest.CopyConfig(rootCfg)
 	cfg.Host = fmt.Sprintf("%s/clusters/%s", cfg.Host, workspacePath)
-	return client.New(cfg, client.Options{Scheme: scheme})
+	return ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: scheme})
 }
 
 // sanitizeResourceName produces a valid lowercase Kubernetes name.
@@ -156,14 +157,14 @@ func buildCanonicalIndexName(prefix, organizationClusterID, resource string) str
 }
 
 // may be removed later. Mgr already scoped for provider
-func buildClusterIDScopedClient(rootCfg *rest.Config, scheme *runtime.Scheme, clusterID string) (client.Client, error) {
+func buildClusterIDScopedClient(rootCfg *rest.Config, scheme *runtime.Scheme, clusterID string) (ctrlruntimeclient.Client, error) {
 	cfg := rest.CopyConfig(rootCfg)
 	cfg.Host = fmt.Sprintf("%s/clusters/%s", cfg.Host, clusterID)
-	return client.New(cfg, client.Options{Scheme: scheme})
+	return ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: scheme})
 }
 
 // GetScopedClient creates a client scoped to a specific logical cluster path (e.g. "root:orgs")
-func GetScopedClient(cfg *rest.Config, scheme *runtime.Scheme, clusterPath string) (client.Client, error) {
+func GetScopedClient(cfg *rest.Config, scheme *runtime.Scheme, clusterPath string) (ctrlruntimeclient.Client, error) {
 	scopedCfg := rest.CopyConfig(cfg)
 	parsed, err := url.Parse(scopedCfg.Host)
 	if err != nil {
@@ -180,5 +181,5 @@ func GetScopedClient(cfg *rest.Config, scheme *runtime.Scheme, clusterPath strin
 		return nil, err
 	}
 	scopedCfg.Host = parsed.String()
-	return client.New(scopedCfg, client.Options{Scheme: scheme})
+	return ctrlruntimeclient.New(scopedCfg, ctrlruntimeclient.Options{Scheme: scheme})
 }

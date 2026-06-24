@@ -237,8 +237,8 @@ type ResourceDocument struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// Resource spec and status (arbitrary nested maps from the unstructured object)
-	Spec   map[string]interface{} `json:"spec,omitempty"`
-	Status map[string]interface{} `json:"status,omitempty"`
+	Spec   map[string]any `json:"spec,omitempty"`
+	Status map[string]any `json:"status,omitempty"`
 
 	// CustomFields holds fields from the unstructured resource that are listed in
 	// the SearchIndex's DefaultFields. These are propagated directly from the resource.

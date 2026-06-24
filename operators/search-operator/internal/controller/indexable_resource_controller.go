@@ -24,23 +24,23 @@ import (
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-operator/internal/config"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
+	"go.platform-mesh.io/search-operator/internal/subroutine"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"go.platform-mesh.io/search-operator/internal/config"
-	"go.platform-mesh.io/search-operator/internal/opensearch"
-	"go.platform-mesh.io/search-operator/internal/subroutine"
 )
 
 type IndexableResourceReconciler struct {
 	log         *logger.Logger
 	mclifecycle *multicluster.LifecycleManager
-	allClient   client.Client
+	allClient   ctrlruntimeclient.Client
 	cfg         config.Config
 	resource    unstructured.Unstructured
 }

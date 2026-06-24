@@ -22,12 +22,12 @@ import (
 	"testing"
 	"time"
 
-	accountv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
-	"go.platform-mesh.io/apis/search/v1alpha1"
-	"go.platform-mesh.io/search-operator/internal/opensearch"
 )
 
 func TestBuildPayloadSeparatesRawJSONFromText(t *testing.T) {
@@ -134,13 +134,13 @@ func TestBuildFGAObjectName(t *testing.T) {
 }
 
 func TestMapResourceToFGAObject(t *testing.T) {
-	accountInfo := &accountv1alpha1.AccountInfo{
-		Spec: accountv1alpha1.AccountInfoSpec{
-			Account: accountv1alpha1.AccountLocation{
+	accountInfo := &pmcorev1alpha1.AccountInfo{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:            "teams",
 				OriginClusterId: "account-origin",
 			},
-			Organization: accountv1alpha1.AccountLocation{
+			Organization: pmcorev1alpha1.AccountLocation{
 				Name:            "sap",
 				OriginClusterId: "org-origin",
 			},
@@ -152,19 +152,19 @@ func TestMapResourceToFGAObject(t *testing.T) {
 		group       string
 		kind        string
 		clusterID   multicluster.ClusterName
-		accountInfo *accountv1alpha1.AccountInfo
+		accountInfo *pmcorev1alpha1.AccountInfo
 		wantGroup   string
 		wantKind    string
 		wantCluster multicluster.ClusterName
 	}{
 		{
 			name:        "account maps to search account using OriginClusterId",
-			group:       v1alpha1.GroupName,
-			kind:        v1alpha1.AccountKind,
+			group:       pmsearchv1alpha1.GroupName,
+			kind:        pmsearchv1alpha1.AccountKind,
 			clusterID:   "acc-cluster",
 			accountInfo: accountInfo,
-			wantGroup:   v1alpha1.GroupName,
-			wantKind:    v1alpha1.AccountKind,
+			wantGroup:   pmsearchv1alpha1.GroupName,
+			wantKind:    pmsearchv1alpha1.AccountKind,
 			wantCluster: "account-origin",
 		},
 		{
@@ -173,18 +173,18 @@ func TestMapResourceToFGAObject(t *testing.T) {
 			kind:        "Workspace",
 			clusterID:   "ws-cluster",
 			accountInfo: accountInfo,
-			wantGroup:   v1alpha1.GroupName,
-			wantKind:    v1alpha1.AccountKind,
+			wantGroup:   pmsearchv1alpha1.GroupName,
+			wantKind:    pmsearchv1alpha1.AccountKind,
 			wantCluster: "account-origin",
 		},
 		{
 			name:        "organization maps to search account preserving origin cluster id",
-			group:       v1alpha1.GroupName,
-			kind:        v1alpha1.OrganizationKind,
+			group:       pmsearchv1alpha1.GroupName,
+			kind:        pmsearchv1alpha1.OrganizationKind,
 			clusterID:   "org-resource-cluster",
 			accountInfo: accountInfo,
-			wantGroup:   v1alpha1.GroupName,
-			wantKind:    v1alpha1.AccountKind,
+			wantGroup:   pmsearchv1alpha1.GroupName,
+			wantKind:    pmsearchv1alpha1.AccountKind,
 			wantCluster: "org-origin",
 		},
 		{
@@ -199,12 +199,12 @@ func TestMapResourceToFGAObject(t *testing.T) {
 		},
 		{
 			name:        "account-like resource without accountInfo falls back to clusterID",
-			group:       v1alpha1.GroupName,
-			kind:        v1alpha1.AccountKind,
+			group:       pmsearchv1alpha1.GroupName,
+			kind:        pmsearchv1alpha1.AccountKind,
 			clusterID:   "acc-cluster",
 			accountInfo: nil,
-			wantGroup:   v1alpha1.GroupName,
-			wantKind:    v1alpha1.AccountKind,
+			wantGroup:   pmsearchv1alpha1.GroupName,
+			wantKind:    pmsearchv1alpha1.AccountKind,
 			wantCluster: "acc-cluster",
 		},
 	}

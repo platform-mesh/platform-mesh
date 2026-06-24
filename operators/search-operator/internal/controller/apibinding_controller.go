@@ -22,22 +22,23 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/builder"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-operator/internal/subroutine"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"go.platform-mesh.io/search-operator/internal/subroutine"
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 // APIBindingReconciler watches APIBinding resources across all workspaces
@@ -76,16 +77,16 @@ func NewAPIBindingReconciler(log *logger.Logger, mcMgr mcmanager.Manager, indexP
 // Reconcile handles APIBinding reconciliation
 func (r *APIBindingReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpv1alpha1.APIBinding{})
+	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpapisv1alpha1.APIBinding{})
 }
 
 // SetupWithManager sets up the controller with the multicluster Manager.
 func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, maxConcurrentReconciles int, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, maxConcurrentReconciles, "apibinding", &kcpv1alpha1.APIBinding{}, "", r, r.log, evp...)
+	return r.mclifecycle.SetupWithManager(mgr, maxConcurrentReconciles, "apibinding", &kcpapisv1alpha1.APIBinding{}, "", r, r.log, evp...)
 }
 
 // GetAllClient creates a client that can query across all workspaces using the wildcard cluster
-func GetAllClient(config *rest.Config, scheme *runtime.Scheme) (client.Client, error) {
+func GetAllClient(config *rest.Config, scheme *runtime.Scheme) (ctrlruntimeclient.Client, error) {
 	allCfg := rest.CopyConfig(config)
 
 	parsed, err := url.Parse(allCfg.Host)
@@ -109,5 +110,5 @@ func GetAllClient(config *rest.Config, scheme *runtime.Scheme) (client.Client, e
 
 	allCfg.Host = parsed.String()
 
-	return client.New(allCfg, client.Options{Scheme: scheme})
+	return ctrlruntimeclient.New(allCfg, ctrlruntimeclient.Options{Scheme: scheme})
 }

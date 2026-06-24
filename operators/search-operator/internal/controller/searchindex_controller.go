@@ -19,19 +19,19 @@ package controller
 import (
 	"context"
 
+	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/builder"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
+	"go.platform-mesh.io/search-operator/internal/subroutine"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"go.platform-mesh.io/apis/search/v1alpha1"
-	"go.platform-mesh.io/search-operator/internal/opensearch"
-	"go.platform-mesh.io/search-operator/internal/subroutine"
 )
 
 // SearchIndexReconciler reconciles a SearchIndex object
@@ -66,10 +66,10 @@ func NewSearchIndexReconciler(
 // Reconcile handles SearchIndex reconciliation
 func (r *SearchIndexReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &v1alpha1.SearchIndex{})
+	return r.mclifecycle.Reconcile(ctxWithCluster, req, &pmsearchv1alpha1.SearchIndex{})
 }
 
 // SetupWithManager sets up the controller with the multicluster Manager.
 func (r *SearchIndexReconciler) SetupWithManager(mgr mcmanager.Manager, maxConcurrentReconciles int, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, maxConcurrentReconciles, "searchindex", &v1alpha1.SearchIndex{}, "", r, r.log, evp...)
+	return r.mclifecycle.SetupWithManager(mgr, maxConcurrentReconciles, "searchindex", &pmsearchv1alpha1.SearchIndex{}, "", r, r.log, evp...)
 }

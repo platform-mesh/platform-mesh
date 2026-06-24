@@ -32,8 +32,8 @@ import (
 	"github.com/opensearch-project/opensearch-go/v4"
 	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	"github.com/opensearch-project/opensearch-go/v4/opensearchutil"
-	"go.platform-mesh.io/golang-commons/logger"
 
+	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/search-operator/internal/config"
 	"go.platform-mesh.io/search-operator/internal/metrics"
 )
@@ -146,9 +146,9 @@ func (c *Client) CreateIndex(ctx context.Context, indexName string, numberOfShar
 		return nil
 	}
 
-	createBody := map[string]interface{}{
-		"settings": map[string]interface{}{
-			"index": map[string]interface{}{
+	createBody := map[string]any{
+		"settings": map[string]any{
+			"index": map[string]any{
 				"number_of_shards":   numberOfShards,
 				"number_of_replicas": numberOfReplicas,
 				"knn":                true,
@@ -156,7 +156,7 @@ func (c *Client) CreateIndex(ctx context.Context, indexName string, numberOfShar
 		},
 	}
 	if mapping != "" {
-		var mappingsPayload interface{}
+		var mappingsPayload any
 		if err := json.Unmarshal([]byte(mapping), &mappingsPayload); err != nil {
 			return fmt.Errorf("failed to parse index mapping payload: %w", err)
 		}
@@ -364,7 +364,7 @@ func (c *Client) DeleteIndex(ctx context.Context, indexName string) (err error) 
 }
 
 // IndexDocument indexes a document
-func (c *Client) IndexDocument(ctx context.Context, indexName, docID string, document interface{}) (err error) {
+func (c *Client) IndexDocument(ctx context.Context, indexName, docID string, document any) (err error) {
 	start := time.Now()
 	defer func() {
 		labelResult := "success"

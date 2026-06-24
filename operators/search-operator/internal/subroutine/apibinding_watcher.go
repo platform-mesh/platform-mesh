@@ -22,22 +22,22 @@ import (
 	"sort"
 	"time"
 
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
+	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-operator/internal/metrics"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
-
-	"go.platform-mesh.io/apis/search/v1alpha1"
-	"go.platform-mesh.io/search-operator/internal/metrics"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 // apiBindingWatcherSubroutine watches APIBinding resources across workspaces.
@@ -45,15 +45,15 @@ import (
 // fields contained in the bound APIResourceSchemas.
 type apiBindingWatcherSubroutine struct {
 	mgr         mcmanager.Manager
-	orgsClient  client.Client // scoped to root:orgs for Workspace lookups
-	rootCfg     *rest.Config  // clean base kcp REST config (no path) for building workspace clients
+	orgsClient  ctrlruntimeclient.Client // scoped to root:orgs for Workspace lookups
+	rootCfg     *rest.Config             // clean base kcp REST config (no path) for building workspace clients
 	indexPrefix string
 }
 
 // NewAPIBindingWatcherSubroutine creates a new APIBinding watcher subroutine.
 // orgsClient must be scoped to the root:orgs workspace.
 // localCfg must be the admin kcp REST config.
-func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient client.Client, localCfg *rest.Config, indexPrefix string) (*apiBindingWatcherSubroutine, error) {
+func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient ctrlruntimeclient.Client, localCfg *rest.Config, indexPrefix string) (*apiBindingWatcherSubroutine, error) {
 	rootCfg, err := stripPathFromConfig(localCfg)
 	if err != nil {
 		return nil, err
@@ -205,16 +205,16 @@ func (s *apiBindingWatcherSubroutine) ensureSearchIndex(
 	}
 
 	searchIndexName := buildCanonicalIndexName(s.indexPrefix, orgClusterID, resource)
-	existing := &v1alpha1.SearchIndex{}
+	existing := &pmsearchv1alpha1.SearchIndex{}
 	err = orgsClient.Get(ctx, types.NamespacedName{Name: searchIndexName}, existing)
 
 	switch {
 	case apierrors.IsNotFound(err):
-		desired := &v1alpha1.SearchIndex{
+		desired := &pmsearchv1alpha1.SearchIndex{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: searchIndexName,
 			},
-			Spec: v1alpha1.SearchIndexSpec{
+			Spec: pmsearchv1alpha1.SearchIndexSpec{
 				IndexPrefix:           sanitizeIndexNamePart(s.indexPrefix),
 				OrganizationClusterID: orgClusterID,
 				NumberOfShards:        1,

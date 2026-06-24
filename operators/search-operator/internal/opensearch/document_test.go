@@ -26,7 +26,7 @@ func TestDefaultIndexMappingIsValidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DefaultIndexMapping() returned error: %v", err)
 	}
-	var js map[string]interface{}
+	var js map[string]any
 	if err := json.Unmarshal([]byte(mapping), &js); err != nil {
 		t.Fatalf("DefaultIndexMapping() returned invalid JSON: %v\nMapping content:\n%s", err, mapping)
 	}

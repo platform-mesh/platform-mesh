@@ -22,11 +22,13 @@ import (
 	"flag"
 	"os"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-operator/internal/config"
+	"go.platform-mesh.io/search-operator/internal/controller"
+	"go.platform-mesh.io/search-operator/internal/opensearch"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -37,21 +39,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	// kcp imports
 	"github.com/kcp-dev/multicluster-provider/apiexport"
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	searchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
-
-	"go.platform-mesh.io/search-operator/internal/config"
-	"go.platform-mesh.io/search-operator/internal/controller"
-	"go.platform-mesh.io/search-operator/internal/opensearch"
-	// +kubebuilder:scaffold:imports
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// to ensure that exec-entrypoint and run can make use of them.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var (
@@ -63,13 +61,13 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// Add kcp types to scheme
-	utilruntime.Must(apisv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
 
 	// Add our types
-	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(searchv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmsearchv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

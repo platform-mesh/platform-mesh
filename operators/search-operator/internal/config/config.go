@@ -18,6 +18,7 @@ package config
 
 import (
 	"github.com/vrischmann/envconfig"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
