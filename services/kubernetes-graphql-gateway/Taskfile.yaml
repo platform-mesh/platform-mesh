@@ -14,45 +14,30 @@
 
 version: "3"
 
-vars:
-  LOCAL_BIN: bin
-  ENVTEST_K8S_VERSION: "1.34.0" # to get latest version run $(pwd)/bin/setup-envtest list
-  ENVTEST_VERSION: "release-0.23" # https://github.com/kubernetes-sigs/controller-runtime/releases
-  CONTROLLER_GEN_VERSION: v0.20.0 # https://github.com/kubernetes-sigs/controller-tools/releases
-  GOLANGCI_LINT_VERSION: v2.6.0
-  KCP_APIGEN_VERSION: v0.30.0 # https://pkg.go.dev/github.com/kcp-dev/sdk
-tasks:
-  ## Setup
-  setup:envtest:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/setup-envtest || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-runtime/tools/setup-envtest@{{.ENVTEST_VERSION}}
-  setup:controller-gen:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/controller-gen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install sigs.k8s.io/controller-tools/cmd/controller-gen@{{.CONTROLLER_GEN_VERSION}}
-  setup:golangci-lint:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/golangci-lint || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
-  setup:go-test-coverage:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/go-test-coverage || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vladopajic/go-test-coverage/v2@latest
-  setup:kcp-apigen:
-    internal: true
-    cmds:
-      - test -s {{.LOCAL_BIN}}/apigen || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/kcp-dev/sdk/cmd/apigen@{{.KCP_APIGEN_VERSION}}
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
 
+tasks:
   ## Code Generation
   generate:
     desc: "Generate all CRD-related files (manifests + deepcopy methods)"
-    deps: [setup:controller-gen, setup:kcp-apigen]
+    deps: [tools:apigen]
     cmds:
-      - "{{.LOCAL_BIN}}/controller-gen object crd:crdVersions=v1 paths=./apis/v1alpha1 output:crd:artifacts:config=config/crd"
-      - "{{.LOCAL_BIN}}/apigen --output-dir config/kcp --input-dir config/crd"
+      - task: tools:generate-crds
+        vars:
+          PATH: /gateway/...
+          OUTPUT: config/crd
+      - "{{.BIN}}/apigen --output-dir config/kcp --input-dir config/crd"
 
   ## Development
+  build:
+    cmds:
+      - go build ./...
+
   docker:
     cmds:
       - docker build -t ghcr.io/platform-mesh/kubernetes-graphql-gateway .
@@ -80,42 +65,37 @@ tasks:
         fi
       - kubectl rollout restart deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}}
       - echo "Image loaded and deployment restarted"
+
   ## Testing
   fmt:
     cmds:
-      - "{{.LOCAL_BIN}}/golangci-lint fmt ./..."
+      - '"$(UGET_PRINT_PATH=absolute task tools:golangci-lint)" fmt ./...'
   lint:
-    deps: [setup:golangci-lint]
     cmds:
       - task: fmt
-      - "{{.LOCAL_BIN}}/golangci-lint run --timeout 10m ./..."
+      - task: tools:lint
   envtest:
-    deps: [setup:envtest]
-    env:
-      KUBEBUILDER_ASSETS:
-        # Workaround for setup-envtest bug: it doesn't verify binaries exist if directory is present
-        sh: |
-          ASSETS_PATH=$(pwd)/{{.LOCAL_BIN}}/k8s/{{.ENVTEST_K8S_VERSION}}-$(go env GOOS)-$(go env GOARCH)
-          if [ ! -x "$ASSETS_PATH/etcd" ] || [ ! -x "$ASSETS_PATH/kube-apiserver" ]; then
-            $(pwd)/{{.LOCAL_BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir $(pwd)/{{.LOCAL_BIN}} --force -p path
-          else
-            echo "$ASSETS_PATH"
-          fi
+    deps: [tools:envtest]
     cmds:
-      - go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
+      - |
+        set -ex
+        export KUBEBUILDER_ASSETS=$({{.BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
+        go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
   test:
-    deps: [setup:envtest]
     cmds:
       - task: envtest
         vars:
           ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+  test-e2e: # alias to appease the global taskfile
+    cmds:
+      - task: test
   cover:
-    deps: [setup:envtest, setup:go-test-coverage]
+    deps: [tools:go-test-coverage]
     cmds:
       - task: envtest
         vars:
           ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
-      - "{{.LOCAL_BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
+      - "{{.BIN}}/go-test-coverage --profile cover.out --config ./.testcoverage.yml"
   cover-html:
     desc: "Generate and open HTML coverage report"
     deps: [cover]
