@@ -35,11 +35,11 @@ apis/             API definitions
   v1alpha1/       ClusterAccess CRD types
   proto/          gRPC protobuf definitions
 sdk/              Generated protobuf Go code
-providers/        Multi-cluster runtime providers (KCP)
+providers/        Multi-cluster runtime providers (kcp)
 config/           Kubernetes manifests
   crd/            Generated CRD YAML
   examples/       Example ClusterAccess resources
-  kcp/            KCP APIResourceSchema exports
+  kcp/            kcp APIResourceSchema exports
 hack/             Helper scripts
 ```
 

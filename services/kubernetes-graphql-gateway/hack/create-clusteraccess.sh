@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -e
 
 # Colors for output
@@ -101,55 +115,55 @@ log_info "Cluster name: $CLUSTER_NAME"
 
 ensure_crd_installed() {
     log_info "Ensuring ClusterAccess CRD is installed in management cluster..."
-    
+
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     CRD_PATH="$SCRIPT_DIR/../config/crd/gateway.platform-mesh.io_clusteraccesses.yaml"
-    
+
     if [[ ! -f "$CRD_PATH" ]]; then
         log_error "CRD file not found at: $CRD_PATH"
         log_error "Please ensure the CRD file exists in the expected location"
         exit 1
     fi
-    
+
     if ! KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl apply -f "$CRD_PATH"; then
         log_error "Failed to apply ClusterAccess CRD"
         exit 1
     fi
-    
+
     log_info "Waiting for ClusterAccess CRD to become established..."
     if ! KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl wait --for=condition=Established crd/clusteraccesses.gateway.platform-mesh.io --timeout=60s; then
         log_error "ClusterAccess CRD failed to reach Established condition within 60 seconds"
         exit 1
     fi
-    
+
     log_info "ClusterAccess CRD is established and ready"
 }
 
 cleanup_existing_resources() {
     log_info "Checking for existing ClusterAccess resource '$CLUSTER_NAME'..."
-    
+
     SA_NAME="kubernetes-graphql-gateway-admin"
     SA_NAMESPACE="default"
-    
+
     # Check if ClusterAccess exists in management cluster
     if KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl get clusteraccess "$CLUSTER_NAME" &>/dev/null; then
         log_warn "ClusterAccess '$CLUSTER_NAME' already exists. Cleaning up existing resources..."
-        
+
         # Delete ClusterAccess resource
         log_info "Deleting existing ClusterAccess resource..."
         KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl delete clusteraccess "$CLUSTER_NAME" --ignore-not-found=true
-        
+
         # Delete related secrets in management cluster
         log_info "Deleting existing secrets in management cluster..."
         KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl delete secret "${CLUSTER_NAME}-token" --namespace="$NAMESPACE" --ignore-not-found=true
         KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl delete secret "${CLUSTER_NAME}-ca" --namespace="$NAMESPACE" --ignore-not-found=true
         KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl delete secret "${CLUSTER_NAME}-admin-kubeconfig" --namespace="$NAMESPACE" --ignore-not-found=true
-        
+
         log_info "Cleanup completed. Creating fresh resources..."
     else
         log_info "No existing ClusterAccess found. Creating new resources..."
     fi
-    
+
     # Clean up ServiceAccount and related resources in target cluster
     if KUBECONFIG="$TARGET_KUBECONFIG" kubectl get serviceaccount "$SA_NAME" -n "$SA_NAMESPACE" &>/dev/null; then
         log_info "Cleaning up existing ServiceAccount and related resources in target cluster..."
@@ -267,7 +281,7 @@ KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl create secret generic "${CLUSTER_NAM
     --dry-run=client -o yaml | \
 KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl apply -f -
 
-# Create CA secret in management cluster  
+# Create CA secret in management cluster
 log_info "Creating CA secret in management cluster..."
 echo "$CA_CERT" | KUBECONFIG="$MANAGEMENT_KUBECONFIG" kubectl create secret generic "${CLUSTER_NAME}-ca" \
     --namespace="$NAMESPACE" \
@@ -315,7 +329,7 @@ echo '```'
 echo '{'
 echo "  \"Authorization\": \"Bearer $ADMIN_TOKEN\""
 echo '}'
-echo '```' 
+echo '```'
 
 echo ""
 log_info "You can now run the listener to generate the schema:"
