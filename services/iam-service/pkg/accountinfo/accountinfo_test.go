@@ -24,19 +24,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
 	accountmocks "go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
-	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/iam-service/pkg/accountinfo/mocks"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
-	"go.platform-mesh.io/iam-service/pkg/accountinfo/mocks"
 )
 
 type Provider struct {
@@ -52,7 +53,7 @@ func (p *Provider) Get(ctx context.Context, clusterName multicluster.ClusterName
 }
 
 // IndexField implements multicluster.Provider.
-func (p *Provider) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+func (p *Provider) IndexField(ctx context.Context, obj ctrlruntimeclient.Object, field string, extractValue ctrlruntimeclient.IndexerFunc) error {
 	return nil
 }
 
@@ -64,18 +65,18 @@ func TestNew(t *testing.T) {
 	assert.Contains(t, err.Error(), "cluster client and manager cannot be nil")
 }
 
-func createTestAccountInfo() *accountsv1alpha1.AccountInfo {
-	return &accountsv1alpha1.AccountInfo{
+func createTestAccountInfo() *pmcorev1alpha1.AccountInfo {
+	return &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "account",
 		},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               "test-account",
 				OriginClusterId:    "origin-cluster-123",
 				GeneratedClusterId: "generated-cluster-456",
 			},
-			Organization: accountsv1alpha1.AccountLocation{
+			Organization: pmcorev1alpha1.AccountLocation{
 				Name: "test-org",
 			},
 		},
@@ -106,7 +107,7 @@ func TestAccountInfoRetriever_Get_WithFakeClient(t *testing.T) {
 
 	ai := createTestAccountInfo()
 	scheme := runtime.NewScheme()
-	err := accountsv1alpha1.AddToScheme(scheme)
+	err := pmcorev1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	fakeClient := fake.NewClientBuilder().
@@ -119,8 +120,8 @@ func TestAccountInfoRetriever_Get_WithFakeClient(t *testing.T) {
 	log, _ := logger.New(logger.DefaultConfig())
 	ctx = logger.SetLoggerInContext(ctx, log)
 
-	result := &accountsv1alpha1.AccountInfo{}
-	err = fakeClient.Get(ctx, client.ObjectKey{Name: "account"}, result)
+	result := &pmcorev1alpha1.AccountInfo{}
+	err = fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "account"}, result)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test-account", result.Spec.Account.Name)
@@ -130,7 +131,7 @@ func TestAccountInfoRetriever_Get_WithFakeClient(t *testing.T) {
 func TestAccountInfoRetriever_Get_NotFound(t *testing.T) {
 	// Test the not found case with fake client
 	scheme := runtime.NewScheme()
-	err := accountsv1alpha1.AddToScheme(scheme)
+	err := pmcorev1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	// Create fake client without the account object
@@ -142,11 +143,11 @@ func TestAccountInfoRetriever_Get_NotFound(t *testing.T) {
 	log, _ := logger.New(logger.DefaultConfig())
 	ctx = logger.SetLoggerInContext(ctx, log)
 
-	result := &accountsv1alpha1.AccountInfo{}
-	err = fakeClient.Get(ctx, client.ObjectKey{Name: "account"}, result)
+	result := &pmcorev1alpha1.AccountInfo{}
+	err = fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "account"}, result)
 
 	assert.Error(t, err)
-	assert.True(t, client.IgnoreNotFound(err) == nil) // Verify it's a not found error
+	assert.True(t, ctrlruntimeclient.IgnoreNotFound(err) == nil) // Verify it's a not found error
 }
 
 // Test New with valid inputs - completing the constructor coverage
@@ -184,7 +185,7 @@ func TestGetAccountInfo_IndirectTesting(t *testing.T) {
 	// Test successful case
 	ai := createTestAccountInfo()
 	scheme := runtime.NewScheme()
-	err := accountsv1alpha1.AddToScheme(scheme)
+	err := pmcorev1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	fakeClient := fake.NewClientBuilder().
@@ -193,8 +194,8 @@ func TestGetAccountInfo_IndirectTesting(t *testing.T) {
 		Build()
 
 	// Test direct client interaction (which is what getAccountInfo does internally)
-	result := &accountsv1alpha1.AccountInfo{}
-	err = fakeClient.Get(ctx, client.ObjectKey{Name: "account"}, result)
+	result := &pmcorev1alpha1.AccountInfo{}
+	err = fakeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "account"}, result)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test-account", result.Spec.Account.Name)
@@ -202,15 +203,15 @@ func TestGetAccountInfo_IndirectTesting(t *testing.T) {
 
 	// Test error case
 	emptyScheme := runtime.NewScheme()
-	err = accountsv1alpha1.AddToScheme(emptyScheme)
+	err = pmcorev1alpha1.AddToScheme(emptyScheme)
 	require.NoError(t, err)
 
 	emptyClient := fake.NewClientBuilder().
 		WithScheme(emptyScheme).
 		Build()
 
-	result = &accountsv1alpha1.AccountInfo{}
-	err = emptyClient.Get(ctx, client.ObjectKey{Name: "account"}, result)
+	result = &pmcorev1alpha1.AccountInfo{}
+	err = emptyClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "account"}, result)
 	assert.Error(t, err)
 }
 
@@ -233,7 +234,7 @@ func TestAccountInfoRetriever_Get_NilContext(t *testing.T) {
 func TestAccountInfoRetriever_Get_Success(t *testing.T) {
 	// Test the not found case with fake client
 	scheme := runtime.NewScheme()
-	err := accountsv1alpha1.AddToScheme(scheme)
+	err := pmcorev1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	testclusters := map[multicluster.ClusterName]cluster.Cluster{
@@ -243,13 +244,13 @@ func TestAccountInfoRetriever_Get_Success(t *testing.T) {
 
 			cl.EXPECT().
 				Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-					ai := obj.(*accountsv1alpha1.AccountInfo)
-					*ai = accountsv1alpha1.AccountInfo{
+				RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+					ai := obj.(*pmcorev1alpha1.AccountInfo)
+					*ai = pmcorev1alpha1.AccountInfo{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "account",
 						},
-						Spec: accountsv1alpha1.AccountInfoSpec{},
+						Spec: pmcorev1alpha1.AccountInfoSpec{},
 					}
 					return nil
 				}).Once()
@@ -282,7 +283,7 @@ func TestAccountInfoRetriever_Get_Success(t *testing.T) {
 func TestAccountInfoRetriever_NoCluster(t *testing.T) {
 	// Test the case where the manager cannot find the cluster
 	scheme := runtime.NewScheme()
-	err := accountsv1alpha1.AddToScheme(scheme)
+	err := pmcorev1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	testclusters := map[multicluster.ClusterName]cluster.Cluster{}

@@ -17,16 +17,18 @@ limitations under the License.
 package cmd
 
 import (
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/spf13/cobra"
+
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/iam-service/pkg/config"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
-	"go.platform-mesh.io/iam-service/pkg/config"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 var (
@@ -43,8 +45,8 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(apisv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
 	rootCmd.AddCommand(serverCmd)
 
 	defaultCfg = platformmeshcontext.NewDefaultConfig()

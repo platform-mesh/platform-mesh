@@ -24,17 +24,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
+	appcontext "go.platform-mesh.io/iam-service/pkg/context"
+	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
+	"go.platform-mesh.io/iam-service/pkg/graph"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
-	appcontext "go.platform-mesh.io/iam-service/pkg/context"
-	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
-	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 func TestEmailToLabelValue(t *testing.T) {

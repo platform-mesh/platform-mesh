@@ -24,18 +24,19 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"go.platform-mesh.io/golang-commons/errors"
-	"go.platform-mesh.io/golang-commons/logger"
 	"golang.org/x/oauth2/clientcredentials"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/utils/ptr"
 
+	"go.platform-mesh.io/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/iam-service/pkg/cache"
 	"go.platform-mesh.io/iam-service/pkg/config"
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
 	"go.platform-mesh.io/iam-service/pkg/graph"
 	keycloakClient "go.platform-mesh.io/iam-service/pkg/keycloak/client"
 	"go.platform-mesh.io/iam-service/pkg/metrics"
+
+	"k8s.io/utils/ptr"
 )
 
 // sanitizeEmail returns a sanitized version of the email for logging (first 3 chars + ***)

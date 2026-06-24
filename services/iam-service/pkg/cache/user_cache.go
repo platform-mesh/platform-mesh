@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/jellydator/ttlcache/v3"
+
 	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 

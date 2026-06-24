@@ -21,13 +21,13 @@ import (
 	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/golang-commons/fga/util"
 
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
-func GenerateContextualTuples(rctx *graph.ResourceContext, ai *accountsv1alpha1.AccountInfo) *openfgav1.ContextualTupleKeys {
+func GenerateContextualTuples(rctx *graph.ResourceContext, ai *pmcorev1alpha1.AccountInfo) *openfgav1.ContextualTupleKeys {
 	tuples := &openfgav1.ContextualTupleKeys{}
 
 	accFGATypeName := util.ConvertToTypeName("core.platform-mesh.io", "Account")

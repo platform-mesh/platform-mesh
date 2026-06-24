@@ -23,9 +23,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"go.platform-mesh.io/golang-commons/logger"
-	"k8s.io/utils/ptr"
 
+	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/iam-service/pkg/config"
 	"go.platform-mesh.io/iam-service/pkg/fga"
 	"go.platform-mesh.io/iam-service/pkg/fga/mocks"
@@ -35,6 +34,8 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/resolver"
 	"go.platform-mesh.io/iam-service/pkg/roles"
 	"go.platform-mesh.io/iam-service/pkg/sorter"
+
+	"k8s.io/utils/ptr"
 )
 
 // Removed mockResolverService - we only mock external dependencies now

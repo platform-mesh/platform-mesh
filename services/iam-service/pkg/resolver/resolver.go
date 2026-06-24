@@ -18,7 +18,6 @@ package resolver
 
 import (
 	"go.platform-mesh.io/golang-commons/logger"
-
 	"go.platform-mesh.io/iam-service/pkg/resolver/api"
 )
 

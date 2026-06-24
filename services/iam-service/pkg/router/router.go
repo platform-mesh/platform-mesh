@@ -28,9 +28,9 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi/v5"
 	"github.com/vektah/gqlparser/v2/ast"
+
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
-
 	"go.platform-mesh.io/iam-service/pkg/config"
 	"go.platform-mesh.io/iam-service/pkg/graph"
 	"go.platform-mesh.io/iam-service/pkg/metrics"

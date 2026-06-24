@@ -26,10 +26,10 @@ import (
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
-	"k8s.io/client-go/rest"
-
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
 	"go.platform-mesh.io/iam-service/pkg/middleware/idm"
+
+	"k8s.io/client-go/rest"
 )
 
 type Middleware struct {

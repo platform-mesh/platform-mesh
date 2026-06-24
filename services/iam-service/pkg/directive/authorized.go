@@ -25,17 +25,13 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/vektah/gqlparser/v2/gqlerror"
-	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/golang-commons/jwt"
 	"go.platform-mesh.io/golang-commons/logger"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
 	"go.platform-mesh.io/iam-service/pkg/accountinfo"
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
 	"go.platform-mesh.io/iam-service/pkg/fga/store"
@@ -43,6 +39,11 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/graph"
 	"go.platform-mesh.io/iam-service/pkg/metrics"
 	"go.platform-mesh.io/iam-service/pkg/workspace"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 type AuthorizedDirective struct {
@@ -149,7 +150,7 @@ func (a AuthorizedDirective) Authorized(ctx context.Context, _ any, next graphql
 	return next(ctx)
 }
 
-func (a AuthorizedDirective) testIfAllowed(ctx context.Context, ai *accountsv1alpha1.AccountInfo, rctx *graph.ResourceContext, permission string, token jwt.WebToken) (bool, error) {
+func (a AuthorizedDirective) testIfAllowed(ctx context.Context, ai *pmcorev1alpha1.AccountInfo, rctx *graph.ResourceContext, permission string, token jwt.WebToken) (bool, error) {
 	start := time.Now()
 	defer func() {
 		metrics.AuthorizationDuration.WithLabelValues(permission).Observe(time.Since(start).Seconds())
@@ -200,7 +201,7 @@ func (a AuthorizedDirective) testIfAllowed(ctx context.Context, ai *accountsv1al
 	return res.Allowed, nil
 }
 
-func (a AuthorizedDirective) testIfResourceExists(ctx context.Context, rctx *graph.ResourceContext, wsClient client.Client) (bool, error) {
+func (a AuthorizedDirective) testIfResourceExists(ctx context.Context, rctx *graph.ResourceContext, wsClient ctrlruntimeclient.Client) (bool, error) {
 	gvr := schema.GroupVersionResource{
 		Group:    rctx.Group,
 		Resource: rctx.Kind,
@@ -220,13 +221,13 @@ func (a AuthorizedDirective) testIfResourceExists(ctx context.Context, rctx *gra
 	resource.SetGroupVersionKind(gvk)
 
 	// Try to get the resource
-	clObj := client.ObjectKey{Name: rctx.Resource.Name}
+	clObj := ctrlruntimeclient.ObjectKey{Name: rctx.Resource.Name}
 	if rctx.Resource.Namespace != nil {
 		clObj.Namespace = *rctx.Resource.Namespace
 	}
 	err = wsClient.Get(ctx, clObj, resource)
 	if err != nil {
-		if client.IgnoreNotFound(err) == nil {
+		if ctrlruntimeclient.IgnoreNotFound(err) == nil {
 			return false, nil
 		}
 	}

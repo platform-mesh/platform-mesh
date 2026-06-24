@@ -26,24 +26,17 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
 	pmmws "go.platform-mesh.io/golang-commons/middleware"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"k8s.io/client-go/rest"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-
-	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
-
 	"go.platform-mesh.io/iam-service/pkg/accountinfo"
 	"go.platform-mesh.io/iam-service/pkg/config"
 	"go.platform-mesh.io/iam-service/pkg/directive"
@@ -53,13 +46,17 @@ import (
 	keycloakmw "go.platform-mesh.io/iam-service/pkg/middleware/keycloak"
 	"go.platform-mesh.io/iam-service/pkg/resolver"
 	"go.platform-mesh.io/iam-service/pkg/resolver/pm"
+	iamRouter "go.platform-mesh.io/iam-service/pkg/router"
 	"go.platform-mesh.io/iam-service/pkg/workspace"
 
-	pmcontext "go.platform-mesh.io/golang-commons/context"
-
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	iamRouter "go.platform-mesh.io/iam-service/pkg/router"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
+	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
 )
 
 var serverCmd = &cobra.Command{

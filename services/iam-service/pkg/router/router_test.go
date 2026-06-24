@@ -26,9 +26,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
-
 	"go.platform-mesh.io/iam-service/pkg/config"
 	"go.platform-mesh.io/iam-service/pkg/graph"
 	"go.platform-mesh.io/iam-service/pkg/resolver"

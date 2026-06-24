@@ -21,9 +21,9 @@ import (
 	"os"
 	"strings"
 
-	"go.platform-mesh.io/golang-commons/errors"
 	"gopkg.in/yaml.v3"
 
+	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 

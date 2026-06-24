@@ -23,11 +23,11 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"go.opentelemetry.io/otel"
+	"google.golang.org/grpc/status"
+
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/golang-commons/logger"
-	"google.golang.org/grpc/status"
-
 	"go.platform-mesh.io/iam-service/pkg/config"
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
 	"go.platform-mesh.io/iam-service/pkg/fga/store"

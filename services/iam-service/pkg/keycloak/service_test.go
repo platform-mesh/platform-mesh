@@ -24,7 +24,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"k8s.io/utils/ptr"
 
 	"go.platform-mesh.io/iam-service/pkg/cache"
 	"go.platform-mesh.io/iam-service/pkg/config"
@@ -32,6 +31,8 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/graph"
 	keycloakClient "go.platform-mesh.io/iam-service/pkg/keycloak/client"
 	"go.platform-mesh.io/iam-service/pkg/keycloak/mocks"
+
+	"k8s.io/utils/ptr"
 )
 
 func createKeycloakTestConfig(baseURL, clientID, clientSecret string, cacheEnabled bool, cacheTTL time.Duration) *config.ServiceConfig {

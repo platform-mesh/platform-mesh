@@ -20,10 +20,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/iam-service/pkg/graph"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestGenerateContextualTuples_WithNamespace(t *testing.T) {
@@ -38,10 +39,10 @@ func TestGenerateContextualTuples_WithNamespace(t *testing.T) {
 		},
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               "test-account",
 				OriginClusterId:    "origin-cluster-123",
 				GeneratedClusterId: "generated-cluster-456",
@@ -79,10 +80,10 @@ func TestGenerateContextualTuples_WithoutNamespace(t *testing.T) {
 		},
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               "test-account",
 				OriginClusterId:    "origin-cluster-123",
 				GeneratedClusterId: "generated-cluster-456",
@@ -115,10 +116,10 @@ func TestGenerateContextualTuples_ManagedTuple_Account(t *testing.T) {
 		},
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               "test-account",
 				OriginClusterId:    "origin-cluster-123",
 				GeneratedClusterId: "generated-cluster-456",
@@ -150,10 +151,10 @@ func TestGenerateContextualTuples_ManagedTuple_WithoutNamespace(t *testing.T) {
 		},
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               "test-account",
 				OriginClusterId:    "origin-cluster-123",
 				GeneratedClusterId: "generated-cluster-456",
@@ -180,10 +181,10 @@ func TestGenerateContextualTuples_EmptyGroup(t *testing.T) {
 		},
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               "test-account",
 				OriginClusterId:    "origin-cluster-123",
 				GeneratedClusterId: "generated-cluster-456",
@@ -270,10 +271,10 @@ func TestGenerateContextualTuples_ComplexGroupName(t *testing.T) {
 		},
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               "test-account",
 				OriginClusterId:    "origin-cluster-123",
 				GeneratedClusterId: "generated-cluster-456",
@@ -306,10 +307,10 @@ func TestGenerateContextualTuples_SpecialCharactersInNames(t *testing.T) {
 		},
 	}
 
-	ai := &accountsv1alpha1.AccountInfo{
+	ai := &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-account-with-hyphens"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Account: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
 				Name:               "test-account-with-hyphens",
 				OriginClusterId:    "origin-cluster-with-hyphens",
 				GeneratedClusterId: "generated-cluster-with-hyphens",

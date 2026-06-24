@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/golang-lru/v2/expirable"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/rs/zerolog/log"
+
 	"go.platform-mesh.io/golang-commons/errors"
 )
 

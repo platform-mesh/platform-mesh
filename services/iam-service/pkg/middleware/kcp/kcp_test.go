@@ -24,13 +24,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"go.platform-mesh.io/golang-commons/context/keys"
 	pmjwt "go.platform-mesh.io/golang-commons/jwt"
 	"go.platform-mesh.io/golang-commons/logger"
-	"k8s.io/client-go/rest"
-
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
 	"go.platform-mesh.io/iam-service/pkg/middleware/idm"
+
+	"k8s.io/client-go/rest"
 )
 
 // Mock IDM tenant retriever
@@ -69,7 +70,7 @@ func TestNew(t *testing.T) {
 func TestGetKCPContext(t *testing.T) {
 	tests := []struct {
 		name         string
-		contextValue interface{}
+		contextValue any
 		expectError  bool
 		expectedErr  string
 	}{

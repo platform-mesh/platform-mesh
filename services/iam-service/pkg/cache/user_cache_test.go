@@ -22,7 +22,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"go.platform-mesh.io/iam-service/pkg/graph"
+
 	"k8s.io/utils/ptr"
 )
 

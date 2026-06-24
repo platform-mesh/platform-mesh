@@ -21,17 +21,19 @@ import (
 	"fmt"
 	"sync"
 
-	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
-	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+
+	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
 )
 
 type Retriever interface {
-	Get(ctx context.Context, accountPath multicluster.ClusterName) (*accountsv1alpha1.AccountInfo, error)
+	Get(ctx context.Context, accountPath multicluster.ClusterName) (*pmcorev1alpha1.AccountInfo, error)
 }
 
 type accountInfoRetriever struct {
@@ -50,7 +52,7 @@ func New(mgr mcmanager.Manager, clusterClient kcpclientset.ClusterInterface) (Re
 	}, nil
 }
 
-func (a *accountInfoRetriever) Get(ctx context.Context, accountPath multicluster.ClusterName) (*accountsv1alpha1.AccountInfo, error) {
+func (a *accountInfoRetriever) Get(ctx context.Context, accountPath multicluster.ClusterName) (*pmcorev1alpha1.AccountInfo, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	//FIXME: This lock was necessary as we saw race conditions when processing multiple requests in parallel
@@ -67,8 +69,8 @@ func (a *accountInfoRetriever) Get(ctx context.Context, accountPath multicluster
 	}
 
 	cl := cc.GetClient()
-	ai := &accountsv1alpha1.AccountInfo{}
-	err = cl.Get(ctx, client.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, ai)
+	ai := &pmcorev1alpha1.AccountInfo{}
+	err = cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, ai)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get orgs workspace from kcp")
 		return nil, err

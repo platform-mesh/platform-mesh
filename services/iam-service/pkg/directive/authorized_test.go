@@ -27,30 +27,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	accountsv1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/jwt"
 	"go.platform-mesh.io/golang-commons/logger"
+	accountinfomocks "go.platform-mesh.io/iam-service/pkg/accountinfo/mocks"
+	appcontext "go.platform-mesh.io/iam-service/pkg/context"
+	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
+	"go.platform-mesh.io/iam-service/pkg/graph"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
-	accountinfomocks "go.platform-mesh.io/iam-service/pkg/accountinfo/mocks"
-	appcontext "go.platform-mesh.io/iam-service/pkg/context"
-	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
-	"go.platform-mesh.io/iam-service/pkg/graph"
 )
 
 type mockWSClient struct {
-	client client.Client
+	client ctrlruntimeclient.Client
 }
 
-func (m *mockWSClient) New(_ context.Context, _ multicluster.ClusterName) (client.Client, error) {
+func (m *mockWSClient) New(_ context.Context, _ multicluster.ClusterName) (ctrlruntimeclient.Client, error) {
 	return m.client, nil
 }
 
@@ -62,14 +63,14 @@ func createTestWebToken() jwt.WebToken {
 	}
 }
 
-func createTestAccountInfo() *accountsv1alpha1.AccountInfo {
-	return &accountsv1alpha1.AccountInfo{
+func createTestAccountInfo() *pmcorev1alpha1.AccountInfo {
+	return &pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: accountsv1alpha1.AccountInfoSpec{
-			Organization: accountsv1alpha1.AccountLocation{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Organization: pmcorev1alpha1.AccountLocation{
 				Name: "test-org",
 			},
-			Account: accountsv1alpha1.AccountLocation{
+			Account: pmcorev1alpha1.AccountLocation{
 				GeneratedClusterId: "generated-cluster-456",
 				OriginClusterId:    "origin-cluster-123",
 			},
@@ -96,16 +97,16 @@ func setupTestContext() (context.Context, *logger.Logger) {
 	return ctx, log
 }
 
-func setupFakeClient(t *testing.T, objects ...client.Object) client.Client {
-	rm := meta.NewDefaultRESTMapper([]schema.GroupVersion{accountsv1alpha1.GroupVersion})
+func setupFakeClient(t *testing.T, objects ...ctrlruntimeclient.Object) ctrlruntimeclient.Client {
+	rm := meta.NewDefaultRESTMapper([]schema.GroupVersion{pmcorev1alpha1.GroupVersion})
 	rm.Add(schema.GroupVersionKind{
-		Group:   accountsv1alpha1.GroupVersion.Group,
-		Version: accountsv1alpha1.GroupVersion.Version,
+		Group:   pmcorev1alpha1.GroupVersion.Group,
+		Version: pmcorev1alpha1.GroupVersion.Version,
 		Kind:    "AccountInfo",
 	}, meta.RESTScopeNamespace)
 
 	scheme := runtime.NewScheme()
-	require.NoError(t, accountsv1alpha1.AddToScheme(scheme))
+	require.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
 
 	builder := fake.NewClientBuilder().
 		WithScheme(scheme).
@@ -606,7 +607,7 @@ func TestTestIfAllowed(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMocks     func(*fgamocks.OpenFGAServiceClient)
-		accountInfo    *accountsv1alpha1.AccountInfo
+		accountInfo    *pmcorev1alpha1.AccountInfo
 		resourceCtx    *graph.ResourceContext
 		permission     string
 		token          jwt.WebToken
@@ -797,14 +798,14 @@ func TestTestIfAllowed(t *testing.T) {
 func TestTestIfResourceExists(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupClient    func(t *testing.T) client.Client
+		setupClient    func(t *testing.T) ctrlruntimeclient.Client
 		resourceCtx    *graph.ResourceContext
 		expectedResult bool
 		expectedError  string
 	}{
 		{
 			name: "resource exists - namespaced",
-			setupClient: func(t *testing.T) client.Client {
+			setupClient: func(t *testing.T) ctrlruntimeclient.Client {
 				ai := createTestAccountInfo()
 				ai.SetNamespace("test-namespace") // Make it namespaced
 				return setupFakeClient(t, ai)
@@ -821,19 +822,19 @@ func TestTestIfResourceExists(t *testing.T) {
 		},
 		{
 			name: "resource exists - cluster scoped",
-			setupClient: func(t *testing.T) client.Client {
+			setupClient: func(t *testing.T) ctrlruntimeclient.Client {
 				// Setup with cluster-scoped REST mapping
 				ai := createTestAccountInfo()
 
-				rm := meta.NewDefaultRESTMapper([]schema.GroupVersion{accountsv1alpha1.GroupVersion})
+				rm := meta.NewDefaultRESTMapper([]schema.GroupVersion{pmcorev1alpha1.GroupVersion})
 				rm.Add(schema.GroupVersionKind{
-					Group:   accountsv1alpha1.GroupVersion.Group,
-					Version: accountsv1alpha1.GroupVersion.Version,
+					Group:   pmcorev1alpha1.GroupVersion.Group,
+					Version: pmcorev1alpha1.GroupVersion.Version,
 					Kind:    "AccountInfo",
 				}, meta.RESTScopeRoot) // Cluster-scoped
 
 				scheme := runtime.NewScheme()
-				require.NoError(t, accountsv1alpha1.AddToScheme(scheme))
+				require.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
 
 				return fake.NewClientBuilder().
 					WithRESTMapper(rm).
@@ -853,7 +854,7 @@ func TestTestIfResourceExists(t *testing.T) {
 		},
 		{
 			name: "resource not found - namespaced",
-			setupClient: func(t *testing.T) client.Client {
+			setupClient: func(t *testing.T) ctrlruntimeclient.Client {
 				return setupFakeClient(t) // Empty client
 			},
 			resourceCtx: &graph.ResourceContext{
@@ -868,17 +869,17 @@ func TestTestIfResourceExists(t *testing.T) {
 		},
 		{
 			name: "resource not found - cluster scoped",
-			setupClient: func(t *testing.T) client.Client {
+			setupClient: func(t *testing.T) ctrlruntimeclient.Client {
 				// Setup with cluster-scoped REST mapping but no objects
-				rm := meta.NewDefaultRESTMapper([]schema.GroupVersion{accountsv1alpha1.GroupVersion})
+				rm := meta.NewDefaultRESTMapper([]schema.GroupVersion{pmcorev1alpha1.GroupVersion})
 				rm.Add(schema.GroupVersionKind{
-					Group:   accountsv1alpha1.GroupVersion.Group,
-					Version: accountsv1alpha1.GroupVersion.Version,
+					Group:   pmcorev1alpha1.GroupVersion.Group,
+					Version: pmcorev1alpha1.GroupVersion.Version,
 					Kind:    "AccountInfo",
 				}, meta.RESTScopeRoot)
 
 				scheme := runtime.NewScheme()
-				require.NoError(t, accountsv1alpha1.AddToScheme(scheme))
+				require.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
 
 				return fake.NewClientBuilder().
 					WithRESTMapper(rm).
@@ -897,7 +898,7 @@ func TestTestIfResourceExists(t *testing.T) {
 		},
 		{
 			name: "invalid resource kind - REST mapping fails",
-			setupClient: func(t *testing.T) client.Client {
+			setupClient: func(t *testing.T) ctrlruntimeclient.Client {
 				scheme := runtime.NewScheme()
 				return fake.NewClientBuilder().WithScheme(scheme).Build()
 			},

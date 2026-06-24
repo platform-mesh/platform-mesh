@@ -20,9 +20,8 @@ import (
 	"context"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	pmcontext "go.platform-mesh.io/golang-commons/context"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
+	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/iam-service/pkg/config"
 	"go.platform-mesh.io/iam-service/pkg/fga"
 	"go.platform-mesh.io/iam-service/pkg/graph"
@@ -33,6 +32,8 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/resolver/transformer"
 	"go.platform-mesh.io/iam-service/pkg/sorter"
 	"go.platform-mesh.io/iam-service/pkg/workspace"
+
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 var _ api.ResolverService = (*Service)(nil)

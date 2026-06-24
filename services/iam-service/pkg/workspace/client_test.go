@@ -23,11 +23,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	accountmocks "go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
 	"go.platform-mesh.io/golang-commons/logger"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -47,7 +49,7 @@ func (p *Provider) Get(ctx context.Context, clusterName multicluster.ClusterName
 	return cluster, nil
 }
 
-func (p *Provider) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+func (p *Provider) IndexField(ctx context.Context, obj ctrlruntimeclient.Object, field string, extractValue ctrlruntimeclient.IndexerFunc) error {
 	return nil
 }
 
