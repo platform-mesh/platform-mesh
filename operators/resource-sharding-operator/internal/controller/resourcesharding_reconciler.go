@@ -21,17 +21,17 @@ import (
 	"fmt"
 	"time"
 
-	"go.platform-mesh.io/apis/sharding/v1alpha1"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	pmshardingv1alpha1 "go.platform-mesh.io/apis/sharding/v1alpha1"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -45,7 +45,7 @@ const (
 )
 
 type ResourceShardingReconciler struct {
-	client.Client
+	ctrlruntimeclient.Client
 	Discovery          discovery.DiscoveryInterface
 	Registry           *DynamicControllerRegistry
 	Manager            ctrl.Manager
@@ -56,9 +56,9 @@ type ResourceShardingReconciler struct {
 func (r *ResourceShardingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var rs v1alpha1.ResourceSharding
+	var rs pmshardingv1alpha1.ResourceSharding
 	if err := r.Get(ctx, req.NamespacedName, &rs); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
 	if !rs.DeletionTimestamp.IsZero() {
@@ -233,7 +233,7 @@ func (r *ResourceShardingReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return ctrl.Result{RequeueAfter: rs.Spec.Rebalance.Interval.Duration}, nil
 }
 
-func (r *ResourceShardingReconciler) handleDeletion(ctx context.Context, rs *v1alpha1.ResourceSharding) (ctrl.Result, error) {
+func (r *ResourceShardingReconciler) handleDeletion(ctx context.Context, rs *pmshardingv1alpha1.ResourceSharding) (ctrl.Result, error) {
 	r.Registry.Deregister(rs.UID)
 	_ = DeleteWebhookConfiguration(ctx, r.Client, rs)
 
@@ -249,8 +249,8 @@ func (r *ResourceShardingReconciler) validateTarget(gvr schema.GroupVersionResou
 	return err
 }
 
-func (r *ResourceShardingReconciler) validateUniqueness(ctx context.Context, rs *v1alpha1.ResourceSharding, gvr schema.GroupVersionResource) error {
-	var list v1alpha1.ResourceShardingList
+func (r *ResourceShardingReconciler) validateUniqueness(ctx context.Context, rs *pmshardingv1alpha1.ResourceSharding, gvr schema.GroupVersionResource) error {
+	var list pmshardingv1alpha1.ResourceShardingList
 	if err := r.List(ctx, &list); err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func (r *ResourceShardingReconciler) validateUniqueness(ctx context.Context, rs 
 	return nil
 }
 
-func (r *ResourceShardingReconciler) ensureDynamicController(ctx context.Context, rs *v1alpha1.ResourceSharding, gvr schema.GroupVersionResource) error {
+func (r *ResourceShardingReconciler) ensureDynamicController(ctx context.Context, rs *pmshardingv1alpha1.ResourceSharding, gvr schema.GroupVersionResource) error {
 	if existing, exists := r.Registry.Get(rs.UID); exists {
 		existing.Assigner.UpdateShards(shardNames(rs.Spec.Shards))
 		return nil
@@ -289,7 +289,7 @@ func (r *ResourceShardingReconciler) ensureDynamicController(ctx context.Context
 	return nil
 }
 
-func shardNames(refs []v1alpha1.ShardRef) []string {
+func shardNames(refs []pmshardingv1alpha1.ShardRef) []string {
 	names := make([]string, len(refs))
 	for i, ref := range refs {
 		names[i] = ref.Name
@@ -301,6 +301,6 @@ func shardNames(refs []v1alpha1.ShardRef) []string {
 
 func (r *ResourceShardingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.ResourceSharding{}).
+		For(&pmshardingv1alpha1.ResourceSharding{}).
 		Complete(r)
 }

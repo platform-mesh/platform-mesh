@@ -23,9 +23,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.platform-mesh.io/apis/sharding/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	pmshardingv1alpha1 "go.platform-mesh.io/apis/sharding/v1alpha1"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +32,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 // newWebhookConfigScheme builds a scheme that includes admissionregistration types.
@@ -40,25 +41,25 @@ func newWebhookConfigScheme(t *testing.T) *runtime.Scheme {
 	t.Helper()
 	s := runtime.NewScheme()
 	require.NoError(t, clientgoscheme.AddToScheme(s))
-	require.NoError(t, v1alpha1.AddToScheme(s))
+	require.NoError(t, pmshardingv1alpha1.AddToScheme(s))
 	return s
 }
 
 // buildResourceSharding returns a minimal ResourceSharding used in webhook_config tests.
-func buildResourceSharding(name string, webhookEnabled bool) *v1alpha1.ResourceSharding {
-	return &v1alpha1.ResourceSharding{
+func buildResourceSharding(name string, webhookEnabled bool) *pmshardingv1alpha1.ResourceSharding {
+	return &pmshardingv1alpha1.ResourceSharding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			UID:  types.UID("uid-" + name),
 		},
-		Spec: v1alpha1.ResourceShardingSpec{
-			Target: v1alpha1.TargetResource{
+		Spec: pmshardingv1alpha1.ResourceShardingSpec{
+			Target: pmshardingv1alpha1.TargetResource{
 				Group:    "apps",
 				Version:  "v1",
 				Resource: "deployments",
 			},
-			Shards:  []v1alpha1.ShardRef{{Name: "shard-a"}},
-			Webhook: v1alpha1.WebhookConfig{Enabled: webhookEnabled},
+			Shards:  []pmshardingv1alpha1.ShardRef{{Name: "shard-a"}},
+			Webhook: pmshardingv1alpha1.WebhookConfig{Enabled: webhookEnabled},
 		},
 	}
 }
@@ -255,7 +256,7 @@ func TestEnsureWebhookConfiguration_DisabledDeletesExisting(t *testing.T) {
 	// The MutatingWebhookConfiguration should have been deleted
 	deleted := &admissionregistrationv1.MutatingWebhookConfiguration{}
 	err = fc.Get(context.Background(), types.NamespacedName{Name: "resource-sharding-disabled-rs"}, deleted)
-	assert.True(t, client.IgnoreNotFound(err) == nil && err != nil, "webhook config should have been deleted")
+	assert.True(t, ctrlruntimeclient.IgnoreNotFound(err) == nil && err != nil, "webhook config should have been deleted")
 }
 
 func TestEnsureWebhookConfiguration_DisabledNoOpWhenNotExists(t *testing.T) {

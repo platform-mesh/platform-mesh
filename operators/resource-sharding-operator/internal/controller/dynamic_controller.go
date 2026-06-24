@@ -21,11 +21,7 @@ import (
 	"fmt"
 	"sync"
 
-	"go.platform-mesh.io/apis/sharding/v1alpha1"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	pmshardingv1alpha1 "go.platform-mesh.io/apis/sharding/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -33,9 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func StartDynamicController(ctx context.Context, mgr ctrl.Manager, rs *v1alpha1.ResourceSharding, gvr schema.GroupVersionResource) (*RunningController, error) {
+func StartDynamicController(ctx context.Context, mgr ctrl.Manager, rs *pmshardingv1alpha1.ResourceSharding, gvr schema.GroupVersionResource) (*RunningController, error) {
 	labelKey := rs.Spec.ShardLabelKey
 	if labelKey == "" {
 		labelKey = "sharding.platform-mesh.io/shard"
@@ -57,7 +57,7 @@ func StartDynamicController(ctx context.Context, mgr ctrl.Manager, rs *v1alpha1.
 
 	informerCache, err := cache.New(mgr.GetConfig(), cache.Options{
 		Scheme: mgr.GetScheme(),
-		ByObject: map[client.Object]cache.ByObject{
+		ByObject: map[ctrlruntimeclient.Object]cache.ByObject{
 			obj: {Label: selector},
 		},
 	})
@@ -83,7 +83,7 @@ func StartDynamicController(ctx context.Context, mgr ctrl.Manager, rs *v1alpha1.
 
 	// Register event handler BEFORE cache starts — ensures initial LIST items are delivered
 	_, err = informer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			meta, ok := obj.(*metav1.PartialObjectMetadata)
 			if !ok {
 				return
@@ -146,7 +146,7 @@ func StartDynamicController(ctx context.Context, mgr ctrl.Manager, rs *v1alpha1.
 					queue.Forget(req)
 					return
 				}
-				patch := client.MergeFrom(patchObj.DeepCopy())
+				patch := ctrlruntimeclient.MergeFrom(patchObj.DeepCopy())
 				if patchObj.Labels == nil {
 					patchObj.Labels = make(map[string]string)
 				}

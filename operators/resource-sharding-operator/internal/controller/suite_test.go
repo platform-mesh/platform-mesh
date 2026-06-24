@@ -27,12 +27,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"go.platform-mesh.io/apis/sharding/v1alpha1"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	pmshardingv1alpha1 "go.platform-mesh.io/apis/sharding/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -40,6 +36,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 const (
@@ -52,7 +53,7 @@ type ResourceShardingSuite struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	env       *envtest.Environment
-	k8sClient client.Client
+	k8sClient ctrlruntimeclient.Client
 	mgr       manager.Manager
 	scheme    *k8sruntime.Scheme
 	mgrErr    chan error
@@ -70,7 +71,7 @@ func (s *ResourceShardingSuite) SetupSuite() {
 
 	s.scheme = k8sruntime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(s.scheme))
-	utilruntime.Must(v1alpha1.AddToScheme(s.scheme))
+	utilruntime.Must(pmshardingv1alpha1.AddToScheme(s.scheme))
 
 	assetsDir := os.Getenv("KUBEBUILDER_ASSETS")
 	if assetsDir == "" {
@@ -87,7 +88,7 @@ func (s *ResourceShardingSuite) SetupSuite() {
 	cfg, err := s.env.Start()
 	s.Require().NoError(err)
 
-	s.k8sClient, err = client.New(cfg, client.Options{Scheme: s.scheme})
+	s.k8sClient, err = ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: s.scheme})
 	s.Require().NoError(err)
 
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -117,16 +118,16 @@ func (s *ResourceShardingSuite) TearDownSuite() {
 // returns an error when the context is already cancelled before the cache can sync.
 // Uses an empty ShardLabelKey to also exercise the default-labelKey assignment branch.
 func (s *ResourceShardingSuite) TestStartDynamicController_CancelledContext() {
-	rs := &v1alpha1.ResourceSharding{
+	rs := &pmshardingv1alpha1.ResourceSharding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-dc-cancelled",
 			UID:  types.UID("uid-dc-cancelled"),
 		},
-		Spec: v1alpha1.ResourceShardingSpec{
-			Target: v1alpha1.TargetResource{Group: "", Version: "v1", Resource: "configmaps"},
+		Spec: pmshardingv1alpha1.ResourceShardingSpec{
+			Target: pmshardingv1alpha1.TargetResource{Group: "", Version: "v1", Resource: "configmaps"},
 			// Intentionally empty ShardLabelKey to exercise the default-assignment branch.
 			ShardLabelKey: "",
-			Shards:        []v1alpha1.ShardRef{{Name: "shard-a"}},
+			Shards:        []pmshardingv1alpha1.ShardRef{{Name: "shard-a"}},
 		},
 	}
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
@@ -142,15 +143,15 @@ func (s *ResourceShardingSuite) TestStartDynamicController_CancelledContext() {
 // returns an error when the ShardLabelKey contains invalid characters (making the
 // label selector unparseable).
 func (s *ResourceShardingSuite) TestStartDynamicController_InvalidLabelKey() {
-	rs := &v1alpha1.ResourceSharding{
+	rs := &pmshardingv1alpha1.ResourceSharding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-dc-invalid-key",
 			UID:  types.UID("uid-dc-invalid"),
 		},
-		Spec: v1alpha1.ResourceShardingSpec{
-			Target:        v1alpha1.TargetResource{Group: "", Version: "v1", Resource: "configmaps"},
+		Spec: pmshardingv1alpha1.ResourceShardingSpec{
+			Target:        pmshardingv1alpha1.TargetResource{Group: "", Version: "v1", Resource: "configmaps"},
 			ShardLabelKey: "invalid label key with spaces",
-			Shards:        []v1alpha1.ShardRef{{Name: "shard-a"}},
+			Shards:        []pmshardingv1alpha1.ShardRef{{Name: "shard-a"}},
 		},
 	}
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
@@ -163,15 +164,15 @@ func (s *ResourceShardingSuite) TestStartDynamicController_InvalidLabelKey() {
 // TestStartDynamicController_UnknownGVR verifies that StartDynamicController
 // returns an error when the GVR cannot be resolved to a GVK.
 func (s *ResourceShardingSuite) TestStartDynamicController_UnknownGVR() {
-	rs := &v1alpha1.ResourceSharding{
+	rs := &pmshardingv1alpha1.ResourceSharding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-dc-unknown-gvr",
 			UID:  types.UID("uid-dc-unknown"),
 		},
-		Spec: v1alpha1.ResourceShardingSpec{
-			Target:        v1alpha1.TargetResource{Group: "nonexistent.example.io", Version: "v1", Resource: "fakes"},
+		Spec: pmshardingv1alpha1.ResourceShardingSpec{
+			Target:        pmshardingv1alpha1.TargetResource{Group: "nonexistent.example.io", Version: "v1", Resource: "fakes"},
 			ShardLabelKey: "test.unknown.io/shard",
-			Shards:        []v1alpha1.ShardRef{{Name: "shard-a"}},
+			Shards:        []pmshardingv1alpha1.ShardRef{{Name: "shard-a"}},
 		},
 	}
 	gvr := schema.GroupVersionResource{Group: "nonexistent.example.io", Version: "v1", Resource: "fakes"}

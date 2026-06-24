@@ -20,13 +20,12 @@ import (
 	"context"
 	"fmt"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	authorizationv1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CheckTargetPermissions(ctx context.Context, c client.Client, gvr schema.GroupVersionResource) error {
+func CheckTargetPermissions(ctx context.Context, c ctrlruntimeclient.Client, gvr schema.GroupVersionResource) error {
 	requiredVerbs := []string{"get", "list", "watch", "patch"}
 
 	for _, verb := range requiredVerbs {

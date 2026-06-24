@@ -20,27 +20,28 @@ import (
 	"context"
 	"fmt"
 
-	"go.platform-mesh.io/apis/sharding/v1alpha1"
 	"golang.org/x/time/rate"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	pmshardingv1alpha1 "go.platform-mesh.io/apis/sharding/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type RebalanceResult struct {
-	Distribution []v1alpha1.ShardDistribution
+	Distribution []pmshardingv1alpha1.ShardDistribution
 	Moved        int
 }
 
 type Rebalancer struct {
-	Client               client.Client
+	Client               ctrlruntimeclient.Client
 	LabelKey             string
 	GVK                  schema.GroupVersionKind
 	Shards               []string
-	Config               v1alpha1.RebalanceConfig
+	Config               pmshardingv1alpha1.RebalanceConfig
 	ResourceShardingName string
 }
 
@@ -67,10 +68,10 @@ func (r *Rebalancer) Run(ctx context.Context) (*RebalanceResult, error) {
 		logger.Error(err, "rebalance moves failed")
 	}
 
-	distribution := make([]v1alpha1.ShardDistribution, 0, len(r.Shards))
+	distribution := make([]pmshardingv1alpha1.ShardDistribution, 0, len(r.Shards))
 	total := 0
 	for _, shard := range r.Shards {
-		distribution = append(distribution, v1alpha1.ShardDistribution{
+		distribution = append(distribution, pmshardingv1alpha1.ShardDistribution{
 			Shard: shard,
 			Count: counts[shard],
 		})
@@ -117,8 +118,8 @@ func (r *Rebalancer) countPerShard(ctx context.Context) (map[string]int, error) 
 		list.SetGroupVersionKind(r.GVK)
 
 		if err := r.Client.List(ctx, list,
-			client.MatchingLabelsSelector{Selector: selector},
-			client.Limit(1),
+			ctrlruntimeclient.MatchingLabelsSelector{Selector: selector},
+			ctrlruntimeclient.Limit(1),
 		); err != nil {
 			return nil, fmt.Errorf("listing shard %s: %w", shard, err)
 		}
@@ -143,8 +144,8 @@ func (r *Rebalancer) cleanupOrphans(ctx context.Context) (int, error) {
 	list.SetGroupVersionKind(r.GVK)
 
 	if err := r.Client.List(ctx, list,
-		client.MatchingLabelsSelector{Selector: selector},
-		client.Limit(100),
+		ctrlruntimeclient.MatchingLabelsSelector{Selector: selector},
+		ctrlruntimeclient.Limit(100),
 	); err != nil {
 		return 0, err
 	}
@@ -168,7 +169,7 @@ func (r *Rebalancer) cleanupOrphans(ctx context.Context) (int, error) {
 			return orphanCount, err
 		}
 
-		patch := client.MergeFrom(item.DeepCopy())
+		patch := ctrlruntimeclient.MergeFrom(item.DeepCopy())
 		delete(item.Labels, r.LabelKey)
 		if err := r.Client.Patch(ctx, item, patch); err != nil {
 			return orphanCount, fmt.Errorf("stripping orphan label: %w", err)
@@ -198,8 +199,8 @@ func (r *Rebalancer) assignUnlabeled(ctx context.Context, counts map[string]int)
 	list.SetGroupVersionKind(r.GVK)
 
 	if err := r.Client.List(ctx, list,
-		client.MatchingLabelsSelector{Selector: selector},
-		client.Limit(100),
+		ctrlruntimeclient.MatchingLabelsSelector{Selector: selector},
+		ctrlruntimeclient.Limit(100),
 	); err != nil {
 		return 0, err
 	}
@@ -219,7 +220,7 @@ func (r *Rebalancer) assignUnlabeled(ctx context.Context, counts map[string]int)
 			return assigned, err
 		}
 
-		patch := client.MergeFrom(item.DeepCopy())
+		patch := ctrlruntimeclient.MergeFrom(item.DeepCopy())
 		if item.Labels == nil {
 			item.Labels = make(map[string]string)
 		}
@@ -328,8 +329,8 @@ func (r *Rebalancer) rebalance(ctx context.Context, counts map[string]int) (int,
 		}
 
 		if err := r.Client.List(ctx, list,
-			client.MatchingLabelsSelector{Selector: selector},
-			client.Limit(int64(limit)),
+			ctrlruntimeclient.MatchingLabelsSelector{Selector: selector},
+			ctrlruntimeclient.Limit(int64(limit)),
 		); err != nil {
 			return moved, err
 		}
@@ -354,7 +355,7 @@ func (r *Rebalancer) rebalance(ctx context.Context, counts map[string]int) (int,
 			item := &list.Items[i]
 			targetShard := underloaded[targetIdx]
 
-			patch := client.MergeFrom(item.DeepCopy())
+			patch := ctrlruntimeclient.MergeFrom(item.DeepCopy())
 			item.Labels[r.LabelKey] = targetShard
 			if err := r.Client.Patch(ctx, item, patch); err != nil {
 				return moved, fmt.Errorf("moving resource to shard %s: %w", targetShard, err)

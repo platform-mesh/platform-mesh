@@ -24,15 +24,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.platform-mesh.io/apis/sharding/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	pmshardingv1alpha1 "go.platform-mesh.io/apis/sharding/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 // configMapGVK is the GVK used for ConfigMap-backed rebalancer tests.
@@ -44,7 +45,7 @@ func newRebalancerScheme(t *testing.T) *runtime.Scheme {
 	t.Helper()
 	s := runtime.NewScheme()
 	require.NoError(t, clientgoscheme.AddToScheme(s))
-	require.NoError(t, v1alpha1.AddToScheme(s))
+	require.NoError(t, pmshardingv1alpha1.AddToScheme(s))
 	return s
 }
 
@@ -60,8 +61,8 @@ func buildConfigMap(name, namespace, labelKey, shardValue string) *corev1.Config
 }
 
 // buildConfigMaps creates N uniquely-named ConfigMaps for a given shard.
-func buildConfigMaps(prefix, namespace, labelKey, shard string, count int) []client.Object {
-	objs := make([]client.Object, 0, count)
+func buildConfigMaps(prefix, namespace, labelKey, shard string, count int) []ctrlruntimeclient.Object {
+	objs := make([]ctrlruntimeclient.Object, 0, count)
 	for i := range count {
 		name := prefix + shard + "-" + string([]rune{rune('a' + (i/26)%26), rune('a' + i%26)})
 		objs = append(objs, buildConfigMap(name, namespace, labelKey, shard))
@@ -82,7 +83,7 @@ func TestRebalancer_CountPerShard_Empty(t *testing.T) {
 		LabelKey: "shard.io/shard",
 		GVK:      configMapListGVK,
 		Shards:   []string{"a", "b"},
-		Config:   v1alpha1.RebalanceConfig{},
+		Config:   pmshardingv1alpha1.RebalanceConfig{},
 	}
 
 	counts, err := r.countPerShard(context.Background())
@@ -96,7 +97,7 @@ func TestRebalancer_CountPerShard_WithItems(t *testing.T) {
 	const labelKey = "shard.io/shard"
 	scheme := newRebalancerScheme(t)
 
-	objs := []client.Object{
+	objs := []ctrlruntimeclient.Object{
 		buildConfigMap("cm-1", corev1.NamespaceDefault, labelKey, "a"),
 		buildConfigMap("cm-2", corev1.NamespaceDefault, labelKey, "a"),
 		buildConfigMap("cm-3", corev1.NamespaceDefault, labelKey, "b"),
@@ -109,7 +110,7 @@ func TestRebalancer_CountPerShard_WithItems(t *testing.T) {
 		LabelKey: labelKey,
 		GVK:      configMapListGVK,
 		Shards:   []string{"a", "b"},
-		Config:   v1alpha1.RebalanceConfig{},
+		Config:   pmshardingv1alpha1.RebalanceConfig{},
 	}
 
 	counts, err := r.countPerShard(context.Background())
@@ -126,7 +127,7 @@ func TestRebalancer_CleanupOrphans_NoOrphans(t *testing.T) {
 	const labelKey = "shard.io/shard"
 	scheme := newRebalancerScheme(t)
 
-	objs := []client.Object{
+	objs := []ctrlruntimeclient.Object{
 		buildConfigMap("cm-1", corev1.NamespaceDefault, labelKey, "valid-a"),
 		buildConfigMap("cm-2", corev1.NamespaceDefault, labelKey, "valid-b"),
 	}
@@ -138,7 +139,7 @@ func TestRebalancer_CleanupOrphans_NoOrphans(t *testing.T) {
 		LabelKey:             labelKey,
 		GVK:                  configMapListGVK,
 		Shards:               []string{"valid-a", "valid-b"},
-		Config:               v1alpha1.RebalanceConfig{RateLimit: 100},
+		Config:               pmshardingv1alpha1.RebalanceConfig{RateLimit: 100},
 		ResourceShardingName: "test-rs",
 	}
 
@@ -151,7 +152,7 @@ func TestRebalancer_CleanupOrphans_StripsOrphanLabel(t *testing.T) {
 	const labelKey = "shard.io/shard"
 	scheme := newRebalancerScheme(t)
 
-	objs := []client.Object{
+	objs := []ctrlruntimeclient.Object{
 		buildConfigMap("orphan-1", corev1.NamespaceDefault, labelKey, "deleted-shard"),
 		buildConfigMap("valid-1", corev1.NamespaceDefault, labelKey, "shard-a"),
 	}
@@ -163,7 +164,7 @@ func TestRebalancer_CleanupOrphans_StripsOrphanLabel(t *testing.T) {
 		LabelKey:             labelKey,
 		GVK:                  configMapListGVK,
 		Shards:               []string{"shard-a"},
-		Config:               v1alpha1.RebalanceConfig{RateLimit: 100},
+		Config:               pmshardingv1alpha1.RebalanceConfig{RateLimit: 100},
 		ResourceShardingName: "test-rs",
 	}
 
@@ -180,7 +181,7 @@ func TestRebalancer_AssignUnlabeled_AssignsToLeastLoaded(t *testing.T) {
 	const labelKey = "shard.io/shard"
 	scheme := newRebalancerScheme(t)
 
-	objs := []client.Object{
+	objs := []ctrlruntimeclient.Object{
 		buildConfigMap("labeled-a-1", corev1.NamespaceDefault, labelKey, "shard-a"),
 		buildConfigMap("labeled-a-2", corev1.NamespaceDefault, labelKey, "shard-a"),
 		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "no-label", Namespace: corev1.NamespaceDefault}},
@@ -193,7 +194,7 @@ func TestRebalancer_AssignUnlabeled_AssignsToLeastLoaded(t *testing.T) {
 		LabelKey:             labelKey,
 		GVK:                  configMapListGVK,
 		Shards:               []string{"shard-a", "shard-b"},
-		Config:               v1alpha1.RebalanceConfig{RateLimit: 100},
+		Config:               pmshardingv1alpha1.RebalanceConfig{RateLimit: 100},
 		ResourceShardingName: "test-rs",
 	}
 
@@ -205,7 +206,7 @@ func TestRebalancer_AssignUnlabeled_AssignsToLeastLoaded(t *testing.T) {
 	assert.Equal(t, 2, counts["shard-a"], "shard-a count should be unchanged")
 
 	var got corev1.ConfigMap
-	require.NoError(t, fc.Get(context.Background(), client.ObjectKey{Name: "no-label", Namespace: corev1.NamespaceDefault}, &got))
+	require.NoError(t, fc.Get(context.Background(), ctrlruntimeclient.ObjectKey{Name: "no-label", Namespace: corev1.NamespaceDefault}, &got))
 	assert.Equal(t, "shard-b", got.Labels[labelKey])
 }
 
@@ -213,7 +214,7 @@ func TestRebalancer_AssignUnlabeled_NoUnlabeledIsNoOp(t *testing.T) {
 	const labelKey = "shard.io/shard"
 	scheme := newRebalancerScheme(t)
 
-	objs := []client.Object{
+	objs := []ctrlruntimeclient.Object{
 		buildConfigMap("labeled-a-1", corev1.NamespaceDefault, labelKey, "shard-a"),
 	}
 	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
@@ -223,7 +224,7 @@ func TestRebalancer_AssignUnlabeled_NoUnlabeledIsNoOp(t *testing.T) {
 		LabelKey:             labelKey,
 		GVK:                  configMapListGVK,
 		Shards:               []string{"shard-a", "shard-b"},
-		Config:               v1alpha1.RebalanceConfig{RateLimit: 100},
+		Config:               pmshardingv1alpha1.RebalanceConfig{RateLimit: 100},
 		ResourceShardingName: "test-rs",
 	}
 
@@ -238,7 +239,7 @@ func TestRebalancer_AssignUnlabeled_NoShardsIsNoOp(t *testing.T) {
 	const labelKey = "shard.io/shard"
 	scheme := newRebalancerScheme(t)
 
-	objs := []client.Object{
+	objs := []ctrlruntimeclient.Object{
 		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "no-label", Namespace: corev1.NamespaceDefault}},
 	}
 	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
@@ -248,7 +249,7 @@ func TestRebalancer_AssignUnlabeled_NoShardsIsNoOp(t *testing.T) {
 		LabelKey:             labelKey,
 		GVK:                  configMapListGVK,
 		Shards:               nil,
-		Config:               v1alpha1.RebalanceConfig{RateLimit: 100},
+		Config:               pmshardingv1alpha1.RebalanceConfig{RateLimit: 100},
 		ResourceShardingName: "test-rs",
 	}
 
@@ -286,7 +287,7 @@ func TestRebalancer_Rebalance_Math(t *testing.T) {
 		name        string
 		shards      []string
 		counts      map[string]int
-		cfg         v1alpha1.RebalanceConfig
+		cfg         pmshardingv1alpha1.RebalanceConfig
 		wantMoved   int
 		wantAtLeast int // if > 0, assert moved >= wantAtLeast
 	}{
@@ -294,21 +295,21 @@ func TestRebalancer_Rebalance_Math(t *testing.T) {
 			name:      "balanced — no moves",
 			shards:    []string{"a", "b"},
 			counts:    map[string]int{"a": 10, "b": 10},
-			cfg:       v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
+			cfg:       pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
 			wantMoved: 0,
 		},
 		{
 			name:      "zero total — no moves",
 			shards:    []string{"a", "b"},
 			counts:    map[string]int{"a": 0, "b": 0},
-			cfg:       v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
+			cfg:       pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
 			wantMoved: 0,
 		},
 		{
 			name:      "no shards — no moves",
 			shards:    []string{},
 			counts:    map[string]int{},
-			cfg:       v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
+			cfg:       pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
 			wantMoved: 0,
 		},
 		{
@@ -316,7 +317,7 @@ func TestRebalancer_Rebalance_Math(t *testing.T) {
 			shards: []string{"a", "b"},
 			// ideal=10, threshold=20 → maxAllowed=12; shard-a=12 is NOT >12 → no rebalance
 			counts:    map[string]int{"a": 12, "b": 8},
-			cfg:       v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
+			cfg:       pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
 			wantMoved: 0,
 		},
 		{
@@ -324,7 +325,7 @@ func TestRebalancer_Rebalance_Math(t *testing.T) {
 			shards: []string{"a", "b"},
 			// ideal=10, threshold=20 → maxAllowed=12; shard-a=15 > 12 → overloaded
 			counts:      map[string]int{"a": 15, "b": 5},
-			cfg:         v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
+			cfg:         pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
 			wantAtLeast: 1,
 		},
 		{
@@ -333,14 +334,14 @@ func TestRebalancer_Rebalance_Math(t *testing.T) {
 			// ideal=15, threshold=20 → maxAllowed=18; shard-a=30 >> maxAllowed
 			// toMove=15; movesPercent=10 → maxMoves=1; minMoves=5 → floor to 5
 			counts:      map[string]int{"a": 30, "b": 0},
-			cfg:         v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 5, RateLimit: 100},
+			cfg:         pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 5, RateLimit: 100},
 			wantAtLeast: 5,
 		},
 		{
 			name:   "single shard — no underloaded target",
 			shards: []string{"a"},
 			counts: map[string]int{"a": 50},
-			cfg:    v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
+			cfg:    pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
 			// ideal == total, so no shard is ever "overloaded" above maxAllowed
 			wantMoved: 0,
 		},
@@ -356,7 +357,7 @@ func TestRebalancer_Rebalance_Math(t *testing.T) {
 			for _, c := range tc.counts {
 				total += c
 			}
-			initObjs := make([]client.Object, 0, total)
+			initObjs := make([]ctrlruntimeclient.Object, 0, total)
 			objIdx := 0
 			for shard, count := range tc.counts {
 				for range count {
@@ -412,7 +413,7 @@ func TestRebalancer_Rebalance_MovesCapByToMove(t *testing.T) {
 		LabelKey:             labelKey,
 		GVK:                  configMapListGVK,
 		Shards:               []string{"shard-a", "shard-b"},
-		Config:               v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 100, RateLimit: 100},
+		Config:               pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 100, RateLimit: 100},
 		ResourceShardingName: "test-rs",
 	}
 
@@ -429,12 +430,12 @@ func TestRebalancer_Rebalance_MovesCapByToMove(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRebalancer_RateLimit_DefaultsTo10(t *testing.T) {
-	r := &Rebalancer{Config: v1alpha1.RebalanceConfig{}}
+	r := &Rebalancer{Config: pmshardingv1alpha1.RebalanceConfig{}}
 	assert.Equal(t, 10, r.rateLimit())
 }
 
 func TestRebalancer_RateLimit_UsesConfigValue(t *testing.T) {
-	r := &Rebalancer{Config: v1alpha1.RebalanceConfig{RateLimit: 50}}
+	r := &Rebalancer{Config: pmshardingv1alpha1.RebalanceConfig{RateLimit: 50}}
 	assert.Equal(t, 50, r.rateLimit())
 }
 
@@ -446,7 +447,7 @@ func TestRebalancer_Run_AllBalanced(t *testing.T) {
 	const labelKey = "shard.io/shard"
 	scheme := newRebalancerScheme(t)
 
-	objs := []client.Object{
+	objs := []ctrlruntimeclient.Object{
 		buildConfigMap("cm-1", corev1.NamespaceDefault, labelKey, "shard-a"),
 		buildConfigMap("cm-2", corev1.NamespaceDefault, labelKey, "shard-b"),
 	}
@@ -458,7 +459,7 @@ func TestRebalancer_Run_AllBalanced(t *testing.T) {
 		LabelKey:             labelKey,
 		GVK:                  configMapListGVK,
 		Shards:               []string{"shard-a", "shard-b"},
-		Config:               v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
+		Config:               pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
 		ResourceShardingName: "test-rs",
 	}
 
@@ -480,7 +481,7 @@ func TestRebalancer_Run_EmptyCluster(t *testing.T) {
 		LabelKey:             labelKey,
 		GVK:                  configMapListGVK,
 		Shards:               []string{"shard-a", "shard-b"},
-		Config:               v1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
+		Config:               pmshardingv1alpha1.RebalanceConfig{Threshold: 20, MovesPerCycle: 10, MinMovesPerCycle: 1, RateLimit: 100},
 		ResourceShardingName: "test-rs",
 	}
 

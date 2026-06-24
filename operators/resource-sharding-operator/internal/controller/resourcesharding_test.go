@@ -21,34 +21,34 @@ import (
 	"fmt"
 	"time"
 
-	"go.platform-mesh.io/apis/sharding/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	pmshardingv1alpha1 "go.platform-mesh.io/apis/sharding/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (s *ResourceShardingSuite) TestHappyPath() {
-	rs := &v1alpha1.ResourceSharding{
+	rs := &pmshardingv1alpha1.ResourceSharding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-happy-path",
 		},
-		Spec: v1alpha1.ResourceShardingSpec{
-			Target: v1alpha1.TargetResource{
+		Spec: pmshardingv1alpha1.ResourceShardingSpec{
+			Target: pmshardingv1alpha1.TargetResource{
 				Group:    "",
 				Version:  "v1",
 				Resource: "configmaps",
 			},
 			ShardLabelKey: "test.sharding.io/shard",
-			Shards: []v1alpha1.ShardRef{
+			Shards: []pmshardingv1alpha1.ShardRef{
 				{Name: "shard-a"},
 				{Name: "shard-b"},
 				{Name: "shard-c"},
 			},
-			Rebalance: v1alpha1.RebalanceConfig{
+			Rebalance: pmshardingv1alpha1.RebalanceConfig{
 				Interval: metav1.Duration{Duration: 2 * time.Second},
 			},
 		},
@@ -61,7 +61,7 @@ func (s *ResourceShardingSuite) TestHappyPath() {
 
 	// Wait for Ready condition
 	s.Eventually(func() bool {
-		var fetched v1alpha1.ResourceSharding
+		var fetched pmshardingv1alpha1.ResourceSharding
 		if err := s.k8sClient.Get(s.ctx, types.NamespacedName{Name: rs.Name}, &fetched); err != nil {
 			return false
 		}
@@ -87,7 +87,7 @@ func (s *ResourceShardingSuite) TestHappyPath() {
 		cm.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"})
 		cm.SetName(fmt.Sprintf("test-cm-%d", i))
 		cm.SetNamespace("test-happy-path")
-		cm.Object["data"] = map[string]interface{}{"key": "value"}
+		cm.Object["data"] = map[string]any{"key": "value"}
 		s.Require().NoError(s.k8sClient.Create(s.ctx, cm))
 	}
 	defer func() {
@@ -107,8 +107,8 @@ func (s *ResourceShardingSuite) TestHappyPath() {
 			list := &unstructured.UnstructuredList{}
 			list.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"})
 			if err := s.k8sClient.List(s.ctx, list,
-				client.InNamespace("test-happy-path"),
-				client.MatchingLabels{"test.sharding.io/shard": shard}); err != nil {
+				ctrlruntimeclient.InNamespace("test-happy-path"),
+				ctrlruntimeclient.MatchingLabels{"test.sharding.io/shard": shard}); err != nil {
 				return false
 			}
 			labeled += len(list.Items)
@@ -121,8 +121,8 @@ func (s *ResourceShardingSuite) TestHappyPath() {
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"})
 		err := s.k8sClient.List(s.ctx, list,
-			client.InNamespace("test-happy-path"),
-			client.MatchingLabels{"test.sharding.io/shard": shard})
+			ctrlruntimeclient.InNamespace("test-happy-path"),
+			ctrlruntimeclient.MatchingLabels{"test.sharding.io/shard": shard})
 		s.Require().NoError(err)
 		s.GreaterOrEqual(len(list.Items), 2, "shard %s should have at least 2", shard)
 		s.LessOrEqual(len(list.Items), 4, "shard %s should have at most 4", shard)
@@ -130,22 +130,22 @@ func (s *ResourceShardingSuite) TestHappyPath() {
 }
 
 func (s *ResourceShardingSuite) TestSelfHealing() {
-	rs := &v1alpha1.ResourceSharding{
+	rs := &pmshardingv1alpha1.ResourceSharding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-self-healing",
 		},
-		Spec: v1alpha1.ResourceShardingSpec{
-			Target: v1alpha1.TargetResource{
+		Spec: pmshardingv1alpha1.ResourceShardingSpec{
+			Target: pmshardingv1alpha1.TargetResource{
 				Group:    "",
 				Version:  "v1",
 				Resource: "configmaps",
 			},
 			ShardLabelKey: "test.healing.io/shard",
-			Shards: []v1alpha1.ShardRef{
+			Shards: []pmshardingv1alpha1.ShardRef{
 				{Name: "shard-x"},
 				{Name: "shard-y"},
 			},
-			Rebalance: v1alpha1.RebalanceConfig{
+			Rebalance: pmshardingv1alpha1.RebalanceConfig{
 				Interval: metav1.Duration{Duration: 2 * time.Second},
 			},
 		},
@@ -161,7 +161,7 @@ func (s *ResourceShardingSuite) TestSelfHealing() {
 	cm.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"})
 	cm.SetName("test-heal-cm")
 	cm.SetNamespace(corev1.NamespaceDefault)
-	cm.Object["data"] = map[string]interface{}{"key": "value"}
+	cm.Object["data"] = map[string]any{"key": "value"}
 	s.Require().NoError(s.k8sClient.Create(s.ctx, cm))
 	defer func() {
 		_ = s.k8sClient.Delete(s.ctx, cm)
@@ -201,36 +201,36 @@ func (s *ResourceShardingSuite) TestSelfHealing() {
 }
 
 func (s *ResourceShardingSuite) TestUniquenessValidation() {
-	rs1 := &v1alpha1.ResourceSharding{
+	rs1 := &pmshardingv1alpha1.ResourceSharding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-unique-1",
 		},
-		Spec: v1alpha1.ResourceShardingSpec{
-			Target: v1alpha1.TargetResource{
+		Spec: pmshardingv1alpha1.ResourceShardingSpec{
+			Target: pmshardingv1alpha1.TargetResource{
 				Group:    "",
 				Version:  "v1",
 				Resource: "secrets",
 			},
 			ShardLabelKey: "test.unique.io/shard",
-			Shards:        []v1alpha1.ShardRef{{Name: "s1"}},
-			Rebalance: v1alpha1.RebalanceConfig{
+			Shards:        []pmshardingv1alpha1.ShardRef{{Name: "s1"}},
+			Rebalance: pmshardingv1alpha1.RebalanceConfig{
 				Interval: metav1.Duration{Duration: 5 * time.Minute},
 			},
 		},
 	}
-	rs2 := &v1alpha1.ResourceSharding{
+	rs2 := &pmshardingv1alpha1.ResourceSharding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-unique-2",
 		},
-		Spec: v1alpha1.ResourceShardingSpec{
-			Target: v1alpha1.TargetResource{
+		Spec: pmshardingv1alpha1.ResourceShardingSpec{
+			Target: pmshardingv1alpha1.TargetResource{
 				Group:    "",
 				Version:  "v1",
 				Resource: "secrets",
 			},
 			ShardLabelKey: "test.unique.io/shard",
-			Shards:        []v1alpha1.ShardRef{{Name: "s2"}},
-			Rebalance: v1alpha1.RebalanceConfig{
+			Shards:        []pmshardingv1alpha1.ShardRef{{Name: "s2"}},
+			Rebalance: pmshardingv1alpha1.RebalanceConfig{
 				Interval: metav1.Duration{Duration: 5 * time.Minute},
 			},
 		},
@@ -245,7 +245,7 @@ func (s *ResourceShardingSuite) TestUniquenessValidation() {
 
 	// Second ResourceSharding should get Conflict condition
 	s.Eventually(func() bool {
-		var fetched v1alpha1.ResourceSharding
+		var fetched pmshardingv1alpha1.ResourceSharding
 		if err := s.k8sClient.Get(s.ctx, types.NamespacedName{Name: rs2.Name}, &fetched); err != nil {
 			return false
 		}
@@ -259,19 +259,19 @@ func (s *ResourceShardingSuite) TestUniquenessValidation() {
 }
 
 func (s *ResourceShardingSuite) TestTargetNotFound() {
-	rs := &v1alpha1.ResourceSharding{
+	rs := &pmshardingv1alpha1.ResourceSharding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-not-found",
 		},
-		Spec: v1alpha1.ResourceShardingSpec{
-			Target: v1alpha1.TargetResource{
+		Spec: pmshardingv1alpha1.ResourceShardingSpec{
+			Target: pmshardingv1alpha1.TargetResource{
 				Group:    "nonexistent.example.io",
 				Version:  "v1",
 				Resource: "fakes",
 			},
 			ShardLabelKey: "test.notfound.io/shard",
-			Shards:        []v1alpha1.ShardRef{{Name: "s1"}},
-			Rebalance: v1alpha1.RebalanceConfig{
+			Shards:        []pmshardingv1alpha1.ShardRef{{Name: "s1"}},
+			Rebalance: pmshardingv1alpha1.RebalanceConfig{
 				Interval: metav1.Duration{Duration: 5 * time.Minute},
 			},
 		},
@@ -283,7 +283,7 @@ func (s *ResourceShardingSuite) TestTargetNotFound() {
 	}()
 
 	s.Eventually(func() bool {
-		var fetched v1alpha1.ResourceSharding
+		var fetched pmshardingv1alpha1.ResourceSharding
 		if err := s.k8sClient.Get(s.ctx, types.NamespacedName{Name: rs.Name}, &fetched); err != nil {
 			return false
 		}

@@ -18,17 +18,18 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"go.platform-mesh.io/apis/sharding/v1alpha1"
+
+	pmshardingv1alpha1 "go.platform-mesh.io/apis/sharding/v1alpha1"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/resource-sharding-operator/internal/config"
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 var (
@@ -46,7 +47,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmshardingv1alpha1.AddToScheme(scheme))
 
 	rootCmd.AddCommand(operatorCmd)
 

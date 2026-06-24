@@ -24,14 +24,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	authorizationv1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
 // newRBACScheme builds a scheme that includes authorization types.
@@ -44,14 +44,14 @@ func newRBACScheme(t *testing.T) *runtime.Scheme {
 
 // allowedSARClient returns a fake client whose Create interceptor marks every
 // SelfSubjectAccessReview as Allowed=true.
-func allowedSARClient(t *testing.T) client.Client {
+func allowedSARClient(t *testing.T) ctrlruntimeclient.Client {
 	t.Helper()
 	scheme := newRBACScheme(t)
 	base := fake.NewClientBuilder().WithScheme(scheme).Build()
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithInterceptorFuncs(interceptor.Funcs{
-			Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
 				if sar, ok := obj.(*authorizationv1.SelfSubjectAccessReview); ok {
 					sar.Status.Allowed = true
 					return nil
@@ -64,13 +64,13 @@ func allowedSARClient(t *testing.T) client.Client {
 
 // deniedSARClient returns a fake client whose Create interceptor marks every
 // SelfSubjectAccessReview as Allowed=false (default, but explicit here).
-func deniedSARClient(t *testing.T) client.Client {
+func deniedSARClient(t *testing.T) ctrlruntimeclient.Client {
 	t.Helper()
 	scheme := newRBACScheme(t)
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithInterceptorFuncs(interceptor.Funcs{
-			Create: func(_ context.Context, _ client.WithWatch, obj client.Object, _ ...client.CreateOption) error {
+			Create: func(_ context.Context, _ ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
 				if sar, ok := obj.(*authorizationv1.SelfSubjectAccessReview); ok {
 					sar.Status.Allowed = false
 					return nil
@@ -82,13 +82,13 @@ func deniedSARClient(t *testing.T) client.Client {
 }
 
 // errorSARClient returns a fake client whose Create always returns an error for SAR objects.
-func errorSARClient(t *testing.T, createErr error) client.Client {
+func errorSARClient(t *testing.T, createErr error) ctrlruntimeclient.Client {
 	t.Helper()
 	scheme := newRBACScheme(t)
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithInterceptorFuncs(interceptor.Funcs{
-			Create: func(_ context.Context, _ client.WithWatch, obj client.Object, _ ...client.CreateOption) error {
+			Create: func(_ context.Context, _ ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
 				if _, ok := obj.(*authorizationv1.SelfSubjectAccessReview); ok {
 					return createErr
 				}

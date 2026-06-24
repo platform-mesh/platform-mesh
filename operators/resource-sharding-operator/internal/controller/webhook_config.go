@@ -20,17 +20,17 @@ import (
 	"context"
 	"fmt"
 
-	"go.platform-mesh.io/apis/sharding/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	pmshardingv1alpha1 "go.platform-mesh.io/apis/sharding/v1alpha1"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func EnsureWebhookConfiguration(ctx context.Context, c client.Client, rs *v1alpha1.ResourceSharding, gvr schema.GroupVersionResource, namespace, serviceName string) error {
+func EnsureWebhookConfiguration(ctx context.Context, c ctrlruntimeclient.Client, rs *pmshardingv1alpha1.ResourceSharding, gvr schema.GroupVersionResource, namespace, serviceName string) error {
 	if !rs.Spec.Webhook.Enabled {
 		return DeleteWebhookConfiguration(ctx, c, rs)
 	}
@@ -47,7 +47,7 @@ func EnsureWebhookConfiguration(ctx context.Context, c client.Client, rs *v1alph
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: v1alpha1.GroupVersion.String(),
+					APIVersion: pmshardingv1alpha1.GroupVersion.String(),
 					Kind:       "ResourceSharding",
 					Name:       rs.Name,
 					UID:        rs.UID,
@@ -85,7 +85,7 @@ func EnsureWebhookConfiguration(ctx context.Context, c client.Client, rs *v1alph
 	existing := &admissionregistrationv1.MutatingWebhookConfiguration{}
 	err := c.Get(ctx, types.NamespacedName{Name: webhookCfg.Name}, existing)
 	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
+		if ctrlruntimeclient.IgnoreNotFound(err) != nil {
 			return err
 		}
 		return c.Create(ctx, webhookCfg)
@@ -96,12 +96,12 @@ func EnsureWebhookConfiguration(ctx context.Context, c client.Client, rs *v1alph
 	return c.Update(ctx, existing)
 }
 
-func DeleteWebhookConfiguration(ctx context.Context, c client.Client, rs *v1alpha1.ResourceSharding) error {
+func DeleteWebhookConfiguration(ctx context.Context, c ctrlruntimeclient.Client, rs *pmshardingv1alpha1.ResourceSharding) error {
 	webhookCfg := &admissionregistrationv1.MutatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("resource-sharding-%s", rs.Name),
 		},
 	}
 	err := c.Delete(ctx, webhookCfg)
-	return client.IgnoreNotFound(err)
+	return ctrlruntimeclient.IgnoreNotFound(err)
 }
