@@ -19,7 +19,7 @@ package types_test
 import (
 	"testing"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/schema/types"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 )
 
 func TestSanitizeFieldName(t *testing.T) {

@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/platform-mesh/golang-commons/traces"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/options"
 	"github.com/spf13/cobra"
+	"go.platform-mesh.io/golang-commons/traces"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/options"
 
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	logsv1 "k8s.io/component-base/logs/api/v1"

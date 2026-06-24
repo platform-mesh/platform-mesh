@@ -23,10 +23,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/config"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/registry"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/watcher"
-	utilscontext "github.com/platform-mesh/kubernetes-graphql-gateway/gateway/utils/context"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/config"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/registry"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/watcher"
+	utilscontext "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/utils/context"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )

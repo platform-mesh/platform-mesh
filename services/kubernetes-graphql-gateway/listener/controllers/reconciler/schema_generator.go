@@ -21,9 +21,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis/v1alpha1"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/pkg/apischema"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/pkg/apischema/enricher"
+	"go.platform-mesh.io/apis/gateway/v1alpha1"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema/enricher"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/discovery"

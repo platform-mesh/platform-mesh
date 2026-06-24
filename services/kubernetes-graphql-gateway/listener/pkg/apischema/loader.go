@@ -22,7 +22,7 @@ import (
 	"errors"
 	"maps"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apischema"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/openapi"

@@ -23,8 +23,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis/v1alpha1"
 	"github.com/spf13/pflag"
+	"go.platform-mesh.io/apis/gateway/v1alpha1"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

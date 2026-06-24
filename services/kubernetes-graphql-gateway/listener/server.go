@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/controllers/clusteraccess"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/controllers/resource"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/clusteraccess"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/resource"
 
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller"

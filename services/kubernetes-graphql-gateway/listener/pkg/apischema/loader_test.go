@@ -19,9 +19,9 @@ package apischema_test
 import (
 	"testing"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apischema"
 	"github.com/stretchr/testify/assert"
+	"go.platform-mesh.io/apis/gateway"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kube-openapi/pkg/validation/spec"
@@ -39,7 +39,7 @@ func TestExtractGVK(t *testing.T) {
 			schema: &spec.Schema{
 				VendorExtensible: spec.VendorExtensible{
 					Extensions: map[string]any{
-						apis.GVKExtensionKey: []any{
+						gateway.GVKExtensionKey: []any{
 							map[string]any{
 								"group":   "apps",
 								"version": "v1",
@@ -61,7 +61,7 @@ func TestExtractGVK(t *testing.T) {
 			schema: &spec.Schema{
 				VendorExtensible: spec.VendorExtensible{
 					Extensions: map[string]any{
-						apis.GVKExtensionKey: []any{
+						gateway.GVKExtensionKey: []any{
 							map[string]any{
 								"group":   "",
 								"version": "v1",
@@ -101,7 +101,7 @@ func TestExtractGVK(t *testing.T) {
 			schema: &spec.Schema{
 				VendorExtensible: spec.VendorExtensible{
 					Extensions: map[string]any{
-						apis.GVKExtensionKey: []any{
+						gateway.GVKExtensionKey: []any{
 							map[string]any{"group": "a", "version": "v1", "kind": "A"},
 							map[string]any{"group": "b", "version": "v1", "kind": "B"},
 						},
@@ -116,7 +116,7 @@ func TestExtractGVK(t *testing.T) {
 			schema: &spec.Schema{
 				VendorExtensible: spec.VendorExtensible{
 					Extensions: map[string]any{
-						apis.GVKExtensionKey: []any{},
+						gateway.GVKExtensionKey: []any{},
 					},
 				},
 			},

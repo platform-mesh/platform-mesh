@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/graphql-go/graphql/language/ast"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/schema/types"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 )
 
 func TestStringMapScalar_ParseLiteral(t *testing.T) {

@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"strings"
 
-	commonsconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis/v1alpha1"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/defaults"
-	providerkcp "github.com/platform-mesh/kubernetes-graphql-gateway/providers/kcp/options"
 	"github.com/spf13/pflag"
+	"go.platform-mesh.io/apis/gateway/v1alpha1"
+	commonsconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/defaults"
+	providerkcp "go.platform-mesh.io/kubernetes-graphql-gateway/providers/kcp/options"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"

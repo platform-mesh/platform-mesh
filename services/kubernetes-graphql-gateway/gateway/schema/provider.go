@@ -20,9 +20,9 @@ import (
 	"context"
 
 	"github.com/graphql-go/graphql"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/resolver"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/schema/extensions"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/schema/generator"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/extensions"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/generator"
 
 	"k8s.io/kube-openapi/pkg/validation/spec"
 )

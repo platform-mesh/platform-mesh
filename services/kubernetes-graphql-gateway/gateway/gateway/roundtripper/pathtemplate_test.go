@@ -22,7 +22,7 @@ import (
 	"net/url"
 	"testing"
 
-	utilscontext "github.com/platform-mesh/kubernetes-graphql-gateway/gateway/utils/context"
+	utilscontext "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/utils/context"
 )
 
 func TestPathTemplateHandler_RoundTrip(t *testing.T) {

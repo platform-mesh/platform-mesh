@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"net/http"
 
-	utilscontext "github.com/platform-mesh/kubernetes-graphql-gateway/gateway/utils/context"
+	utilscontext "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/utils/context"
 )
 
 // Middleware returns an http.Handler that validates incoming GraphQL queries

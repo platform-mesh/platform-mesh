@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/pkg/schemahandler"
-	proto "github.com/platform-mesh/kubernetes-graphql-gateway/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/schemahandler"
+	proto "go.platform-mesh.io/kubernetes-graphql-gateway/sdk"
 	"google.golang.org/grpc"
 )
 

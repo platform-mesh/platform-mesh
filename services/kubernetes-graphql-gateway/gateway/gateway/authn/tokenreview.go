@@ -24,7 +24,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jellydator/ttlcache/v3"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/metrics"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/metrics"
 	"golang.org/x/sync/singleflight"
 
 	authenticationv1 "k8s.io/api/authentication/v1"

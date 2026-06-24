@@ -19,9 +19,9 @@ package main
 import (
 	"os"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/cmd/gateway"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/cmd/listener"
 	"github.com/spf13/cobra"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/cmd/gateway"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/cmd/listener"
 
 	"k8s.io/klog/v2"
 

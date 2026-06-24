@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	"github.com/graphql-go/graphql"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apischema"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/resolver"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"

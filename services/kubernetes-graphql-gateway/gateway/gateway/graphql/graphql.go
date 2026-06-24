@@ -23,7 +23,7 @@ import (
 
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/handler"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/config"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/config"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )

@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/pkg/broadcaster"
-	proto "github.com/platform-mesh/kubernetes-graphql-gateway/sdk"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/broadcaster"
+	proto "go.platform-mesh.io/kubernetes-graphql-gateway/sdk"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )

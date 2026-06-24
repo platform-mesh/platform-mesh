@@ -19,9 +19,9 @@ package generator
 import (
 	"testing"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.platform-mesh.io/apis/gateway"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -300,7 +300,7 @@ func schemaWithGVK(group, version, kind string) *spec.Schema {
 	return &spec.Schema{
 		VendorExtensible: spec.VendorExtensible{
 			Extensions: spec.Extensions{
-				apis.GVKExtensionKey: []any{
+				gateway.GVKExtensionKey: []any{
 					map[string]any{"group": group, "version": version, "kind": kind},
 				},
 			},
@@ -313,8 +313,8 @@ func schemaWithGVKAndScope(group, version, kind string, scope apiextensionsv1.Re
 	return &spec.Schema{
 		VendorExtensible: spec.VendorExtensible{
 			Extensions: spec.Extensions{
-				apis.GVKExtensionKey:   []any{map[string]any{"group": group, "version": version, "kind": kind}},
-				apis.ScopeExtensionKey: string(scope),
+				gateway.GVKExtensionKey:   []any{map[string]any{"group": group, "version": version, "kind": kind}},
+				gateway.ScopeExtensionKey: string(scope),
 			},
 		},
 	}

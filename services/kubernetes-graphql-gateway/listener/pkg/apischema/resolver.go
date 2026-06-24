@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apischema"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 
 	"k8s.io/client-go/openapi"
 	"sigs.k8s.io/controller-runtime/pkg/log"

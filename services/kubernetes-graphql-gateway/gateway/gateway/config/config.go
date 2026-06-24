@@ -19,8 +19,8 @@ package config
 import (
 	"time"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/authn"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/metrics"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/authn"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/metrics"
 )
 
 // Gateway holds the complete gateway service configuration.

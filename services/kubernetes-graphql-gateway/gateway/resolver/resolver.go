@@ -28,10 +28,10 @@ import (
 	"time"
 
 	"github.com/graphql-go/graphql"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/metrics"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/metrics"
 	"gopkg.in/yaml.v3"
 
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"

@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/graphql-go/graphql"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/schema/types"
 	"github.com/stretchr/testify/assert"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )

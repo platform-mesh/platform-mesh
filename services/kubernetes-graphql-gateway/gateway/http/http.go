@@ -24,10 +24,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/middleware"
-	utilscontext "github.com/platform-mesh/kubernetes-graphql-gateway/gateway/utils/context"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/middleware"
+	utilscontext "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/utils/context"
 
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"

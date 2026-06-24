@@ -23,9 +23,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis/v1alpha1"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/roundtripper"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/roundtripper/union"
+	"go.platform-mesh.io/apis/gateway/v1alpha1"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/roundtripper"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/roundtripper/union"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/rest"

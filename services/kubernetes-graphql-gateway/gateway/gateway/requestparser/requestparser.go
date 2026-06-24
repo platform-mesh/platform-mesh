@@ -22,7 +22,7 @@ import (
 	"io"
 	"net/http"
 
-	utilscontext "github.com/platform-mesh/kubernetes-graphql-gateway/gateway/utils/context"
+	utilscontext "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/utils/context"
 )
 
 // Middleware reads the GraphQL request body, parses it into

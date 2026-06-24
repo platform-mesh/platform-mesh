@@ -24,11 +24,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/defaults"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/watcher"
-	proto "github.com/platform-mesh/kubernetes-graphql-gateway/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/defaults"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/watcher"
+	proto "go.platform-mesh.io/kubernetes-graphql-gateway/sdk"
 	"google.golang.org/grpc"
 )
 

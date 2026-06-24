@@ -25,11 +25,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis/v1alpha1"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/controllers/resource"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/options"
 	"github.com/stretchr/testify/suite"
+	"go.platform-mesh.io/apis/gateway/v1alpha1"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/resource"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/options"
 
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"

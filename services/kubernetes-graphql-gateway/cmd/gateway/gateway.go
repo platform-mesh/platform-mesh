@@ -19,9 +19,9 @@ package gateway
 import (
 	"fmt"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/options"
 	"github.com/spf13/cobra"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/options"
 
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	logsv1 "k8s.io/component-base/logs/api/v1"

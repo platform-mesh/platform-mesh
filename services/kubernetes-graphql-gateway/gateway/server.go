@@ -20,8 +20,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/http"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/http"
 
 	"k8s.io/klog/v2"
 )

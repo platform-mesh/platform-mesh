@@ -20,8 +20,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/defaults"
 	"github.com/spf13/pflag"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/defaults"
 
 	"k8s.io/component-base/logs"
 	logsv1 "k8s.io/component-base/logs/api/v1"

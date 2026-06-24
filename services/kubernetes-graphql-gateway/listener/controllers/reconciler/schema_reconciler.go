@@ -22,8 +22,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis/v1alpha1"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/pkg/schemahandler"
+	"go.platform-mesh.io/apis/gateway/v1alpha1"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/schemahandler"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/discovery"

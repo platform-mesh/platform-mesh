@@ -22,8 +22,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/pkg/schemahandler"
 	"github.com/stretchr/testify/assert"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/schemahandler"
 )
 
 var testJSON = []byte("{\"key\":\"value\"}")

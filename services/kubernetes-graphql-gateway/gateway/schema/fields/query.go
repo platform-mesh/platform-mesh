@@ -18,7 +18,7 @@ package fields
 
 import (
 	"github.com/graphql-go/graphql"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/resolver"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
 )
 
 type QueryGenerator struct {

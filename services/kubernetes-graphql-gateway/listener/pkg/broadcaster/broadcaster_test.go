@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/pkg/broadcaster"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/broadcaster"
 )
 
 func TestSubscribeAndPublish(t *testing.T) {

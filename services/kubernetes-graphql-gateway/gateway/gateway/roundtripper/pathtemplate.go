@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"strings"
 
-	utilscontext "github.com/platform-mesh/kubernetes-graphql-gateway/gateway/utils/context"
+	utilscontext "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/utils/context"
 )
 
 type PathTemplateHandler struct {

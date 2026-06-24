@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/graphql-go/graphql"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/resolver"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
 )
 
 var WatchEventTypeEnum = graphql.NewEnum(graphql.EnumConfig{

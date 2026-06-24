@@ -23,11 +23,11 @@ import (
 
 	"github.com/gobuffalo/flect"
 	"github.com/graphql-go/graphql"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apischema"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/resolver"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/schema/extensions"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/schema/fields"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/schema/types"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/extensions"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/fields"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"

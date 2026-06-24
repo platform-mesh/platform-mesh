@@ -120,7 +120,7 @@ tasks:
   proto:
     desc: "Generate protobuf files"
     cmds:
-      - protoc --go_out=. --go-grpc_out=. --go_opt=module=github.com/platform-mesh/kubernetes-graphql-gateway --go-grpc_opt=module=github.com/platform-mesh/kubernetes-graphql-gateway ./apis/proto/schemahandler.proto
+      - protoc --go_out=. --go-grpc_out=. --go_opt=module=go.platform-mesh.io/kubernetes-graphql-gateway --go-grpc_opt=module=go.platform-mesh.io/kubernetes-graphql-gateway ./apis/proto/schemahandler.proto
 
   gateway:
     desc: "Start the GraphQL gateway server (kills existing process on port 8080 if needed)"

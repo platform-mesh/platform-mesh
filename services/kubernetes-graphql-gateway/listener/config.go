@@ -23,12 +23,12 @@ import (
 	"slices"
 	"strings"
 
-	gatewayv1alpha1 "github.com/platform-mesh/kubernetes-graphql-gateway/apis/v1alpha1"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/options"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/listener/pkg/schemahandler"
-	kcpprovider "github.com/platform-mesh/kubernetes-graphql-gateway/providers/kcp"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/sdk"
 	"github.com/rs/zerolog/log"
+	gatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/options"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/schemahandler"
+	kcpprovider "go.platform-mesh.io/kubernetes-graphql-gateway/providers/kcp"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/sdk"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 

@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/config"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/gateway/endpoint"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/config"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/endpoint"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )

@@ -24,9 +24,9 @@ import (
 	"strings"
 	"testing"
 
-	utilscontext "github.com/platform-mesh/kubernetes-graphql-gateway/gateway/utils/context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	utilscontext "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/utils/context"
 )
 
 const testEndpointSuffix = "/graphql"

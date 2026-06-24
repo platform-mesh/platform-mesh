@@ -19,8 +19,8 @@ package enricher
 import (
 	"context"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apischema"
+	"go.platform-mesh.io/apis/gateway"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -73,7 +73,7 @@ func (e *Categories) Enrich(ctx context.Context, schemas *apischema.SchemaSet) e
 				continue
 			}
 
-			entry.Schema.AddExtension(apis.CategoriesExtensionKey, res.Categories)
+			entry.Schema.AddExtension(gateway.CategoriesExtensionKey, res.Categories)
 		}
 	}
 

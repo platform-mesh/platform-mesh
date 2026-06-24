@@ -20,8 +20,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/resolver"
 	"github.com/stretchr/testify/assert"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
 )
 
 func TestGetStrArg(t *testing.T) {

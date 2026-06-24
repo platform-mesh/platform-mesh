@@ -20,8 +20,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/apis"
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/resolver"
+	"go.platform-mesh.io/apis/gateway"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -50,14 +50,14 @@ func (m *CategoryManager) Store(
 		return errors.New("no resource extensions")
 	}
 
-	categoriesRaw, ok := resourceSpec.Extensions[apis.CategoriesExtensionKey]
+	categoriesRaw, ok := resourceSpec.Extensions[gateway.CategoriesExtensionKey]
 	if !ok {
-		return fmt.Errorf("%s extension not found", apis.CategoriesExtensionKey)
+		return fmt.Errorf("%s extension not found", gateway.CategoriesExtensionKey)
 	}
 
 	categoriesRawArray, ok := categoriesRaw.([]any)
 	if !ok {
-		return fmt.Errorf("%s extension is not an array", apis.CategoriesExtensionKey)
+		return fmt.Errorf("%s extension is not an array", gateway.CategoriesExtensionKey)
 	}
 
 	categories := make([]string, len(categoriesRawArray))

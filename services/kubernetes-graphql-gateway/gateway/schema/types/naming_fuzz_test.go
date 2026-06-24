@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/platform-mesh/kubernetes-graphql-gateway/gateway/schema/types"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 )
 
 // validIdentifier matches a valid GraphQL identifier: it must start with a
