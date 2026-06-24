@@ -20,16 +20,16 @@ import (
 	"context"
 	"fmt"
 
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/util/workqueue"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 )
 
 var _ subroutines.Finalizer = (*FinalizeAccountInfoSubroutine)(nil)
@@ -41,11 +41,11 @@ const (
 
 type FinalizeAccountInfoSubroutine struct {
 	mgr     mcmanager.Manager
-	limiter workqueue.TypedRateLimiter[*corev1alpha1.AccountInfo]
+	limiter workqueue.TypedRateLimiter[*pmcorev1alpha1.AccountInfo]
 }
 
 func New(mgr mcmanager.Manager) (*FinalizeAccountInfoSubroutine, error) {
-	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*corev1alpha1.AccountInfo](
+	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.AccountInfo](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
@@ -57,12 +57,12 @@ func (r *FinalizeAccountInfoSubroutine) GetName() string {
 	return FinalizeAccountInfoSubroutineName
 }
 
-func (r *FinalizeAccountInfoSubroutine) Finalizers(_ client.Object) []string {
+func (r *FinalizeAccountInfoSubroutine) Finalizers(_ ctrlruntimeclient.Object) []string {
 	return []string{AccountInfoFinalizer}
 }
 
-func (r *FinalizeAccountInfoSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	instance := obj.(*corev1alpha1.AccountInfo)
+func (r *FinalizeAccountInfoSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	instance := obj.(*pmcorev1alpha1.AccountInfo)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	cluster, err := r.mgr.ClusterFromContext(ctx)
@@ -71,9 +71,9 @@ func (r *FinalizeAccountInfoSubroutine) Finalize(ctx context.Context, obj client
 	}
 	clusterClient := cluster.GetClient()
 
-	list := &corev1alpha1.AccountList{}
-	if err := clusterClient.List(ctx, list, &client.ListOptions{}); err != nil {
-		if !kerrors.IsNotFound(err) && !meta.IsNoMatchError(err) {
+	list := &pmcorev1alpha1.AccountList{}
+	if err := clusterClient.List(ctx, list, &ctrlruntimeclient.ListOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 			return subroutines.OK(), fmt.Errorf("listing child accounts: %w", err)
 		}
 	}

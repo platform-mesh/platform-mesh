@@ -20,11 +20,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"go.platform-mesh.io/account-operator/pkg/subroutines/util"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 )
 
 func TestGetWorkspaceTypeName(t *testing.T) {
-	got := util.GetWorkspaceTypeName("test", corev1alpha1.AccountTypeOrg)
+	got := util.GetWorkspaceTypeName("test", pmcorev1alpha1.AccountTypeOrg)
 	assert.Equal(t, "test-org", got)
 }

@@ -20,25 +20,24 @@ import (
 	"context"
 	"fmt"
 
+	"go.platform-mesh.io/account-operator/internal/config"
+	"go.platform-mesh.io/account-operator/pkg/subroutines/finalizeaccountinfo"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/subroutines"
+	"go.platform-mesh.io/subroutines/lifecycle"
+
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"k8s.io/client-go/util/workqueue"
-
-	"go.platform-mesh.io/account-operator/internal/config"
-	"go.platform-mesh.io/account-operator/pkg/subroutines/finalizeaccountinfo"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/subroutines"
-	"go.platform-mesh.io/subroutines/lifecycle"
 )
 
 const accountInfoReconcilerName = "AccountInfoReconciler"
@@ -66,8 +65,8 @@ func NewAccountInfoReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg con
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
-	lc := lifecycle.New(mgr, accountInfoReconcilerName, func() client.Object {
-		return &corev1alpha1.AccountInfo{}
+	lc := lifecycle.New(mgr, accountInfoReconcilerName, func() ctrlruntimeclient.Object {
+		return &pmcorev1alpha1.AccountInfo{}
 	}, subs...)
 
 	return &AccountInfoReconciler{
@@ -85,7 +84,7 @@ func (r *AccountInfoReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *pla
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, eventPredicates...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(accountInfoReconcilerName).
-		For(&corev1alpha1.AccountInfo{}).
+		For(&pmcorev1alpha1.AccountInfo{}).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

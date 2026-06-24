@@ -18,42 +18,43 @@ package controller_test
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"testing"
 	"time"
 
-	mcc "github.com/kcp-dev/multicluster-provider/client"
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
-	"github.com/kcp-dev/sdk/apis/core"
-	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/stretchr/testify/suite"
+
+	"go.platform-mesh.io/account-operator/internal/config"
+	"go.platform-mesh.io/account-operator/internal/controller"
+	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
+	"go.platform-mesh.io/account-operator/pkg/subroutines/workspace"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/logger"
-	v1 "k8s.io/api/core/v1"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/kcp-dev/logicalcluster/v3"
+	mcc "github.com/kcp-dev/multicluster-provider/client"
 	mcenvtest "github.com/kcp-dev/multicluster-provider/envtest"
-	"go.platform-mesh.io/account-operator/internal/config"
-	"go.platform-mesh.io/account-operator/internal/controller"
-	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
-	"go.platform-mesh.io/account-operator/pkg/subroutines/workspace"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	"github.com/kcp-dev/sdk/apis/core"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+
+	_ "embed"
 )
 
 const (
@@ -73,9 +74,9 @@ type AccountTestSuite struct {
 	platformMeshSysPath logicalcluster.Path
 	orgsClusterPath     logicalcluster.Path
 
-	rootClient            client.Client
-	rootOrgsClient        client.Client
-	rootOrgsDefaultClient client.Client
+	rootClient            ctrlruntimeclient.Client
+	rootOrgsClient        ctrlruntimeclient.Client
+	rootOrgsDefaultClient ctrlruntimeclient.Client
 
 	logger *logger.Logger
 	ctx    context.Context
@@ -99,12 +100,12 @@ func (s *AccountTestSuite) SetupSuite() {
 	s.ctx, s.cancel, _ = platformmeshcontext.StartContext(logger, nil, 0)
 
 	s.scheme = runtime.NewScheme()
-	utilruntime.Must(corev1alpha1.AddToScheme(s.scheme))
-	utilruntime.Must(v1.AddToScheme(s.scheme))
+	utilruntime.Must(pmcorev1alpha1.AddToScheme(s.scheme))
+	utilruntime.Must(corev1.AddToScheme(s.scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(s.scheme))
 	utilruntime.Must(kcpapisv1alpha2.AddToScheme(s.scheme))
-	utilruntime.Must(kcpcorev1alpha.AddToScheme(s.scheme))
-	utilruntime.Must(kcptenancyv1alpha.AddToScheme(s.scheme))
+	utilruntime.Must(kcpcorev1alpha1.AddToScheme(s.scheme))
+	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(s.scheme))
 
 	s.setupKCP()
 	s.setupManager()
@@ -135,18 +136,18 @@ func (s *AccountTestSuite) TestAddingFinalizer() {
 	testContext := context.Background()
 	accountName := "test-account-finalizer"
 
-	account := &corev1alpha1.Account{
+	account := &pmcorev1alpha1.Account{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: accountName,
 		},
-		Spec: corev1alpha1.AccountSpec{
-			Type: corev1alpha1.AccountTypeOrg,
+		Spec: pmcorev1alpha1.AccountSpec{
+			Type: pmcorev1alpha1.AccountTypeOrg,
 		},
 	}
 
 	s.Require().NoError(s.rootOrgsDefaultClient.Create(testContext, account))
 
-	createdAccount := corev1alpha1.Account{}
+	createdAccount := pmcorev1alpha1.Account{}
 	s.Assert().Eventually(func() bool {
 		err := s.rootOrgsDefaultClient.Get(testContext, types.NamespacedName{Name: accountName, Namespace: defaultNamespace}, &createdAccount)
 
@@ -159,19 +160,19 @@ func (s *AccountTestSuite) TestAddingFinalizer() {
 func (s *AccountTestSuite) TestWorkspaceCreation() {
 	testContext := context.Background()
 	accountName := "test-account-ws-creation"
-	account := &corev1alpha1.Account{ObjectMeta: metav1.ObjectMeta{Name: accountName}, Spec: corev1alpha1.AccountSpec{Type: corev1alpha1.AccountTypeAccount}}
+	account := &pmcorev1alpha1.Account{ObjectMeta: metav1.ObjectMeta{Name: accountName}, Spec: pmcorev1alpha1.AccountSpec{Type: pmcorev1alpha1.AccountTypeAccount}}
 
 	s.Require().NoError(s.rootOrgsDefaultClient.Create(testContext, account))
 
-	createdWorkspace := kcptenancyv1alpha.Workspace{}
+	createdWorkspace := kcptenancyv1alpha1.Workspace{}
 	s.Assert().Eventually(func() bool {
 		if err := s.rootOrgsDefaultClient.Get(testContext, types.NamespacedName{Name: accountName}, &createdWorkspace); err != nil {
 			return false
 		}
-		return createdWorkspace.Status.Phase == kcpcorev1alpha.LogicalClusterPhaseReady
+		return createdWorkspace.Status.Phase == kcpcorev1alpha1.LogicalClusterPhaseReady
 	}, defaultTestTimeout, defaultTickInterval)
 
-	updatedAccount := &corev1alpha1.Account{}
+	updatedAccount := &pmcorev1alpha1.Account{}
 	s.Assert().Eventually(func() bool {
 		if err := s.rootOrgsDefaultClient.Get(testContext, types.NamespacedName{Name: accountName}, updatedAccount); err != nil {
 			return false
@@ -186,11 +187,11 @@ func (s *AccountTestSuite) TestWorkspaceCreation() {
 func (s *AccountTestSuite) TestAccountInfoCreationForOrganization() {
 	testContext := context.Background()
 	accountName := "test-org-account"
-	account := &corev1alpha1.Account{ObjectMeta: metav1.ObjectMeta{Name: accountName}, Spec: corev1alpha1.AccountSpec{Type: corev1alpha1.AccountTypeOrg}}
+	account := &pmcorev1alpha1.Account{ObjectMeta: metav1.ObjectMeta{Name: accountName}, Spec: pmcorev1alpha1.AccountSpec{Type: pmcorev1alpha1.AccountTypeOrg}}
 
 	s.Require().NoError(s.rootOrgsClient.Create(testContext, account))
 
-	createdAccount := &corev1alpha1.Account{}
+	createdAccount := &pmcorev1alpha1.Account{}
 	s.Assert().Eventually(func() bool {
 		if err := s.rootOrgsClient.Get(testContext, types.NamespacedName{Name: accountName}, createdAccount); err != nil {
 			return false
@@ -198,27 +199,27 @@ func (s *AccountTestSuite) TestAccountInfoCreationForOrganization() {
 		return meta.IsStatusConditionTrue(createdAccount.Status.Conditions, manageaccountinfo.ManageAccountInfoSubroutineName)
 	}, defaultTestTimeout, defaultTickInterval)
 
-	accountInfo := &corev1alpha1.AccountInfo{}
+	accountInfo := &pmcorev1alpha1.AccountInfo{}
 	s.Assert().Eventually(func() bool {
-		if err := s.rootOrgsDefaultClient.Get(testContext, client.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
+		if err := s.rootOrgsDefaultClient.Get(testContext, ctrlruntimeclient.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
 			return false
 		}
-		return accountInfo.Spec.Account.Type == corev1alpha1.AccountTypeOrg
+		return accountInfo.Spec.Account.Type == pmcorev1alpha1.AccountTypeOrg
 	}, defaultTestTimeout, defaultTickInterval)
 }
 
 func (s *AccountTestSuite) TestWorkspaceFinalizerRemovesWorkspace() {
 	accountName := "test-workspace-finalizer"
-	account := &corev1alpha1.Account{ObjectMeta: metav1.ObjectMeta{Name: accountName}, Spec: corev1alpha1.AccountSpec{Type: corev1alpha1.AccountTypeAccount}}
+	account := &pmcorev1alpha1.Account{ObjectMeta: metav1.ObjectMeta{Name: accountName}, Spec: pmcorev1alpha1.AccountSpec{Type: pmcorev1alpha1.AccountTypeAccount}}
 
 	s.Require().NoError(s.rootOrgsDefaultClient.Create(s.ctx, account))
 
 	s.Assert().Eventually(func() bool {
-		createdWorkspace := kcptenancyv1alpha.Workspace{}
-		if err := s.rootOrgsDefaultClient.Get(s.ctx, types.NamespacedName{Name: accountName}, &createdWorkspace); err != nil && !kerrors.IsNotFound(err) {
+		createdWorkspace := kcptenancyv1alpha1.Workspace{}
+		if err := s.rootOrgsDefaultClient.Get(s.ctx, types.NamespacedName{Name: accountName}, &createdWorkspace); err != nil && !apierrors.IsNotFound(err) {
 			s.logger.Err(err).Msg("Waiting for Workspace to be created")
 			return false
-		} else if kerrors.IsNotFound(err) {
+		} else if apierrors.IsNotFound(err) {
 			s.logger.Info().Msg("Waiting for Workspace to be created")
 			return false
 		}
@@ -227,7 +228,7 @@ func (s *AccountTestSuite) TestWorkspaceFinalizerRemovesWorkspace() {
 	}, defaultTestTimeout, defaultTickInterval)
 
 	s.Assert().Eventually(func() bool {
-		createdAccount := corev1alpha1.Account{}
+		createdAccount := pmcorev1alpha1.Account{}
 		if err := s.rootOrgsDefaultClient.Get(s.ctx, types.NamespacedName{Name: accountName}, &createdAccount); err != nil {
 			s.logger.Err(err).Msg("Waiting for Account to be ready")
 			return false
@@ -239,7 +240,7 @@ func (s *AccountTestSuite) TestWorkspaceFinalizerRemovesWorkspace() {
 	s.Require().NoError(s.rootOrgsDefaultClient.Delete(s.ctx, account))
 
 	s.Assert().Eventually(func() bool {
-		if err := s.rootOrgsDefaultClient.Get(s.ctx, types.NamespacedName{Name: accountName}, &kcptenancyv1alpha.Workspace{}); err != nil && !kerrors.IsNotFound(err) {
+		if err := s.rootOrgsDefaultClient.Get(s.ctx, types.NamespacedName{Name: accountName}, &kcptenancyv1alpha1.Workspace{}); err != nil && !apierrors.IsNotFound(err) {
 			s.logger.Err(err).Msg("Waiting for Workspace to be deleted")
 			return false
 		} else if err == nil {
@@ -252,11 +253,11 @@ func (s *AccountTestSuite) TestWorkspaceFinalizerRemovesWorkspace() {
 }
 
 func (s *AccountTestSuite) verifyWorkspace(ctx context.Context, orgName, accountName string) {
-	workspace := &kcptenancyv1alpha.Workspace{}
+	workspace := &kcptenancyv1alpha1.Workspace{}
 	s.Require().NoError(s.rootOrgsDefaultClient.Get(ctx, types.NamespacedName{Name: accountName}, workspace))
 	s.Equal(accountName, workspace.Name)
 	s.NotNil(workspace.Spec.Type)
-	expectedType := kcptenancyv1alpha.WorkspaceTypeName(fmt.Sprintf("%s-%s", orgName, corev1alpha1.AccountTypeAccount))
+	expectedType := kcptenancyv1alpha1.WorkspaceTypeName(fmt.Sprintf("%s-%s", orgName, pmcorev1alpha1.AccountTypeAccount))
 	s.Equal(expectedType, workspace.Spec.Type.Name)
 }
 

@@ -20,22 +20,23 @@ import (
 	"errors"
 	"testing"
 
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
-	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspacetype"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 func TestName(t *testing.T) {
@@ -45,24 +46,24 @@ func TestName(t *testing.T) {
 
 func TestFinalizer(t *testing.T) {
 	s := workspacetype.New(nil)
-	assert.Equal(t, []string{workspacetype.SubroutineFinalizer}, s.Finalizers(&corev1alpha1.Account{Spec: corev1alpha1.AccountSpec{Type: corev1alpha1.AccountTypeOrg}}))
+	assert.Equal(t, []string{workspacetype.SubroutineFinalizer}, s.Finalizers(&pmcorev1alpha1.Account{Spec: pmcorev1alpha1.AccountSpec{Type: pmcorev1alpha1.AccountTypeOrg}}))
 }
 
 func TestFinalize(t *testing.T) {
 	testCases := []struct {
 		name        string
-		obj         *corev1alpha1.Account
+		obj         *pmcorev1alpha1.Account
 		k8sMocks    func(client *mocks.Client)
 		expectError bool
 	}{
 		{
 			name: "should delete both workspacetypes",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: corev1alpha1.AccountSpec{
-					Type: corev1alpha1.AccountTypeOrg,
+				Spec: pmcorev1alpha1.AccountSpec{
+					Type: pmcorev1alpha1.AccountTypeOrg,
 				},
 			},
 			k8sMocks: func(client *mocks.Client) {
@@ -74,29 +75,29 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should ignore not found errors",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: corev1alpha1.AccountSpec{
-					Type: corev1alpha1.AccountTypeOrg,
+				Spec: pmcorev1alpha1.AccountSpec{
+					Type: pmcorev1alpha1.AccountTypeOrg,
 				},
 			},
 			k8sMocks: func(client *mocks.Client) {
 				client.EXPECT().
 					Delete(mock.Anything, mock.Anything, mock.Anything).
-					Return(kerrors.NewNotFound(schema.GroupResource{}, "not found")).
+					Return(apierrors.NewNotFound(schema.GroupResource{}, "not found")).
 					Twice()
 			},
 		},
 		{
 			name: "should error out in case of other errors",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: corev1alpha1.AccountSpec{
-					Type: corev1alpha1.AccountTypeOrg,
+				Spec: pmcorev1alpha1.AccountSpec{
+					Type: pmcorev1alpha1.AccountTypeOrg,
 				},
 			},
 			k8sMocks: func(client *mocks.Client) {
@@ -136,24 +137,24 @@ func TestFinalize(t *testing.T) {
 func TestProcess(t *testing.T) {
 	testCases := []struct {
 		name        string
-		obj         *corev1alpha1.Account
+		obj         *pmcorev1alpha1.Account
 		k8sMocks    func(client *mocks.Client)
 		expectError bool
 	}{
 		{
 			name: "",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: corev1alpha1.AccountSpec{
-					Type: corev1alpha1.AccountTypeOrg,
+				Spec: pmcorev1alpha1.AccountSpec{
+					Type: pmcorev1alpha1.AccountTypeOrg,
 				},
 			},
 			k8sMocks: func(client *mocks.Client) {
 				client.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					Return(kerrors.NewNotFound(schema.GroupResource{}, "not found")).
+					Return(apierrors.NewNotFound(schema.GroupResource{}, "not found")).
 					Twice()
 
 				client.EXPECT().
@@ -188,21 +189,21 @@ func TestProcess(t *testing.T) {
 
 func TestProcess_PreservesAuthenticationConfigurations(t *testing.T) {
 	scheme := runtime.NewScheme()
-	require.NoError(t, kcptenancyv1alpha.AddToScheme(scheme))
+	require.NoError(t, kcptenancyv1alpha1.AddToScheme(scheme))
 
-	existingAuthConfigs := []kcptenancyv1alpha.AuthenticationConfigurationReference{
+	existingAuthConfigs := []kcptenancyv1alpha1.AuthenticationConfigurationReference{
 		{Name: "existing-auth-config"},
 	}
 
-	existingOrgWst := &kcptenancyv1alpha.WorkspaceType{
+	existingOrgWst := &kcptenancyv1alpha1.WorkspaceType{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-org"},
-		Spec: kcptenancyv1alpha.WorkspaceTypeSpec{
+		Spec: kcptenancyv1alpha1.WorkspaceTypeSpec{
 			AuthenticationConfigurations: existingAuthConfigs,
 		},
 	}
-	existingAccWst := &kcptenancyv1alpha.WorkspaceType{
+	existingAccWst := &kcptenancyv1alpha1.WorkspaceType{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-acc"},
-		Spec: kcptenancyv1alpha.WorkspaceTypeSpec{
+		Spec: kcptenancyv1alpha1.WorkspaceTypeSpec{
 			AuthenticationConfigurations: existingAuthConfigs,
 		},
 	}
@@ -219,21 +220,21 @@ func TestProcess_PreservesAuthenticationConfigurations(t *testing.T) {
 
 	s := workspacetype.New(mgr)
 
-	account := &corev1alpha1.Account{
+	account := &pmcorev1alpha1.Account{
 		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec:       corev1alpha1.AccountSpec{Type: corev1alpha1.AccountTypeOrg},
+		Spec:       pmcorev1alpha1.AccountSpec{Type: pmcorev1alpha1.AccountTypeOrg},
 	}
 
 	_, err := s.Process(t.Context(), account)
 	require.Nil(t, err)
 
-	updatedOrgWst := &kcptenancyv1alpha.WorkspaceType{}
-	require.NoError(t, fakeClient.Get(t.Context(), client.ObjectKey{Name: "test-org"}, updatedOrgWst))
+	updatedOrgWst := &kcptenancyv1alpha1.WorkspaceType{}
+	require.NoError(t, fakeClient.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: "test-org"}, updatedOrgWst))
 	assert.Equal(t, existingAuthConfigs, updatedOrgWst.Spec.AuthenticationConfigurations,
 		"AuthenticationConfigurations should be preserved on org workspace type")
 
-	updatedAccWst := &kcptenancyv1alpha.WorkspaceType{}
-	require.NoError(t, fakeClient.Get(t.Context(), client.ObjectKey{Name: "test-acc"}, updatedAccWst))
+	updatedAccWst := &kcptenancyv1alpha1.WorkspaceType{}
+	require.NoError(t, fakeClient.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: "test-acc"}, updatedAccWst))
 	assert.Equal(t, existingAuthConfigs, updatedAccWst.Spec.AuthenticationConfigurations,
 		"AuthenticationConfigurations should be preserved on account workspace type")
 }

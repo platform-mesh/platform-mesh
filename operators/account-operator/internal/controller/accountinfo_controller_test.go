@@ -20,22 +20,22 @@ import (
 	"context"
 	"testing"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/stretchr/testify/require"
+
+	"go.platform-mesh.io/account-operator/internal/config"
+	"go.platform-mesh.io/account-operator/internal/controller"
+	"go.platform-mesh.io/account-operator/pkg/subroutines/finalizeaccountinfo"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	crcluster "sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"github.com/stretchr/testify/require"
-	"go.platform-mesh.io/golang-commons/logger"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-
-	"go.platform-mesh.io/account-operator/internal/config"
-	"go.platform-mesh.io/account-operator/internal/controller"
-	"go.platform-mesh.io/account-operator/pkg/subroutines/finalizeaccountinfo"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 )
 
 type stubManager struct {
@@ -54,10 +54,10 @@ func (m *stubManager) ClusterFromContext(_ context.Context) (crcluster.Cluster, 
 
 type stubCluster struct {
 	crcluster.Cluster
-	client client.Client
+	client ctrlruntimeclient.Client
 }
 
-func (c *stubCluster) GetClient() client.Client {
+func (c *stubCluster) GetClient() ctrlruntimeclient.Client {
 	return c.client
 }
 
@@ -66,9 +66,9 @@ func TestAccountInfoReconciler_ReconcileAddsFinalizerWhenControllerEnabled(
 	t.Parallel()
 
 	scheme := runtime.NewScheme()
-	require.NoError(t, corev1alpha1.AddToScheme(scheme))
+	require.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
 
-	accountInfo := &corev1alpha1.AccountInfo{}
+	accountInfo := &pmcorev1alpha1.AccountInfo{}
 	accountInfo.Name = "account-info"
 
 	cl := fake.NewClientBuilder().
@@ -94,7 +94,7 @@ func TestAccountInfoReconciler_ReconcileAddsFinalizerWhenControllerEnabled(
 	})
 	require.NoError(t, err)
 
-	updated := &corev1alpha1.AccountInfo{}
+	updated := &pmcorev1alpha1.AccountInfo{}
 	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Name: accountInfo.Name}, updated))
 	require.Contains(t, updated.Finalizers, finalizeaccountinfo.AccountInfoFinalizer)
 }
@@ -104,9 +104,9 @@ func TestAccountInfoReconciler_ReconcileSkipsFinalizerWhenControllerDisabled(
 	t.Parallel()
 
 	scheme := runtime.NewScheme()
-	require.NoError(t, corev1alpha1.AddToScheme(scheme))
+	require.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
 
-	accountInfo := &corev1alpha1.AccountInfo{}
+	accountInfo := &pmcorev1alpha1.AccountInfo{}
 	accountInfo.Name = "account-info"
 
 	cl := fake.NewClientBuilder().
@@ -132,7 +132,7 @@ func TestAccountInfoReconciler_ReconcileSkipsFinalizerWhenControllerDisabled(
 	})
 	require.NoError(t, err)
 
-	updated := &corev1alpha1.AccountInfo{}
+	updated := &pmcorev1alpha1.AccountInfo{}
 	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Name: accountInfo.Name}, updated))
 	require.Empty(t, updated.Finalizers)
 }

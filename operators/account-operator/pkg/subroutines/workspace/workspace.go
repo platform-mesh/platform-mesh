@@ -20,25 +20,26 @@ import (
 	"context"
 	"fmt"
 
-	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	conditionsapi "github.com/kcp-dev/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
-	conditionshelper "github.com/kcp-dev/sdk/apis/third_party/conditions/util/conditions"
+	"go.platform-mesh.io/account-operator/pkg/clusteredname"
+	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
+	"go.platform-mesh.io/account-operator/pkg/subroutines/util"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	"go.platform-mesh.io/account-operator/pkg/clusteredname"
-	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
-	"go.platform-mesh.io/account-operator/pkg/subroutines/util"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	conditionsapi "github.com/kcp-dev/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
+	conditionshelper "github.com/kcp-dev/sdk/apis/third_party/conditions/util/conditions"
 )
 
 var _ subroutines.Processor = (*WorkspaceSubroutine)(nil)
@@ -52,11 +53,11 @@ const (
 
 type WorkspaceSubroutine struct {
 	mgr     mcmanager.Manager
-	limiter workqueue.TypedRateLimiter[*corev1alpha1.Account]
+	limiter workqueue.TypedRateLimiter[*pmcorev1alpha1.Account]
 }
 
 func New(mgr mcmanager.Manager) (*WorkspaceSubroutine, error) {
-	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*corev1alpha1.Account](
+	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.Account](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
@@ -71,12 +72,12 @@ func (r *WorkspaceSubroutine) GetName() string {
 	return WorkspaceSubroutineName
 }
 
-func (r *WorkspaceSubroutine) Finalizers(_ client.Object) []string {
+func (r *WorkspaceSubroutine) Finalizers(_ ctrlruntimeclient.Object) []string {
 	return []string{WorkspaceSubroutineFinalizer}
 }
 
-func (r *WorkspaceSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	instance := obj.(*corev1alpha1.Account)
+func (r *WorkspaceSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	instance := obj.(*pmcorev1alpha1.Account)
 	cn := clusteredname.MustGetClusteredName(ctx, obj)
 
 	clusterName := multicluster.ClusterName(cn.ClusterID.String())
@@ -88,9 +89,9 @@ func (r *WorkspaceSubroutine) Finalize(ctx context.Context, obj client.Object) (
 
 	clusterClient := cluster.GetClient()
 
-	ws := kcptenancyv1alpha.Workspace{}
-	if err := clusterClient.Get(ctx, client.ObjectKey{Name: instance.Name}, &ws); err != nil {
-		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+	ws := kcptenancyv1alpha1.Workspace{}
+	if err := clusterClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: instance.Name}, &ws); err != nil {
+		if apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
 			r.limiter.Forget(instance)
 			return subroutines.OK(), nil
 		}
@@ -108,8 +109,8 @@ func (r *WorkspaceSubroutine) Finalize(ctx context.Context, obj client.Object) (
 	return subroutines.StopWithRequeue(r.limiter.When(instance), "Waiting for Workspace deletion"), nil
 }
 
-func (r *WorkspaceSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	instance := obj.(*corev1alpha1.Account)
+func (r *WorkspaceSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	instance := obj.(*pmcorev1alpha1.Account)
 	cn := clusteredname.MustGetClusteredName(ctx, obj)
 
 	clusterName := multicluster.ClusterName(cn.ClusterID.String())
@@ -121,10 +122,10 @@ func (r *WorkspaceSubroutine) Process(ctx context.Context, obj client.Object) (s
 	clusterClient := clusterRef.GetClient()
 
 	workspaceTypeName := util.GetWorkspaceTypeName(instance.Name, instance.Spec.Type)
-	if instance.Spec.Type != corev1alpha1.AccountTypeOrg {
-		accountInfo := &corev1alpha1.AccountInfo{}
-		if err := clusterClient.Get(ctx, client.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
-			if kerrors.IsNotFound(err) {
+	if instance.Spec.Type != pmcorev1alpha1.AccountTypeOrg {
+		accountInfo := &pmcorev1alpha1.AccountInfo{}
+		if err := clusterClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
+			if apierrors.IsNotFound(err) {
 				return subroutines.StopWithRequeue(r.limiter.When(instance), "AccountInfo not found yet"), nil
 			}
 
@@ -146,10 +147,10 @@ func (r *WorkspaceSubroutine) Process(ctx context.Context, obj client.Object) (s
 		return subroutines.StopWithRequeue(r.limiter.When(instance), "Workspace type not ready yet"), nil
 	}
 
-	createdWorkspace := &kcptenancyv1alpha.Workspace{ObjectMeta: metav1.ObjectMeta{Name: instance.Name}}
+	createdWorkspace := &kcptenancyv1alpha1.Workspace{ObjectMeta: metav1.ObjectMeta{Name: instance.Name}}
 	if _, err = controllerutil.CreateOrUpdate(ctx, clusterClient, createdWorkspace, func() error {
-		createdWorkspace.Spec.Type = &kcptenancyv1alpha.WorkspaceTypeReference{
-			Name: kcptenancyv1alpha.WorkspaceTypeName(workspaceTypeName),
+		createdWorkspace.Spec.Type = &kcptenancyv1alpha1.WorkspaceTypeReference{
+			Name: kcptenancyv1alpha1.WorkspaceTypeName(workspaceTypeName),
 			Path: orgsWorkspacePath,
 		}
 
@@ -173,9 +174,9 @@ func (r *WorkspaceSubroutine) checkWorkspaceTypeReady(ctx context.Context, works
 
 	log := logger.LoadLoggerFromContext(ctx)
 	log.Info().Msg("Getting workspace using retrieved client")
-	wst := &kcptenancyv1alpha.WorkspaceType{}
-	if err := clusterClient.Get(ctx, client.ObjectKey{Name: workspaceTypeName}, wst); err != nil {
-		if kerrors.IsNotFound(err) {
+	wst := &kcptenancyv1alpha1.WorkspaceType{}
+	if err := clusterClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: workspaceTypeName}, wst); err != nil {
+		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
 

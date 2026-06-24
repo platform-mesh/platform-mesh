@@ -21,23 +21,26 @@ import (
 	"errors"
 	"testing"
 
-	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	conditionsapi "github.com/kcp-dev/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
 	"go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspace"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	conditionsapi "github.com/kcp-dev/sdk/apis/third_party/conditions/apis/conditions/v1alpha1"
 )
 
 func TestGetName(t *testing.T) {
@@ -55,13 +58,13 @@ func TestFinalizers(t *testing.T) {
 func TestFinalize(t *testing.T) {
 	testCases := []struct {
 		name          string
-		obj           *corev1alpha1.Account
+		obj           *pmcorev1alpha1.Account
 		k8sMocks      func(m *mocks.Client)
 		expectRequeue bool
 	}{
 		{
 			name: "should finalize with workspace already deleted",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
@@ -69,12 +72,12 @@ func TestFinalize(t *testing.T) {
 			k8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					Return(kerrors.NewNotFound(schema.GroupResource{}, "test"))
+					Return(apierrors.NewNotFound(schema.GroupResource{}, "test"))
 			},
 		},
 		{
 			name: "should requeue if deletion timestamp is set",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
@@ -82,8 +85,8 @@ func TestFinalize(t *testing.T) {
 			k8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						ws := obj.(*kcptenancyv1alpha.Workspace)
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						ws := obj.(*kcptenancyv1alpha1.Workspace)
 						ws.SetDeletionTimestamp(ptr.To(metav1.Now()))
 
 						return nil
@@ -93,7 +96,7 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should delete if no deletion timestamp is set",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
@@ -144,12 +147,12 @@ func TestFinalize(t *testing.T) {
 func TestProcess(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	assert.NoError(t, corev1alpha1.AddToScheme(scheme))
-	assert.NoError(t, kcptenancyv1alpha.AddToScheme(scheme))
+	assert.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
+	assert.NoError(t, kcptenancyv1alpha1.AddToScheme(scheme))
 
 	testCases := []struct {
 		name          string
-		obj           *corev1alpha1.Account
+		obj           *pmcorev1alpha1.Account
 		k8sMocks      func(m *mocks.Client)
 		orgsK8sMocks  func(m *mocks.Client)
 		expectRequeue bool
@@ -157,24 +160,24 @@ func TestProcess(t *testing.T) {
 	}{
 		{
 			name: "shuold create workspace if not exists",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: corev1alpha1.AccountSpec{
-					Type: corev1alpha1.AccountTypeOrg,
+				Spec: pmcorev1alpha1.AccountSpec{
+					Type: pmcorev1alpha1.AccountTypeOrg,
 				},
 			},
 			orgsK8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						wst := obj.(*kcptenancyv1alpha.WorkspaceType)
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						wst := obj.(*kcptenancyv1alpha1.WorkspaceType)
 
 						wst.Status.Conditions = []conditionsapi.Condition{
 							{
 								Type:   conditionsapi.ReadyCondition,
-								Status: v1.ConditionTrue,
+								Status: corev1.ConditionTrue,
 							},
 						}
 
@@ -184,7 +187,7 @@ func TestProcess(t *testing.T) {
 			k8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					Return(kerrors.NewNotFound(schema.GroupResource{}, "test"))
+					Return(apierrors.NewNotFound(schema.GroupResource{}, "test"))
 
 				m.EXPECT().Scheme().Return(scheme)
 
@@ -195,24 +198,24 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "create workspace for account if not exists",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: corev1alpha1.AccountSpec{
-					Type: corev1alpha1.AccountTypeAccount,
+				Spec: pmcorev1alpha1.AccountSpec{
+					Type: pmcorev1alpha1.AccountTypeAccount,
 				},
 			},
 			orgsK8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						wst := obj.(*kcptenancyv1alpha.WorkspaceType)
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						wst := obj.(*kcptenancyv1alpha1.WorkspaceType)
 
 						wst.Status.Conditions = []conditionsapi.Condition{
 							{
 								Type:   conditionsapi.ReadyCondition,
-								Status: v1.ConditionTrue,
+								Status: corev1.ConditionTrue,
 							},
 						}
 
@@ -223,15 +226,15 @@ func TestProcess(t *testing.T) {
 
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						ai := obj.(*corev1alpha1.AccountInfo)
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						ai := obj.(*pmcorev1alpha1.AccountInfo)
 						ai.Spec.Organization.Name = "org"
 
 						return nil
 					}).Once()
 				m.EXPECT().
-					Update(mock.Anything, mock.MatchedBy(func(o client.Object) bool {
-						_, ok := o.(*corev1alpha1.AccountInfo)
+					Update(mock.Anything, mock.MatchedBy(func(o ctrlruntimeclient.Object) bool {
+						_, ok := o.(*pmcorev1alpha1.AccountInfo)
 						return ok
 					})).
 					Return(nil).
@@ -239,7 +242,7 @@ func TestProcess(t *testing.T) {
 
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					Return(kerrors.NewNotFound(schema.GroupResource{}, "test"))
+					Return(apierrors.NewNotFound(schema.GroupResource{}, "test"))
 
 				m.EXPECT().Scheme().Return(scheme)
 
@@ -250,29 +253,29 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "requeue if accountinfo not found",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: corev1alpha1.AccountSpec{
-					Type: corev1alpha1.AccountTypeAccount,
+				Spec: pmcorev1alpha1.AccountSpec{
+					Type: pmcorev1alpha1.AccountTypeAccount,
 				},
 			},
 			k8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					Return(kerrors.NewNotFound(schema.GroupResource{}, "test"))
+					Return(apierrors.NewNotFound(schema.GroupResource{}, "test"))
 			},
 			expectRequeue: true,
 		},
 		{
 			name: "should fail for any other error in accountinfo",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: corev1alpha1.AccountSpec{
-					Type: corev1alpha1.AccountTypeAccount,
+				Spec: pmcorev1alpha1.AccountSpec{
+					Type: pmcorev1alpha1.AccountTypeAccount,
 				},
 			},
 			k8sMocks: func(m *mocks.Client) {

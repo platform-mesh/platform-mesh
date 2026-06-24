@@ -23,19 +23,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"go.platform-mesh.io/account-operator/pkg/subroutines/finalizeaccountinfo"
+	"go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger/testlogger"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
-	"go.platform-mesh.io/account-operator/pkg/subroutines/finalizeaccountinfo"
-	"go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/golang-commons/logger/testlogger"
 )
 
 var _ multicluster.Provider = &Provider{}
@@ -52,7 +53,7 @@ func (p *Provider) Get(_ context.Context, clusterName multicluster.ClusterName) 
 	return cluster, nil
 }
 
-func (p *Provider) IndexField(_ context.Context, _ client.Object, _ string, _ client.IndexerFunc) error {
+func (p *Provider) IndexField(_ context.Context, _ ctrlruntimeclient.Object, _ string, _ ctrlruntimeclient.IndexerFunc) error {
 	return nil
 }
 
@@ -71,14 +72,14 @@ func TestFinalizeAccountInfoFinalizers(t *testing.T) {
 func TestFinalizeAccountInfoFinalize(t *testing.T) {
 	testCases := []struct {
 		name          string
-		obj           *corev1alpha1.AccountInfo
+		obj           *pmcorev1alpha1.AccountInfo
 		clusters      map[string]cluster.Cluster
 		expectError   bool
 		expectRequeue bool
 	}{
 		{
 			name: "should requeue if child accounts exist",
-			obj: &corev1alpha1.AccountInfo{
+			obj: &pmcorev1alpha1.AccountInfo{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "account",
 					Finalizers: []string{finalizeaccountinfo.AccountInfoFinalizer},
@@ -89,9 +90,9 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
 					cl.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-							accountList := list.(*corev1alpha1.AccountList)
-							accountList.Items = []corev1alpha1.Account{{}}
+						RunAndReturn(func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+							accountList := list.(*pmcorev1alpha1.AccountList)
+							accountList.Items = []pmcorev1alpha1.Account{{}}
 							return nil
 						}).Once()
 					c.EXPECT().GetClient().Return(cl)
@@ -102,7 +103,7 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 		},
 		{
 			name: "should complete finalization when no accounts and only our finalizer",
-			obj: &corev1alpha1.AccountInfo{
+			obj: &pmcorev1alpha1.AccountInfo{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "account",
 					Finalizers: []string{finalizeaccountinfo.AccountInfoFinalizer},
@@ -113,9 +114,9 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 					c := mocks.NewCluster(t)
 					cl := mocks.NewClient(t)
 					cl.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-							accountList := list.(*corev1alpha1.AccountList)
-							accountList.Items = []corev1alpha1.Account{}
+						RunAndReturn(func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+							accountList := list.(*pmcorev1alpha1.AccountList)
+							accountList.Items = []pmcorev1alpha1.Account{}
 							return nil
 						}).Once()
 					c.EXPECT().GetClient().Return(cl)
@@ -126,7 +127,7 @@ func TestFinalizeAccountInfoFinalize(t *testing.T) {
 		},
 		{
 			name: "should error if listing accounts fails",
-			obj: &corev1alpha1.AccountInfo{
+			obj: &pmcorev1alpha1.AccountInfo{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "account",
 					Finalizers: []string{finalizeaccountinfo.AccountInfoFinalizer},

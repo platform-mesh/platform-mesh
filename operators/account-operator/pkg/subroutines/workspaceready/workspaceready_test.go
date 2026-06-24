@@ -21,24 +21,27 @@ import (
 	"errors"
 	"testing"
 
-	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
 	"go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspaceready"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 func TestProcess(t *testing.T) {
 	testCases := []struct {
 		name            string
-		obj             *corev1alpha1.Account
+		obj             *pmcorev1alpha1.Account
 		k8sMocks        func(m *mocks.Client)
 		expectRequeue   bool
 		expectError     bool
@@ -46,30 +49,30 @@ func TestProcess(t *testing.T) {
 	}{
 		{
 			name: "success when workspace phase is Ready",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			},
 			k8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						ws := obj.(*kcptenancyv1alpha.Workspace)
-						ws.Status.Phase = kcpcorev1alpha.LogicalClusterPhaseReady
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						ws := obj.(*kcptenancyv1alpha1.Workspace)
+						ws.Status.Phase = kcpcorev1alpha1.LogicalClusterPhaseReady
 						return nil
 					})
 			},
 		},
 		{
 			name: "requeue when workspace phase is not Ready",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			},
 			k8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						ws := obj.(*kcptenancyv1alpha.Workspace)
-						ws.Status.Phase = kcpcorev1alpha.LogicalClusterPhaseInitializing
+					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+						ws := obj.(*kcptenancyv1alpha1.Workspace)
+						ws.Status.Phase = kcpcorev1alpha1.LogicalClusterPhaseInitializing
 						return nil
 					})
 			},
@@ -77,19 +80,19 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "error when workspace not found",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			},
 			k8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-					Return(kerrors.NewNotFound(schema.GroupResource{}, "test"))
+					Return(apierrors.NewNotFound(schema.GroupResource{}, "test"))
 			},
 			expectError: true,
 		},
 		{
 			name: "error on get workspace failure",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			},
 			k8sMocks: func(m *mocks.Client) {
@@ -101,7 +104,7 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "error when GetCluster fails",
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			},
 			expectError:     true,

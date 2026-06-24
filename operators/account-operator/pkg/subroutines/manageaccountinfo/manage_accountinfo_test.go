@@ -21,25 +21,27 @@ import (
 	"fmt"
 	"testing"
 
-	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
+	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
+	"go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger/testlogger"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
-	"go.platform-mesh.io/account-operator/pkg/subroutines/mocks"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/golang-commons/logger/testlogger"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 var _ multicluster.Provider = &Provider{}
@@ -59,7 +61,7 @@ func (p *Provider) Get(_ context.Context, clusterName multicluster.ClusterName) 
 }
 
 // IndexField implements multicluster.Provider.
-func (p *Provider) IndexField(_ context.Context, _ client.Object, _ string, _ client.IndexerFunc) error {
+func (p *Provider) IndexField(_ context.Context, _ ctrlruntimeclient.Object, _ string, _ ctrlruntimeclient.IndexerFunc) error {
 	return nil
 }
 
@@ -68,16 +70,16 @@ func TestManageAccountInfoGetName(t *testing.T) {
 }
 
 func TestManageAccountInfoProcess(t *testing.T) {
-	accountObj := func(tp corev1alpha1.AccountType) *corev1alpha1.Account {
-		return &corev1alpha1.Account{
+	accountObj := func(tp pmcorev1alpha1.AccountType) *pmcorev1alpha1.Account {
+		return &pmcorev1alpha1.Account{
 			ObjectMeta: metav1.ObjectMeta{Name: "acc"},
-			Spec:       corev1alpha1.AccountSpec{Type: tp},
+			Spec:       pmcorev1alpha1.AccountSpec{Type: tp},
 		}
 	}
 
 	testCases := []struct {
 		name          string
-		obj           *corev1alpha1.Account
+		obj           *pmcorev1alpha1.Account
 		clusters      map[string]cluster.Cluster
 		expectError   bool
 		expectRequeue bool
@@ -91,16 +93,16 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					cl := mocks.NewClient(t)
 
 					cl.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-							ws := obj.(*kcptenancyv1alpha.Workspace)
+						RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+							ws := obj.(*kcptenancyv1alpha1.Workspace)
 
-							*ws = kcptenancyv1alpha.Workspace{
-								Spec: kcptenancyv1alpha.WorkspaceSpec{
+							*ws = kcptenancyv1alpha1.Workspace{
+								Spec: kcptenancyv1alpha1.WorkspaceSpec{
 									URL:     "https://acme.corp/clusters/root:orgs:test",
 									Cluster: "account-cluster-id",
 								},
-								Status: kcptenancyv1alpha.WorkspaceStatus{
-									Phase: kcpcorev1alpha.LogicalClusterPhaseReady,
+								Status: kcptenancyv1alpha1.WorkspaceStatus{
+									Phase: kcpcorev1alpha1.LogicalClusterPhaseReady,
 								},
 							}
 
@@ -108,20 +110,20 @@ func TestManageAccountInfoProcess(t *testing.T) {
 						}).Once()
 
 					cl.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-							pa := obj.(*corev1alpha1.AccountInfo)
+						RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+							pa := obj.(*pmcorev1alpha1.AccountInfo)
 
-							*pa = corev1alpha1.AccountInfo{
-								Spec: corev1alpha1.AccountInfoSpec{
-									FGA: corev1alpha1.FGAInfo{
-										Store: corev1alpha1.StoreInfo{
+							*pa = pmcorev1alpha1.AccountInfo{
+								Spec: pmcorev1alpha1.AccountInfoSpec{
+									FGA: pmcorev1alpha1.FGAInfo{
+										Store: pmcorev1alpha1.StoreInfo{
 											Id: "fga-store-id",
 										},
 									},
-									Account: corev1alpha1.AccountLocation{
+									Account: pmcorev1alpha1.AccountLocation{
 										Name: "parent-account",
 									},
-									Organization: corev1alpha1.AccountLocation{
+									Organization: pmcorev1alpha1.AccountLocation{
 										Name: "org-account",
 									},
 								},
@@ -138,7 +140,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					cl := mocks.NewClient(t)
 
 					cl.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						Return(kerrors.NewNotFound(schema.GroupResource{}, "not found"))
+						Return(apierrors.NewNotFound(schema.GroupResource{}, "not found"))
 
 					cl.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -146,11 +148,11 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					return c
 				}(),
 			},
-			obj: &corev1alpha1.Account{
+			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-account",
 				},
-				Spec: corev1alpha1.AccountSpec{
+				Spec: pmcorev1alpha1.AccountSpec{
 					Type: "account",
 				},
 			},
@@ -158,7 +160,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 		{
 			name:        "current cluster get fails",
 			clusters:    map[string]cluster.Cluster{}, // context set, but cluster not registered
-			obj:         accountObj(corev1alpha1.AccountTypeAccount),
+			obj:         accountObj(pmcorev1alpha1.AccountTypeAccount),
 			expectError: true,
 		},
 		{
@@ -175,7 +177,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					return c
 				}(),
 			},
-			obj:         accountObj(corev1alpha1.AccountTypeAccount),
+			obj:         accountObj(pmcorev1alpha1.AccountTypeAccount),
 			expectError: true,
 		},
 		{
@@ -186,14 +188,14 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					cl := mocks.NewClient(t)
 					cl.EXPECT().
 						Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-							ws := obj.(*kcptenancyv1alpha.Workspace)
-							*ws = kcptenancyv1alpha.Workspace{
-								Spec: kcptenancyv1alpha.WorkspaceSpec{
+						RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+							ws := obj.(*kcptenancyv1alpha1.Workspace)
+							*ws = kcptenancyv1alpha1.Workspace{
+								Spec: kcptenancyv1alpha1.WorkspaceSpec{
 									URL:     "https://acme.corp/clusters/root:orgs:test",
 									Cluster: "acc-cluster-id",
 								},
-								Status: kcptenancyv1alpha.WorkspaceStatus{
+								Status: kcptenancyv1alpha1.WorkspaceStatus{
 									Phase: "Scheduling",
 								},
 							}
@@ -203,7 +205,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					return c
 				}(),
 			},
-			obj:           accountObj(corev1alpha1.AccountTypeAccount),
+			obj:           accountObj(pmcorev1alpha1.AccountTypeAccount),
 			expectRequeue: true,
 		},
 		{
@@ -214,15 +216,15 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					cl := mocks.NewClient(t)
 					cl.EXPECT().
 						Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-							ws := obj.(*kcptenancyv1alpha.Workspace)
-							*ws = kcptenancyv1alpha.Workspace{
-								Spec: kcptenancyv1alpha.WorkspaceSpec{
+						RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+							ws := obj.(*kcptenancyv1alpha1.Workspace)
+							*ws = kcptenancyv1alpha1.Workspace{
+								Spec: kcptenancyv1alpha1.WorkspaceSpec{
 									URL:     "",
 									Cluster: "acc-cluster-id",
 								},
-								Status: kcptenancyv1alpha.WorkspaceStatus{
-									Phase: kcpcorev1alpha.LogicalClusterPhaseReady,
+								Status: kcptenancyv1alpha1.WorkspaceStatus{
+									Phase: kcpcorev1alpha1.LogicalClusterPhaseReady,
 								},
 							}
 							return nil
@@ -231,7 +233,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					return c
 				}(),
 			},
-			obj:         accountObj(corev1alpha1.AccountTypeAccount),
+			obj:         accountObj(pmcorev1alpha1.AccountTypeAccount),
 			expectError: true,
 		},
 		{
@@ -242,15 +244,15 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					cl := mocks.NewClient(t)
 					cl.EXPECT().
 						Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-							ws := obj.(*kcptenancyv1alpha.Workspace)
-							*ws = kcptenancyv1alpha.Workspace{
-								Spec: kcptenancyv1alpha.WorkspaceSpec{
+						RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+							ws := obj.(*kcptenancyv1alpha1.Workspace)
+							*ws = kcptenancyv1alpha1.Workspace{
+								Spec: kcptenancyv1alpha1.WorkspaceSpec{
 									URL:     "a",
 									Cluster: "acc-cluster-id",
 								},
-								Status: kcptenancyv1alpha.WorkspaceStatus{
-									Phase: kcpcorev1alpha.LogicalClusterPhaseReady,
+								Status: kcptenancyv1alpha1.WorkspaceStatus{
+									Phase: kcpcorev1alpha1.LogicalClusterPhaseReady,
 								},
 							}
 							return nil
@@ -259,7 +261,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					return c
 				}(),
 			},
-			obj:         accountObj(corev1alpha1.AccountTypeAccount),
+			obj:         accountObj(pmcorev1alpha1.AccountTypeAccount),
 			expectError: true,
 		},
 		{
@@ -270,15 +272,15 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					cl := mocks.NewClient(t)
 					cl.EXPECT().
 						Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-							ws := obj.(*kcptenancyv1alpha.Workspace)
-							*ws = kcptenancyv1alpha.Workspace{
-								Spec: kcptenancyv1alpha.WorkspaceSpec{
+						RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+							ws := obj.(*kcptenancyv1alpha1.Workspace)
+							*ws = kcptenancyv1alpha1.Workspace{
+								Spec: kcptenancyv1alpha1.WorkspaceSpec{
 									URL:     "https://acme.corp/clusters/root:orgs:child",
 									Cluster: "missing-account-cluster",
 								},
-								Status: kcptenancyv1alpha.WorkspaceStatus{
-									Phase: kcpcorev1alpha.LogicalClusterPhaseReady,
+								Status: kcptenancyv1alpha1.WorkspaceStatus{
+									Phase: kcpcorev1alpha1.LogicalClusterPhaseReady,
 								},
 							}
 							return nil
@@ -287,7 +289,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					return c
 				}(),
 			},
-			obj:         accountObj(corev1alpha1.AccountTypeAccount),
+			obj:         accountObj(pmcorev1alpha1.AccountTypeAccount),
 			expectError: true,
 		},
 		{
@@ -299,15 +301,15 @@ func TestManageAccountInfoProcess(t *testing.T) {
 
 					cl.EXPECT().
 						Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-							ws := obj.(*kcptenancyv1alpha.Workspace)
-							*ws = kcptenancyv1alpha.Workspace{
-								Spec: kcptenancyv1alpha.WorkspaceSpec{
+						RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+							ws := obj.(*kcptenancyv1alpha1.Workspace)
+							*ws = kcptenancyv1alpha1.Workspace{
+								Spec: kcptenancyv1alpha1.WorkspaceSpec{
 									URL:     "https://acme.corp/clusters/root:orgs:child",
 									Cluster: "child-cluster-id",
 								},
-								Status: kcptenancyv1alpha.WorkspaceStatus{
-									Phase: kcpcorev1alpha.LogicalClusterPhaseReady,
+								Status: kcptenancyv1alpha1.WorkspaceStatus{
+									Phase: kcpcorev1alpha1.LogicalClusterPhaseReady,
 								},
 							}
 							return nil
@@ -315,7 +317,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 
 					cl.EXPECT().
 						Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						Return(kerrors.NewNotFound(schema.GroupResource{}, "account")).Once()
+						Return(apierrors.NewNotFound(schema.GroupResource{}, "account")).Once()
 					c.EXPECT().GetClient().Return(cl)
 					return c
 				}(),
@@ -326,7 +328,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					return c
 				}(),
 			},
-			obj:           accountObj(corev1alpha1.AccountTypeAccount),
+			obj:           accountObj(pmcorev1alpha1.AccountTypeAccount),
 			expectRequeue: true,
 		},
 		{
@@ -337,15 +339,15 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					cl := mocks.NewClient(t)
 					cl.EXPECT().
 						Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-							ws := obj.(*kcptenancyv1alpha.Workspace)
-							*ws = kcptenancyv1alpha.Workspace{
-								Spec: kcptenancyv1alpha.WorkspaceSpec{
+						RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+							ws := obj.(*kcptenancyv1alpha1.Workspace)
+							*ws = kcptenancyv1alpha1.Workspace{
+								Spec: kcptenancyv1alpha1.WorkspaceSpec{
 									URL:     "https://acme.corp/clusters/root:orgs:orgws",
 									Cluster: "org-cluster-id",
 								},
-								Status: kcptenancyv1alpha.WorkspaceStatus{
-									Phase: kcpcorev1alpha.LogicalClusterPhaseReady,
+								Status: kcptenancyv1alpha1.WorkspaceStatus{
+									Phase: kcpcorev1alpha1.LogicalClusterPhaseReady,
 								},
 							}
 							return nil
@@ -358,7 +360,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					cl := mocks.NewClient(t)
 					cl.EXPECT().
 						Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						Return(kerrors.NewNotFound(schema.GroupResource{}, "account")).Once()
+						Return(apierrors.NewNotFound(schema.GroupResource{}, "account")).Once()
 					cl.EXPECT().
 						Create(mock.Anything, mock.Anything, mock.Anything).
 						Return(nil).Maybe()
@@ -366,7 +368,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 					return c
 				}(),
 			},
-			obj: accountObj(corev1alpha1.AccountTypeOrg),
+			obj: accountObj(pmcorev1alpha1.AccountTypeOrg),
 		},
 	}
 	for _, test := range testCases {

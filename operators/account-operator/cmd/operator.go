@@ -22,12 +22,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
+	"go.platform-mesh.io/account-operator/internal/controller"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/traces"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -35,10 +37,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 
-	"go.platform-mesh.io/account-operator/internal/controller"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var operatorCmd = &cobra.Command{
@@ -149,13 +151,13 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 			}
 		}
 
-		accountTypeAllowList := []corev1alpha1.AccountType{corev1alpha1.AccountTypeOrg}
+		accountTypeAllowList := []pmcorev1alpha1.AccountType{pmcorev1alpha1.AccountTypeOrg}
 		for _, additionalType := range operatorCfg.Webhooks.AdditionalAccountTypes {
-			accountTypeAllowList = append(accountTypeAllowList, corev1alpha1.AccountType(additionalType))
+			accountTypeAllowList = append(accountTypeAllowList, pmcorev1alpha1.AccountType(additionalType))
 		}
 
 		log.Info().Strs("deniedNames", denyList).Msg("webhooks are enabled")
-		if err := corev1alpha1.SetupAccountWebhookWithManager(mgr.GetLocalManager(), denyList, accountTypeAllowList); err != nil {
+		if err := pmcorev1alpha1.SetupAccountWebhookWithManager(mgr.GetLocalManager(), denyList, accountTypeAllowList); err != nil {
 			log.Fatal().Err(err).Str("webhook", "Account").Msg("unable to create webhook")
 		}
 	}

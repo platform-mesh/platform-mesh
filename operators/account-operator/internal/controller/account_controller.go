@@ -20,31 +20,30 @@ import (
 	"context"
 	"fmt"
 
-	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
-	"go.platform-mesh.io/golang-commons/controller/filter"
-	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
-	"go.platform-mesh.io/golang-commons/logger"
-	"k8s.io/client-go/rest"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"k8s.io/client-go/util/workqueue"
-
 	"go.platform-mesh.io/account-operator/internal/config"
 	"go.platform-mesh.io/account-operator/internal/metrics"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspace"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspaceready"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspacetype"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/controller/filter"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
+	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
+
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/workqueue"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
 const (
@@ -100,8 +99,8 @@ func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
-	lc := lifecycle.New(mgr, accountReconcilerName, func() client.Object {
-		return &corev1alpha1.Account{}
+	lc := lifecycle.New(mgr, accountReconcilerName, func() ctrlruntimeclient.Object {
+		return &pmcorev1alpha1.Account{}
 	}, subs...).WithConditions(conditions.NewManager())
 
 	return &AccountReconciler{
@@ -120,7 +119,7 @@ func (r *AccountReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platfor
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, eventPredicates...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(accountReconcilerName).
-		For(&corev1alpha1.Account{}).
+		For(&pmcorev1alpha1.Account{}).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)
@@ -130,7 +129,7 @@ func (r *AccountReconciler) Reconcile(ctx context.Context, req mcreconcile.Reque
 	accountType := "unknown"
 
 	if clusterRef, err := r.mgr.GetCluster(ctx, req.ClusterName); err == nil {
-		account := &corev1alpha1.Account{}
+		account := &pmcorev1alpha1.Account{}
 		if err := clusterRef.GetClient().Get(ctx, req.NamespacedName, account); err == nil {
 			accountType = string(account.Spec.Type)
 		}

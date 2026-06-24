@@ -20,14 +20,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"go.platform-mesh.io/account-operator/pkg/clusteredname"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestGetClusteredName_NoClusterInContext(t *testing.T) {
-	obj := &corev1alpha1.Account{
+	obj := &pmcorev1alpha1.Account{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "a",
 		},

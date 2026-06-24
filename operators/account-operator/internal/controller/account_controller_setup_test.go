@@ -18,11 +18,20 @@ package controller_test
 
 import (
 	"context"
-	_ "embed"
 	"errors"
 	"fmt"
 	"os"
 	"time"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/yaml"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	mcc "github.com/kcp-dev/multicluster-provider/client"
@@ -32,15 +41,8 @@ import (
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/sdk/apis/core"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/yaml"
+	_ "embed"
 )
 
 var (
@@ -93,7 +95,7 @@ func (s *AccountTestSuite) setupKCP() {
 	s.kcpConfig, err = s.env.Start()
 	s.Require().NoError(err)
 
-	s.kcpClient, err = mcc.New(s.kcpConfig, client.Options{
+	s.kcpClient, err = mcc.New(s.kcpConfig, ctrlruntimeclient.Options{
 		Scheme: s.scheme,
 	})
 	s.Require().NoError(err)
@@ -110,7 +112,7 @@ func (s *AccountTestSuite) setupKCP() {
 		var workspaceType kcptenancyv1alpha1.WorkspaceType
 		s.Require().NoError(yaml.Unmarshal(workspaceTypeYAML, &workspaceType))
 		err = rootClient.Create(s.ctx, &workspaceType)
-		if err != nil && !kerrors.IsAlreadyExists(err) {
+		if err != nil && !apierrors.IsAlreadyExists(err) {
 			s.Require().NoError(err)
 		}
 		s.logger.Info().Msgf("Created WorkspaceType '%s' in root workspace", workspaceType.Name)
@@ -125,7 +127,7 @@ func (s *AccountTestSuite) setupKCP() {
 		var schema kcpapisv1alpha1.APIResourceSchema
 		s.Require().NoError(yaml.Unmarshal(schemaYAML, &schema))
 		err = platformMeshSystemClient.Create(s.ctx, &schema)
-		if err != nil && !kerrors.IsAlreadyExists(err) {
+		if err != nil && !apierrors.IsAlreadyExists(err) {
 			s.Require().NoError(err)
 		}
 		s.logger.Info().Msgf("Created APIResourceSchema: %s", schema.Name)
@@ -145,7 +147,7 @@ func (s *AccountTestSuite) setupKCP() {
 		}
 	}
 	err = platformMeshSystemClient.Create(s.ctx, &aePlatformMesh)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		s.Require().NoError(err)
 	}
 
@@ -159,12 +161,12 @@ func (s *AccountTestSuite) setupKCP() {
 		}
 	}
 	err = platformMeshSystemClient.Create(s.ctx, &platformMeshBinding)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		s.Require().NoError(err)
 	}
 	s.Assert().Eventually(func() bool {
 		var binding kcpapisv1alpha2.APIBinding
-		if err := platformMeshSystemClient.Get(s.ctx, client.ObjectKey{Name: platformMeshBinding.Name}, &binding); err != nil {
+		if err := platformMeshSystemClient.Get(s.ctx, ctrlruntimeclient.ObjectKey{Name: platformMeshBinding.Name}, &binding); err != nil {
 			return false
 		}
 		return binding.Status.Phase == kcpapisv1alpha2.APIBindingPhaseBound
@@ -178,7 +180,7 @@ func (s *AccountTestSuite) setupKCP() {
 
 	var endpointSlice kcpapisv1alpha1.APIExportEndpointSlice
 	s.Assert().Eventually(func() bool {
-		err := platformMeshSystemClient.Get(s.ctx, client.ObjectKey{Name: "core.platform-mesh.io"}, &endpointSlice)
+		err := platformMeshSystemClient.Get(s.ctx, ctrlruntimeclient.ObjectKey{Name: "core.platform-mesh.io"}, &endpointSlice)
 		if err != nil {
 			return false
 		}
@@ -227,7 +229,7 @@ func (s *AccountTestSuite) startManager() {
 // Workspace to be ready
 func (s *AccountTestSuite) setupDefaultOrg() {
 	// Setup orgs workspace with test "default" organisation
-	var acc corev1alpha1.Account
+	var acc pmcorev1alpha1.Account
 	err := yaml.Unmarshal(accountRootOrgYAML, &acc)
 	s.Require().NoError(err, "Unmarshalling embedded data")
 	err = s.rootOrgsClient.Create(s.ctx, &acc)

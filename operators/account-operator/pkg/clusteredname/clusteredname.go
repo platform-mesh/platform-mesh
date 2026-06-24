@@ -19,10 +19,11 @@ package clusteredname
 import (
 	"context"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 type ClusteredName struct {
@@ -30,7 +31,7 @@ type ClusteredName struct {
 	ClusterID logicalcluster.Name
 }
 
-func GetClusteredName(ctx context.Context, obj client.Object) (ClusteredName, bool) {
+func GetClusteredName(ctx context.Context, obj ctrlruntimeclient.Object) (ClusteredName, bool) {
 	clusterName, ok := mccontext.ClusterFrom(ctx)
 	cn := ClusteredName{
 		NamespacedName: types.NamespacedName{
@@ -44,7 +45,7 @@ func GetClusteredName(ctx context.Context, obj client.Object) (ClusteredName, bo
 	return cn, ok
 }
 
-func MustGetClusteredName(ctx context.Context, obj client.Object) ClusteredName {
+func MustGetClusteredName(ctx context.Context, obj ctrlruntimeclient.Object) ClusteredName {
 	if cn, ok := GetClusteredName(ctx, obj); ok {
 		return cn
 	}
