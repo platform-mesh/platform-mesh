@@ -31,6 +31,8 @@ require (
 	sigs.k8s.io/multicluster-runtime v0.23.3
 )
 
+require go.uber.org/goleak v1.3.1-0.20251210191316-2b7fd8a0d244 // indirect
+
 replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.7.1
 
 require (
