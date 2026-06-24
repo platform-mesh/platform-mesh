@@ -41,10 +41,6 @@ type ProviderPermissionsSpec struct {
 type APIExportReference struct {
 	// Name of the APIExport
 	Name string `json:"name"`
-
-	// Path is the logical cluster path (optional)
-	// +optional
-	Path string `json:"path,omitempty"`
 }
 
 // ResourceRoles defines roles for a specific resource type.

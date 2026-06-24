@@ -49,6 +49,11 @@ spec:
     storage:
       crd: {}
   - group: core.platform-mesh.io
+    name: providerpermissions
+    schema: v260624-0de8b9c.providerpermissions.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
     name: stores
     schema: v250718-a64f278.stores.core.platform-mesh.io
     storage:
