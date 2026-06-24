@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/platform-mesh/search/internal/service/search"
+	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 type Config struct {

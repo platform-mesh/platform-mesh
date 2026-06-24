@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	"github.com/platform-mesh/search/internal/observability"
+	"go.platform-mesh.io/search-service/internal/observability"
 )
 
 type ServiceConfig struct {

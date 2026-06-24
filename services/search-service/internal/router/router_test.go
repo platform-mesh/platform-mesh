@@ -26,8 +26,8 @@ import (
 	"strings"
 	"testing"
 
-	appcontext "github.com/platform-mesh/search/internal/context"
-	"github.com/platform-mesh/search/internal/service/search"
+	appcontext "go.platform-mesh.io/search-service/internal/context"
+	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 type fakeSearchService struct {

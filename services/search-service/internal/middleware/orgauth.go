@@ -23,11 +23,11 @@ import (
 	"regexp"
 	"strings"
 
-	pmcontext "github.com/platform-mesh/golang-commons/context"
-	"github.com/platform-mesh/golang-commons/logger"
+	pmcontext "go.platform-mesh.io/golang-commons/context"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	appcontext "github.com/platform-mesh/search/internal/context"
-	"github.com/platform-mesh/search/internal/service/search"
+	appcontext "go.platform-mesh.io/search-service/internal/context"
+	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 var issuerRegex = regexp.MustCompile(`^.*\/realms\/(.*?)\/?$`)

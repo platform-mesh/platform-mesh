@@ -23,11 +23,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	pmcontext "github.com/platform-mesh/golang-commons/context"
-	"github.com/platform-mesh/golang-commons/context/keys"
-	"github.com/platform-mesh/golang-commons/jwt"
+	pmcontext "go.platform-mesh.io/golang-commons/context"
+	"go.platform-mesh.io/golang-commons/context/keys"
+	"go.platform-mesh.io/golang-commons/jwt"
 
-	appcontext "github.com/platform-mesh/search/internal/context"
+	appcontext "go.platform-mesh.io/search-service/internal/context"
 )
 
 type fakeOrgValidator struct {

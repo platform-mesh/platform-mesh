@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/platform-mesh/search/internal/service/search"
+	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 func TestBuildQueryBodyWithoutSearchAfter(t *testing.T) {

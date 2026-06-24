@@ -17,11 +17,11 @@ limitations under the License.
 package cmd
 
 import (
-	platformmeshcontext "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/spf13/cobra"
+	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	"github.com/platform-mesh/search/internal/config"
+	"go.platform-mesh.io/search-service/internal/config"
 )
 
 var (

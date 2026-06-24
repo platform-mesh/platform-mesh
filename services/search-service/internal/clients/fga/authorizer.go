@@ -23,9 +23,9 @@ import (
 	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	"github.com/platform-mesh/search/internal/service/search"
+	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 const batchCheckChunkSize = 100

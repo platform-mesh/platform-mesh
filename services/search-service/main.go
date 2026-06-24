@@ -16,7 +16,7 @@ limitations under the License.
 
 package main
 
-import "github.com/platform-mesh/search/cmd"
+import "go.platform-mesh.io/search-service/cmd"
 
 func main() {
 	cmd.Execute()

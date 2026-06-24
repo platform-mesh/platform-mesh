@@ -23,7 +23,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/platform-mesh/search/internal/config"
+	"go.platform-mesh.io/search-service/internal/config"
 	"k8s.io/client-go/rest"
 )
 

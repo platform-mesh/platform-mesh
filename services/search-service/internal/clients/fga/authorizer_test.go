@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/platform-mesh/golang-commons/logger/testlogger"
+	"go.platform-mesh.io/golang-commons/logger/testlogger"
 
-	"github.com/platform-mesh/search/internal/service/search"
+	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 func TestBuildBatchCheckItemResourceObjectFormat(t *testing.T) {

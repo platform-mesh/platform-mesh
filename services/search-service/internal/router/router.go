@@ -26,10 +26,10 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/platform-mesh/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger"
 
-	appcontext "github.com/platform-mesh/search/internal/context"
-	"github.com/platform-mesh/search/internal/service/search"
+	appcontext "go.platform-mesh.io/search-service/internal/context"
+	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 type SearchService interface {
