@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strings"
 
-	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/util"
@@ -29,7 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 const rootOrgName = "tenancy_kcp_io_workspace:orgs"

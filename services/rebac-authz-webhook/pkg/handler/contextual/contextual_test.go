@@ -34,6 +34,7 @@ import (
 	v1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 

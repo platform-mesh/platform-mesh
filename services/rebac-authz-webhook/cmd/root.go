@@ -17,7 +17,6 @@ limitations under the License.
 package cmd
 
 import (
-	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,6 +27,7 @@ import (
 	"k8s.io/klog/v2"
 
 	kcpsdkapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 
 	_ "k8s.io/component-base/logs/json/register"
 )

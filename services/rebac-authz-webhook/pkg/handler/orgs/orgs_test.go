@@ -21,7 +21,6 @@ import (
 	"errors"
 	"testing"
 
-	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -32,7 +31,10 @@ import (
 	v1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+
+	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func TestHandler(t *testing.T) {
