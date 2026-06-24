@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization/union"
 )

@@ -22,7 +22,7 @@ import (
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/nonresourceattributes"
 
-	v1 "k8s.io/api/authorization/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 )
 
 func FuzzNonResourceAttributes(f *testing.F) {
@@ -41,9 +41,9 @@ func FuzzNonResourceAttributes(f *testing.F) {
 
 		handler := nonresourceattributes.New(prefixes...)
 		req := authorization.Request{
-			SubjectAccessReview: v1.SubjectAccessReview{
-				Spec: v1.SubjectAccessReviewSpec{
-					NonResourceAttributes: &v1.NonResourceAttributes{
+			SubjectAccessReview: authorizationv1.SubjectAccessReview{
+				Spec: authorizationv1.SubjectAccessReviewSpec{
+					NonResourceAttributes: &authorizationv1.NonResourceAttributes{
 						Path: path,
 					},
 				},

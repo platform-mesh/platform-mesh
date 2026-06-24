@@ -24,17 +24,17 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/mocks"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/orgs"
 
-	v1 "k8s.io/api/authorization/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func TestHandler(t *testing.T) {
@@ -53,9 +53,9 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should skip processing if clusterKey extra attrs not present",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						Extra: map[string]v1.ExtraValue{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
 							"a": {"b"},
 						},
 					},
@@ -66,12 +66,12 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should skip processing if clusterKey does not match orgID",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						Extra: map[string]v1.ExtraValue{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
 							"authorization.kubernetes.io/cluster-name": {"b"},
 						},
-						ResourceAttributes: &v1.ResourceAttributes{
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
 							Group:    "a",
 							Version:  "b",
 							Resource: "c",
@@ -84,9 +84,9 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should skip processing if request does not contain ResourceAttributes",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						Extra: map[string]v1.ExtraValue{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
 							"authorization.kubernetes.io/cluster-name": {"a"},
 						},
 					},
@@ -97,12 +97,12 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should skip processing if manager cannot get orgs cluster",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						Extra: map[string]v1.ExtraValue{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
 							"authorization.kubernetes.io/cluster-name": {"a"},
 						},
-						ResourceAttributes: &v1.ResourceAttributes{
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
 							Group:    "a",
 							Version:  "b",
 							Resource: "c",
@@ -118,12 +118,12 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should skip processing if logical cluster get fails",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						Extra: map[string]v1.ExtraValue{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
 							"authorization.kubernetes.io/cluster-name": {"a"},
 						},
-						ResourceAttributes: &v1.ResourceAttributes{
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
 							Group:    "a",
 							Version:  "b",
 							Resource: "c",
@@ -141,12 +141,12 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should skip processing if logical cluster annotation is missing",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						Extra: map[string]v1.ExtraValue{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
 							"authorization.kubernetes.io/cluster-name": {"a"},
 						},
-						ResourceAttributes: &v1.ResourceAttributes{
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
 							Group:    "a",
 							Version:  "b",
 							Resource: "c",
@@ -160,8 +160,8 @@ func TestHandler(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(orgsClient)
 				orgsClient.EXPECT().
 					Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).
-					Run(func(ctx context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) {
-						lc := obj.(*kcpcorev1alpha.LogicalCluster)
+					Run(func(ctx context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) {
+						lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 						lc.Annotations = map[string]string{}
 					}).
 					Return(nil)
@@ -170,12 +170,12 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should allow if fga check allows",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						Extra: map[string]v1.ExtraValue{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
 							"authorization.kubernetes.io/cluster-name": {"a"},
 						},
-						ResourceAttributes: &v1.ResourceAttributes{
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
 							Group:    "a",
 							Version:  "b",
 							Resource: "c",
@@ -194,12 +194,12 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should abort if fga check denies",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						Extra: map[string]v1.ExtraValue{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
 							"authorization.kubernetes.io/cluster-name": {"a"},
 						},
-						ResourceAttributes: &v1.ResourceAttributes{
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
 							Group:    "a",
 							Version:  "b",
 							Resource: "c",
@@ -218,12 +218,12 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should skip processing if fga check returns an error",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						Extra: map[string]v1.ExtraValue{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
 							"authorization.kubernetes.io/cluster-name": {"a"},
 						},
-						ResourceAttributes: &v1.ResourceAttributes{
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
 							Group:    "a",
 							Version:  "b",
 							Resource: "c",
@@ -252,8 +252,8 @@ func TestHandler(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 				orgsClient.EXPECT().
 					Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).
-					Run(func(ctx context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) {
-						lc := obj.(*kcpcorev1alpha.LogicalCluster)
+					Run(func(ctx context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) {
+						lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 						lc.Annotations = map[string]string{"kcp.io/cluster": "a"}
 					}).
 					Return(nil).

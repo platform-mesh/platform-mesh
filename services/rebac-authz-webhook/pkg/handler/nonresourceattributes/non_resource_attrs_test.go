@@ -20,10 +20,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/nonresourceattributes"
 
-	v1 "k8s.io/api/authorization/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 )
 
 func TestHandler(t *testing.T) {
@@ -36,8 +37,8 @@ func TestHandler(t *testing.T) {
 		{
 			name: "should skip processing if no nonResourceAttributes are present",
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
 						NonResourceAttributes: nil,
 					},
 				},
@@ -51,9 +52,9 @@ func TestHandler(t *testing.T) {
 				"/readyz",
 			},
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						NonResourceAttributes: &v1.NonResourceAttributes{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						NonResourceAttributes: &authorizationv1.NonResourceAttributes{
 							Path: "/healthz",
 						},
 					},
@@ -67,9 +68,9 @@ func TestHandler(t *testing.T) {
 				"/api",
 			},
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						NonResourceAttributes: &v1.NonResourceAttributes{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						NonResourceAttributes: &authorizationv1.NonResourceAttributes{
 							Path: "/api/v1/namespaces",
 						},
 					},
@@ -83,9 +84,9 @@ func TestHandler(t *testing.T) {
 				"/api",
 			},
 			req: authorization.Request{
-				SubjectAccessReview: v1.SubjectAccessReview{
-					Spec: v1.SubjectAccessReviewSpec{
-						NonResourceAttributes: &v1.NonResourceAttributes{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						NonResourceAttributes: &authorizationv1.NonResourceAttributes{
 							Path: "/healthz",
 						},
 					},

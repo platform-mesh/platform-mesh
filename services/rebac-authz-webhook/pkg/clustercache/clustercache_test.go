@@ -23,14 +23,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/clustercache"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/mocks"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
@@ -110,7 +110,7 @@ func TestClusterCache_Engage(t *testing.T) {
 			}
 
 			k8sClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything, mock.Anything).
-				Run(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) {
+				Run(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) {
 					lc := obj.(*unstructured.Unstructured)
 					lc.SetAnnotations(map[string]string{"kcp.io/path": tt.path})
 					if tt.ownerCluster != "" {
@@ -163,7 +163,7 @@ func TestClusterCache_Get_NotFound(t *testing.T) {
 
 func setupStoreGet(c *mocks.Client, orgName, storeID string) {
 	c.EXPECT().Get(mock.Anything, types.NamespacedName{Name: orgName}, mock.Anything, mock.Anything).
-		Run(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) {
+		Run(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) {
 			obj.(*unstructured.Unstructured).Object = map[string]any{
 				"status": map[string]any{"storeId": storeID},
 			}
@@ -173,7 +173,7 @@ func setupStoreGet(c *mocks.Client, orgName, storeID string) {
 
 func setupStoreGetMissing(c *mocks.Client, orgName string) {
 	c.EXPECT().Get(mock.Anything, types.NamespacedName{Name: orgName}, mock.Anything, mock.Anything).
-		Run(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) {
+		Run(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) {
 			obj.(*unstructured.Unstructured).Object = map[string]any{
 				"status": map[string]any{},
 			}

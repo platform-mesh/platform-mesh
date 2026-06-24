@@ -26,8 +26,8 @@ import (
 	logsapi "k8s.io/component-base/logs/api/v1"
 	"k8s.io/klog/v2"
 
-	kcpsdkapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 
 	_ "k8s.io/component-base/logs/json/register"
 )
@@ -46,8 +46,8 @@ var (
 )
 
 func init() {
-	utilruntime.Must(kcpsdkapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpcorev1alpha.AddToScheme(scheme))
+	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	rootCmd.AddCommand(NewServeCmd())

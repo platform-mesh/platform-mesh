@@ -24,6 +24,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization/union"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/clustercache"
@@ -32,15 +35,12 @@ import (
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/nonresourceattributes"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/orgs"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/retry"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
