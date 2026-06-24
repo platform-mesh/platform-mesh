@@ -1,11 +1,11 @@
 ## Repository Description
 - `search` provides the Platform Mesh search HTTP service.
-- The core request flow is KCP-backed tenant/index resolution, OpenSearch querying, and OpenFGA-based authorization filtering before results are returned to the caller.
+- The core request flow is kcp-backed tenant/index resolution, OpenSearch querying, and OpenFGA-based authorization filtering before results are returned to the caller.
 - This is a Go service built around [chi](https://github.com/go-chi/chi), [OpenSearch Go](https://github.com/opensearch-project/opensearch-go), and [OpenFGA](https://github.com/openfga/api).
 - Read the org-wide [AGENTS.md](https://github.com/platform-mesh/.github/blob/main/AGENTS.md) for general conventions.
 
 ## Core Principles
-- Keep changes narrow. Search correctness depends on the interaction between routing, KCP lookup, OpenSearch queries, and authz filtering.
+- Keep changes narrow. Search correctness depends on the interaction between routing, kcp lookup, OpenSearch queries, and authz filtering.
 - Preserve request validation and pagination behavior unless the task explicitly requires changing API semantics.
 - Verify behavior before finishing. Start with package-level tests and compile checks.
 - Keep this file focused on agent execution and repository-specific constraints.
@@ -14,7 +14,7 @@
 - `cmd`: CLI wiring and service startup.
 - `internal/router`: HTTP routes and request-to-service translation.
 - `internal/service/search`: search orchestration, pagination, cursor handling, and result mapping.
-- `internal/clients/kcp`: KCP clients for org access validation and `SearchIndex` resolution.
+- `internal/clients/kcp`: kcp clients for org access validation and `SearchIndex` resolution.
 - `internal/clients/opensearch`: OpenSearch client integration.
 - `internal/clients/fga`: OpenFGA authorization filtering.
 - `internal/middleware`, `internal/context`, `internal/observability`: request context and service instrumentation.
@@ -23,7 +23,7 @@
 This is an HTTP service, not an operator.
 
 ### Request flow
-- `cmd/server.go` wires the service dependencies, including KCP access validation, `SearchIndex` resolution, OpenSearch, OpenFGA, middleware, and the HTTP server.
+- `cmd/server.go` wires the service dependencies, including kcp access validation, `SearchIndex` resolution, OpenSearch, OpenFGA, middleware, and the HTTP server.
 - `internal/router/router.go` exposes `/rest/v1/search` plus health endpoints and translates query params plus request context into `SearchRequest`.
 - `internal/service/search/service.go` resolves the tenant's search index, queries OpenSearch in batches, filters hits through OpenFGA, and emits cursor-based pagination.
 
@@ -50,7 +50,7 @@ This is an HTTP service, not an operator.
 ## Do Not
 - Bypass authorization filtering when changing search behavior.
 - Change cursor or pagination semantics casually.
-- Fold KCP, OpenSearch, and OpenFGA concerns together in a way that blurs existing boundaries.
+- Fold kcp, OpenSearch, and OpenFGA concerns together in a way that blurs existing boundaries.
 
 ## Hard Boundaries
 - Ask before changing the public HTTP contract in a backward-incompatible way.

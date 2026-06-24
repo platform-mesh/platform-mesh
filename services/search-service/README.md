@@ -2,13 +2,12 @@
 > This repository is under development and not ready for productive use. It is in an alpha stage. APIs and concepts may change on short notice, including breaking changes.
 
 # Platform Mesh - search-service
-![Build Status](https://github.com/platform-mesh/search/actions/workflows/pipeline.yml/badge.svg)
 
 ## Description
 
 The platform-mesh `search-service` provides a REST API to query resources indexed in OpenSearch and post-filter results through OpenFGA authorization checks.
 
-The service is organization-aware and derives org context from the request host. It resolves the active SearchIndex in KCP (`root:orgs`) and uses `status.indexName` as source of truth for the OpenSearch index.
+The service is organization-aware and derives org context from the request host. It resolves the active SearchIndex in kcp (`root:orgs`) and uses `status.indexName` as source of truth for the OpenSearch index.
 
 ## Features
 
@@ -18,7 +17,7 @@ The service is organization-aware and derives org context from the request host.
   - `GET /rest/v1/search/filter-values`
 - Free-text search in OpenSearch with stable cursor pagination (`search_after`)
 - OpenFGA post-filtering (`relation=get`) with fail-closed behavior for incomplete auth context
-- Org-aware context + KCP token/org access pre-check
+- Org-aware context + kcp token/org access pre-check
 - SearchIndex-driven resource/field metadata:
   - `defaultFields` drive searchable fields
   - `filterableFields` drive exact-match filters
@@ -69,7 +68,7 @@ Returns distinct authorized values for one filterable field within a single reso
 
 - Go `1.25+` (see [go.mod](go.mod))
 - Access to:
-  - KCP API (for org access check + SearchIndex resolution)
+  - kcp API (for org access check + SearchIndex resolution)
   - OpenSearch
   - OpenFGA gRPC endpoint
 
@@ -96,7 +95,7 @@ When enabled:
 
 - org context is still derived from host (`localhost` is mapped to `--local-development-org`)
 - JWT claims are still parsed for user/tenant context
-- KCP org token validation (`ValidateTokenForOrg`) is bypassed
+- kcp org token validation (`ValidateTokenForOrg`) is bypassed
 
 This is intended for local/dev usage only. Keep `--is-local=false` for production-like environments.
 
