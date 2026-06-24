@@ -57,6 +57,7 @@ vars:
 
     # services
     - iam-service
+    - kubernetes-graphql-gateway
     - rebac-authz-webhook
     - search-service
     - virtual-workspaces

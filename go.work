@@ -15,6 +15,7 @@ use (
 	./operators/security-operator
 	./operators/terminal-controller-manager
 	./services/iam-service
+	./services/kubernetes-graphql-gateway
 	./services/rebac-authz-webhook
 	./services/search-service
 	./services/virtual-workspaces
