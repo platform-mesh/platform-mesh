@@ -75,7 +75,6 @@ type AuthorizationModelGenerationSubroutine struct {
 	lister iclient.Lister
 }
 
-// modelTpl is used by authorization_model.go for discovery-based model generation.
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
 
 {{ if eq .Scope "Cluster" }}
