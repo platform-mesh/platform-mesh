@@ -87,7 +87,7 @@ func IsVerbose() bool {
 }
 
 // Log prints a message if verbose mode is enabled
-func Log(format string, args ...interface{}) {
+func Log(format string, args ...any) {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[DEBUG] "+format+"\n", args...)
 	}

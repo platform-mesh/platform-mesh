@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/shurcooL/graphql"
+
 	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
@@ -35,7 +36,7 @@ func (c *Client) GetProjectID(ctx context.Context, org string, projectNumber int
 		} `graphql:"organization(login: $org)"`
 	}
 
-	variables := map[string]interface{}{
+	variables := map[string]any{
 		"org":           graphql.String(org),
 		"projectNumber": graphql.Int(projectNumber),
 	}
@@ -212,7 +213,7 @@ func (c *Client) GetProjectItemsFull(ctx context.Context, projectID string, incl
 			} `graphql:"node(id: $projectId)"`
 		}
 
-		variables := map[string]interface{}{
+		variables := map[string]any{
 			"projectId": graphql.ID(projectID),
 			"cursor":    cursor,
 		}

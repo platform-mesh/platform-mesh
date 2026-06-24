@@ -111,7 +111,7 @@ type MatchedItem struct {
 type AnalysisResult struct {
 	Type      string        `json:"type"`
 	Items     []MatchedItem `json:"items"`
-	Summary   interface{}   `json:"summary,omitempty"`
+	Summary   any           `json:"summary,omitempty"`
 	Timestamp time.Time     `json:"timestamp"`
 }
 

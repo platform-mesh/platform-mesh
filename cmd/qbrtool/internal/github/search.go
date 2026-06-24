@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/shurcooL/graphql"
+
 	"go.platform-mesh.io/qbrtool/internal/models"
 )
 
@@ -203,7 +204,7 @@ func (c *Client) searchWithProjectItems(ctx context.Context, searchQuery string,
 			} `graphql:"search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor)"`
 		}
 
-		variables := map[string]interface{}{
+		variables := map[string]any{
 			"searchQuery": graphql.String(searchQuery),
 			"cursor":      cursor,
 		}

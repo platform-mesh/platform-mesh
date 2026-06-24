@@ -49,6 +49,6 @@ func NewClientWithHTTP(httpClient *http.Client) *Client {
 }
 
 // Query executes a GraphQL query
-func (c *Client) Query(ctx context.Context, q interface{}, variables map[string]interface{}) error {
+func (c *Client) Query(ctx context.Context, q any, variables map[string]any) error {
 	return c.gql.Query(ctx, q, variables)
 }

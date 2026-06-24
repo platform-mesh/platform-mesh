@@ -125,8 +125,8 @@ func writeSummary(w io.Writer, name string, result *models.AnalysisResult) {
 
 	switch name {
 	case "cve":
-		if summary, ok := result.Summary.(map[string]interface{}); ok {
-			if cveIDs, ok := summary["cve_ids"].([]interface{}); ok && len(cveIDs) > 0 {
+		if summary, ok := result.Summary.(map[string]any); ok {
+			if cveIDs, ok := summary["cve_ids"].([]any); ok && len(cveIDs) > 0 {
 				fmt.Fprintf(w, "**CVEs found:** ")
 				ids := make([]string, len(cveIDs))
 				for i, id := range cveIDs {
@@ -136,8 +136,8 @@ func writeSummary(w io.Writer, name string, result *models.AnalysisResult) {
 			}
 		}
 	case "oss":
-		if summary, ok := result.Summary.(map[string]interface{}); ok {
-			if byOrg, ok := summary["by_org"].(map[string]interface{}); ok && len(byOrg) > 0 {
+		if summary, ok := result.Summary.(map[string]any); ok {
+			if byOrg, ok := summary["by_org"].(map[string]any); ok && len(byOrg) > 0 {
 				fmt.Fprintf(w, "**Contributions by organization:**\n\n")
 				// Sort org names
 				orgs := make([]string, 0, len(byOrg))
@@ -153,8 +153,8 @@ func writeSummary(w io.Writer, name string, result *models.AnalysisResult) {
 			}
 		}
 	case "monitoring", "lifecycle", "security":
-		if summary, ok := result.Summary.(map[string]interface{}); ok {
-			if keywords, ok := summary["matched_keywords"].(map[string]interface{}); ok && len(keywords) > 0 {
+		if summary, ok := result.Summary.(map[string]any); ok {
+			if keywords, ok := summary["matched_keywords"].(map[string]any); ok && len(keywords) > 0 {
 				fmt.Fprintf(w, "**Top matched keywords:**\n\n")
 				// Sort and get top 10 keywords
 				type kv struct {
