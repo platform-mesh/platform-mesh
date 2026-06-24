@@ -20,10 +20,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/authorization"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/authorization/union"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization/union"
 )
 
 type mockHandler struct {

@@ -23,11 +23,11 @@ import (
 
 	kcpcorev1alpha "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/authorization"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/handler/mocks"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/handler/orgs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/mocks"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/orgs"
 
 	v1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/types"

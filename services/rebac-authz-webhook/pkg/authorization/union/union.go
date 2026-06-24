@@ -19,7 +19,7 @@ package union
 import (
 	"context"
 
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/authorization"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
 
 	"k8s.io/klog/v2"
 )

@@ -23,12 +23,12 @@ import (
 	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/authorization"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/clustercache"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/handler/contextual"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/handler/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/clustercache"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/contextual"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/mocks"
 	"google.golang.org/grpc"
 
 	v1 "k8s.io/api/authorization/v1"

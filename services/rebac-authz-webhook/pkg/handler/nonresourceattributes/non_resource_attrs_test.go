@@ -19,9 +19,9 @@ package nonresourceattributes_test
 import (
 	"testing"
 
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/authorization"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/handler/nonresourceattributes"
 	"github.com/stretchr/testify/assert"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/nonresourceattributes"
 
 	v1 "k8s.io/api/authorization/v1"
 )

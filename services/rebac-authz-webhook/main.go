@@ -16,7 +16,7 @@ limitations under the License.
 
 package main
 
-import "github.com/platform-mesh/rebac-authz-webhook/cmd"
+import "go.platform-mesh.io/rebac-authz-webhook/cmd"
 
 func main() { // coverage-ignore
 	cmd.Execute()

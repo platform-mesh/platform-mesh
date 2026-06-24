@@ -23,10 +23,10 @@ import (
 	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/authorization"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/clustercache"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/retry"
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/util"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/clustercache"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/retry"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/util"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"

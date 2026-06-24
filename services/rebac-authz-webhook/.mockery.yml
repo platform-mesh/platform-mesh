@@ -30,12 +30,12 @@ packages:
   github.com/openfga/api/proto/openfga/v1:
     config:
       include-interface-regex: OpenFGAServiceClient
-  github.com/platform-mesh/rebac-authz-webhook/pkg/clustercache:
+  go.platform-mesh.io/rebac-authz-webhook/pkg/clustercache:
     config:
       include-interface-regex: Provider
       filename: ClusterCacheProvider.go
       structname: ClusterCacheProvider
-  github.com/platform-mesh/rebac-authz-webhook/pkg/retry:
+  go.platform-mesh.io/rebac-authz-webhook/pkg/retry:
     config:
       include-interface-regex: Tracker
       filename: tracker.go

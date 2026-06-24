@@ -7,8 +7,8 @@ package mocks
 import (
 	"context"
 
-	"github.com/platform-mesh/rebac-authz-webhook/pkg/clustercache"
 	mock "github.com/stretchr/testify/mock"
+	"go.platform-mesh.io/rebac-authz-webhook/pkg/clustercache"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
