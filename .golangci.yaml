@@ -28,6 +28,7 @@ linters:
   enable:
     - copyloopvar
     - errcheck
+    - goprintffuncname
     - govet
     - importas
     - ineffassign

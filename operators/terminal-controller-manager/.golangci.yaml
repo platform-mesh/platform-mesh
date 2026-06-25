@@ -24,7 +24,6 @@ linters:
     - dogsled
     - goconst
     - gocritic
-    - goprintffuncname
     - gosec
     - noctx
     - unparam
