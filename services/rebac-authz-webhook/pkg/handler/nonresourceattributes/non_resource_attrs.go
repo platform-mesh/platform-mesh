@@ -38,7 +38,6 @@ func New(allowedPathPrefixes ...string) authorization.Handler {
 }
 
 func (n *nonResourceAttributesAuthorizer) Handle(ctx context.Context, req authorization.Request) authorization.Response {
-
 	klog.V(5).Info("handling request in NonResourceAttributesAuthorizer")
 
 	if req.Spec.NonResourceAttributes == nil {

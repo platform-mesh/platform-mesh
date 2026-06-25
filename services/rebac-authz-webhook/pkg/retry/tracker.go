@@ -41,8 +41,8 @@ type ExpiringRetryTracker[K comparable] struct {
 // NewExpiringRetryTracker returns a Tracker that tracks up to max per key,
 // resetting the count when no count has occurred for ttl. Internal cleanup is
 // stopped when ctx in cancelled.
-func NewExpiringRetryTracker[K comparable](ctx context.Context, max uint, ttl time.Duration) *ExpiringRetryTracker[K] {
-	cache := ttlcache.New[K, *uint](
+func NewExpiringRetryTracker[K comparable](ctx context.Context, maxRetries uint, ttl time.Duration) *ExpiringRetryTracker[K] {
+	cache := ttlcache.New(
 		ttlcache.WithTTL[K, *uint](ttl),
 		ttlcache.WithDisableTouchOnHit[K, *uint](),
 	)
@@ -51,7 +51,7 @@ func NewExpiringRetryTracker[K comparable](ctx context.Context, max uint, ttl ti
 		<-ctx.Done()
 		cache.Stop()
 	}()
-	return &ExpiringRetryTracker[K]{cache: cache, max: max}
+	return &ExpiringRetryTracker[K]{cache: cache, max: maxRetries}
 }
 
 // retries returns the current retry conut for key, or 0 if the entry does not

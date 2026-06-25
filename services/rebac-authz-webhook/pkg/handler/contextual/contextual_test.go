@@ -161,7 +161,6 @@ func TestHandler(t *testing.T) {
 			fgaMocks: func(openfga *mocks.OpenFGAServiceClient) {
 				openfga.EXPECT().Check(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, in *openfgav1.CheckRequest, opts ...grpc.CallOption) (*openfgav1.CheckResponse, error) {
-
 						tuples := in.ContextualTuples.TupleKeys
 
 						contains := slices.ContainsFunc(tuples, func(tk *openfgav1.TupleKey) bool {
@@ -228,7 +227,6 @@ func TestHandler(t *testing.T) {
 			fgaMocks: func(openfga *mocks.OpenFGAServiceClient) {
 				openfga.EXPECT().Check(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, in *openfgav1.CheckRequest, opts ...grpc.CallOption) (*openfgav1.CheckResponse, error) {
-
 						tuples := in.ContextualTuples.TupleKeys
 
 						contains := slices.ContainsFunc(tuples, func(tk *openfgav1.TupleKey) bool {
@@ -303,7 +301,6 @@ func TestHandler(t *testing.T) {
 			fgaMocks: func(openfga *mocks.OpenFGAServiceClient) {
 				openfga.EXPECT().Check(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, in *openfgav1.CheckRequest, opts ...grpc.CallOption) (*openfgav1.CheckResponse, error) {
-
 						tuples := in.ContextualTuples.TupleKeys
 
 						contains := slices.ContainsFunc(tuples, func(tk *openfgav1.TupleKey) bool {
@@ -369,7 +366,6 @@ func TestHandler(t *testing.T) {
 			fgaMocks: func(openfga *mocks.OpenFGAServiceClient) {
 				openfga.EXPECT().Check(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, in *openfgav1.CheckRequest, opts ...grpc.CallOption) (*openfgav1.CheckResponse, error) {
-
 						tuples := in.ContextualTuples.TupleKeys
 
 						contains := slices.ContainsFunc(tuples, func(tk *openfgav1.TupleKey) bool {
@@ -622,7 +618,6 @@ func TestHandler(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-
 			cc := mocks.NewClusterCacheProvider(t)
 			if test.clusterCacheMocks != nil {
 				test.clusterCacheMocks(cc)

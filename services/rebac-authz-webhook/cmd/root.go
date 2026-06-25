@@ -53,7 +53,6 @@ func init() {
 	rootCmd.AddCommand(NewServeCmd())
 
 	logsapi.AddFlags(logOpts, rootCmd.PersistentFlags())
-
 }
 
 func Execute() {

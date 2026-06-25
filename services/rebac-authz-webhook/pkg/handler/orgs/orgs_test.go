@@ -239,7 +239,6 @@ func TestHandler(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-
 			openfga := mocks.NewOpenFGAServiceClient(t)
 			mgr := mocks.NewManager(t)
 			cluster := mocks.NewCluster(t)
@@ -270,7 +269,6 @@ func TestHandler(t *testing.T) {
 
 			res := h.Handle(ctx, test.req)
 			assert.Equal(t, test.res, res)
-
 		})
 	}
 }

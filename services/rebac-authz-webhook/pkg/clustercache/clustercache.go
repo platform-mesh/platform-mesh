@@ -58,7 +58,6 @@ type clusterCache struct {
 }
 
 func New(mgr mcmanager.Manager) (*clusterCache, error) {
-
 	return &clusterCache{
 		cache: make(map[multicluster.ClusterName]ClusterInfo),
 		mgr:   mgr,

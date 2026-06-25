@@ -27,7 +27,6 @@ func ResolveOnParent(verb string) bool {
 }
 
 func CapGroupToRelationLength(gvr schema.GroupVersionResource, maxLength int) string {
-
 	maxRelation := fmt.Sprintf("create_%s_%s", gvr.Group, gvr.Resource)
 
 	group := gvr.Group

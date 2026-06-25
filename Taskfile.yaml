@@ -39,7 +39,27 @@ includes:
     dir: .
 
 vars:
-  COMPONENTS: apis golang-commons subroutines account-operator backup-operator extension-manager-operator kcp-migration-operator resource-sharding-operator search-operator security-operator terminal-controller-manager iam-service virtual-workspaces
+  COMPONENTS:
+    # shared
+    - apis
+    - subroutines
+    - golang-commons
+
+    # operators
+    - account-operator
+    - backup-operator
+    - extension-manager-operator
+    - kcp-migration-operator
+    - resource-sharding-operator
+    - search-operator
+    - security-operator
+    - terminal-controller-manager
+
+    # services
+    - iam-service
+    - rebac-authz-webhook
+    - search-service
+    - virtual-workspaces
 
 tasks:
   default:

@@ -55,7 +55,6 @@ func New(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, clusterKey, 
 }
 
 func (o *orgsAuthorizer) Handle(ctx context.Context, req authorization.Request) authorization.Response {
-
 	klog.V(5).Info("handling request in OrgsAuthorizer")
 
 	if req.Spec.Extra == nil {

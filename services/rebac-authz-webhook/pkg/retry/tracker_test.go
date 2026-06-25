@@ -29,7 +29,7 @@ func TestCountingTracker_ShouldRetry_AllowsRetriesUnderMax(t *testing.T) {
 	tracker := NewExpiringRetryTracker[string](context.Background(), 3, time.Hour)
 	key := "test-key"
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		assert.Truef(t, tracker.ShouldRetry(key), "Should return true the first three times")
 		tracker.Retried(key)
 	}
@@ -78,12 +78,12 @@ func TestCountingTracker_ConcurrentAccess(t *testing.T) {
 	tracker := NewExpiringRetryTracker[int](context.Background(), 10, time.Hour)
 	var wg sync.WaitGroup
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
 			key := id
-			for j := 0; j < 10; j++ {
+			for range 10 {
 				tracker.ShouldRetry(key)
 				tracker.Retried(key)
 			}
@@ -91,7 +91,7 @@ func TestCountingTracker_ConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		assert.Falsef(t, tracker.ShouldRetry(i), "ShouldRetry(%d) after 10 retries with max 10", i)
 	}
 }

@@ -151,7 +151,7 @@ func (wh *Webhook) writeResponse(w http.ResponseWriter, resp Response) {
 	if resp.RetryAfter != 0 {
 		seconds := strconv.Itoa(int(resp.RetryAfter.Seconds()))
 		w.Header().Add("Retry-After", seconds)
-		w.WriteHeader(503)
+		w.WriteHeader(http.StatusServiceUnavailable)
 		wh.log.V(5).Info("Wrote response", "retry_after", resp.RetryAfter)
 		return
 	}
