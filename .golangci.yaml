@@ -36,15 +36,15 @@ linters:
     - intrange
     - misspell
     - nakedret
-    - nolintlint
-    - usestdlibvars
-    - predeclared
-    - prealloc
     - nilerr
+    - nolintlint
+    - prealloc
+    - predeclared
     - revive
     - staticcheck
     - unconvert
     - unused
+    - usestdlibvars
     - whitespace
   settings:
     importas:
