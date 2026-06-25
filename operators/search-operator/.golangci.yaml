@@ -22,7 +22,6 @@ linters:
     - ginkgolinter
     - gocyclo
     - lll
-    - nakedret
     - unparam
   exclusions:
     generated: lax

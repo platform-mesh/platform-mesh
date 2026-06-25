@@ -32,6 +32,7 @@ linters:
     - importas
     - ineffassign
     - misspell
+    - nakedret
     - prealloc
     - revive
     - staticcheck
