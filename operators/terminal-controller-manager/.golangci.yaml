@@ -22,7 +22,6 @@ linters:
   enable:
     - bodyclose
     - dogsled
-    - errcheck
     - goconst
     - gocritic
     - goprintffuncname

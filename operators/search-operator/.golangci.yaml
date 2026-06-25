@@ -19,7 +19,6 @@ linters:
   default: none
   enable:
     - dupl
-    - errcheck
     - ginkgolinter
     - gocyclo
     - govet
