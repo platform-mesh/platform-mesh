@@ -141,7 +141,7 @@ func callers(skip int) []uintptr {
 // PopStack removes the top of the stack from an errors stack trace.
 func PopStack(err error) error {
 	if err == nil {
-		return err
+		return nil
 	}
 
 	// We want to remove us, the internal/errors.New function, from the error stack we just

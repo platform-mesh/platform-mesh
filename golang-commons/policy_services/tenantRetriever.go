@@ -76,7 +76,7 @@ type TenantRetriever interface {
 func (tenantRetriever *TenantRetrieverService) RetrieveTenant(ctx context.Context) (string, error) {
 	webToken, err := pmcontext.GetWebTokenFromContext(ctx)
 	if err != nil {
-		return "", nil
+		return "", nil //nolint:nilerr
 	}
 	if webToken.Issuer == "" {
 		return "", nil

@@ -132,6 +132,7 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.
 		})
 	if err != nil {
 		log.Info().Str("workspace", wsName).Msg("invite resource not ready yet")
+		//nolint:nilerr
 		return subroutines.StopWithRequeue(w.limiter.When(lc),
 			"invite resource is not ready yet"), nil
 	}

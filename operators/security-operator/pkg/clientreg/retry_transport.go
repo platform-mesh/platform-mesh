@@ -74,7 +74,7 @@ func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	newToken, err := t.TokenRefresher.RefreshToken(req.Context(), clientID)
 	if err != nil {
-		return resp, nil
+		return resp, nil //nolint:nilerr
 	}
 
 	resp.Body.Close() //nolint:errcheck

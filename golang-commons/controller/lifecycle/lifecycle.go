@@ -311,7 +311,7 @@ func removeTerminator(ctx context.Context, instance runtimeobject.RuntimeObject,
 
 	terminators, ok, err := unstructured.NestedStringSlice(currentUn, "status", "terminators")
 	if err != nil || !ok || len(terminators) == 0 {
-		return nil
+		return nil //nolint:nilerr
 	}
 
 	newTerminators := slices.DeleteFunc(terminators, func(t string) bool {
@@ -350,7 +350,7 @@ func removeInitializer(ctx context.Context, instance runtimeobject.RuntimeObject
 
 	initializers, ok, err := unstructured.NestedStringSlice(currentUn, "status", "initializers")
 	if err != nil || !ok || len(initializers) == 0 {
-		return nil
+		return nil //nolint:nilerr
 	}
 
 	newInitializers := slices.DeleteFunc(initializers, func(i string) bool {
