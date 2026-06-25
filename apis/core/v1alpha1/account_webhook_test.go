@@ -174,7 +174,7 @@ func TestAccountValidator_ValidateUpdate(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "updating account account with denied name",
+			name: "updating account with denied name",
 			oldAccount: &Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "admin"},
 				Spec:       AccountSpec{Type: "account"},

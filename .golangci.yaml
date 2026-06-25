@@ -27,6 +27,7 @@ linters:
   default: none
   enable:
     - copyloopvar
+    - dupword
     - durationcheck
     - errcheck
     - goprintffuncname
