@@ -27,7 +27,6 @@ linters:
     - revive
     - staticcheck
     - unparam
-    - unused
   settings:
     revive:
       rules:

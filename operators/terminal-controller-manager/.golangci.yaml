@@ -30,7 +30,6 @@ linters:
     - noctx
     - staticcheck
     - unparam
-    - unused
     - whitespace
     - prealloc
 

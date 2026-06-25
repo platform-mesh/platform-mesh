@@ -33,6 +33,7 @@ linters:
     - ineffassign
     - misspell
     - unconvert
+    - unused
   settings:
     importas:
       alias:
