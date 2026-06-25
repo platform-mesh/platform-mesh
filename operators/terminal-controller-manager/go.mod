@@ -11,7 +11,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.platform-mesh.io/apis v0.0.1
 	go.platform-mesh.io/golang-commons v0.0.0-20260622214312-00032b10b96f
-	go.platform-mesh.io/subroutines v0.0.0-20260622214312-00032b10b96f
+	go.platform-mesh.io/subroutines v0.6.0
 	k8s.io/api v0.35.4
 	k8s.io/apimachinery v0.35.4
 	k8s.io/client-go v0.35.4

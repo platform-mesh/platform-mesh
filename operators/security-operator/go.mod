@@ -23,7 +23,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.platform-mesh.io/apis v0.0.1
 	go.platform-mesh.io/golang-commons v0.0.0-20260622145940-383b09051f2a
-	go.platform-mesh.io/subroutines v0.0.0-20260622145940-383b09051f2a
+	go.platform-mesh.io/subroutines v0.6.0
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af

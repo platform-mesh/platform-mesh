@@ -22,6 +22,11 @@ includes:
     dir: .
 
 tasks:
+  build:
+    desc: Build the module
+    cmds:
+      - go build ./...
+
   lint:
     desc: Run golangci-lint
     cmds:
