@@ -35,7 +35,7 @@ vars:
     sh: echo "$(git rev-parse --show-toplevel)"
   BIN: '{{.TOPLEVEL}}/bin'
   HACK: '{{.TOPLEVEL}}/hack'
-  CONTROLLER_TOOLS_VERSION: v0.16.4
+  CONTROLLER_TOOLS_VERSION: v0.20.1
   ENVTEST_K8S_VERSION: "1.35.0"
   ENVTEST_VERSION: release-0.23
   GOLANGCI_LINT_VERSION: 2.12.2

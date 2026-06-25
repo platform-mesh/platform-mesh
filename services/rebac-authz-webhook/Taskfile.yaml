@@ -29,6 +29,10 @@ tasks:
     cmds:
       - task --list-all
 
+  generate:
+    cmds:
+      - task: mockery
+
   ## Development
   docker-build:
     cmds:
