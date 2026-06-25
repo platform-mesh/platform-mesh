@@ -239,8 +239,8 @@ go.opentelemetry.io/proto/otlp v1.10.0 h1:IQRWgT5srOCYfiWnpqUYz9CVmbO8bFmKcwYxpu
 go.opentelemetry.io/proto/otlp v1.10.0/go.mod h1:/CV4QoCR/S9yaPj8utp3lvQPoqMtxXdzn7ozvvozVqk=
 go.platform-mesh.io/account-operator v0.0.0-20260622214312-00032b10b96f h1:18uUSK4xdLgv9Aw4SWDVr7GtafLxpLD7spG6Fr4HbIE=
 go.platform-mesh.io/account-operator v0.0.0-20260622214312-00032b10b96f/go.mod h1:CAm4BkaiJkSXmwDW6DgdEqHjnaZrlJIWXTVyJVwC+7A=
-go.platform-mesh.io/apis v0.0.0-20260622214312-00032b10b96f h1:er/DVai/oIsHhwdrBCMTU3rLK5Ks1fWooUQeAB2Z+kI=
-go.platform-mesh.io/apis v0.0.0-20260622214312-00032b10b96f/go.mod h1:Ic7UXWerjjtp22OEDRdT4rpbSDfdKaC0IJj71iIhcrs=
+go.platform-mesh.io/apis v0.0.1 h1:7nbMtJuqnc9IPoW/71MdNYislddDjnXBAyCHOPhEnSQ=
+go.platform-mesh.io/apis v0.0.1/go.mod h1:cxnujpRm66cKk04J+CmiQTBz12I7xFCTQdGShF1NYqE=
 go.platform-mesh.io/golang-commons v0.0.0-20260622214312-00032b10b96f h1:ts1CRVB+MySupyJG8TX3sw++ZUxdW5AdP2w0etHclwc=
 go.platform-mesh.io/golang-commons v0.0.0-20260622214312-00032b10b96f/go.mod h1:9EGWluDQNEoXEtcyYHWxfrajSUceI51U5RDm/L8klS0=
 go.platform-mesh.io/subroutines v0.0.0-20260622145940-383b09051f2a h1:2RYtq6ZsjHTgLmV2FtPdgbiUrRU67pmX5nM1duHw9FY=

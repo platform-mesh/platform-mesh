@@ -271,6 +271,45 @@ tasks:
     cmds:
       - go run . {{.CLI_ARGS}}
 
+  # Point every consumer at a released version of an internal module. Generic
+  # over the module: the component's own go.mod supplies the module path, so the
+  # same target works for apis, golang-commons, subroutines, ... — nothing is
+  # hardcoded. `cmd/release` prints the exact invocation after tagging such a
+  # module; run it, then commit the resulting go.mod/go.sum changes.
+  #   task bump-deps -- apis v0.0.1
+  bump-deps:
+    desc: 'Point every consumer at a released internal-module version (e.g. task bump-deps -- apis v0.0.1).'
+    env:
+      GOWORK: "off"   # resolve the published version from the proxy, not the local workspace copy.
+    cmds:
+      - |
+        set -eu
+        comp=$(printf '%s\n' {{.CLI_ARGS}} | sed -n 1p)
+        version=$(printf '%s\n' {{.CLI_ARGS}} | sed -n 2p)
+        if [ -z "$comp" ] || [ -z "$version" ]; then
+          echo "usage: task bump-deps -- <component> <version>   e.g. task bump-deps -- apis v0.0.1" >&2
+          exit 1
+        fi
+        dir=$(ls -d "$comp" "operators/$comp" "services/$comp" 2>/dev/null | head -1)
+        if [ -z "$dir" ]; then
+          echo "unknown component '$comp' (not under ./, ./operators/ or ./services/)" >&2
+          exit 1
+        fi
+        module=$(go mod edit -json "$dir/go.mod" | jq -r '.Module.Path')
+        echo ">> bumping consumers of $module to $version"
+        # Trailing space pins the require line for exactly this module, not a
+        # longer path that shares its prefix (e.g. .../apis vs .../apis/foo).
+        grep -rls "$module " --include=go.mod . | while read -r f; do
+          d=$(dirname "$f")
+          # Skip the module's own go.mod.
+          [ "$(go mod edit -json "$f" | jq -r '.Module.Path')" = "$module" ] && continue
+          echo "   - $d"
+          (cd "$d" && go get "$module@$version" && go mod tidy)
+        done
+        # Re-sync the workspace with GOWORK reset (the task disables it above so
+        # the per-module bumps resolve the published version, not the local copy).
+        GOWORK= go work sync
+
   # ---------------------------------------------------------------------------
   # Workspace helpers
   # ---------------------------------------------------------------------------

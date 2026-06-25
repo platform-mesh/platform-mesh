@@ -10,7 +10,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	go.platform-mesh.io/apis v0.0.0-20260622192504-abc212e78567
+	go.platform-mesh.io/apis v0.0.1
 	go.platform-mesh.io/golang-commons v0.0.0-20260622151009-aa3b9ac4f77d
 	k8s.io/api v0.35.4
 	k8s.io/apimachinery v0.35.4
@@ -80,7 +80,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
-	go.uber.org/goleak v1.3.1-0.20251210191316-2b7fd8a0d244 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect

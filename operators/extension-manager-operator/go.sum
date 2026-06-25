@@ -234,8 +234,8 @@ go.opentelemetry.io/otel/trace v1.44.0 h1:jxF5CsGYCe74MCRx2X4g7WsY/VBKRqqpNvXlX/
 go.opentelemetry.io/otel/trace v1.44.0/go.mod h1:oLl1jrMQAVo6v3GAggN+1VH9VIz9iUSvW53sW1Q8PIE=
 go.opentelemetry.io/proto/otlp v1.10.0 h1:IQRWgT5srOCYfiWnpqUYz9CVmbO8bFmKcwYxpuCSL2g=
 go.opentelemetry.io/proto/otlp v1.10.0/go.mod h1:/CV4QoCR/S9yaPj8utp3lvQPoqMtxXdzn7ozvvozVqk=
-go.platform-mesh.io/apis v0.0.0-20260622163530-6da3dc047e52 h1:KN0k0HBV4XDxv7UyF8fkX+RmWB6MFFCSlA2hbDBM6YI=
-go.platform-mesh.io/apis v0.0.0-20260622163530-6da3dc047e52/go.mod h1:uUrbk5GXLp8zn90MeZH0opW4whWkPoQ83jD5ZBDm5TE=
+go.platform-mesh.io/apis v0.0.1 h1:7nbMtJuqnc9IPoW/71MdNYislddDjnXBAyCHOPhEnSQ=
+go.platform-mesh.io/apis v0.0.1/go.mod h1:cxnujpRm66cKk04J+CmiQTBz12I7xFCTQdGShF1NYqE=
 go.platform-mesh.io/golang-commons v0.0.0-20260622163530-6da3dc047e52 h1:7oChf4AwJG2WY6BEqRzHDFCDcitw8pGrRoAMp5s5tMw=
 go.platform-mesh.io/golang-commons v0.0.0-20260622163530-6da3dc047e52/go.mod h1:DWOpNDsJNI8QDpJuegdtHUwsgmkamaSqBU8YQiYTcIY=
 go.platform-mesh.io/subroutines v0.0.0-20260622163530-6da3dc047e52 h1:trpfO8AGi+JPx3G+pofu0+B6YZZhOzqX0B3R+VFqYf8=

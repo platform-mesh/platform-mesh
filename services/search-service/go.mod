@@ -8,7 +8,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
-	go.platform-mesh.io/apis v0.0.0-20260622214312-00032b10b96f
+	go.platform-mesh.io/apis v0.0.1
 	go.platform-mesh.io/golang-commons v0.0.0-20260622214312-00032b10b96f
 	google.golang.org/grpc v1.81.1
 	k8s.io/apimachinery v0.35.4
@@ -48,7 +48,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
-	go.uber.org/goleak v1.3.1-0.20251210191316-2b7fd8a0d244 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect

@@ -194,8 +194,8 @@ go.opentelemetry.io/otel/trace v1.44.0 h1:jxF5CsGYCe74MCRx2X4g7WsY/VBKRqqpNvXlX/
 go.opentelemetry.io/otel/trace v1.44.0/go.mod h1:oLl1jrMQAVo6v3GAggN+1VH9VIz9iUSvW53sW1Q8PIE=
 go.opentelemetry.io/proto/otlp v1.10.0 h1:IQRWgT5srOCYfiWnpqUYz9CVmbO8bFmKcwYxpuCSL2g=
 go.opentelemetry.io/proto/otlp v1.10.0/go.mod h1:/CV4QoCR/S9yaPj8utp3lvQPoqMtxXdzn7ozvvozVqk=
-go.platform-mesh.io/apis v0.0.0-20260622192504-abc212e78567 h1:RPgqb463lsPLWK7/AQCNBuCBg4V7BZ68hhgB4E7lPcY=
-go.platform-mesh.io/apis v0.0.0-20260622192504-abc212e78567/go.mod h1:uUrbk5GXLp8zn90MeZH0opW4whWkPoQ83jD5ZBDm5TE=
+go.platform-mesh.io/apis v0.0.1 h1:7nbMtJuqnc9IPoW/71MdNYislddDjnXBAyCHOPhEnSQ=
+go.platform-mesh.io/apis v0.0.1/go.mod h1:cxnujpRm66cKk04J+CmiQTBz12I7xFCTQdGShF1NYqE=
 go.platform-mesh.io/golang-commons v0.0.0-20260622151009-aa3b9ac4f77d h1:aIupuMXMNEvGaGR5me72hF1uqJDhWRQzUH0XIK1htHk=
 go.platform-mesh.io/golang-commons v0.0.0-20260622151009-aa3b9ac4f77d/go.mod h1:DWOpNDsJNI8QDpJuegdtHUwsgmkamaSqBU8YQiYTcIY=
 go.uber.org/goleak v1.3.1-0.20251210191316-2b7fd8a0d244 h1:OdZ8e4E9yDUGiis9x2ta/Ec5yhMAKT6ZivRvakyxC7E=
