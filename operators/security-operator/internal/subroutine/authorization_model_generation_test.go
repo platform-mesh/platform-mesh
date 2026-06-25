@@ -245,8 +245,8 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					}
 					return nil
 				}).Once()
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-					if _, ok := list.(*corev1alpha1.ProviderPermissionsList); ok {
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+					if _, ok := list.(*pmcorev1alpha1.ProviderPermissionsList); ok {
 						return nil
 					}
 					return nil
@@ -313,7 +313,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
 				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
 						ae.Name = "test-export"
@@ -321,13 +321,13 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					}
 					return nil
 				}).Once()
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-					if _, ok := list.(*corev1alpha1.ProviderPermissionsList); ok {
+				kcpClient.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+					if _, ok := list.(*pmcorev1alpha1.ProviderPermissionsList); ok {
 						return nil
 					}
 					return nil
 				}).Once()
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
 						rs.Spec.Group = "group"
 						rs.Spec.Names.Plural = "foos"
@@ -351,7 +351,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
 				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
 						ae.Name = "test-export"

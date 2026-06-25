@@ -20,7 +20,7 @@ import (
 	"context"
 	"time"
 
-	corev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -30,6 +30,7 @@ import (
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/subroutines/lifecycle"
 
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
@@ -42,8 +43,6 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
@@ -90,7 +89,7 @@ func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *plat
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(
-			&corev1alpha1.ProviderPermissions{},
+			&pmcorev1alpha1.ProviderPermissions{},
 			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[ctrlruntimeclient.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(r.mapProviderPermissionsToAPIBindings)
 			},
@@ -100,7 +99,7 @@ func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *plat
 }
 
 func (r *APIBindingReconciler) mapProviderPermissionsToAPIBindings(ctx context.Context, obj ctrlruntimeclient.Object) []mcreconcile.Request {
-	pp, ok := obj.(*corev1alpha1.ProviderPermissions)
+	pp, ok := obj.(*pmcorev1alpha1.ProviderPermissions)
 	if !ok {
 		return nil
 	}
