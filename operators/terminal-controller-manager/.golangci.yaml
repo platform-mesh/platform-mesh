@@ -64,16 +64,6 @@ linters-settings:
   nolintlint:
     require-explanation: false
     require-specific: false
-  revive:
-    rules:
-      - name: var-naming
-        disabled: true
-      - name: exported
-        disabled: true
-      - name: package-comments
-        disabled: true
-      - name: blank-imports
-        disabled: true
 
 issues:
   exclude-rules:

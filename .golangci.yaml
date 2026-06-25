@@ -32,6 +32,7 @@ linters:
     - importas
     - ineffassign
     - misspell
+    - revive
     - staticcheck
     - unconvert
     - unused
@@ -57,6 +58,16 @@ linters:
         - pkg: sigs.k8s.io/controller-runtime/pkg/client
           alias: ctrlruntimeclient
       no-unaliased: true
+    revive:
+      rules:
+        - name: var-naming
+          disabled: true
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: blank-imports
+          disabled: true
     paths:
       - third_party$
       - builtin$
