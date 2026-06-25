@@ -32,6 +32,7 @@ linters:
     - importas
     - ineffassign
     - misspell
+    - staticcheck
     - unconvert
     - unused
   settings:

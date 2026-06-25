@@ -25,7 +25,6 @@ linters:
     - nakedret
     - prealloc
     - revive
-    - staticcheck
     - unparam
   settings:
     revive:
