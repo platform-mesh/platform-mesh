@@ -147,7 +147,7 @@ func TestSetKCPUserContext_NoWebTokenInContext(t *testing.T) {
 	wrappedHandler := middlewareFunc(testHandler)
 
 	// Test with no web token in context (this should fail early)
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	ctx := logger.SetLoggerInContext(req.Context(), log)
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
@@ -341,7 +341,7 @@ func TestSetKCPUserContext_IDMTenantError(t *testing.T) {
 	})
 	wrappedHandler := middlewareFunc(testHandler)
 
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	ctx := logger.SetLoggerInContext(req.Context(), log)
 
 	// Use proper WebToken helper function instead of problematic JWT parsing
@@ -371,7 +371,7 @@ func TestSetKCPUserContext_AuthHeaderError(t *testing.T) {
 	})
 	wrappedHandler := middlewareFunc(testHandler)
 
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	ctx := logger.SetLoggerInContext(req.Context(), log)
 
 	// Use proper WebToken helper function instead of problematic JWT parsing
@@ -403,7 +403,7 @@ func TestSetKCPUserContext_DirectWebTokenContext(t *testing.T) {
 	})
 	wrappedHandler := middlewareFunc(testHandler)
 
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	ctx := logger.SetLoggerInContext(req.Context(), log)
 
 	// Directly add a WebToken to context to simulate successful token parsing
@@ -517,7 +517,7 @@ func TestSetKCPUserContext_SubdomainExtraction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			req, _ := http.NewRequest("GET", "/test", nil)
+			req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 			ctx := logger.SetLoggerInContext(req.Context(), log)
 
 			req = req.WithContext(ctx)
@@ -584,7 +584,7 @@ func TestSetKCPUserContext_IDMTenantSuccess(t *testing.T) {
 	})
 	wrappedHandler := middlewareFunc(testHandler)
 
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	ctx := logger.SetLoggerInContext(req.Context(), log)
 
 	// Add WebToken to context
@@ -619,7 +619,7 @@ func TestSetKCPUserContext_IDMTenantRetrievalError(t *testing.T) {
 	})
 	wrappedHandler := middlewareFunc(testHandler)
 
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	ctx := logger.SetLoggerInContext(req.Context(), log)
 
 	// Add WebToken to context
@@ -649,7 +649,7 @@ func TestSetKCPUserContext_MissingAuthHeader(t *testing.T) {
 	})
 	wrappedHandler := middlewareFunc(testHandler)
 
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	ctx := logger.SetLoggerInContext(req.Context(), log)
 
 	// Add WebToken to context but NO auth header
@@ -689,7 +689,7 @@ func TestSetKCPUserContext_TokenCheckFailure(t *testing.T) {
 	})
 	wrappedHandler := middlewareFunc(testHandler)
 
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	ctx := logger.SetLoggerInContext(req.Context(), log)
 
 	// Add WebToken and auth header to context
@@ -725,7 +725,7 @@ func TestSetKCPUserContext_TokenCheckError(t *testing.T) {
 	})
 	wrappedHandler := middlewareFunc(testHandler)
 
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 	ctx := logger.SetLoggerInContext(req.Context(), log)
 
 	// Add WebToken and auth header to context
@@ -782,7 +782,7 @@ func TestSetKCPUserContext_SubdomainPatterns(t *testing.T) {
 			})
 			wrappedHandler := middlewareFunc(testHandler)
 
-			req, _ := http.NewRequest("GET", "/test", nil)
+			req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 			ctx := logger.SetLoggerInContext(req.Context(), log)
 
 			// Add WebToken and auth header to context

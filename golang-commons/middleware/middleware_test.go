@@ -49,7 +49,7 @@ func TestCreateMiddleware_WithoutAuth(t *testing.T) {
 		finalHandler = middlewares[i](finalHandler)
 	}
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	recorder := httptest.NewRecorder()
 
 	finalHandler.ServeHTTP(recorder, req)
@@ -80,7 +80,7 @@ func TestCreateMiddleware_WithAuth(t *testing.T) {
 		finalHandler = middlewares[i](finalHandler)
 	}
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	recorder := httptest.NewRecorder()
 
 	finalHandler.ServeHTTP(recorder, req)

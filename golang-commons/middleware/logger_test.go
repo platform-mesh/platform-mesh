@@ -44,7 +44,7 @@ func TestStoreLoggerMiddleware(t *testing.T) {
 	middleware := StoreLoggerMiddleware(testLog.Logger)
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	recorder := httptest.NewRecorder()
 
 	handlerToTest.ServeHTTP(recorder, req)
@@ -61,7 +61,7 @@ func TestStoreLoggerMiddleware_NilLogger(t *testing.T) {
 	middleware := StoreLoggerMiddleware(nil)
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	recorder := httptest.NewRecorder()
 
 	// Should not panic

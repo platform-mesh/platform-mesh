@@ -35,7 +35,7 @@ func TestSentryRecoverer_NoPanic(t *testing.T) {
 
 	handlerToTest := SentryRecoverer(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	recorder := httptest.NewRecorder()
 
 	handlerToTest.ServeHTTP(recorder, req)
@@ -53,7 +53,7 @@ func TestSentryRecoverer_WithPanic(t *testing.T) {
 
 	handlerToTest := SentryRecoverer(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	// Add logger to context so the middleware can log the panic
 	ctx := req.Context()
 	ctx = logger.SetLoggerInContext(ctx, log.Logger)
@@ -92,7 +92,7 @@ func TestSentryRecoverer_WithHttpErrAbortHandler(t *testing.T) {
 
 	handlerToTest := SentryRecoverer(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	recorder := httptest.NewRecorder()
 
 	// The middleware should not recover from http.ErrAbortHandler
@@ -113,7 +113,7 @@ func TestSentryRecoverer_WithStringPanic(t *testing.T) {
 
 	handlerToTest := SentryRecoverer(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	// Add logger to context
 	ctx := req.Context()
 	ctx = logger.SetLoggerInContext(ctx, log.Logger)
@@ -142,7 +142,7 @@ func TestSentryRecoverer_WithErrorPanic(t *testing.T) {
 
 	handlerToTest := SentryRecoverer(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	// Add logger to context
 	ctx := req.Context()
 	ctx = logger.SetLoggerInContext(ctx, log.Logger)

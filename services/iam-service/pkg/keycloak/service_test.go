@@ -72,7 +72,7 @@ func TestUserByMail_Success(t *testing.T) {
 	}
 
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &users,
 	}
 
@@ -115,7 +115,7 @@ func TestUserByMail_UserNotFound(t *testing.T) {
 	// Create empty user response
 	users := []keycloakClient.UserRepresentation{}
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &users,
 	}
 
@@ -211,7 +211,7 @@ func TestEnrichUserRoles_Success(t *testing.T) {
 		}),
 		mock.Anything,
 	).Return(&keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &[]keycloakClient.UserRepresentation{users[0]},
 	}, nil)
 
@@ -223,7 +223,7 @@ func TestEnrichUserRoles_Success(t *testing.T) {
 		}),
 		mock.Anything,
 	).Return(&keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &[]keycloakClient.UserRepresentation{users[1]},
 	}, nil)
 
@@ -316,7 +316,7 @@ func TestFetchUserFromKeycloak_Non200Status(t *testing.T) {
 	}
 
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 404},
+		HTTPResponse: &http.Response{StatusCode: http.StatusNotFound},
 	}
 
 	mockClient.EXPECT().GetUsersWithResponse(
@@ -342,7 +342,7 @@ func TestFetchUserFromKeycloak_NilJSON200(t *testing.T) {
 	}
 
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      nil,
 	}
 
@@ -376,7 +376,7 @@ func TestFetchUserFromKeycloak_MultipleUsers(t *testing.T) {
 	}
 
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &users,
 	}
 
@@ -408,7 +408,7 @@ func TestUserByMail_FetchError(t *testing.T) {
 
 	// Mock error response
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 500},
+		HTTPResponse: &http.Response{StatusCode: http.StatusInternalServerError},
 	}
 
 	mockClient.EXPECT().GetUsersWithResponse(
@@ -449,7 +449,7 @@ func TestUserByMail_CacheStore(t *testing.T) {
 	}
 
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &users,
 	}
 
@@ -530,7 +530,7 @@ func TestGetUsersByEmails_WithCache(t *testing.T) {
 	}
 
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &fetchUsers,
 	}
 
@@ -572,7 +572,7 @@ func TestGetUsersByEmails_FetchError(t *testing.T) {
 
 	// Mock error response
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 500},
+		HTTPResponse: &http.Response{StatusCode: http.StatusInternalServerError},
 	}
 
 	mockClient.EXPECT().GetUsersWithResponse(
@@ -605,13 +605,13 @@ func TestFetchUsersInParallel_WithErrors(t *testing.T) {
 		{Id: &userID1, Email: &userEmail1},
 	}
 	successResponse := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &users1,
 	}
 
 	// Mock error response for second email
 	errorResponse := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 500},
+		HTTPResponse: &http.Response{StatusCode: http.StatusInternalServerError},
 	}
 
 	mockClient.EXPECT().GetUsersWithResponse(
@@ -729,7 +729,7 @@ func TestFetchAllUsers_SinglePage(t *testing.T) {
 
 	// Mock first page response
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &users,
 	}
 
@@ -800,7 +800,7 @@ func TestFetchAllUsers_MultiplePages(t *testing.T) {
 		{Id: &userID2, Email: &userEmail2},
 	}
 	page1Response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &page1Users,
 	}
 
@@ -809,7 +809,7 @@ func TestFetchAllUsers_MultiplePages(t *testing.T) {
 		{Id: &userID3, Email: &userEmail3},
 	}
 	page2Response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &page2Users,
 	}
 
@@ -873,13 +873,13 @@ func TestFetchAllUsers_ErrorHandling(t *testing.T) {
 		{Id: &userID2, Email: &userEmail2},
 	}
 	page1Response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &page1Users,
 	}
 
 	// Second page returns error (will be skipped)
 	errorResponse := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 500},
+		HTTPResponse: &http.Response{StatusCode: http.StatusInternalServerError},
 	}
 
 	// Third page is successful but has less than pageSize (partial page)
@@ -889,7 +889,7 @@ func TestFetchAllUsers_ErrorHandling(t *testing.T) {
 		{Id: &userID3, Email: &userEmail3},
 	}
 	page3Response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &page3Users,
 	}
 
@@ -952,7 +952,7 @@ func TestFetchAllUsers_EmptyResult(t *testing.T) {
 
 	// Mock empty response for first page
 	emptyResponse := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &[]keycloakClient.UserRepresentation{},
 	}
 
@@ -1008,7 +1008,7 @@ func TestGetUsers_Success(t *testing.T) {
 
 	// Mock response
 	response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: 200},
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200:      &users,
 	}
 

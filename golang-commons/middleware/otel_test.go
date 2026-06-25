@@ -47,7 +47,7 @@ func TestSetOtelTracingContext(t *testing.T) {
 	middleware := SetOtelTracingContext()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 
 	// Inject trace context into headers
 	propagator.Inject(ctx, propagation.HeaderCarrier(req.Header))
@@ -73,7 +73,7 @@ func TestSetOtelTracingContext_NoTraceHeaders(t *testing.T) {
 	middleware := SetOtelTracingContext()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	recorder := httptest.NewRecorder()
 
 	handlerToTest.ServeHTTP(recorder, req)
@@ -95,7 +95,7 @@ func TestSetOtelTracingContext_Integration(t *testing.T) {
 	middleware := SetOtelTracingContext()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 
 	// Add a fake trace header to test extraction
 	req.Header.Set("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")

@@ -41,7 +41,7 @@ func TestStoreAuthHeader_WithAuthHeader(t *testing.T) {
 	middleware := StoreAuthHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set(AuthorizationHeader, expectedAuth)
 	recorder := httptest.NewRecorder()
 
@@ -62,7 +62,7 @@ func TestStoreAuthHeader_WithoutAuthHeader(t *testing.T) {
 	middleware := StoreAuthHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	// No authorization header set
 	recorder := httptest.NewRecorder()
 
@@ -83,7 +83,7 @@ func TestStoreAuthHeader_WithEmptyAuthHeader(t *testing.T) {
 	middleware := StoreAuthHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set(AuthorizationHeader, "")
 	recorder := httptest.NewRecorder()
 
@@ -106,7 +106,7 @@ func TestStoreAuthHeader_MultipleAuthHeaders(t *testing.T) {
 	middleware := StoreAuthHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Add(AuthorizationHeader, "Bearer token1")
 	req.Header.Add(AuthorizationHeader, "Bearer token2")
 	recorder := httptest.NewRecorder()

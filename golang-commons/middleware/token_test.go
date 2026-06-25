@@ -44,7 +44,7 @@ func TestStoreWebToken_WithFakeBearerToken(t *testing.T) {
 	middleware := StoreWebToken()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set(AuthorizationHeader, authHeader)
 	recorder := httptest.NewRecorder()
 
@@ -65,7 +65,7 @@ func TestStoreWebToken_WithoutAuthHeader(t *testing.T) {
 	middleware := StoreWebToken()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	// No authorization header set
 	recorder := httptest.NewRecorder()
 
@@ -86,7 +86,7 @@ func TestStoreWebToken_WithNonBearerToken(t *testing.T) {
 	middleware := StoreWebToken()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set(AuthorizationHeader, "Basic dXNlcjpwYXNz") // Basic auth, not Bearer
 	recorder := httptest.NewRecorder()
 
@@ -107,7 +107,7 @@ func TestStoreWebToken_WithEmptyBearerToken(t *testing.T) {
 	middleware := StoreWebToken()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set(AuthorizationHeader, "Bearer ")
 	recorder := httptest.NewRecorder()
 
@@ -133,7 +133,7 @@ func TestStoreWebToken_WithFakeBearerTokenLowercase(t *testing.T) {
 	middleware := StoreWebToken()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set(AuthorizationHeader, authHeader)
 	recorder := httptest.NewRecorder()
 
@@ -154,7 +154,7 @@ func TestStoreWebToken_WithMalformedAuthHeader(t *testing.T) {
 	middleware := StoreWebToken()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set(AuthorizationHeader, "Bearer") // Missing space and token
 	recorder := httptest.NewRecorder()
 

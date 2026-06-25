@@ -56,12 +56,12 @@ func IsHTTPError(err error) (*HTTPError, bool) {
 
 func IsUnauthorized(err error) bool {
 	httpErr, ok := IsHTTPError(err)
-	return ok && httpErr.StatusCode == 401
+	return ok && httpErr.StatusCode == http.StatusUnauthorized
 }
 
 func IsNotFound(err error) bool {
 	httpErr, ok := IsHTTPError(err)
-	return ok && httpErr.StatusCode == 404
+	return ok && httpErr.StatusCode == http.StatusNotFound
 }
 
 var ErrNoTokenProvider = errors.New("oidc: token provider is required for this operation")

@@ -37,6 +37,7 @@ linters:
     - misspell
     - nakedret
     - nolintlint
+    - usestdlibvars
     - prealloc
     - nilerr
     - revive

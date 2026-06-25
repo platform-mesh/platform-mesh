@@ -42,7 +42,7 @@ func TestStoreSpiffeHeader_WithValidSpiffeHeader(t *testing.T) {
 	middleware := StoreSpiffeHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	// Set the SPIFFE header that jwt.GetSpiffeUrlValue expects
 	req.Header.Set("X-Forwarded-Client-Cert", "Subject=\"CN=test\";URI="+expectedSpiffeID)
 	recorder := httptest.NewRecorder()
@@ -64,7 +64,7 @@ func TestStoreSpiffeHeader_WithoutSpiffeHeader(t *testing.T) {
 	middleware := StoreSpiffeHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	// No SPIFFE header set
 	recorder := httptest.NewRecorder()
 
@@ -85,7 +85,7 @@ func TestStoreSpiffeHeader_WithEmptySpiffeHeader(t *testing.T) {
 	middleware := StoreSpiffeHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set("X-Forwarded-Client-Cert", "")
 	recorder := httptest.NewRecorder()
 
@@ -106,7 +106,7 @@ func TestStoreSpiffeHeader_WithInvalidSpiffeHeader(t *testing.T) {
 	middleware := StoreSpiffeHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set("X-Forwarded-Client-Cert", "InvalidHeaderValue")
 	recorder := httptest.NewRecorder()
 
@@ -131,7 +131,7 @@ func TestStoreSpiffeHeader_WithMultipleSpiffeHeaders(t *testing.T) {
 	middleware := StoreSpiffeHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Add("X-Forwarded-Client-Cert", "Subject=\"CN=test1\";URI=spiffe://example.org/workload1")
 	req.Header.Add("X-Forwarded-Client-Cert", "Subject=\"CN=test2\";URI=spiffe://example.org/workload2")
 	recorder := httptest.NewRecorder()
@@ -162,14 +162,14 @@ func TestStoreSpiffeHeader_Integration(t *testing.T) {
 	middleware := StoreSpiffeHeader()
 	handlerToTest := middleware(nextHandler)
 
-	req := httptest.NewRequest("GET", "http://testing", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	// Test without header first
 	recorder := httptest.NewRecorder()
 	handlerToTest.ServeHTTP(recorder, req)
 	assert.Equal(t, http.StatusOK, recorder.Code)
 
 	// Test with valid header
-	req = httptest.NewRequest("GET", "http://testing", nil)
+	req = httptest.NewRequest(http.MethodGet, "http://testing", nil)
 	req.Header.Set("X-Forwarded-Client-Cert", "Subject=\"CN=test\";URI=spiffe://example.org/test")
 	recorder = httptest.NewRecorder()
 	handlerToTest.ServeHTTP(recorder, req)

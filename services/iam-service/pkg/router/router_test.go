@@ -127,7 +127,7 @@ func TestCreateRouter_LocalEnvironment_EnablesPlayground(t *testing.T) {
 	router := CreateRouter(commonCfg, serviceCfg, resolver, log, nil, createEmptyDirectiveRoot())
 
 	// Assert - Test playground endpoint
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -151,7 +151,7 @@ func TestCreateRouter_ProductionEnvironment_DisablesPlayground(t *testing.T) {
 	router := CreateRouter(commonCfg, serviceCfg, resolver, log, nil, createEmptyDirectiveRoot())
 
 	// Assert - Test playground endpoint should return 404
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -172,7 +172,7 @@ func TestCreateRouter_GraphQLEndpoint_Available(t *testing.T) {
 	router := CreateRouter(commonCfg, serviceCfg, resolver, log, nil, createEmptyDirectiveRoot())
 
 	// Assert - Test GraphQL endpoint responds
-	req := httptest.NewRequest("POST", "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -207,7 +207,7 @@ func TestCreateRouter_WithMiddleware(t *testing.T) {
 	router := CreateRouter(commonCfg, serviceCfg, resolver, log, middlewares, createEmptyDirectiveRoot())
 
 	// Assert - Test middleware is applied to GraphQL endpoint
-	req := httptest.NewRequest("POST", "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -300,7 +300,7 @@ func TestCreateRouter_MiddlewareOrder(t *testing.T) {
 	router := CreateRouter(commonCfg, serviceCfg, resolver, log, middlewares, createEmptyDirectiveRoot())
 
 	// Assert - Test middleware order
-	req := httptest.NewRequest("POST", "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -328,7 +328,7 @@ func TestCreateRouter_EmptyMiddlewareSlice(t *testing.T) {
 	assert.NotNil(t, router)
 
 	// Should still work without middleware
-	req := httptest.NewRequest("POST", "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -354,7 +354,7 @@ func TestCreateRouter_NilMiddleware(t *testing.T) {
 	assert.NotNil(t, router)
 
 	// Should still work without middleware
-	req := httptest.NewRequest("POST", "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query": "{ __typename }"}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -378,7 +378,7 @@ func TestCreateRouter_GraphQLIntrospection(t *testing.T) {
 
 	// Assert - Test introspection query
 	introspectionQuery := `{"query": "{ __schema { types { name } } }"}`
-	req := httptest.NewRequest("POST", "/graphql", strings.NewReader(introspectionQuery))
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(introspectionQuery))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
