@@ -18,7 +18,6 @@ run:
 linters:
   default: none
   enable:
-    - copyloopvar
     - dupl
     - errcheck
     - goconst

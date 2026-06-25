@@ -423,7 +423,6 @@ func (s *Service) fetchUsersInParallel(ctx context.Context, realm string, emails
 
 	// Launch goroutines for each email using errgroup
 	for _, email := range emails {
-		email := email // capture loop variable
 		g.Go(func() error {
 			user, err := s.fetchUserFromKeycloak(gCtx, realm, email)
 			if err != nil {
