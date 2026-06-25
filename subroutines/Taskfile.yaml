@@ -18,7 +18,7 @@ includes:
   # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
   # apigen), installed once into the root bin/ and reused by every component.
   tools:
-    taskfile: ../../tools/Taskfile.yaml
+    taskfile: ../tools/Taskfile.yaml
     dir: .
 
 tasks:

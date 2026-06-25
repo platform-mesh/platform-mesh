@@ -22,6 +22,10 @@ limitations under the License.
 //
 //	apis               apis/v<X.Y.Z>               go-gettable module tag for
 //	                                               go.platform-mesh.io/apis (no image)
+//	golang-commons     golang-commons/v<X.Y.Z>     golang-commons.yml: go-gettable module
+//	                                               tag + GitHub release (no image)
+//	subroutines        subroutines/v<X.Y.Z>        subroutines.yml: go-gettable module
+//	                                               tag + GitHub release (no image)
 //	account-operator   account-operator/v<X.Y.Z>   account-operator.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
 //	backup-operator    backup-operator/v<X.Y.Z>    backup-operator.yml: signed image,
@@ -101,6 +105,8 @@ type component struct {
 // that published version.
 var componentOrder = []string{
 	"apis",
+	"golang-commons",
+	"subroutines",
 	"account-operator",
 	"backup-operator",
 	"extension-manager-operator",
@@ -117,6 +123,8 @@ var componentOrder = []string{
 
 var components = map[string]component{
 	"apis":                        {"apis/v", "go-gettable module tag for go.platform-mesh.io/apis (no image)"},
+	"golang-commons":              {"golang-commons/v", "golang-commons.yml: go-gettable module tag for go.platform-mesh.io/golang-commons, cuts a GitHub release (no image)"},
+	"subroutines":                 {"subroutines/v", "subroutines.yml: go-gettable module tag for go.platform-mesh.io/subroutines, cuts a GitHub release (no image)"},
 	"account-operator":            {"account-operator/v", "account-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"backup-operator":             {"backup-operator/v", "backup-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"extension-manager-operator":  {"extension-manager-operator/v", "extension-manager-operator.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
@@ -451,6 +459,8 @@ Usage:
 
 Components:
   apis                         apis/v<X.Y.Z>                         (go-gettable module tag, no image)
+  golang-commons               golang-commons/v<X.Y.Z>               (go-gettable module tag + GitHub release, no image)
+  subroutines                  subroutines/v<X.Y.Z>                  (go-gettable module tag + GitHub release, no image)
   account-operator             account-operator/v<X.Y.Z>             (signed image + release + chart + SBOM + OCM)
   backup-operator              backup-operator/v<X.Y.Z>              (signed image + release + chart + SBOM + OCM)
   extension-manager-operator   extension-manager-operator/v<X.Y.Z>   (signed image + release + chart + SBOM + OCM)
