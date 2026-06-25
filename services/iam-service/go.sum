@@ -241,8 +241,8 @@ go.platform-mesh.io/account-operator v0.0.0-20260622214312-00032b10b96f h1:18uUS
 go.platform-mesh.io/account-operator v0.0.0-20260622214312-00032b10b96f/go.mod h1:CAm4BkaiJkSXmwDW6DgdEqHjnaZrlJIWXTVyJVwC+7A=
 go.platform-mesh.io/apis v0.0.1 h1:7nbMtJuqnc9IPoW/71MdNYislddDjnXBAyCHOPhEnSQ=
 go.platform-mesh.io/apis v0.0.1/go.mod h1:cxnujpRm66cKk04J+CmiQTBz12I7xFCTQdGShF1NYqE=
-go.platform-mesh.io/golang-commons v0.0.0-20260622214312-00032b10b96f h1:ts1CRVB+MySupyJG8TX3sw++ZUxdW5AdP2w0etHclwc=
-go.platform-mesh.io/golang-commons v0.0.0-20260622214312-00032b10b96f/go.mod h1:9EGWluDQNEoXEtcyYHWxfrajSUceI51U5RDm/L8klS0=
+go.platform-mesh.io/golang-commons v0.18.0 h1:PuKBEKAefZ9f3jo+arNKKe9S8iT+WjotTjZy11DSKC4=
+go.platform-mesh.io/golang-commons v0.18.0/go.mod h1:HKL0MnM+nCB6WywM4+MQDaKg2RPDxDganOQ0i2NJNTo=
 go.platform-mesh.io/subroutines v0.6.0 h1:COsEDc+ID6qvJStyGZW+5t3H7JSrqYkt+KOYTiFoAew=
 go.platform-mesh.io/subroutines v0.6.0/go.mod h1:77Mbhq6H7aGTUzLmiFk0qJJA4obWviyDcvxQt4HHYRQ=
 go.uber.org/goleak v1.3.1-0.20251210191316-2b7fd8a0d244 h1:OdZ8e4E9yDUGiis9x2ta/Ec5yhMAKT6ZivRvakyxC7E=

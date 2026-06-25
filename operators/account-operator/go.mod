@@ -14,7 +14,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.platform-mesh.io/apis v0.0.1
-	go.platform-mesh.io/golang-commons v0.0.0-20260622145940-383b09051f2a
+	go.platform-mesh.io/golang-commons v0.18.0
 	go.platform-mesh.io/subroutines v0.6.0
 	k8s.io/api v0.35.4
 	k8s.io/apimachinery v0.35.4

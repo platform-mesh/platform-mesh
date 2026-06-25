@@ -22,7 +22,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.platform-mesh.io/apis v0.0.1
-	go.platform-mesh.io/golang-commons v0.0.0-20260622163530-6da3dc047e52
+	go.platform-mesh.io/golang-commons v0.18.0
 	go.platform-mesh.io/subroutines v0.6.0
 	golang.org/x/sync v0.21.0
 	gopkg.in/yaml.v3 v3.0.1

@@ -6,7 +6,7 @@ require (
 	github.com/kcp-dev/sdk v0.31.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
-	go.platform-mesh.io/golang-commons v0.0.0-20260622145940-383b09051f2a
+	go.platform-mesh.io/golang-commons v0.18.0
 	go.platform-mesh.io/subroutines v0.6.0
 	k8s.io/api v0.35.4
 	k8s.io/apiextensions-apiserver v0.35.4

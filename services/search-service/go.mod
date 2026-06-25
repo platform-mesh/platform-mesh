@@ -9,7 +9,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.platform-mesh.io/apis v0.0.1
-	go.platform-mesh.io/golang-commons v0.0.0-20260622214312-00032b10b96f
+	go.platform-mesh.io/golang-commons v0.18.0
 	google.golang.org/grpc v1.81.1
 	k8s.io/apimachinery v0.35.4
 	k8s.io/client-go v0.35.4
