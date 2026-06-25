@@ -385,7 +385,7 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 		}
 
 		// If we got fewer users than page size, we've reached the end
-		if len(users) < int(pageSize) {
+		if len(users) < pageSize {
 			log.Debug().
 				Int("page", currentPage).
 				Int("users_on_page", len(users)).

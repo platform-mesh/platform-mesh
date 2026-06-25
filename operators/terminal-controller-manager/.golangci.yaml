@@ -29,7 +29,6 @@ linters:
     - nakedret
     - noctx
     - staticcheck
-    - unconvert
     - unparam
     - unused
     - whitespace

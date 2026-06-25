@@ -103,7 +103,7 @@ func (c *UserCache) Clear() {
 
 // Size returns the number of cached users
 func (c *UserCache) Size() int {
-	return int(c.cache.Len())
+	return c.cache.Len()
 }
 
 // Stats returns cache statistics
@@ -111,9 +111,9 @@ func (c *UserCache) Stats() CacheStats {
 	metrics := c.cache.Metrics()
 
 	return CacheStats{
-		Total:   int(c.cache.Len()),
-		Active:  int(c.cache.Len()), // ttlcache automatically removes expired items
-		Expired: 0,                  // expired items are automatically cleaned up
+		Total:   c.cache.Len(),
+		Active:  c.cache.Len(), // ttlcache automatically removes expired items
+		Expired: 0,             // expired items are automatically cleaned up
 		TTL:     c.ttl,
 		Hits:    metrics.Hits,
 		Misses:  metrics.Misses,

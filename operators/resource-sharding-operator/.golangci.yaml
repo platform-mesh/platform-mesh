@@ -26,7 +26,6 @@ linters:
     - prealloc
     - revive
     - staticcheck
-    - unconvert
     - unparam
     - unused
   settings:
