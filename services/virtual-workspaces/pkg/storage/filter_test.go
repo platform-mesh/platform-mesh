@@ -157,7 +157,7 @@ func TestContentConfigurationLookup_ExcludesContentForFromLocalWorkspace(t *test
 		{
 			name:          "empty result when all CCs have content-for label",
 			allCCs:        []unstructured.Unstructured{providerProjectedCC},
-			expectedNames: nil,
+			expectedNames: []string{},
 		},
 	}
 
