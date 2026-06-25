@@ -83,7 +83,6 @@ type CommonServiceConfig struct {
 }
 
 func NewDefaultConfig() *CommonServiceConfig {
-
 	config := &CommonServiceConfig{
 		DebugLabelValue:         "",
 		MaxConcurrentReconciles: 10,

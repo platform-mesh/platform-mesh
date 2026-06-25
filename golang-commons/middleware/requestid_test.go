@@ -29,7 +29,6 @@ import (
 )
 
 func TestSetRequestIdWithIncomingHeader(t *testing.T) {
-
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		val := GetRequestId(r.Context())
 		assert.Equal(t, "123", val)
@@ -47,7 +46,6 @@ func TestSetRequestIdWithIncomingHeader(t *testing.T) {
 }
 
 func TestSetRequestIdWitoutIncomingHeader(t *testing.T) {
-
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		val := GetRequestId(r.Context())
 		assert.Len(t, val, 36)

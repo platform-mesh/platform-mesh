@@ -32,7 +32,6 @@ import (
 var cache = expirable.NewLRU[string, string](10, nil, 10*time.Minute)
 
 func GetStoreIDForTenant(ctx context.Context, client openfgav1.OpenFGAServiceClient, tenantID string) (string, error) {
-
 	cacheKey := "tenant-" + tenantID
 	s, ok := cache.Get(cacheKey)
 	if ok && s != "" {
@@ -56,7 +55,6 @@ func GetStoreIDForTenant(ctx context.Context, client openfgav1.OpenFGAServiceCli
 }
 
 func GetModelIDForTenant(ctx context.Context, conn openfgav1.OpenFGAServiceClient, tenantID string) (string, error) {
-
 	cacheKey := "model-" + tenantID
 	s, ok := cache.Get(cacheKey)
 	if ok && s != "" {

@@ -135,6 +135,5 @@ func TestUrlSuffixTransformer_Transform(t *testing.T) {
 				assert.Equal(t, tc.before, tc.expected)
 			}
 		})
-
 	}
 }

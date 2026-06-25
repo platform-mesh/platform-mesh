@@ -55,7 +55,6 @@ func TestKubernetesTokenSource(t *testing.T) {
 	mux.HandleFunc(
 		fmt.Sprintf("/api/v1/namespaces/%s/serviceaccounts/%s/token", serviceAccountName.Namespace, serviceAccountName.Name),
 		func(w http.ResponseWriter, r *http.Request) {
-
 			err := json.NewEncoder(w).Encode(&authenticationv1.TokenRequest{
 				Status: authenticationv1.TokenRequestStatus{
 					Token:               "the-test-token",
@@ -86,7 +85,6 @@ func TestKubernetesTokenSourceInvalid(t *testing.T) {
 	mux.HandleFunc(
 		fmt.Sprintf("/api/v1/namespaces/%s/serviceaccounts/%s/token", serviceAccountName.Namespace, serviceAccountName.Name),
 		func(w http.ResponseWriter, r *http.Request) {
-
 			_, err := w.Write([]byte("some invalid json"))
 			assert.NoError(t, err)
 		},

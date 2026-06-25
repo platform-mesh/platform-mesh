@@ -43,7 +43,6 @@ func TestCaptureErrorNil(t *testing.T) {
 }
 
 func TestCaptureSentryError(t *testing.T) {
-
 	assert.NotPanics(t, func() {
 		err := SentryError(fmt.Errorf("test error"))
 		CaptureSentryError(err, nil)

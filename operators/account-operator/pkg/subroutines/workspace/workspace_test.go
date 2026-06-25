@@ -116,7 +116,6 @@ func TestFinalize(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-
 			mgr := mocks.NewManager(t)
 			cluster := mocks.NewCluster(t)
 			client := mocks.NewClient(t)
@@ -145,7 +144,6 @@ func TestFinalize(t *testing.T) {
 }
 
 func TestProcess(t *testing.T) {
-
 	scheme := runtime.NewScheme()
 	assert.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
 	assert.NoError(t, kcptenancyv1alpha1.AddToScheme(scheme))
@@ -223,7 +221,6 @@ func TestProcess(t *testing.T) {
 					})
 			},
 			k8sMocks: func(m *mocks.Client) {
-
 				m.EXPECT().
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {

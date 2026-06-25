@@ -46,7 +46,6 @@ const defaultMaxReconcileDuration = 24 * time.Hour
 
 // getNextReconcileTime returns a random time between [maxReconcileTime]/2 and [maxReconcileTime] hours
 func getNextReconcileTime(maxReconcileTime time.Duration) time.Duration {
-
 	minTime := maxReconcileTime.Minutes() / 2
 
 	jitter := rand.Int64N(int64(minTime))
@@ -63,7 +62,6 @@ func (s *Spreader) OnNextReconcile(instance runtimeobject.RuntimeObject, log *lo
 
 // SetNextReconcileTime calculates and sets the next reconcile time for the instance
 func (s *Spreader) SetNextReconcileTime(instanceStatusObj api.RuntimeObjectSpreadReconcileStatus, log *logger.Logger) {
-
 	var border = defaultMaxReconcileDuration
 	if in, ok := instanceStatusObj.(GenerateNextReconcileTimer); ok {
 		border = in.GenerateNextReconcileTime()
@@ -87,7 +85,6 @@ func (s *Spreader) RemoveRefreshLabelIfExists(instance runtimeobject.RuntimeObje
 }
 
 func (s *Spreader) ReconcileRequired(instance runtimeobject.RuntimeObject, log *logger.Logger) bool {
-
 	instanceStatusObj := util.MustToInterface[api.RuntimeObjectSpreadReconcileStatus](instance, log)
 	generationChanged := instance.GetGeneration() != instanceStatusObj.GetObservedGeneration()
 	isAfterNextReconcileTime := metav1.Now().UTC().After(instanceStatusObj.GetNextReconcileTime().UTC())

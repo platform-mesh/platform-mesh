@@ -191,7 +191,6 @@ func TestTupleProcessWithStore(t *testing.T) {
 				assert.Nil(t, err)
 				assert.Equal(t, test.store.Status.ManagedTuples, test.store.Spec.Tuples)
 			}
-
 		})
 	}
 }
@@ -352,7 +351,6 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				assert.Nil(t, err)
 				assert.Equal(t, test.store.Status.ManagedTuples, test.store.Spec.Tuples)
 			}
-
 		})
 	}
 }
@@ -441,7 +439,6 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				assert.Nil(t, err)
 				assert.Empty(t, test.store.Status.ManagedTuples)
 			}
-
 		})
 	}
 }
@@ -514,7 +511,6 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 				assert.Nil(t, err)
 				assert.Empty(t, test.store.Status.ManagedTuples)
 			}
-
 		})
 	}
 }

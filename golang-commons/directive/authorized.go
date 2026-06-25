@@ -79,7 +79,6 @@ func Authorized(openfgaClient openfgav1.OpenFGAServiceClient, log *logger.Logger
 	}
 
 	return func(ctx context.Context, obj any, next graphql.Resolver, relation string, entityType *string, entityTypeParamName *string, entityParamName string) (any, error) {
-
 		if openfgaClient == nil {
 			return nil, errors.New("OpenFGAServiceClient is nil. Cannot process request")
 		}

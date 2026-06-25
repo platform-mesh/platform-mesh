@@ -60,7 +60,6 @@ func ClusterPathFrom(ctx context.Context) (logicalcluster.Path, bool) {
 }
 
 func contentConfigurationWithResult(cc *unstructured.UnstructuredList) []unstructured.Unstructured {
-
 	// TODO: this works with unstructed and breaks on api changes, maybe we parse into typed structs instead
 	var results []unstructured.Unstructured
 	for _, cc := range cc.Items {
@@ -77,11 +76,9 @@ func contentConfigurationWithResult(cc *unstructured.UnstructuredList) []unstruc
 }
 
 func ContentConfigurationLookup(client dynamic.ClusterInterface, cfg config.ServiceConfig, providerWorkspaceID string) forwardingregistry.StorageWrapper {
-
 	return forwardingregistry.StorageWrapperFunc(func(resource schema.GroupResource, storage *forwardingregistry.StoreFuncs) {
 		delegateLister := storage.ListerFunc
 		storage.ListerFunc = func(ctx context.Context, options *internalversion.ListOptions) (runtime.Object, error) {
-
 			// Exclude CCs with content-for label from the current workspace.
 			// These are provider-published CCs projected via APIBindings and will be
 			// fetched from their source export workspaces below with proper filtering.

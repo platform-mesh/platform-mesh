@@ -27,7 +27,6 @@ import (
 )
 
 func TestRetry(t *testing.T) {
-
 	t.Run("Is retryable with an internal error", func(t *testing.T) {
 		// Arrange
 		e := apierrors.NewServiceUnavailable("na")

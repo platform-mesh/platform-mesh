@@ -29,7 +29,6 @@ import (
 func TestRecover(t *testing.T) {
 	t.Parallel()
 	t.Run("should recover from panic and log", func(t *testing.T) {
-
 		log := testlogger.New()
 		var wg sync.WaitGroup
 		wg.Add(1)

@@ -130,7 +130,6 @@ func (s *Service) CountUsersForRole(ctx context.Context, rctx graph.ResourceCont
 
 // listUsersParallel performs parallel ListUsers calls for multiple roles
 func (s *Service) listUsersParallel(ctx context.Context, rctx graph.ResourceContext, storeID string, roles []string) ([]*graph.UserRoles, error) {
-
 	type roleResult struct {
 		role  string
 		users *openfgav1.ListUsersResponse

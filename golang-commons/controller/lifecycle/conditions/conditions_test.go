@@ -34,7 +34,6 @@ import (
 
 // Test the setReady function with an empty array
 func TestSetReady(t *testing.T) {
-
 	t.Run("TestSetReady with empty array", func(t *testing.T) {
 		// Given
 		condition := []metav1.Condition{}
@@ -78,7 +77,6 @@ func TestSetReady(t *testing.T) {
 }
 
 func TestSetUnknown(t *testing.T) {
-
 	t.Run("TestSetUnknown with empty array", func(t *testing.T) {
 		// Given
 		cm := NewConditionManager()

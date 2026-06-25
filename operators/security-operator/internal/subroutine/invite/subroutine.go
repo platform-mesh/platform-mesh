@@ -75,7 +75,6 @@ type keycloakClient struct {
 }
 
 func New(ctx context.Context, cfg *config.Config, kcpClientGetter client.KCPClientGetter) (*subroutine, error) {
-
 	issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {

@@ -43,7 +43,6 @@ type responseSuccess struct {
 }
 
 func TestHandlerValidate_Error(t *testing.T) {
-
 	logcfg := logger.DefaultConfig()
 	log, _ := logger.New(logcfg)
 
@@ -72,7 +71,6 @@ func TestHandlerValidate_Error(t *testing.T) {
 }
 
 func TestHandlerValidate_Success(t *testing.T) {
-
 	logcfg := logger.DefaultConfig()
 	log, _ := logger.New(logcfg)
 
@@ -103,7 +101,6 @@ func TestHandlerValidate_Success(t *testing.T) {
 }
 
 func TestYAML_Success(t *testing.T) {
-
 	logcfg := logger.DefaultConfig()
 	log, _ := logger.New(logcfg)
 
@@ -139,7 +136,6 @@ func TestYAML_Success(t *testing.T) {
 }
 
 func TestYAML_FailureWrongType(t *testing.T) {
-
 	logcfg := logger.DefaultConfig()
 	log, _ := logger.New(logcfg)
 
@@ -168,7 +164,6 @@ func TestYAML_FailureWrongType(t *testing.T) {
 }
 
 func TestValidation_Error(t *testing.T) {
-
 	logcfg := logger.DefaultConfig()
 	log, _ := logger.New(logcfg)
 
@@ -231,7 +226,6 @@ func TestHandlerValidate_BodyCloseError(t *testing.T) {
 }
 
 func TestValidation_ErrorMarshallingValidatedResponse(t *testing.T) {
-
 	logcfg := logger.DefaultConfig()
 	log, _ := logger.New(logcfg)
 
@@ -263,6 +257,7 @@ func TestValidation_ErrorMarshallingValidatedResponse(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.GreaterOrEqual(t, len(r.ValidationErrors), 1)
 }
+
 func TestHandlerHealthz(t *testing.T) {
 	logcfg := logger.DefaultConfig()
 	log, _ := logger.New(logcfg)
@@ -304,7 +299,6 @@ func TestHandlerHealthz_Error(t *testing.T) {
 }
 
 func TestValidation_Error2(t *testing.T) {
-
 	logcfg := logger.DefaultConfig()
 	log, _ := logger.New(logcfg)
 

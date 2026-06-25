@@ -671,7 +671,6 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 				},
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
-
 				scheme := getAPIExportPolicyTestScheme()
 
 				// Provider cluster mock

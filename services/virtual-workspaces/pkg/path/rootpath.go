@@ -80,7 +80,6 @@ func NewPathResolver(clusterResolver proxy.ClusterResolver, virtualWorkspaceBase
 			if err != nil {
 				return false, "", requestContext
 			}
-
 		}
 
 		completedContext = storage.WithClusterPath(requestContext, path)

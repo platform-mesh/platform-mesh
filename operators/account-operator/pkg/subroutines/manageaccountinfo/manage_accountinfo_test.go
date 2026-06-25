@@ -373,7 +373,6 @@ func TestManageAccountInfoProcess(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-
 			testProvider := &Provider{clusters: test.clusters}
 
 			emptyConfig := &rest.Config{}

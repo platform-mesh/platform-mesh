@@ -29,7 +29,6 @@ linters:
     - nakedret
     - noctx
     - unparam
-    - whitespace
     - prealloc
 
 linters-settings:

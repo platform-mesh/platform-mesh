@@ -40,7 +40,6 @@ import (
 )
 
 func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
-
 	mux.HandleFunc("/realms/master/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -54,7 +53,6 @@ func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
 	})
 
 	mux.HandleFunc("/realms/master/protocol/openid-connect/token", func(w http.ResponseWriter, r *http.Request) {
-
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
@@ -63,7 +61,6 @@ func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
 		})
 		assert.NoError(t, err)
 	})
-
 }
 
 func TestSubroutineProcess(t *testing.T) {

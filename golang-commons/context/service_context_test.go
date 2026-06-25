@@ -120,7 +120,6 @@ func TestAddAndGetAuthHeaderToContext(t *testing.T) {
 			}
 
 			assert.Equal(t, test.authHeader, val)
-
 		})
 	}
 }

@@ -144,7 +144,6 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj ctrlruntime
 				Expression: "claims.?email_verified.orValue(true) == true || claims.?email_verified.orValue(true) == false",
 				Message:    "Allowing both verified and unverified emails",
 			}}
-
 	}
 
 	orgsClient, err := r.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")

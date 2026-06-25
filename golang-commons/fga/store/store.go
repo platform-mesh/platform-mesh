@@ -57,7 +57,6 @@ func NewWithPrefix(prefix string) *FgaTenantStore {
 }
 
 func (c *FgaTenantStore) GetStoreIDForTenant(ctx context.Context, conn openfgav1.OpenFGAServiceClient, tenantID string) (string, error) {
-
 	cacheKey := "tenant-" + tenantID
 	s, ok := c.cache.Get(cacheKey)
 	if ok && s != "" {
@@ -82,7 +81,6 @@ func (c *FgaTenantStore) GetStoreIDForTenant(ctx context.Context, conn openfgav1
 }
 
 func (c *FgaTenantStore) GetModelIDForTenant(ctx context.Context, conn openfgav1.OpenFGAServiceClient, tenantID string) (string, error) {
-
 	cacheKey := "model-" + tenantID
 	s, ok := c.cache.Get(cacheKey)
 	if ok && s != "" {

@@ -92,7 +92,6 @@ var ErrInvalidKeyValPair = errors.New("invalid key value pair")
 func (l *Logger) ChildLoggerWithAttributes(keyVal ...string) (*Logger, error) {
 	if len(keyVal)%2 != 0 {
 		return nil, ErrInvalidKeyValPair
-
 	}
 	var key string
 	for i, v := range keyVal {

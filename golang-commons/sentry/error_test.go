@@ -33,7 +33,6 @@ func TestSentryError(t *testing.T) {
 
 		// test if it still fulfills the error interface
 		assert.Implements(t, (*error)(nil), sentryError)
-
 	})
 
 	t.Run("Sentry AddTags", func(t *testing.T) {

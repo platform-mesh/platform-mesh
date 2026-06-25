@@ -195,7 +195,6 @@ func TestLifecycle(t *testing.T) {
 		delay := l.rateLimiter.When(req)
 		assert.Equal(t, expectedCfg.StaticRequeueDelay, delay)
 	})
-
 }
 
 type testReconciler struct {

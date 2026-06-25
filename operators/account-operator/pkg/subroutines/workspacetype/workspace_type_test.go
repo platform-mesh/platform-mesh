@@ -129,7 +129,6 @@ func TestFinalize(t *testing.T) {
 			} else {
 				assert.NoError(t, finalizeErr)
 			}
-
 		})
 	}
 }

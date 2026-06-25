@@ -57,7 +57,6 @@ func BuildVirtualWorkspace(
 	kcpClusterClient kcpclientset.ClusterInterface,
 	virtualWorkspaceBaseURL string,
 ) virtualrootapiserver.NamedVirtualWorkspace {
-
 	clusterResolver := proxy.NewClusterResolver(kcpClusterClient)
 
 	return virtualrootapiserver.NamedVirtualWorkspace{

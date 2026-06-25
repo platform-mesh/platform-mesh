@@ -50,7 +50,6 @@ func (mc *graphMockClient) Run(_ context.Context, _ *graphql.Request, resp any) 
 }
 
 func TestTenantReader(t *testing.T) {
-
 	t.Run("returns an error without a jwt", func(t *testing.T) {
 		// Arrange
 		retriever, mockClient := createReaderWithMock()
@@ -116,7 +115,6 @@ func TestTenantReader(t *testing.T) {
 			assert.Equal(t, 1, mockClient.callCount)
 		})
 	})
-
 }
 
 func createReaderWithMock() (*graphqlTenantReader, *graphMockClient) {

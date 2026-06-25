@@ -149,7 +149,6 @@ func TestAuthorizationModelProcess(t *testing.T) {
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
 				fga.EXPECT().WriteAuthorizationModel(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, wamr *openfgav1.WriteAuthorizationModelRequest, co ...grpc.CallOption) (*openfgav1.WriteAuthorizationModelResponse, error) {
-
 						m := openfgav1.AuthorizationModel{
 							SchemaVersion:   wamr.SchemaVersion,
 							TypeDefinitions: wamr.TypeDefinitions,
@@ -483,7 +482,6 @@ type core_namespace
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
 			fga := mocks.NewMockOpenFGAServiceClient(t)
 			if test.fgaMocks != nil {
 				test.fgaMocks(fga)

@@ -65,7 +65,6 @@ type OpenFGATestServer struct {
 }
 
 func NewOpenFGATestServer(ctx context.Context, opts ...TestServerOption) (*OpenFGATestServer, error) {
-
 	testServer := &OpenFGATestServer{}
 
 	cfg := &config{

@@ -36,6 +36,7 @@ linters:
     - staticcheck
     - unconvert
     - unused
+    - whitespace
   settings:
     importas:
       alias:
@@ -72,6 +73,11 @@ linters:
       - third_party$
       - builtin$
       - examples$
+
+issues:
+  # defaults to 3, which often needlessly hides issues and forces
+  # to re-run the linter across the entire repo many times
+  max-same-issues: 0
 
 formatters:
   enable:

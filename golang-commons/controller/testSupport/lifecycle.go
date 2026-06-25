@@ -92,7 +92,6 @@ func (t TestSpreader) ToRuntimeObjectSpreadReconcileStatusInterface() (api.Runti
 }
 
 func (t TestSpreader) MustToRuntimeObjectSpreadReconcileStatusInterface() api.RuntimeObjectSpreadReconcileStatus {
-
 	//TODO implement me
 	panic("implement me")
 }

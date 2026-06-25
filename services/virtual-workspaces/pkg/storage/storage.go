@@ -36,7 +36,6 @@ import (
 
 func CreateStorageProviderFunc(clusterClient dynamic.ClusterInterface, filters ...registry.StorageWrapper) func(ctx context.Context) (apiserver.RestProviderFunc, error) {
 	return func(ctx context.Context) (apiserver.RestProviderFunc, error) {
-
 		return func(resource schema.GroupVersionResource, kind, listKind schema.GroupVersionKind, typer runtime.ObjectTyper, tableConvertor rest.TableConvertor, namespaceScoped bool, schemaValidator validation.SchemaValidator, subresourcesSchemaValidator map[string]validation.SchemaValidator, structuralSchema *structuralschema.Structural) (mainStorage rest.Storage, subresourceStorages map[string]rest.Storage) {
 			statusSchemaValidate, statusEnabled := subresourcesSchemaValidator["status"]
 			var statusSpec *apiextensions.CustomResourceSubresourceStatus
@@ -132,6 +131,5 @@ func CreateStorageProviderFunc(clusterClient dynamic.ClusterInterface, filters .
 				ResetFieldsStrategyFunc: storage.ResetFieldsStrategyFunc,
 			}, subresourceStorages
 		}, nil
-
 	}
 }

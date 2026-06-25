@@ -23,7 +23,6 @@ import (
 )
 
 func (c *OpenFGAClient) Writes(ctx context.Context, writes []*openfgav1.TupleKey, deletes []*openfgav1.TupleKeyWithoutCondition, tenantId string) (bool, error) {
-
 	storeId, err := c.StoreId(ctx, tenantId)
 	if err != nil {
 		return false, err

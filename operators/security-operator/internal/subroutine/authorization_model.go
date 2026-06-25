@@ -220,7 +220,6 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 		if string(currentRaw) == string(desiredRaw) {
 			return subroutines.OK(), nil
 		}
-
 	}
 
 	res, err := a.fga.WriteAuthorizationModel(ctx, &openfgav1.WriteAuthorizationModelRequest{
@@ -240,7 +239,6 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 }
 
 func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template) (bytes.Buffer, error) {
-
 	scope := apiextensionsv1.ClusterScoped
 	if resource.Namespaced {
 		scope = apiextensionsv1.NamespaceScoped

@@ -113,7 +113,6 @@ func (m *Middleware) SetKCPUserContext() func(http.Handler) http.Handler {
 }
 
 func checkToken(ctx context.Context, authHeader string, subdomain string, cfg *rest.Config) (bool, error) {
-
 	log := logger.LoadLoggerFromContext(ctx)
 	clusterUrl, err := url.Parse(cfg.Host)
 	if err != nil {

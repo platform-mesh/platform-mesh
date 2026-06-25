@@ -108,7 +108,6 @@ func TestCreateRouter(t *testing.T) {
 			router.ServeHTTP(rr, req)
 
 			assert.Equal(t, tt.expectCode, rr.Code)
-
 		})
 	}
 }

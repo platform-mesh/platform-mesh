@@ -67,7 +67,6 @@ var (
 // It will take care of automatically refreshing the credential whenever needed, so that the client that consumes this TokenSource
 // has always an up to date credential available.
 func NewKubernetesTokenSource(cfg *rest.Config, opts *KubernetesTokenSourceConfig) (*kubernetesTokenSource, error) {
-
 	if opts.ServiceAccount.Name == "" || opts.ServiceAccount.Namespace == "" {
 		return nil, ErrServiceAccountMissing
 	}

@@ -231,7 +231,6 @@ func TestAuthorized(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-
 			openfgaMock := mocks.NewOpenFGAServiceClient(t)
 			if test.fgaMocks != nil {
 				test.fgaMocks(openfgaMock)
@@ -294,7 +293,6 @@ func TestAuthorizedWithSpiffeeHeader(t *testing.T) {
 	nextFn := func(ctx context.Context) (any, error) { return nil, nil }
 	_, err := Authorized(openfgaMock, logger.New().Logger)(ctx, nil, nextFn, "member", String("project"), nil, "projectId")
 	assert.NoError(t, err)
-
 }
 
 func TestAuthorizedEdgeCases2(t *testing.T) {
@@ -349,7 +347,6 @@ func TestAuthorizedEdgeCases2(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-
 			openfgaMock := mocks.NewOpenFGAServiceClient(t)
 			if test.fgaMocks != nil {
 				test.fgaMocks(openfgaMock)
@@ -376,7 +373,6 @@ func TestAuthorizedEdgeCases2(t *testing.T) {
 			assert.Equal(t, test.expectedError, err)
 		})
 	}
-
 }
 
 func TestAuthorizedEdgeCases(t *testing.T) {
@@ -407,7 +403,6 @@ func TestAuthorizedEdgeCases(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-
 			openfgaMock := mocks.NewOpenFGAServiceClient(t)
 			if test.fgaMocks != nil {
 				test.fgaMocks(openfgaMock)
@@ -480,7 +475,6 @@ func TestAuthorizedEdgeCases(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-
 			nextFn := func(ctx context.Context) (any, error) { return nil, nil }
 
 			log := logger.New()
@@ -502,5 +496,4 @@ func TestAuthorizedEdgeCases(t *testing.T) {
 			assert.Equal(t, test.expectedError.Error(), err.Error())
 		})
 	}
-
 }
