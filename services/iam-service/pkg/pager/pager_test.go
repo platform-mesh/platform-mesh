@@ -377,7 +377,7 @@ func TestDefaultPager_PaginateUsers_LastPage(t *testing.T) {
 // Helper function to create test user roles data
 func createTestUserRoles(count int) []*graph.UserRoles {
 	userRoles := make([]*graph.UserRoles, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		userRoles[i] = &graph.UserRoles{
 			User: &graph.User{
 				UserID: "",
@@ -398,7 +398,7 @@ func createTestUserRoles(count int) []*graph.UserRoles {
 // Helper function to create test users data
 func createTestUsers(count int) []*graph.User {
 	users := make([]*graph.User, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		users[i] = &graph.User{
 			UserID: "",
 			Email:  "user" + string(rune('0'+i%10)) + "@example.com", // Simple pattern for testing

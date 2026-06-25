@@ -32,6 +32,7 @@ linters:
     - govet
     - importas
     - ineffassign
+    - intrange
     - misspell
     - nakedret
     - prealloc

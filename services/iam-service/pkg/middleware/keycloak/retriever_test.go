@@ -386,7 +386,7 @@ func TestKeycloakIDMRetriever_GetIDMTenant_Performance(t *testing.T) {
 	issuer := "https://auth.example.com/realms/performance-test"
 
 	// Test that the method can handle multiple calls efficiently
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		realm, err := retriever.GetIDMTenant(issuer)
 		assert.NoError(t, err)
 		assert.Equal(t, "performance-test", realm)
@@ -400,11 +400,11 @@ func TestKeycloakIDMRetriever_GetIDMTenant_ConcurrentSafety(t *testing.T) {
 	// Test concurrent access to the method
 	done := make(chan bool, 10)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			defer func() { done <- true }()
 
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				realm, err := retriever.GetIDMTenant(issuer)
 				assert.NoError(t, err)
 				assert.Equal(t, "concurrent-test", realm)
@@ -413,7 +413,7 @@ func TestKeycloakIDMRetriever_GetIDMTenant_ConcurrentSafety(t *testing.T) {
 	}
 
 	// Wait for all goroutines to complete
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 }

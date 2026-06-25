@@ -166,7 +166,7 @@ func TestTenantRetriever(t *testing.T) {
 			retriever, mockClient := createRetrieverWithMock()
 
 			// simulate multiple requests filling/reading the cache with the same values
-			for i := 0; i < 9; i++ {
+			for i := range 9 {
 				wg.Add(1)
 				go func(in int) {
 					defer wg.Done()

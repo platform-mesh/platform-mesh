@@ -121,8 +121,8 @@ func ancestorOfCause(ourStack []uintptr, causeStack errors.StackTrace) bool {
 	}
 
 	// We know the sizes are compatible, so compare program counters from back to front.
-	for idx := 0; idx < len(ourStack); idx++ {
-		if ourStack[len(ourStack)-1] != (uintptr)(causeStack[len(causeStack)-1]) {
+	for idx := range ourStack {
+		if ourStack[len(ourStack)-idx-1] != (uintptr)(causeStack[len(causeStack)-idx-1]) {
 			return false
 		}
 	}

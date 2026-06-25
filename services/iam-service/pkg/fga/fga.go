@@ -175,7 +175,7 @@ func (s *Service) listUsersParallel(ctx context.Context, rctx graph.ResourceCont
 	allUserIDToRoles := UserIDToRoles{}
 	var mu sync.Mutex
 
-	for i := 0; i < len(roles); i++ {
+	for range roles {
 		result := <-resultChan
 
 		// Handle any errors
