@@ -53,8 +53,8 @@ func (a *AccountDefaulter) Default(ctx context.Context, obj runtime.Object) erro
 	return nil
 }
 
-var _ webhook.CustomDefaulter = &AccountDefaulter{} // nolint:staticcheck
-var _ webhook.CustomValidator = &AccountValidator{} // nolint:staticcheck
+var _ webhook.CustomDefaulter = &AccountDefaulter{} //nolint:staticcheck
+var _ webhook.CustomValidator = &AccountValidator{} //nolint:staticcheck
 
 type AccountValidator struct {
 	OrganizationNameDenyList []string

@@ -783,7 +783,7 @@ func TestInviteNew_OIDCProviderError(t *testing.T) {
 
 	_, err := invite.New(ctx, &config.Config{
 		Keycloak: config.KeycloakConfig{BaseURL: srv.URL, ClientID: "security-operator"},
-	}, nil) //nolint:staticcheck
+	}, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "creating OIDC provider")
 }
@@ -851,7 +851,7 @@ func TestHelperFunctions(t *testing.T) {
 			BaseURL:  srv.URL,
 			ClientID: "security-operator",
 		},
-	}, nil) //nolint:staticcheck
+	}, nil)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "Invite", s.GetName())

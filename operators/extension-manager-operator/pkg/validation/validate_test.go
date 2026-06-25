@@ -283,7 +283,7 @@ func TestValidate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.schema != nil {
-				cC.WithSchema(tc.schema) // nolint: errcheck
+				cC.WithSchema(tc.schema) //nolint:errcheck
 			}
 			result, err := cC.Validate([]byte(tc.input), tc.contentType)
 

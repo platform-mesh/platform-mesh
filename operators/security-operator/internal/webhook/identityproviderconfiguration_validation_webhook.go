@@ -53,7 +53,7 @@ func SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx context.
 		Complete()
 }
 
-var _ webhook.CustomValidator = (*identityProviderConfigurationValidator)(nil) // nolint:staticcheck
+var _ webhook.CustomValidator = (*identityProviderConfigurationValidator)(nil) //nolint:staticcheck
 var _ realmChecker = (*keycloak.AdminClient)(nil)
 
 type identityProviderConfigurationValidator struct {

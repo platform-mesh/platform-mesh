@@ -393,7 +393,7 @@ func (suite *ContentConfigurationSubroutineTestSuite) Test_IncompatibleSchemaUpd
 	)
 }
 
-func getCondition(conditions []metav1.Condition, conditionType string) metav1.Condition { // nolint: unparam
+func getCondition(conditions []metav1.Condition, conditionType string) metav1.Condition { //nolint:unparam
 	for _, condition := range conditions {
 		if condition.Type == conditionType {
 			return condition

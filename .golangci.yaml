@@ -36,6 +36,7 @@ linters:
     - intrange
     - misspell
     - nakedret
+    - nolintlint
     - prealloc
     - nilerr
     - revive
