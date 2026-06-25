@@ -38,6 +38,7 @@ linters:
     - nakedret
     - nolintlint
     - usestdlibvars
+    - predeclared
     - prealloc
     - nilerr
     - revive
