@@ -26,7 +26,6 @@ linters:
     - gocritic
     - goprintffuncname
     - gosec
-    - ineffassign
     - nakedret
     - noctx
     - staticcheck

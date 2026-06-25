@@ -21,7 +21,6 @@ linters:
   enable:
     - staticcheck
     - unused
-    - ineffassign
 
 formatters:
   enable:

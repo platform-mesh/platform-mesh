@@ -30,6 +30,7 @@ linters:
     - errcheck
     - govet
     - importas
+    - ineffassign
     - misspell
   settings:
     importas:

@@ -21,7 +21,6 @@ linters:
     - dupl
     - ginkgolinter
     - gocyclo
-    - ineffassign
     - lll
     - nakedret
     - prealloc
