@@ -32,6 +32,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -90,7 +91,7 @@ func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *plat
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(
 			&corev1alpha1.ProviderPermissions{},
-			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
+			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[ctrlruntimeclient.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(r.mapProviderPermissionsToAPIBindings)
 			},
 			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
@@ -98,7 +99,7 @@ func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *plat
 		Complete(r)
 }
 
-func (r *APIBindingReconciler) mapProviderPermissionsToAPIBindings(ctx context.Context, obj client.Object) []mcreconcile.Request {
+func (r *APIBindingReconciler) mapProviderPermissionsToAPIBindings(ctx context.Context, obj ctrlruntimeclient.Object) []mcreconcile.Request {
 	pp, ok := obj.(*corev1alpha1.ProviderPermissions)
 	if !ok {
 		return nil

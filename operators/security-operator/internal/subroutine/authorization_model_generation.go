@@ -128,11 +128,11 @@ type modelInput struct {
 	Patch  string
 	Watch  string
 
-	Roles                 []corev1alpha1.RoleDefinition
+	Roles                 []pmcorev1alpha1.RoleDefinition
 	AdditionalPermissions map[string]string
 }
 
-func getRolesForResource(resourceRoles []corev1alpha1.ResourceRoles, permissionKey string) []corev1alpha1.RoleDefinition {
+func getRolesForResource(resourceRoles []pmcorev1alpha1.ResourceRoles, permissionKey string) []pmcorev1alpha1.RoleDefinition {
 	for _, rr := range resourceRoles {
 		if rr.GroupResource == permissionKey {
 			return rr.Roles
@@ -290,13 +290,13 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("getting APIExport: %w", err)
 	}
 
-	var providerPermissionsList corev1alpha1.ProviderPermissionsList
+	var providerPermissionsList pmcorev1alpha1.ProviderPermissionsList
 	err = apiExportCluster.GetClient().List(ctx, &providerPermissionsList)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("listing ProviderPermissions: %w", err)
 	}
 
-	var providerPermissions *corev1alpha1.ProviderPermissions
+	var providerPermissions *pmcorev1alpha1.ProviderPermissions
 	for i := range providerPermissionsList.Items {
 		if providerPermissionsList.Items[i].Spec.APIExportRef.Name == apiExport.Name {
 			providerPermissions = &providerPermissionsList.Items[i]
