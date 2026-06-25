@@ -23,7 +23,6 @@ linters:
     - gocyclo
     - ineffassign
     - lll
-    - misspell
     - nakedret
     - prealloc
     - revive

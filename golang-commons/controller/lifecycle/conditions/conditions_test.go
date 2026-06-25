@@ -181,7 +181,7 @@ func TestSubroutineCondition(t *testing.T) {
 	log, err := logger.New(logger.DefaultConfig())
 	require.NoError(t, err)
 
-	// Add a test case to set a subroutine condition to ready if it was successfull
+	// Add a test case to set a subroutine condition to ready if it was successful
 	t.Run("TestSetSubroutineConditionReady", func(t *testing.T) {
 		// Given
 		cm := NewConditionManager()

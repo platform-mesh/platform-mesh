@@ -127,7 +127,7 @@ func (l *storeIDLoader) Load(c *ttlcache.Cache[string, string], storeName string
 	return wantedItem
 }
 
-// Err returns the last error occured during Load. See [0] for why it works like
+// Err returns the last error occurred during Load. See [0] for why it works like
 // this.
 // [0] https://github.com/jellydator/ttlcache/issues/74#issuecomment-1133012806
 func (l *storeIDLoader) Err() error {

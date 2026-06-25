@@ -35,7 +35,7 @@ type Subroutine interface {
 // Terminator can be implemeted to act as KCP terminator[0], i.e. act on
 // reconciles for LogicalClusters with deletion timestamp but without finalizer.
 // Use together with LifecycleManager.WithTerminator(string) to ensure removal
-// of the terminator on successfull reconciliation.
+// of the terminator on successful reconciliation.
 //
 // [0] https://docs.kcp.io/kcp/v0.30/concepts/workspaces/workspace-termination/
 type Terminator interface {
@@ -45,7 +45,7 @@ type Terminator interface {
 // Initializer can be implemented to act as KCP initializer[0], i.e. act on
 // reconciles for LogicalClusters without deletion timestamp. Use together with
 // LifecycleManager.WithInitializer(string) to ensure removal of the terminator
-// on successfull reconciliation.
+// on successful reconciliation.
 //
 // [0]
 // https://docs.kcp.io/kcp/v0.30/concepts/workspaces/workspace-initialization/

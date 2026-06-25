@@ -101,7 +101,7 @@ func (c Config) initProvider(ctx context.Context, exporter sdkTrace.SpanExporter
 		),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create resouce: %w", err)
+		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
 	bsp := sdkTrace.NewBatchSpanProcessor(exporter)

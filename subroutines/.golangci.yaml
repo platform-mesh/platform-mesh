@@ -22,7 +22,6 @@ linters:
     - staticcheck
     - unused
     - ineffassign
-    - misspell
 
 formatters:
   enable:

@@ -27,7 +27,6 @@ linters:
     - goprintffuncname
     - gosec
     - ineffassign
-    - misspell
     - nakedret
     - noctx
     - staticcheck

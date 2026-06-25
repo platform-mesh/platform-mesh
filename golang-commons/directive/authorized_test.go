@@ -97,12 +97,12 @@ func TestAuthorized(t *testing.T) {
 			expectedError:       fmt.Errorf("unable to extract param from request for given paramName %q", "non-existent"),
 		},
 		{
-			name:            "should error if the entityType is set and but emtpy",
+			name:            "should error if the entityType is set and but empty",
 			entityParamName: "existent",
 			entityType:      String(""),
 			graphqlArgs: map[string]any{
 				"existent": "something",
-				"emtpy":    "",
+				"empty":    "",
 			},
 			expectedError: errors.New("make sure to either provide entityType or entityTypeParamName"),
 		},

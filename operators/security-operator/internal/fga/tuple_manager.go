@@ -27,7 +27,7 @@ import (
 	"go.platform-mesh.io/security-operator/internal/metrics"
 )
 
-// AuthorizationModelIDLatest is to explicitely acknowledge that no ID means
+// AuthorizationModelIDLatest is to explicitly acknowledge that no ID means
 // latest.
 const AuthorizationModelIDLatest = ""
 
