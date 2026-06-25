@@ -75,8 +75,16 @@ tasks:
   lint:
     desc: Lint all Go code in the repository using golangci-lint.
     internal: true
+    vars:
+      GOLANGCI_LINT:
+        # this ensures (installs/updates) golangci-lint and outputs the absolute path to the binary
+        sh: 'UGET_DIRECTORY={{.BIN}} UGET_CHECKSUMS={{.HACK}}/tools.checksums UGET_PRINT_PATH=absolute task tools:golangci-lint'
     cmds:
-      - '"$(UGET_PRINT_PATH=absolute task tools:golangci-lint)" run --timeout 15m ./...'
+      # lint once with the repository-wide settings
+      - '{{.GOLANGCI_LINT}} run --config {{.TOPLEVEL}}/.golangci.yaml --timeout 15m ./...'
+      # and then again with per-component settings, if there are any
+      - if: test -s .golangci.yaml
+        cmd: '{{.GOLANGCI_LINT}} run --timeout 15m ./...'
   mockery:
     desc: Install mockery into the root bin.
     cmds:
