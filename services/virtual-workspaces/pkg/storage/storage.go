@@ -56,8 +56,7 @@ func CreateStorageProviderFunc(clusterClient dynamic.ClusterInterface, filters .
 				[]apiextensionsv1.SelectableField{},
 			)
 
-			wrappers := registry.StorageWrappers{}
-
+			wrappers := make(registry.StorageWrappers, 0, len(filters))
 			for _, filter := range filters {
 				wrappers = append(wrappers, filter)
 			}

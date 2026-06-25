@@ -29,7 +29,6 @@ linters:
     - nakedret
     - noctx
     - unparam
-    - prealloc
 
 linters-settings:
   depguard:

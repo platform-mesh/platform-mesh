@@ -198,7 +198,7 @@ func (s *Service) listUsersParallel(ctx context.Context, rctx graph.ResourceCont
 
 // convertToGraphUserRoles converts UserIDToRoles map to []*graph.UserRoles
 func (s *Service) convertToGraphUserRoles(rctx graph.ResourceContext, userIDToRoles UserIDToRoles) []*graph.UserRoles {
-	var result []*graph.UserRoles
+	result := make([]*graph.UserRoles, 0, len(userIDToRoles))
 
 	// Get role definitions for this group resource
 	roleDefinitions, err := s.rolesRetriever.GetRoleDefinitions(rctx)

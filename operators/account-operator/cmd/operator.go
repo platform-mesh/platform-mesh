@@ -151,7 +151,8 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 			}
 		}
 
-		accountTypeAllowList := []pmcorev1alpha1.AccountType{pmcorev1alpha1.AccountTypeOrg}
+		accountTypeAllowList := make([]pmcorev1alpha1.AccountType, 0, len(operatorCfg.Webhooks.AdditionalAccountTypes)+1)
+		accountTypeAllowList = append(accountTypeAllowList, pmcorev1alpha1.AccountTypeOrg)
 		for _, additionalType := range operatorCfg.Webhooks.AdditionalAccountTypes {
 			accountTypeAllowList = append(accountTypeAllowList, pmcorev1alpha1.AccountType(additionalType))
 		}
