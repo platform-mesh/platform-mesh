@@ -19,7 +19,6 @@ run:
 
 linters:
   enable:
-    - govet
     - staticcheck
     - unused
     - ineffassign

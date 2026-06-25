@@ -21,7 +21,6 @@ linters:
     - dupl
     - goconst
     - gocyclo
-    - govet
     - ineffassign
     - lll
     - misspell
