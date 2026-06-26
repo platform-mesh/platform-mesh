@@ -24,10 +24,10 @@ import (
 	"go.platform-mesh.io/backup-operator/pkg/controller"
 	"go.platform-mesh.io/backup-operator/pkg/topology/projector"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -37,6 +37,8 @@ import (
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var operatorCmd = &cobra.Command{
@@ -71,7 +73,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		}
 	}
 
-	hostClient, err := client.New(hostCfg, client.Options{Scheme: scheme})
+	hostClient, err := ctrlruntimeclient.New(hostCfg, ctrlruntimeclient.Options{Scheme: scheme})
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating host cluster client")
 	}

@@ -29,9 +29,11 @@ import (
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/backup"
 	"go.platform-mesh.io/subroutines"
+
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -39,9 +41,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/utils/ptr"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
@@ -52,7 +54,7 @@ func newFakeScheme(t *testing.T) *runtime.Scheme {
 	t.Helper()
 	s := runtime.NewScheme()
 	require.NoError(t, clientgoscheme.AddToScheme(s))
-	require.NoError(t, backupv1alpha1.AddToScheme(s))
+	require.NoError(t, pmbackupv1alpha1.AddToScheme(s))
 	require.NoError(t, druidv1alpha1.AddToScheme(s))
 	require.NoError(t, coordinationv1.AddToScheme(s))
 	return s
@@ -63,7 +65,7 @@ func newCaptureSub() *backup.EtcdCaptureSubroutine {
 		WithPollInterval(1*time.Millisecond, 5*time.Second)
 }
 
-func ctxWithClient(cl client.Client) context.Context {
+func ctxWithClient(cl ctrlruntimeclient.Client) context.Context {
 	return subroutines.WithClient(context.Background(), cl)
 }
 
@@ -103,19 +105,19 @@ func fakeFullSnapLease(etcdName, holderIdentity string) *coordinationv1.Lease {
 }
 
 // fakeBackup builds a minimal PlatformBackup with etcd enabled.
-func fakeBackup(name string) *backupv1alpha1.PlatformBackup {
-	return &backupv1alpha1.PlatformBackup{
+func fakeBackup(name string) *pmbackupv1alpha1.PlatformBackup {
+	return &pmbackupv1alpha1.PlatformBackup{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: backupv1alpha1.PlatformBackupSpec{
-			Storage: backupv1alpha1.StorageSpec{
-				S3: backupv1alpha1.S3StorageSpec{
+		Spec: pmbackupv1alpha1.PlatformBackupSpec{
+			Storage: pmbackupv1alpha1.StorageSpec{
+				S3: pmbackupv1alpha1.S3StorageSpec{
 					Endpoint:       "http://minio:9000",
 					Bucket:         "backups",
 					CredentialsRef: corev1.LocalObjectReference{Name: "s3-credentials"},
 				},
 			},
-			Components: backupv1alpha1.ComponentsSpec{
-				Etcd: backupv1alpha1.EtcdSpec{Enabled: true},
+			Components: pmbackupv1alpha1.ComponentsSpec{
+				Etcd: pmbackupv1alpha1.EtcdSpec{Enabled: true},
 			},
 		},
 	}
@@ -136,7 +138,7 @@ func fakeTask(name, namespace string, state druidv1alpha1.TaskState, errs ...dru
 // newCaptureClientWithLeases builds a fake client where full-snap leases return NotFound on
 // the first Get per shard (baseline read) and the provided holderIdentity on subsequent Gets.
 // leases maps etcdName → holderIdentity.
-func newCaptureClientWithLeases(t *testing.T, objs []client.Object, leases map[string]string) client.Client {
+func newCaptureClientWithLeases(t *testing.T, objs []ctrlruntimeclient.Object, leases map[string]string) ctrlruntimeclient.Client {
 	t.Helper()
 
 	leaseGVR := schema.GroupResource{Group: "coordination.k8s.io", Resource: "leases"}
@@ -153,7 +155,7 @@ func newCaptureClientWithLeases(t *testing.T, objs []client.Object, leases map[s
 		WithObjects(objs...).
 		WithStatusSubresource(&druidv1alpha1.EtcdOpsTask{}).
 		WithInterceptorFuncs(interceptor.Funcs{
-			Get: func(ctx context.Context, cl client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+			Get: func(ctx context.Context, cl ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 				if _, ok := obj.(*coordinationv1.Lease); ok {
 					if counter, known := getCounts[key.Name]; known {
 						if counter.Add(1) == 1 {
@@ -184,8 +186,8 @@ func TestCapture_EtcdDisabled(t *testing.T) {
 // TestCapture_AlreadyCaptured verifies idempotency: if Etcd artefacts are already set, Process skips.
 func TestCapture_AlreadyCaptured(t *testing.T) {
 	bkp := fakeBackup("b")
-	bkp.Status.Artefacts.Etcd = &backupv1alpha1.EtcdArtefact{
-		Shards: map[string]backupv1alpha1.EtcdShardArtefact{
+	bkp.Status.Artefacts.Etcd = &pmbackupv1alpha1.EtcdArtefact{
+		Shards: map[string]pmbackupv1alpha1.EtcdShardArtefact{
 			"shard-x": {SnapshotKey: "rev-99"},
 		},
 	}
@@ -200,7 +202,7 @@ func TestCapture_AlreadyCaptured(t *testing.T) {
 // TestCapture_WrongObjectType verifies that passing a non-PlatformBackup returns an error.
 func TestCapture_WrongObjectType(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(newFakeScheme(t)).Build()
-	restore := &backupv1alpha1.PlatformRestore{}
+	restore := &pmbackupv1alpha1.PlatformRestore{}
 	_, err := newCaptureSub().Process(ctxWithClient(cl), restore)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected object type")
@@ -222,10 +224,10 @@ func TestCapture_NoShards(t *testing.T) {
 func TestCapture_SingleShard_Success(t *testing.T) {
 	bkp := fakeBackup("backup-1")
 	shard := fakeEtcdShard("shard-a")
-	task := fakeTask("backup-1-shard-a", unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
+	task := fakeTask(backup.OpsTaskName("backup-1", "shard-a"), unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
 
 	cl := newCaptureClientWithLeases(t,
-		[]client.Object{shard, task},
+		[]ctrlruntimeclient.Object{shard, task},
 		map[string]string{"shard-a": "rev-100"},
 	)
 
@@ -242,11 +244,11 @@ func TestCapture_MultiShard_Success(t *testing.T) {
 	bkp := fakeBackup("backup-multi")
 	shardA := fakeEtcdShard("shard-a")
 	shardB := fakeEtcdShard("shard-b")
-	taskA := fakeTask("backup-multi-shard-a", unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
-	taskB := fakeTask("backup-multi-shard-b", unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
+	taskA := fakeTask(backup.OpsTaskName("backup-multi", "shard-a"), unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
+	taskB := fakeTask(backup.OpsTaskName("backup-multi", "shard-b"), unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
 
 	cl := newCaptureClientWithLeases(t,
-		[]client.Object{shardA, shardB, taskA, taskB},
+		[]ctrlruntimeclient.Object{shardA, shardB, taskA, taskB},
 		map[string]string{"shard-a": "rev-1", "shard-b": "rev-2"},
 	)
 
@@ -263,7 +265,7 @@ func TestCapture_MultiShard_Success(t *testing.T) {
 func TestCapture_TaskFailed_PropagatesError(t *testing.T) {
 	bkp := fakeBackup("backup-f")
 	shard := fakeEtcdShard("shard-fail")
-	task := fakeTask("backup-f-shard-fail", unitTestNamespace, druidv1alpha1.TaskStateFailed,
+	task := fakeTask(backup.OpsTaskName("backup-f", "shard-fail"), unitTestNamespace, druidv1alpha1.TaskStateFailed,
 		druidapicommon.LastError{Code: "ERR_SNAPSHOT", Description: "disk full"},
 	)
 
@@ -282,7 +284,7 @@ func TestCapture_TaskFailed_PropagatesError(t *testing.T) {
 func TestCapture_TaskRejected_PropagatesError(t *testing.T) {
 	bkp := fakeBackup("backup-r")
 	shard := fakeEtcdShard("shard-rej")
-	task := fakeTask("backup-r-shard-rej", unitTestNamespace, druidv1alpha1.TaskStateRejected,
+	task := fakeTask(backup.OpsTaskName("backup-r", "shard-rej"), unitTestNamespace, druidv1alpha1.TaskStateRejected,
 		druidapicommon.LastError{Code: "ERR_BACKUP_NOT_ENABLED", Description: "backup is not enabled for etcd"},
 	)
 
@@ -301,7 +303,7 @@ func TestCapture_TaskRejected_PropagatesError(t *testing.T) {
 func TestCapture_TaskFailed_NoLastError(t *testing.T) {
 	bkp := fakeBackup("backup-noerr")
 	shard := fakeEtcdShard("shard-noerr")
-	task := fakeTask("backup-noerr-shard-noerr", unitTestNamespace, druidv1alpha1.TaskStateFailed)
+	task := fakeTask(backup.OpsTaskName("backup-noerr", "shard-noerr"), unitTestNamespace, druidv1alpha1.TaskStateFailed)
 
 	cl := fake.NewClientBuilder().
 		WithScheme(newFakeScheme(t)).
@@ -318,7 +320,7 @@ func TestCapture_TaskFailed_NoLastError(t *testing.T) {
 func TestCapture_LeaseNotUpdated(t *testing.T) {
 	bkp := fakeBackup("backup-stale")
 	shard := fakeEtcdShard("shard-stale")
-	task := fakeTask("backup-stale-shard-stale", unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
+	task := fakeTask(backup.OpsTaskName("backup-stale", "shard-stale"), unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
 	lease := fakeFullSnapLease("shard-stale", "")
 	lease.Spec.HolderIdentity = nil
 
@@ -337,7 +339,7 @@ func TestCapture_LeaseNotUpdated(t *testing.T) {
 func TestCapture_LeaseKeyMatchesBaseline(t *testing.T) {
 	bkp := fakeBackup("backup-same")
 	shard := fakeEtcdShard("shard-same")
-	task := fakeTask("backup-same-shard-same", unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
+	task := fakeTask(backup.OpsTaskName("backup-same", "shard-same"), unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
 	lease := fakeFullSnapLease("shard-same", "rev-old")
 
 	cl := fake.NewClientBuilder().
@@ -357,7 +359,7 @@ func TestCapture_PollTimeout(t *testing.T) {
 	shard := fakeEtcdShard("shard-to")
 	// Task exists but has no state — poll will spin until the context times out.
 	task := &druidv1alpha1.EtcdOpsTask{
-		ObjectMeta: metav1.ObjectMeta{Name: "backup-to-shard-to", Namespace: unitTestNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: backup.OpsTaskName("backup-to", "shard-to"), Namespace: unitTestNamespace},
 	}
 
 	cl := fake.NewClientBuilder().
@@ -384,10 +386,10 @@ func TestCapture_GetName(t *testing.T) {
 func TestCapture_TaskDeletedAfterSuccess(t *testing.T) {
 	bkp := fakeBackup("backup-del")
 	shard := fakeEtcdShard("shard-del")
-	task := fakeTask("backup-del-shard-del", unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
+	task := fakeTask(backup.OpsTaskName("backup-del", "shard-del"), unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
 
 	cl := newCaptureClientWithLeases(t,
-		[]client.Object{shard, task},
+		[]ctrlruntimeclient.Object{shard, task},
 		map[string]string{"shard-del": "rev-1"},
 	)
 
@@ -395,7 +397,7 @@ func TestCapture_TaskDeletedAfterSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	var remaining druidv1alpha1.EtcdOpsTask
-	getErr := cl.Get(context.Background(), types.NamespacedName{Name: "backup-del-shard-del", Namespace: unitTestNamespace}, &remaining)
+	getErr := cl.Get(context.Background(), types.NamespacedName{Name: backup.OpsTaskName("backup-del", "shard-del"), Namespace: unitTestNamespace}, &remaining)
 	assert.True(t, apierrors.IsNotFound(getErr), "EtcdOpsTask should be deleted after success")
 }
 
@@ -404,7 +406,7 @@ func TestCapture_TaskDeletedAfterSuccess(t *testing.T) {
 func TestCapture_TaskDeletedAfterFailure(t *testing.T) {
 	bkp := fakeBackup("backup-delf")
 	shard := fakeEtcdShard("shard-delf")
-	task := fakeTask("backup-delf-shard-delf", unitTestNamespace, druidv1alpha1.TaskStateFailed,
+	task := fakeTask(backup.OpsTaskName("backup-delf", "shard-delf"), unitTestNamespace, druidv1alpha1.TaskStateFailed,
 		druidapicommon.LastError{Code: "ERR", Description: "disk full"},
 	)
 
@@ -419,7 +421,7 @@ func TestCapture_TaskDeletedAfterFailure(t *testing.T) {
 	assert.Contains(t, err.Error(), "disk full")
 
 	var remaining druidv1alpha1.EtcdOpsTask
-	getErr := cl.Get(context.Background(), types.NamespacedName{Name: "backup-delf-shard-delf", Namespace: unitTestNamespace}, &remaining)
+	getErr := cl.Get(context.Background(), types.NamespacedName{Name: backup.OpsTaskName("backup-delf", "shard-delf"), Namespace: unitTestNamespace}, &remaining)
 	assert.True(t, apierrors.IsNotFound(getErr), "EtcdOpsTask should be deleted after failure to allow retry")
 }
 
@@ -441,13 +443,13 @@ func TestCapture_TaskNotFound_LeaseUpdated(t *testing.T) {
 		WithObjects(shard).
 		WithStatusSubresource(&druidv1alpha1.EtcdOpsTask{}).
 		WithInterceptorFuncs(interceptor.Funcs{
-			Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
 				if _, ok := obj.(*druidv1alpha1.EtcdOpsTask); ok {
 					return apierrors.NewAlreadyExists(taskGVR, obj.GetName())
 				}
 				return c.Create(ctx, obj, opts...)
 			},
-			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+			Get: func(ctx context.Context, c ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 				if _, ok := obj.(*druidv1alpha1.EtcdOpsTask); ok {
 					return apierrors.NewNotFound(taskGVR, key.Name)
 				}
@@ -484,13 +486,13 @@ func TestCapture_TaskNotFound_LeaseNotUpdated(t *testing.T) {
 		WithObjects(shard).
 		WithStatusSubresource(&druidv1alpha1.EtcdOpsTask{}).
 		WithInterceptorFuncs(interceptor.Funcs{
-			Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
 				if _, ok := obj.(*druidv1alpha1.EtcdOpsTask); ok {
 					return apierrors.NewAlreadyExists(taskGVR, obj.GetName())
 				}
 				return c.Create(ctx, obj, opts...)
 			},
-			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+			Get: func(ctx context.Context, c ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 				if _, ok := obj.(*druidv1alpha1.EtcdOpsTask); ok {
 					return apierrors.NewNotFound(taskGVR, key.Name)
 				}
@@ -504,5 +506,5 @@ func TestCapture_TaskNotFound_LeaseNotUpdated(t *testing.T) {
 
 	_, err := newCaptureSub().Process(ctxWithClient(cl), bkp)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not found and lease not yet updated")
+	assert.Contains(t, err.Error(), "not found and full-snap lease is empty")
 }

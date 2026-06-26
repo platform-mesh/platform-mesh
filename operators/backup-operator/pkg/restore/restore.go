@@ -18,38 +18,39 @@ package restore
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"sort"
+	"sync"
 	"time"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+	"go.platform-mesh.io/backup-operator/pkg/backup"
 	"go.platform-mesh.io/subroutines"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	// AnnotationKeyRestoredFromSnapshot is set on a recreated Etcd CR to record the
-	// snapshot revision from which it was restored (traceability only).
+	// AnnotationKeyRestoredFromSnapshot records the snapshot key from which this Etcd CR
+	// was restored. etcdbr automatically restores from the latest snapshot found at
+	// Spec.Backup.Store.Prefix when the pod starts; this annotation makes the specific
+	// snapshot used by that restore traceable and drives the idempotency check so a
+	// completed shard is not deleted and recreated again on the next reconcile.
 	AnnotationKeyRestoredFromSnapshot = "backup.platform-mesh.io/restored-from-snapshot"
 
 	// ConditionEtcdRestored is set on PlatformRestore when all shards have been restored.
 	ConditionEtcdRestored = "EtcdRestored"
-
-	// LabelKeyComponent and LabelComponentKCPShard are used to identify kcp-shard Etcd CRs
-	// when verifying labels are preserved on the recreated CR.
-	LabelKeyComponent      = "platform-mesh.io/component"
-	LabelComponentKCPShard = "kcp-shard"
 )
 
 // EtcdRestoreSubroutine deletes and recreates each KCP-shard Etcd CR from the snapshot
 // keys recorded in the source PlatformBackup, then waits for each Etcd CR to become ready.
-// Shards are processed sequentially (sorted by name) to avoid overwhelming etcd-druid.
+// Shards are processed concurrently to minimise total restore wall-clock time.
 type EtcdRestoreSubroutine struct {
 	namespace     string
 	deletePollInt time.Duration
@@ -81,8 +82,8 @@ func (s *EtcdRestoreSubroutine) WithPollIntervals(deletePoll, deleteTO, readyPol
 func (s *EtcdRestoreSubroutine) GetName() string { return ConditionEtcdRestored }
 
 // Process implements subroutines.Subroutine.
-func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	rst, ok := obj.(*backupv1alpha1.PlatformRestore)
+func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	rst, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
 		return subroutines.OK(), fmt.Errorf("unexpected object type %T", obj)
 	}
@@ -96,7 +97,7 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj client.Object) 
 	cl := subroutines.MustClientFromContext(ctx)
 
 	// PlatformBackup is cluster-scoped, so no namespace in the key.
-	var bkp backupv1alpha1.PlatformBackup
+	var bkp pmbackupv1alpha1.PlatformBackup
 	if err := cl.Get(ctx, types.NamespacedName{Name: rst.Spec.Source.BackupID}, &bkp); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Halt the subroutine chain and requeue — source may not have propagated yet.
@@ -111,54 +112,82 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj client.Object) 
 		return subroutines.OK(), nil
 	}
 
-	// Sort shard names for deterministic sequential ordering.
-	shardNames := make([]string, 0, len(bkp.Status.Artefacts.Etcd.Shards))
-	for name := range bkp.Status.Artefacts.Etcd.Shards {
-		shardNames = append(shardNames, name)
-	}
-	sort.Strings(shardNames)
-
-	for _, shardName := range shardNames {
-		artefact := bkp.Status.Artefacts.Etcd.Shards[shardName]
-		if artefact.SnapshotKey == "" {
-			return subroutines.OK(), fmt.Errorf("shard %q has empty snapshot key in backup %q; backup artefact may be corrupt",
-				shardName, bkp.Name)
-		}
-		if err := s.restoreShard(ctx, cl, shardName, artefact.SnapshotKey); err != nil {
-			return subroutines.OK(), fmt.Errorf("restoring shard %q: %w", shardName, err)
-		}
-	}
-
-	return subroutines.OK(), nil
+	return subroutines.OK(), s.fanOutRestore(ctx, cl, bkp.Status.Artefacts.Etcd.Shards)
 }
 
-// restoreShard deletes the existing Etcd CR, waits for deletion, then recreates it with
-// the restore-traceability annotation and waits for it to become ready.
+// shardRestoreResult holds the outcome of a single shard's restore operation.
+type shardRestoreResult struct {
+	shardName string
+	err       error
+}
+
+// fanOutRestore restores all shards concurrently and returns a combined error if any fail.
+// All-or-nothing semantics: EtcdRestored=True is only written to status when this
+// function returns nil (all shards succeeded). A failure on any shard surfaces as a
+// structured error on the PlatformRestore CR and no partial success is committed.
+func (s *EtcdRestoreSubroutine) fanOutRestore(
+	ctx context.Context,
+	cl ctrlruntimeclient.Client,
+	shards map[string]pmbackupv1alpha1.EtcdShardArtefact,
+) error {
+	results := make(chan shardRestoreResult, len(shards))
+	var wg sync.WaitGroup
+	for shardName, artefact := range shards {
+		if artefact.SnapshotKey == "" {
+			// Validate before spawning — an empty key is a corrupt artefact.
+			return fmt.Errorf("shard %q has empty snapshot key; backup artefact may be corrupt", shardName)
+		}
+		wg.Add(1)
+		go func(name, key string) {
+			defer wg.Done()
+			results <- shardRestoreResult{
+				shardName: name,
+				err:       s.restoreShard(ctx, cl, name, key),
+			}
+		}(shardName, artefact.SnapshotKey)
+	}
+	wg.Wait()
+	close(results)
+
+	var errs []error
+	for r := range results {
+		if r.err != nil {
+			errs = append(errs, fmt.Errorf("restoring shard %q: %w", r.shardName, r.err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// restoreShard deletes the existing Etcd CR, waits for deletion, then recreates it
+// with the original spec and the restore-traceability annotation, then waits for ready.
+//
+// Restore mechanism: recreating the Etcd CR with the same Spec.Backup.Store.Prefix
+// causes the etcdbr sidecar to automatically restore from the latest snapshot found at
+// that prefix on pod startup. The snapshotKey annotation records which snapshot was
+// captured so the idempotency check can recognise a completed restore on retry.
 //
 // Idempotency: if the CR already exists and carries the correct snapshot annotation it was
 // restored in a previous (partial) reconcile — skip the delete+recreate cycle and only
 // wait for ready. This prevents re-deleting a live shard on retry after another shard fails.
-func (s *EtcdRestoreSubroutine) restoreShard(ctx context.Context, cl client.Client, shardName, snapshotKey string) error {
+func (s *EtcdRestoreSubroutine) restoreShard(ctx context.Context, cl ctrlruntimeclient.Client, shardName, snapshotKey string) error {
 	var existing druidv1alpha1.Etcd
 	if err := cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: s.namespace}, &existing); err != nil {
 		if apierrors.IsNotFound(err) {
-			return fmt.Errorf("Etcd CR %q not found in namespace %q, cannot recreate without existing spec",
+			return fmt.Errorf("etcd CR %q not found in namespace %q, cannot recreate without existing spec",
 				shardName, s.namespace)
 		}
 		return fmt.Errorf("fetching Etcd CR: %w", err)
 	}
 
 	// Already restored in a prior reconcile — just wait for ready.
-	// The snapshotKey non-empty guard in Process() ensures this comparison is only ever
-	// between two non-empty strings, preventing a nil-annotations false-positive match.
-	if existing.Annotations[AnnotationKeyRestoredFromSnapshot] == snapshotKey {
+	// Guard against a nil Annotations map: safe map-read returns "" for a missing key,
+	// which is always != snapshotKey (non-empty, enforced in fanOutRestore).
+	if existing.Annotations != nil && existing.Annotations[AnnotationKeyRestoredFromSnapshot] == snapshotKey {
 		return s.waitForReady(ctx, cl, shardName)
 	}
 
 	savedSpec := *existing.Spec.DeepCopy()
-	// Deep-copy the labels map so the new CR always has an independent copy. A nil map
-	// is safe to assign to ObjectMeta.Labels, but the caller must guarantee snapshotKey
-	// is non-empty (enforced in Process) to avoid a false idempotency match above.
+	// Deep-copy the labels map so the new CR always has an independent copy.
 	savedLabels := make(map[string]string, len(existing.Labels))
 	for k, v := range existing.Labels {
 		savedLabels[k] = v
@@ -180,7 +209,7 @@ func (s *EtcdRestoreSubroutine) restoreShard(ctx context.Context, cl client.Clie
 // silently skipped.
 func (s *EtcdRestoreSubroutine) createAndWait(
 	ctx context.Context,
-	cl client.Client,
+	cl ctrlruntimeclient.Client,
 	name string,
 	spec druidv1alpha1.EtcdSpec,
 	labels map[string]string,
@@ -207,7 +236,7 @@ func (s *EtcdRestoreSubroutine) createAndWait(
 		if err := cl.Get(ctx, types.NamespacedName{Name: name, Namespace: s.namespace}, &existing); err != nil {
 			return fmt.Errorf("fetching pre-existing Etcd CR after AlreadyExists: %w", err)
 		}
-		patch := client.MergeFrom(existing.DeepCopy())
+		patch := ctrlruntimeclient.MergeFrom(existing.DeepCopy())
 		if existing.Annotations == nil {
 			existing.Annotations = map[string]string{}
 		}
@@ -221,7 +250,7 @@ func (s *EtcdRestoreSubroutine) createAndWait(
 
 // waitForDeletion polls until the Etcd CR is gone. Checks state before sleeping to
 // avoid an unnecessary full-interval delay when the CR is already deleted.
-func (s *EtcdRestoreSubroutine) waitForDeletion(ctx context.Context, cl client.Client, name string) error {
+func (s *EtcdRestoreSubroutine) waitForDeletion(ctx context.Context, cl ctrlruntimeclient.Client, name string) error {
 	pollCtx, cancel := context.WithTimeout(ctx, s.deleteTimeout)
 	defer cancel()
 
@@ -235,32 +264,50 @@ func (s *EtcdRestoreSubroutine) waitForDeletion(ctx context.Context, cl client.C
 			return fmt.Errorf("polling Etcd CR deletion: %w", err)
 		}
 
+		timer := time.NewTimer(s.deletePollInt)
 		select {
 		case <-pollCtx.Done():
+			timer.Stop()
 			return fmt.Errorf("timed out waiting for Etcd CR %q to be deleted: %w", name, pollCtx.Err())
-		case <-time.After(s.deletePollInt):
+		case <-timer.C:
 		}
 	}
 }
 
 // waitForReady polls until Etcd.status.ready = true. Checks state before sleeping.
-func (s *EtcdRestoreSubroutine) waitForReady(ctx context.Context, cl client.Client, name string) error {
+// A transient NotFound (e.g. etcd-druid briefly recreating the CR) is treated as
+// not-yet-ready rather than a hard failure, so the poll continues.
+func (s *EtcdRestoreSubroutine) waitForReady(ctx context.Context, cl ctrlruntimeclient.Client, name string) error {
 	pollCtx, cancel := context.WithTimeout(ctx, s.readyTimeout)
 	defer cancel()
 
 	for {
 		var etcd druidv1alpha1.Etcd
 		if err := cl.Get(pollCtx, types.NamespacedName{Name: name, Namespace: s.namespace}, &etcd); err != nil {
-			return fmt.Errorf("polling Etcd CR readiness: %w", err)
-		}
-		if etcd.Status.Ready != nil && *etcd.Status.Ready {
+			if !apierrors.IsNotFound(err) {
+				return fmt.Errorf("polling Etcd CR readiness: %w", err)
+			}
+			// CR transiently absent — etcd-druid may be recreating it. Fall through
+			// to the sleep so we retry on the next tick.
+		} else if etcd.Status.Ready != nil && *etcd.Status.Ready {
 			return nil
 		}
 
+		timer := time.NewTimer(s.readyPollInt)
 		select {
 		case <-pollCtx.Done():
+			timer.Stop()
 			return fmt.Errorf("timed out waiting for Etcd CR %q to become ready: %w", name, pollCtx.Err())
-		case <-time.After(s.readyPollInt):
+		case <-timer.C:
 		}
 	}
 }
+
+// Ensure the backup package's label constants are accessible to restore callers
+// via the restore package, avoiding duplication. Re-exported here so external
+// tests and the e2e suite can reference restore.LabelKeyComponent without
+// importing both packages.
+const (
+	LabelKeyComponent      = backup.LabelKeyComponent
+	LabelComponentKCPShard = backup.LabelComponentKCPShard
+)

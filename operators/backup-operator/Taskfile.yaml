@@ -65,14 +65,14 @@ tasks:
   test:
     deps: [tools:kcp, tools:gomplate]
     cmds:
-      - go test ./...
+      - go test -count=1 ./...
   test-e2e:
     deps: [tools:kcp, tools:gomplate, tools:envtest]
     cmds:
       - |
         set -ex
         export KUBEBUILDER_ASSETS=$({{.BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
-        go test -tags integration ./... {{.ADDITIONAL_COMMAND_ARGS}}
+        go test -count=1 -tags integration ./... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
     cmds:
       - task: test
@@ -91,7 +91,7 @@ tasks:
         set -ex
         KUBECONFIG=${KUBECONFIG:-$HOME/.kube/config} \
         E2E_NAMESPACE=${E2E_NAMESPACE:-platform-mesh-system} \
-        go test -tags e2e -timeout 15m -v ./pkg/e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
+        go test -tags e2e -count=1 -timeout 15m -v ./pkg/e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
 
   # deploy:kind builds the operator image only when operator source has changed
   # (detected via a content hash of cmd/, pkg/, and Dockerfile), loads it into
@@ -120,7 +120,8 @@ tasks:
         else
           REBUILT=true
           echo "Building image $IMAGE using $RUNTIME"
-          "$RUNTIME" build -t "$IMAGE" -f Dockerfile ../../
+          ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+          "$RUNTIME" build --platform "linux/$ARCH" -t "$IMAGE" -f Dockerfile ../../
           if [ "$RUNTIME" = "podman" ]; then
             "$RUNTIME" save "$IMAGE" -o /tmp/kind-image.tar
             kind load image-archive /tmp/kind-image.tar --name "$CLUSTER"

@@ -26,17 +26,19 @@ import (
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/restore"
 	"go.platform-mesh.io/subroutines"
+
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/utils/ptr"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
@@ -47,7 +49,7 @@ func newFakeScheme(t *testing.T) *runtime.Scheme {
 	t.Helper()
 	s := runtime.NewScheme()
 	require.NoError(t, clientgoscheme.AddToScheme(s))
-	require.NoError(t, backupv1alpha1.AddToScheme(s))
+	require.NoError(t, pmbackupv1alpha1.AddToScheme(s))
 	require.NoError(t, druidv1alpha1.AddToScheme(s))
 	require.NoError(t, coordinationv1.AddToScheme(s))
 	return s
@@ -58,7 +60,7 @@ func newRestoreSub() *restore.EtcdRestoreSubroutine {
 		WithPollIntervals(1*time.Millisecond, 5*time.Second, 1*time.Millisecond, 5*time.Second)
 }
 
-func ctxWithClient(cl client.Client) context.Context {
+func ctxWithClient(cl ctrlruntimeclient.Client) context.Context {
 	return subroutines.WithClient(context.Background(), cl)
 }
 
@@ -85,67 +87,67 @@ func fakeEtcdShard(name string) *druidv1alpha1.Etcd {
 }
 
 // fakeBackup builds a minimal PlatformBackup with etcd enabled.
-func fakeBackup(name string) *backupv1alpha1.PlatformBackup {
-	return &backupv1alpha1.PlatformBackup{
+func fakeBackup(name string) *pmbackupv1alpha1.PlatformBackup {
+	return &pmbackupv1alpha1.PlatformBackup{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: backupv1alpha1.PlatformBackupSpec{
-			Storage: backupv1alpha1.StorageSpec{
-				S3: backupv1alpha1.S3StorageSpec{
+		Spec: pmbackupv1alpha1.PlatformBackupSpec{
+			Storage: pmbackupv1alpha1.StorageSpec{
+				S3: pmbackupv1alpha1.S3StorageSpec{
 					Endpoint:       "http://minio:9000",
 					Bucket:         "backups",
 					CredentialsRef: corev1.LocalObjectReference{Name: "s3-credentials"},
 				},
 			},
-			Components: backupv1alpha1.ComponentsSpec{
-				Etcd: backupv1alpha1.EtcdSpec{Enabled: true},
+			Components: pmbackupv1alpha1.ComponentsSpec{
+				Etcd: pmbackupv1alpha1.EtcdSpec{Enabled: true},
 			},
 		},
 	}
 }
 
 // fakeRestore builds a minimal PlatformRestore pointing at the given backup ID.
-func fakeRestore(name, backupID string) *backupv1alpha1.PlatformRestore {
-	return &backupv1alpha1.PlatformRestore{
+func fakeRestore(name, backupID string) *pmbackupv1alpha1.PlatformRestore {
+	return &pmbackupv1alpha1.PlatformRestore{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: backupv1alpha1.PlatformRestoreSpec{
-			Source: backupv1alpha1.RestoreSourceSpec{
+		Spec: pmbackupv1alpha1.PlatformRestoreSpec{
+			Source: pmbackupv1alpha1.RestoreSourceSpec{
 				BackupID: backupID,
-				Storage: backupv1alpha1.StorageSpec{
-					S3: backupv1alpha1.S3StorageSpec{
+				Storage: pmbackupv1alpha1.StorageSpec{
+					S3: pmbackupv1alpha1.S3StorageSpec{
 						Endpoint:       "http://minio:9000",
 						Bucket:         "backups",
 						CredentialsRef: corev1.LocalObjectReference{Name: "s3-credentials"},
 					},
 				},
 			},
-			TopologyValidation: backupv1alpha1.TopologyValidationStrict,
+			TopologyValidation: pmbackupv1alpha1.TopologyValidationStrict,
 		},
 	}
 }
 
 // fakeBackupWithShards builds a PlatformBackup whose status has shard artefacts pre-set.
-func fakeBackupWithShards(name string, shards map[string]string) *backupv1alpha1.PlatformBackup {
-	artefacts := make(map[string]backupv1alpha1.EtcdShardArtefact, len(shards))
+func fakeBackupWithShards(name string, shards map[string]string) *pmbackupv1alpha1.PlatformBackup {
+	artefacts := make(map[string]pmbackupv1alpha1.EtcdShardArtefact, len(shards))
 	for k, v := range shards {
-		artefacts[k] = backupv1alpha1.EtcdShardArtefact{
+		artefacts[k] = pmbackupv1alpha1.EtcdShardArtefact{
 			SnapshotKey:  v,
 			SnapshotTime: metav1.Now(),
 		}
 	}
 	b := fakeBackup(name)
-	b.Status.Artefacts.Etcd = &backupv1alpha1.EtcdArtefact{Shards: artefacts}
+	b.Status.Artefacts.Etcd = &pmbackupv1alpha1.EtcdArtefact{Shards: artefacts}
 	return b
 }
 
 // newRestoreClient builds a fake client pre-loaded with the given objects, plus an interceptor
 // that makes every Etcd Get return status.ready=true so waitForReady passes immediately.
-func newRestoreClient(t *testing.T, objs ...client.Object) client.Client {
+func newRestoreClient(t *testing.T, objs ...ctrlruntimeclient.Object) ctrlruntimeclient.Client {
 	t.Helper()
 	return fake.NewClientBuilder().
 		WithScheme(newFakeScheme(t)).
 		WithObjects(objs...).
 		WithInterceptorFuncs(interceptor.Funcs{
-			Get: func(ctx context.Context, cl client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+			Get: func(ctx context.Context, cl ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 				if err := cl.Get(ctx, key, obj, opts...); err != nil {
 					return err
 				}

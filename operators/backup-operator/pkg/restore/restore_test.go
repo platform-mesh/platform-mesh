@@ -152,7 +152,7 @@ func TestRestore_SingleShard_Recreate(t *testing.T) {
 	assert.Equal(t, "rev-42", recreated.Annotations[restore.AnnotationKeyRestoredFromSnapshot])
 }
 
-func TestRestore_MultiShard_SequentialRecreate(t *testing.T) {
+func TestRestore_MultiShard_ConcurrentRecreate(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
 
