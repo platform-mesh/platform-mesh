@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/schemahandler"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -49,7 +49,7 @@ func NewReconciler(ioHandler schemahandler.Handler) *Reconciler {
 
 // Reconcile processes schema generation for the given schema paths and cluster config
 // Paths are treated as aliased cluster paths for the same cluster config.
-func (r *Reconciler) Reconcile(ctx context.Context, schemaPaths []string, cfg *rest.Config, metadata *v1alpha1.ClusterMetadata) error {
+func (r *Reconciler) Reconcile(ctx context.Context, schemaPaths []string, cfg *rest.Config, metadata *pmgatewayv1alpha1.ClusterMetadata) error {
 	logger := log.FromContext(ctx)
 
 	logger.Info("Processing schema generation", "paths", schemaPaths)

@@ -20,7 +20,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.platform-mesh.io/apis/gateway"
+
+	pmgateway "go.platform-mesh.io/apis/gateway"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema/enricher"
 
@@ -32,7 +33,7 @@ func TestCategoriesEnricher(t *testing.T) {
 	podSchema := &spec.Schema{
 		VendorExtensible: spec.VendorExtensible{
 			Extensions: map[string]any{
-				gateway.GVKExtensionKey: []map[string]any{
+				pmgateway.GVKExtensionKey: []map[string]any{
 					{"group": "", "version": "v1", "kind": "Pod"},
 				},
 			},
@@ -63,7 +64,7 @@ func TestCategoriesEnricher(t *testing.T) {
 	assert.NoError(t, err)
 
 	podEntry, _ := schemas.Get("v1.Pod")
-	categories := podEntry.Schema.Extensions[gateway.CategoriesExtensionKey]
+	categories := podEntry.Schema.Extensions[pmgateway.CategoriesExtensionKey]
 	assert.Equal(t, []string{"all"}, categories)
 }
 
@@ -71,7 +72,7 @@ func TestCategoriesEnricher_NoCategories(t *testing.T) {
 	podSchema := &spec.Schema{
 		VendorExtensible: spec.VendorExtensible{
 			Extensions: map[string]any{
-				gateway.GVKExtensionKey: []map[string]any{
+				pmgateway.GVKExtensionKey: []map[string]any{
 					{"group": "", "version": "v1", "kind": "Pod"},
 				},
 			},
@@ -103,7 +104,7 @@ func TestCategoriesEnricher_NoCategories(t *testing.T) {
 	assert.NoError(t, err)
 
 	podEntry, _ := schemas.Get("v1.Pod")
-	_, hasCategories := podEntry.Schema.Extensions[gateway.CategoriesExtensionKey]
+	_, hasCategories := podEntry.Schema.Extensions[pmgateway.CategoriesExtensionKey]
 	assert.False(t, hasCategories, "should not have categories extension")
 }
 

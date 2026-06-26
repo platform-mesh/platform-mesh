@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema/enricher"
 
@@ -43,7 +43,7 @@ type schemaGenerationParams struct {
 func generateSchemaWithMetadata(
 	ctx context.Context,
 	params schemaGenerationParams,
-	metadata *v1alpha1.ClusterMetadata,
+	metadata *pmgatewayv1alpha1.ClusterMetadata,
 ) ([]byte, error) {
 	logger := log.FromContext(ctx)
 

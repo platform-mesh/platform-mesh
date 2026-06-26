@@ -24,7 +24,8 @@ import (
 	"strings"
 
 	"github.com/spf13/pflag"
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -126,10 +127,10 @@ func (options *CompletedOptions) ApplyLogicalClusterToConfig(cfg *rest.Config) (
 	return out, nil
 }
 
-func (options *CompletedOptions) GetClusterMetadataOverrideFunc() v1alpha1.ClusterMetadataFunc {
-	return func(clusterName string) (*v1alpha1.ClusterMetadata, error) {
+func (options *CompletedOptions) GetClusterMetadataOverrideFunc() pmgatewayv1alpha1.ClusterMetadataFunc {
+	return func(clusterName string) (*pmgatewayv1alpha1.ClusterMetadata, error) {
 		if options.WorkspaceSchemaKubeconfigRestConfig != nil {
-			metadata, err := v1alpha1.BuildClusterMetadataFromConfig(options.WorkspaceSchemaKubeconfigRestConfig)
+			metadata, err := pmgatewayv1alpha1.BuildClusterMetadataFromConfig(options.WorkspaceSchemaKubeconfigRestConfig)
 			if err != nil {
 				return nil, fmt.Errorf("failed to build metadata from rest config: %w", err)
 			}
@@ -144,7 +145,7 @@ func (options *CompletedOptions) GetClusterMetadataOverrideFunc() v1alpha1.Clust
 			return metadata, nil
 		}
 
-		metadata := &v1alpha1.ClusterMetadata{}
+		metadata := &pmgatewayv1alpha1.ClusterMetadata{}
 		if options.WorkspaceSchemaHostOverride != "" {
 			metadata.Host = options.WorkspaceSchemaHostOverride
 		}
@@ -152,7 +153,7 @@ func (options *CompletedOptions) GetClusterMetadataOverrideFunc() v1alpha1.Clust
 	}
 }
 
-func (options *CompletedOptions) GetClusterURLResolverFunc() v1alpha1.ClusterURLResolver {
+func (options *CompletedOptions) GetClusterURLResolverFunc() pmgatewayv1alpha1.ClusterURLResolver {
 	return func(currentURL string, clusterName string) (string, error) {
 		if options.WorkspaceSchemaHostOverride != "" {
 			return options.WorkspaceSchemaHostOverride, nil

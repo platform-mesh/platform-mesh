@@ -26,7 +26,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/clusteraccess"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/options"
@@ -40,12 +41,11 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
@@ -57,7 +57,7 @@ type ClusterAccessControllerTestSuite struct {
 	env         *envtest.Environment
 	listenerCfg *listener.Config
 	cancel      context.CancelFunc
-	client      client.Client
+	client      ctrlruntimeclient.Client
 
 	// Store envtest credentials for creating test secrets
 	envtestHost       string
@@ -128,10 +128,10 @@ func (suite *ClusterAccessControllerTestSuite) SetupSuite() {
 	testScheme := runtime.NewScheme()
 	err = clientgoscheme.AddToScheme(testScheme)
 	suite.Require().NoError(err, "failed to add client-go scheme")
-	err = v1alpha1.AddToScheme(testScheme)
+	err = pmgatewayv1alpha1.AddToScheme(testScheme)
 	suite.Require().NoError(err, "failed to add v1alpha1 scheme")
 
-	suite.client, err = client.New(cfg, client.Options{Scheme: testScheme})
+	suite.client, err = ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: testScheme})
 	suite.Require().NoError(err, "failed to create client")
 
 	ctx, cancel := context.WithCancel(suite.T().Context())
@@ -218,7 +218,7 @@ func (suite *ClusterAccessControllerTestSuite) waitForSchemaFile(name string) {
 // verifySchemaMetadata reads and validates the schema file
 func (suite *ClusterAccessControllerTestSuite) verifySchemaMetadata(
 	name string,
-	expectedAuthType v1alpha1.AuthenticationType,
+	expectedAuthType pmgatewayv1alpha1.AuthenticationType,
 ) {
 	schemaFilePath := filepath.Join(suite.listenerCfg.Options.SchemasDir, name)
 	raw, err := os.ReadFile(schemaFilePath)
@@ -232,7 +232,7 @@ func (suite *ClusterAccessControllerTestSuite) verifySchemaMetadata(
 	metadataRaw, ok := schemaJSON["x-cluster-metadata"]
 	suite.Require().True(ok, "schema should have x-cluster-metadata")
 
-	var metadata v1alpha1.ClusterMetadata
+	var metadata pmgatewayv1alpha1.ClusterMetadata
 	switch v := metadataRaw.(type) {
 	case string:
 		err = json.Unmarshal([]byte(v), &metadata)
@@ -267,14 +267,14 @@ func (suite *ClusterAccessControllerTestSuite) TestKubeconfigAuth() {
 	suite.Require().NoError(err, "failed to create kubeconfig secret")
 
 	// Create ClusterAccess with kubeconfig auth
-	clusterAccess := &v1alpha1.ClusterAccess{
+	clusterAccess := &pmgatewayv1alpha1.ClusterAccess{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "kubeconfig-test",
 		},
-		Spec: v1alpha1.ClusterAccessSpec{
+		Spec: pmgatewayv1alpha1.ClusterAccessSpec{
 			Host: suite.envtestHost,
-			Auth: &v1alpha1.AuthConfig{
-				KubeconfigSecretRef: &v1alpha1.SecretKeyRef{
+			Auth: &pmgatewayv1alpha1.AuthConfig{
+				KubeconfigSecretRef: &pmgatewayv1alpha1.SecretKeyRef{
 					SecretReference: corev1.SecretReference{
 						Name:      "kubeconfig-secret",
 						Namespace: testNamespace,
@@ -291,7 +291,7 @@ func (suite *ClusterAccessControllerTestSuite) TestKubeconfigAuth() {
 	suite.waitForSchemaFile("single-kubeconfig-test")
 
 	// Verify schema metadata
-	suite.verifySchemaMetadata("single-kubeconfig-test", v1alpha1.AuthTypeKubeconfig)
+	suite.verifySchemaMetadata("single-kubeconfig-test", pmgatewayv1alpha1.AuthTypeKubeconfig)
 }
 
 // TestKubeconfigAuthWithoutHost tests ClusterAccess with kubeconfig authentication and no explicit host.
@@ -311,13 +311,13 @@ func (suite *ClusterAccessControllerTestSuite) TestKubeconfigAuthWithoutHost() {
 	suite.Require().NoError(err, "failed to create kubeconfig secret")
 
 	// Create ClusterAccess without host — should derive it from kubeconfig
-	clusterAccess := &v1alpha1.ClusterAccess{
+	clusterAccess := &pmgatewayv1alpha1.ClusterAccess{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "kubeconfig-nohost-test",
 		},
-		Spec: v1alpha1.ClusterAccessSpec{
-			Auth: &v1alpha1.AuthConfig{
-				KubeconfigSecretRef: &v1alpha1.SecretKeyRef{
+		Spec: pmgatewayv1alpha1.ClusterAccessSpec{
+			Auth: &pmgatewayv1alpha1.AuthConfig{
+				KubeconfigSecretRef: &pmgatewayv1alpha1.SecretKeyRef{
 					SecretReference: corev1.SecretReference{
 						Name:      "kubeconfig-nohost-secret",
 						Namespace: testNamespace,
@@ -334,7 +334,7 @@ func (suite *ClusterAccessControllerTestSuite) TestKubeconfigAuthWithoutHost() {
 	suite.waitForSchemaFile("single-kubeconfig-nohost-test")
 
 	// Verify schema metadata — host should have been derived from kubeconfig
-	suite.verifySchemaMetadata("single-kubeconfig-nohost-test", v1alpha1.AuthTypeKubeconfig)
+	suite.verifySchemaMetadata("single-kubeconfig-nohost-test", pmgatewayv1alpha1.AuthTypeKubeconfig)
 }
 
 // TestTokenAuth tests ClusterAccess with token authentication
@@ -379,14 +379,14 @@ func (suite *ClusterAccessControllerTestSuite) TestTokenAuth() {
 	suite.Require().NoError(err, "failed to create token secret")
 
 	// Create ClusterAccess with token auth
-	clusterAccess := &v1alpha1.ClusterAccess{
+	clusterAccess := &pmgatewayv1alpha1.ClusterAccess{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "token-test",
 		},
-		Spec: v1alpha1.ClusterAccessSpec{
+		Spec: pmgatewayv1alpha1.ClusterAccessSpec{
 			Host: suite.envtestHost,
-			CA: &v1alpha1.CAConfig{
-				SecretRef: &v1alpha1.SecretKeyRef{
+			CA: &pmgatewayv1alpha1.CAConfig{
+				SecretRef: &pmgatewayv1alpha1.SecretKeyRef{
 					SecretReference: corev1.SecretReference{
 						Name:      "ca-secret",
 						Namespace: testNamespace,
@@ -394,8 +394,8 @@ func (suite *ClusterAccessControllerTestSuite) TestTokenAuth() {
 					Key: "ca.crt",
 				},
 			},
-			Auth: &v1alpha1.AuthConfig{
-				TokenSecretRef: &v1alpha1.SecretKeyRef{
+			Auth: &pmgatewayv1alpha1.AuthConfig{
+				TokenSecretRef: &pmgatewayv1alpha1.SecretKeyRef{
 					SecretReference: corev1.SecretReference{
 						Name:      "token-secret",
 						Namespace: testNamespace,
@@ -412,7 +412,7 @@ func (suite *ClusterAccessControllerTestSuite) TestTokenAuth() {
 	suite.waitForSchemaFile("single-token-test")
 
 	// Verify schema metadata
-	suite.verifySchemaMetadata("single-token-test", v1alpha1.AuthTypeToken)
+	suite.verifySchemaMetadata("single-token-test", pmgatewayv1alpha1.AuthTypeToken)
 }
 
 // TestClientCertAuth tests ClusterAccess with client certificate authentication
@@ -433,14 +433,14 @@ func (suite *ClusterAccessControllerTestSuite) TestClientCertAuth() {
 	suite.Require().NoError(err, "failed to create client cert secret")
 
 	// Create ClusterAccess with client cert auth
-	clusterAccess := &v1alpha1.ClusterAccess{
+	clusterAccess := &pmgatewayv1alpha1.ClusterAccess{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "clientcert-test",
 		},
-		Spec: v1alpha1.ClusterAccessSpec{
+		Spec: pmgatewayv1alpha1.ClusterAccessSpec{
 			Host: suite.envtestHost,
-			CA: &v1alpha1.CAConfig{
-				SecretRef: &v1alpha1.SecretKeyRef{
+			CA: &pmgatewayv1alpha1.CAConfig{
+				SecretRef: &pmgatewayv1alpha1.SecretKeyRef{
 					SecretReference: corev1.SecretReference{
 						Name:      "ca-secret",
 						Namespace: testNamespace,
@@ -448,7 +448,7 @@ func (suite *ClusterAccessControllerTestSuite) TestClientCertAuth() {
 					Key: "ca.crt",
 				},
 			},
-			Auth: &v1alpha1.AuthConfig{
+			Auth: &pmgatewayv1alpha1.AuthConfig{
 				ClientCertificateRef: &corev1.SecretReference{
 					Name:      "client-cert-secret",
 					Namespace: testNamespace,
@@ -463,7 +463,7 @@ func (suite *ClusterAccessControllerTestSuite) TestClientCertAuth() {
 	suite.waitForSchemaFile("single-clientcert-test")
 
 	// Verify schema metadata
-	suite.verifySchemaMetadata("single-clientcert-test", v1alpha1.AuthTypeClientCert)
+	suite.verifySchemaMetadata("single-clientcert-test", pmgatewayv1alpha1.AuthTypeClientCert)
 }
 
 // TestServiceAccountAuth tests ClusterAccess with service account authentication
@@ -483,14 +483,14 @@ func (suite *ClusterAccessControllerTestSuite) TestServiceAccountAuth() {
 
 	// Create ClusterAccess with service account auth
 	// The reconciler generates a token and stores SA details in metadata
-	clusterAccess := &v1alpha1.ClusterAccess{
+	clusterAccess := &pmgatewayv1alpha1.ClusterAccess{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "serviceaccount-test",
 		},
-		Spec: v1alpha1.ClusterAccessSpec{
+		Spec: pmgatewayv1alpha1.ClusterAccessSpec{
 			Host: suite.envtestHost,
-			CA: &v1alpha1.CAConfig{
-				SecretRef: &v1alpha1.SecretKeyRef{
+			CA: &pmgatewayv1alpha1.CAConfig{
+				SecretRef: &pmgatewayv1alpha1.SecretKeyRef{
 					SecretReference: corev1.SecretReference{
 						Name:      "ca-secret",
 						Namespace: testNamespace,
@@ -498,8 +498,8 @@ func (suite *ClusterAccessControllerTestSuite) TestServiceAccountAuth() {
 					Key: "ca.crt",
 				},
 			},
-			Auth: &v1alpha1.AuthConfig{
-				ServiceAccountRef: &v1alpha1.ServiceAccountRef{
+			Auth: &pmgatewayv1alpha1.AuthConfig{
+				ServiceAccountRef: &pmgatewayv1alpha1.ServiceAccountRef{
 					Name:      "test-sa",
 					Namespace: testNamespace,
 				},
@@ -524,7 +524,7 @@ func (suite *ClusterAccessControllerTestSuite) TestServiceAccountAuth() {
 	metadataRaw, ok := schemaJSON["x-cluster-metadata"]
 	suite.Require().True(ok, "schema should have x-cluster-metadata")
 
-	var metadata v1alpha1.ClusterMetadata
+	var metadata pmgatewayv1alpha1.ClusterMetadata
 	switch v := metadataRaw.(type) {
 	case string:
 		err = json.Unmarshal([]byte(v), &metadata)
@@ -538,7 +538,7 @@ func (suite *ClusterAccessControllerTestSuite) TestServiceAccountAuth() {
 	suite.Require().NoError(err, "failed to decode cluster metadata")
 
 	suite.NotNil(metadata.Auth, "metadata should have auth")
-	suite.Equal(v1alpha1.AuthTypeServiceAccount, metadata.Auth.Type, "auth type should be serviceAccount")
+	suite.Equal(pmgatewayv1alpha1.AuthTypeServiceAccount, metadata.Auth.Type, "auth type should be serviceAccount")
 	suite.Equal("test-sa", metadata.Auth.SAName, "SA name should match")
 	suite.Equal(testNamespace, metadata.Auth.SANamespace, "SA namespace should match")
 	suite.NotEmpty(metadata.Auth.Token, "SA auth should have generated token")

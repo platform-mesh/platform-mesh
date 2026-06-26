@@ -24,23 +24,22 @@ import (
 	"fmt"
 	"time"
 
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/reconciler"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema/enricher"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/schemahandler"
 
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -99,9 +98,9 @@ func (r *ClusterAccessReconciler) Reconcile(ctx context.Context, req mcreconcile
 
 	c := cl.GetClient()
 
-	ca := &v1alpha1.ClusterAccess{}
-	if err := c.Get(ctx, client.ObjectKey{Name: req.Name}, ca); err != nil {
-		if k8serrors.IsNotFound(err) {
+	ca := &pmgatewayv1alpha1.ClusterAccess{}
+	if err := c.Get(ctx, ctrlruntimeclient.ObjectKey{Name: req.Name}, ca); err != nil {
+		if apierrors.IsNotFound(err) {
 			logger.Info("ClusterAccess resource not found, cleaning up schema", "name", req.Name)
 			// Delete the schema file if ClusterAccess is deleted
 			// Try both possible paths (resource name and path field)
@@ -130,8 +129,8 @@ func (r *ClusterAccessReconciler) Reconcile(ctx context.Context, req mcreconcile
 // reconcileClusterAccess performs the core reconciliation: building the schema and writing it.
 func (r *ClusterAccessReconciler) reconcileClusterAccess(
 	ctx context.Context,
-	ca *v1alpha1.ClusterAccess,
-	c client.Client,
+	ca *pmgatewayv1alpha1.ClusterAccess,
+	c ctrlruntimeclient.Client,
 	currentConfig *rest.Config,
 	reqClusterName string,
 ) (ctrl.Result, error) {
@@ -234,16 +233,16 @@ func calculateTokenRefreshInterval(tokenExpiration *metav1.Duration) time.Durati
 // SetupWithManager sets up the controller with the Manager
 func (r *ClusterAccessReconciler) SetupWithManager(mgr mcmanager.Manager, forOpts ...mcbuilder.ForOption) error {
 	return mcbuilder.ControllerManagedBy(mgr).
-		For(&v1alpha1.ClusterAccess{}, forOpts...).
+		For(&pmgatewayv1alpha1.ClusterAccess{}, forOpts...).
 		WithOptions(r.opts).
 		Named(controllerName).
 		Complete(r)
 }
 
-func buildTargetClusterConfig(ctx context.Context, clusterAccess v1alpha1.ClusterAccess, c client.Client, currentConfig *rest.Config) (*rest.Config, error) {
+func buildTargetClusterConfig(ctx context.Context, clusterAccess pmgatewayv1alpha1.ClusterAccess, c ctrlruntimeclient.Client, currentConfig *rest.Config) (*rest.Config, error) {
 	spec := clusterAccess.Spec
 
-	config, err := v1alpha1.BuildRestConfigFromClusterAccess(ctx, clusterAccess, c)
+	config, err := pmgatewayv1alpha1.BuildRestConfigFromClusterAccess(ctx, clusterAccess, c)
 	if err != nil {
 		return nil, err
 	}
@@ -264,14 +263,14 @@ func buildTargetClusterConfig(ctx context.Context, clusterAccess v1alpha1.Cluste
 	return config, nil
 }
 
-func injectClusterMetadata(ctx context.Context, schemaData []byte, clusterAccess v1alpha1.ClusterAccess, c client.Client, currentConfig *rest.Config) ([]byte, error) {
-	metadata, err := v1alpha1.BuildClusterMetadataFromClusterAccess(ctx, clusterAccess, c)
+func injectClusterMetadata(ctx context.Context, schemaData []byte, clusterAccess pmgatewayv1alpha1.ClusterAccess, c ctrlruntimeclient.Client, currentConfig *rest.Config) ([]byte, error) {
+	metadata, err := pmgatewayv1alpha1.BuildClusterMetadataFromClusterAccess(ctx, clusterAccess, c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build cluster metadata from ClusterAccess: %w", err)
 	}
 
 	if metadata.CA == nil && currentConfig != nil && len(currentConfig.CAData) > 0 {
-		metadata.CA = &v1alpha1.CAMetadata{
+		metadata.CA = &pmgatewayv1alpha1.CAMetadata{
 			Data: base64.StdEncoding.EncodeToString(currentConfig.CAData),
 		}
 	}
@@ -304,7 +303,7 @@ func (r *ClusterAccessReconciler) restMapperFromConfig(cfg *rest.Config) (meta.R
 // On success (reconcileErr == nil) it sets Ready=True; on failure it sets Ready=False
 // with the error message. This is best-effort: failures to update are returned but
 // should not override the original reconciliation error.
-func (r *ClusterAccessReconciler) setReadyCondition(ctx context.Context, ca *v1alpha1.ClusterAccess, c client.Client, reconcileErr error) error {
+func (r *ClusterAccessReconciler) setReadyCondition(ctx context.Context, ca *pmgatewayv1alpha1.ClusterAccess, c ctrlruntimeclient.Client, reconcileErr error) error {
 	condition := metav1.Condition{
 		Type:               ConditionTypeReady,
 		ObservedGeneration: ca.Generation,

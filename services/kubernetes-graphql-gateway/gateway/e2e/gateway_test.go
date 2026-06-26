@@ -31,7 +31,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/config"
 	gwhttp "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/http"
@@ -49,7 +50,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -62,7 +63,7 @@ type GatewayE2ETestSuite struct {
 	suite.Suite
 
 	env    *envtest.Environment
-	client client.Client
+	client ctrlruntimeclient.Client
 	cancel context.CancelFunc
 
 	// Temp directories
@@ -134,11 +135,11 @@ func (suite *GatewayE2ETestSuite) SetupSuite() {
 	testScheme := runtime.NewScheme()
 	err = clientgoscheme.AddToScheme(testScheme)
 	suite.Require().NoError(err, "failed to add client-go scheme")
-	err = v1alpha1.AddToScheme(testScheme)
+	err = pmgatewayv1alpha1.AddToScheme(testScheme)
 	suite.Require().NoError(err, "failed to add v1alpha1 scheme")
 
 	// Create client
-	suite.client, err = client.New(cfg, client.Options{Scheme: testScheme})
+	suite.client, err = ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: testScheme})
 	suite.Require().NoError(err, "failed to create client")
 
 	ctx, cancel := context.WithCancel(suite.T().Context())
@@ -274,7 +275,7 @@ func (suite *GatewayE2ETestSuite) generateTestToken() {
 }
 
 // generateSchema uses the real listener reconciler to generate a schema
-func (suite *GatewayE2ETestSuite) generateSchema(clusterName string, metadata *v1alpha1.ClusterMetadata) {
+func (suite *GatewayE2ETestSuite) generateSchema(clusterName string, metadata *pmgatewayv1alpha1.ClusterMetadata) {
 	ctx := suite.T().Context()
 	err := suite.schemaReconciler.Reconcile(
 		ctx,
@@ -310,7 +311,7 @@ func (suite *GatewayE2ETestSuite) executeGraphQLQuery(
 	body, err := json.Marshal(requestBody)
 	suite.Require().NoError(err, "failed to marshal request body")
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	suite.Require().NoError(err, "failed to create request")
 
 	req.Header.Set("Content-Type", "application/json")
@@ -339,34 +340,34 @@ func (suite *GatewayE2ETestSuite) executeGraphQLQuery(
 }
 
 // buildClusterMetadata creates ClusterMetadata for a given auth type
-func (suite *GatewayE2ETestSuite) buildClusterMetadata(authType v1alpha1.AuthenticationType) *v1alpha1.ClusterMetadata {
-	metadata := &v1alpha1.ClusterMetadata{
+func (suite *GatewayE2ETestSuite) buildClusterMetadata(authType pmgatewayv1alpha1.AuthenticationType) *pmgatewayv1alpha1.ClusterMetadata {
+	metadata := &pmgatewayv1alpha1.ClusterMetadata{
 		Host: suite.envtestHost,
-		CA: &v1alpha1.CAMetadata{
+		CA: &pmgatewayv1alpha1.CAMetadata{
 			Data: base64.StdEncoding.EncodeToString(suite.envtestCAData),
 		},
 	}
 
 	switch authType {
-	case v1alpha1.AuthTypeToken:
-		metadata.Auth = &v1alpha1.AuthMetadata{
-			Type:  v1alpha1.AuthTypeToken,
+	case pmgatewayv1alpha1.AuthTypeToken:
+		metadata.Auth = &pmgatewayv1alpha1.AuthMetadata{
+			Type:  pmgatewayv1alpha1.AuthTypeToken,
 			Token: base64.StdEncoding.EncodeToString([]byte(suite.testToken)),
 		}
-	case v1alpha1.AuthTypeKubeconfig:
-		metadata.Auth = &v1alpha1.AuthMetadata{
-			Type:       v1alpha1.AuthTypeKubeconfig,
+	case pmgatewayv1alpha1.AuthTypeKubeconfig:
+		metadata.Auth = &pmgatewayv1alpha1.AuthMetadata{
+			Type:       pmgatewayv1alpha1.AuthTypeKubeconfig,
 			Kubeconfig: base64.StdEncoding.EncodeToString(suite.envtestKubeconfig),
 		}
-	case v1alpha1.AuthTypeClientCert:
-		metadata.Auth = &v1alpha1.AuthMetadata{
-			Type:     v1alpha1.AuthTypeClientCert,
+	case pmgatewayv1alpha1.AuthTypeClientCert:
+		metadata.Auth = &pmgatewayv1alpha1.AuthMetadata{
+			Type:     pmgatewayv1alpha1.AuthTypeClientCert,
 			CertData: base64.StdEncoding.EncodeToString(suite.envtestCertData),
 			KeyData:  base64.StdEncoding.EncodeToString(suite.envtestKeyData),
 		}
-	case v1alpha1.AuthTypeServiceAccount:
-		metadata.Auth = &v1alpha1.AuthMetadata{
-			Type:        v1alpha1.AuthTypeServiceAccount,
+	case pmgatewayv1alpha1.AuthTypeServiceAccount:
+		metadata.Auth = &pmgatewayv1alpha1.AuthMetadata{
+			Type:        pmgatewayv1alpha1.AuthTypeServiceAccount,
 			Token:       base64.StdEncoding.EncodeToString([]byte(suite.testToken)),
 			SAName:      "test-sa",
 			SANamespace: testNamespace,
@@ -383,7 +384,7 @@ func (suite *GatewayE2ETestSuite) buildClusterMetadata(authType v1alpha1.Authent
 // TestKubeconfigAuth tests Gateway with kubeconfig authentication
 func (suite *GatewayE2ETestSuite) TestKubeconfigAuth() {
 	clusterName := "kubeconfig-test-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -408,7 +409,7 @@ func (suite *GatewayE2ETestSuite) TestKubeconfigAuth() {
 // TestTokenAuth tests Gateway with token authentication
 func (suite *GatewayE2ETestSuite) TestTokenAuth() {
 	clusterName := "token-test-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeToken)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeToken)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -432,7 +433,7 @@ func (suite *GatewayE2ETestSuite) TestTokenAuth() {
 // TestClientCertAuth tests Gateway with client certificate authentication
 func (suite *GatewayE2ETestSuite) TestClientCertAuth() {
 	clusterName := "clientcert-test-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeClientCert)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeClientCert)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -456,7 +457,7 @@ func (suite *GatewayE2ETestSuite) TestClientCertAuth() {
 // TestServiceAccountAuth tests Gateway with service account authentication
 func (suite *GatewayE2ETestSuite) TestServiceAccountAuth() {
 	clusterName := "serviceaccount-test-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeServiceAccount)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeServiceAccount)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -486,7 +487,7 @@ func (suite *GatewayE2ETestSuite) TestServiceAccountAuth() {
 // reaching the gateway.
 func (suite *GatewayE2ETestSuite) TestMissingAuthorizationHeader() {
 	clusterName := "missing-auth-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -509,7 +510,7 @@ func (suite *GatewayE2ETestSuite) TestMissingAuthorizationHeader() {
 // fails TokenReview validation is rejected with 401.
 func (suite *GatewayE2ETestSuite) TestInvalidToken() {
 	clusterName := "invalid-token-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -534,13 +535,13 @@ func (suite *GatewayE2ETestSuite) TestInvalidToken() {
 // TestListQuery tests list operations
 func (suite *GatewayE2ETestSuite) TestListQuery() {
 	clusterName := "list-test-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
 
 	// Create test ConfigMaps
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      fmt.Sprintf("list-test-cm-%d", i),
@@ -582,7 +583,7 @@ func (suite *GatewayE2ETestSuite) TestListQuery() {
 // TestGetQuery tests get single item operations
 func (suite *GatewayE2ETestSuite) TestGetQuery() {
 	clusterName := "get-test-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -624,7 +625,7 @@ func (suite *GatewayE2ETestSuite) TestGetQuery() {
 // TestCreateMutation tests create operations
 func (suite *GatewayE2ETestSuite) TestCreateMutation() {
 	clusterName := "create-test-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -654,7 +655,7 @@ func (suite *GatewayE2ETestSuite) TestCreateMutation() {
 
 	// Verify ConfigMap was created
 	cm := &corev1.ConfigMap{}
-	err := suite.client.Get(suite.T().Context(), client.ObjectKey{
+	err := suite.client.Get(suite.T().Context(), ctrlruntimeclient.ObjectKey{
 		Name:      "created-cm",
 		Namespace: testNamespace,
 	}, cm)
@@ -665,7 +666,7 @@ func (suite *GatewayE2ETestSuite) TestCreateMutation() {
 // TestUpdateMutation tests update operations
 func (suite *GatewayE2ETestSuite) TestUpdateMutation() {
 	clusterName := "update-test-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -704,7 +705,7 @@ func (suite *GatewayE2ETestSuite) TestUpdateMutation() {
 	suite.Empty(resp.Errors, "expected no errors, got: %v", resp.Errors)
 
 	// Verify update
-	err = suite.client.Get(suite.T().Context(), client.ObjectKey{
+	err = suite.client.Get(suite.T().Context(), ctrlruntimeclient.ObjectKey{
 		Name:      "update-test-cm",
 		Namespace: testNamespace,
 	}, cm)
@@ -715,7 +716,7 @@ func (suite *GatewayE2ETestSuite) TestUpdateMutation() {
 // TestDeleteMutation tests delete operations
 func (suite *GatewayE2ETestSuite) TestDeleteMutation() {
 	clusterName := "delete-test-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -745,7 +746,7 @@ func (suite *GatewayE2ETestSuite) TestDeleteMutation() {
 	suite.Empty(resp.Errors, "expected no errors, got: %v", resp.Errors)
 
 	// Verify deletion
-	err = suite.client.Get(suite.T().Context(), client.ObjectKey{
+	err = suite.client.Get(suite.T().Context(), ctrlruntimeclient.ObjectKey{
 		Name:      "delete-test-cm",
 		Namespace: testNamespace,
 	}, cm)
@@ -758,7 +759,7 @@ func (suite *GatewayE2ETestSuite) TestDeleteMutation() {
 
 func (suite *GatewayE2ETestSuite) TestApplyYamlCreate() {
 	clusterName := "apply-yaml-create-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -784,7 +785,7 @@ data:
 	suite.NotNil(resp.Data["applyYaml"])
 
 	cm := &corev1.ConfigMap{}
-	err := suite.client.Get(suite.T().Context(), client.ObjectKey{
+	err := suite.client.Get(suite.T().Context(), ctrlruntimeclient.ObjectKey{
 		Name:      "apply-yaml-created",
 		Namespace: testNamespace,
 	}, cm)
@@ -794,7 +795,7 @@ data:
 
 func (suite *GatewayE2ETestSuite) TestApplyYamlUpdate() {
 	clusterName := "apply-yaml-update-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -838,7 +839,7 @@ data:
 	suite.Empty(resp.Errors)
 
 	cm := &corev1.ConfigMap{}
-	err := suite.client.Get(suite.T().Context(), client.ObjectKey{
+	err := suite.client.Get(suite.T().Context(), ctrlruntimeclient.ObjectKey{
 		Name:      "apply-yaml-updated",
 		Namespace: testNamespace,
 	}, cm)
@@ -854,7 +855,7 @@ data:
 func (suite *GatewayE2ETestSuite) TestClusterNotFound() {
 	url := fmt.Sprintf("%s/api/clusters/nonexistent-cluster", suite.testServer.URL)
 
-	req, _ := http.NewRequest("POST", url, bytes.NewReader([]byte(`{"query": "{}"}`)))
+	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewReader([]byte(`{"query": "{}"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+suite.testToken)
 
@@ -868,7 +869,7 @@ func (suite *GatewayE2ETestSuite) TestClusterNotFound() {
 // TestInvalidGraphQLQuery tests malformed GraphQL queries
 func (suite *GatewayE2ETestSuite) TestInvalidGraphQLQuery() {
 	clusterName := "invalid-query-cluster"
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
@@ -894,7 +895,7 @@ func (suite *GatewayE2ETestSuite) TestSchemaReload() {
 	clusterName := "reload-test-cluster"
 
 	// Initially create schema with kubeconfig auth
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
 
@@ -912,7 +913,7 @@ func (suite *GatewayE2ETestSuite) TestSchemaReload() {
 	suite.Empty(resp.Errors)
 
 	// Update schema file with token auth
-	newMetadata := suite.buildClusterMetadata(v1alpha1.AuthTypeToken)
+	newMetadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeToken)
 	suite.generateSchema(clusterName, newMetadata)
 
 	// Wait for reload
@@ -936,7 +937,7 @@ func (suite *GatewayE2ETestSuite) TestSchemaReload() {
 func (suite *GatewayE2ETestSuite) TestSchemaDelete() {
 	clusterName := "delete-schema-cluster"
 
-	metadata := suite.buildClusterMetadata(v1alpha1.AuthTypeKubeconfig)
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
 
@@ -953,7 +954,7 @@ func (suite *GatewayE2ETestSuite) TestSchemaDelete() {
 
 	// Verify endpoint is gone
 	url := fmt.Sprintf("%s/api/clusters/%s", suite.testServer.URL, clusterName)
-	req, _ := http.NewRequest("POST", url, bytes.NewReader([]byte(`{"query": "{}"}`)))
+	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewReader([]byte(`{"query": "{}"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+suite.testToken)
 

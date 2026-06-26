@@ -19,7 +19,7 @@ package enricher
 import (
 	"context"
 
-	"go.platform-mesh.io/apis/gateway"
+	pmgateway "go.platform-mesh.io/apis/gateway"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -63,9 +63,9 @@ func (e *Scope) Enrich(ctx context.Context, schemas *apischema.SchemaSet) error 
 		}
 
 		if namespaced {
-			entry.Schema.AddExtension(gateway.ScopeExtensionKey, apiextensionsv1.NamespaceScoped)
+			entry.Schema.AddExtension(pmgateway.ScopeExtensionKey, apiextensionsv1.NamespaceScoped)
 		} else {
-			entry.Schema.AddExtension(gateway.ScopeExtensionKey, apiextensionsv1.ClusterScoped)
+			entry.Schema.AddExtension(pmgateway.ScopeExtensionKey, apiextensionsv1.ClusterScoped)
 		}
 	}
 

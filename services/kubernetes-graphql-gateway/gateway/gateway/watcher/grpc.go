@@ -23,9 +23,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.platform-mesh.io/kubernetes-graphql-gateway/sdk"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"go.platform-mesh.io/kubernetes-graphql-gateway/sdk"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/clock"

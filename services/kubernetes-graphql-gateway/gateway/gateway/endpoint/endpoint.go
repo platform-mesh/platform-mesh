@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"time"
 
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/authn"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/cluster"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/config"
@@ -226,8 +226,8 @@ func (e *Endpoint) Close() {
 	e.graphqlServer = nil
 }
 
-func parseSchema(schemaJSON []byte) (*v1alpha1.Schema, error) {
-	var schemaData v1alpha1.Schema
+func parseSchema(schemaJSON []byte) (*pmgatewayv1alpha1.Schema, error) {
+	var schemaData pmgatewayv1alpha1.Schema
 	if err := json.Unmarshal(schemaJSON, &schemaData); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}

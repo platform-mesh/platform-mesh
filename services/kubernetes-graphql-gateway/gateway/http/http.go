@@ -26,6 +26,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/middleware"
 	utilscontext "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/utils/context"
 

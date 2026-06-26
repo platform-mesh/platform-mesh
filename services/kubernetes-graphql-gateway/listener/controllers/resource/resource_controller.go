@@ -21,22 +21,22 @@ import (
 	"fmt"
 
 	"github.com/google/cel-go/cel"
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/reconciler"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/schemahandler"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -56,8 +56,8 @@ type Reconciler struct {
 	additionalPathAnnotationKey string
 
 	// Provider specific functions
-	clusterMetadataFunc    v1alpha1.ClusterMetadataFunc
-	clusterURLResolverFunc v1alpha1.ClusterURLResolver
+	clusterMetadataFunc    pmgatewayv1alpha1.ClusterMetadataFunc
+	clusterURLResolverFunc pmgatewayv1alpha1.ClusterURLResolver
 }
 
 // New returns a new ResourceReconciler
@@ -69,8 +69,8 @@ func New(
 	anchorResource string,
 	resourceGVR string,
 	additionalPathAnnotationKey string,
-	clusterMetadataFunc v1alpha1.ClusterMetadataFunc,
-	clusterURLResolverFunc v1alpha1.ClusterURLResolver,
+	clusterMetadataFunc pmgatewayv1alpha1.ClusterMetadataFunc,
+	clusterURLResolverFunc pmgatewayv1alpha1.ClusterURLResolver,
 ) (*Reconciler, error) {
 	r := &Reconciler{
 		manager:                     mgr,
@@ -135,7 +135,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ct
 
 	// Check if the anchor resource exists
 	if err := c.Get(ctx, req.NamespacedName, &us); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			logger.Info("Anchor resource not found, cleaning up schema", "resource", r.anchorResource)
 			// Delete the schema file if namespace is deleted
 			if err := r.reconciler.Cleanup(ctx, paths); err != nil {
@@ -154,7 +154,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ct
 	}
 
 	// This is plugable function to get cluster metadata for the given cluster name.
-	var metadata *v1alpha1.ClusterMetadata
+	var metadata *pmgatewayv1alpha1.ClusterMetadata
 	if r.clusterMetadataFunc != nil {
 		var err error
 		metadata, err = r.clusterMetadataFunc(clusterName)
@@ -164,7 +164,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ct
 		}
 	} else {
 		var err error
-		metadata, err = v1alpha1.BuildClusterMetadataFromConfig(config)
+		metadata, err = pmgatewayv1alpha1.BuildClusterMetadataFromConfig(config)
 		if err != nil {
 			logger.Error(err, "Failed to build metadata from config")
 			return ctrl.Result{}, fmt.Errorf("failed to build metadata from config: %w", err)
@@ -207,7 +207,7 @@ func (r *Reconciler) SetupWithManager(mgr mcmanager.Manager, forOpts ...mcbuilde
 	}
 
 	// Create a predicate to only watch the anchor resource
-	anchorResourcePredicate := predicate.NewPredicateFuncs(func(object client.Object) bool {
+	anchorResourcePredicate := predicate.NewPredicateFuncs(func(object ctrlruntimeclient.Object) bool {
 		us, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
 		if err != nil {
 			klog.Error("failure converting object to unstructured", "err", err.Error())
@@ -229,7 +229,8 @@ func (r *Reconciler) SetupWithManager(mgr mcmanager.Manager, forOpts ...mcbuilde
 	us := unstructured.Unstructured{}
 	us.SetGroupVersionKind(r.resourceGVK)
 
-	opts := []mcbuilder.ForOption{mcbuilder.WithPredicates(anchorResourcePredicate)}
+	opts := make([]mcbuilder.ForOption, 0, len(forOpts)+1)
+	opts = append(opts, mcbuilder.WithPredicates(anchorResourcePredicate))
 	opts = append(opts, forOpts...)
 
 	return mcbuilder.ControllerManagedBy(mgr).

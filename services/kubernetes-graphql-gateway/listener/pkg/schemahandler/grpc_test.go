@@ -23,9 +23,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/schemahandler"
 	proto "go.platform-mesh.io/kubernetes-graphql-gateway/sdk"
-	"google.golang.org/grpc"
 )
 
 func TestGRPCHandler_ReadWriteDelete(t *testing.T) {

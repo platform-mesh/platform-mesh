@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/schemahandler"
 )
 

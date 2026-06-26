@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	utilscontext "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/utils/context"
 )
 
@@ -82,7 +83,7 @@ func TestMissingAuthorizationHeader(t *testing.T) {
 	ts := newTestServer(t, handler)
 	defer ts.Close()
 
-	req, err := http.NewRequest("POST", clusterURL(ts.URL, "test-cluster"), strings.NewReader(`{"query":"{}"}`))
+	req, err := http.NewRequest(http.MethodPost, clusterURL(ts.URL, "test-cluster"), strings.NewReader(`{"query":"{}"}`))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
@@ -102,7 +103,7 @@ func TestInvalidAuthorizationFormat(t *testing.T) {
 	ts := newTestServer(t, handler)
 	defer ts.Close()
 
-	req, err := http.NewRequest("POST", clusterURL(ts.URL, "test-cluster"), strings.NewReader(`{"query":"{}"}`))
+	req, err := http.NewRequest(http.MethodPost, clusterURL(ts.URL, "test-cluster"), strings.NewReader(`{"query":"{}"}`))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Basic abc123")
@@ -120,7 +121,7 @@ func TestValidBearerTokenForwarded(t *testing.T) {
 	ts := newTestServer(t, handler)
 	defer ts.Close()
 
-	req, err := http.NewRequest("POST", clusterURL(ts.URL, "my-cluster"), strings.NewReader(`{"query":"{}"}`))
+	req, err := http.NewRequest(http.MethodPost, clusterURL(ts.URL, "my-cluster"), strings.NewReader(`{"query":"{}"}`))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer valid-test-token")
@@ -165,7 +166,7 @@ func TestPlaygroundEnabledAllowsUnauthenticatedGet(t *testing.T) {
 	ts := httptest.NewServer(srv.Server.Handler)
 	defer ts.Close()
 
-	req, err := http.NewRequest("GET", clusterURL(ts.URL, "my-cluster"), nil)
+	req, err := http.NewRequest(http.MethodGet, clusterURL(ts.URL, "my-cluster"), nil)
 	require.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -183,7 +184,7 @@ func TestPlaygroundDisabledRejectsUnauthenticatedGet(t *testing.T) {
 	ts := newTestServer(t, handler)
 	defer ts.Close()
 
-	req, err := http.NewRequest("GET", clusterURL(ts.URL, "my-cluster"), nil)
+	req, err := http.NewRequest(http.MethodGet, clusterURL(ts.URL, "my-cluster"), nil)
 	require.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -254,7 +255,7 @@ func TestMaxRequestBodyBytes(t *testing.T) {
 			defer ts.Close()
 
 			body := strings.Repeat("x", tt.bodySize)
-			req, err := http.NewRequest("POST", ts.URL+"/api/clusters/test-cluster", strings.NewReader(body))
+			req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/clusters/test-cluster", strings.NewReader(body))
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer valid-token")

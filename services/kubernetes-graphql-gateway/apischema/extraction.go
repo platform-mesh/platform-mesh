@@ -19,7 +19,7 @@ package apischema
 import (
 	"errors"
 
-	"go.platform-mesh.io/apis/gateway"
+	pmgateway "go.platform-mesh.io/apis/gateway"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,7 +44,7 @@ func ExtractGVK(s *spec.Schema) (*schema.GroupVersionKind, error) {
 		return nil, nil
 	}
 
-	gvksVal, ok := s.Extensions[gateway.GVKExtensionKey]
+	gvksVal, ok := s.Extensions[pmgateway.GVKExtensionKey]
 	if !ok {
 		return nil, nil
 	}
@@ -110,7 +110,7 @@ func ExtractScope(schema *spec.Schema) (apiextensionsv1.ResourceScope, error) {
 		return "", ErrScopeNotFound
 	}
 
-	scopeRaw, ok := schema.Extensions[gateway.ScopeExtensionKey]
+	scopeRaw, ok := schema.Extensions[pmgateway.ScopeExtensionKey]
 	if !ok {
 		return "", ErrScopeNotFound
 	}

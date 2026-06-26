@@ -26,7 +26,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/resource"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/options"
@@ -37,7 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
@@ -123,7 +123,7 @@ func (suite *ResourceControllerTestSuite) TestSchemaGeneration() {
 	raw, err := os.ReadFile(schemaFilePath)
 	suite.Require().NoError(err, "failed to read schema file")
 
-	var schema v1alpha1.Schema
+	var schema pmgatewayv1alpha1.Schema
 	err = json.NewDecoder(bytes.NewReader(raw)).Decode(&schema)
 	suite.Require().NoError(err, "failed to decode schema file")
 

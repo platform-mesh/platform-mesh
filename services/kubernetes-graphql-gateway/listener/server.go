@@ -25,7 +25,6 @@ import (
 
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 

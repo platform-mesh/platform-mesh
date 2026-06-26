@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/graphql-go/graphql/language/ast"
+
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 )
 

@@ -210,7 +210,7 @@ func TestWithMaxInFlightRequestsMetrics(t *testing.T) {
 
 		// Fill the single slot
 		go func() {
-			resp, _ := http.Get(server.URL) //nolint:errcheck
+			resp, _ := http.Get(server.URL)
 			if resp != nil {
 				resp.Body.Close() //nolint:errcheck
 			}

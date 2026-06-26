@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"go.platform-mesh.io/golang-commons/traces"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/options"

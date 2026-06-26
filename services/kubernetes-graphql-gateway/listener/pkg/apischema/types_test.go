@@ -20,7 +20,8 @@ import (
 	"testing"
 
 	"github.com/go-openapi/testify/v2/assert"
-	"go.platform-mesh.io/apis/gateway"
+
+	pmgateway "go.platform-mesh.io/apis/gateway"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,7 +33,7 @@ func TestSchemaSet_O1_Lookups(t *testing.T) {
 	podSchema := &spec.Schema{
 		VendorExtensible: spec.VendorExtensible{
 			Extensions: map[string]any{
-				gateway.GVKExtensionKey: []map[string]any{
+				pmgateway.GVKExtensionKey: []map[string]any{
 					{"group": "", "version": "v1", "kind": "Pod"},
 				},
 			},
@@ -41,7 +42,7 @@ func TestSchemaSet_O1_Lookups(t *testing.T) {
 	deploymentSchema := &spec.Schema{
 		VendorExtensible: spec.VendorExtensible{
 			Extensions: map[string]any{
-				gateway.GVKExtensionKey: []map[string]any{
+				pmgateway.GVKExtensionKey: []map[string]any{
 					{"group": "apps", "version": "v1", "kind": "Deployment"},
 				},
 			},
@@ -51,7 +52,7 @@ func TestSchemaSet_O1_Lookups(t *testing.T) {
 	customPodSchema := &spec.Schema{
 		VendorExtensible: spec.VendorExtensible{
 			Extensions: map[string]any{
-				gateway.GVKExtensionKey: []map[string]any{
+				pmgateway.GVKExtensionKey: []map[string]any{
 					{"group": "custom.io", "version": "v1", "kind": "Pod"},
 				},
 			},

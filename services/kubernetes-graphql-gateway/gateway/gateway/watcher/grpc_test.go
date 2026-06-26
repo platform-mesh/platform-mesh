@@ -26,10 +26,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+
 	"go.platform-mesh.io/kubernetes-graphql-gateway/defaults"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/watcher"
 	proto "go.platform-mesh.io/kubernetes-graphql-gateway/sdk"
-	"google.golang.org/grpc"
 )
 
 // fakeHandler records schema events from the watcher.

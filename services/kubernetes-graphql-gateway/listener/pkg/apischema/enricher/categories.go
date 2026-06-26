@@ -19,7 +19,7 @@ package enricher
 import (
 	"context"
 
-	"go.platform-mesh.io/apis/gateway"
+	pmgateway "go.platform-mesh.io/apis/gateway"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -73,7 +73,7 @@ func (e *Categories) Enrich(ctx context.Context, schemas *apischema.SchemaSet) e
 				continue
 			}
 
-			entry.Schema.AddExtension(gateway.CategoriesExtensionKey, res.Categories)
+			entry.Schema.AddExtension(pmgateway.CategoriesExtensionKey, res.Categories)
 		}
 	}
 

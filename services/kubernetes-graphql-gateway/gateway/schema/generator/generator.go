@@ -23,6 +23,7 @@ import (
 
 	"github.com/gobuffalo/flect"
 	"github.com/graphql-go/graphql"
+
 	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/extensions"

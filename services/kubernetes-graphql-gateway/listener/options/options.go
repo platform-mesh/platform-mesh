@@ -21,7 +21,8 @@ import (
 	"strings"
 
 	"github.com/spf13/pflag"
-	"go.platform-mesh.io/apis/gateway/v1alpha1"
+
+	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
 	commonsconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/defaults"
 	providerkcp "go.platform-mesh.io/kubernetes-graphql-gateway/providers/kcp/options"
@@ -63,9 +64,9 @@ type ExtraOptions struct {
 	AnchorResource string
 	// ClusterMetadataFunc allows to provide cluster metadata for a given cluster name
 	// when reconciling anchor namespaces.
-	ClusterMetadataFunc v1alpha1.ClusterMetadataFunc
+	ClusterMetadataFunc pmgatewayv1alpha1.ClusterMetadataFunc
 	// ClusterURLResolverFunc allows to provide cluster URL for a given cluster name
-	ClusterURLResolverFunc v1alpha1.ClusterURLResolver
+	ClusterURLResolverFunc pmgatewayv1alpha1.ClusterURLResolver
 	// SchemaHandler is the type of schema handler to use (e.g., "file", "grpc")
 	SchemaHandler string
 	// GRPCListenAddr is the gRPC server listener address (only used if SchemaHandler is "grpc")
@@ -119,7 +120,7 @@ func NewOptions() *Options {
 			AnchorResource:           "object.metadata.name == 'default'",
 			ResourceGVR:              "namespaces.v1",
 			EnableResourceController: true,
-			ClusterURLResolverFunc:   v1alpha1.DefaultClusterURLResolverFunc,
+			ClusterURLResolverFunc:   pmgatewayv1alpha1.DefaultClusterURLResolverFunc,
 		},
 	}
 	return opts

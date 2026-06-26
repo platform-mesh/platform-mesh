@@ -18,6 +18,7 @@ package extensions
 
 import (
 	"github.com/graphql-go/graphql"
+
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
 )
 

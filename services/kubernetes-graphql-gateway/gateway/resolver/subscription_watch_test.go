@@ -30,13 +30,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // fakeWatcher implements watch.Interface for testing.
@@ -65,14 +65,14 @@ func (f *fakeWatcher) Stop() {
 
 // fakeClient implements client.WithWatch with controllable List and Watch behavior.
 type fakeClient struct {
-	client.WithWatch
+	ctrlruntimeclient.WithWatch
 	watchCalls int32
 	listCalls  int32
-	watchFn    func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) (watch.Interface, error)
-	listFn     func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
+	watchFn    func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) (watch.Interface, error)
+	listFn     func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error
 }
 
-func (f *fakeClient) Watch(ctx context.Context, obj client.ObjectList, opts ...client.ListOption) (watch.Interface, error) {
+func (f *fakeClient) Watch(ctx context.Context, obj ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 	atomic.AddInt32(&f.watchCalls, 1)
 	if f.watchFn != nil {
 		return f.watchFn(ctx, obj, opts...)
@@ -80,7 +80,7 @@ func (f *fakeClient) Watch(ctx context.Context, obj client.ObjectList, opts ...c
 	return newFakeWatcher(), nil
 }
 
-func (f *fakeClient) List(ctx context.Context, obj client.ObjectList, opts ...client.ListOption) error {
+func (f *fakeClient) List(ctx context.Context, obj ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
 	atomic.AddInt32(&f.listCalls, 1)
 	if f.listFn != nil {
 		return f.listFn(ctx, obj, opts...)
@@ -156,13 +156,13 @@ func TestRunWatch_WatchErrorGone_TriggersReconnection(t *testing.T) {
 
 	var watchCall int32
 	fc := &fakeClient{
-		listFn: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) (watch.Interface, error) {
+		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
 			w := newFakeWatcher()
 			if call == 1 {
@@ -185,7 +185,7 @@ func TestRunWatch_WatchErrorGone_TriggersReconnection(t *testing.T) {
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
 
-	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, v1.ClusterScoped)
+	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, apiextensionsv1.ClusterScoped)
 
 	results := collectResults(resultChannel, 3*time.Second)
 	cancel()
@@ -206,13 +206,13 @@ func TestRunWatch_WatchError500_TriggersReconnection(t *testing.T) {
 
 	var watchCall int32
 	fc := &fakeClient{
-		listFn: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) (watch.Interface, error) {
+		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
 			w := newFakeWatcher()
 			if call == 1 {
@@ -235,7 +235,7 @@ func TestRunWatch_WatchError500_TriggersReconnection(t *testing.T) {
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
 
-	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, v1.ClusterScoped)
+	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, apiextensionsv1.ClusterScoped)
 
 	results := collectResults(resultChannel, 3*time.Second)
 	cancel()
@@ -255,13 +255,13 @@ func TestRunWatch_WatchError403_IsTerminal(t *testing.T) {
 	defer cancel()
 
 	fc := &fakeClient{
-		listFn: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) (watch.Interface, error) {
+		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			w := newFakeWatcher()
 			go func() {
 				w.events <- makeStatusEvent(http.StatusForbidden, metav1.StatusReasonForbidden, "forbidden")
@@ -274,7 +274,7 @@ func TestRunWatch_WatchError403_IsTerminal(t *testing.T) {
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
 
-	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, v1.ClusterScoped)
+	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, apiextensionsv1.ClusterScoped)
 
 	results := collectResults(resultChannel, 3*time.Second)
 
@@ -294,13 +294,13 @@ func TestRunWatch_ChannelClose_TriggersReconnection(t *testing.T) {
 
 	var watchCall int32
 	fc := &fakeClient{
-		listFn: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) (watch.Interface, error) {
+		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
 			w := newFakeWatcher()
 			if call == 1 {
@@ -322,7 +322,7 @@ func TestRunWatch_ChannelClose_TriggersReconnection(t *testing.T) {
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
 
-	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, v1.ClusterScoped)
+	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, apiextensionsv1.ClusterScoped)
 
 	results := collectResults(resultChannel, 3*time.Second)
 	cancel()
@@ -341,13 +341,13 @@ func TestRunWatch_ContextCancellation_StopsRetryLoop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	fc := &fakeClient{
-		listFn: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) (watch.Interface, error) {
+		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			w := newFakeWatcher()
 			go func() {
 				w.events <- makeStatusEvent(http.StatusInternalServerError, metav1.StatusReasonInternalError, "error")
@@ -365,7 +365,7 @@ func TestRunWatch_ContextCancellation_StopsRetryLoop(t *testing.T) {
 		cancel()
 	}()
 
-	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, v1.ClusterScoped)
+	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, apiextensionsv1.ClusterScoped)
 
 	// Wait for the channel to close (which happens when runWatch returns)
 	timer := time.NewTimer(5 * time.Second)
@@ -388,13 +388,13 @@ func TestRunWatch_WatchCreationFailure_Retries(t *testing.T) {
 
 	var watchCall int32
 	fc := &fakeClient{
-		listFn: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) (watch.Interface, error) {
+		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
 			if call == 1 {
 				return nil, fmt.Errorf("connection refused")
@@ -413,7 +413,7 @@ func TestRunWatch_WatchCreationFailure_Retries(t *testing.T) {
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
 
-	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, v1.ClusterScoped)
+	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, apiextensionsv1.ClusterScoped)
 
 	results := collectResults(resultChannel, 3*time.Second)
 	cancel()
@@ -436,13 +436,13 @@ func TestRunWatch_NormalEvents_DeliveredCorrectly(t *testing.T) {
 	obj2 := makeUnstructuredObj("obj1", "default", "101")
 
 	fc := &fakeClient{
-		listFn: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("99")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) (watch.Interface, error) {
+		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			w := newFakeWatcher()
 			go func() {
 				w.events <- watch.Event{Type: watch.Added, Object: obj1}
@@ -458,7 +458,7 @@ func TestRunWatch_NormalEvents_DeliveredCorrectly(t *testing.T) {
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
 
-	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, v1.ClusterScoped)
+	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, apiextensionsv1.ClusterScoped)
 
 	results := collectResults(resultChannel, 3*time.Second)
 
@@ -481,7 +481,7 @@ func TestRunWatch_410OnWatchCreation_ClearsRVAndRelists(t *testing.T) {
 	var watchCall int32
 	var listCalls int32
 	fc := &fakeClient{
-		listFn: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			call := atomic.AddInt32(&listCalls, 1)
 			ul := list.(*unstructured.UnstructuredList)
 			if call == 1 {
@@ -493,7 +493,7 @@ func TestRunWatch_410OnWatchCreation_ClearsRVAndRelists(t *testing.T) {
 			}
 			return nil
 		},
-		watchFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) (watch.Interface, error) {
+		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
 			if call == 1 {
 				return nil, apierrors.NewResourceExpired("resource version too old")
@@ -510,7 +510,7 @@ func TestRunWatch_410OnWatchCreation_ClearsRVAndRelists(t *testing.T) {
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
 
-	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, v1.ClusterScoped)
+	go svc.runWatch(makeResolveParams(ctx), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, resultChannel, false, apiextensionsv1.ClusterScoped)
 
 	results := collectResults(resultChannel, 3*time.Second)
 	cancel()

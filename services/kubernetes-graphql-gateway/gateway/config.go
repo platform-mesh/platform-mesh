@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway"
 	gatewayconfig "go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/config"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/metrics"

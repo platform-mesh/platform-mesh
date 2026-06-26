@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/graphql-go/graphql"
+
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 
 	"k8s.io/kube-openapi/pkg/validation/spec"
