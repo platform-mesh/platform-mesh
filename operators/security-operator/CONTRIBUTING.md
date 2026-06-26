@@ -11,7 +11,7 @@ You are welcome to contribute with your pull requests. These steps explain the c
 
 1. Fork the repository and create your branch from `main`.
 1. [Add tests](#testing) for your code.
-1. If you've changed APIs, update the documentation. 
+1. If you've changed APIs, update the documentation.
 1. Make sure the tests pass. Our github actions pipeline is running the unit and e2e tests for your PR and will indicate any issues.
 1. Sign the Developer Certificate of Origin (DCO).
 
@@ -32,7 +32,7 @@ To let tests run locally, run `go test ./...` in the root directory of the repos
 ### To Deploy in the local cluster
 **Run the platform-mesh locally in the cluster:**
 
-To deploy the platform to kubernetes locally, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository. 
+To deploy the platform to kubernetes locally, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository.
 
 **Build and push your image to the local kind cluster where the platform-mesh system is deployed:**
 

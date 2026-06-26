@@ -25,4 +25,3 @@ resources:
 - searchindex_admin_role.yaml
 - searchindex_editor_role.yaml
 - searchindex_viewer_role.yaml
-

@@ -11,7 +11,7 @@ You are welcome to contribute with your pull requests. These steps explain the c
 
 1. Fork the repository and create your branch from `main`.
 1. [Add tests](#testing) for your code.
-1. If you've changed APIs, update the documentation. 
+1. If you've changed APIs, update the documentation.
 1. Make sure the tests pass. Our github actions pipeline is running the unit and e2e tests for your PR and will indicate any issues.
 1. Sign the Developer Certificate of Origin (DCO).
 

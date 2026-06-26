@@ -19,4 +19,3 @@ exclude:
     - ^test/
     - ^logger/testlogger
     - middleware/test_support
-

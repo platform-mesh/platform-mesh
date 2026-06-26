@@ -78,7 +78,7 @@ Fields are optionally and can be omitted, the Msg call instead is obligatory:
 log.Debug().Msg("Service started")
 ```
 
-Never forget to call `Msg()` otherwise no log entry is created! 
+Never forget to call `Msg()` otherwise no log entry is created!
 There is also a `Msgf(format, values...)` function but try to use fields if possible and create a
 static log message as it makes creating dashboards in Kibana easier.
 
@@ -133,5 +133,4 @@ func(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-If no logger can be found in the context, `LoadFromContext()` returns `logger.StdLogger`. 
-
+If no logger can be found in the context, `LoadFromContext()` returns `logger.StdLogger`.

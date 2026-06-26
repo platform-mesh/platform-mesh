@@ -79,7 +79,7 @@ func (r *NewSubroutine) Process(ctx context.Context, runtimeObj lifecycle.Runtim
         return ctrl.Result{}, errors.NewOperatorError(errors.New("ExtensionClass type is not set"), true, false)
     }
     // do something
-	
+
     return ctrl.Result{}, nil
 }
 ```

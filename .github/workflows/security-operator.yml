@@ -350,7 +350,7 @@ jobs:
       # Store the OCM component under this repo (owned by its GITHUB_TOKEN),
       # not the org root, to avoid cross-repo package permissions.
       ocmRegistryUrl: ghcr.io/platform-mesh
-  
+
   trivy-sbom:
     if: startsWith(github.ref, 'refs/tags/security-operator/')
     needs: [version, docker-build-push, image-ocm]

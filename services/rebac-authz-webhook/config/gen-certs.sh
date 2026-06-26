@@ -46,5 +46,3 @@ openssl x509 -req \
   -out client.crt
 
 rm *.csr
-
-

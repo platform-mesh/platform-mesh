@@ -12,8 +12,7 @@ spec:
     type role
       relations
        define assignee: [user,user:*]
-    
+
     extend type account
       relations
         define parent: [account]
-

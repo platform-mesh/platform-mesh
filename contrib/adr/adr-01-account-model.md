@@ -34,10 +34,10 @@ The account model that operates is platform specific. The account model is mostl
 
 ### Option 1: Custom Resource Definition (CRD) for Account Model
 
-This option involves creating a new CRD in that can be used to define the account model from an external perspective but can be used in kcp, with accounts managed as custom resources. 
-This option implements accounts as CRDs with a strict 1:1 mapping to KCP workspaces, using initializers for atomic creation and setup. 
+This option involves creating a new CRD in that can be used to define the account model from an external perspective but can be used in kcp, with accounts managed as custom resources.
+This option implements accounts as CRDs with a strict 1:1 mapping to KCP workspaces, using initializers for atomic creation and setup.
 The account CRD should be the minimum frame, not to grow. There need to be other ways to extend partner/customer specific account implementation for platform.
-The account model itself is living outside KCP and can be managed external from it, but kcp needs to work with that model to achive account models goals. 
+The account model itself is living outside KCP and can be managed external from it, but kcp needs to work with that model to achive account models goals.
 
 ```mermaid
 graph TD
@@ -50,13 +50,13 @@ graph TD
         D --> G[Validation]
         A --> H[Child Account CRD]
         H --> I[Child Workspace]
-        
+
         subgraph "Extensions"
             J[Platform-specific Extensions]
             K[Custom Validators]
             L[Resource Quotas]
         end
-        
+
         A -.-> J
         G -.-> K
         F -.-> L
@@ -107,18 +107,18 @@ graph TD
         A[Root Workspace] --> B[Metadata/Labels]
         A --> C[Child Workspace]
         C --> D[Metadata/Labels]
-        
+
         subgraph "Workspace Controllers"
             E[Account Controller]
             F[Resource Controller]
             G[Validation Webhook]
         end
-        
+
         B --> E
         D --> E
         E --> F
         E --> G
-        
+
         style A fill:#bbf,stroke:#333
         style C fill:#bbf,stroke:#333
         style E fill:#f96,stroke:#333
@@ -151,29 +151,29 @@ graph TD
     subgraph "Option 3: External Account Model"
         A[External Account Service] --> B[Account API]
         B --> C[Account Store]
-        
+
         subgraph "KCP Layer"
             D[KCP Service]
             E[Workspaces]
             F[Resources]
         end
-        
+
         A --> D
         D --> E
         E --> F
-        
+
         subgraph "Integration Layer"
             G[Account Mapper]
             H[Resource Sync]
             I[State Management]
         end
-        
+
         A --> G
         G --> D
         G --> H
         H --> F
         G --> I
-        
+
         style A fill:#f9f,stroke:#333
         style D fill:#bbf,stroke:#333
         style G fill:#f96,stroke:#333

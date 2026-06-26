@@ -72,4 +72,3 @@ This repo is a kcp virtual workspace server. Most changes affect request routing
 ## Human-Facing Guidance
 - Use `README.md` for local certificate setup, startup arguments, and service context.
 - Use `CONTRIBUTING.md` for contribution process, DCO, and broader developer workflow expectations.
-

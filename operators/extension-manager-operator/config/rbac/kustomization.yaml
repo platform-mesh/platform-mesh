@@ -23,4 +23,3 @@ resources:
 - providermetadata_admin_role.yaml
 - providermetadata_editor_role.yaml
 - providermetadata_viewer_role.yaml
-
