@@ -43,6 +43,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	multiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 	"sigs.k8s.io/yaml"
 
 	"github.com/kcp-dev/logicalcluster/v3"
@@ -86,6 +87,9 @@ var (
 	//go:embed yaml/apibinding-core-platform-mesh.io.yaml
 	ApiBindingCorePlatformMeshYAML []byte
 
+	//go:embed yaml/apibinding-providers-platform-mesh.io.yaml
+	ApiBindingProvidersPlatformMeshYAML []byte
+
 	//go:embed yaml/workspace-type-org.yaml
 	WorkspaceTypeOrgYAML []byte
 
@@ -107,11 +111,12 @@ func init() {
 
 type IntegrationSuite struct {
 	suite.Suite
-	env                          *envtest.Environment
-	kcpConfig                    *rest.Config
-	apiExportEndpointSliceConfig *rest.Config
-	platformMeshSysPath          logicalcluster.Path
-	platformMeshSystemClient     ctrlruntimeclient.Client
+	env                              *envtest.Environment
+	kcpConfig                        *rest.Config
+	coreApiExportEndpointSliceConfig *rest.Config
+	providersApiExportEndpointConfig *rest.Config
+	platformMeshSysPath              logicalcluster.Path
+	platformMeshSystemClient         ctrlruntimeclient.Client
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -178,6 +183,17 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
+	t.Log("created APIExport 'core.platform-mesh.io' in platform-mesh-system workspace")
+
+	// Create providers.platform-mesh.io APIExport
+	var providersApiExport kcpapisv1alpha1.APIExport
+	suite.Require().NoError(yaml.Unmarshal(ApiExportProvidersYAML, &providersApiExport))
+
+	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &providersApiExport)
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		suite.Require().NoError(err)
+	}
+	t.Log("created APIExport 'providers.platform-mesh.io' in platform-mesh-system workspace")
 
 	var platformMeshBinding kcpapisv1alpha2.APIBinding
 	suite.Require().NoError(yaml.Unmarshal(ApiBindingCorePlatformMeshYAML, &platformMeshBinding))
@@ -194,6 +210,23 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 		}
 		return binding.Status.Phase == kcpapisv1alpha2.APIBindingPhaseBound
 	}, 10*time.Second, 200*time.Millisecond, "APIBinding core.platform-mesh.io should be bound")
+
+	// Create providers.platform-mesh.io APIBinding
+	var providersBinding kcpapisv1alpha2.APIBinding
+	suite.Require().NoError(yaml.Unmarshal(ApiBindingProvidersPlatformMeshYAML, &providersBinding))
+
+	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &providersBinding)
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		suite.Require().NoError(err)
+	}
+	t.Log("created APIBinding 'providers.platform-mesh.io' in platform-mesh-system workspace")
+	suite.Assert().Eventually(func() bool {
+		var binding kcpapisv1alpha2.APIBinding
+		if err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, ctrlruntimeclient.ObjectKey{Name: providersBinding.Name}, &binding); err != nil {
+			return false
+		}
+		return binding.Status.Phase == kcpapisv1alpha2.APIBindingPhaseBound
+	}, 10*time.Second, 200*time.Millisecond, "APIBinding providers.platform-mesh.io should be bound")
 
 	// Create WorkspaceTypes in root workspace
 	var orgWorkspaceType kcptenancyv1alpha1.WorkspaceType
@@ -239,34 +272,65 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	suite.Require().NotEmpty(endpointSlice.Status.APIExportEndpoints, "APIExportEndpointSlice should have at least one endpoint")
 	suite.Require().NotEqual("", endpointSlice.Status.APIExportEndpoints[0].URL, "APIExportEndpointSlice endpoint URL should not be empty")
 
-	// set up config for virtual workspace
-	cfg := rest.CopyConfig(suite.kcpConfig)
-	cfg.Host = endpointSlice.Status.APIExportEndpoints[0].URL
-	suite.apiExportEndpointSliceConfig = cfg
-	t.Logf("created apiExportEndpointSliceConfig with host: %s", suite.apiExportEndpointSliceConfig.Host)
+	// set up config for core.platform-mesh.io virtual workspace
+	coreCfg := rest.CopyConfig(suite.kcpConfig)
+	coreCfg.Host = endpointSlice.Status.APIExportEndpoints[0].URL
+	suite.coreApiExportEndpointSliceConfig = coreCfg
+	t.Logf("created coreApiExportEndpointSliceConfig with host: %s", suite.coreApiExportEndpointSliceConfig.Host)
+
+	// Wait for providers.platform-mesh.io APIExportEndpointSlice
+	var providersEndpointSlice kcpapisv1alpha1.APIExportEndpointSlice
+	suite.Assert().Eventually(func() bool {
+		err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, ctrlruntimeclient.ObjectKey{Name: "providers.platform-mesh.io"}, &providersEndpointSlice)
+		if err != nil {
+			return false
+		}
+		return len(providersEndpointSlice.Status.APIExportEndpoints) > 0 && providersEndpointSlice.Status.APIExportEndpoints[0].URL != ""
+	}, 10*time.Second, 200*time.Millisecond, "KCP should automatically create providers.platform-mesh.io APIExportEndpointSlice with populated endpoints")
+
+	suite.Require().NotEmpty(providersEndpointSlice.Status.APIExportEndpoints, "providers APIExportEndpointSlice should have at least one endpoint")
+
+	// set up config for providers.platform-mesh.io virtual workspace
+	providersCfg := rest.CopyConfig(suite.kcpConfig)
+	providersCfg.Host = providersEndpointSlice.Status.APIExportEndpoints[0].URL
+	suite.providersApiExportEndpointConfig = providersCfg
+	t.Logf("created providersApiExportEndpointConfig with host: %s", suite.providersApiExportEndpointConfig.Host)
 }
 
 func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.CommonServiceConfig, testLogger *logger.Logger) {
 	ctx := suite.T().Context()
 
-	providerConfig, err := suite.getPlatformMeshSystemConfig(suite.apiExportEndpointSliceConfig)
+	coreProviderConfig, err := suite.getPlatformMeshSystemConfig(suite.coreApiExportEndpointSliceConfig)
 	suite.Require().NoError(err)
 
-	provider, err := apiexport.New(providerConfig, "core.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
+	coreProvider, err := apiexport.New(coreProviderConfig, "core.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
 	suite.Require().NoError(err)
 
-	mgr, err := mcmanager.New(providerConfig, provider, mcmanager.Options{
+	providersProviderConfig, err := suite.getPlatformMeshSystemConfig(suite.providersApiExportEndpointConfig)
+	suite.Require().NoError(err)
+
+	providersProvider, err := apiexport.New(providersProviderConfig, "providers.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
+	multiProv := multiprovider.New(multiprovider.Options{})
+	err = multiProv.AddProvider(config.CoreProviderName, coreProvider)
+	suite.Require().NoError(err)
+	err = multiProv.AddProvider(config.ProvidersProviderName, providersProvider)
+	suite.Require().NoError(err)
+
+	mgr, err := mcmanager.New(coreProviderConfig, multiProv, mcmanager.Options{
 		Scheme: scheme.Scheme,
 	})
 	suite.Require().NoError(err)
 
 	operatorCfg := &config.Config{
 		APIExportEndpointSlices: config.APIExportEndpointSlices{
-			CorePlatformMeshIO: "core.platform-mesh.io",
+			CorePlatformMeshIO:      "core.platform-mesh.io",
+			ProvidersPlatformMeshIO: "providers.platform-mesh.io",
 		},
 	}
 
-	providerLister := iclient.NewProviderLister(provider.Provider)
+	providerLister := iclient.NewProviderLister(coreProvider.Provider)
 
 	err = controller.NewAPIBindingReconciler(testLogger, mgr, providerLister, operatorCfg).SetupWithManager(mgr, defaultCfg)
 	suite.Require().NoError(err)

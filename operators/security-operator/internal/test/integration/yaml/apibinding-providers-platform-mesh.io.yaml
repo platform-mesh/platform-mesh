@@ -1,0 +1,10 @@
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIBinding
+metadata:
+  name: providers.platform-mesh.io
+spec:
+  permissionClaims: []
+  reference:
+    export:
+      name: providers.platform-mesh.io
+      path: root:platform-mesh-system
