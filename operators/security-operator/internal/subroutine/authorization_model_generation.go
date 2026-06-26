@@ -25,8 +25,10 @@ import (
 	"text/template"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
+	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/subroutines"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +38,6 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
@@ -128,11 +129,11 @@ type modelInput struct {
 	Patch  string
 	Watch  string
 
-	Roles                 []pmcorev1alpha1.RoleDefinition
+	Roles                 []pmprovidersv1alpha1.RoleDefinition
 	AdditionalPermissions map[string]string
 }
 
-func getRolesForResource(resourceRoles []pmcorev1alpha1.ResourceRoles, permissionKey string) []pmcorev1alpha1.RoleDefinition {
+func getRolesForResource(resourceRoles []pmprovidersv1alpha1.ResourceRoles, permissionKey string) []pmprovidersv1alpha1.RoleDefinition {
 	for _, rr := range resourceRoles {
 		if rr.GroupResource == permissionKey {
 			return rr.Roles
@@ -171,7 +172,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 			continue
 		}
 
-		bindingWsCluster, err := a.mgr.GetCluster(ctx, multicluster.ClusterName(logicalcluster.From(&binding).String()))
+		bindingWsCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, logicalcluster.From(&binding).String()))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("getting cluster for binding: %w", err)
 		}
@@ -201,7 +202,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 		return subroutines.OK(), nil
 	}
 
-	apiExportCluster, err := a.mgr.GetCluster(ctx, multicluster.ClusterName(bindingToDelete.Status.APIExportClusterName))
+	apiExportCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, bindingToDelete.Status.APIExportClusterName))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get cluster %q: %w", bindingToDelete.Status.APIExportClusterName, err)
 	}
@@ -279,7 +280,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("getting AccountInfo: %w", err)
 	}
 
-	apiExportCluster, err := a.mgr.GetCluster(ctx, multicluster.ClusterName(binding.Status.APIExportClusterName))
+	apiExportCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, binding.Status.APIExportClusterName))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting APIExport cluster: %w", err)
 	}
@@ -290,13 +291,18 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("getting APIExport: %w", err)
 	}
 
-	var providerPermissionsList pmcorev1alpha1.ProviderPermissionsList
-	err = apiExportCluster.GetClient().List(ctx, &providerPermissionsList)
+	providerCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.ProvidersProviderName, binding.Status.APIExportClusterName))
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting provider cluster: %w", err)
+	}
+
+	var providerPermissionsList pmprovidersv1alpha1.ProviderPermissionsList
+	err = providerCluster.GetClient().List(ctx, &providerPermissionsList)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("listing ProviderPermissions: %w", err)
 	}
 
-	var providerPermissions *pmcorev1alpha1.ProviderPermissions
+	var providerPermissions *pmprovidersv1alpha1.ProviderPermissions
 	for i := range providerPermissionsList.Items {
 		if providerPermissionsList.Items[i].Spec.APIExportRef.Name == apiExport.Name {
 			providerPermissions = &providerPermissionsList.Items[i]
@@ -378,7 +384,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 			Message:            "ProviderPermissions successfully applied to all AuthorizationModels",
 		})
 
-		if err := apiExportCluster.GetClient().Status().Update(ctx, providerPermissions); err != nil {
+		if err := providerCluster.GetClient().Status().Update(ctx, providerPermissions); err != nil {
 			return subroutines.OK(), fmt.Errorf("updating ProviderPermissions status: %w", err)
 		}
 	}

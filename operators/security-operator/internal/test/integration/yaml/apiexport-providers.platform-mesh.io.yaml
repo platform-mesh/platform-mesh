@@ -1,0 +1,10 @@
+apiVersion: apis.kcp.io/v1alpha1
+kind: APIExport
+metadata:
+  creationTimestamp: null
+  name: providers.platform-mesh.io
+spec:
+  latestResourceSchemas:
+  - v260624-0de8b9c.providerpermissions.providers.platform-mesh.io
+  permissionClaims: []
+status: {}

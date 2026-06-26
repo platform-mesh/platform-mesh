@@ -26,6 +26,7 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
+	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/controller"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -37,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	multiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
@@ -89,7 +91,14 @@ var modelGeneratorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := pathaware.New(restCfg, generatorCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
+		coreProvider, err := pathaware.New(restCfg, generatorCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
+			Scheme: mgrOpts.Scheme,
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create apiexport provider")
+			return err
+		}
+		providersProvider, err := pathaware.New(restCfg, generatorCfg.APIExportEndpointSlices.ProvidersPlatformMeshIO, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -97,13 +106,21 @@ var modelGeneratorCmd = &cobra.Command{
 			return err
 		}
 
-		mgr, err := mcmanager.New(restCfg, provider, mgrOpts)
+		multiProv := multiprovider.New(multiprovider.Options{})
+		if err := multiProv.AddProvider(config.ProvidersProviderName, providersProvider); err != nil {
+			return err
+		}
+		if err := multiProv.AddProvider(config.CoreProviderName, coreProvider); err != nil {
+			return err
+		}
+
+		mgr, err := mcmanager.New(restCfg, multiProv, mgrOpts)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create manager")
 			return err
 		}
 
-		providerLister := iclient.NewProviderLister(provider.Provider.Provider)
+		providerLister := iclient.NewProviderLister(coreProvider.Provider.Provider)
 
 		if err := controller.NewAPIBindingReconciler(log, mgr, providerLister, &generatorCfg).
 			SetupWithManager(mgr, defaultCfg); err != nil {

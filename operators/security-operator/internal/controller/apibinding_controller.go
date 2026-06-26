@@ -18,9 +18,10 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"time"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -89,17 +90,20 @@ func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *plat
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(
-			&pmcorev1alpha1.ProviderPermissions{},
+			&pmprovidersv1alpha1.ProviderPermissions{},
 			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[ctrlruntimeclient.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(r.mapProviderPermissionsToAPIBindings)
 			},
 			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
+			mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
+				return strings.HasPrefix(string(clusterName), config.ProvidersProviderName)
+			}),
 		).
 		Complete(r)
 }
 
 func (r *APIBindingReconciler) mapProviderPermissionsToAPIBindings(ctx context.Context, obj ctrlruntimeclient.Object) []mcreconcile.Request {
-	pp, ok := obj.(*pmcorev1alpha1.ProviderPermissions)
+	pp, ok := obj.(*pmprovidersv1alpha1.ProviderPermissions)
 	if !ok {
 		return nil
 	}
@@ -123,7 +127,7 @@ func (r *APIBindingReconciler) mapProviderPermissionsToAPIBindings(ctx context.C
 					Name: binding.Name,
 				},
 			},
-			ClusterName: multicluster.ClusterName(logicalcluster.From(&binding).String()),
+			ClusterName: config.MultiProviderName(config.CoreProviderName, logicalcluster.From(&binding).String()),
 		})
 	}
 

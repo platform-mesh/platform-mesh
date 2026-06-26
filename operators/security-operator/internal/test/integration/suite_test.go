@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
@@ -73,11 +74,14 @@ var (
 	//go:embed yaml/apiresourceschema-invites.core.platform-mesh.io.yaml
 	InviteSchemaYAML []byte
 
-	//go:embed yaml/apiresourceschema-providerpermissions.core.platform-mesh.io.yaml
+	//go:embed yaml/apiresourceschema-providerpermissions.providers.platform-mesh.io.yaml
 	ProviderPermissionsSchemaYAML []byte
 
 	//go:embed yaml/apiexport-core.platform-mesh.io.yaml
 	ApiExportPlatformMeshSystemYAML []byte
+
+	//go:embed yaml/apiexport-providers.platform-mesh.io.yaml
+	ApiExportProvidersYAML []byte
 
 	//go:embed yaml/apibinding-core-platform-mesh.io.yaml
 	ApiBindingCorePlatformMeshYAML []byte
@@ -97,6 +101,7 @@ func init() {
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(pmprovidersv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme.Scheme))
 }
 

@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: providerpermissions.core.platform-mesh.io
+  name: providerpermissions.providers.platform-mesh.io
 spec:
-  group: core.platform-mesh.io
+  group: providers.platform-mesh.io
   names:
     kind: ProviderPermissions
     listKind: ProviderPermissionsList

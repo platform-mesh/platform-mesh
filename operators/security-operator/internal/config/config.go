@@ -26,10 +26,11 @@ import (
 )
 
 const (
-	CoreProviderName   = "core"
-	SystemProviderName = "system"
-	providerSeparator  = "#"
-	OrgsClusterPath    = "root:orgs"
+	CoreProviderName      = "core"
+	SystemProviderName    = "system"
+	ProvidersProviderName = "providers"
+	providerSeparator     = "#"
+	OrgsClusterPath       = "root:orgs"
 )
 
 type KeycloakConfig struct {
@@ -84,8 +85,9 @@ type IDPConfig struct {
 }
 
 type APIExportEndpointSlices struct {
-	CorePlatformMeshIO   string
-	SystemPlatformMeshIO string
+	CorePlatformMeshIO      string
+	SystemPlatformMeshIO    string
+	ProvidersPlatformMeshIO string
 }
 
 // Config struct to hold the app config
@@ -124,8 +126,9 @@ func NewConfig() Config {
 			Kubeconfig: "/api-kubeconfig/kubeconfig",
 		},
 		APIExportEndpointSlices: APIExportEndpointSlices{
-			CorePlatformMeshIO:   "core.platform-mesh.io",
-			SystemPlatformMeshIO: "system.platform-mesh.io",
+			CorePlatformMeshIO:      "core.platform-mesh.io",
+			SystemPlatformMeshIO:    "system.platform-mesh.io",
+			ProvidersPlatformMeshIO: "providers.platform-mesh.io",
 		},
 		BaseDomain:               "portal.dev.local:8443",
 		GroupClaim:               "groups",
@@ -163,6 +166,7 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.KCP.Kubeconfig, "kcp-kubeconfig", c.KCP.Kubeconfig, "Set the kcp kubeconfig path")
 	fs.StringVar(&c.APIExportEndpointSlices.CorePlatformMeshIO, "api-export-endpoint-slice-name", c.APIExportEndpointSlices.CorePlatformMeshIO, "Set the core.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.APIExportEndpointSlices.SystemPlatformMeshIO, "system-api-export-endpoint-slice-name", c.APIExportEndpointSlices.SystemPlatformMeshIO, "Set the system.platform-mesh.io APIExportEndpointSlice name")
+	fs.StringVar(&c.APIExportEndpointSlices.ProvidersPlatformMeshIO, "providers-api-export-endpoint-slice-name", c.APIExportEndpointSlices.ProvidersPlatformMeshIO, "Set the providers.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.CoreModulePath, "core-module-path", c.CoreModulePath, "Set the path to the core module FGA model file")
 	fs.StringVar(&c.BaseDomain, "base-domain", c.BaseDomain, "Set the base domain used to construct issuer URLs")
 	fs.StringVar(&c.GroupClaim, "group-claim", c.GroupClaim, "Set the ID token group claim")
