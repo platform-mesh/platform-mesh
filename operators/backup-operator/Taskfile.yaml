@@ -23,6 +23,12 @@ includes:
 
 vars:
   CRD_DIRECTORY: config/crd
+  RBAC_DIRECTORY: config/rbac
+  # Content-addressed image tag: hash of all Go source files + Dockerfile.
+  # The image is only rebuilt when operator source actually changes.
+  IMAGE_REPO: ghcr.io/platform-mesh/backup-operator
+  SOURCE_HASH:
+    sh: find cmd pkg Dockerfile -type f | sort | xargs sha256sum 2>/dev/null | sha256sum | cut -c1-12
 
 tasks:
   ## Development
@@ -32,6 +38,8 @@ tasks:
         vars:
           PATH: /backup/...
           OUTPUT: '{{.CRD_DIRECTORY}}'
+      - mkdir -p {{.RBAC_DIRECTORY}}
+      - '{{.BIN}}/controller-gen rbac:roleName=manager-role paths=./pkg/... output:rbac:artifacts:config={{.RBAC_DIRECTORY}}'
   generate:
     cmds:
       - task: manifests
@@ -75,9 +83,68 @@ tasks:
       - task: test-e2e
         vars:
           ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+  test-e2e-kind:
+    desc: "Build, deploy, and run etcd-druid round-trip e2e tests against the running kind cluster"
+    deps: [deploy:kind]
+    cmds:
+      - |
+        set -ex
+        KUBECONFIG=${KUBECONFIG:-$HOME/.kube/config} \
+        E2E_NAMESPACE=${E2E_NAMESPACE:-platform-mesh-system} \
+        go test -tags e2e -timeout 15m -v ./pkg/e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
+
+  # deploy:kind builds the operator image only when operator source has changed
+  # (detected via a content hash of cmd/, pkg/, and Dockerfile), loads it into
+  # the kind cluster, applies all manifests, and waits for the pod to be ready.
+  deploy:kind:
+    desc: "Build (if changed) and deploy the backup-operator to the kind cluster"
+    vars:
+      CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
+      E2E_NAMESPACE: '{{.E2E_NAMESPACE | default "platform-mesh-system"}}'
+      IMAGE_NAME: '{{.IMAGE_REPO}}:{{.SOURCE_HASH}}'
+    cmds:
+      - |
+        set -e
+        IMAGE="{{.IMAGE_NAME}}"
+        RUNTIME="{{.CONTAINER_RUNTIME}}"
+        CLUSTER="{{.KIND_CLUSTER}}"
+        NAMESPACE="{{.E2E_NAMESPACE}}"
+
+        # If the deployment already runs this exact image tag, skip build+load.
+        CURRENT=$(kubectl get deployment backup-operator -n "$NAMESPACE" \
+          -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)
+        REBUILT=false
+        if [ "$CURRENT" = "$IMAGE" ]; then
+          echo "Image $IMAGE already deployed — skipping build"
+        else
+          REBUILT=true
+          echo "Building image $IMAGE using $RUNTIME"
+          "$RUNTIME" build -t "$IMAGE" -f Dockerfile ../../
+          if [ "$RUNTIME" = "podman" ]; then
+            "$RUNTIME" save "$IMAGE" -o /tmp/kind-image.tar
+            kind load image-archive /tmp/kind-image.tar --name "$CLUSTER"
+            rm -f /tmp/kind-image.tar
+          else
+            kind load docker-image "$IMAGE" --name "$CLUSTER"
+          fi
+        fi
+
+        kubectl apply -f config/crd/
+        kubectl apply -f config/deploy/clusterrole.yaml
+        kubectl apply -f config/deploy/role.yaml
+        sed "s|BACKUP_OPERATOR_IMAGE|$IMAGE|g" config/deploy/deployment.yaml | kubectl apply -f -
+
+        # Restart the pod only when a new image was loaded, to pick up the new binary.
+        if [ "$REBUILT" = "true" ]; then
+          kubectl rollout restart deployment/backup-operator -n "$NAMESPACE"
+        fi
+
+        kubectl rollout status deployment/backup-operator -n "$NAMESPACE" --timeout=3m
+        echo "backup-operator ready ($IMAGE)"
 
   docker:kind:
-    desc: "Build container image with current tag from kind cluster and load it"
+    desc: "Rebuild and reload the operator image into kind, then restart the deployment"
     vars:
       CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
       KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
@@ -88,7 +155,7 @@ tasks:
       IMAGE_NAME: ghcr.io/platform-mesh/backup-operator:{{.IMAGE_TAG}}
     cmds:
       - echo "Building image with tag {{.IMAGE_TAG}} using {{.CONTAINER_RUNTIME}}"
-      - "{{.CONTAINER_RUNTIME}} build -t {{.IMAGE_NAME}} ."
+      - "{{.CONTAINER_RUNTIME}} build -t {{.IMAGE_NAME}} -f Dockerfile ../../"
       - |
         if [ "{{.CONTAINER_RUNTIME}}" = "podman" ]; then
           {{.CONTAINER_RUNTIME}} save {{.IMAGE_NAME}} -o /tmp/kind-image.tar
@@ -98,4 +165,5 @@ tasks:
           kind load docker-image {{.IMAGE_NAME}} --name {{.KIND_CLUSTER}}
         fi
       - kubectl rollout restart deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout status deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}} --timeout=3m
       - echo "Image loaded and deployment restarted"

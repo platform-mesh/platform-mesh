@@ -20,7 +20,7 @@ import (
 	"context"
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
-	"go.platform-mesh.io/subroutines"
+	"go.platform-mesh.io/backup-operator/pkg/restore"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
 
@@ -36,10 +36,10 @@ type PlatformRestoreReconciler struct {
 	lifecycle *lifecycle.Lifecycle
 }
 
-func NewPlatformRestoreReconciler(mgr mcmanager.Manager) *PlatformRestoreReconciler {
+func NewPlatformRestoreReconciler(mgr mcmanager.Manager, namespace string) *PlatformRestoreReconciler {
 	lc := lifecycle.New(mgr, "PlatformRestoreReconciler", func() ctrlruntimeclient.Object {
 		return &pmbackupv1alpha1.PlatformRestore{}
-	}, []subroutines.Subroutine{}...).WithConditions(conditions.NewManager())
+	}, restore.NewEtcdRestoreSubroutine(namespace)).WithConditions(conditions.NewManager())
 
 	return &PlatformRestoreReconciler{lifecycle: lc}
 }

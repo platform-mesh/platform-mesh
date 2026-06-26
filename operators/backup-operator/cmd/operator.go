@@ -24,16 +24,19 @@ import (
 	"go.platform-mesh.io/backup-operator/pkg/controller"
 	"go.platform-mesh.io/backup-operator/pkg/topology/projector"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
-
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+	singleprovider "sigs.k8s.io/multicluster-runtime/providers/single"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
-
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var operatorCmd = &cobra.Command{
@@ -45,17 +48,52 @@ var operatorCmd = &cobra.Command{
 func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	ctrl.SetLogger(log.ComponentLogger("controller-runtime").Logr())
 
+	if err := operatorCfg.Validate(); err != nil {
+		log.Fatal().Err(err).Msg("invalid configuration")
+	}
+
 	ctx, _, shutdown := platformmeshcontext.StartContext(log, operatorCfg, defaultCfg.ShutdownTimeout)
 	defer shutdown()
 
 	restCfg := ctrl.GetConfigOrDie()
 
-	provider, err := pathaware.New(restCfg, operatorCfg.Kcp.ApiExportEndpointSliceName, apiexport.Options{
-		Log:    &ctrl.Log,
-		Scheme: scheme,
-	})
+	var hostCfg *rest.Config
+	if operatorCfg.Standalone {
+		// In standalone mode KUBECONFIG (or in-cluster SA) points at the host cluster directly.
+		hostCfg = restCfg
+	} else {
+		// In KCP mode KUBECONFIG points at the KCP workspace; the host cluster
+		// is reached via the pod's service account.
+		var err error
+		hostCfg, err = rest.InClusterConfig()
+		if err != nil {
+			log.Fatal().Err(err).Msg("building in-cluster config for host client")
+		}
+	}
+
+	hostClient, err := client.New(hostCfg, client.Options{Scheme: scheme})
 	if err != nil {
-		log.Fatal().Err(err).Msg("creating APIExport provider")
+		log.Fatal().Err(err).Msg("creating host cluster client")
+	}
+
+	var (
+		standaloneCluster cluster.Cluster
+		provider          multicluster.Provider
+	)
+	if operatorCfg.Standalone {
+		standaloneCluster, err = cluster.New(restCfg, func(o *cluster.Options) { o.Scheme = scheme })
+		if err != nil {
+			log.Fatal().Err(err).Msg("creating standalone cluster")
+		}
+		provider = singleprovider.New(multicluster.ClusterName("standalone"), standaloneCluster)
+	} else {
+		provider, err = pathaware.New(restCfg, operatorCfg.Kcp.ApiExportEndpointSliceName, apiexport.Options{
+			Log:    &ctrl.Log,
+			Scheme: scheme,
+		})
+		if err != nil {
+			log.Fatal().Err(err).Msg("creating APIExport provider")
+		}
 	}
 
 	mgr, err := mcmanager.New(restCfg, provider, mcmanager.Options{
@@ -74,15 +112,25 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to start manager")
 	}
 
-	if err := projector.New(mgr.GetLocalManager().GetClient(), operatorCfg.Namespace).EnsureConfigMap(ctx); err != nil {
+	// The standalone cluster's cache must be registered as a runnable so it starts
+	// when the manager starts; without this informers never sync and no events arrive.
+	// cluster.Cluster only implements controller-runtime's Runnable, not multicluster
+	// Aware, so it must be added to the inner controller-runtime manager.
+	if standaloneCluster != nil {
+		if err := mgr.GetLocalManager().Add(standaloneCluster); err != nil {
+			log.Fatal().Err(err).Msg("adding standalone cluster to manager")
+		}
+	}
+
+	if err := projector.New(hostClient, operatorCfg.Namespace).EnsureConfigMap(ctx); err != nil {
 		log.Fatal().Err(err).Msg("unable to ensure topology schema ConfigMap")
 	}
 
-	if err := controller.NewPlatformBackupReconciler(mgr).SetupWithManager(mgr); err != nil {
+	if err := controller.NewPlatformBackupReconciler(mgr, operatorCfg.Namespace).SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Str("controller", "PlatformBackup").Msg("unable to create controller")
 	}
 
-	if err := controller.NewPlatformRestoreReconciler(mgr).SetupWithManager(mgr); err != nil {
+	if err := controller.NewPlatformRestoreReconciler(mgr, operatorCfg.Namespace).SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Str("controller", "PlatformRestore").Msg("unable to create controller")
 	}
 

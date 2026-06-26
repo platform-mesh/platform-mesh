@@ -1,0 +1,17 @@
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIExport
+metadata:
+  name: backup.platform-mesh.io
+spec:
+  resources:
+  - group: backup.platform-mesh.io
+    name: platformbackups
+    schema: v260626-631a7ce.platformbackups.backup.platform-mesh.io
+    storage:
+      crd: {}
+  - group: backup.platform-mesh.io
+    name: platformrestores
+    schema: v260626-631a7ce.platformrestores.backup.platform-mesh.io
+    storage:
+      crd: {}
+status: {}
