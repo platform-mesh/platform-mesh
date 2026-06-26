@@ -7,31 +7,31 @@ spec:
   inlineConfiguration:
     content: |
       {
-      		"iAmOptionalCustomFieldThatShouldBeStored": "iAmOptionalCustomValue",
-      		"luigiConfigFragment": {
-						"data": {
-							"nodeDefaults": {
-								"entityType": "global",
-								"isolateView": true
-							},
-							"nodes": [
-								{
-									"entityType": "global",
-									"icon": "home",
-									"label": "Overview",
-									"pathSegment": "home"
-								}
-							],
-							"texts": [
-								{
-									"locale": "de",
-									"textDictionary": {
-										"hello": "Hallo"
-									}
-								}
-							]
-						}
-					},
-      		"name": "overview"
-      	}
+        "iAmOptionalCustomFieldThatShouldBeStored": "iAmOptionalCustomValue",
+        "luigiConfigFragment": {
+          "data": {
+            "nodeDefaults": {
+              "entityType": "global",
+              "isolateView": true
+            },
+            "nodes": [
+              {
+                "entityType": "global",
+                "icon": "home",
+                "label": "Overview",
+                "pathSegment": "home"
+              }
+            ],
+            "texts": [
+              {
+                "locale": "de",
+                "textDictionary": {
+                  "hello": "Hallo"
+                }
+              }
+            ]
+          }
+        },
+        "name": "overview"
+      }
     contentType: "json"
