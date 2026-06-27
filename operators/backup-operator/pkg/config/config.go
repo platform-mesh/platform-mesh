@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const DefaultNamespace = "platform-mesh"
+const DefaultNamespace = "platform-mesh-backup-operator"
 
 type KcpConfig struct {
 	ApiExportEndpointSliceName string

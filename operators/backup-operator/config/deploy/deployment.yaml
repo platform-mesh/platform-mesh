@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: backup-operator
-  namespace: platform-mesh-system
+  namespace: platform-mesh-backup-operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -15,13 +15,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: backup-operator
-    namespace: platform-mesh-system
+    namespace: platform-mesh-backup-operator
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backup-operator
-  namespace: platform-mesh-system
+  namespace: platform-mesh-backup-operator
   labels:
     app: backup-operator
 spec:
@@ -46,7 +46,7 @@ spec:
           command: ["/operator/manager"]
           args:
             - operator
-            - --namespace=platform-mesh-system
+            - --namespace=platform-mesh-backup-operator
             - --standalone=true
             - --health-probe-bind-address=:8081
             - --metrics-bind-address=:9090

@@ -156,6 +156,8 @@ func (s *EtcdCaptureSubroutine) listShards(ctx context.Context, cl ctrlruntimecl
 }
 
 // readBaselineKeys reads the full-snap lease HolderIdentity for all shards concurrently.
+// A cancellable child context is used so that when one shard's lease read fails the
+// remaining goroutines are cancelled promptly, avoiding wasted API calls.
 func (s *EtcdCaptureSubroutine) readBaselineKeys(
 	ctx context.Context,
 	cl ctrlruntimeclient.Client,
@@ -166,10 +168,13 @@ func (s *EtcdCaptureSubroutine) readBaselineKeys(
 		key  string
 		err  error
 	}
+	readCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	ch := make(chan result, len(shards))
 	for _, shard := range shards {
 		go func(name string) {
-			key, err := s.readFullSnapLeaseKey(ctx, cl, name)
+			key, err := s.readFullSnapLeaseKey(readCtx, cl, name)
 			ch <- result{name: name, key: key, err: err}
 		}(shard.Name)
 	}
@@ -283,27 +288,24 @@ func (s *EtcdCaptureSubroutine) captureOne(
 				result.Err = fmt.Errorf("polling EtcdOpsTask: %w", err)
 				return result
 			}
-			// Task is gone — etcd-druid completed and removed it, or this is a
-			// continuation after a prior reconcile timed out while the snapshot
-			// was still in-flight. Either way, the snapshot ran: accept any
-			// non-empty lease key as success regardless of the baseline. The
-			// baseline guard (key != baselineKey) is intentionally omitted here
-			// because on a timeout-then-resume cycle the new baseline was read
-			// after etcd-druid already updated the lease, making baseline == key
-			// even though the snapshot succeeded.
+			// Task is gone — etcd-druid completed and removed it. Read the lease to
+			// determine whether the snapshot actually ran.
 			key, lerr := s.readFullSnapLeaseKey(pollCtx, cl, etcd.Name)
 			if lerr != nil {
 				result.Err = fmt.Errorf("task %s not found, reading lease: %w", taskName, lerr)
 				return result
 			}
-			if key != "" {
+			if key != "" && key != baselineKey {
+				// Lease advanced past the baseline — snapshot completed.
 				result.SnapshotKey = key
 				result.SnapshotAt = metav1.Now()
 				return result
 			}
-			// Lease still empty — task was cleaned up before etcd-druid wrote the key.
-			// Return an error so the reconcile retries and creates a fresh task.
-			result.Err = fmt.Errorf("EtcdOpsTask %s not found and full-snap lease is empty", taskName)
+			// Lease is empty or unchanged — task was cleaned up before the snapshot
+			// key was written (or before we could observe it). Return an error so the
+			// next reconcile creates a fresh task and retries.
+			result.Err = fmt.Errorf("EtcdOpsTask %s not found and full-snap lease is unchanged (baseline=%q, current=%q); will retry",
+				taskName, baselineKey, key)
 			return result
 		}
 
@@ -328,11 +330,11 @@ func (s *EtcdCaptureSubroutine) captureOne(
 						etcd.Name)
 					return result
 				}
-				if key == baselineKey {
-					result.Err = fmt.Errorf("full-snap lease for %q not updated after EtcdOpsTask succeeded (baseline=%q, current=%q)",
-						etcd.Name, baselineKey, key)
-					return result
-				}
+				// EtcdOpsTask Succeeded is the authoritative signal that etcdbr wrote
+				// the snapshot to S3. The full-snap lease HolderIdentity holds the etcd
+				// revision of the last *scheduled* snapshot and is not updated by
+				// on-demand snapshots — so we accept the current lease key regardless
+				// of whether it changed from the baseline.
 				result.SnapshotKey = key
 				result.SnapshotAt = metav1.Now()
 				return result

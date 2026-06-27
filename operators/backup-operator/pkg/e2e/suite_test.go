@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -39,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const defaultE2ENamespace = "platform-mesh-system"
+const defaultE2ENamespace = "platform-mesh-backup-operator"
 const backupOperatorDeployment = "backup-operator"
 
 var (
@@ -92,42 +94,26 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	os.Exit(m.Run())
+	// Clean up on SIGTERM/SIGINT so a task cancel or Ctrl-C leaves the cluster
+	// tidy. SIGKILL cannot be caught — nothing we can do there.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		sig := <-sigCh
+		fmt.Fprintf(os.Stderr, "\nreceived %s — running cleanup before exit\n", sig)
+		cleanupAll(context.Background())
+		os.Exit(1)
+	}()
+
+	code := m.Run()
+	cleanupAll(context.Background())
+	os.Exit(code)
 }
 
-// requireOperatorReady verifies the backup-operator Deployment on the host cluster
-// has at least one ready replica. Waits up to 3 minutes.
-func requireOperatorReady() error {
-	ctx := context.Background()
-	nn := types.NamespacedName{Name: backupOperatorDeployment, Namespace: e2eNS}
-	deadline := time.Now().Add(3 * time.Minute)
-
-	for time.Now().Before(deadline) {
-		var deploy appsv1.Deployment
-		if err := cl.Get(ctx, nn, &deploy); err == nil && deploy.Status.ReadyReplicas >= 1 {
-			return nil
-		}
-		fmt.Fprintf(os.Stderr, "waiting for deployment %s/%s...\n", e2eNS, backupOperatorDeployment)
-		time.Sleep(5 * time.Second)
-	}
-
-	return fmt.Errorf(
-		"deployment %s/%s not ready after 3 minutes\n"+
-			"  Deploy with: task deploy:kind\n"+
-			"  Check logs:  kubectl logs -n %s deploy/%s",
-		e2eNS, backupOperatorDeployment,
-		e2eNS, backupOperatorDeployment,
-	)
-}
-
-// cleanupTestResources deletes all e2e-prefixed Etcd, EtcdOpsTask, PlatformBackup,
-// PlatformRestore, and full-snap coordination lease objects and waits for Etcd CRs
-// to be gone (up to 30s). Call at the start of each test so leftover objects from
-// prior tests don't contaminate the next test's shard discovery or task simulator.
-func cleanupTestResources(t *testing.T) {
-	t.Helper()
-	ctx := context.Background()
-
+// cleanupAll deletes every e2e-prefixed test resource left in the cluster after
+// the suite finishes. Runs on both success and failure so the cluster is clean
+// for the next run. Errors are logged to stderr but do not affect the exit code.
+func cleanupAll(ctx context.Context) {
 	var etcdList druidv1alpha1.EtcdList
 	if err := cl.List(ctx, &etcdList, client.InNamespace(e2eNS)); err == nil {
 		for i := range etcdList.Items {
@@ -144,8 +130,6 @@ func cleanupTestResources(t *testing.T) {
 		}
 	}
 
-	// Delete any in-flight EtcdOpsTasks left by prior tests. Stale tasks cause the
-	// task simulator or etcd-druid to process them for the wrong test context.
 	var taskList druidv1alpha1.EtcdOpsTaskList
 	if err := cl.List(ctx, &taskList, client.InNamespace(e2eNS)); err == nil {
 		for i := range taskList.Items {
@@ -176,8 +160,6 @@ func cleanupTestResources(t *testing.T) {
 		}
 	}
 
-	// Delete full-snap coordination leases left by prior tests. Stale leases cause
-	// the baseline-key check to fire a false positive on the next test's first reconcile.
 	var leaseList coordinationv1.LeaseList
 	if err := cl.List(ctx, &leaseList, client.InNamespace(e2eNS)); err == nil {
 		for i := range leaseList.Items {
@@ -187,6 +169,42 @@ func cleanupTestResources(t *testing.T) {
 			}
 		}
 	}
+}
+
+// requireOperatorReady verifies the backup-operator Deployment on the host cluster
+// has at least one ready replica. Waits up to 3 minutes.
+func requireOperatorReady() error {
+	ctx := context.Background()
+	nn := types.NamespacedName{Name: backupOperatorDeployment, Namespace: e2eNS}
+	deadline := time.Now().Add(3 * time.Minute)
+
+	for time.Now().Before(deadline) {
+		var deploy appsv1.Deployment
+		if err := cl.Get(ctx, nn, &deploy); err == nil && deploy.Status.ReadyReplicas >= 1 {
+			return nil
+		}
+		fmt.Fprintf(os.Stderr, "waiting for deployment %s/%s...\n", e2eNS, backupOperatorDeployment)
+		time.Sleep(5 * time.Second)
+	}
+
+	return fmt.Errorf(
+		"deployment %s/%s not ready after 3 minutes\n"+
+			"  Deploy with: task deploy:kind\n"+
+			"  Check logs:  kubectl logs -n %s deploy/%s",
+		e2eNS, backupOperatorDeployment,
+		e2eNS, backupOperatorDeployment,
+	)
+}
+
+// cleanupTestResources delegates to cleanupAll (which deletes all e2e-prefixed resources)
+// then waits up to 30s for all e2e-prefixed Etcd CRs to be fully deleted. Call at the
+// start of each test so leftover objects from prior tests don't contaminate the next
+// test's shard discovery or task simulator.
+func cleanupTestResources(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+
+	cleanupAll(ctx)
 
 	// Wait for all e2e- Etcd CRs to disappear so the next test starts clean.
 	deadline := time.Now().Add(30 * time.Second)

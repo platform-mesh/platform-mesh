@@ -193,10 +193,13 @@ func TestEtcDruid_Capture_TaskRejected(t *testing.T) {
 		"EtcdOpsTask should be deleted after rejection")
 }
 
-// TestEtcDruid_Capture_LeaseNotUpdated verifies the "lease key unchanged after
-// success" guard: the task transitions to Succeeded but the full-snap lease key
-// stays at the baseline value (etcd-druid bug simulation). The operator must
-// surface this as an error on EtcdSnapshotted.
+// TestEtcDruid_Capture_LeaseNotUpdated verifies that when the EtcdOpsTask
+// transitions to Succeeded but the full-snap lease HolderIdentity is empty
+// (no snapshot has ever been written), the operator surfaces an error on
+// EtcdSnapshotted. Note: a non-empty lease that hasn't changed from the
+// baseline is now treated as success — EtcdOpsTask Succeeded is the
+// authoritative signal that etcdbr wrote the snapshot (on-demand snapshots
+// do not bump HolderIdentity, only scheduled ones do).
 func TestEtcDruid_Capture_LeaseNotUpdated(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)

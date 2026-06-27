@@ -32,6 +32,24 @@ Single-package test:
 go test ./internal/controller/... -run TestFoo
 ```
 
+## Test tiers
+
+There are three distinct test tiers, each with a different build tag and cluster requirement:
+
+| Tier | Build tag | Command | What runs |
+|---|---|---|---|
+| Unit | _(none)_ | `task test` | Pure Go unit tests, no cluster |
+| Simulated E2E | `e2e` | `task test-e2e-kind` | `pkg/e2e/` — uses in-process simulators for etcd-druid, CNPG, and Velero. No real pods, no minio. Fast (~15 min). |
+| Real E2E | `e2e_real` | `task test-e2e-kind-real` | `pkg/e2e/real/` — minio deployed in-cluster, real etcd-druid + real etcdbr. Actual snapshots written and replayed. Slower (~40 min). |
+
+The simulated tests (`pkg/e2e/`) stub out all external components and verify operator control-flow. The real tests (`pkg/e2e/real/`) prove the full round-trip works with real binaries.
+
+To run only the sharded real tests (requires a live platform-mesh deployment with Etcd CRs):
+```bash
+task test-e2e-kind-real -- -run TestRealEtcd_Sharded
+# or: LIVE_SHARD_NAMESPACE=<ns> task test-e2e-kind-real -- -run TestRealEtcd_Sharded
+```
+
 ## Architecture
 
 This is a Kubernetes operator that orchestrates **Velero**, **CloudNativePG**, and **etcd-druid** to back up and restore a Platform Mesh deployment. It owns two cluster-scoped CRDs: `PlatformBackup` and `PlatformRestore`.

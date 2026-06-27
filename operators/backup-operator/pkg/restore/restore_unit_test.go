@@ -31,6 +31,9 @@ import (
 	"go.platform-mesh.io/backup-operator/pkg/restore"
 	"go.platform-mesh.io/subroutines"
 
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger/testlogger"
+
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,7 +64,8 @@ func newRestoreSub() *restore.EtcdRestoreSubroutine {
 }
 
 func ctxWithClient(cl ctrlruntimeclient.Client) context.Context {
-	return subroutines.WithClient(context.Background(), cl)
+	ctx := subroutines.WithClient(context.Background(), cl)
+	return logger.SetLoggerInContext(ctx, testlogger.New().Logger)
 }
 
 // fakeEtcdShard builds a minimal Etcd CR with the kcp-shard label.
@@ -343,4 +347,29 @@ func TestRestore_Idempotency(t *testing.T) {
 	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
 	require.NoError(t, err)
 	assert.True(t, result.IsContinue())
+}
+
+// TestRestore_EmptySnapshotKey verifies that fanOutRestore returns an error when
+// a shard artefact has an empty SnapshotKey. The API normally prevents this via
+// CEL validation, but this guard protects against future schema changes or
+// direct status manipulation.
+func TestRestore_EmptySnapshotKey(t *testing.T) {
+	bkp := fakeBackup("backup-emptykey")
+	bkp.Status.Artefacts.Etcd = &pmbackupv1alpha1.EtcdArtefact{
+		Shards: map[string]pmbackupv1alpha1.EtcdShardArtefact{
+			"shard-a": {SnapshotKey: "", SnapshotTime: metav1.Now()}, // empty key
+		},
+	}
+	shard := fakeEtcdShard("shard-a")
+	rst := fakeRestore("r", bkp.Name)
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		Build()
+
+	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.Error(t, err, "empty snapshot key must cause an error")
+	assert.Contains(t, err.Error(), "empty snapshot key",
+		"error must describe the problem")
 }

@@ -31,6 +31,9 @@ import (
 	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/backup"
 	"go.platform-mesh.io/subroutines"
+
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,6 +100,7 @@ func runTaskSimulator(ctx context.Context, t *testing.T, cl client.Client, snaps
 }
 
 func injectClient(ctx context.Context, cl client.Client) context.Context {
+	ctx = logger.SetLoggerInContext(ctx, testlogger.New().Logger)
 	return subroutines.WithClient(ctx, cl)
 }
 

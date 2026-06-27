@@ -130,13 +130,18 @@ func (s *EtcdRestoreSubroutine) fanOutRestore(
 	cl ctrlruntimeclient.Client,
 	shards map[string]pmbackupv1alpha1.EtcdShardArtefact,
 ) error {
+	// Validate all keys up-front before spawning any goroutines. An early return
+	// after some goroutines are already running would leave them deleting and
+	// recreating live Etcd CRs while the caller already reported failure.
+	for shardName, artefact := range shards {
+		if artefact.SnapshotKey == "" {
+			return fmt.Errorf("shard %q has empty snapshot key; backup artefact may be corrupt", shardName)
+		}
+	}
+
 	results := make(chan shardRestoreResult, len(shards))
 	var wg sync.WaitGroup
 	for shardName, artefact := range shards {
-		if artefact.SnapshotKey == "" {
-			// Validate before spawning — an empty key is a corrupt artefact.
-			return fmt.Errorf("shard %q has empty snapshot key; backup artefact may be corrupt", shardName)
-		}
 		wg.Add(1)
 		go func(name, key string) {
 			defer wg.Done()
@@ -188,10 +193,14 @@ func (s *EtcdRestoreSubroutine) restoreShard(ctx context.Context, cl ctrlruntime
 
 	savedSpec := *existing.Spec.DeepCopy()
 	// Deep-copy the labels map so the new CR always has an independent copy.
-	savedLabels := make(map[string]string, len(existing.Labels))
+	// Always inject the kcp-shard label regardless of what the existing CR carries —
+	// etcd-druid may strip unknown labels, and a recreated CR without this label
+	// would be silently omitted from future listShards-based backups.
+	savedLabels := make(map[string]string, len(existing.Labels)+1)
 	for k, v := range existing.Labels {
 		savedLabels[k] = v
 	}
+	savedLabels[backup.LabelKeyComponent] = backup.LabelComponentKCPShard
 
 	if err := cl.Delete(ctx, &existing); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("deleting Etcd CR: %w", err)
@@ -204,9 +213,10 @@ func (s *EtcdRestoreSubroutine) restoreShard(ctx context.Context, cl ctrlruntime
 }
 
 // createAndWait creates a new Etcd CR with the given spec and labels, then waits for it
-// to become ready. If the CR already exists (race with etcd-druid recreating it), the
-// restore annotation is patched onto it before waiting — ensuring traceability is never
-// silently skipped.
+// to become ready. If the CR already exists (race with etcd-druid recreating it), both
+// the restore annotation and the kcp-shard label are patched onto it before waiting —
+// etcd-druid does not preserve platform-mesh labels, so a CR it recreated would otherwise
+// be invisible to future listShards-based backups.
 func (s *EtcdRestoreSubroutine) createAndWait(
 	ctx context.Context,
 	cl ctrlruntimeclient.Client,
@@ -231,7 +241,9 @@ func (s *EtcdRestoreSubroutine) createAndWait(
 			return fmt.Errorf("creating Etcd CR: %w", err)
 		}
 		// CR already exists (etcd-druid recreated it between waitForDeletion and Create).
-		// Patch the restore annotation so traceability is preserved.
+		// Patch both the restore annotation and the kcp-shard label: etcd-druid does not
+		// know about platform-mesh labels, so a CR it recreated won't carry them, making
+		// it invisible to future listShards-based backups.
 		var existing druidv1alpha1.Etcd
 		if err := cl.Get(ctx, types.NamespacedName{Name: name, Namespace: s.namespace}, &existing); err != nil {
 			return fmt.Errorf("fetching pre-existing Etcd CR after AlreadyExists: %w", err)
@@ -241,6 +253,10 @@ func (s *EtcdRestoreSubroutine) createAndWait(
 			existing.Annotations = map[string]string{}
 		}
 		existing.Annotations[AnnotationKeyRestoredFromSnapshot] = snapshotKey
+		if existing.Labels == nil {
+			existing.Labels = map[string]string{}
+		}
+		existing.Labels[backup.LabelKeyComponent] = backup.LabelComponentKCPShard
 		if err := cl.Patch(ctx, &existing, patch); err != nil {
 			return fmt.Errorf("patching restore annotation on pre-existing Etcd CR: %w", err)
 		}

@@ -34,6 +34,9 @@ import (
 	"go.platform-mesh.io/backup-operator/pkg/backup"
 	"go.platform-mesh.io/subroutines"
 
+	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/golang-commons/logger/testlogger"
+
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -66,7 +69,8 @@ func newCaptureSub() *backup.EtcdCaptureSubroutine {
 }
 
 func ctxWithClient(cl ctrlruntimeclient.Client) context.Context {
-	return subroutines.WithClient(context.Background(), cl)
+	ctx := subroutines.WithClient(context.Background(), cl)
+	return logger.SetLoggerInContext(ctx, testlogger.New().Logger)
 }
 
 // fakeEtcdShard builds a minimal Etcd CR with the kcp-shard label.
@@ -335,7 +339,10 @@ func TestCapture_LeaseNotUpdated(t *testing.T) {
 	assert.Contains(t, err.Error(), "is empty")
 }
 
-// TestCapture_LeaseKeyMatchesBaseline verifies an error when the new key equals the baseline.
+// TestCapture_LeaseKeyMatchesBaseline verifies that when the lease key equals
+// the baseline (on-demand snapshots do not update HolderIdentity), the operator
+// accepts EtcdOpsTask Succeeded as the authoritative signal and records the
+// current lease key as the snapshot key.
 func TestCapture_LeaseKeyMatchesBaseline(t *testing.T) {
 	bkp := fakeBackup("backup-same")
 	shard := fakeEtcdShard("shard-same")
@@ -349,8 +356,9 @@ func TestCapture_LeaseKeyMatchesBaseline(t *testing.T) {
 		Build()
 
 	_, err := newCaptureSub().Process(ctxWithClient(cl), bkp)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not updated")
+	require.NoError(t, err)
+	require.NotNil(t, bkp.Status.Artefacts.Etcd)
+	assert.Equal(t, "rev-old", bkp.Status.Artefacts.Etcd.Shards["shard-same"].SnapshotKey)
 }
 
 // TestCapture_PollTimeout verifies that a context timeout surfaces as a timeout error.
@@ -506,5 +514,56 @@ func TestCapture_TaskNotFound_LeaseNotUpdated(t *testing.T) {
 
 	_, err := newCaptureSub().Process(ctxWithClient(cl), bkp)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not found and full-snap lease is empty")
+	assert.Contains(t, err.Error(), "not found and full-snap lease is unchanged")
+}
+
+// TestOpsTaskName_ShortNames verifies that short names are returned unchanged
+// (with hash suffix) and are valid k8s resource names.
+func TestOpsTaskName_ShortNames(t *testing.T) {
+	name := backup.OpsTaskName("my-backup", "my-shard")
+	assert.LessOrEqual(t, len(name), 253, "name must not exceed 253 chars")
+	assert.NotEmpty(t, name)
+	// Hash suffix must always be appended — verify different inputs produce different names.
+	other := backup.OpsTaskName("my-backup", "other-shard")
+	assert.NotEqual(t, name, other, "different shards must produce different task names")
+}
+
+// TestOpsTaskName_LongNamesTruncated verifies that names exceeding 253 characters
+// are truncated while keeping the hash suffix intact.
+func TestOpsTaskName_LongNamesTruncated(t *testing.T) {
+	// 200-char backup name + 200-char etcd name would produce a 401-char base before suffix.
+	longBackup := fmt.Sprintf("backup-%s", make([]byte, 190))
+	longEtcd := fmt.Sprintf("shard-%s", make([]byte, 190))
+	// Fill with safe chars
+	for i := 7; i < len(longBackup); i++ {
+		longBackup = longBackup[:i] + "a" + longBackup[i+1:]
+	}
+	for i := 6; i < len(longEtcd); i++ {
+		longEtcd = longEtcd[:i] + "b" + longEtcd[i+1:]
+	}
+
+	name := backup.OpsTaskName(longBackup, longEtcd)
+	assert.LessOrEqual(t, len(name), 253, "truncated name must not exceed 253 chars")
+	assert.NotEmpty(t, name)
+
+	// The hash suffix (6 hex chars) must still be present at the end.
+	// Two different long inputs must produce different names (collision resistance).
+	other := backup.OpsTaskName(longBackup+"x", longEtcd)
+	assert.NotEqual(t, name, other, "different long inputs must produce different task names")
+}
+
+// TestOpsTaskName_Deterministic verifies the same inputs always produce the same name.
+func TestOpsTaskName_Deterministic(t *testing.T) {
+	a := backup.OpsTaskName("backup-abc", "shard-xyz")
+	b := backup.OpsTaskName("backup-abc", "shard-xyz")
+	assert.Equal(t, a, b, "OpsTaskName must be deterministic")
+}
+
+// TestOpsTaskName_AmbiguousInputsSeparated verifies that ("a-b", "c") and ("a", "b-c")
+// produce different names — the hash disambiguates even when concatenated strings match.
+func TestOpsTaskName_AmbiguousInputsSeparated(t *testing.T) {
+	a := backup.OpsTaskName("a-b", "c")
+	b := backup.OpsTaskName("a", "b-c")
+	assert.NotEqual(t, a, b,
+		"OpsTaskName must distinguish (a-b,c) from (a,b-c) even though base concat matches")
 }
