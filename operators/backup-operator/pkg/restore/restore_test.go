@@ -144,12 +144,14 @@ func TestRestore_SingleShard_Recreate(t *testing.T) {
 
 	rst := makePlatformRestore(t, cl, "restore-single", bkp.Name)
 
-	sub := restore.NewEtcdRestoreSubroutine(testNamespace).
-		WithPollIntervals(100*time.Millisecond, 10*time.Second, 100*time.Millisecond, 20*time.Second)
+	sub := restore.NewEtcdRestoreSubroutine(testNamespace)
 
-	result, err := sub.Process(injectClient(ctx, cl), rst)
-	require.NoError(t, err)
-	assert.True(t, result.IsContinue())
+	// Non-blocking: poll until OK or error.
+	require.Eventually(t, func() bool {
+		result, err := sub.Process(injectClient(ctx, cl), rst)
+		require.NoError(t, err)
+		return result.IsContinue()
+	}, 20*time.Second, 100*time.Millisecond)
 
 	var recreated druidv1alpha1.Etcd
 	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: "shard-restore-single", Namespace: testNamespace}, &recreated))
@@ -174,12 +176,13 @@ func TestRestore_MultiShard_ConcurrentRecreate(t *testing.T) {
 	})
 	rst := makePlatformRestore(t, cl, "restore-multi", bkp.Name)
 
-	sub := restore.NewEtcdRestoreSubroutine(testNamespace).
-		WithPollIntervals(100*time.Millisecond, 10*time.Second, 100*time.Millisecond, 20*time.Second)
+	sub := restore.NewEtcdRestoreSubroutine(testNamespace)
 
-	result, err := sub.Process(injectClient(ctx, cl), rst)
-	require.NoError(t, err)
-	assert.True(t, result.IsContinue())
+	require.Eventually(t, func() bool {
+		result, err := sub.Process(injectClient(ctx, cl), rst)
+		require.NoError(t, err)
+		return result.IsContinue()
+	}, 20*time.Second, 100*time.Millisecond)
 
 	for _, name := range []string{"shard-a-multi", "shard-b-multi"} {
 		var recreated druidv1alpha1.Etcd
@@ -195,8 +198,7 @@ func TestRestore_MissingBackup_StopsWithRequeue(t *testing.T) {
 	ctx := context.Background()
 	rst := makePlatformRestore(t, cl, "restore-missing", "nonexistent-backup")
 
-	sub := restore.NewEtcdRestoreSubroutine(testNamespace).
-		WithPollIntervals(100*time.Millisecond, 5*time.Second, 100*time.Millisecond, 5*time.Second)
+	sub := restore.NewEtcdRestoreSubroutine(testNamespace)
 
 	result, err := sub.Process(injectClient(ctx, cl), rst)
 	require.NoError(t, err)
@@ -228,8 +230,7 @@ func TestRestore_MissingEtcdArtefacts_Skips(t *testing.T) {
 
 	rst := makePlatformRestore(t, cl, "restore-no-artefacts", bkp.Name)
 
-	sub := restore.NewEtcdRestoreSubroutine(testNamespace).
-		WithPollIntervals(100*time.Millisecond, 5*time.Second, 100*time.Millisecond, 5*time.Second)
+	sub := restore.NewEtcdRestoreSubroutine(testNamespace)
 
 	result, err := sub.Process(injectClient(ctx, cl), rst)
 	require.NoError(t, err)

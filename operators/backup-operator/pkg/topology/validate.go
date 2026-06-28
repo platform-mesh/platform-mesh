@@ -14,11 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package restore
+package topology
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -43,8 +42,8 @@ const (
 	ConditionTopologyValidated = "TopologyValidated"
 )
 
-// TopologyValidateSubroutine compares the KCP-shard topology recorded in the
-// source PlatformBackup against the live Etcd CRs in the operator namespace.
+// ValidateSubroutine compares the KCP-shard topology recorded in the source
+// PlatformBackup against the live Etcd CRs in the operator namespace.
 //
 // Scope (KCP shards only): the subroutine checks that every shard name in the
 // backup artefact exists as a live Etcd CR carrying the kcp-shard label, and
@@ -54,19 +53,19 @@ const (
 //
 // When TopologyValidation is not Strict the subroutine is a no-op and always
 // returns OK — downstream subroutines proceed unconditionally.
-type TopologyValidateSubroutine struct {
+type ValidateSubroutine struct {
 	namespace string
 }
 
-func NewTopologyValidateSubroutine(namespace string) *TopologyValidateSubroutine {
-	return &TopologyValidateSubroutine{namespace: namespace}
+func NewValidateSubroutine(namespace string) *ValidateSubroutine {
+	return &ValidateSubroutine{namespace: namespace}
 }
 
-func (s *TopologyValidateSubroutine) GetName() string { return ConditionTopologyValidated }
+func (s *ValidateSubroutine) GetName() string { return ConditionTopologyValidated }
 
 // Process implements subroutines.Subroutine. It runs before EtcdRestoreSubroutine
 // and blocks the chain on mismatch when TopologyValidation == Strict.
-func (s *TopologyValidateSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+func (s *ValidateSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	rst, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
 		return subroutines.OK(), fmt.Errorf("unexpected object type %T", obj)
@@ -134,7 +133,7 @@ func (s *TopologyValidateSubroutine) Process(ctx context.Context, obj ctrlruntim
 		sort.Strings(mismatches) // deterministic condition message across reconciles
 		msg := fmt.Sprintf("KCP shard topology mismatch: %s", strings.Join(mismatches, "; "))
 		log.Warn().Str("restore", rst.Name).Str("backup", rst.Spec.Source.BackupID).Msg(msg)
-		return subroutines.OK(), errors.New(msg)
+		return subroutines.StopWithRequeue(5*time.Second, msg), nil
 	}
 
 	log.Info().
@@ -142,10 +141,5 @@ func (s *TopologyValidateSubroutine) Process(ctx context.Context, obj ctrlruntim
 		Str("backup", rst.Spec.Source.BackupID).
 		Int("shardCount", len(backupShards)).
 		Msg("KCP shard topology validated")
-	// StopWithRequeue(0) commits TopologyValidated=True to the API server before
-	// the (potentially long-running) EtcdRestoreSubroutine executes. Without this
-	// the lifecycle batches the status patch with the rest of the reconcile, so
-	// observers never see TopologyValidated=True until the entire restore (including
-	// waitForReady) completes — which can take up to 20 minutes.
-	return subroutines.StopWithRequeue(0, "topology validated; proceeding to restore"), nil
+	return subroutines.OK(), nil
 }

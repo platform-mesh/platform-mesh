@@ -21,7 +21,6 @@ package restore_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -60,8 +59,7 @@ func newFakeScheme(t *testing.T) *runtime.Scheme {
 }
 
 func newRestoreSub() *restore.EtcdRestoreSubroutine {
-	return restore.NewEtcdRestoreSubroutine(unitTestNamespace).
-		WithPollIntervals(1*time.Millisecond, 5*time.Second, 1*time.Millisecond, 5*time.Second)
+	return restore.NewEtcdRestoreSubroutine(unitTestNamespace)
 }
 
 func ctxWithClient(cl ctrlruntimeclient.Client) context.Context {
@@ -89,6 +87,14 @@ func fakeEtcdShard(name string) *druidv1alpha1.Etcd {
 			},
 		},
 	}
+}
+
+// fakeEtcdShardReady returns a shard with status.ready=true and the restore annotation set.
+func fakeEtcdShardReady(name, snapshotKey string) *druidv1alpha1.Etcd {
+	shard := fakeEtcdShard(name)
+	shard.Annotations = map[string]string{restore.AnnotationKeyRestoredFromSnapshot: snapshotKey}
+	shard.Status.Ready = ptr.To(true)
+	return shard
 }
 
 // fakeBackup builds a minimal PlatformBackup with etcd enabled.
@@ -142,27 +148,6 @@ func fakeBackupWithShards(name string, shards map[string]string) *pmbackupv1alph
 	b := fakeBackup(name)
 	b.Status.Artefacts.Etcd = &pmbackupv1alpha1.EtcdArtefact{Shards: artefacts}
 	return b
-}
-
-// newRestoreClient builds a fake client pre-loaded with the given objects, plus an interceptor
-// that makes every Etcd Get return status.ready=true so waitForReady passes immediately.
-func newRestoreClient(t *testing.T, objs ...ctrlruntimeclient.Object) ctrlruntimeclient.Client {
-	t.Helper()
-	return fake.NewClientBuilder().
-		WithScheme(newFakeScheme(t)).
-		WithObjects(objs...).
-		WithInterceptorFuncs(interceptor.Funcs{
-			Get: func(ctx context.Context, cl ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-				if err := cl.Get(ctx, key, obj, opts...); err != nil {
-					return err
-				}
-				if etcd, ok := obj.(*druidv1alpha1.Etcd); ok {
-					etcd.Status.Ready = ptr.To(true)
-				}
-				return nil
-			},
-		}).
-		Build()
 }
 
 // TestRestore_WrongObjectType verifies that passing a non-PlatformRestore returns an error.
@@ -229,21 +214,63 @@ func TestRestore_ShardNotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-// TestRestore_SingleShard_AnnotationSet verifies the restored Etcd CR has the snapshot annotation.
+// TestRestore_SingleShard_AnnotationSet verifies that after the first reconcile the shard
+// has the restore annotation set and the subroutine returns Pending (waiting for ready).
 func TestRestore_SingleShard_AnnotationSet(t *testing.T) {
 	bkp := fakeBackupWithShards("backup-ann", map[string]string{"shard-ann": "rev-42"})
 	rst := fakeRestore("r", bkp.Name)
 	shard := fakeEtcdShard("shard-ann")
 
-	cl := newRestoreClient(t, bkp, shard)
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		Build()
 
+	// First pass: shard exists without annotation → delete+recreate, returns Pending.
 	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
 	require.NoError(t, err)
-	assert.True(t, result.IsContinue())
+	assert.True(t, result.IsPending(), "expected Pending while shard is not yet ready")
 
 	var recreated druidv1alpha1.Etcd
 	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Name: "shard-ann", Namespace: unitTestNamespace}, &recreated))
 	assert.Equal(t, "rev-42", recreated.Annotations[restore.AnnotationKeyRestoredFromSnapshot])
+}
+
+// TestRestore_SingleShard_ReadyAfterAnnotation verifies that once the annotation is set
+// and ready=true, Process returns OK.
+func TestRestore_SingleShard_ReadyAfterAnnotation(t *testing.T) {
+	bkp := fakeBackupWithShards("backup-rdy", map[string]string{"shard-rdy": "rev-1"})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShardReady("shard-rdy", "rev-1")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		WithStatusSubresource(&druidv1alpha1.Etcd{}).
+		Build()
+
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, result.IsContinue(), "expected OK when annotation set and ready=true")
+}
+
+// TestRestore_SingleShard_PendingWhenNotReady verifies Pending is returned when the
+// annotation is set but status.ready is false.
+func TestRestore_SingleShard_PendingWhenNotReady(t *testing.T) {
+	bkp := fakeBackupWithShards("backup-notready", map[string]string{"shard-notready": "rev-5"})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard("shard-notready")
+	shard.Annotations = map[string]string{restore.AnnotationKeyRestoredFromSnapshot: "rev-5"}
+	shard.Status.Ready = ptr.To(false)
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		Build()
+
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, result.IsPending(), "expected Pending when annotation set but not ready")
 }
 
 // TestRestore_SingleShard_SpecPreserved verifies the recreated Etcd CR preserves the original spec.
@@ -253,7 +280,10 @@ func TestRestore_SingleShard_SpecPreserved(t *testing.T) {
 	shard := fakeEtcdShard("shard-spec")
 	shard.Spec.Replicas = 3
 
-	cl := newRestoreClient(t, bkp, shard)
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		Build()
 
 	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
 	require.NoError(t, err)
@@ -263,64 +293,71 @@ func TestRestore_SingleShard_SpecPreserved(t *testing.T) {
 	assert.Equal(t, int32(3), recreated.Spec.Replicas)
 }
 
-// TestRestore_MultiShard_AllRestored verifies all shards are restored sequentially.
+// TestRestore_MultiShard_AllRestored verifies that when all shards have the annotation
+// and are ready, Process returns OK.
 func TestRestore_MultiShard_AllRestored(t *testing.T) {
 	bkp := fakeBackupWithShards("backup-multi", map[string]string{
 		"shard-a": "rev-10",
 		"shard-b": "rev-20",
 	})
 	rst := fakeRestore("r", bkp.Name)
-	shardA := fakeEtcdShard("shard-a")
-	shardB := fakeEtcdShard("shard-b")
+	shardA := fakeEtcdShardReady("shard-a", "rev-10")
+	shardB := fakeEtcdShardReady("shard-b", "rev-20")
 
-	cl := newRestoreClient(t, bkp, shardA, shardB)
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shardA, shardB).
+		WithStatusSubresource(&druidv1alpha1.Etcd{}).
+		Build()
 
 	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
 	require.NoError(t, err)
-	assert.True(t, result.IsContinue())
-
-	for _, name := range []string{"shard-a", "shard-b"} {
-		var recreated druidv1alpha1.Etcd
-		require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Name: name, Namespace: unitTestNamespace}, &recreated))
-		assert.NotEmpty(t, recreated.Annotations[restore.AnnotationKeyRestoredFromSnapshot])
-	}
+	assert.True(t, result.IsContinue(), "expected OK when all shards restored and ready")
 }
 
-// TestRestore_MultiShard_FirstFailureHalts verifies all-or-nothing: first shard error stops processing.
-// shard-a sorts before shard-b; shard-b is missing so restore returns an error referencing shard-b.
+// TestRestore_MultiShard_OnePending verifies Pending when one shard is ready and one is not.
+func TestRestore_MultiShard_OnePending(t *testing.T) {
+	bkp := fakeBackupWithShards("backup-onepend", map[string]string{
+		"shard-a": "rev-1",
+		"shard-b": "rev-2",
+	})
+	rst := fakeRestore("r", bkp.Name)
+	shardA := fakeEtcdShardReady("shard-a", "rev-1")
+	shardB := fakeEtcdShard("shard-b")
+	shardB.Annotations = map[string]string{restore.AnnotationKeyRestoredFromSnapshot: "rev-2"}
+	// ready not set
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shardA, shardB).
+		WithStatusSubresource(&druidv1alpha1.Etcd{}).
+		Build()
+
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, result.IsPending(), "expected Pending when one shard not yet ready")
+}
+
+// TestRestore_MultiShard_FirstFailureHalts verifies that an error on one shard is returned
+// and the error message identifies the failing shard.
 func TestRestore_MultiShard_FirstFailureHalts(t *testing.T) {
 	bkp := fakeBackupWithShards("backup-halt", map[string]string{
 		"shard-a": "rev-1",
 		"shard-b": "rev-2",
 	})
 	rst := fakeRestore("r", bkp.Name)
-	shardA := fakeEtcdShard("shard-a")
+	// shard-a present, shard-b absent → error references shard-b
+	shardA := fakeEtcdShardReady("shard-a", "rev-1")
 
-	cl := newRestoreClient(t, bkp, shardA)
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shardA).
+		WithStatusSubresource(&druidv1alpha1.Etcd{}).
+		Build()
 
 	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "shard-b")
-}
-
-// TestRestore_ReadyTimeout verifies that a timeout waiting for readiness surfaces as an error.
-func TestRestore_ReadyTimeout(t *testing.T) {
-	bkp := fakeBackupWithShards("backup-rdy", map[string]string{"shard-rdy": "rev-1"})
-	rst := fakeRestore("r", bkp.Name)
-	shard := fakeEtcdShard("shard-rdy")
-
-	// Plain fake client: the recreated Etcd CR has no ready status set.
-	cl := fake.NewClientBuilder().
-		WithScheme(newFakeScheme(t)).
-		WithObjects(bkp, shard).
-		Build()
-
-	sub := restore.NewEtcdRestoreSubroutine(unitTestNamespace).
-		WithPollIntervals(1*time.Millisecond, 5*time.Second, 1*time.Millisecond, 50*time.Millisecond)
-
-	_, err := sub.Process(ctxWithClient(cl), rst)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "timed out")
 }
 
 // TestRestore_GetName verifies the subroutine returns the expected condition name.
@@ -350,15 +387,12 @@ func TestRestore_Idempotency(t *testing.T) {
 	assert.True(t, result.IsContinue())
 }
 
-// TestRestore_EmptySnapshotKey verifies that fanOutRestore returns an error when
-// a shard artefact has an empty SnapshotKey. The API normally prevents this via
-// CEL validation, but this guard protects against future schema changes or
-// direct status manipulation.
+// TestRestore_EmptySnapshotKey verifies that an empty SnapshotKey is rejected up-front.
 func TestRestore_EmptySnapshotKey(t *testing.T) {
 	bkp := fakeBackup("backup-emptykey")
 	bkp.Status.Artefacts.Etcd = &pmbackupv1alpha1.EtcdArtefact{
 		Shards: map[string]pmbackupv1alpha1.EtcdShardArtefact{
-			"shard-a": {SnapshotKey: "", SnapshotTime: metav1.Now()}, // empty key
+			"shard-a": {SnapshotKey: "", SnapshotTime: metav1.Now()},
 		},
 	}
 	shard := fakeEtcdShard("shard-a")
@@ -371,15 +405,14 @@ func TestRestore_EmptySnapshotKey(t *testing.T) {
 
 	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
 	require.Error(t, err, "empty snapshot key must cause an error")
-	assert.Contains(t, err.Error(), "empty snapshot key",
-		"error must describe the problem")
+	assert.Contains(t, err.Error(), "empty snapshot key")
 }
 
 // TestRestore_CreateAndWait_AlreadyExists verifies that when etcd-druid races to
-// recreate the Etcd CR between waitForDeletion and Create, the operator:
+// recreate the Etcd CR between delete and Create, the operator:
 //   - patches the restore annotation onto the existing CR
 //   - patches the kcp-shard label onto the existing CR
-//   - proceeds to waitForReady without returning an error
+//   - returns Pending (not an error)
 func TestRestore_CreateAndWait_AlreadyExists(t *testing.T) {
 	const snapshotKey = "rev-42"
 	bkp := fakeBackup("backup-race")
@@ -388,9 +421,8 @@ func TestRestore_CreateAndWait_AlreadyExists(t *testing.T) {
 			"shard-race": {SnapshotKey: snapshotKey, SnapshotTime: metav1.Now()},
 		},
 	}
-	// The shard CR has no annotation — simulates first-restore state.
 	shard := fakeEtcdShard("shard-race")
-	shard.Labels = map[string]string{} // strip kcp-shard label to simulate druid recreation
+	shard.Labels = map[string]string{}
 	shard.Annotations = nil
 	shard.Status.Ready = ptr.To(true)
 
@@ -403,17 +435,13 @@ func TestRestore_CreateAndWait_AlreadyExists(t *testing.T) {
 		WithStatusSubresource(&druidv1alpha1.Etcd{}).
 		WithInterceptorFuncs(interceptor.Funcs{
 			Delete: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.DeleteOption) error {
-				// Simulate deletion that appears instant to the operator: the fake
-				// client removes the object, but our Create interceptor below will
-				// return AlreadyExists (druid recreated it before the operator's Create).
 				return c.Delete(ctx, obj, opts...)
 			},
 			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
 				if etcd, ok := obj.(*druidv1alpha1.Etcd); ok {
-					// Simulate etcd-druid racing to recreate — put the object back first.
 					recreated := etcd.DeepCopy()
 					recreated.ResourceVersion = ""
-					recreated.Labels = map[string]string{} // druid-created CR has no platform-mesh labels
+					recreated.Labels = map[string]string{}
 					recreated.Annotations = nil
 					recreated.Status.Ready = ptr.To(true)
 					if err := c.Create(ctx, recreated); err != nil && !apierrors.IsAlreadyExists(err) {
@@ -436,7 +464,11 @@ func TestRestore_CreateAndWait_AlreadyExists(t *testing.T) {
 		}).
 		Build()
 
-	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
 	require.NoError(t, err, "AlreadyExists on Create must be handled gracefully")
 	assert.True(t, patchCalled, "Patch must be called to apply annotation and label on the raced CR")
+	// The raced CR has the annotation patched; on this reconcile pass the shard is
+	// not yet confirmed ready so the subroutine must return Pending, not OK.
+	assert.True(t, result.IsPending(),
+		"expected Pending after AlreadyExists patch — shard readiness not yet confirmed")
 }

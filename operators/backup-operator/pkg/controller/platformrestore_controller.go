@@ -21,11 +21,13 @@ import (
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/restore"
+	"go.platform-mesh.io/backup-operator/pkg/topology"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -42,7 +44,7 @@ func NewPlatformRestoreReconciler(mgr mcmanager.Manager, namespace string) *Plat
 	},
 		// TopologyValidateSubroutine runs first and blocks the chain when
 		// TopologyValidation=Strict and the live shard set doesn't match the backup.
-		restore.NewTopologyValidateSubroutine(namespace),
+		topology.NewValidateSubroutine(namespace),
 		restore.NewEtcdRestoreSubroutine(namespace),
 	).WithConditions(conditions.NewManager())
 
@@ -53,6 +55,7 @@ func (r *PlatformRestoreReconciler) SetupWithManager(mgr mcmanager.Manager) erro
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("PlatformRestoreReconciler").
 		For(&pmbackupv1alpha1.PlatformRestore{}).
+		WithOptions(ctrlcontroller.TypedOptions[mcreconcile.Request]{MaxConcurrentReconciles: 4}).
 		Complete(r)
 }
 

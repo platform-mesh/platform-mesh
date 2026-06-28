@@ -128,13 +128,11 @@ func startTaskSimulator(ctx context.Context, t *testing.T) {
 	}()
 }
 
-// startReadySimulator sets status.ready=true on Etcd CRs that are not yet ready.
-// Each CR is only patched once per UID — repeated patches would trigger etcd-druid
-// status reconciles which overwrite ready=false, creating an event storm.
-// The operator retries until it wins a window where etcd-druid has not yet overwritten.
+// startReadySimulator continuously sets status.ready=true on Etcd CRs that are not
+// ready. etcd-druid overwrites ready=false during its status reconcile loop, so we
+// must keep re-patching rather than patching once per UID.
 func startReadySimulator(ctx context.Context, t *testing.T) {
 	t.Helper()
-	patched := map[types.UID]bool{}
 	go func() {
 		for {
 			select {
@@ -149,19 +147,13 @@ func startReadySimulator(ctx context.Context, t *testing.T) {
 			}
 			for i := range list.Items {
 				etcd := &list.Items[i]
-				if patched[etcd.UID] {
-					continue
-				}
 				if etcd.Status.Ready != nil && *etcd.Status.Ready {
-					patched[etcd.UID] = true
 					continue
 				}
 				patch := client.MergeFrom(etcd.DeepCopy())
 				etcd.Status.Ready = ptr.To(true)
 				if err := cl.Status().Patch(ctx, etcd, patch); err != nil {
 					t.Logf("readySimulator: patch %s: %v", etcd.Name, err)
-				} else {
-					patched[etcd.UID] = true
 				}
 			}
 		}

@@ -29,6 +29,7 @@ import (
 	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/backup"
 	"go.platform-mesh.io/backup-operator/pkg/restore"
+	"go.platform-mesh.io/backup-operator/pkg/topology"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -127,7 +128,7 @@ func TestEtcDruid_CaptureRoundTrip(t *testing.T) {
 
 	// Assert topology validation also passed (it must precede EtcdRestored in the chain).
 	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst))
-	assert.True(t, apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated),
+	assert.True(t, apimeta.IsStatusConditionTrue(rst.Status.Conditions, topology.ConditionTopologyValidated),
 		"TopologyValidated condition must be True when EtcdRestored=True")
 
 	// --- Verify the Etcd CR was recreated with the restore annotation -------------
@@ -224,7 +225,7 @@ func TestEtcDruid_Restore_MultiShard(t *testing.T) {
 
 	// Assert topology validation also passed.
 	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst))
-	assert.True(t, apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated),
+	assert.True(t, apimeta.IsStatusConditionTrue(rst.Status.Conditions, topology.ConditionTopologyValidated),
 		"TopologyValidated condition must be True when EtcdRestored=True")
 
 	// Assert each shard was recreated with the annotation pointing at its own key.
@@ -401,9 +402,9 @@ func TestEtcDruid_Restore_TopologyAware(t *testing.T) {
 		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
 			return false
 		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 		t.Logf("[poll] conditions=%+v TopologyValidated=%v", rst.Status.Conditions, cond)
-		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, topology.ConditionTopologyValidated)
 	}, 30*time.Second, time.Second, "TopologyValidated never became True for %s", restoreName)
 	t.Logf("[step 2] TopologyValidated=True (shard set matched)")
 

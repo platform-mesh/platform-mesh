@@ -30,6 +30,7 @@ import (
 	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/backup"
 	"go.platform-mesh.io/backup-operator/pkg/restore"
+	"go.platform-mesh.io/backup-operator/pkg/topology"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -357,15 +358,15 @@ func TestEtcDruid_Restore_MissingEtcdShard(t *testing.T) {
 			t.Logf("[poll] Get PlatformRestore error: %v", err)
 			return false
 		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 		t.Logf("[poll] conditions=%+v TopologyValidated=%v", rst.Status.Conditions, cond)
 		return cond != nil && cond.Status == metav1.ConditionFalse
 	}, 2*time.Minute, 5*time.Second,
 		"expected TopologyValidated=False when backup shard is absent from live cluster")
 
-	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 	require.NotNil(t, cond)
-	assert.Equal(t, "Error", cond.Reason)
+	assert.Equal(t, "Stopped", cond.Reason)
 	assert.Contains(t, cond.Message, ghostShard)
 	t.Logf("[step 4] TopologyValidated=False confirmed — mismatch: %s", cond.Message)
 
@@ -643,14 +644,14 @@ func TestEtcDruid_Restore_TopologyMismatch_ExtraLiveShard(t *testing.T) {
 		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
 			return false
 		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 		t.Logf("[poll] TopologyValidated=%v", cond)
 		return cond != nil && cond.Status == metav1.ConditionFalse
 	}, 30*time.Second, time.Second, "TopologyValidated condition never became False")
 
-	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 	require.NotNil(t, cond)
-	assert.Equal(t, "Error", cond.Reason)
+	assert.Equal(t, "Stopped", cond.Reason)
 	assert.Contains(t, cond.Message, "shard-extra")
 	t.Logf("[step 3] TopologyValidated=False — mismatch surfaced: %s", cond.Message)
 
@@ -710,27 +711,24 @@ func TestEtcDruid_Restore_TopologyMatch_Passes(t *testing.T) {
 	require.NoError(t, cl.Create(ctx, rst))
 	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
 
-	// TopologyValidated must become True.
-	require.Eventually(t, func() bool {
-		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
-			return false
-		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
-		t.Logf("[poll] TopologyValidated=%v", cond)
-		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated)
-	}, 30*time.Second, time.Second, "TopologyValidated condition never became True")
-	t.Logf("[step 2] TopologyValidated=True")
-
-	// EtcdRestored must also complete (simulators handle the task and ready).
+	// EtcdRestored must complete — topology validation passes as part of the
+	// same reconcile so TopologyValidated=True is only visible after the full
+	// restore completes (the lifecycle batches the status patch). Assert both
+	// conditions are True after EtcdRestored is confirmed.
 	require.Eventually(t, func() bool {
 		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
 			return false
 		}
 		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
-		t.Logf("[poll] EtcdRestored=%v", cond)
-		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionEtcdRestored)
+		topoCond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
+		t.Logf("[poll] TopologyValidated=%v", topoCond)
+		return cond != nil && cond.Status == metav1.ConditionTrue
 	}, 90*time.Second, time.Second, "EtcdRestored condition never became True")
-	t.Logf("[step 3] EtcdRestored=True — topology validation passed, restore completed")
+
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst))
+	assert.True(t, apimeta.IsStatusConditionTrue(rst.Status.Conditions, topology.ConditionTopologyValidated),
+		"TopologyValidated must be True when EtcdRestored=True")
+	t.Logf("[step 2] TopologyValidated=True and EtcdRestored=True — topology match confirmed")
 }
 
 // TestEtcDruid_Restore_TopologyMismatch_ShardMissingFromCluster verifies that
@@ -779,14 +777,14 @@ func TestEtcDruid_Restore_TopologyMismatch_ShardMissingFromCluster(t *testing.T)
 		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
 			return false
 		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 		t.Logf("[poll] TopologyValidated=%v", cond)
 		return cond != nil && cond.Status == metav1.ConditionFalse
 	}, 30*time.Second, time.Second, "TopologyValidated never became False")
 
-	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 	require.NotNil(t, cond)
-	assert.Equal(t, "Error", cond.Reason)
+	assert.Equal(t, "Stopped", cond.Reason)
 	assert.Contains(t, cond.Message, "shard-gone")
 	assert.Contains(t, cond.Message, "missing from live cluster")
 	t.Logf("[step 2] TopologyValidated=False — missing shard surfaced: %s", cond.Message)
@@ -845,15 +843,14 @@ func TestEtcDruid_Restore_TopologyMismatch_BothDirections(t *testing.T) {
 		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
 			return false
 		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 		t.Logf("[poll] TopologyValidated=%v", cond)
 		return cond != nil && cond.Status == metav1.ConditionFalse
 	}, 30*time.Second, time.Second, "TopologyValidated never became False")
 
-	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 	require.NotNil(t, cond)
-	assert.Equal(t, "Error", cond.Reason)
-	// Both directions must be reported.
+	assert.Equal(t, "Stopped", cond.Reason)
 	assert.Contains(t, cond.Message, "shard-recorded", "missing-from-cluster shard must be in error")
 	assert.Contains(t, cond.Message, "shard-live", "extra-live shard must be in error")
 	t.Logf("[step 2] TopologyValidated=False — both directions reported: %s", cond.Message)
@@ -911,7 +908,7 @@ func TestEtcDruid_Restore_TopologyMismatch_SelfHealing(t *testing.T) {
 		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
 			return false
 		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 		t.Logf("[poll] TopologyValidated=%v", cond)
 		return cond != nil && cond.Status == metav1.ConditionFalse
 	}, 30*time.Second, time.Second, "expected TopologyValidated=False while extra shard present")
@@ -926,9 +923,9 @@ func TestEtcDruid_Restore_TopologyMismatch_SelfHealing(t *testing.T) {
 		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
 			return false
 		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 		t.Logf("[poll] TopologyValidated=%v", cond)
-		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, topology.ConditionTopologyValidated)
 	}, 90*time.Second, time.Second, "TopologyValidated never became True after topology fix")
 	t.Logf("[step 4] TopologyValidated=True after fixing cluster topology")
 
@@ -1009,13 +1006,13 @@ func TestEtcDruid_Restore_TopologyNonStrict_IgnoresMismatch(t *testing.T) {
 	}, 90*time.Second, time.Second, "EtcdRestored never became True in non-strict mode")
 	t.Logf("[step 2] EtcdRestored=True — non-strict mode bypassed topology check")
 
-	// TopologyValidated must NOT be True (subroutine was a no-op, condition stays Unknown/absent).
+	// TopologyValidated must be True/Skipped (subroutine was a no-op in non-strict mode).
 	if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err == nil {
-		topoCond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		topoCond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 		if topoCond != nil {
-			assert.NotEqual(t, metav1.ConditionTrue, topoCond.Status,
-				"TopologyValidated must not be True in non-strict mode")
+			assert.Equal(t, metav1.ConditionTrue, topoCond.Status,
+				"TopologyValidated must be True/Skipped in non-strict mode")
 		}
-		t.Logf("[step 3] TopologyValidated condition = %v (expected absent or non-True)", topoCond)
+		t.Logf("[step 3] TopologyValidated condition = %v (expected absent or Skipped/True)", topoCond)
 	}
 }

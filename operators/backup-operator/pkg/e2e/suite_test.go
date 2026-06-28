@@ -227,28 +227,12 @@ func cleanupTestResources(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	// Wait for all e2e- PlatformRestore objects to disappear. Once they are gone
-	// from the API server controller-runtime drops their queue keys entirely, so
-	// any accumulated exponential backoff (e.g. from topology-mismatch errors in
-	// the previous test) cannot carry over and stall the next test's reconcile.
-	deadline = time.Now().Add(60 * time.Second)
-	for time.Now().Before(deadline) {
-		var remaining backupv1alpha1.PlatformRestoreList
-		if err := cl.List(ctx, &remaining); err != nil {
-			break
-		}
-		found := false
-		for _, r := range remaining.Items {
-			if strings.HasPrefix(r.Name, "e2e-") {
-				found = true
-				break
-			}
-		}
-		if !found {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	// Brief pause to let the operator drain inflight reconcile-queue entries for
+	// the objects we just deleted. Without this, a requeued reconcile from the
+	// prior test's PlatformRestore (e.g. after a topology mismatch error) fires
+	// after the next test creates its own restore CR, and the controller's single
+	// worker goroutine serialises them — delaying or starving the new reconcile.
+	time.Sleep(2 * time.Second)
 }
 
 func ptr32(p *int32) int32 {

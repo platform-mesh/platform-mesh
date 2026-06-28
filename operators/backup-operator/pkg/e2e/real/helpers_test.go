@@ -31,6 +31,7 @@ import (
 	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/backup"
 	"go.platform-mesh.io/backup-operator/pkg/restore"
+	"go.platform-mesh.io/backup-operator/pkg/topology"
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -244,12 +245,12 @@ func waitForRestoreComplete(t *testing.T, ctx context.Context, rst *backupv1alph
 			t.Logf("[poll] Get restore %s error: %v", rst.Name, err)
 			return false
 		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, topology.ConditionTopologyValidated)
 		t.Logf("[poll] restore %s TopologyValidated=%v", rst.Name, cond)
 		if cond != nil && cond.Status == metav1.ConditionFalse {
 			t.Logf("[poll] restore %s TopologyValidated=False — %s", rst.Name, cond.Message)
 		}
-		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, topology.ConditionTopologyValidated)
 	}, 30*time.Second, 3*time.Second, "restore %s TopologyValidated never became True", rst.Name)
 
 	// Then wait for the actual etcd restore to complete.
