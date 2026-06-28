@@ -31,7 +31,6 @@ import (
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
-	"go.platform-mesh.io/backup-operator/pkg/backup"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -110,9 +109,9 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// cleanupAll deletes every e2e-prefixed test resource left in the cluster after
-// the suite finishes. Runs on both success and failure so the cluster is clean
-// for the next run. Errors are logged to stderr but do not affect the exit code.
+// cleanupAll deletes every e2e-prefixed test resource. Called both between
+// tests (via cleanupTestResources) and at suite exit. Does NOT touch the
+// operator deployment — use teardownSuite for that.
 func cleanupAll(ctx context.Context) {
 	var etcdList druidv1alpha1.EtcdList
 	if err := cl.List(ctx, &etcdList, client.InNamespace(e2eNS)); err == nil {
@@ -197,7 +196,7 @@ func requireOperatorReady() error {
 }
 
 // cleanupTestResources delegates to cleanupAll (which deletes all e2e-prefixed resources)
-// then waits up to 30s for all e2e-prefixed Etcd CRs to be fully deleted. Call at the
+// then waits up to 60s for all e2e-prefixed Etcd CRs to be fully deleted. Call at the
 // start of each test so leftover objects from prior tests don't contaminate the next
 // test's shard discovery or task simulator.
 func cleanupTestResources(t *testing.T) {
@@ -207,16 +206,40 @@ func cleanupTestResources(t *testing.T) {
 	cleanupAll(ctx)
 
 	// Wait for all e2e- Etcd CRs to disappear so the next test starts clean.
-	deadline := time.Now().Add(30 * time.Second)
+	// Waits for ALL e2e Etcd CRs (no label filter) to prevent stale shards from
+	// triggering spurious topology mismatches in TopologyValidateSubroutine.
+	deadline := time.Now().Add(60 * time.Second)
 	for time.Now().Before(deadline) {
 		var remaining druidv1alpha1.EtcdList
-		if err := cl.List(ctx, &remaining, client.InNamespace(e2eNS),
-			client.MatchingLabels{backup.LabelKeyComponent: backup.LabelComponentKCPShard}); err != nil {
+		if err := cl.List(ctx, &remaining, client.InNamespace(e2eNS)); err != nil {
 			break
 		}
 		found := false
 		for _, e := range remaining.Items {
 			if strings.HasPrefix(e.Name, "e2e-") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	// Wait for all e2e- PlatformRestore objects to disappear. Once they are gone
+	// from the API server controller-runtime drops their queue keys entirely, so
+	// any accumulated exponential backoff (e.g. from topology-mismatch errors in
+	// the previous test) cannot carry over and stall the next test's reconcile.
+	deadline = time.Now().Add(60 * time.Second)
+	for time.Now().Before(deadline) {
+		var remaining backupv1alpha1.PlatformRestoreList
+		if err := cl.List(ctx, &remaining); err != nil {
+			break
+		}
+		found := false
+		for _, r := range remaining.Items {
+			if strings.HasPrefix(r.Name, "e2e-") {
 				found = true
 				break
 			}

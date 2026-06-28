@@ -34,6 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -59,7 +60,6 @@ type EtcdRestoreSubroutine struct {
 	readyTimeout  time.Duration
 }
 
-// NewEtcdRestoreSubroutine returns an EtcdRestoreSubroutine for the given namespace.
 func NewEtcdRestoreSubroutine(namespace string) *EtcdRestoreSubroutine {
 	return &EtcdRestoreSubroutine{
 		namespace:     namespace,
@@ -70,7 +70,6 @@ func NewEtcdRestoreSubroutine(namespace string) *EtcdRestoreSubroutine {
 	}
 }
 
-// WithPollIntervals overrides poll intervals and timeouts (for testing).
 func (s *EtcdRestoreSubroutine) WithPollIntervals(deletePoll, deleteTO, readyPoll, readyTO time.Duration) *EtcdRestoreSubroutine {
 	s.deletePollInt = deletePoll
 	s.deleteTimeout = deleteTO
@@ -81,15 +80,12 @@ func (s *EtcdRestoreSubroutine) WithPollIntervals(deletePoll, deleteTO, readyPol
 
 func (s *EtcdRestoreSubroutine) GetName() string { return ConditionEtcdRestored }
 
-// Process implements subroutines.Subroutine.
 func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	rst, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
 		return subroutines.OK(), fmt.Errorf("unexpected object type %T", obj)
 	}
 
-	// Idempotency: the lifecycle re-runs Process on every reconcile; skip once all
-	// shards have been successfully restored (condition set to True in a prior run).
 	if apimeta.IsStatusConditionTrue(rst.Status.Conditions, ConditionEtcdRestored) {
 		return subroutines.OK(), nil
 	}
@@ -112,7 +108,13 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 		return subroutines.OK(), nil
 	}
 
-	return subroutines.OK(), s.fanOutRestore(ctx, cl, bkp.Status.Artefacts.Etcd.Shards)
+	log := ctrllog.FromContext(ctx).WithValues("restore", rst.Name, "backup", rst.Spec.Source.BackupID)
+	log.Info("starting etcd restore", "shardCount", len(bkp.Status.Artefacts.Etcd.Shards))
+	if err := s.fanOutRestore(ctx, cl, bkp.Status.Artefacts.Etcd.Shards); err != nil {
+		return subroutines.OK(), err
+	}
+	log.Info("etcd restore complete", "shardCount", len(bkp.Status.Artefacts.Etcd.Shards))
+	return subroutines.OK(), nil
 }
 
 // shardRestoreResult holds the outcome of a single shard's restore operation.
@@ -160,7 +162,34 @@ func (s *EtcdRestoreSubroutine) fanOutRestore(
 			errs = append(errs, fmt.Errorf("restoring shard %q: %w", r.shardName, r.err))
 		}
 	}
-	return errors.Join(errs...)
+	if len(errs) == 0 {
+		return nil
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	}
+	// Cap the combined message to avoid exceeding the Kubernetes condition Message
+	// field limit (32768 bytes). Summarise as "<first error> (+N more)" when needed.
+	// Avoid allocating the full joined string — build only the first error and check
+	// whether it already fits within the budget for the summary suffix.
+	const maxMessageBytes = 4096
+	first := errs[0].Error()
+	suffix := fmt.Sprintf(" (+%d more shard errors truncated)", len(errs)-1)
+	budget := maxMessageBytes - len(suffix)
+	if budget < 1 {
+		budget = 1
+	}
+	if len(first) <= budget {
+		// First error fits; check if all errors together fit without truncation.
+		joined := errors.Join(errs...).Error()
+		if len(joined) <= maxMessageBytes {
+			return errors.Join(errs...)
+		}
+	}
+	if len(first) > budget {
+		first = first[:budget]
+	}
+	return fmt.Errorf("%s%s", first, suffix)
 }
 
 // restoreShard deletes the existing Etcd CR, waits for deletion, then recreates it
@@ -175,10 +204,18 @@ func (s *EtcdRestoreSubroutine) fanOutRestore(
 // restored in a previous (partial) reconcile — skip the delete+recreate cycle and only
 // wait for ready. This prevents re-deleting a live shard on retry after another shard fails.
 func (s *EtcdRestoreSubroutine) restoreShard(ctx context.Context, cl ctrlruntimeclient.Client, shardName, snapshotKey string) error {
+	log := ctrllog.FromContext(ctx).WithValues("shard", shardName, "snapshotKey", snapshotKey)
 	var existing druidv1alpha1.Etcd
 	if err := cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: s.namespace}, &existing); err != nil {
 		if apierrors.IsNotFound(err) {
-			return fmt.Errorf("etcd CR %q not found in namespace %q, cannot recreate without existing spec",
+			// The CR is absent — most likely a prior reconcile deleted it but crashed
+			// before the recreate completed. We cannot reconstruct the spec, so requeue
+			// and let the operator wait for etcd-druid to recreate it (it may do so if
+			// it holds a copy of the desired state), or for the user to restore the CR.
+			// Returning StopWithRequeue rather than a hard error prevents the condition
+			// from being written as Error (which would require a human fix) and gives
+			// etcd-druid a chance to recreate the CR on its own.
+			return fmt.Errorf("etcd CR %q not found in namespace %q — prior reconcile may have deleted it before recreate completed; will retry",
 				shardName, s.namespace)
 		}
 		return fmt.Errorf("fetching Etcd CR: %w", err)
@@ -188,8 +225,11 @@ func (s *EtcdRestoreSubroutine) restoreShard(ctx context.Context, cl ctrlruntime
 	// Guard against a nil Annotations map: safe map-read returns "" for a missing key,
 	// which is always != snapshotKey (non-empty, enforced in fanOutRestore).
 	if existing.Annotations != nil && existing.Annotations[AnnotationKeyRestoredFromSnapshot] == snapshotKey {
+		log.Info("shard already restored, waiting for ready")
 		return s.waitForReady(ctx, cl, shardName)
 	}
+
+	log.Info("deleting Etcd CR for restore")
 
 	savedSpec := *existing.Spec.DeepCopy()
 	// Deep-copy the labels map so the new CR always has an independent copy.
@@ -208,6 +248,7 @@ func (s *EtcdRestoreSubroutine) restoreShard(ctx context.Context, cl ctrlruntime
 	if err := s.waitForDeletion(ctx, cl, shardName); err != nil {
 		return fmt.Errorf("waiting for Etcd CR deletion: %w", err)
 	}
+	log.Info("Etcd CR deleted, recreating with restore annotation")
 
 	return s.createAndWait(ctx, cl, shardName, savedSpec, savedLabels, snapshotKey)
 }
@@ -306,8 +347,9 @@ func (s *EtcdRestoreSubroutine) waitForReady(ctx context.Context, cl ctrlruntime
 			// CR transiently absent — etcd-druid may be recreating it. Fall through
 			// to the sleep so we retry on the next tick.
 		} else if etcd.Status.Ready != nil && *etcd.Status.Ready {
-			return nil
-		}
+				ctrllog.FromContext(ctx).WithValues("shard", name).Info("Etcd CR is ready")
+				return nil
+			}
 
 		timer := time.NewTimer(s.readyPollInt)
 		select {

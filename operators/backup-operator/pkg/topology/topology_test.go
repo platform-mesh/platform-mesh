@@ -239,3 +239,95 @@ func TestRFC009SampleDocument(t *testing.T) {
 	require.NoError(t, topology.Unmarshal([]byte(raw), &m))
 	require.NoError(t, topology.Validate(&m, &m))
 }
+
+// i. Extra CNPG cluster on target is detected as a mismatch.
+func TestValidateExtraCNPGClusterOnTarget(t *testing.T) {
+	source := sampleManifest()
+	source.CNPG.Clusters = []topology.CNPGCluster{
+		{Name: "db-a", SpecDigest: rfcSampleDigest, MajorVersion: 16},
+	}
+	target := sampleManifest()
+	target.CNPG.Clusters = []topology.CNPGCluster{
+		{Name: "db-a", SpecDigest: rfcSampleDigest, MajorVersion: 16},
+		{Name: "db-extra", SpecDigest: rfcSampleDigest, MajorVersion: 16}, // not in source
+	}
+
+	err := topology.Validate(source, target)
+	require.Error(t, err, "extra CNPG cluster on target must be a mismatch")
+	me, ok := err.(*topology.MismatchError)
+	require.True(t, ok)
+	found := false
+	for _, f := range me.Fields {
+		if f.Field == "cnpg.clusters[db-extra]" && f.Source == "<missing>" {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected mismatch for extra CNPG cluster db-extra")
+}
+
+// j. Extra OpenFGA store on target is detected as a mismatch.
+func TestValidateExtraOpenFGAStoreOnTarget(t *testing.T) {
+	source := sampleManifest()
+	source.OpenFGA.Stores = []topology.OpenFGAStore{
+		{Name: "store-a", ModelDigest: rfcSampleDigest},
+	}
+	target := sampleManifest()
+	target.OpenFGA.Stores = []topology.OpenFGAStore{
+		{Name: "store-a", ModelDigest: rfcSampleDigest},
+		{Name: "store-extra", ModelDigest: rfcSampleDigest}, // not in source
+	}
+
+	err := topology.Validate(source, target)
+	require.Error(t, err, "extra OpenFGA store on target must be a mismatch")
+	me, ok := err.(*topology.MismatchError)
+	require.True(t, ok)
+	found := false
+	for _, f := range me.Fields {
+		if f.Field == "openfga.stores[store-extra]" && f.Source == "<missing>" {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected mismatch for extra OpenFGA store store-extra")
+}
+
+// k. CNPG MajorVersion mismatch is detected.
+func TestValidateCNPGMajorVersionMismatch(t *testing.T) {
+	source := sampleManifest()
+	source.CNPG.Clusters = []topology.CNPGCluster{
+		{Name: "db-a", SpecDigest: rfcSampleDigest, MajorVersion: 15},
+	}
+	target := sampleManifest()
+	target.CNPG.Clusters = []topology.CNPGCluster{
+		{Name: "db-a", SpecDigest: rfcSampleDigest, MajorVersion: 16}, // upgraded
+	}
+
+	err := topology.Validate(source, target)
+	require.Error(t, err, "Postgres major version upgrade must be a mismatch")
+	me, ok := err.(*topology.MismatchError)
+	require.True(t, ok)
+	found := false
+	for _, f := range me.Fields {
+		if f.Field == "cnpg.clusters[db-a].majorVersion" && f.Source == "15" && f.Target == "16" {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected majorVersion mismatch for db-a (15→16)")
+}
+
+// l. Duplicate shard names produce a <duplicate> sentinel in Validate output.
+func TestValidateDuplicateShardNames(t *testing.T) {
+	source := sampleManifest()
+	source.Kcp.Shards = []topology.KcpShard{
+		{Name: "shard-a", EtcdRef: "etcd/a", LogicalClusterIDsDigest: rfcSampleDigest},
+		{Name: "shard-a", EtcdRef: "etcd/a-copy", LogicalClusterIDsDigest: rfcSampleDigest}, // duplicate
+	}
+	target := sampleManifest()
+	target.Kcp.Shards = []topology.KcpShard{
+		{Name: "shard-a", EtcdRef: "etcd/different", LogicalClusterIDsDigest: rfcSampleDigest},
+	}
+
+	// Duplicate names produce a <duplicate> sentinel on the source side, which will
+	// never match the target's actual value — so Validate must return a mismatch.
+	err := topology.Validate(source, target)
+	require.Error(t, err, "duplicate shard names in source must produce a mismatch, not silent corruption")
+}

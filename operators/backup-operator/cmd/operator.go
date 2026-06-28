@@ -124,10 +124,6 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		}
 	}
 
-	if err := projector.New(hostClient, operatorCfg.Namespace).EnsureConfigMap(ctx); err != nil {
-		log.Fatal().Err(err).Msg("unable to ensure topology schema ConfigMap")
-	}
-
 	if err := controller.NewPlatformBackupReconciler(mgr, operatorCfg.Namespace).SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Str("controller", "PlatformBackup").Msg("unable to create controller")
 	}
@@ -143,8 +139,32 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to set up ready check")
 	}
 
+	// Ensure the topology schema ConfigMap exists. This is done as a Runnable so
+	// the health probe endpoints are registered before the first API server call,
+	// avoiding CrashLoopBackOff on transient API server unavailability at startup.
+	if err := mgr.GetLocalManager().Add(&projectorRunnable{client: hostClient, namespace: operatorCfg.Namespace}); err != nil {
+		log.Fatal().Err(err).Msg("unable to register topology schema projector")
+	}
+
 	log.Info().Msg("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("problem running manager")
 	}
+}
+
+// projectorRunnable wraps projector.EnsureConfigMap as a controller-runtime Runnable
+// so it runs after the manager has started (health probes registered) rather than
+// blocking the operator from starting entirely when the API server is temporarily unavailable.
+type projectorRunnable struct {
+	client    ctrlruntimeclient.Client
+	namespace string
+}
+
+func (r *projectorRunnable) Start(ctx context.Context) error {
+	if err := projector.New(r.client, r.namespace).EnsureConfigMap(ctx); err != nil {
+		// Non-fatal: the schema ConfigMap is used by clients that read topology
+		// documents; the operator's core backup/restore logic can proceed without it.
+		log.Warn().Err(err).Msg("unable to ensure topology schema ConfigMap; proceeding without it")
+	}
+	return nil
 }

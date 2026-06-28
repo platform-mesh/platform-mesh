@@ -20,6 +20,8 @@ package e2e_real_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -451,4 +453,330 @@ func TestRealEtcd_Restore_ConcurrentSameBackup(t *testing.T) {
 	assert.Equal(t, backup.LabelComponentKCPShard, recreated.Labels[backup.LabelKeyComponent],
 		"kcp-shard label must be present after concurrent restores")
 	t.Logf("[step 5] shard %s restore annotation = %q — concurrent restore completed cleanly", shardName, gotKey)
+}
+
+// TestRealEtcd_Restore_TopologyMismatch_ExtraLiveShard verifies that with a real
+// etcd-druid cluster, when TopologyValidation=Strict and the live cluster has an
+// extra kcp-shard Etcd CR not recorded in the backup, the restore is blocked
+// with TopologyValidated=False. The extra shard is never touched.
+func TestRealEtcd_Restore_TopologyMismatch_ExtraLiveShard(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+
+	id := suffix()
+	shardName := "e2e-real-shard-topo-" + id
+	extraName := "e2e-real-shard-topo-extra-" + id
+	backupName := "e2e-real-backup-topo-mismatch-" + id
+	restoreName := "e2e-real-restore-topo-mismatch-" + id
+
+	// Create and back up only shardName.
+	shard := newRealEtcdShard(shardName)
+	require.NoError(t, cl.Create(ctx, shard))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+
+	waitForShardReady(t, ctx, shard)
+	t.Logf("[step 1] shard %s Ready=true", shardName)
+
+	bkp := newPlatformBackup(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	waitForBackupComplete(t, ctx, bkp)
+	t.Logf("[step 2] backup complete — artefact records only %s", shardName)
+
+	// Now add an extra shard that was not in the backup.
+	extra := newRealEtcdShard(extraName)
+	require.NoError(t, cl.Create(ctx, extra))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, extra) })
+	t.Logf("[step 3] added extra shard %s not recorded in backup", extraName)
+
+	rst := newPlatformRestore(restoreName, backupName)
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	// TopologyValidated must become False quickly (no cluster operations needed).
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] TopologyValidated=%v", cond)
+		return cond != nil && cond.Status == metav1.ConditionFalse
+	}, 30*time.Second, 3*time.Second, "TopologyValidated never became False")
+
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	require.NotNil(t, cond)
+	assert.Equal(t, "Error", cond.Reason)
+	assert.Contains(t, cond.Message, extraName, "extra shard name must appear in mismatch message")
+	t.Logf("[step 4] TopologyValidated=False — mismatch: %s", cond.Message)
+
+	// EtcdRestored must NOT be True or False — lifecycle initialises it to Unknown
+	// but the topology gate blocked the chain so the subroutine never ran.
+	if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err == nil {
+		etcdCond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+		if etcdCond != nil {
+			assert.Equal(t, metav1.ConditionUnknown, etcdCond.Status,
+				"EtcdRestored must stay Unknown when topology validation blocked the chain (got %s)", etcdCond.Status)
+		}
+	}
+
+	// The backed-up shard must be untouched — it was never deleted/recreated.
+	var untouched druidv1alpha1.Etcd
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: e2eNS}, &untouched))
+	assert.Empty(t, untouched.Annotations[restore.AnnotationKeyRestoredFromSnapshot],
+		"backed-up shard must not carry a restore annotation — it was never touched")
+	t.Logf("[step 5] shard %s unmodified — topology gate protected it", shardName)
+}
+
+// TestRealEtcd_Restore_TopologyMatch_FullRoundTrip verifies the complete
+// real-cluster path: write data → backup → topology validation passes →
+// etcd restore completes → data survives restore. This is the canonical
+// proof that topology gating and data integrity work together: the restore
+// is only allowed when the shard topology matches, and when it does proceed,
+// the etcd data written before the backup is faithfully replayed.
+func TestRealEtcd_Restore_TopologyMatch_FullRoundTrip(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+
+	id := suffix()
+	shardName := "e2e-real-shard-topo-match-" + id
+	backupName := "e2e-real-backup-topo-match-" + id
+	restoreName := "e2e-real-restore-topo-match-" + id
+
+	const testKey = "/e2e/topology-integrity"
+	testValue := "topo-match-" + id
+
+	shard := newRealEtcdShard(shardName)
+	require.NoError(t, cl.Create(ctx, shard))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+
+	waitForShardReady(t, ctx, shard)
+	t.Logf("[step 1] shard %s Ready=true", shardName)
+
+	// Write a known key so we can verify data integrity after restore.
+	etcdEndpoint := fmt.Sprintf("http://%s-client.%s.svc:2379", shardName, e2eNS)
+	require.NoError(t,
+		runEtcdctlPod(ctx, t, "put-topo-"+id, []string{
+			"etcdctl", "--endpoints=" + etcdEndpoint, "put", testKey, testValue,
+		}),
+		"etcdctl put failed",
+	)
+	t.Logf("[step 2] wrote key %s=%s to etcd", testKey, testValue)
+
+	bkp := newPlatformBackup(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	waitForBackupComplete(t, ctx, bkp)
+	shardArtefact := bkp.Status.Artefacts.Etcd.Shards[shardName]
+	t.Logf("[step 3] backup complete: snapshot key = %q", shardArtefact.SnapshotKey)
+
+	rst := newPlatformRestore(restoreName, backupName) // TopologyValidation=Strict
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	// waitForRestoreComplete checks TopologyValidated=True then EtcdRestored=True.
+	waitForRestoreComplete(t, ctx, rst)
+	t.Logf("[step 4] TopologyValidated=True and EtcdRestored=True")
+
+	// Verify the restored CR carries the annotation and label.
+	var recreated druidv1alpha1.Etcd
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: e2eNS}, &recreated))
+	assert.Equal(t, shardArtefact.SnapshotKey, recreated.Annotations[restore.AnnotationKeyRestoredFromSnapshot])
+	assert.Equal(t, backup.LabelComponentKCPShard, recreated.Labels[backup.LabelKeyComponent])
+
+	// Wait for restored cluster to become ready (etcdbr replays snapshot on startup).
+	waitForShardReady(t, ctx, &recreated)
+	t.Logf("[step 5] restored shard Ready=true")
+
+	// Verify the key written before backup survived the restore.
+	out, err := runEtcdctlPodOutput(ctx, t, "get-topo-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", testKey,
+	})
+	require.NoError(t, err, "etcdctl get failed after restore")
+	require.Contains(t, out, testValue,
+		"key %s not found or value mismatch after topology-aware restore — got: %q", testKey, out)
+	t.Logf("[step 6] key %s=%q confirmed after restore — topology gate + data integrity verified", testKey, testValue)
+}
+
+// TestRealEtcd_Restore_CorruptTopologyAfterBackup writes data to etcd, takes a
+// backup, then corrupts the live topology by adding an extra shard not recorded
+// in the backup. The restore must be blocked by the topology gate (TopologyValidated=False),
+// and the original shard must be left untouched — the data written before backup
+// is still readable because the restore never started.
+func TestRealEtcd_Restore_CorruptTopologyAfterBackup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+
+	id := suffix()
+	shardName := "e2e-real-shard-corrupt-topo-" + id
+	extraName := "e2e-real-shard-corrupt-extra-" + id
+	backupName := "e2e-real-backup-corrupt-topo-" + id
+	restoreName := "e2e-real-restore-corrupt-topo-" + id
+
+	const testKey = "/e2e/corrupt-topology"
+	testValue := "pre-backup-" + id
+
+	shard := newRealEtcdShard(shardName)
+	require.NoError(t, cl.Create(ctx, shard))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+
+	waitForShardReady(t, ctx, shard)
+	t.Logf("[step 1] shard %s Ready=true", shardName)
+
+	etcdEndpoint := fmt.Sprintf("http://%s-client.%s.svc:2379", shardName, e2eNS)
+
+	// Write a known key before taking the backup.
+	require.NoError(t,
+		runEtcdctlPod(ctx, t, "put-corrupt-topo-"+id, []string{
+			"etcdctl", "--endpoints=" + etcdEndpoint, "put", testKey, testValue,
+		}),
+		"etcdctl put failed",
+	)
+	t.Logf("[step 2] wrote %s=%s to etcd before backup", testKey, testValue)
+
+	bkp := newPlatformBackup(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	waitForBackupComplete(t, ctx, bkp)
+	t.Logf("[step 3] backup complete — topology at backup time: {%s}", shardName)
+
+	// Corrupt the topology: add an extra shard that was not in the backup.
+	extra := newRealEtcdShard(extraName)
+	require.NoError(t, cl.Create(ctx, extra))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, extra) })
+	t.Logf("[step 4] topology corrupted — added %s after backup; live set now {%s, %s}", extraName, shardName, extraName)
+
+	rst := newPlatformRestore(restoreName, backupName) // TopologyValidation=Strict
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	// Restore must be blocked by topology gate.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] TopologyValidated=%v", cond)
+		return cond != nil && cond.Status == metav1.ConditionFalse
+	}, 30*time.Second, 3*time.Second, "TopologyValidated never became False")
+
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	require.NotNil(t, cond)
+	assert.Equal(t, "Error", cond.Reason)
+	assert.Contains(t, cond.Message, extraName)
+	t.Logf("[step 5] TopologyValidated=False — restore blocked: %s", cond.Message)
+
+	// EtcdRestored must NOT be True or False — lifecycle initialises it to Unknown
+	// but the topology gate blocked the chain so the subroutine never ran.
+	if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err == nil {
+		etcdCond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+		if etcdCond != nil {
+			assert.Equal(t, metav1.ConditionUnknown, etcdCond.Status,
+				"EtcdRestored must stay Unknown when topology gate blocked the restore (got %s)", etcdCond.Status)
+		}
+	}
+
+	// The original shard must be untouched: data written before backup is still readable.
+	out, err := runEtcdctlPodOutput(ctx, t, "get-corrupt-topo-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", testKey,
+	})
+	require.NoError(t, err, "etcdctl get on original shard failed")
+	require.Contains(t, out, testValue,
+		"original shard data must be unmodified — topology gate must have protected it: got %q", out)
+	t.Logf("[step 6] original shard data %s=%q intact — topology gate protected the cluster", testKey, testValue)
+}
+
+// TestRealEtcd_Restore_CorruptEtcdAfterBackup writes data, takes a backup, then
+// writes additional keys that postdate the snapshot (simulating data written to
+// etcd after the backup point). After restore, the pre-backup key must be present
+// (replayed from snapshot) and the post-backup key must be absent (the snapshot
+// does not include it, and the restore resets the cluster to the backup state).
+func TestRealEtcd_Restore_CorruptEtcdAfterBackup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+
+	id := suffix()
+	shardName := "e2e-real-shard-corrupt-etcd-" + id
+	backupName := "e2e-real-backup-corrupt-etcd-" + id
+	restoreName := "e2e-real-restore-corrupt-etcd-" + id
+
+	const preKey = "/e2e/pre-backup"
+	const postKey = "/e2e/post-backup"
+	preValue := "before-backup-" + id
+	postValue := "after-backup-" + id
+
+	shard := newRealEtcdShard(shardName)
+	require.NoError(t, cl.Create(ctx, shard))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+
+	waitForShardReady(t, ctx, shard)
+	t.Logf("[step 1] shard %s Ready=true", shardName)
+
+	etcdEndpoint := fmt.Sprintf("http://%s-client.%s.svc:2379", shardName, e2eNS)
+
+	// Write the pre-backup key — this must survive restore.
+	require.NoError(t,
+		runEtcdctlPod(ctx, t, "put-pre-"+id, []string{
+			"etcdctl", "--endpoints=" + etcdEndpoint, "put", preKey, preValue,
+		}),
+		"etcdctl put pre-backup key failed",
+	)
+	t.Logf("[step 2] wrote pre-backup key %s=%s", preKey, preValue)
+
+	bkp := newPlatformBackup(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	waitForBackupComplete(t, ctx, bkp)
+	t.Logf("[step 3] backup complete — snapshot captures %s", preKey)
+
+	// Write the post-backup key — this must be absent after restore.
+	require.NoError(t,
+		runEtcdctlPod(ctx, t, "put-post-"+id, []string{
+			"etcdctl", "--endpoints=" + etcdEndpoint, "put", postKey, postValue,
+		}),
+		"etcdctl put post-backup key failed",
+	)
+	t.Logf("[step 4] wrote post-backup key %s=%s (this must be wiped by restore)", postKey, postValue)
+
+	rst := newPlatformRestore(restoreName, backupName) // TopologyValidation=Strict
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	waitForRestoreComplete(t, ctx, rst)
+	t.Logf("[step 5] TopologyValidated=True and EtcdRestored=True")
+
+	// Wait for the restored cluster to be ready before reading.
+	var recreated druidv1alpha1.Etcd
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: e2eNS}, &recreated))
+	waitForShardReady(t, ctx, &recreated)
+	t.Logf("[step 6] restored shard Ready=true")
+
+	// Pre-backup key must be present — snapshot replay succeeded.
+	preOut, err := runEtcdctlPodOutput(ctx, t, "get-pre-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", preKey,
+	})
+	require.NoError(t, err, "etcdctl get pre-backup key failed")
+	require.Contains(t, preOut, preValue,
+		"pre-backup key must survive restore (snapshot replay); got %q", preOut)
+	t.Logf("[step 7] pre-backup key %s=%q present after restore ✓", preKey, preValue)
+
+	// Post-backup key must be absent — restore reset the cluster to the snapshot state.
+	postOut, err := runEtcdctlPodOutput(ctx, t, "get-post-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", postKey,
+	})
+	require.NoError(t, err, "etcdctl get post-backup key failed")
+	assert.Empty(t, strings.TrimSpace(postOut),
+		"post-backup key must be absent after restore (not in snapshot); got %q", postOut)
+	t.Logf("[step 8] post-backup key %s absent after restore ✓ — restore correctly reset to snapshot state", postKey)
 }

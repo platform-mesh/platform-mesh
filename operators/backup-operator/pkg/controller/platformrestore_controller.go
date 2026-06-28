@@ -39,7 +39,12 @@ type PlatformRestoreReconciler struct {
 func NewPlatformRestoreReconciler(mgr mcmanager.Manager, namespace string) *PlatformRestoreReconciler {
 	lc := lifecycle.New(mgr, "PlatformRestoreReconciler", func() ctrlruntimeclient.Object {
 		return &pmbackupv1alpha1.PlatformRestore{}
-	}, restore.NewEtcdRestoreSubroutine(namespace)).WithConditions(conditions.NewManager())
+	},
+		// TopologyValidateSubroutine runs first and blocks the chain when
+		// TopologyValidation=Strict and the live shard set doesn't match the backup.
+		restore.NewTopologyValidateSubroutine(namespace),
+		restore.NewEtcdRestoreSubroutine(namespace),
+	).WithConditions(conditions.NewManager())
 
 	return &PlatformRestoreReconciler{lifecycle: lc}
 }

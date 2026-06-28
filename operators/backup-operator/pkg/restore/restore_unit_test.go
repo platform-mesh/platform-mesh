@@ -29,15 +29,16 @@ import (
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/restore"
-	"go.platform-mesh.io/subroutines"
-
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
+	"go.platform-mesh.io/subroutines"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
@@ -372,4 +373,70 @@ func TestRestore_EmptySnapshotKey(t *testing.T) {
 	require.Error(t, err, "empty snapshot key must cause an error")
 	assert.Contains(t, err.Error(), "empty snapshot key",
 		"error must describe the problem")
+}
+
+// TestRestore_CreateAndWait_AlreadyExists verifies that when etcd-druid races to
+// recreate the Etcd CR between waitForDeletion and Create, the operator:
+//   - patches the restore annotation onto the existing CR
+//   - patches the kcp-shard label onto the existing CR
+//   - proceeds to waitForReady without returning an error
+func TestRestore_CreateAndWait_AlreadyExists(t *testing.T) {
+	const snapshotKey = "rev-42"
+	bkp := fakeBackup("backup-race")
+	bkp.Status.Artefacts.Etcd = &pmbackupv1alpha1.EtcdArtefact{
+		Shards: map[string]pmbackupv1alpha1.EtcdShardArtefact{
+			"shard-race": {SnapshotKey: snapshotKey, SnapshotTime: metav1.Now()},
+		},
+	}
+	// The shard CR has no annotation — simulates first-restore state.
+	shard := fakeEtcdShard("shard-race")
+	shard.Labels = map[string]string{} // strip kcp-shard label to simulate druid recreation
+	shard.Annotations = nil
+	shard.Status.Ready = ptr.To(true)
+
+	rst := fakeRestore("rst-race", bkp.Name)
+
+	patchCalled := false
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		WithStatusSubresource(&druidv1alpha1.Etcd{}).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.DeleteOption) error {
+				// Simulate deletion that appears instant to the operator: the fake
+				// client removes the object, but our Create interceptor below will
+				// return AlreadyExists (druid recreated it before the operator's Create).
+				return c.Delete(ctx, obj, opts...)
+			},
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+				if etcd, ok := obj.(*druidv1alpha1.Etcd); ok {
+					// Simulate etcd-druid racing to recreate — put the object back first.
+					recreated := etcd.DeepCopy()
+					recreated.ResourceVersion = ""
+					recreated.Labels = map[string]string{} // druid-created CR has no platform-mesh labels
+					recreated.Annotations = nil
+					recreated.Status.Ready = ptr.To(true)
+					if err := c.Create(ctx, recreated); err != nil && !apierrors.IsAlreadyExists(err) {
+						return err
+					}
+					return apierrors.NewAlreadyExists(schema.GroupResource{Group: "druid.gardener.cloud", Resource: "etcds"}, obj.GetName())
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+			Patch: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+				if etcd, ok := obj.(*druidv1alpha1.Etcd); ok {
+					patchCalled = true
+					assert.Equal(t, snapshotKey, etcd.Annotations[restore.AnnotationKeyRestoredFromSnapshot],
+						"restore annotation must be patched onto the existing CR")
+					assert.Equal(t, restore.LabelComponentKCPShard, etcd.Labels[restore.LabelKeyComponent],
+						"kcp-shard label must be patched onto the existing CR")
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).
+		Build()
+
+	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err, "AlreadyExists on Create must be handled gracefully")
+	assert.True(t, patchCalled, "Patch must be called to apply annotation and label on the raced CR")
 }

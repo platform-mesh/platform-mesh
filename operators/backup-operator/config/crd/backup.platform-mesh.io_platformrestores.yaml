@@ -111,6 +111,7 @@ spec:
               topologyValidation:
                 enum:
                 - Strict
+                - None
                 type: string
             required:
             - source

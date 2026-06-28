@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -65,7 +66,6 @@ type EtcdCaptureSubroutine struct {
 	pollTimeout  time.Duration
 }
 
-// NewEtcdCaptureSubroutine returns an EtcdCaptureSubroutine for the given namespace.
 func NewEtcdCaptureSubroutine(namespace string) *EtcdCaptureSubroutine {
 	return &EtcdCaptureSubroutine{
 		namespace:    namespace,
@@ -74,7 +74,6 @@ func NewEtcdCaptureSubroutine(namespace string) *EtcdCaptureSubroutine {
 	}
 }
 
-// WithPollInterval overrides poll interval and timeout (for testing).
 func (s *EtcdCaptureSubroutine) WithPollInterval(interval, timeout time.Duration) *EtcdCaptureSubroutine {
 	s.pollInterval = interval
 	s.pollTimeout = timeout
@@ -83,7 +82,6 @@ func (s *EtcdCaptureSubroutine) WithPollInterval(interval, timeout time.Duration
 
 func (s *EtcdCaptureSubroutine) GetName() string { return ConditionEtcdSnapshotted }
 
-// Process implements subroutines.Subroutine.
 func (s *EtcdCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	bkp, ok := obj.(*pmbackupv1alpha1.PlatformBackup)
 	if !ok {
@@ -94,7 +92,6 @@ func (s *EtcdCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 		return subroutines.OK(), nil
 	}
 
-	// Idempotency: skip if already captured.
 	if bkp.Status.Artefacts.Etcd != nil && len(bkp.Status.Artefacts.Etcd.Shards) > 0 {
 		return subroutines.OK(), nil
 	}
@@ -112,6 +109,9 @@ func (s *EtcdCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 			fmt.Sprintf("no etcd CRs with label %s=%s found in namespace %s",
 				LabelKeyComponent, LabelComponentKCPShard, s.namespace)), nil
 	}
+
+	log := ctrllog.FromContext(ctx).WithValues("backup", bkp.Name, "shardCount", len(shards))
+	log.Info("starting etcd snapshot", "shards", shardNames(shards))
 
 	// Read baseline lease keys for all shards in parallel before triggering any
 	// snapshot. Propagate any error — a discarded error here would let a
@@ -139,11 +139,11 @@ func (s *EtcdCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 		return subroutines.OK(), fmt.Errorf("etcd snapshot failed: %w", errors.Join(errs...))
 	}
 
+	log.Info("etcd snapshot complete", "shardCount", len(results))
 	bkp.Status.Artefacts.Etcd = artefact
 	return subroutines.OK(), nil
 }
 
-// listShards returns all Etcd CRs in the namespace carrying the kcp-shard component label.
 func (s *EtcdCaptureSubroutine) listShards(ctx context.Context, cl ctrlruntimeclient.Client) ([]druidv1alpha1.Etcd, error) {
 	var list druidv1alpha1.EtcdList
 	if err := cl.List(ctx, &list,
@@ -153,6 +153,14 @@ func (s *EtcdCaptureSubroutine) listShards(ctx context.Context, cl ctrlruntimecl
 		return nil, err
 	}
 	return list.Items, nil
+}
+
+func shardNames(shards []druidv1alpha1.Etcd) []string {
+	names := make([]string, len(shards))
+	for i, s := range shards {
+		names[i] = s.Name
+	}
+	return names
 }
 
 // readBaselineKeys reads the full-snap lease HolderIdentity for all shards concurrently.
@@ -202,7 +210,6 @@ func (s *EtcdCaptureSubroutine) readFullSnapLeaseKey(ctx context.Context, cl ctr
 	return *lease.Spec.HolderIdentity, nil
 }
 
-// fanOutCapture triggers snapshot tasks for all shards concurrently and collects results.
 func (s *EtcdCaptureSubroutine) fanOutCapture(
 	ctx context.Context,
 	backupName string,
@@ -229,7 +236,7 @@ func (s *EtcdCaptureSubroutine) fanOutCapture(
 // as a tiebreaker. The result is capped at 253 characters (the k8s name limit).
 func OpsTaskName(backupName, etcdName string) string {
 	h := sha256.Sum256([]byte(backupName + "/" + etcdName))
-	suffix := fmt.Sprintf("%x", h[:3]) // 6 hex chars
+	suffix := fmt.Sprintf("%x", h[:3])
 	base := fmt.Sprintf("%s-%s", backupName, etcdName)
 	full := fmt.Sprintf("%s-%s", base, suffix)
 	if len(full) <= 253 {
@@ -254,6 +261,7 @@ func (s *EtcdCaptureSubroutine) captureOne(
 	baselineKey string,
 ) shardSnapshot {
 	result := shardSnapshot{ShardName: etcd.Name}
+	log := ctrllog.FromContext(ctx).WithValues("backup", backupName, "shard", etcd.Name)
 
 	taskName := OpsTaskName(backupName, etcd.Name)
 	snapshotType := druidv1alpha1.OnDemandSnapshotTypeFull
@@ -272,16 +280,20 @@ func (s *EtcdCaptureSubroutine) captureOne(
 		},
 	}
 
-	if err := cl.Create(ctx, task); err != nil && !apierrors.IsAlreadyExists(err) {
-		result.Err = fmt.Errorf("creating EtcdOpsTask: %w", err)
-		return result
+	if err := cl.Create(ctx, task); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			result.Err = fmt.Errorf("creating EtcdOpsTask: %w", err)
+			return result
+		}
+		log.Info("EtcdOpsTask already exists — resuming in-progress snapshot", "task", taskName)
+	} else {
+		log.Info("created EtcdOpsTask", "task", taskName, "baselineKey", baselineKey)
 	}
 
 	pollCtx, cancel := context.WithTimeout(ctx, s.pollTimeout)
 	defer cancel()
 
 	for {
-		// Check state before sleeping so we don't always incur one full interval delay.
 		var current druidv1alpha1.EtcdOpsTask
 		if err := cl.Get(pollCtx, types.NamespacedName{Name: taskName, Namespace: s.namespace}, &current); err != nil {
 			if !apierrors.IsNotFound(err) {
@@ -325,16 +337,28 @@ func (s *EtcdCaptureSubroutine) captureOne(
 					result.Err = fmt.Errorf("reading full-snap lease after task succeeded: %w", err)
 					return result
 				}
-				if key == "" {
+				if key == "" && baselineKey != "" {
 					result.Err = fmt.Errorf("full-snap lease for %q is empty after EtcdOpsTask succeeded",
 						etcd.Name)
 					return result
+				}
+				if key == "" {
+					// Baseline was also empty — this cluster has never run a scheduled full
+					// snapshot so the lease is permanently unset. TaskStateSucceeded is the
+					// authoritative signal that etcdbr wrote the snapshot to S3; synthesise a
+					// stable, backup-scoped key so the artefact is non-empty. Using
+					// backupName+"/"+etcdName (rather than just etcdName) makes the key unique
+					// per backup run, preventing the idempotency check in restoreShard from
+					// false-positiving when two different backups of the same fresh-cluster
+					// shard are restored in sequence.
+					key = backupName + "/" + etcd.Name
 				}
 				// EtcdOpsTask Succeeded is the authoritative signal that etcdbr wrote
 				// the snapshot to S3. The full-snap lease HolderIdentity holds the etcd
 				// revision of the last *scheduled* snapshot and is not updated by
 				// on-demand snapshots — so we accept the current lease key regardless
 				// of whether it changed from the baseline.
+				log.Info("EtcdOpsTask succeeded", "task", taskName, "snapshotKey", key)
 				result.SnapshotKey = key
 				result.SnapshotAt = metav1.Now()
 				return result
@@ -346,6 +370,7 @@ func (s *EtcdCaptureSubroutine) captureOne(
 				}
 				// Delete the terminal task so a subsequent reconcile can try again.
 				_ = cl.Delete(pollCtx, &current)
+				log.Info("EtcdOpsTask reached terminal failure", "task", taskName, "state", string(*current.Status.State), "message", msg)
 				result.Err = fmt.Errorf("EtcdOpsTask %s/%s reached state %s: %s",
 					s.namespace, taskName, *current.Status.State, msg)
 				return result

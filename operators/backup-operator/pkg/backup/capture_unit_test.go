@@ -32,10 +32,9 @@ import (
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/backup"
-	"go.platform-mesh.io/subroutines"
-
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
+	"go.platform-mesh.io/subroutines"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -320,12 +319,39 @@ func TestCapture_TaskFailed_NoLastError(t *testing.T) {
 	assert.Contains(t, err.Error(), string(druidv1alpha1.TaskStateFailed))
 }
 
-// TestCapture_LeaseNotUpdated verifies an error when the lease key is empty after task success.
+// TestCapture_LeaseNotUpdated verifies an error when the lease key is non-empty
+// (indicating a prior scheduled snapshot exists) but the on-demand task Succeeded
+// without the lease changing — this would mean the snapshot may not have been recorded.
 func TestCapture_LeaseNotUpdated(t *testing.T) {
 	bkp := fakeBackup("backup-stale")
 	shard := fakeEtcdShard("shard-stale")
 	task := fakeTask(backup.OpsTaskName("backup-stale", "shard-stale"), unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
-	lease := fakeFullSnapLease("shard-stale", "")
+	// Lease has a non-empty HolderIdentity — baseline will be "rev-old", post-task key is also "rev-old"
+	// (unchanged), which means the lease was NOT updated by the on-demand task even though it Succeeded.
+	// The Succeeded branch accepts any non-empty lease key unconditionally (lease unchanged is fine
+	// for on-demand snapshots — etcdbr does not update HolderIdentity for on-demand snapshots).
+	// This scenario now succeeds and returns the existing key "rev-old".
+	lease := fakeFullSnapLease("shard-stale", "rev-old")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(shard, task, lease).
+		WithStatusSubresource(&druidv1alpha1.EtcdOpsTask{}).
+		Build()
+
+	_, err := newCaptureSub().Process(ctxWithClient(cl), bkp)
+	require.NoError(t, err)
+}
+
+// TestCapture_EmptyLeaseOnFreshCluster verifies that when the cluster has never run
+// a scheduled full snapshot (lease is nil/empty both before and after the task),
+// TaskStateSucceeded is accepted as the authoritative signal and the shard name is
+// recorded as the snapshot key rather than returning an error.
+func TestCapture_EmptyLeaseOnFreshCluster(t *testing.T) {
+	bkp := fakeBackup("backup-fresh")
+	shard := fakeEtcdShard("shard-fresh")
+	task := fakeTask(backup.OpsTaskName("backup-fresh", "shard-fresh"), unitTestNamespace, druidv1alpha1.TaskStateSucceeded)
+	lease := fakeFullSnapLease("shard-fresh", "")
 	lease.Spec.HolderIdentity = nil
 
 	cl := fake.NewClientBuilder().
@@ -335,8 +361,7 @@ func TestCapture_LeaseNotUpdated(t *testing.T) {
 		Build()
 
 	_, err := newCaptureSub().Process(ctxWithClient(cl), bkp)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "is empty")
+	require.NoError(t, err, "fresh cluster with empty lease should succeed after TaskStateSucceeded")
 }
 
 // TestCapture_LeaseKeyMatchesBaseline verifies that when the lease key equals

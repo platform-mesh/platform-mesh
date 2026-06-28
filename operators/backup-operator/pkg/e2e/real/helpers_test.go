@@ -232,9 +232,27 @@ func waitForBackupComplete(t *testing.T, ctx context.Context, bkp *backupv1alpha
 	}, 10*time.Minute, 15*time.Second, "backup %s EtcdSnapshotted never became True", bkp.Name)
 }
 
-// waitForRestoreComplete polls until the PlatformRestore has EtcdRestored=True.
+// waitForRestoreComplete polls until the PlatformRestore has both
+// TopologyValidated=True and EtcdRestored=True.
+// TopologyValidated is checked first since it gates the restore chain; if it is
+// False the restore will never progress to EtcdRestored.
 func waitForRestoreComplete(t *testing.T, ctx context.Context, rst *backupv1alpha1.PlatformRestore) {
 	t.Helper()
+	// Wait for topology validation to pass first (fast — no cluster operations needed).
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: rst.Name}, rst); err != nil {
+			t.Logf("[poll] Get restore %s error: %v", rst.Name, err)
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] restore %s TopologyValidated=%v", rst.Name, cond)
+		if cond != nil && cond.Status == metav1.ConditionFalse {
+			t.Logf("[poll] restore %s TopologyValidated=False — %s", rst.Name, cond.Message)
+		}
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	}, 30*time.Second, 3*time.Second, "restore %s TopologyValidated never became True", rst.Name)
+
+	// Then wait for the actual etcd restore to complete.
 	require.Eventually(t, func() bool {
 		if err := cl.Get(ctx, types.NamespacedName{Name: rst.Name}, rst); err != nil {
 			t.Logf("[poll] Get restore %s error: %v", rst.Name, err)

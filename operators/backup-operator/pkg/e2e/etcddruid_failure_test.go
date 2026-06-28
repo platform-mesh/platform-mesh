@@ -296,8 +296,10 @@ func TestEtcDruid_Restore_MissingBackup(t *testing.T) {
 
 // TestEtcDruid_Restore_MissingEtcdShard verifies that if the Etcd CR for a shard
 // referenced in the backup artefacts is absent from the cluster at restore time,
-// the operator surfaces an error on EtcdRestored. This guards against a topology
-// mismatch where the user forgot to pre-create the shard.
+// TestEtcDruid_Restore_MissingEtcdShard verifies that when a backup artefact
+// records a shard that no longer exists on the live cluster, the topology gate
+// blocks the restore with TopologyValidated=False before EtcdRestoreSubroutine
+// ever attempts to delete or recreate any CR.
 func TestEtcDruid_Restore_MissingEtcdShard(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	t.Cleanup(cancel)
@@ -310,7 +312,7 @@ func TestEtcDruid_Restore_MissingEtcdShard(t *testing.T) {
 	ghostShard := "ghost-shard-" + id
 
 	// Create a backup with an artefact for a shard that does NOT exist on the cluster.
-	bkp := newPlatformBackup(backupName)
+	bkp := newPlatformBackupWithArtefact(backupName)
 	require.NoError(t, cl.Create(ctx, bkp))
 	t.Logf("[step 1] created PlatformBackup %s", backupName)
 	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
@@ -347,22 +349,33 @@ func TestEtcDruid_Restore_MissingEtcdShard(t *testing.T) {
 	t.Logf("[step 3] created PlatformRestore %s", restoreName)
 	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
 
-	// Operator must set EtcdRestored=False: the Etcd CR to recreate is missing.
+	// Topology gate must block the restore: ghost-shard is in the backup but absent
+	// from the live cluster, so TopologyValidated=False is set before EtcdRestoreSubroutine
+	// ever runs. EtcdRestored remains Unknown (chain never reached it).
 	require.Eventually(t, func() bool {
 		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
 			t.Logf("[poll] Get PlatformRestore error: %v", err)
 			return false
 		}
-		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
-		t.Logf("[poll] conditions=%+v EtcdRestored=%v", rst.Status.Conditions, cond)
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] conditions=%+v TopologyValidated=%v", rst.Status.Conditions, cond)
 		return cond != nil && cond.Status == metav1.ConditionFalse
 	}, 2*time.Minute, 5*time.Second,
-		"expected EtcdRestored=False when Etcd CR for shard is absent, got: %+v", rst.Status.Conditions)
+		"expected TopologyValidated=False when backup shard is absent from live cluster")
 
-	t.Logf("[step 4] EtcdRestored=False confirmed")
-	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
 	require.NotNil(t, cond)
-	t.Logf("[step 5] final condition: status=%s reason=%s message=%s", cond.Status, cond.Reason, cond.Message)
+	assert.Equal(t, "Error", cond.Reason)
+	assert.Contains(t, cond.Message, ghostShard)
+	t.Logf("[step 4] TopologyValidated=False confirmed — mismatch: %s", cond.Message)
+
+	// EtcdRestored must NOT be False (chain never reached it — it stays Unknown).
+	etcdCond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+	if etcdCond != nil {
+		assert.NotEqual(t, metav1.ConditionFalse, etcdCond.Status,
+			"EtcdRestored must not be False — topology gate blocked before etcd restore ran")
+	}
+	t.Logf("[step 5] EtcdRestored=%v — topology gate protected the restore chain", etcdCond)
 }
 
 // TestEtcDruid_Restore_EtcdNotReady verifies the operator waits (not errors
@@ -577,5 +590,432 @@ func slowReadySimulator(ctx context.Context, t *testing.T, delay time.Duration) 
 				}
 			}(etcd.DeepCopy())
 		}
+	}
+}
+
+// TestEtcDruid_Restore_TopologyMismatch_ExtraLiveShard verifies that when
+// TopologyValidation=Strict and the live cluster has a shard that was not in
+// the backup, the restore is blocked with TopologyValidated=False rather than
+// proceeding and corrupting the cluster.
+func TestEtcDruid_Restore_TopologyMismatch_ExtraLiveShard(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+	id := suffix()
+
+	// Create a backup artefact for one shard only.
+	backupName := "e2e-backup-topology-extra-" + id
+	bkp := newPlatformBackupWithArtefact(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	// Inject artefact for shard-a only.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: backupName}, bkp); err != nil {
+			return false
+		}
+		bkp.Status.Artefacts.Etcd = &backupv1alpha1.EtcdArtefact{
+			Shards: map[string]backupv1alpha1.EtcdShardArtefact{
+				"e2e-shard-a-" + id: {SnapshotKey: "rev-1", SnapshotTime: metav1.Now()},
+			},
+		}
+		return cl.Status().Update(ctx, bkp) == nil
+	}, 10*time.Second, time.Second, "failed to inject backup artefact")
+	t.Logf("[step 1] backup %s created with 1 shard artefact", backupName)
+
+	// Create TWO live shards — one matches the backup, one is extra.
+	shardA := newEtcdShard("e2e-shard-a-" + id)
+	shardExtra := newEtcdShard("e2e-shard-extra-" + id)
+	require.NoError(t, cl.Create(ctx, shardA))
+	require.NoError(t, cl.Create(ctx, shardExtra))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shardA) })
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shardExtra) })
+	t.Logf("[step 2] created 2 live shards (shard-a + shard-extra); backup only recorded shard-a")
+
+	restoreName := "e2e-restore-topology-extra-" + id
+	rst := newPlatformRestore(restoreName, backupName)
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	// TopologyValidated must become False with a mismatch error.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] TopologyValidated=%v", cond)
+		return cond != nil && cond.Status == metav1.ConditionFalse
+	}, 30*time.Second, time.Second, "TopologyValidated condition never became False")
+
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	require.NotNil(t, cond)
+	assert.Equal(t, "Error", cond.Reason)
+	assert.Contains(t, cond.Message, "shard-extra")
+	t.Logf("[step 3] TopologyValidated=False — mismatch surfaced: %s", cond.Message)
+
+	// EtcdRestored must NOT be True or False — the lifecycle initialises it to
+	// Unknown on the first reconcile, but the topology gate broke the chain so
+	// the EtcdRestoreSubroutine never ran. True/False would both indicate the
+	// restore subroutine executed, which is the invariant we are guarding against.
+	if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err == nil {
+		etcdCond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+		if etcdCond != nil {
+			assert.Equal(t, metav1.ConditionUnknown, etcdCond.Status,
+				"EtcdRestored must stay Unknown when topology validation blocks the chain (got %s)", etcdCond.Status)
+		}
+	}
+}
+
+// TestEtcDruid_Restore_TopologyMatch_Passes verifies that when the live shard
+// set exactly matches the backup artefact, the topology validation passes and
+// the restore proceeds to completion.
+func TestEtcDruid_Restore_TopologyMatch_Passes(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+
+	startSimulators(ctx, t)
+
+	id := suffix()
+	shardName := "e2e-shard-match-" + id
+	backupName := "e2e-backup-topology-match-" + id
+	restoreName := "e2e-restore-topology-match-" + id
+
+	// Create the live shard.
+	shard := newEtcdShard(shardName)
+	require.NoError(t, cl.Create(ctx, shard))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+
+	// Create backup with an artefact matching exactly the live shard.
+	bkp := newPlatformBackupWithArtefact(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: backupName}, bkp); err != nil {
+			return false
+		}
+		bkp.Status.Artefacts.Etcd = &backupv1alpha1.EtcdArtefact{
+			Shards: map[string]backupv1alpha1.EtcdShardArtefact{
+				shardName: {SnapshotKey: "rev-1", SnapshotTime: metav1.Now()},
+			},
+		}
+		return cl.Status().Update(ctx, bkp) == nil
+	}, 10*time.Second, time.Second, "failed to inject backup artefact")
+	t.Logf("[step 1] backup %s created with matching artefact for %s", backupName, shardName)
+
+	rst := newPlatformRestore(restoreName, backupName)
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	// TopologyValidated must become True.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] TopologyValidated=%v", cond)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	}, 30*time.Second, time.Second, "TopologyValidated condition never became True")
+	t.Logf("[step 2] TopologyValidated=True")
+
+	// EtcdRestored must also complete (simulators handle the task and ready).
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+		t.Logf("[poll] EtcdRestored=%v", cond)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionEtcdRestored)
+	}, 90*time.Second, time.Second, "EtcdRestored condition never became True")
+	t.Logf("[step 3] EtcdRestored=True — topology validation passed, restore completed")
+}
+
+// TestEtcDruid_Restore_TopologyMismatch_ShardMissingFromCluster verifies that
+// when the backup recorded a shard that no longer exists in the live cluster,
+// topology validation blocks the restore with TopologyValidated=False.
+// This is distinct from TestEtcDruid_Restore_MissingEtcdShard (which tests the
+// etcd restore path); here the mismatch is detected before any CR is touched.
+func TestEtcDruid_Restore_TopologyMismatch_ShardMissingFromCluster(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+	id := suffix()
+
+	backupName := "e2e-backup-topo-missing-" + id
+	bkp := newPlatformBackupWithArtefact(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	// Inject artefact for TWO shards, but only create ONE live shard.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: backupName}, bkp); err != nil {
+			return false
+		}
+		bkp.Status.Artefacts.Etcd = &backupv1alpha1.EtcdArtefact{
+			Shards: map[string]backupv1alpha1.EtcdShardArtefact{
+				"e2e-shard-present-" + id: {SnapshotKey: "rev-1", SnapshotTime: metav1.Now()},
+				"e2e-shard-gone-" + id:    {SnapshotKey: "rev-2", SnapshotTime: metav1.Now()},
+			},
+		}
+		return cl.Status().Update(ctx, bkp) == nil
+	}, 10*time.Second, time.Second, "failed to inject backup artefact")
+
+	// Only the first shard is alive; shard-gone was deleted before the restore.
+	shardPresent := newEtcdShard("e2e-shard-present-" + id)
+	require.NoError(t, cl.Create(ctx, shardPresent))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shardPresent) })
+	t.Logf("[step 1] backup has 2 shards, only 1 exists in cluster (shard-gone is absent)")
+
+	restoreName := "e2e-restore-topo-missing-" + id
+	rst := newPlatformRestore(restoreName, backupName)
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] TopologyValidated=%v", cond)
+		return cond != nil && cond.Status == metav1.ConditionFalse
+	}, 30*time.Second, time.Second, "TopologyValidated never became False")
+
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	require.NotNil(t, cond)
+	assert.Equal(t, "Error", cond.Reason)
+	assert.Contains(t, cond.Message, "shard-gone")
+	assert.Contains(t, cond.Message, "missing from live cluster")
+	t.Logf("[step 2] TopologyValidated=False — missing shard surfaced: %s", cond.Message)
+
+	// EtcdRestored must NOT be True or False — lifecycle initialises it to Unknown
+	// but the topology gate blocked the chain so the subroutine never ran.
+	if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err == nil {
+		etcdCond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+		if etcdCond != nil {
+			assert.Equal(t, metav1.ConditionUnknown, etcdCond.Status,
+				"EtcdRestored must stay Unknown when topology validation blocks the chain (got %s)", etcdCond.Status)
+		}
+	}
+}
+
+// TestEtcDruid_Restore_TopologyMismatch_BothDirections verifies that when both
+// directions of mismatch are present simultaneously (a shard missing from the
+// cluster AND an extra live shard), both are reported in the error message.
+func TestEtcDruid_Restore_TopologyMismatch_BothDirections(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+	id := suffix()
+
+	backupName := "e2e-backup-topo-both-" + id
+	bkp := newPlatformBackupWithArtefact(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	// Backup recorded shard-recorded; live cluster has shard-live instead.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: backupName}, bkp); err != nil {
+			return false
+		}
+		bkp.Status.Artefacts.Etcd = &backupv1alpha1.EtcdArtefact{
+			Shards: map[string]backupv1alpha1.EtcdShardArtefact{
+				"e2e-shard-recorded-" + id: {SnapshotKey: "rev-1", SnapshotTime: metav1.Now()},
+			},
+		}
+		return cl.Status().Update(ctx, bkp) == nil
+	}, 10*time.Second, time.Second, "failed to inject backup artefact")
+
+	// Only shard-live exists — completely different from what was backed up.
+	shardLive := newEtcdShard("e2e-shard-live-" + id)
+	require.NoError(t, cl.Create(ctx, shardLive))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shardLive) })
+	t.Logf("[step 1] backup has shard-recorded, cluster has shard-live — total mismatch")
+
+	restoreName := "e2e-restore-topo-both-" + id
+	rst := newPlatformRestore(restoreName, backupName)
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] TopologyValidated=%v", cond)
+		return cond != nil && cond.Status == metav1.ConditionFalse
+	}, 30*time.Second, time.Second, "TopologyValidated never became False")
+
+	cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	require.NotNil(t, cond)
+	assert.Equal(t, "Error", cond.Reason)
+	// Both directions must be reported.
+	assert.Contains(t, cond.Message, "shard-recorded", "missing-from-cluster shard must be in error")
+	assert.Contains(t, cond.Message, "shard-live", "extra-live shard must be in error")
+	t.Logf("[step 2] TopologyValidated=False — both directions reported: %s", cond.Message)
+}
+
+// TestEtcDruid_Restore_TopologyMismatch_SelfHealing verifies that a restore
+// blocked by a topology mismatch will automatically succeed once the cluster is
+// brought into alignment. The operator requeues on mismatch; when the extra
+// shard is removed the next reconcile passes validation and completes the restore.
+func TestEtcDruid_Restore_TopologyMismatch_SelfHealing(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+	startSimulators(ctx, t)
+
+	id := suffix()
+	shardName := "e2e-shard-heal-" + id
+	extraName := "e2e-shard-extra-heal-" + id
+	backupName := "e2e-backup-topo-heal-" + id
+	restoreName := "e2e-restore-topo-heal-" + id
+
+	// Backup records only shardName.
+	bkp := newPlatformBackupWithArtefact(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: backupName}, bkp); err != nil {
+			return false
+		}
+		bkp.Status.Artefacts.Etcd = &backupv1alpha1.EtcdArtefact{
+			Shards: map[string]backupv1alpha1.EtcdShardArtefact{
+				shardName: {SnapshotKey: "rev-1", SnapshotTime: metav1.Now()},
+			},
+		}
+		return cl.Status().Update(ctx, bkp) == nil
+	}, 10*time.Second, time.Second, "failed to inject backup artefact")
+
+	// Start with TWO live shards — the extra one causes a mismatch.
+	shard := newEtcdShard(shardName)
+	extra := newEtcdShard(extraName)
+	require.NoError(t, cl.Create(ctx, shard))
+	require.NoError(t, cl.Create(ctx, extra))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+	t.Cleanup(func() { stripFinalizersAndDelete(t, extra) })
+	t.Logf("[step 1] 2 live shards, backup only recorded %s — expect mismatch", shardName)
+
+	rst := newPlatformRestore(restoreName, backupName)
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	// First: TopologyValidated=False (extra shard).
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] TopologyValidated=%v", cond)
+		return cond != nil && cond.Status == metav1.ConditionFalse
+	}, 30*time.Second, time.Second, "expected TopologyValidated=False while extra shard present")
+	t.Logf("[step 2] TopologyValidated=False confirmed — removing extra shard to fix topology")
+
+	// Remove the extra shard — cluster now matches the backup.
+	stripFinalizersAndDelete(t, extra)
+	t.Logf("[step 3] extra shard %s deleted — topology now matches backup", extraName)
+
+	// Operator requeues and must now pass validation and complete the restore.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] TopologyValidated=%v", cond)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	}, 90*time.Second, time.Second, "TopologyValidated never became True after topology fix")
+	t.Logf("[step 4] TopologyValidated=True after fixing cluster topology")
+
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+		t.Logf("[poll] EtcdRestored=%v", cond)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionEtcdRestored)
+	}, 90*time.Second, time.Second, "EtcdRestored never became True after topology fix")
+	t.Logf("[step 5] EtcdRestored=True — self-healing restore complete")
+}
+
+// TestEtcDruid_Restore_TopologyNonStrict_IgnoresMismatch verifies that when
+// TopologyValidation is not Strict, the restore proceeds even when the live
+// shard set does not match the backup — validation is skipped entirely.
+func TestEtcDruid_Restore_TopologyNonStrict_IgnoresMismatch(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+	startSimulators(ctx, t)
+
+	id := suffix()
+	shardName := "e2e-shard-nonstrict-" + id
+	extraName := "e2e-shard-extra-nonstrict-" + id
+	backupName := "e2e-backup-topo-nonstrict-" + id
+	restoreName := "e2e-restore-topo-nonstrict-" + id
+
+	// Backup records only shardName; cluster will have an extra shard too.
+	bkp := newPlatformBackupWithArtefact(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: backupName}, bkp); err != nil {
+			return false
+		}
+		bkp.Status.Artefacts.Etcd = &backupv1alpha1.EtcdArtefact{
+			Shards: map[string]backupv1alpha1.EtcdShardArtefact{
+				shardName: {SnapshotKey: "rev-1", SnapshotTime: metav1.Now()},
+			},
+		}
+		return cl.Status().Update(ctx, bkp) == nil
+	}, 10*time.Second, time.Second, "failed to inject backup artefact")
+
+	shard := newEtcdShard(shardName)
+	extra := newEtcdShard(extraName)
+	require.NoError(t, cl.Create(ctx, shard))
+	require.NoError(t, cl.Create(ctx, extra))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+	t.Cleanup(func() { stripFinalizersAndDelete(t, extra) })
+	t.Logf("[step 1] 2 live shards but backup only recorded %s; using non-strict mode", shardName)
+
+	// Create restore with TopologyValidation=None — validation is explicitly disabled.
+	rst := &backupv1alpha1.PlatformRestore{
+		ObjectMeta: metav1.ObjectMeta{Name: restoreName},
+		Spec: backupv1alpha1.PlatformRestoreSpec{
+			Source: backupv1alpha1.RestoreSourceSpec{
+				BackupID: backupName,
+				Storage: newPlatformRestore(restoreName, backupName).Spec.Source.Storage,
+			},
+			TopologyValidation: backupv1alpha1.TopologyValidationNone,
+		},
+	}
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	// EtcdRestored must complete — validation was skipped.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+		t.Logf("[poll] EtcdRestored=%v", cond)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionEtcdRestored)
+	}, 90*time.Second, time.Second, "EtcdRestored never became True in non-strict mode")
+	t.Logf("[step 2] EtcdRestored=True — non-strict mode bypassed topology check")
+
+	// TopologyValidated must NOT be True (subroutine was a no-op, condition stays Unknown/absent).
+	if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err == nil {
+		topoCond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		if topoCond != nil {
+			assert.NotEqual(t, metav1.ConditionTrue, topoCond.Status,
+				"TopologyValidated must not be True in non-strict mode")
+		}
+		t.Logf("[step 3] TopologyValidated condition = %v (expected absent or non-True)", topoCond)
 	}
 }

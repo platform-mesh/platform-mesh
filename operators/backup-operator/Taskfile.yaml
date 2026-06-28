@@ -85,7 +85,7 @@ tasks:
           ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
   test-e2e-kind:
     desc: "Build, deploy, and run simulated e2e tests (in-process simulators, no real pods) against the running kind cluster"
-    deps: [deploy:kind, deploy:etcd-druid]
+    deps: [deploy:kind]
     cmds:
       - |
         set -e
@@ -98,7 +98,7 @@ tasks:
 
   test-e2e-kind-real:
     desc: "Real e2e tests: minio + real etcd-druid + real etcdbr (no simulators)"
-    deps: [deploy:kind, deploy:etcd-druid]
+    deps: [deploy:kind]
     cmds:
       - |
         set -e
@@ -165,7 +165,7 @@ tasks:
         echo "backup-operator ready ($IMAGE)"
 
   teardown:kind:
-    desc: "Remove everything deploy:kind, deploy:etcd-druid, and the e2e test suites install from the kind cluster"
+    desc: "Remove the backup-operator namespace and cluster-scoped resources from the kind cluster"
     vars:
       E2E_NAMESPACE: '{{.E2E_NAMESPACE | default "platform-mesh-backup-operator"}}'
     cmds:
@@ -186,85 +186,6 @@ tasks:
         kubectl delete -f config/crd/ --ignore-not-found
 
         echo "--- teardown complete ---"
-      - task: teardown:etcd-druid
-
-  deploy:etcd-druid:
-    desc: "Deploy etcd-druid to the kind cluster using the local chart (idempotent)"
-    vars:
-      ETCD_DRUID_SRC: '{{.ETCD_DRUID_SRC | default (printf "%s/go/src/etcd-io/etcd-druid" .HOME)}}'
-      ETCD_DRUID_IMAGE: '{{.ETCD_DRUID_IMAGE | default "europe-docker.pkg.dev/gardener-project/releases/gardener/etcd-druid:v0.36.4"}}'
-      KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
-      CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
-    cmds:
-      - |
-        set -e
-        CHART="{{.ETCD_DRUID_SRC}}/charts"
-        IMAGE="{{.ETCD_DRUID_IMAGE}}"
-        RUNTIME="{{.CONTAINER_RUNTIME}}"
-        CLUSTER="{{.KIND_CLUSTER}}"
-
-        if [ ! -d "$CHART" ]; then
-          echo "ERROR: etcd-druid chart not found at $CHART"
-          echo "  Clone etcd-druid: git clone https://github.com/gardener/etcd-druid $HOME/go/src/etcd-io/etcd-druid"
-          exit 1
-        fi
-
-        # Load the etcd-druid image into kind if not already present in containerd.
-        if ! docker exec "$CLUSTER-control-plane" ctr -n k8s.io images ls 2>/dev/null | grep -q "$IMAGE"; then
-          echo "Loading etcd-druid image $IMAGE into kind cluster $CLUSTER..."
-          ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-          # Pull platform-specific image, retag to strip provenance attestation
-          # blobs that kind's containerd cannot import, then load.
-          LOCAL_TAG="etcd-druid-kind-load:latest"
-          docker pull --platform "linux/$ARCH" "$IMAGE"
-          docker tag "$IMAGE" "$LOCAL_TAG"
-          docker save "$LOCAL_TAG" | docker exec -i "$CLUSTER-control-plane" \
-            ctr -n k8s.io images import --all-platforms=false -
-          docker rmi "$LOCAL_TAG" 2>/dev/null || true
-          # Re-tag inside containerd to match the original name helm expects.
-          docker exec "$CLUSTER-control-plane" \
-            ctr -n k8s.io images tag "$LOCAL_TAG" "$IMAGE" 2>/dev/null || true
-        else
-          echo "Image $IMAGE already present in kind cluster — skipping load"
-        fi
-
-        # Install or upgrade etcd-druid via helm.
-        REPO=$(echo "$IMAGE" | cut -d: -f1)
-        TAG=$(echo "$IMAGE" | cut -d: -f2)
-        # Wait for any previously deleting CRDs to finish before helm install.
-        for crd in etcds.druid.gardener.cloud etcdopstasks.druid.gardener.cloud etcdcopybackupstasks.druid.gardener.cloud; do
-          kubectl wait crd/"$crd" --for=delete --timeout=60s 2>/dev/null || true
-        done
-        helm upgrade --install etcd-druid "$CHART" \
-          --namespace etcd-druid-system \
-          --create-namespace \
-          --set image.repository="$REPO" \
-          --set image.tag="$TAG" \
-          --wait --timeout 5m
-        echo "etcd-druid ready"
-
-  teardown:etcd-druid:
-    desc: "Remove etcd-druid from the kind cluster"
-    cmds:
-      - |
-        set -e
-        echo "--- tearing down etcd-druid ---"
-
-        # Strip finalizers from all Etcd CRs so the CRDs are not blocked.
-        for ns_name in $(kubectl get etcd -A --no-headers -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name' 2>/dev/null | tr -s ' ' ':'); do
-          NS=$(echo "$ns_name" | cut -d: -f1)
-          NAME=$(echo "$ns_name" | cut -d: -f2)
-          kubectl patch etcd -n "$NS" "$NAME" --type=merge -p '{"metadata":{"finalizers":[]}}' 2>/dev/null || true
-        done
-
-        helm uninstall etcd-druid --namespace etcd-druid-system --ignore-not-found 2>/dev/null || true
-        kubectl delete namespace etcd-druid-system --ignore-not-found --wait=true
-        kubectl delete crd \
-          etcds.druid.gardener.cloud \
-          etcdopstasks.druid.gardener.cloud \
-          etcdcopybackupstasks.druid.gardener.cloud \
-          --ignore-not-found
-        echo "--- etcd-druid teardown complete ---"
 
   docker:kind:
     desc: "Rebuild and reload the operator image into kind, then restart the deployment"

@@ -45,8 +45,13 @@ func NewOperatorConfig() OperatorConfig {
 }
 
 func (c *OperatorConfig) Validate() error {
-	if strings.TrimSpace(c.Namespace) == "" {
+	c.Namespace = strings.TrimSpace(c.Namespace)
+	if c.Namespace == "" {
 		return fmt.Errorf("--namespace must not be empty")
+	}
+	c.Kcp.ApiExportEndpointSliceName = strings.TrimSpace(c.Kcp.ApiExportEndpointSliceName)
+	if !c.Standalone && c.Kcp.ApiExportEndpointSliceName == "" {
+		return fmt.Errorf("--kcp-api-export-endpoint-slice-name must not be empty in KCP mode (use --standalone to disable KCP)")
 	}
 	return nil
 }

@@ -125,6 +125,11 @@ func TestEtcDruid_CaptureRoundTrip(t *testing.T) {
 
 	t.Logf("[step 6] EtcdRestored=True confirmed")
 
+	// Assert topology validation also passed (it must precede EtcdRestored in the chain).
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst))
+	assert.True(t, apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated),
+		"TopologyValidated condition must be True when EtcdRestored=True")
+
 	// --- Verify the Etcd CR was recreated with the restore annotation -------------
 
 	var recreated druidv1alpha1.Etcd
@@ -216,6 +221,11 @@ func TestEtcDruid_Restore_MultiShard(t *testing.T) {
 	}, 8*time.Minute, 10*time.Second, "EtcdRestored never True for restore %s", restoreName)
 
 	t.Logf("[step 6] EtcdRestored=True confirmed")
+
+	// Assert topology validation also passed.
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst))
+	assert.True(t, apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated),
+		"TopologyValidated condition must be True when EtcdRestored=True")
 
 	// Assert each shard was recreated with the annotation pointing at its own key.
 	for _, name := range []string{shardA, shardB} {
@@ -345,6 +355,70 @@ func TestEtcDruid_Capture_Idempotent(t *testing.T) {
 		"snapshot key changed on second reconcile — idempotency guard failed")
 }
 
+// TestEtcDruid_Restore_TopologyAware is the canonical backup+restore test that
+// explicitly verifies the full topology-aware condition sequence:
+//  1. Backup with one shard → EtcdSnapshotted=True
+//  2. Restore with TopologyValidation=Strict against a matching live shard set →
+//     TopologyValidated=True (must appear before EtcdRestored)
+//  3. EtcdRestored=True
+//
+// This test proves that topology validation is wired into the restore lifecycle
+// and that a successful restore always produces both conditions.
+func TestEtcDruid_Restore_TopologyAware(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+	startSimulators(ctx, t)
+
+	id := suffix()
+	shardName := "e2e-shard-topo-" + id
+	backupName := "e2e-backup-topo-" + id
+	restoreName := "e2e-restore-topo-" + id
+
+	shard := newEtcdShard(shardName)
+	require.NoError(t, cl.Create(ctx, shard))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+
+	bkp := newPlatformBackup(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: backupName}, bkp); err != nil {
+			return false
+		}
+		return apimeta.IsStatusConditionTrue(bkp.Status.Conditions, backup.ConditionEtcdSnapshotted)
+	}, 8*time.Minute, 10*time.Second, "EtcdSnapshotted never True for %s", backupName)
+	t.Logf("[step 1] backup complete: EtcdSnapshotted=True")
+
+	rst := newPlatformRestore(restoreName, backupName) // TopologyValidation=Strict
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	// TopologyValidated must become True first.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionTopologyValidated)
+		t.Logf("[poll] conditions=%+v TopologyValidated=%v", rst.Status.Conditions, cond)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionTopologyValidated)
+	}, 30*time.Second, time.Second, "TopologyValidated never became True for %s", restoreName)
+	t.Logf("[step 2] TopologyValidated=True (shard set matched)")
+
+	// Then EtcdRestored must also become True.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: restoreName}, rst); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(rst.Status.Conditions, restore.ConditionEtcdRestored)
+		t.Logf("[poll] EtcdRestored=%v", cond)
+		return apimeta.IsStatusConditionTrue(rst.Status.Conditions, restore.ConditionEtcdRestored)
+	}, 8*time.Minute, 10*time.Second, "EtcdRestored never True for %s", restoreName)
+	t.Logf("[step 3] EtcdRestored=True — topology-aware restore complete")
+}
+
 // --- Helpers ------------------------------------------------------------------
 
 func newEtcdShard(name string) *druidv1alpha1.Etcd {
@@ -389,6 +463,31 @@ func newPlatformBackup(name string) *backupv1alpha1.PlatformBackup {
 			},
 			Components: backupv1alpha1.ComponentsSpec{
 				Etcd: backupv1alpha1.EtcdSpec{Enabled: true},
+			},
+		},
+	}
+}
+
+// newPlatformBackupWithArtefact creates a backup with Etcd disabled so the
+// capture subroutine skips immediately (EtcdSnapshotted=True via skip path).
+// This allows tests to inject arbitrary artefacts via Status().Update() without
+// the operator overwriting them on each reconcile.
+// CNPG is enabled to satisfy the CEL rule requiring at least one component.
+// The CNPG subroutine is not yet implemented so it is always a no-op.
+func newPlatformBackupWithArtefact(name string) *backupv1alpha1.PlatformBackup {
+	return &backupv1alpha1.PlatformBackup{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: backupv1alpha1.PlatformBackupSpec{
+			Storage: backupv1alpha1.StorageSpec{
+				S3: backupv1alpha1.S3StorageSpec{
+					Endpoint:       "http://minio:9000",
+					Bucket:         "backups",
+					CredentialsRef: corev1.LocalObjectReference{Name: "s3-credentials"},
+				},
+			},
+			Components: backupv1alpha1.ComponentsSpec{
+				Etcd: backupv1alpha1.EtcdSpec{Enabled: false},
+				CNPG: backupv1alpha1.CNPGSpec{Enabled: true},
 			},
 		},
 	}

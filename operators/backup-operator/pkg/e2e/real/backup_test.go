@@ -326,12 +326,12 @@ func TestRealEtcd_Backup_ShardDeletedDuringBackup(t *testing.T) {
 	}
 }
 
-// TestRealEtcd_BackupAfterRestore verifies that after a full backup→restore
+// TestRealEtcd_Backup_AfterRestore verifies that after a full backup→restore
 // cycle, the restored cluster can be backed up again. This catches state issues
 // in the restore path that would prevent etcdbr from snapshotting — e.g.
 // corrupted lease state, wrong store prefix, or etcdbr not reinitialising the
 // snapshotter after restore.
-func TestRealEtcd_BackupAfterRestore(t *testing.T) {
+func TestRealEtcd_Backup_AfterRestore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 	t.Cleanup(cancel)
 
