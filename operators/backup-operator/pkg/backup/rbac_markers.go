@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package backup provides the etcd capture subroutine for PlatformBackup reconciliation.
+// Package backup provides the etcd, CNPG, and Velero capture subroutines for PlatformBackup reconciliation.
 package backup
 
 // +kubebuilder:rbac:groups=druid.gardener.cloud,resources=etcds,verbs=get;list;watch
@@ -23,3 +23,7 @@ package backup
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch
 // +kubebuilder:rbac:groups=backup.platform-mesh.io,resources=platformbackups,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=backup.platform-mesh.io,resources=platformbackups/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=postgresql.cnpg.io,resources=backups,verbs=create;delete;get;list;watch
+// +kubebuilder:rbac:groups=postgresql.cnpg.io,resources=backups/status,verbs=get
+// +kubebuilder:rbac:groups=velero.io,resources=backups;backupstoragelocations,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups=velero.io,resources=backups/status,verbs=get

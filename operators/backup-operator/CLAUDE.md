@@ -39,8 +39,15 @@ There are three distinct test tiers, each with a different build tag and cluster
 | Tier | Build tag | Command | What runs |
 |---|---|---|---|
 | Unit | _(none)_ | `make test` | Pure Go unit tests, no cluster |
-| Simulated E2E | `e2e` | `make test-e2e-kind` | `pkg/e2e/` — uses in-process simulators for etcd-druid. No real pods, no minio. Fast (~15 min). |
-| Real E2E | `e2e_real` | `make test-e2e-kind-real` | `pkg/e2e/real/` — minio deployed in-cluster, real etcd-druid + real etcdbr. Actual snapshots written and replayed. Slower (~40 min). |
+| Simulated E2E | `e2e` | `make test-e2e-kind` | `pkg/e2e/` — simulators for etcd-druid, CNPG, Velero. No real pods. Fast (~15 min). |
+| Real E2E | `e2e_real` | `make test-e2e-kind-real` | `pkg/e2e/real/` — minio + real etcd-druid + real CNPG operator + Velero (deployed by operator). Slower (~60 min). |
+
+Component-specific real e2e targets:
+```bash
+make test-e2e-kind-real-etcd    # etcd-druid tests only
+make test-e2e-kind-real-cnpg    # CNPG tests only
+make test-e2e-kind-real-velero  # Velero tests only
+```
 
 The simulated tests (`pkg/e2e/`) stub out all external components and verify operator control-flow. The real tests (`pkg/e2e/real/`) prove the full round-trip works with real binaries.
 

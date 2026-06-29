@@ -76,6 +76,56 @@ rules:
   - update
   - watch
 - apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - backups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - backups/status
+  - clusters/status
+  verbs:
+  - get
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - clusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - velero.io
+  resources:
+  - backups
+  - backupstoragelocations
+  - restores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - velero.io
+  resources:
+  - backups/status
+  - restores/status
+  verbs:
+  - get
+- apiGroups:
   - ""
   resources:
   - configmaps

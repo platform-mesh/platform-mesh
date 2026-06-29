@@ -19,10 +19,13 @@ package cmd
 import (
 	"context"
 
+	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
 	"github.com/spf13/cobra"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 
 	"go.platform-mesh.io/backup-operator/pkg/controller"
 	"go.platform-mesh.io/backup-operator/pkg/topology/projector"
+	"go.platform-mesh.io/backup-operator/pkg/velero"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -60,7 +63,21 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("creating host cluster client")
 	}
 
-	standaloneCluster, err := cluster.New(restCfg, func(o *cluster.Options) { o.Scheme = scheme })
+	standaloneCluster, err := cluster.New(restCfg, func(o *cluster.Options) {
+		o.Scheme = scheme
+		// Bypass the informer cache for third-party CRD objects whose status is
+		// written by external agents (CNPG operator, Velero). Live lookups ensure
+		// the subroutines always see the current phase/readyInstances without
+		// depending on cache synchronization timing.
+		o.Client.Cache = &ctrlruntimeclient.CacheOptions{
+			DisableFor: []ctrlruntimeclient.Object{
+				&cnpgv1.Cluster{},
+				&cnpgv1.Backup{},
+				&velerov1.Backup{},
+				&velerov1.Restore{},
+			},
+		}
+	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating cluster")
 	}
@@ -88,11 +105,11 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("adding cluster to manager")
 	}
 
-	if err := controller.NewPlatformBackupReconciler(mgr, operatorCfg.Namespace).SetupWithManager(mgr); err != nil {
+	if err := controller.NewPlatformBackupReconciler(mgr, operatorCfg).SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Str("controller", "PlatformBackup").Msg("unable to create controller")
 	}
 
-	if err := controller.NewPlatformRestoreReconciler(mgr, operatorCfg.Namespace).SetupWithManager(mgr); err != nil {
+	if err := controller.NewPlatformRestoreReconciler(mgr, operatorCfg).SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Str("controller", "PlatformRestore").Msg("unable to create controller")
 	}
 
@@ -108,6 +125,16 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	// avoiding CrashLoopBackOff on transient API server unavailability at startup.
 	if err := mgr.GetLocalManager().Add(&projectorRunnable{client: hostClient, namespace: operatorCfg.Namespace}); err != nil {
 		log.Fatal().Err(err).Msg("unable to register topology schema projector")
+	}
+
+	// Ensure Velero server Deployment, node-agent DaemonSet, and ServiceAccount are present.
+	// Non-fatal on error — core backup/restore logic can proceed; warnings will be logged.
+	if err := mgr.GetLocalManager().Add(&velero.LifecycleRunnable{
+		Client:    hostClient,
+		Namespace: operatorCfg.Namespace,
+		Image:     operatorCfg.VeleroImage,
+	}); err != nil {
+		log.Fatal().Err(err).Msg("unable to register Velero lifecycle runnable")
 	}
 
 	log.Info().Msg("starting manager")

@@ -105,10 +105,15 @@ tasks:
         NAMESPACE="${E2E_NAMESPACE:-platform-mesh-backup-operator}"
         trap "task teardown:kind E2E_NAMESPACE=$NAMESPACE" EXIT
         set -x
+        # Restore the CNPG operator (scaled to 0 by deploy:kind for simulated tests).
+        kubectl scale deployment cnpg-operator-cloudnative-pg \
+          -n platform-mesh-system --replicas=1 2>/dev/null || true
+        kubectl rollout status deployment/cnpg-operator-cloudnative-pg \
+          -n platform-mesh-system --timeout=2m 2>/dev/null || true
         KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}" \
         E2E_NAMESPACE="$NAMESPACE" \
         LIVE_SHARD_NAMESPACE="${LIVE_SHARD_NAMESPACE:-platform-mesh-system}" \
-        go test -tags e2e_real -count=1 -timeout 40m -v ./pkg/e2e/real/... {{.ADDITIONAL_COMMAND_ARGS}}
+        go test -tags e2e_real -count=1 -timeout 90m -v ./pkg/e2e/real/... {{.CLI_ARGS}}
 
   # deploy:kind builds the operator image only when operator source has changed
   # (detected via a content hash of cmd/, pkg/, and Dockerfile), loads it into
@@ -129,6 +134,12 @@ tasks:
         NAMESPACE="{{.E2E_NAMESPACE}}"
 
         # Create the namespace if it doesn't exist yet.
+        # If the namespace is stuck in Terminating (leftover from a prior teardown),
+        # wait up to 3 minutes for it to be fully deleted before recreating it.
+        if kubectl get namespace "$NAMESPACE" -o jsonpath='{.status.phase}' 2>/dev/null | grep -q Terminating; then
+          echo "Namespace $NAMESPACE is Terminating — waiting for full deletion..."
+          kubectl wait --for=delete namespace/"$NAMESPACE" --timeout=3m 2>/dev/null || true
+        fi
         kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$NAMESPACE"
 
         # If the deployment already runs this exact image tag, skip build+load.
@@ -152,6 +163,19 @@ tasks:
         fi
 
         kubectl apply -f config/crd/
+
+        # Install Velero CRDs from module cache so e2e tests can create BackupStorageLoca‍tions.
+        VELERO_CRD_DIR=$(go env GOMODCACHE)/github.com/vmware-tanzu/velero@v1.18.2/config/crd/v1/bases
+        kubectl apply --server-side --force-conflicts -f "$VELERO_CRD_DIR"
+
+        # Install CNPG CRDs from module cache so e2e tests can create Cluster/Backup CRs.
+        # Use --server-side because some CNPG CRDs (clusters, poolers) exceed the 262144-byte
+        # annotation limit that client-side apply uses to track last-applied-configuration.
+        # --force-conflicts takes ownership of any fields that were previously managed by
+        # client-side apply, avoiding conflicts on reused kind clusters.
+        CNPG_CRD_DIR=$(go env GOMODCACHE)/github.com/cloudnative-pg/cloudnative-pg@v1.29.0/config/crd/bases
+        kubectl apply --server-side --force-conflicts -f "$CNPG_CRD_DIR"
+
         kubectl apply -f config/deploy/clusterrole.yaml
         kubectl apply -f config/deploy/role.yaml
         sed "s|BACKUP_OPERATOR_IMAGE|$IMAGE|g" config/deploy/deployment.yaml | kubectl apply -f -
@@ -163,6 +187,37 @@ tasks:
 
         kubectl rollout status deployment/backup-operator -n "$NAMESPACE" --timeout=3m
         echo "backup-operator ready ($IMAGE)"
+
+        # Scale down the CNPG operator if present so it does not interfere with the
+        # in-process CNPG simulators used by the simulated e2e tests. The real e2e
+        # task restores it before running tests that need a live CNPG operator.
+        # Also delete the webhook configurations — a scaled-to-zero operator leaves
+        # the webhook service with no backing pod, causing every Cluster create to fail.
+        kubectl scale deployment cnpg-operator-cloudnative-pg \
+          -n platform-mesh-system --replicas=0 2>/dev/null || true
+        # Patch CNPG webhooks to failurePolicy=Ignore so Cluster creates succeed
+        # while the operator is scaled to 0. The operator rewrites these on startup,
+        # so no cleanup is needed when scaling back up.
+        # Use a name-based loop rather than hardcoded array indices so the patch
+        # stays correct across CNPG version upgrades that add or reorder webhooks.
+        if kubectl get mutatingwebhookconfiguration cnpg-mutating-webhook-configuration >/dev/null 2>&1; then
+          for i in $(kubectl get mutatingwebhookconfiguration cnpg-mutating-webhook-configuration \
+              -o jsonpath='{range .webhooks[*]}{.name}{"\n"}{end}' 2>/dev/null | \
+              awk 'NR>0{print NR-1}'); do
+            kubectl patch mutatingwebhookconfiguration cnpg-mutating-webhook-configuration \
+              --type=json -p="[{\"op\":\"replace\",\"path\":\"/webhooks/${i}/failurePolicy\",\"value\":\"Ignore\"}]" \
+              2>/dev/null || true
+          done
+        fi
+        if kubectl get validatingwebhookconfiguration cnpg-validating-webhook-configuration >/dev/null 2>&1; then
+          for i in $(kubectl get validatingwebhookconfiguration cnpg-validating-webhook-configuration \
+              -o jsonpath='{range .webhooks[*]}{.name}{"\n"}{end}' 2>/dev/null | \
+              awk 'NR>0{print NR-1}'); do
+            kubectl patch validatingwebhookconfiguration cnpg-validating-webhook-configuration \
+              --type=json -p="[{\"op\":\"replace\",\"path\":\"/webhooks/${i}/failurePolicy\",\"value\":\"Ignore\"}]" \
+              2>/dev/null || true
+          done
+        fi
 
   teardown:kind:
     desc: "Remove the backup-operator namespace and cluster-scoped resources from the kind cluster"

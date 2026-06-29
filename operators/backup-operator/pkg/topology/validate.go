@@ -97,6 +97,10 @@ func (s *ValidateSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.
 		// Backup captured no etcd shards — nothing to compare against.
 		// Use Skip rather than OK so the condition reason is "Skipped" not
 		// "Complete", making it visible that validation was not performed.
+		//
+		// TODO(T8): Once topology.json capture (T7) is implemented, fetch the
+		// topology manifest from S3 and run a full topology.Validate() comparison
+		// including CNPG cluster major versions and OpenFGA store digests.
 		log.Debug().Str("restore", rst.Name).Msg("topology validation skipped: no etcd artefacts in source backup")
 		return subroutines.Skip("no etcd artefacts in source backup"), nil
 	}

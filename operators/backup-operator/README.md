@@ -75,7 +75,7 @@ There are three test types with increasing infrastructure requirements:
 | **Unit** | _(none)_ | `make test` | No | < 5 s |
 | **Integration** | `integration` | `make test-integration` | No (in-process API server via envtest) | ~30 s |
 | **Simulated E2E** | `e2e` | `make test-e2e-kind` | Yes (kind cluster) | ~15 min |
-| **Real E2E** | `e2e_real` | `make test-e2e-kind-real` | Yes (kind cluster + minio) | ~40 min |
+| **Real E2E** | `e2e_real` | `make test-e2e-kind-real` | Yes (kind cluster + minio + CNPG) | ~60 min |
 
 ### Unit tests
 
@@ -113,6 +113,13 @@ The real e2e suite deploys minio into the cluster and uses real etcd-druid and e
 
 ```bash
 make test-e2e-kind-real
+```
+
+To run specific real e2e tests by component:
+```bash
+make test-e2e-kind-real-etcd    # etcd-druid tests only
+make test-e2e-kind-real-cnpg    # CNPG tests only
+make test-e2e-kind-real-velero  # Velero tests only (Velero deployed by operator)
 ```
 
 To run a single test:

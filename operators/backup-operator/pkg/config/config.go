@@ -25,13 +25,29 @@ import (
 
 const DefaultNamespace = "platform-mesh-backup-operator"
 
+// DefaultCNPGNamespace is the namespace where CloudNativePG Cluster and Backup CRs live.
+const DefaultCNPGNamespace = "platform-mesh-backup-operator"
+
+// DefaultCNPGClusters is empty: the operator discovers CNPG Cluster CRs in CNPGNamespace at runtime.
+// Set --cnpg-clusters to override with a static list.
+var DefaultCNPGClusters []string
+
+// DefaultVeleroImage is the pinned Velero server/node-agent image.
+const DefaultVeleroImage = "velero/velero:v1.18.2"
+
 type OperatorConfig struct {
-	Namespace string
+	Namespace     string
+	CNPGNamespace string
+	CNPGClusters  []string
+	VeleroImage   string
 }
 
 func NewOperatorConfig() OperatorConfig {
 	return OperatorConfig{
-		Namespace: DefaultNamespace,
+		Namespace:     DefaultNamespace,
+		CNPGNamespace: DefaultCNPGNamespace,
+		CNPGClusters:  DefaultCNPGClusters,
+		VeleroImage:   DefaultVeleroImage,
 	}
 }
 
@@ -40,9 +56,19 @@ func (c *OperatorConfig) Validate() error {
 	if c.Namespace == "" {
 		return fmt.Errorf("--namespace must not be empty")
 	}
+	c.CNPGNamespace = strings.TrimSpace(c.CNPGNamespace)
+	if c.CNPGNamespace == "" {
+		return fmt.Errorf("--cnpg-namespace must not be empty")
+	}
+	if strings.TrimSpace(c.VeleroImage) == "" {
+		c.VeleroImage = DefaultVeleroImage
+	}
 	return nil
 }
 
 func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.Namespace, "namespace", c.Namespace, "Namespace in which the operator manages resources")
+	fs.StringVar(&c.CNPGNamespace, "cnpg-namespace", c.CNPGNamespace, "Namespace where CloudNativePG Cluster and Backup CRs live")
+	fs.StringSliceVar(&c.CNPGClusters, "cnpg-clusters", c.CNPGClusters, "Comma-separated list of CNPG Cluster names to back up and restore")
+	fs.StringVar(&c.VeleroImage, "velero-image", c.VeleroImage, "Velero server and node-agent container image (override for air-gapped deployments)")
 }
