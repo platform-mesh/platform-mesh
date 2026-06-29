@@ -64,7 +64,7 @@ func setupEnvtest(t *testing.T) (client.Client, *rest.Config, func()) {
 
 const testNamespace = "default"
 
-// i. EnsureConfigMap creates the ConfigMap when absent.
+// TestEnsureConfigMap_Creates verifies that EnsureConfigMap creates the backup-topology-schemas ConfigMap with a non-empty v1alpha1.json entry when the ConfigMap does not yet exist.
 func TestEnsureConfigMap_Creates(t *testing.T) {
 	c, _, stop := setupEnvtest(t)
 	defer stop()
@@ -82,7 +82,7 @@ func TestEnsureConfigMap_Creates(t *testing.T) {
 	assert.NotEmpty(t, cm.Data["v1alpha1.json"])
 }
 
-// j. EnsureConfigMap is idempotent when called twice.
+// TestEnsureConfigMap_Idempotent verifies that calling EnsureConfigMap twice on the same namespace does not return an error and leaves a valid ConfigMap with the expected schema key in place.
 func TestEnsureConfigMap_Idempotent(t *testing.T) {
 	c, _, stop := setupEnvtest(t)
 	defer stop()
@@ -100,7 +100,7 @@ func TestEnsureConfigMap_Idempotent(t *testing.T) {
 	assert.Contains(t, cm.Data, "v1alpha1.json")
 }
 
-// k. EnsureConfigMap updates data when called after an external patch.
+// TestEnsureConfigMap_Updates verifies that EnsureConfigMap overwrites stale data when the ConfigMap already exists with incorrect content, restoring the canonical schema that contains the schemaVersion field.
 func TestEnsureConfigMap_Updates(t *testing.T) {
 	c, _, stop := setupEnvtest(t)
 	defer stop()

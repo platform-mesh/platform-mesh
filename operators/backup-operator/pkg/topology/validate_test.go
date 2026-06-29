@@ -138,6 +138,7 @@ func fakeRestoreNoValidation(name, backupID string) *pmbackupv1alpha1.PlatformRe
 	return rst
 }
 
+// TestTopologyValidate_NonStrict verifies that a restore with non-strict topology validation skips the check and allows the reconcile chain to continue.
 func TestTopologyValidate_NonStrict(t *testing.T) {
 	bkp := fakeBackupWithShards("bkp", map[string]string{"shard-a": "rev-1"})
 	rst := fakeRestoreNoValidation("rst", "bkp")
@@ -148,6 +149,7 @@ func TestTopologyValidate_NonStrict(t *testing.T) {
 	assert.True(t, result.IsSkip(), "non-strict mode must skip (not block) the chain")
 }
 
+// TestTopologyValidate_Idempotent verifies that a restore whose TopologyValidated condition is already True skips re-validation and continues.
 func TestTopologyValidate_Idempotent(t *testing.T) {
 	bkp := fakeBackupWithShards("bkp", map[string]string{"shard-a": "rev-1"})
 	rst := fakeRestoreStrict("rst", "bkp")
@@ -164,6 +166,7 @@ func TestTopologyValidate_Idempotent(t *testing.T) {
 	assert.True(t, result.IsContinue())
 }
 
+// TestTopologyValidate_SourceBackupNotFound verifies that when the referenced PlatformBackup does not exist, the subroutine requeues without returning an error.
 func TestTopologyValidate_SourceBackupNotFound(t *testing.T) {
 	rst := fakeRestoreStrict("rst", "nonexistent-backup")
 	cl := fake.NewClientBuilder().WithScheme(newFakeScheme(t)).Build()
@@ -173,6 +176,7 @@ func TestTopologyValidate_SourceBackupNotFound(t *testing.T) {
 	assert.True(t, result.IsStopWithRequeue())
 }
 
+// TestTopologyValidate_NoEtcdArtefacts verifies that a backup with no etcd artefacts causes the subroutine to skip rather than pass as validated.
 func TestTopologyValidate_NoEtcdArtefacts(t *testing.T) {
 	bkp := fakeBackup("bkp")
 	rst := fakeRestoreStrict("rst", "bkp")
@@ -183,6 +187,7 @@ func TestTopologyValidate_NoEtcdArtefacts(t *testing.T) {
 	assert.True(t, result.IsSkip(), "no-artefacts path must skip, not pass as Complete")
 }
 
+// TestTopologyValidate_ShardSetsMatch verifies that when the live cluster's etcd shards exactly match those recorded in the backup, validation passes and the chain continues.
 func TestTopologyValidate_ShardSetsMatch(t *testing.T) {
 	bkp := fakeBackupWithShards("bkp", map[string]string{"shard-a": "rev-1", "shard-b": "rev-2"})
 	rst := fakeRestoreStrict("rst", "bkp")
@@ -194,6 +199,7 @@ func TestTopologyValidate_ShardSetsMatch(t *testing.T) {
 	assert.True(t, result.IsContinue())
 }
 
+// TestTopologyValidate_ShardMissingFromCluster verifies that a shard present in the backup but absent from the live cluster causes a requeue with a message naming the missing shard.
 func TestTopologyValidate_ShardMissingFromCluster(t *testing.T) {
 	bkp := fakeBackupWithShards("bkp", map[string]string{"shard-a": "rev-1", "shard-b": "rev-2"})
 	rst := fakeRestoreStrict("rst", "bkp")
@@ -207,6 +213,7 @@ func TestTopologyValidate_ShardMissingFromCluster(t *testing.T) {
 	assert.Contains(t, result.Message(), "missing from live cluster")
 }
 
+// TestTopologyValidate_ExtraShardInCluster verifies that a shard present in the live cluster but absent from the backup causes a requeue with a message naming the extra shard.
 func TestTopologyValidate_ExtraShardInCluster(t *testing.T) {
 	bkp := fakeBackupWithShards("bkp", map[string]string{"shard-a": "rev-1"})
 	rst := fakeRestoreStrict("rst", "bkp")
@@ -220,6 +227,7 @@ func TestTopologyValidate_ExtraShardInCluster(t *testing.T) {
 	assert.Contains(t, result.Message(), "absent from backup")
 }
 
+// TestTopologyValidate_MultipleErrors verifies that when both a missing-from-cluster shard and an extra-in-cluster shard exist simultaneously, both names appear in the requeue message.
 func TestTopologyValidate_MultipleErrors(t *testing.T) {
 	bkp := fakeBackupWithShards("bkp", map[string]string{"shard-a": "rev-1", "shard-missing": "rev-2"})
 	rst := fakeRestoreStrict("rst", "bkp")
@@ -233,6 +241,7 @@ func TestTopologyValidate_MultipleErrors(t *testing.T) {
 	assert.Contains(t, result.Message(), "shard-extra")
 }
 
+// TestTopologyValidate_WrongObjectType verifies that passing a non-PlatformRestore object returns an unexpected-object-type error.
 func TestTopologyValidate_WrongObjectType(t *testing.T) {
 	bkp := fakeBackup("bkp")
 	cl := fake.NewClientBuilder().WithScheme(newFakeScheme(t)).WithObjects(bkp).Build()

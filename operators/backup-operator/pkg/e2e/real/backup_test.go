@@ -33,18 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// TestRealEtcd_Backup_SingleShard is the primary real e2e backup test. It:
-//  1. Creates an Etcd CR backed by a real etcd-druid (no SuspendEtcdSpecReconcile).
-//  2. Waits for the Etcd cluster to become ready (real pods must start).
-//  3. Creates a PlatformBackup with etcd enabled.
-//  4. Waits for EtcdSnapshotted=True — real etcdbr writes a snapshot to minio.
-//  5. Asserts that the SnapshotKey is non-empty and SnapshotTime is non-zero.
-//  6. Verifies the S3 object actually exists in minio via a one-shot mc Job.
-//
-// Prerequisites:
-//   - kind cluster with etcd-druid deployed in etcd-druid-system
-//   - backup-operator deployed in platform-mesh-backup-operator namespace
-//   - minio is deployed by TestMain
+// TestRealEtcd_Backup_SingleShard verifies that a PlatformBackup against a single real etcd shard produces a non-empty snapshot key, a non-zero snapshot time, and a Full snapshot object present in minio.
 func TestRealEtcd_Backup_SingleShard(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 25*time.Minute)
 	t.Cleanup(cancel)
@@ -101,13 +90,7 @@ func TestRealEtcd_Backup_SingleShard(t *testing.T) {
 	t.Logf("[step 6] S3 snapshot confirmed present in minio")
 }
 
-// TestRealEtcd_Backup_Idempotent verifies that running a second PlatformBackup
-// against the same shard after a successful first backup:
-//   - Succeeds (EtcdSnapshotted=True)
-//   - Records the same snapshot key (no new EtcdOpsTask was created)
-//
-// This confirms the idempotency guard works correctly with real etcdbr — where
-// the full-snap lease HolderIdentity does not change between on-demand snapshots.
+// TestRealEtcd_Backup_Idempotent verifies that running a second PlatformBackup against the same shard records the same snapshot key as the first, confirming the idempotency guard works correctly with real etcdbr.
 func TestRealEtcd_Backup_Idempotent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Minute)
 	t.Cleanup(cancel)
@@ -161,10 +144,7 @@ func TestRealEtcd_Backup_Idempotent(t *testing.T) {
 	t.Logf("[step 6] idempotency confirmed: both backups recorded key=%q", firstKey)
 }
 
-// TestRealEtcd_Backup_ContentIntegrity writes a known key to etcd before
-// backup, restores from that backup, then verifies the key is still readable
-// after restore. This is the end-to-end data integrity proof: etcdbr snapshots
-// the etcd data and replays it faithfully on restore.
+// TestRealEtcd_Backup_ContentIntegrity verifies that a key written to etcd before backup is still readable after a full backup→restore cycle, proving etcdbr snapshots and replays data faithfully.
 func TestRealEtcd_Backup_ContentIntegrity(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Minute)
 	t.Cleanup(cancel)
@@ -227,9 +207,7 @@ func TestRealEtcd_Backup_ContentIntegrity(t *testing.T) {
 	t.Logf("[step 6] key %s=%q confirmed after restore — content integrity verified", testKey, testValue)
 }
 
-// TestRealEtcd_Backup_NoShards verifies that when a PlatformBackup is created
-// but no Etcd CRs with the kcp-shard label exist, the operator surfaces a
-// Stopped condition and requeues rather than permanently failing.
+// TestRealEtcd_Backup_NoShards verifies that when a PlatformBackup is created with no kcp-shard Etcd CRs present, the operator surfaces EtcdSnapshotted with Reason=Stopped and requeues rather than permanently failing.
 func TestRealEtcd_Backup_NoShards(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	t.Cleanup(cancel)
@@ -262,10 +240,7 @@ func TestRealEtcd_Backup_NoShards(t *testing.T) {
 	t.Logf("[step 2] EtcdSnapshotted=%s reason=%s message=%s", cond.Status, cond.Reason, cond.Message)
 }
 
-// TestRealEtcd_Backup_ShardDeletedDuringBackup creates an Etcd shard, starts a
-// backup, then deletes the shard's Etcd CR while the EtcdOpsTask is in-flight.
-// The operator must surface a clean error on EtcdSnapshotted rather than
-// panicking or hanging.
+// TestRealEtcd_Backup_ShardDeletedDuringBackup verifies that deleting a shard's Etcd CR while an EtcdOpsTask is in-flight causes the operator to surface a clean EtcdSnapshotted error condition rather than panicking or hanging.
 func TestRealEtcd_Backup_ShardDeletedDuringBackup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
 	t.Cleanup(cancel)
@@ -326,11 +301,7 @@ func TestRealEtcd_Backup_ShardDeletedDuringBackup(t *testing.T) {
 	}
 }
 
-// TestRealEtcd_Backup_AfterRestore verifies that after a full backup→restore
-// cycle, the restored cluster can be backed up again. This catches state issues
-// in the restore path that would prevent etcdbr from snapshotting — e.g.
-// corrupted lease state, wrong store prefix, or etcdbr not reinitialising the
-// snapshotter after restore.
+// TestRealEtcd_Backup_AfterRestore verifies that after a full backup→restore cycle the restored cluster can be backed up again, ensuring etcdbr correctly reinitialises its snapshotter after a restore.
 func TestRealEtcd_Backup_AfterRestore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Minute)
 	t.Cleanup(cancel)

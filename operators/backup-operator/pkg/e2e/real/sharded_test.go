@@ -58,22 +58,7 @@ func discoverShardCount(ctx context.Context, t *testing.T) int {
 	return count
 }
 
-// TestRealEtcd_Sharded_BackupRestore mirrors the production scenario where
-// multiple KCP-shard Etcd clusters exist simultaneously.
-//
-// It discovers how many Etcd CRs the live cluster has in liveShardNS, then
-// creates that many synthetic e2e-real-shard-* CRs, backs them all up in one
-// PlatformBackup, and restores them — asserting:
-//   - Exactly N shards appear in the backup artefacts (one per synthetic shard)
-//   - Every snapshot object exists in minio
-//   - Every restored Etcd CR carries the correct per-shard snapshot annotation
-//   - All restored shards reach Ready=true
-//
-// Prerequisites:
-//   - kind cluster with etcd-druid deployed in etcd-druid-system
-//   - backup-operator deployed in platform-mesh-backup-operator namespace
-//   - minio deployed by TestMain
-//   - At least one non-e2e Etcd CR in liveShardNS (used to determine shard count)
+// TestRealEtcd_Sharded_BackupRestore verifies that a PlatformBackup and PlatformRestore against N synthetic shards (mirroring the live cluster topology) produces per-shard snapshot artefacts in minio and restores every Etcd CR with the correct annotation and Ready=true.
 func TestRealEtcd_Sharded_BackupRestore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Minute)
 	t.Cleanup(cancel)
@@ -217,10 +202,7 @@ func TestRealEtcd_Sharded_BackupRestore(t *testing.T) {
 	t.Logf("[step 10] all %d restored shards Ready=true — sharded round-trip complete", shardCount)
 }
 
-// TestRealEtcd_Sharded_ContentIntegrity writes a unique key to each synthetic
-// shard before backup, restores all shards concurrently, then verifies that
-// every shard's key survived restore intact. This catches cross-shard data
-// corruption in the concurrent restore path.
+// TestRealEtcd_Sharded_ContentIntegrity verifies that after a multi-shard backup→restore cycle, each shard's unique pre-backup key is still readable, catching cross-shard data corruption in the concurrent restore path.
 func TestRealEtcd_Sharded_ContentIntegrity(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Minute)
 	t.Cleanup(cancel)

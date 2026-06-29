@@ -123,6 +123,7 @@ func makePlatformRestore(t *testing.T, cl client.Client, name, backupID string) 
 	return rst
 }
 
+// TestRestore_SingleShard_Recreate verifies that the etcd restore subroutine deletes and recreates a single Etcd shard with the restored-from-snapshot annotation set to the correct snapshot key.
 func TestRestore_SingleShard_Recreate(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
@@ -158,6 +159,7 @@ func TestRestore_SingleShard_Recreate(t *testing.T) {
 	assert.Equal(t, "rev-42", recreated.Annotations[restore.AnnotationKeyRestoredFromSnapshot])
 }
 
+// TestRestore_MultiShard_ConcurrentRecreate verifies that the etcd restore subroutine concurrently recreates all shards and annotates each with its respective snapshot key from the backup artefacts.
 func TestRestore_MultiShard_ConcurrentRecreate(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
@@ -191,6 +193,7 @@ func TestRestore_MultiShard_ConcurrentRecreate(t *testing.T) {
 	}
 }
 
+// TestRestore_MissingBackup_StopsWithRequeue verifies that the etcd restore subroutine returns a StopWithRequeue result (no error) when the referenced source backup object does not exist.
 func TestRestore_MissingBackup_StopsWithRequeue(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
@@ -205,6 +208,7 @@ func TestRestore_MissingBackup_StopsWithRequeue(t *testing.T) {
 	assert.True(t, result.IsStopWithRequeue(), "expected StopWithRequeue when source backup is not found")
 }
 
+// TestRestore_MissingEtcdArtefacts_Skips verifies that the etcd restore subroutine returns a continue result without error when the source backup exists but has no etcd artefacts recorded.
 func TestRestore_MissingEtcdArtefacts_Skips(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()

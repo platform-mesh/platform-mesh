@@ -37,14 +37,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// TestRealEtcd_Restore_SingleShard verifies the full backup→restore round-trip
-// using a real etcd cluster + minio. It:
-//  1. Creates an Etcd CR and backs it up.
-//  2. Creates a PlatformRestore referencing that backup.
-//  3. Waits for EtcdRestored=True — operator deletes and recreates the Etcd CR
-//     with the restore annotation so etcdbr initialises from the minio snapshot.
-//  4. Asserts the recreated Etcd CR carries the correct annotation.
-//  5. Waits for the restored Etcd cluster to become ready again.
+// TestRealEtcd_Restore_SingleShard verifies the full backup→restore round-trip against a real etcd cluster: the operator deletes and recreates the Etcd CR with the correct restore annotation, and the restored cluster reaches Ready=true.
 func TestRealEtcd_Restore_SingleShard(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 40*time.Minute)
 	t.Cleanup(cancel)
@@ -117,10 +110,7 @@ func TestRealEtcd_Restore_SingleShard(t *testing.T) {
 	t.Logf("[step 8] restored Etcd.Status.Ready=true — round-trip complete")
 }
 
-// TestRealEtcd_Restore_SlowReady verifies the operator waits for the restored
-// Etcd cluster to become ready even when it takes substantial time. The test
-// explicitly asserts the sequence: EtcdRestored=True is set only AFTER
-// Status.Ready=true on the recreated Etcd CR.
+// TestRealEtcd_Restore_SlowReady verifies that EtcdRestored=True is only set after the recreated Etcd CR reaches Status.Ready=true, confirming the operator waits for the full etcdbr startup before declaring success.
 func TestRealEtcd_Restore_SlowReady(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 40*time.Minute)
 	t.Cleanup(cancel)
@@ -168,9 +158,7 @@ func TestRealEtcd_Restore_SlowReady(t *testing.T) {
 	t.Logf("[step 5] restored Etcd Ready=true (restore took %s)", restoreDuration.Round(time.Second))
 }
 
-// TestRealEtcd_Restore_SourceBackupNotFound verifies that when a PlatformRestore
-// references a non-existent PlatformBackup, the operator requeues (StopWithRequeue)
-// rather than failing permanently.
+// TestRealEtcd_Restore_SourceBackupNotFound verifies that a PlatformRestore referencing a non-existent PlatformBackup results in TopologyValidated with Reason=Stopped, triggering a requeue rather than a permanent failure.
 func TestRealEtcd_Restore_SourceBackupNotFound(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	t.Cleanup(cancel)
@@ -204,10 +192,7 @@ func TestRealEtcd_Restore_SourceBackupNotFound(t *testing.T) {
 	t.Logf("[step 2] TopologyValidated=%s reason=%s — operator handled missing backup correctly", topoCond.Status, topoCond.Reason)
 }
 
-// TestRealEtcd_Restore_BackupWithNoEtcdArtefacts verifies that when a
-// PlatformRestore references a backup that has no etcd artefacts, the restore
-// subroutine skips etcd restore and completes successfully without attempting
-// to recreate any Etcd CRs.
+// TestRealEtcd_Restore_BackupWithNoEtcdArtefacts verifies that a PlatformRestore referencing a backup with no etcd artefacts skips etcd restore entirely and completes successfully without touching any Etcd CRs.
 func TestRealEtcd_Restore_BackupWithNoEtcdArtefacts(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	t.Cleanup(cancel)
@@ -261,10 +246,7 @@ func TestRealEtcd_Restore_BackupWithNoEtcdArtefacts(t *testing.T) {
 	t.Logf("[step 3] restore completed successfully with no etcd work — no-artefacts skip path verified")
 }
 
-// TestRealEtcd_Restore_Idempotent verifies that when EtcdRestored=True is
-// already set on a PlatformRestore, a forced re-reconcile does not re-delete
-// and re-recreate the Etcd CRs. The operator's idempotency guard must return
-// early when the condition is already True.
+// TestRealEtcd_Restore_Idempotent verifies that a forced re-reconcile of a PlatformRestore with EtcdRestored=True already set does not re-delete and re-recreate the Etcd CRs, confirming the annotation fast-path guards against double-restore.
 func TestRealEtcd_Restore_Idempotent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 40*time.Minute)
 	t.Cleanup(cancel)
@@ -331,10 +313,7 @@ func TestRealEtcd_Restore_Idempotent(t *testing.T) {
 	t.Logf("[step 5] EtcdRestored still True, Etcd UID unchanged — annotation fast-path verified")
 }
 
-// TestRealEtcd_Restore_MissingEtcdShard verifies that when a PlatformRestore
-// references a backup that recorded a shard, but that shard's Etcd CR no
-// longer exists in the cluster, the operator surfaces EtcdRestored=False with
-// Reason=Error.
+// TestRealEtcd_Restore_MissingEtcdShard verifies that when a backup recorded a shard that no longer exists in the cluster, the topology gate surfaces TopologyValidated=False/Stopped and blocks the restore before any Etcd CR is touched.
 func TestRealEtcd_Restore_MissingEtcdShard(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
 	t.Cleanup(cancel)
@@ -389,10 +368,7 @@ func TestRealEtcd_Restore_MissingEtcdShard(t *testing.T) {
 	t.Logf("[step 4] TopologyValidated=False — topology gate blocked restore: %s", cond.Message)
 }
 
-// TestRealEtcd_Restore_ConcurrentSameBackup creates two PlatformRestores that
-// both reference the same PlatformBackup and runs them simultaneously. Both
-// must complete with EtcdRestored=True and the Etcd CR must carry the correct
-// restore annotation.
+// TestRealEtcd_Restore_ConcurrentSameBackup verifies that two PlatformRestores submitted simultaneously against the same backup both settle with EtcdRestored set and leave the Etcd CR in a consistent state with the correct restore annotation.
 func TestRealEtcd_Restore_ConcurrentSameBackup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 40*time.Minute)
 	t.Cleanup(cancel)
@@ -460,10 +436,7 @@ func TestRealEtcd_Restore_ConcurrentSameBackup(t *testing.T) {
 	t.Logf("[step 5] shard %s restore annotation = %q — concurrent restore completed cleanly", shardName, gotKey)
 }
 
-// TestRealEtcd_Restore_TopologyMismatch_ExtraLiveShard verifies that with a real
-// etcd-druid cluster, when TopologyValidation=Strict and the live cluster has an
-// extra kcp-shard Etcd CR not recorded in the backup, the restore is blocked
-// with TopologyValidated=False. The extra shard is never touched.
+// TestRealEtcd_Restore_TopologyMismatch_ExtraLiveShard verifies that with TopologyValidation=Strict, an extra live kcp-shard Etcd CR not recorded in the backup causes the restore to be blocked with TopologyValidated=False and leaves all shards untouched.
 func TestRealEtcd_Restore_TopologyMismatch_ExtraLiveShard(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
 	t.Cleanup(cancel)
@@ -535,12 +508,7 @@ func TestRealEtcd_Restore_TopologyMismatch_ExtraLiveShard(t *testing.T) {
 	t.Logf("[step 5] shard %s unmodified — topology gate protected it", shardName)
 }
 
-// TestRealEtcd_Restore_TopologyMatch_FullRoundTrip verifies the complete
-// real-cluster path: write data → backup → topology validation passes →
-// etcd restore completes → data survives restore. This is the canonical
-// proof that topology gating and data integrity work together: the restore
-// is only allowed when the shard topology matches, and when it does proceed,
-// the etcd data written before the backup is faithfully replayed.
+// TestRealEtcd_Restore_TopologyMatch_FullRoundTrip verifies that when shard topology matches exactly, the restore proceeds through TopologyValidated=True and EtcdRestored=True, and data written to etcd before the backup survives the restore.
 func TestRealEtcd_Restore_TopologyMatch_FullRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Minute)
 	t.Cleanup(cancel)
@@ -608,11 +576,7 @@ func TestRealEtcd_Restore_TopologyMatch_FullRoundTrip(t *testing.T) {
 	t.Logf("[step 6] key %s=%q confirmed after restore — topology gate + data integrity verified", testKey, testValue)
 }
 
-// TestRealEtcd_Restore_CorruptTopologyAfterBackup writes data to etcd, takes a
-// backup, then corrupts the live topology by adding an extra shard not recorded
-// in the backup. The restore must be blocked by the topology gate (TopologyValidated=False),
-// and the original shard must be left untouched — the data written before backup
-// is still readable because the restore never started.
+// TestRealEtcd_Restore_CorruptTopologyAfterBackup verifies that adding an extra shard to the live cluster after a backup causes the topology gate to block the restore with TopologyValidated=False, leaving the original shard and its data untouched.
 func TestRealEtcd_Restore_CorruptTopologyAfterBackup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Minute)
 	t.Cleanup(cancel)
@@ -699,10 +663,7 @@ func TestRealEtcd_Restore_CorruptTopologyAfterBackup(t *testing.T) {
 	t.Logf("[step 6] original shard data %s=%q intact — topology gate protected the cluster", testKey, testValue)
 }
 
-// TestRealEtcd_Restore_CorruptEtcdAfterBackup writes data, takes a backup, then
-// writes additional keys that postdate the snapshot (simulating data written to
-// etcd after the backup point). After restore, the pre-backup key must be present
-// (replayed from snapshot), verifying the operator correctly triggered etcdbr restore.
+// TestRealEtcd_Restore_CorruptEtcdAfterBackup verifies that after restoring from a snapshot, the pre-backup key is present in the restored etcd cluster, confirming the operator correctly triggered etcdbr to replay the snapshot.
 func TestRealEtcd_Restore_CorruptEtcdAfterBackup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Minute)
 	t.Cleanup(cancel)

@@ -151,6 +151,7 @@ func makePlatformBackup(t *testing.T, cl client.Client, name string) *backupv1al
 	return bkp
 }
 
+// TestCapture_MultiShard_Success verifies that the etcd capture subroutine triggers snapshot tasks for all shards and records snapshot keys and timestamps in the backup status when all tasks succeed.
 func TestCapture_MultiShard_Success(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
@@ -185,6 +186,7 @@ func TestCapture_MultiShard_Success(t *testing.T) {
 	}
 }
 
+// TestCapture_TaskFailed_ReturnsError verifies that the etcd capture subroutine returns an error containing the failure description when an EtcdOpsTask transitions to the Failed state.
 func TestCapture_TaskFailed_ReturnsError(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
@@ -243,6 +245,7 @@ func TestCapture_TaskFailed_ReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "simulated backup-restore failure")
 }
 
+// TestCapture_Idempotent verifies that calling the etcd capture subroutine a second time when snapshot artefacts are already present leaves the existing data unchanged and returns a continue result.
 func TestCapture_Idempotent(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
