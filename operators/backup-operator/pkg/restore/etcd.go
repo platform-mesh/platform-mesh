@@ -54,7 +54,7 @@ const (
 	LabelComponentKCPShard = backup.LabelComponentKCPShard
 )
 
-// EtcdRestoreSubroutine deletes and recreates each KCP-shard Etcd CR from the snapshot
+// EtcdRestoreSubroutine deletes and recreates each kcp-shard Etcd CR from the snapshot
 // keys recorded in the source PlatformBackup, then waits for each Etcd CR to become ready.
 //
 // The subroutine is non-blocking: each reconcile does one unit of work per shard and

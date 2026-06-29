@@ -19,7 +19,6 @@ limitations under the License.
 package projector_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"

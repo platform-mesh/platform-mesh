@@ -37,15 +37,15 @@ import (
 )
 
 const (
-	// ConditionTopologyValidated is set on PlatformRestore after the KCP-shard
+	// ConditionTopologyValidated is set on PlatformRestore after the kcp-shard
 	// topology check passes (or is skipped when validation is not Strict).
 	ConditionTopologyValidated = "TopologyValidated"
 )
 
-// ValidateSubroutine compares the KCP-shard topology recorded in the source
+// ValidateSubroutine compares the kcp-shard topology recorded in the source
 // PlatformBackup against the live Etcd CRs in the operator namespace.
 //
-// Scope (KCP shards only): the subroutine checks that every shard name in the
+// Scope (kcp shards only): the subroutine checks that every shard name in the
 // backup artefact exists as a live Etcd CR carrying the kcp-shard label, and
 // that no live shard is absent from the backup. Other topology dimensions
 // (CNPG, OpenFGA, Velero) are not yet captured in the backup artefact and are
@@ -131,7 +131,7 @@ func (s *ValidateSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.
 
 	if len(mismatches) > 0 {
 		sort.Strings(mismatches) // deterministic condition message across reconciles
-		msg := fmt.Sprintf("KCP shard topology mismatch: %s", strings.Join(mismatches, "; "))
+		msg := fmt.Sprintf("kcp shard topology mismatch: %s", strings.Join(mismatches, "; "))
 		log.Warn().Str("restore", rst.Name).Str("backup", rst.Spec.Source.BackupID).Msg(msg)
 		return subroutines.StopWithRequeue(5*time.Second, msg), nil
 	}
@@ -140,6 +140,6 @@ func (s *ValidateSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.
 		Str("restore", rst.Name).
 		Str("backup", rst.Spec.Source.BackupID).
 		Int("shardCount", len(backupShards)).
-		Msg("KCP shard topology validated")
+		Msg("kcp shard topology validated")
 	return subroutines.OK(), nil
 }

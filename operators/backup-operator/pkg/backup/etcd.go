@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	// LabelComponentKCPShard is the label value identifying KCP-shard Etcd CRs.
+	// LabelComponentKCPShard is the label value identifying kcp-shard Etcd CRs.
 	LabelComponentKCPShard = "kcp-shard"
 
 	// LabelKeyComponent is the label key used by platform-mesh to identify component type.
@@ -57,7 +57,7 @@ type shardSnapshot struct {
 	Err         error
 }
 
-// EtcdCaptureSubroutine triggers a full snapshot on every KCP-shard Etcd CR via an
+// EtcdCaptureSubroutine triggers a full snapshot on every kcp-shard Etcd CR via an
 // EtcdOpsTask, waits for each task to succeed, then reads the snapshot key from the
 // full-snap coordination lease and records it on the PlatformBackup status.
 type EtcdCaptureSubroutine struct {
