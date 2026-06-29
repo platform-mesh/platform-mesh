@@ -45,7 +45,7 @@ import (
 // lifecycle will requeue it, so we only need to observe the condition is False
 // within a reasonable window.
 func TestEtcDruid_Capture_NoShards(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -83,7 +83,7 @@ func TestEtcDruid_Capture_NoShards(t *testing.T) {
 // Injection: after the operator creates the EtcdOpsTask this test patches it to
 // Failed before etcd-druid can act on it, simulating a druid-side snapshot error.
 func TestEtcDruid_Capture_TaskFailed(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -142,7 +142,7 @@ func TestEtcDruid_Capture_TaskFailed(t *testing.T) {
 // TestEtcDruid_Capture_TaskRejected mirrors TaskFailed but uses the Rejected terminal
 // state, which etcd-druid uses when preconditions are not met (e.g. etcd not ready).
 func TestEtcDruid_Capture_TaskRejected(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -202,7 +202,7 @@ func TestEtcDruid_Capture_TaskRejected(t *testing.T) {
 // authoritative signal that etcdbr wrote the snapshot (on-demand snapshots
 // do not bump HolderIdentity, only scheduled ones do).
 func TestEtcDruid_Capture_LeaseNotUpdated(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -259,7 +259,7 @@ func TestEtcDruid_Capture_LeaseNotUpdated(t *testing.T) {
 // a stopped/requeue condition (not a hard error) when the referenced PlatformBackup
 // does not exist, and that it recovers once the backup appears.
 func TestEtcDruid_Restore_MissingBackup(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 4*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -302,7 +302,7 @@ func TestEtcDruid_Restore_MissingBackup(t *testing.T) {
 // blocks the restore with TopologyValidated=False before EtcdRestoreSubroutine
 // ever attempts to delete or recreate any CR.
 func TestEtcDruid_Restore_MissingEtcdShard(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 4*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -384,7 +384,7 @@ func TestEtcDruid_Restore_MissingEtcdShard(t *testing.T) {
 // time to reach ready=true. We inject a slow-ready Etcd by creating the shard
 // without setting ready=true and only flipping it after a delay.
 func TestEtcDruid_Restore_EtcdNotReady(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 8*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -599,7 +599,7 @@ func slowReadySimulator(ctx context.Context, t *testing.T, delay time.Duration) 
 // the backup, the restore is blocked with TopologyValidated=False rather than
 // proceeding and corrupting the cluster.
 func TestEtcDruid_Restore_TopologyMismatch_ExtraLiveShard(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -672,7 +672,7 @@ func TestEtcDruid_Restore_TopologyMismatch_ExtraLiveShard(t *testing.T) {
 // set exactly matches the backup artefact, the topology validation passes and
 // the restore proceeds to completion.
 func TestEtcDruid_Restore_TopologyMatch_Passes(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -737,7 +737,7 @@ func TestEtcDruid_Restore_TopologyMatch_Passes(t *testing.T) {
 // This is distinct from TestEtcDruid_Restore_MissingEtcdShard (which tests the
 // etcd restore path); here the mismatch is detected before any CR is touched.
 func TestEtcDruid_Restore_TopologyMismatch_ShardMissingFromCluster(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -804,7 +804,7 @@ func TestEtcDruid_Restore_TopologyMismatch_ShardMissingFromCluster(t *testing.T)
 // directions of mismatch are present simultaneously (a shard missing from the
 // cluster AND an extra live shard), both are reported in the error message.
 func TestEtcDruid_Restore_TopologyMismatch_BothDirections(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -861,7 +861,7 @@ func TestEtcDruid_Restore_TopologyMismatch_BothDirections(t *testing.T) {
 // brought into alignment. The operator requeues on mismatch; when the extra
 // shard is removed the next reconcile passes validation and completes the restore.
 func TestEtcDruid_Restore_TopologyMismatch_SelfHealing(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -944,7 +944,7 @@ func TestEtcDruid_Restore_TopologyMismatch_SelfHealing(t *testing.T) {
 // TopologyValidation is not Strict, the restore proceeds even when the live
 // shard set does not match the backup — validation is skipped entirely.
 func TestEtcDruid_Restore_TopologyNonStrict_IgnoresMismatch(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)

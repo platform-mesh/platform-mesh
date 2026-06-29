@@ -50,7 +50,7 @@ import (
 //   - backup-operator deployment
 //   - etcd-druid deployment (processes EtcdOpsTask CRs and updates full-snap leases)
 func TestEtcDruid_CaptureRoundTrip(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -151,7 +151,7 @@ func TestEtcDruid_CaptureRoundTrip(t *testing.T) {
 // are restored concurrently and each recreated Etcd CR carries the correct per-shard
 // snapshot annotation.
 func TestEtcDruid_Restore_MultiShard(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 12*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -242,7 +242,7 @@ func TestEtcDruid_Restore_MultiShard(t *testing.T) {
 // TestEtcDruid_Capture_MultiShard exercises the fan-out: two shards are snapshotted
 // concurrently and both keys must appear in the backup artefacts.
 func TestEtcDruid_Capture_MultiShard(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -295,7 +295,7 @@ func TestEtcDruid_Capture_MultiShard(t *testing.T) {
 // TestEtcDruid_Capture_Idempotent runs Process twice on the same backup and asserts
 // the second call is a no-op (no new EtcdOpsTask created, artefacts unchanged).
 func TestEtcDruid_Capture_Idempotent(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -366,7 +366,7 @@ func TestEtcDruid_Capture_Idempotent(t *testing.T) {
 // This test proves that topology validation is wired into the restore lifecycle
 // and that a successful restore always produces both conditions.
 func TestEtcDruid_Restore_TopologyAware(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)

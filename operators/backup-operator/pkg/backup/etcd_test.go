@@ -124,10 +124,10 @@ func makeEtcdShard(t *testing.T, cl client.Client, name string) {
 			},
 		},
 	}
-	require.NoError(t, cl.Create(context.Background(), etcd))
+	require.NoError(t, cl.Create(t.Context(), etcd))
 	patch := client.MergeFrom(etcd.DeepCopy())
 	etcd.Status.Ready = ptr.To(true)
-	require.NoError(t, cl.Status().Patch(context.Background(), etcd, patch))
+	require.NoError(t, cl.Status().Patch(t.Context(), etcd, patch))
 }
 
 func makePlatformBackup(t *testing.T, cl client.Client, name string) *backupv1alpha1.PlatformBackup {
@@ -147,7 +147,7 @@ func makePlatformBackup(t *testing.T, cl client.Client, name string) *backupv1al
 			},
 		},
 	}
-	require.NoError(t, cl.Create(context.Background(), bkp))
+	require.NoError(t, cl.Create(t.Context(), bkp))
 	return bkp
 }
 
@@ -155,7 +155,7 @@ func TestCapture_MultiShard_Success(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	runReadySimulator(ctx, cl)
@@ -189,7 +189,7 @@ func TestCapture_TaskFailed_ReturnsError(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	runReadySimulator(ctx, cl)
@@ -247,7 +247,7 @@ func TestCapture_Idempotent(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bkp := makePlatformBackup(t, cl, "backup-idempotent")
 	bkp.Status.Artefacts.Etcd = &backupv1alpha1.EtcdArtefact{

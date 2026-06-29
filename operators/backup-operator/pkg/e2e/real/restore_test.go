@@ -46,7 +46,7 @@ import (
 //  4. Asserts the recreated Etcd CR carries the correct annotation.
 //  5. Waits for the restored Etcd cluster to become ready again.
 func TestRealEtcd_Restore_SingleShard(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 40*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -122,7 +122,7 @@ func TestRealEtcd_Restore_SingleShard(t *testing.T) {
 // explicitly asserts the sequence: EtcdRestored=True is set only AFTER
 // Status.Ready=true on the recreated Etcd CR.
 func TestRealEtcd_Restore_SlowReady(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 40*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -172,7 +172,7 @@ func TestRealEtcd_Restore_SlowReady(t *testing.T) {
 // references a non-existent PlatformBackup, the operator requeues (StopWithRequeue)
 // rather than failing permanently.
 func TestRealEtcd_Restore_SourceBackupNotFound(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -209,7 +209,7 @@ func TestRealEtcd_Restore_SourceBackupNotFound(t *testing.T) {
 // subroutine skips etcd restore and completes successfully without attempting
 // to recreate any Etcd CRs.
 func TestRealEtcd_Restore_BackupWithNoEtcdArtefacts(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -266,7 +266,7 @@ func TestRealEtcd_Restore_BackupWithNoEtcdArtefacts(t *testing.T) {
 // and re-recreate the Etcd CRs. The operator's idempotency guard must return
 // early when the condition is already True.
 func TestRealEtcd_Restore_Idempotent(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 40*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -336,7 +336,7 @@ func TestRealEtcd_Restore_Idempotent(t *testing.T) {
 // longer exists in the cluster, the operator surfaces EtcdRestored=False with
 // Reason=Error.
 func TestRealEtcd_Restore_MissingEtcdShard(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -394,7 +394,7 @@ func TestRealEtcd_Restore_MissingEtcdShard(t *testing.T) {
 // must complete with EtcdRestored=True and the Etcd CR must carry the correct
 // restore annotation.
 func TestRealEtcd_Restore_ConcurrentSameBackup(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 40*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -465,7 +465,7 @@ func TestRealEtcd_Restore_ConcurrentSameBackup(t *testing.T) {
 // extra kcp-shard Etcd CR not recorded in the backup, the restore is blocked
 // with TopologyValidated=False. The extra shard is never touched.
 func TestRealEtcd_Restore_TopologyMismatch_ExtraLiveShard(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -542,7 +542,7 @@ func TestRealEtcd_Restore_TopologyMismatch_ExtraLiveShard(t *testing.T) {
 // is only allowed when the shard topology matches, and when it does proceed,
 // the etcd data written before the backup is faithfully replayed.
 func TestRealEtcd_Restore_TopologyMatch_FullRoundTrip(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -614,7 +614,7 @@ func TestRealEtcd_Restore_TopologyMatch_FullRoundTrip(t *testing.T) {
 // and the original shard must be left untouched — the data written before backup
 // is still readable because the restore never started.
 func TestRealEtcd_Restore_CorruptTopologyAfterBackup(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -704,7 +704,7 @@ func TestRealEtcd_Restore_CorruptTopologyAfterBackup(t *testing.T) {
 // etcd after the backup point). After restore, the pre-backup key must be present
 // (replayed from snapshot), verifying the operator correctly triggered etcdbr restore.
 func TestRealEtcd_Restore_CorruptEtcdAfterBackup(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)

@@ -46,7 +46,7 @@ import (
 //   - backup-operator deployed in platform-mesh-backup-operator namespace
 //   - minio is deployed by TestMain
 func TestRealEtcd_Backup_SingleShard(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 25*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -109,7 +109,7 @@ func TestRealEtcd_Backup_SingleShard(t *testing.T) {
 // This confirms the idempotency guard works correctly with real etcdbr — where
 // the full-snap lease HolderIdentity does not change between on-demand snapshots.
 func TestRealEtcd_Backup_Idempotent(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -166,7 +166,7 @@ func TestRealEtcd_Backup_Idempotent(t *testing.T) {
 // after restore. This is the end-to-end data integrity proof: etcdbr snapshots
 // the etcd data and replays it faithfully on restore.
 func TestRealEtcd_Backup_ContentIntegrity(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -231,7 +231,7 @@ func TestRealEtcd_Backup_ContentIntegrity(t *testing.T) {
 // but no Etcd CRs with the kcp-shard label exist, the operator surfaces a
 // Stopped condition and requeues rather than permanently failing.
 func TestRealEtcd_Backup_NoShards(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -267,7 +267,7 @@ func TestRealEtcd_Backup_NoShards(t *testing.T) {
 // The operator must surface a clean error on EtcdSnapshotted rather than
 // panicking or hanging.
 func TestRealEtcd_Backup_ShardDeletedDuringBackup(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -332,7 +332,7 @@ func TestRealEtcd_Backup_ShardDeletedDuringBackup(t *testing.T) {
 // corrupted lease state, wrong store prefix, or etcdbr not reinitialising the
 // snapshotter after restore.
 func TestRealEtcd_Backup_AfterRestore(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)

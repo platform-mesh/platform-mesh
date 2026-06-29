@@ -75,7 +75,7 @@ func discoverShardCount(ctx context.Context, t *testing.T) int {
 //   - minio deployed by TestMain
 //   - At least one non-e2e Etcd CR in liveShardNS (used to determine shard count)
 func TestRealEtcd_Sharded_BackupRestore(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)
@@ -222,7 +222,7 @@ func TestRealEtcd_Sharded_BackupRestore(t *testing.T) {
 // every shard's key survived restore intact. This catches cross-shard data
 // corruption in the concurrent restore path.
 func TestRealEtcd_Sharded_ContentIntegrity(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Minute)
 	t.Cleanup(cancel)
 
 	cleanupTestResources(t)

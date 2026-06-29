@@ -60,7 +60,7 @@ func makeBackupWithShards(t *testing.T, cl client.Client, backupName string, sha
 			},
 		},
 	}
-	require.NoError(t, cl.Create(context.Background(), bkp))
+	require.NoError(t, cl.Create(t.Context(), bkp))
 
 	shardArtefacts := make(map[string]backupv1alpha1.EtcdShardArtefact, len(shards))
 	for name, key := range shards {
@@ -74,7 +74,7 @@ func makeBackupWithShards(t *testing.T, cl client.Client, backupName string, sha
 			Etcd: &backupv1alpha1.EtcdArtefact{Shards: shardArtefacts},
 		},
 	}
-	require.NoError(t, cl.Status().Update(context.Background(), bkp), "status update for backup %s", backupName)
+	require.NoError(t, cl.Status().Update(t.Context(), bkp), "status update for backup %s", backupName)
 	return bkp
 }
 
@@ -98,7 +98,7 @@ func makeEtcdShardForRestore(t *testing.T, cl client.Client, name string) {
 			},
 		},
 	}
-	require.NoError(t, cl.Create(context.Background(), etcd))
+	require.NoError(t, cl.Create(t.Context(), etcd))
 }
 
 func makePlatformRestore(t *testing.T, cl client.Client, name, backupID string) *backupv1alpha1.PlatformRestore {
@@ -119,7 +119,7 @@ func makePlatformRestore(t *testing.T, cl client.Client, name, backupID string) 
 			TopologyValidation: backupv1alpha1.TopologyValidationStrict,
 		},
 	}
-	require.NoError(t, cl.Create(context.Background(), rst))
+	require.NoError(t, cl.Create(t.Context(), rst))
 	return rst
 }
 
@@ -127,7 +127,7 @@ func TestRestore_SingleShard_Recreate(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	runReadySimulator(ctx, cl)
@@ -162,7 +162,7 @@ func TestRestore_MultiShard_ConcurrentRecreate(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()
 
 	runReadySimulator(ctx, cl)
@@ -195,7 +195,7 @@ func TestRestore_MissingBackup_StopsWithRequeue(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	rst := makePlatformRestore(t, cl, "restore-missing", "nonexistent-backup")
 
 	sub := restore.NewEtcdRestoreSubroutine(testNamespace)
@@ -209,7 +209,7 @@ func TestRestore_MissingEtcdArtefacts_Skips(t *testing.T) {
 	cl, _, stop := setupEnvtest(t)
 	defer stop()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bkp := &backupv1alpha1.PlatformBackup{
 		ObjectMeta: metav1.ObjectMeta{Name: "backup-no-artefacts"},
