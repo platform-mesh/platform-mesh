@@ -25,21 +25,12 @@ import (
 
 const DefaultNamespace = "platform-mesh-backup-operator"
 
-type KcpConfig struct {
-	ApiExportEndpointSliceName string
-}
-
 type OperatorConfig struct {
-	Kcp        KcpConfig
-	Namespace  string
-	Standalone bool
+	Namespace string
 }
 
 func NewOperatorConfig() OperatorConfig {
 	return OperatorConfig{
-		Kcp: KcpConfig{
-			ApiExportEndpointSliceName: "backup.platform-mesh.io",
-		},
 		Namespace: DefaultNamespace,
 	}
 }
@@ -49,15 +40,9 @@ func (c *OperatorConfig) Validate() error {
 	if c.Namespace == "" {
 		return fmt.Errorf("--namespace must not be empty")
 	}
-	c.Kcp.ApiExportEndpointSliceName = strings.TrimSpace(c.Kcp.ApiExportEndpointSliceName)
-	if !c.Standalone && c.Kcp.ApiExportEndpointSliceName == "" {
-		return fmt.Errorf("--kcp-api-export-endpoint-slice-name must not be empty in KCP mode (use --standalone to disable KCP)")
-	}
 	return nil
 }
 
 func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&c.Kcp.ApiExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.Kcp.ApiExportEndpointSliceName, "Set APIExportEndpointSlice name")
 	fs.StringVar(&c.Namespace, "namespace", c.Namespace, "Namespace in which the operator manages resources")
-	fs.BoolVar(&c.Standalone, "standalone", c.Standalone, "Run without KCP: watch the host cluster directly via a single-cluster provider")
 }

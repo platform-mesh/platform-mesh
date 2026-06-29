@@ -25,7 +25,6 @@ import (
 	"go.platform-mesh.io/backup-operator/pkg/topology/projector"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
@@ -34,9 +33,6 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	singleprovider "sigs.k8s.io/multicluster-runtime/providers/single"
-
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -59,44 +55,16 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 
 	restCfg := ctrl.GetConfigOrDie()
 
-	var hostCfg *rest.Config
-	if operatorCfg.Standalone {
-		// In standalone mode KUBECONFIG (or in-cluster SA) points at the host cluster directly.
-		hostCfg = restCfg
-	} else {
-		// In KCP mode KUBECONFIG points at the KCP workspace; the host cluster
-		// is reached via the pod's service account.
-		var err error
-		hostCfg, err = rest.InClusterConfig()
-		if err != nil {
-			log.Fatal().Err(err).Msg("building in-cluster config for host client")
-		}
-	}
-
-	hostClient, err := ctrlruntimeclient.New(hostCfg, ctrlruntimeclient.Options{Scheme: scheme})
+	hostClient, err := ctrlruntimeclient.New(restCfg, ctrlruntimeclient.Options{Scheme: scheme})
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating host cluster client")
 	}
 
-	var (
-		standaloneCluster cluster.Cluster
-		provider          multicluster.Provider
-	)
-	if operatorCfg.Standalone {
-		standaloneCluster, err = cluster.New(restCfg, func(o *cluster.Options) { o.Scheme = scheme })
-		if err != nil {
-			log.Fatal().Err(err).Msg("creating standalone cluster")
-		}
-		provider = singleprovider.New(multicluster.ClusterName("standalone"), standaloneCluster)
-	} else {
-		provider, err = pathaware.New(restCfg, operatorCfg.Kcp.ApiExportEndpointSliceName, apiexport.Options{
-			Log:    &ctrl.Log,
-			Scheme: scheme,
-		})
-		if err != nil {
-			log.Fatal().Err(err).Msg("creating APIExport provider")
-		}
+	standaloneCluster, err := cluster.New(restCfg, func(o *cluster.Options) { o.Scheme = scheme })
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating cluster")
 	}
+	provider := singleprovider.New(multicluster.ClusterName("standalone"), standaloneCluster)
 
 	mgr, err := mcmanager.New(restCfg, provider, mcmanager.Options{
 		Scheme: scheme,
@@ -114,14 +82,10 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to start manager")
 	}
 
-	// The standalone cluster's cache must be registered as a runnable so it starts
+	// The cluster's cache must be registered as a runnable so it starts
 	// when the manager starts; without this informers never sync and no events arrive.
-	// cluster.Cluster only implements controller-runtime's Runnable, not multicluster
-	// Aware, so it must be added to the inner controller-runtime manager.
-	if standaloneCluster != nil {
-		if err := mgr.GetLocalManager().Add(standaloneCluster); err != nil {
-			log.Fatal().Err(err).Msg("adding standalone cluster to manager")
-		}
+	if err := mgr.GetLocalManager().Add(standaloneCluster); err != nil {
+		log.Fatal().Err(err).Msg("adding cluster to manager")
 	}
 
 	if err := controller.NewPlatformBackupReconciler(mgr, operatorCfg.Namespace).SetupWithManager(mgr); err != nil {
