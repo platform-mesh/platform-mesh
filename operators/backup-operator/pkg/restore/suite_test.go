@@ -106,7 +106,7 @@ func setupEnvtest(t *testing.T) (client.Client, *rest.Config, func()) {
 
 func cleanupTestResources(t *testing.T, c client.Client) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var etcdList druidv1alpha1.EtcdList
 	if err := c.List(ctx, &etcdList, client.InNamespace(testNamespace)); err == nil {
@@ -132,7 +132,7 @@ func waitForEtcdCleanup(t *testing.T, c client.Client) {
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		var etcdList druidv1alpha1.EtcdList
-		if err := c.List(context.Background(), &etcdList, client.InNamespace(testNamespace)); err != nil {
+		if err := c.List(t.Context(), &etcdList, client.InNamespace(testNamespace)); err != nil {
 			break
 		}
 		if len(etcdList.Items) == 0 {
