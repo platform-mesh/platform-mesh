@@ -86,7 +86,10 @@ func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Cont
 }
 
 func (v *identityProviderConfigurationValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *pmcorev1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
-	// Intentionally allow updates to prevent deadlocks when reconcilers add status/finalizers.
+	newIDP := newObj.(*pmcorev1alpha1.IdentityProviderConfiguration)
+	if err := validateUpstreamIdentityProviders(newIDP.Spec.UpstreamIdentityProviders); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -114,4 +117,84 @@ func newKeycloakAdminClient(ctx context.Context, cfg *config.Config) (*keycloak.
 	adminHTTPClient.Transport = clientreg.NewRetryTransport(adminHTTPClient.Transport, adminClient)
 
 	return adminClient, nil
+}
+
+func validateUpstreamIdentityProviders(providers []pmcorev1alpha1.UpstreamIdentityProvider) error {
+	seen := make(map[string]struct{}, len(providers))
+
+	for i := range providers {
+		provider := &providers[i]
+		alias := strings.TrimSpace(provider.Alias)
+		if alias == "" {
+			return fmt.Errorf("upstream identity provider alias must not be empty")
+		}
+		if _, ok := seen[alias]; ok {
+			return fmt.Errorf("duplicate upstream identity provider alias %q", alias)
+		}
+		seen[alias] = struct{}{}
+
+		if provider.Type == "" {
+			return fmt.Errorf("upstream identity provider %q: type is required", alias)
+		}
+		if provider.Type != pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC {
+			return fmt.Errorf("upstream identity provider %q: unsupported type %q", alias, provider.Type)
+		}
+		if provider.OIDC == nil {
+			return fmt.Errorf("upstream identity provider %q: oidc config is required", alias)
+		}
+
+		if err := validateOIDCUpstreamConfig(alias, provider.OIDC); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateOIDCUpstreamConfig(alias string, oidc *pmcorev1alpha1.OIDCUpstreamConfig) error {
+	hasDiscovery := strings.TrimSpace(oidc.DiscoveryURL) != ""
+	hasManual := strings.TrimSpace(oidc.Issuer) != "" ||
+		strings.TrimSpace(oidc.AuthorizationURL) != "" ||
+		strings.TrimSpace(oidc.TokenURL) != ""
+
+	if hasDiscovery && hasManual {
+		return fmt.Errorf(
+			"upstream identity provider %q: discoveryUrl and manual endpoint configuration are mutually exclusive",
+			alias,
+		)
+	}
+	if !hasDiscovery {
+		if strings.TrimSpace(oidc.Issuer) == "" ||
+			strings.TrimSpace(oidc.AuthorizationURL) == "" ||
+			strings.TrimSpace(oidc.TokenURL) == "" {
+			return fmt.Errorf(
+				"upstream identity provider %q: either discoveryUrl or issuer, authorizationUrl, and tokenUrl must be set",
+				alias,
+			)
+		}
+	}
+
+	if strings.TrimSpace(oidc.ClientID) == "" {
+		return fmt.Errorf("upstream identity provider %q: clientId is required", alias)
+	}
+
+	if oidcClientAuthRequiresSecret(oidc.ClientAuthentication) &&
+		strings.TrimSpace(oidc.ClientSecretRef.Name) == "" {
+		return fmt.Errorf(
+			"upstream identity provider %q: clientSecretRef.name is required for client authentication method %q",
+			alias,
+			oidc.ClientAuthentication,
+		)
+	}
+
+	return nil
+}
+
+func oidcClientAuthRequiresSecret(method string) bool {
+	switch strings.TrimSpace(method) {
+	case "", "client_secret_basic", "client_secret_post", "client_secret_jwt":
+		return true
+	default:
+		return false
+	}
 }

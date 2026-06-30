@@ -20,12 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
@@ -34,6 +36,7 @@ import (
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/subroutine/idp"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
+	"go.platform-mesh.io/security-operator/pkg/clientreg/keycloak"
 	"go.platform-mesh.io/subroutines"
 
 	corev1 "k8s.io/api/core/v1"
@@ -1264,6 +1267,201 @@ func TestFinalize(t *testing.T) {
 			} else {
 				assert.Nil(t, opErr, "did not expect an operator error")
 			}
+		})
+	}
+}
+
+func TestSubroutineProcessUpstreamProviders(t *testing.T) {
+	dexSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "dex-secret", Namespace: "default"},
+		Data:       map[string][]byte{"client_secret": []byte("local-dev-broker-secret")},
+	}
+
+	baseClient := pmcorev1alpha1.IdentityProviderClientConfig{
+		ClientName:   "test-realm",
+		ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+		RedirectURIs: []string{"https://test.example.com/*"},
+		SecretRef:    corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
+	}
+
+	upstreamDex := pmcorev1alpha1.UpstreamIdentityProvider{
+		Alias: "dex",
+		Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
+		OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
+			DiscoveryURL:         "https://portal.localhost:8443/dex/.well-known/openid-configuration",
+			ClientID:             "keycloak-broker",
+			ClientAuthentication: "client_secret_post",
+			ClientSecretRef:      corev1.SecretReference{Name: "dex-secret", Namespace: "default"},
+		},
+	}
+
+	setupBaseKeycloakMocks := func(mux *http.ServeMux, baseURL string) {
+		mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusCreated)
+		})
+		mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode([]map[string]any{})
+		})
+		mux.HandleFunc("POST /admin/realms/test-realm/clients-initial-access", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token"})
+		})
+		mux.HandleFunc("POST /realms/test-realm/clients-registrations/openid-connect", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"client_id":                 "client-id",
+				"client_secret":             "secret",
+				"registration_access_token": "token",
+				"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/client-id", baseURL),
+			})
+		})
+		mux.HandleFunc("POST /admin/realms/test-realm/identity-provider/import-config", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"authorizationUrl":      "https://portal.localhost:8443/dex/auth",
+				"tokenUrl":              "https://portal.localhost:8443/dex/token",
+				"issuer":                "https://portal.localhost:8443/dex",
+				"jwksUrl":               "https://portal.localhost:8443/dex/keys",
+				"useJwksUrl":            "true",
+				"validateSignature":     "true",
+				"metadataDescriptorUrl": "https://portal.localhost:8443/dex/.well-known/openid-configuration",
+			})
+		})
+	}
+
+	tests := []struct {
+		name          string
+		obj           *pmcorev1alpha1.IdentityProviderConfiguration
+		secrets       []ctrlruntimeclient.Object
+		setupIDPMocks func(mux *http.ServeMux)
+		assertStatus  func(t *testing.T, idp *pmcorev1alpha1.IdentityProviderConfiguration)
+	}{
+		{
+			name: "creates upstream identity provider",
+			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
+				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+					Clients:                   []pmcorev1alpha1.IdentityProviderClientConfig{baseClient},
+					UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{upstreamDex},
+				},
+			},
+			secrets: []ctrlruntimeclient.Object{dexSecret},
+			setupIDPMocks: func(mux *http.ServeMux) {
+				mux.HandleFunc("GET /admin/realms/test-realm/identity-provider/instances/dex", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNotFound)
+				})
+				mux.HandleFunc("POST /admin/realms/test-realm/identity-provider/instances", func(w http.ResponseWriter, r *http.Request) {
+					body, err := io.ReadAll(r.Body)
+					require.NoError(t, err)
+					var rep keycloak.IdentityProviderRepresentation
+					require.NoError(t, json.Unmarshal(body, &rep))
+					assert.Equal(t, "https://portal.localhost:8443/dex/auth", rep.Config["authorizationUrl"])
+					w.WriteHeader(http.StatusCreated)
+				})
+			},
+			assertStatus: func(t *testing.T, idp *pmcorev1alpha1.IdentityProviderConfiguration) {
+				status, ok := idp.Status.ManagedUpstreamIdentityProviders["dex"]
+				require.True(t, ok)
+				assert.True(t, status.Ready)
+				assert.Empty(t, status.Message)
+			},
+		},
+		{
+			name: "records upstream failure without failing reconcile",
+			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
+				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+					Clients:                   []pmcorev1alpha1.IdentityProviderClientConfig{baseClient},
+					UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{upstreamDex},
+				},
+			},
+			setupIDPMocks: func(mux *http.ServeMux) {},
+			assertStatus: func(t *testing.T, idp *pmcorev1alpha1.IdentityProviderConfiguration) {
+				status, ok := idp.Status.ManagedUpstreamIdentityProviders["dex"]
+				require.True(t, ok)
+				assert.False(t, status.Ready)
+				assert.Contains(t, status.Message, "client secret")
+			},
+		},
+		{
+			name: "deletes removed upstream identity provider",
+			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
+				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{baseClient},
+				},
+				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
+					ManagedUpstreamIdentityProviders: map[string]pmcorev1alpha1.UpstreamIdentityProviderStatus{
+						"dex": {Alias: "dex", Ready: true},
+					},
+				},
+			},
+			setupIDPMocks: func(mux *http.ServeMux) {
+				mux.HandleFunc("DELETE /admin/realms/test-realm/identity-provider/instances/dex", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNoContent)
+				})
+			},
+			assertStatus: func(t *testing.T, idp *pmcorev1alpha1.IdentityProviderConfiguration) {
+				_, ok := idp.Status.ManagedUpstreamIdentityProviders["dex"]
+				assert.False(t, ok)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			configureOIDCProvider(t, mux, srv.URL)
+			ctx := context.WithValue(context.Background(), oauth2.HTTPClient, srv.Client())
+
+			setupBaseKeycloakMocks(mux, srv.URL)
+			if tt.setupIDPMocks != nil {
+				tt.setupIDPMocks(mux)
+			}
+
+			orgsClient := mocks.NewMockClient(t)
+			orgsClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
+				RunAndReturn(func(_ context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+					if key.Name == "dex-secret" && len(tt.secrets) > 0 {
+						secret := obj.(*corev1.Secret)
+						*secret = *dexSecret
+						secret.SetName(key.Name)
+						secret.SetNamespace(key.Namespace)
+						return nil
+					}
+					return apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, key.Name)
+				}).Maybe()
+			orgsClient.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+			orgsClient.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Maybe()
+			orgsClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Maybe()
+
+			initialObjects := []ctrlruntimeclient.Object{tt.obj.DeepCopy()}
+			mgr, _, kcpClient := setupManagerAndCluster(t, orgsClient, initialObjects...)
+
+			cfg := getTestConfig(&config.Config{
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  srv.URL,
+					ClientID: "security-operator",
+				},
+			}, srv.URL)
+
+			s, err := idp.New(ctx, cfg, mgr, iclient.NewManagerKCPClientGetter(mgr, nil))
+			require.NoError(t, err)
+
+			l := testlogger.New()
+			ctx = l.WithContext(ctx)
+
+			_, opErr := s.Process(ctx, tt.obj)
+			assert.NoError(t, opErr)
+
+			updated := &pmcorev1alpha1.IdentityProviderConfiguration{}
+			require.NoError(t, kcpClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(tt.obj), updated))
+			tt.assertStatus(t, updated)
 		})
 	}
 }
