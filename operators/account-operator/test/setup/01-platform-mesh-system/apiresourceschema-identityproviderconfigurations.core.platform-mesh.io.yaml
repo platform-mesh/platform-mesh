@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260622-69fb9437.identityproviderconfigurations.core.platform-mesh.io
+  name: v260626-07276dd.identityproviderconfigurations.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -91,6 +91,134 @@ spec:
               type: array
             registrationAllowed:
               type: boolean
+            upstreamIdentityProviders:
+              items:
+                description: |-
+                  UpstreamIdentityProvider holds fields independent from a provider's type
+                  and references provider-specific information under OIDC.
+                properties:
+                  accountLinkingOnly:
+                    type: boolean
+                  alias:
+                    type: string
+                  caseSensitiveUsername:
+                    type: boolean
+                  displayName:
+                    type: string
+                  enabled:
+                    type: boolean
+                  essentialClaim:
+                    type: string
+                  essentialClaimValue:
+                    type: string
+                  firstLoginFlow:
+                    type: string
+                  guiOrder:
+                    type: integer
+                  hideOnLoginPage:
+                    type: boolean
+                  oidc:
+                    description: |-
+                      OIDCUpstreamConfig holds OIDC-specific upstream identity provider
+                      configuration.
+                    properties:
+                      acceptsPromptNoneForwardFromClient:
+                        type: boolean
+                      allowsClientAssertionsReused:
+                        type: boolean
+                      allowsClientIdAsAudienceForAssertions:
+                        type: boolean
+                      authorizationUrl:
+                        type: string
+                      backchannelLogout:
+                        type: boolean
+                      clientAssertionAudience:
+                        type: string
+                      clientAssertionSignatureAlgorithm:
+                        type: string
+                      clientAuthentication:
+                        type: string
+                      clientId:
+                        type: string
+                      clientSecretRef:
+                        description: |-
+                          SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                          in any namespace
+                        properties:
+                          name:
+                            description: name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      defaultScopes:
+                        type: string
+                      discoveryUrl:
+                        description: Either DiscoveryURL or the manual endpoint fields
+                          need to be set.
+                        type: string
+                      forwardedQueryParameters:
+                        type: string
+                      issuer:
+                        type: string
+                      jwksUrl:
+                        type: string
+                      logoutUrl:
+                        type: string
+                      prompt:
+                        type: string
+                      requiresShortStateParameter:
+                        type: boolean
+                      supportsClientAssertions:
+                        type: boolean
+                      tokenUrl:
+                        type: string
+                      useJwksUrl:
+                        type: boolean
+                      userInfoUrl:
+                        type: string
+                      validateSignatures:
+                        type: boolean
+                      validatingPublicKey:
+                        type: string
+                      validatingPublicKeyId:
+                        type: string
+                    type: object
+                  postLoginFlow:
+                    type: string
+                  showInAccountConsole:
+                    enum:
+                    - Always
+                    - WhenLinked
+                    - Never
+                    type: string
+                  storeTokens:
+                    type: boolean
+                  storedTokensReadable:
+                    type: boolean
+                  syncMode:
+                    enum:
+                    - legacy
+                    - import
+                    - force
+                    type: string
+                  trustEmail:
+                    type: boolean
+                  type:
+                    enum:
+                    - oidc
+                    type: string
+                  verifyEssentialClaim:
+                    type: boolean
+                required:
+                - alias
+                - type
+                type: object
+              type: array
           required:
           - clients
           type: object
@@ -181,6 +309,26 @@ spec:
                 - clientId
                 - registrationClientUri
                 - secretRef
+                type: object
+              type: object
+            managedUpstreamIdentityProviders:
+              additionalProperties:
+                description: |-
+                  UpstreamIdentityProviderStatus tracks reconciliation of an upstream
+                  identity provider in Keycloak.
+                properties:
+                  alias:
+                    type: string
+                  lastSyncTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  ready:
+                    type: boolean
+                required:
+                - alias
+                - ready
                 type: object
               type: object
           type: object
