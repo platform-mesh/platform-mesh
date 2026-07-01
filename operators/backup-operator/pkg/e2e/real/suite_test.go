@@ -28,7 +28,9 @@ import (
 	"testing"
 	"time"
 
+	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/backup"
 	appsv1 "k8s.io/api/apps/v1"
@@ -42,6 +44,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 const (
@@ -64,6 +68,8 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
 	e2eNS = os.Getenv("E2E_NAMESPACE")
 	if e2eNS == "" {
 		e2eNS = defaultE2ENamespace
@@ -90,6 +96,12 @@ func TestMain(m *testing.M) {
 	}
 	if err := batchv1.AddToScheme(testScheme); err != nil {
 		panic(fmt.Sprintf("adding batch scheme: %v", err))
+	}
+	if err := cnpgv1.AddToScheme(testScheme); err != nil {
+		panic(fmt.Sprintf("adding cnpg scheme: %v", err))
+	}
+	if err := velerov1.SchemeBuilder.AddToScheme(testScheme); err != nil {
+		panic(fmt.Sprintf("adding velero scheme: %v", err))
 	}
 
 	kubeconfig := os.Getenv("KUBECONFIG")
@@ -222,6 +234,52 @@ func cleanupE2EResources(ctx context.Context) {
 		for i := range podList.Items {
 			p := &podList.Items[i]
 			_ = cl.Delete(ctx, p)
+		}
+	}
+
+	var cnpgClusterList cnpgv1.ClusterList
+	if err := cl.List(ctx, &cnpgClusterList, ctrlruntimeclient.InNamespace(e2eNS)); err == nil {
+		for i := range cnpgClusterList.Items {
+			c := &cnpgClusterList.Items[i]
+			if !strings.HasPrefix(c.Name, "e2e-") {
+				continue
+			}
+			if len(c.Finalizers) > 0 {
+				patch := ctrlruntimeclient.MergeFrom(c.DeepCopy())
+				c.Finalizers = nil
+				_ = cl.Patch(ctx, c, patch)
+			}
+			_ = cl.Delete(ctx, c)
+		}
+	}
+
+	var cnpgBackupList cnpgv1.BackupList
+	if err := cl.List(ctx, &cnpgBackupList, ctrlruntimeclient.InNamespace(e2eNS)); err == nil {
+		for i := range cnpgBackupList.Items {
+			b := &cnpgBackupList.Items[i]
+			if strings.HasPrefix(b.Name, "e2e-") {
+				_ = cl.Delete(ctx, b)
+			}
+		}
+	}
+
+	var veleroBackupList velerov1.BackupList
+	if err := cl.List(ctx, &veleroBackupList, ctrlruntimeclient.InNamespace(e2eNS)); err == nil {
+		for i := range veleroBackupList.Items {
+			b := &veleroBackupList.Items[i]
+			if strings.HasPrefix(b.Name, "e2e-") {
+				_ = cl.Delete(ctx, b)
+			}
+		}
+	}
+
+	var veleroRestoreList velerov1.RestoreList
+	if err := cl.List(ctx, &veleroRestoreList, ctrlruntimeclient.InNamespace(e2eNS)); err == nil {
+		for i := range veleroRestoreList.Items {
+			r := &veleroRestoreList.Items[i]
+			if strings.HasPrefix(r.Name, "e2e-") {
+				_ = cl.Delete(ctx, r)
+			}
 		}
 	}
 }
