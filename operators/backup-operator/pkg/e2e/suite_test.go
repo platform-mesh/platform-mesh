@@ -30,6 +30,8 @@ import (
 	"time"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
+	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -70,6 +72,12 @@ func TestMain(m *testing.M) {
 	}
 	if err := coordinationv1.AddToScheme(testScheme); err != nil {
 		panic(fmt.Sprintf("adding coordination scheme: %v", err))
+	}
+	if err := cnpgv1.AddToScheme(testScheme); err != nil {
+		panic(fmt.Sprintf("adding cnpg scheme: %v", err))
+	}
+	if err := velerov1.SchemeBuilder.AddToScheme(testScheme); err != nil {
+		panic(fmt.Sprintf("adding velero scheme: %v", err))
 	}
 
 	// Host cluster client — all test objects (PlatformBackup, Etcd, etc.) and
@@ -165,6 +173,41 @@ func cleanupAll(ctx context.Context) {
 			l := &leaseList.Items[i]
 			if strings.HasPrefix(l.Name, "e2e-") {
 				_ = cl.Delete(ctx, l)
+			}
+		}
+	}
+
+	var cnpgClusterList cnpgv1.ClusterList
+	if err := cl.List(ctx, &cnpgClusterList, client.InNamespace(e2eNS)); err == nil {
+		for i := range cnpgClusterList.Items {
+			c := &cnpgClusterList.Items[i]
+			if strings.HasPrefix(c.Name, "e2e-") {
+				if len(c.Finalizers) > 0 {
+					patch := client.MergeFrom(c.DeepCopy())
+					c.Finalizers = nil
+					_ = cl.Patch(ctx, c, patch)
+				}
+				_ = cl.Delete(ctx, c)
+			}
+		}
+	}
+
+	var veleroBackupList velerov1.BackupList
+	if err := cl.List(ctx, &veleroBackupList, client.InNamespace(e2eNS)); err == nil {
+		for i := range veleroBackupList.Items {
+			b := &veleroBackupList.Items[i]
+			if strings.HasPrefix(b.Name, "e2e-") {
+				_ = cl.Delete(ctx, b)
+			}
+		}
+	}
+
+	var veleroRestoreList velerov1.RestoreList
+	if err := cl.List(ctx, &veleroRestoreList, client.InNamespace(e2eNS)); err == nil {
+		for i := range veleroRestoreList.Items {
+			r := &veleroRestoreList.Items[i]
+			if strings.HasPrefix(r.Name, "e2e-") {
+				_ = cl.Delete(ctx, r)
 			}
 		}
 	}
