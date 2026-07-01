@@ -20,6 +20,7 @@ package restore_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
@@ -30,8 +31,10 @@ import (
 	"go.platform-mesh.io/backup-operator/pkg/restore"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -225,7 +228,8 @@ func TestCNPGRestore_MultiCluster_AllReady(t *testing.T) {
 	assert.True(t, result.IsContinue())
 }
 
-// TestCNPGRestore_ClusterNotFound verifies an error when the Cluster CR to restore is absent.
+// TestCNPGRestore_ClusterNotFound verifies Pending is returned when the Cluster CR to restore is absent
+// (transient — may occur after delete+create before the API server reflects the new object).
 func TestCNPGRestore_ClusterNotFound(t *testing.T) {
 	bkp := fakePlatformBackupWithCNPG("bkp", map[string]string{"openfga-db": "bkp-openfga-db"})
 	rst := fakePlatformRestoreCNPG("r", "bkp")
@@ -233,9 +237,9 @@ func TestCNPGRestore_ClusterNotFound(t *testing.T) {
 
 	cl := fake.NewClientBuilder().WithScheme(newCNPGRestoreScheme(t)).WithObjects(bkp, rst).Build()
 
-	_, err := newCNPGRestoreSub().Process(ctxWithClient(cl), rst)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "openfga-db")
+	result, err := newCNPGRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err, "transient NotFound must not surface as a permanent error")
+	assert.True(t, result.IsPending(), "expected Pending while cluster is not yet visible")
 }
 
 // TestCNPGRestore_DeletionTimestamp_PendingWithFinalizers verifies Pending when cluster is terminating.
@@ -268,4 +272,107 @@ func TestCNPGRestore_DeletionTimestamp_PendingWithFinalizers(t *testing.T) {
 // TestCNPGRestore_GetName verifies the subroutine returns the expected condition name.
 func TestCNPGRestore_GetName(t *testing.T) {
 	assert.Equal(t, restore.ConditionCNPGRestored, newCNPGRestoreSub().GetName())
+}
+
+// TestCNPGRestore_GetBackupGenericError verifies that a non-NotFound error on Get for PlatformBackup
+// is surfaced as an error containing "fetching source backup".
+func TestCNPGRestore_GetBackupGenericError(t *testing.T) {
+	rst := fakePlatformRestoreCNPG("r", "some-backup")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newCNPGRestoreScheme(t)).
+		WithObjects(rst).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+				if _, ok := obj.(*pmbackupv1alpha1.PlatformBackup); ok {
+					return fmt.Errorf("internal server error: etcd timeout")
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+
+	result, err := newCNPGRestoreSub().Process(ctxWithClient(cl), rst)
+	assert.True(t, result.IsContinue())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "fetching source backup")
+}
+
+// TestCNPGRestore_GetClusterGenericError verifies that a non-NotFound error on Get for cnpgv1.Cluster
+// is surfaced as an error containing "fetching Cluster".
+func TestCNPGRestore_GetClusterGenericError(t *testing.T) {
+	bkp := fakePlatformBackupWithCNPG("bkp", map[string]string{"openfga-db": "bkp-openfga-db"})
+	rst := fakePlatformRestoreCNPG("r", "bkp")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newCNPGRestoreScheme(t)).
+		WithObjects(bkp, rst).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+				if _, ok := obj.(*cnpgv1.Cluster); ok {
+					return fmt.Errorf("connection refused: apiserver unavailable")
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+
+	result, err := newCNPGRestoreSub().Process(ctxWithClient(cl), rst)
+	assert.True(t, result.IsContinue())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "fetching Cluster")
+}
+
+// TestCNPGRestore_CreateAlreadyExists_PatchAnnotation verifies that when Create returns AlreadyExists
+// for a cluster that exists without a DeletionTimestamp, the operator patches the restore annotation
+// onto the existing cluster and returns Pending.
+func TestCNPGRestore_CreateAlreadyExists_PatchAnnotation(t *testing.T) {
+	bkp := fakePlatformBackupWithCNPG("bkp", map[string]string{"openfga-db": "bkp-openfga-db"})
+	rst := fakePlatformRestoreCNPG("r", "bkp")
+	// Cluster exists without annotation and without DeletionTimestamp
+	cluster := fakeCNPGCluster("openfga-db", 1, 1, "")
+
+	patchCalled := false
+	clusterGVR := schema.GroupResource{Group: "postgresql.cnpg.io", Resource: "clusters"}
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newCNPGRestoreScheme(t)).
+		WithObjects(bkp, rst, cluster).
+		WithStatusSubresource(&cnpgv1.Cluster{}).
+		WithInterceptorFuncs(interceptor.Funcs{
+			// Make Delete a no-op so the cluster stays in the fake store for the subsequent
+			// Get call in the AlreadyExists handler (simulating a race where the cluster
+			// was recreated by another actor before our Delete could complete).
+			Delete: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.DeleteOption) error {
+				if _, ok := obj.(*cnpgv1.Cluster); ok {
+					return nil // no-op: cluster persists
+				}
+				return c.Delete(ctx, obj, opts...)
+			},
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+				if _, ok := obj.(*cnpgv1.Cluster); ok {
+					return apierrors.NewAlreadyExists(clusterGVR, obj.GetName())
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+			Patch: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+				if cl, ok := obj.(*cnpgv1.Cluster); ok {
+					if cl.Annotations != nil && cl.Annotations["backup.platform-mesh.io/restored-from-cnpg-backup"] == "bkp-openfga-db" {
+						patchCalled = true
+					}
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).
+		Build()
+
+	result, err := newCNPGRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, patchCalled, "Patch must be called to apply restore annotation on the existing cluster")
+	assert.True(t, result.IsPending(), "expected Pending after AlreadyExists — cluster readiness not yet confirmed")
+
+	// Verify the annotation was actually persisted
+	var updated cnpgv1.Cluster
+	require.NoError(t, cl.Get(t.Context(), types.NamespacedName{Name: "openfga-db", Namespace: cnpgClusterNS}, &updated))
+	assert.Equal(t, "bkp-openfga-db", updated.Annotations["backup.platform-mesh.io/restored-from-cnpg-backup"])
 }

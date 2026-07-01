@@ -20,6 +20,7 @@ package backup_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -141,8 +142,8 @@ func TestVeleroCapture_Failed(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed")
 }
 
-// TestVeleroCapture_Timeout verifies a timeout error when the Backup CR stays pending.
-func TestVeleroCapture_Timeout(t *testing.T) {
+// TestVeleroCapture_StaysPending verifies Pending is returned when the Backup CR is not yet complete.
+func TestVeleroCapture_StaysPending(t *testing.T) {
 	bkp := fakePlatformBackupVelero("bkp", true)
 	vb := fakeVeleroBackup("bkp", veleroTestNS, velerov1.BackupPhaseInProgress)
 
@@ -152,9 +153,9 @@ func TestVeleroCapture_Timeout(t *testing.T) {
 	sub := backup.NewVeleroCaptureSubroutine(veleroTestNS).
 		WithPollIntervals(1*time.Millisecond, 50*time.Millisecond)
 
-	_, err := sub.Process(cnpgCtxWithClient(cl), bkp)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "timed out")
+	result, err := sub.Process(cnpgCtxWithClient(cl), bkp)
+	require.NoError(t, err, "non-blocking: pending backup must not return an error")
+	assert.True(t, result.IsPending(), "expected Pending while backup is in progress")
 }
 
 // TestVeleroCapture_BackupCreatedWhenAbsent verifies a Backup CR is created when absent.
@@ -188,4 +189,73 @@ func TestVeleroCapture_BackupCreatedWhenAbsent(t *testing.T) {
 // TestVeleroCapture_GetName verifies the subroutine returns the expected condition name.
 func TestVeleroCapture_GetName(t *testing.T) {
 	assert.Equal(t, backup.ConditionVeleroBackedUp, newVeleroCaptureSub().GetName())
+}
+
+// TestVeleroCapture_EnsureBSLFails verifies that when creating the BackupStorageLocation fails,
+// Process returns an error containing "ensuring BackupStorageLocation".
+func TestVeleroCapture_EnsureBSLFails(t *testing.T) {
+	bkp := fakePlatformBackupVelero("bkp", true)
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newVeleroScheme(t)).
+		WithObjects(bkp).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+				if _, ok := obj.(*velerov1.BackupStorageLocation); ok {
+					return fmt.Errorf("storage class not available")
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	_, err := newVeleroCaptureSub().Process(cnpgCtxWithClient(cl), bkp)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ensuring BackupStorageLocation")
+}
+
+// TestVeleroCapture_GetAfterCreateFails verifies that when the Backup CR is created successfully
+// but the subsequent Get returns an error, Process returns an error containing "polling Velero Backup".
+func TestVeleroCapture_GetAfterCreateFails(t *testing.T) {
+	bkp := fakePlatformBackupVelero("bkp", true)
+
+	// Allow BSL Get to return NotFound (so EnsureBSL creates it), allow BSL Create,
+	// allow Backup Create, but fail on Backup Get.
+	backupCreated := false
+	cl := fake.NewClientBuilder().
+		WithScheme(newVeleroScheme(t)).
+		WithObjects(bkp).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+				if _, ok := obj.(*velerov1.Backup); ok {
+					backupCreated = true
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+			Get: func(ctx context.Context, c ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+				if _, ok := obj.(*velerov1.Backup); ok && backupCreated {
+					return fmt.Errorf("etcd connection reset by peer")
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+
+	_, err := newVeleroCaptureSub().Process(cnpgCtxWithClient(cl), bkp)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "polling Velero Backup")
+}
+
+// TestVeleroCapture_FailedValidation verifies that a Backup CR with phase BackupPhaseFailedValidation
+// causes Process to return an error containing "FailedValidation".
+func TestVeleroCapture_FailedValidation(t *testing.T) {
+	bkp := fakePlatformBackupVelero("bkp", true)
+	vb := fakeVeleroBackup("bkp", veleroTestNS, velerov1.BackupPhaseFailedValidation)
+
+	cl := fake.NewClientBuilder().WithScheme(newVeleroScheme(t)).
+		WithObjects(bkp, vb).WithStatusSubresource(&velerov1.Backup{}).Build()
+
+	_, err := newVeleroCaptureSub().Process(cnpgCtxWithClient(cl), bkp)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "FailedValidation")
 }

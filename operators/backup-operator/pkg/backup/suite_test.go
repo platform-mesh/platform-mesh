@@ -25,7 +25,9 @@ import (
 	"testing"
 	"time"
 
+	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,6 +55,12 @@ func setupEnvtest(t *testing.T) (client.Client, *rest.Config, func()) {
 	}
 	if err := coordinationv1.AddToScheme(scheme); err != nil {
 		t.Fatalf("adding coordination scheme: %v", err)
+	}
+	if err := cnpgv1.AddToScheme(scheme); err != nil {
+		t.Fatalf("adding cnpg scheme: %v", err)
+	}
+	if err := velerov1.SchemeBuilder.AddToScheme(scheme); err != nil {
+		t.Fatalf("adding velero scheme: %v", err)
 	}
 
 	assetsDir := os.Getenv("KUBEBUILDER_ASSETS")

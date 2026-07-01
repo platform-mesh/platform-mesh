@@ -19,6 +19,8 @@ limitations under the License.
 package restore_test
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -33,7 +35,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
 const veleroRestoreNS = "default"
@@ -157,8 +161,8 @@ func TestVeleroRestore_Failed(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed")
 }
 
-// TestVeleroRestore_Timeout verifies a timeout error when the Restore CR stays pending.
-func TestVeleroRestore_Timeout(t *testing.T) {
+// TestVeleroRestore_StaysPending verifies Pending is returned when the Restore CR is not yet complete.
+func TestVeleroRestore_StaysPending(t *testing.T) {
 	bkp := fakePlatformBackupWithVelero("bkp", "bkp")
 	rst := fakePlatformRestoreCNPG("r", "bkp")
 	vr := fakeVeleroRestore("r", veleroRestoreNS, velerov1.RestorePhaseInProgress)
@@ -169,12 +173,106 @@ func TestVeleroRestore_Timeout(t *testing.T) {
 	sub := restore.NewVeleroRestoreSubroutine(veleroRestoreNS).
 		WithPollIntervals(1*time.Millisecond, 50*time.Millisecond)
 
-	_, err := sub.Process(ctxWithClient(cl), rst)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "timed out")
+	result, err := sub.Process(ctxWithClient(cl), rst)
+	require.NoError(t, err, "non-blocking: pending restore must not return an error")
+	assert.True(t, result.IsPending(), "expected Pending while restore is in progress")
 }
 
 // TestVeleroRestore_GetName verifies the subroutine returns the expected condition name.
 func TestVeleroRestore_GetName(t *testing.T) {
 	assert.Equal(t, restore.ConditionVeleroRestored, newVeleroRestoreSub().GetName())
+}
+
+// TestVeleroRestore_GetBackupGenericError verifies that a non-NotFound error on Get for PlatformBackup
+// is surfaced as an error containing "fetching source backup".
+func TestVeleroRestore_GetBackupGenericError(t *testing.T) {
+	rst := fakePlatformRestoreCNPG("r", "some-backup")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newVeleroRestoreScheme(t)).
+		WithObjects(rst).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+				if _, ok := obj.(*pmbackupv1alpha1.PlatformBackup); ok {
+					return fmt.Errorf("internal server error: etcd timeout")
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+
+	result, err := newVeleroRestoreSub().Process(ctxWithClient(cl), rst)
+	assert.True(t, result.IsContinue())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "fetching source backup")
+}
+
+// TestVeleroRestore_EnsureBSLFails verifies that when creating the BackupStorageLocation fails,
+// Process returns an error containing "ensuring BackupStorageLocation".
+func TestVeleroRestore_EnsureBSLFails(t *testing.T) {
+	bkp := fakePlatformBackupWithVelero("bkp", "bkp")
+	rst := fakePlatformRestoreCNPG("r", "bkp")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newVeleroRestoreScheme(t)).
+		WithObjects(bkp, rst).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+				if _, ok := obj.(*velerov1.BackupStorageLocation); ok {
+					return fmt.Errorf("storage class not available")
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	_, err := newVeleroRestoreSub().Process(ctxWithClient(cl), rst)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ensuring BackupStorageLocation")
+}
+
+// TestVeleroRestore_GetAfterCreateFails verifies that when the Restore CR is created successfully
+// but the subsequent Get returns an error, Process returns an error containing "polling Velero Restore".
+func TestVeleroRestore_GetAfterCreateFails(t *testing.T) {
+	bkp := fakePlatformBackupWithVelero("bkp", "bkp")
+	rst := fakePlatformRestoreCNPG("r", "bkp")
+
+	restoreCreated := false
+	cl := fake.NewClientBuilder().
+		WithScheme(newVeleroRestoreScheme(t)).
+		WithObjects(bkp, rst).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+				if _, ok := obj.(*velerov1.Restore); ok {
+					restoreCreated = true
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+			Get: func(ctx context.Context, c ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+				if _, ok := obj.(*velerov1.Restore); ok && restoreCreated {
+					return fmt.Errorf("etcd connection reset by peer")
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+
+	_, err := newVeleroRestoreSub().Process(ctxWithClient(cl), rst)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "polling Velero Restore")
+}
+
+// TestVeleroRestore_FailedValidation verifies that a Restore CR with phase RestorePhaseFailedValidation
+// causes Process to return an error.
+func TestVeleroRestore_FailedValidation(t *testing.T) {
+	bkp := fakePlatformBackupWithVelero("bkp", "bkp")
+	rst := fakePlatformRestoreCNPG("r", "bkp")
+	vr := fakeVeleroRestore("r", veleroRestoreNS, velerov1.RestorePhaseFailedValidation)
+
+	cl := fake.NewClientBuilder().WithScheme(newVeleroRestoreScheme(t)).
+		WithObjects(bkp, rst, vr).WithStatusSubresource(&velerov1.Restore{}).Build()
+
+	_, err := newVeleroRestoreSub().Process(ctxWithClient(cl), rst)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "FailedValidation")
 }

@@ -20,6 +20,7 @@ package backup_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -43,7 +44,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
-const cnpgTestNamespace = "default"
 const cnpgClusterNamespace = "cnpg-system"
 
 func newCNPGScheme(t *testing.T) *runtime.Scheme {
@@ -98,7 +98,7 @@ func newCNPGSub(clusters ...string) *backup.CNPGCaptureSubroutine {
 	if len(clusters) == 0 {
 		clusters = []string{"openfga-db", "keycloak-db"}
 	}
-	return backup.NewCNPGCaptureSubroutine(cnpgTestNamespace, cnpgClusterNamespace, clusters).
+	return backup.NewCNPGCaptureSubroutine(cnpgClusterNamespace, clusters).
 		WithPollIntervals(1*time.Millisecond, 5*time.Second)
 }
 
@@ -127,12 +127,12 @@ func TestCNPGCapture_Idempotent(t *testing.T) {
 	assert.Equal(t, "bkp-openfga-db", bkp.Status.Artefacts.CNPG.Backups["openfga-db"])
 }
 
-// TestCNPGCapture_NoClusters verifies StopWithRequeue is returned when no clusters are configured.
+// TestCNPGCapture_NoClusters verifies StopWithRequeue is returned when dynamic discovery finds no clusters.
 func TestCNPGCapture_NoClusters(t *testing.T) {
 	bkp := fakePlatformBackupCNPG("bkp", true)
 	cl := fake.NewClientBuilder().WithScheme(newCNPGScheme(t)).WithObjects(bkp).Build()
 
-	sub := backup.NewCNPGCaptureSubroutine(cnpgTestNamespace, cnpgClusterNamespace, []string{}).
+	sub := backup.NewCNPGCaptureSubroutine(cnpgClusterNamespace, []string{}).
 		WithPollIntervals(1*time.Millisecond, 5*time.Second)
 	result, err := sub.Process(cnpgCtxWithClient(cl), bkp)
 	require.NoError(t, err)
@@ -203,8 +203,8 @@ func TestCNPGCapture_TaskFailed_ReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "disk full")
 }
 
-// TestCNPGCapture_PollTimeout verifies a timeout error is returned when the Backup CR stays pending.
-func TestCNPGCapture_PollTimeout(t *testing.T) {
+// TestCNPGCapture_StaysPendingWhileBackupInProgress verifies Pending is returned when the Backup CR is not yet complete.
+func TestCNPGCapture_StaysPendingWhileBackupInProgress(t *testing.T) {
 	bkp := fakePlatformBackupCNPG("bkp", true)
 	b := fakeCNPGBackup("bkp", "openfga-db", cnpgv1.BackupPhasePending)
 
@@ -214,12 +214,12 @@ func TestCNPGCapture_PollTimeout(t *testing.T) {
 		WithStatusSubresource(&cnpgv1.Backup{}).
 		Build()
 
-	sub := backup.NewCNPGCaptureSubroutine(cnpgTestNamespace, cnpgClusterNamespace, []string{"openfga-db"}).
-		WithPollIntervals(1*time.Millisecond, 50*time.Millisecond)
+	sub := backup.NewCNPGCaptureSubroutine(cnpgClusterNamespace, []string{"openfga-db"}).
+		WithPollIntervals(100*time.Millisecond, 5*time.Second)
 
-	_, err := sub.Process(cnpgCtxWithClient(cl), bkp)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "timed out")
+	result, err := sub.Process(cnpgCtxWithClient(cl), bkp)
+	require.NoError(t, err, "non-blocking: pending backup must not return an error")
+	assert.True(t, result.IsPending(), "expected Pending result while backup is in progress")
 }
 
 // TestCNPGCapture_BackupCRCreatedWhenAbsent verifies a Backup CR is created if it does not exist yet.
@@ -247,7 +247,7 @@ func TestCNPGCapture_BackupCRCreatedWhenAbsent(t *testing.T) {
 		}).
 		Build()
 
-	sub := backup.NewCNPGCaptureSubroutine(cnpgTestNamespace, cnpgClusterNamespace, []string{"openfga-db"}).
+	sub := backup.NewCNPGCaptureSubroutine(cnpgClusterNamespace, []string{"openfga-db"}).
 		WithPollIntervals(1*time.Millisecond, 5*time.Second)
 
 	_, _ = sub.Process(cnpgCtxWithClient(cl), bkp)
@@ -261,4 +261,78 @@ func TestCNPGCapture_BackupCRCreatedWhenAbsent(t *testing.T) {
 // TestCNPGCapture_GetName verifies the subroutine returns the expected condition name.
 func TestCNPGCapture_GetName(t *testing.T) {
 	assert.Equal(t, backup.ConditionCNPGSnapshotted, newCNPGSub().GetName())
+}
+
+// TestCNPGCapture_ListClustersError verifies that when dynamic discovery is used (clusters=nil)
+// and the List call returns an error, Process returns the error containing "listing CNPG clusters".
+func TestCNPGCapture_ListClustersError(t *testing.T) {
+	bkp := fakePlatformBackupCNPG("bkp", true)
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newCNPGScheme(t)).
+		WithObjects(bkp).
+		WithInterceptorFuncs(interceptor.Funcs{
+			List: func(ctx context.Context, c ctrlruntimeclient.WithWatch, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+				if _, ok := list.(*cnpgv1.ClusterList); ok {
+					return fmt.Errorf("internal server error")
+				}
+				return c.List(ctx, list, opts...)
+			},
+		}).
+		Build()
+
+	// Use dynamic-discovery mode: pass nil/empty clusters list so it calls List.
+	sub := backup.NewCNPGCaptureSubroutine(cnpgClusterNamespace, nil).
+		WithPollIntervals(1*time.Millisecond, 5*time.Second)
+
+	_, err := sub.Process(cnpgCtxWithClient(cl), bkp)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "listing CNPG clusters")
+}
+
+// TestCNPGCapture_CreateBackupCRFails verifies that when the Create call for a cnpgv1.Backup
+// returns an error, Process returns that error.
+func TestCNPGCapture_CreateBackupCRFails(t *testing.T) {
+	bkp := fakePlatformBackupCNPG("bkp", true)
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newCNPGScheme(t)).
+		WithObjects(bkp).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+				if _, ok := obj.(*cnpgv1.Backup); ok {
+					return fmt.Errorf("quota exceeded")
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	_, err := newCNPGSub("openfga-db").Process(cnpgCtxWithClient(cl), bkp)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "quota exceeded")
+}
+
+// TestCNPGCapture_MultiCluster_PartialFailure verifies that when one cluster's Backup CR has
+// phase Failed and another has phase Completed, Process returns an error containing the failing
+// cluster name and does not write partial artefacts.
+func TestCNPGCapture_MultiCluster_PartialFailure(t *testing.T) {
+	bkp := fakePlatformBackupCNPG("bkp", true)
+	// openfga-db backup has Failed — error message includes "disk full"
+	failedBackup := fakeCNPGBackup("bkp", "openfga-db", cnpgv1.BackupPhaseFailed)
+	failedBackup.Status.Error = "disk full"
+	// keycloak-db backup has Completed
+	completedBackup := fakeCNPGBackup("bkp", "keycloak-db", cnpgv1.BackupPhaseCompleted)
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newCNPGScheme(t)).
+		WithObjects(bkp, failedBackup, completedBackup).
+		WithStatusSubresource(&cnpgv1.Backup{}).
+		Build()
+
+	_, err := newCNPGSub("openfga-db", "keycloak-db").Process(cnpgCtxWithClient(cl), bkp)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "openfga-db")
+	// Artefacts must not be partially written when any cluster failed.
+	assert.Nil(t, bkp.Status.Artefacts.CNPG)
 }
