@@ -19,7 +19,6 @@ limitations under the License.
 package projector_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -64,16 +63,16 @@ func setupEnvtest(t *testing.T) (client.Client, *rest.Config, func()) {
 
 const testNamespace = "default"
 
-// i. EnsureConfigMap creates the ConfigMap when absent.
+// TestEnsureConfigMap_Creates verifies that EnsureConfigMap creates the backup-topology-schemas ConfigMap with a non-empty v1alpha1.json entry when the ConfigMap does not yet exist.
 func TestEnsureConfigMap_Creates(t *testing.T) {
 	c, _, stop := setupEnvtest(t)
 	defer stop()
 
 	p := projector.New(c, testNamespace)
-	require.NoError(t, p.EnsureConfigMap(context.Background()))
+	require.NoError(t, p.EnsureConfigMap(t.Context()))
 
 	var cm corev1.ConfigMap
-	require.NoError(t, c.Get(context.Background(), types.NamespacedName{
+	require.NoError(t, c.Get(t.Context(), types.NamespacedName{
 		Name:      "backup-topology-schemas",
 		Namespace: testNamespace,
 	}, &cm))
@@ -82,17 +81,17 @@ func TestEnsureConfigMap_Creates(t *testing.T) {
 	assert.NotEmpty(t, cm.Data["v1alpha1.json"])
 }
 
-// j. EnsureConfigMap is idempotent when called twice.
+// TestEnsureConfigMap_Idempotent verifies that calling EnsureConfigMap twice on the same namespace does not return an error and leaves a valid ConfigMap with the expected schema key in place.
 func TestEnsureConfigMap_Idempotent(t *testing.T) {
 	c, _, stop := setupEnvtest(t)
 	defer stop()
 
 	p := projector.New(c, testNamespace)
-	require.NoError(t, p.EnsureConfigMap(context.Background()))
-	require.NoError(t, p.EnsureConfigMap(context.Background()), "second call must not error")
+	require.NoError(t, p.EnsureConfigMap(t.Context()))
+	require.NoError(t, p.EnsureConfigMap(t.Context()), "second call must not error")
 
 	var cm corev1.ConfigMap
-	require.NoError(t, c.Get(context.Background(), types.NamespacedName{
+	require.NoError(t, c.Get(t.Context(), types.NamespacedName{
 		Name:      "backup-topology-schemas",
 		Namespace: testNamespace,
 	}, &cm))
@@ -100,29 +99,29 @@ func TestEnsureConfigMap_Idempotent(t *testing.T) {
 	assert.Contains(t, cm.Data, "v1alpha1.json")
 }
 
-// k. EnsureConfigMap updates data when called after an external patch.
+// TestEnsureConfigMap_Updates verifies that EnsureConfigMap overwrites stale data when the ConfigMap already exists with incorrect content, restoring the canonical schema that contains the schemaVersion field.
 func TestEnsureConfigMap_Updates(t *testing.T) {
 	c, _, stop := setupEnvtest(t)
 	defer stop()
 
 	p := projector.New(c, testNamespace)
-	require.NoError(t, p.EnsureConfigMap(context.Background()))
+	require.NoError(t, p.EnsureConfigMap(t.Context()))
 
 	// Simulate external drift: patch the ConfigMap data to stale content.
 	var cm corev1.ConfigMap
-	require.NoError(t, c.Get(context.Background(), types.NamespacedName{
+	require.NoError(t, c.Get(t.Context(), types.NamespacedName{
 		Name:      "backup-topology-schemas",
 		Namespace: testNamespace,
 	}, &cm))
 	patch := client.MergeFrom(cm.DeepCopy())
 	cm.Data["v1alpha1.json"] = `{"stale": true}`
-	require.NoError(t, c.Patch(context.Background(), &cm, patch))
+	require.NoError(t, c.Patch(t.Context(), &cm, patch))
 
 	// Re-apply — should restore the correct schema.
-	require.NoError(t, p.EnsureConfigMap(context.Background()))
+	require.NoError(t, p.EnsureConfigMap(t.Context()))
 
 	var updated corev1.ConfigMap
-	require.NoError(t, c.Get(context.Background(), types.NamespacedName{
+	require.NoError(t, c.Get(t.Context(), types.NamespacedName{
 		Name:      "backup-topology-schemas",
 		Namespace: testNamespace,
 	}, &updated))

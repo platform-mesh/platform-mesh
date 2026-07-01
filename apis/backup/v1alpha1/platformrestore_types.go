@@ -33,10 +33,13 @@ const (
 	RestorePhaseFailed             RestorePhase = "Failed"
 )
 
-// +kubebuilder:validation:Enum=Strict
+// +kubebuilder:validation:Enum=Strict;None
 type TopologyValidationMode string
 
-const TopologyValidationStrict TopologyValidationMode = "Strict"
+const (
+	TopologyValidationStrict TopologyValidationMode = "Strict"
+	TopologyValidationNone   TopologyValidationMode = "None"
+)
 
 // PlatformRestoreSpec defines the desired state of PlatformRestore
 type PlatformRestoreSpec struct {

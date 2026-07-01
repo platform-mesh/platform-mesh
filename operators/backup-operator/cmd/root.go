@@ -17,7 +17,10 @@ limitations under the License.
 package cmd
 
 import (
+	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
+	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	"github.com/spf13/cobra"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/config"
@@ -26,11 +29,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 var (
@@ -46,10 +46,11 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(pmbackupv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(druidv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(cnpgv1.AddToScheme(scheme))
+	utilruntime.Must(velerov1.SchemeBuilder.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 
 	rootCmd.AddCommand(operatorCmd)

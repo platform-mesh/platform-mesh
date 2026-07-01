@@ -62,7 +62,7 @@ func sampleManifest() *topology.Manifest {
 	}
 }
 
-// a. Marshal → Unmarshal round-trip returns identical struct.
+// TestMarshalUnmarshalRoundTrip verifies that marshalling a Manifest to JSON and unmarshalling it back produces an identical struct.
 func TestMarshalUnmarshalRoundTrip(t *testing.T) {
 	original := sampleManifest()
 
@@ -81,7 +81,7 @@ func TestMarshalUnmarshalRoundTrip(t *testing.T) {
 	assert.Equal(t, original.OpenFGA, got.OpenFGA)
 }
 
-// b. Unmarshal rejects a document missing a required field.
+// TestUnmarshalMissingRequiredField verifies that Unmarshal rejects a JSON document that omits a required field and returns a ValidationError.
 func TestUnmarshalMissingRequiredField(t *testing.T) {
 	doc := map[string]any{
 		// schemaVersion deliberately omitted
@@ -115,7 +115,7 @@ func TestUnmarshalMissingRequiredField(t *testing.T) {
 	assert.NotEmpty(t, ve.SchemaErrors)
 }
 
-// c. Unmarshal rejects a document with a malformed sha256 digest.
+// TestUnmarshalBadDigest verifies that Unmarshal rejects a document containing a malformed sha256 digest and returns a ValidationError.
 func TestUnmarshalBadDigest(t *testing.T) {
 	doc := map[string]any{
 		"schemaVersion": "v1alpha1",
@@ -148,13 +148,13 @@ func TestUnmarshalBadDigest(t *testing.T) {
 	require.ErrorAs(t, err, &ve)
 }
 
-// d. Validate returns nil when source and target are identical.
+// TestValidateIdentical verifies that Validate returns nil when source and target manifests are identical.
 func TestValidateIdentical(t *testing.T) {
 	m := sampleManifest()
 	require.NoError(t, topology.Validate(m, m))
 }
 
-// e. Validate returns *MismatchError when one shard digest differs.
+// TestValidateShardDigestMismatch verifies that Validate returns a MismatchError identifying the field when one shard's logicalClusterIDsDigest differs between source and target.
 func TestValidateShardDigestMismatch(t *testing.T) {
 	source := sampleManifest()
 	target := sampleManifest()
@@ -169,7 +169,7 @@ func TestValidateShardDigestMismatch(t *testing.T) {
 	assert.Equal(t, "kcp.shards[root].logicalClusterIDsDigest", me.Fields[0].Field)
 }
 
-// f. Validate returns *MismatchError when shard name sets differ.
+// TestValidateExtraShardOnTarget verifies that Validate returns a MismatchError when the target manifest contains a shard not present in the source.
 func TestValidateExtraShardOnTarget(t *testing.T) {
 	source := sampleManifest()
 	target := sampleManifest()
@@ -193,7 +193,7 @@ func TestValidateExtraShardOnTarget(t *testing.T) {
 	assert.True(t, found, "expected mismatch for extra shard shard-b")
 }
 
-// g. Digest returns a stable hex string across two calls.
+// TestDigestStable verifies that Digest returns a stable, non-empty sha256 hex string across multiple calls on the same Manifest.
 func TestDigestStable(t *testing.T) {
 	m := sampleManifest()
 
@@ -207,7 +207,7 @@ func TestDigestStable(t *testing.T) {
 	assert.Contains(t, d1, "sha256:")
 }
 
-// h. RFC 009 sample document passes Unmarshal and Validate(sample, sample).
+// TestRFC009SampleDocument verifies that the canonical RFC 009 sample JSON document passes Unmarshal and validates against itself without error.
 func TestRFC009SampleDocument(t *testing.T) {
 	raw := `{
 		"schemaVersion": "v1alpha1",
@@ -238,4 +238,96 @@ func TestRFC009SampleDocument(t *testing.T) {
 	var m topology.Manifest
 	require.NoError(t, topology.Unmarshal([]byte(raw), &m))
 	require.NoError(t, topology.Validate(&m, &m))
+}
+
+// TestValidateExtraCNPGClusterOnTarget verifies that Validate detects a CNPG cluster present on the target but absent from the source and reports it as a MismatchError.
+func TestValidateExtraCNPGClusterOnTarget(t *testing.T) {
+	source := sampleManifest()
+	source.CNPG.Clusters = []topology.CNPGCluster{
+		{Name: "db-a", SpecDigest: rfcSampleDigest, MajorVersion: 16},
+	}
+	target := sampleManifest()
+	target.CNPG.Clusters = []topology.CNPGCluster{
+		{Name: "db-a", SpecDigest: rfcSampleDigest, MajorVersion: 16},
+		{Name: "db-extra", SpecDigest: rfcSampleDigest, MajorVersion: 16}, // not in source
+	}
+
+	err := topology.Validate(source, target)
+	require.Error(t, err, "extra CNPG cluster on target must be a mismatch")
+	me, ok := err.(*topology.MismatchError)
+	require.True(t, ok)
+	found := false
+	for _, f := range me.Fields {
+		if f.Field == "cnpg.clusters[db-extra]" && f.Source == "<missing>" {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected mismatch for extra CNPG cluster db-extra")
+}
+
+// TestValidateExtraOpenFGAStoreOnTarget verifies that Validate detects an OpenFGA store present on the target but absent from the source and reports it as a MismatchError.
+func TestValidateExtraOpenFGAStoreOnTarget(t *testing.T) {
+	source := sampleManifest()
+	source.OpenFGA.Stores = []topology.OpenFGAStore{
+		{Name: "store-a", ModelDigest: rfcSampleDigest},
+	}
+	target := sampleManifest()
+	target.OpenFGA.Stores = []topology.OpenFGAStore{
+		{Name: "store-a", ModelDigest: rfcSampleDigest},
+		{Name: "store-extra", ModelDigest: rfcSampleDigest}, // not in source
+	}
+
+	err := topology.Validate(source, target)
+	require.Error(t, err, "extra OpenFGA store on target must be a mismatch")
+	me, ok := err.(*topology.MismatchError)
+	require.True(t, ok)
+	found := false
+	for _, f := range me.Fields {
+		if f.Field == "openfga.stores[store-extra]" && f.Source == "<missing>" {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected mismatch for extra OpenFGA store store-extra")
+}
+
+// TestValidateCNPGMajorVersionMismatch verifies that Validate detects a Postgres major version difference between source and target CNPG clusters and reports it as a MismatchError.
+func TestValidateCNPGMajorVersionMismatch(t *testing.T) {
+	source := sampleManifest()
+	source.CNPG.Clusters = []topology.CNPGCluster{
+		{Name: "db-a", SpecDigest: rfcSampleDigest, MajorVersion: 15},
+	}
+	target := sampleManifest()
+	target.CNPG.Clusters = []topology.CNPGCluster{
+		{Name: "db-a", SpecDigest: rfcSampleDigest, MajorVersion: 16}, // upgraded
+	}
+
+	err := topology.Validate(source, target)
+	require.Error(t, err, "Postgres major version upgrade must be a mismatch")
+	me, ok := err.(*topology.MismatchError)
+	require.True(t, ok)
+	found := false
+	for _, f := range me.Fields {
+		if f.Field == "cnpg.clusters[db-a].majorVersion" && f.Source == "15" && f.Target == "16" {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected majorVersion mismatch for db-a (15→16)")
+}
+
+// TestValidateDuplicateShardNames verifies that duplicate shard names in the source manifest cause Validate to return an error rather than silently corrupting the comparison.
+func TestValidateDuplicateShardNames(t *testing.T) {
+	source := sampleManifest()
+	source.Kcp.Shards = []topology.KcpShard{
+		{Name: "shard-a", EtcdRef: "etcd/a", LogicalClusterIDsDigest: rfcSampleDigest},
+		{Name: "shard-a", EtcdRef: "etcd/a-copy", LogicalClusterIDsDigest: rfcSampleDigest}, // duplicate
+	}
+	target := sampleManifest()
+	target.Kcp.Shards = []topology.KcpShard{
+		{Name: "shard-a", EtcdRef: "etcd/different", LogicalClusterIDsDigest: rfcSampleDigest},
+	}
+
+	// Duplicate names produce a <duplicate> sentinel on the source side, which will
+	// never match the target's actual value — so Validate must return a mismatch.
+	err := topology.Validate(source, target)
+	require.Error(t, err, "duplicate shard names in source must produce a mismatch, not silent corruption")
 }

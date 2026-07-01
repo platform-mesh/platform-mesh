@@ -20,7 +20,8 @@ import (
 	"context"
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
-	"go.platform-mesh.io/subroutines"
+	"go.platform-mesh.io/backup-operator/pkg/backup"
+	"go.platform-mesh.io/backup-operator/pkg/config"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
 
@@ -36,10 +37,14 @@ type PlatformBackupReconciler struct {
 	lifecycle *lifecycle.Lifecycle
 }
 
-func NewPlatformBackupReconciler(mgr mcmanager.Manager) *PlatformBackupReconciler {
+func NewPlatformBackupReconciler(mgr mcmanager.Manager, cfg config.OperatorConfig) *PlatformBackupReconciler {
 	lc := lifecycle.New(mgr, "PlatformBackupReconciler", func() ctrlruntimeclient.Object {
 		return &pmbackupv1alpha1.PlatformBackup{}
-	}, []subroutines.Subroutine{}...).WithConditions(conditions.NewManager())
+	},
+		backup.NewEtcdCaptureSubroutine(cfg.Namespace),
+		backup.NewCNPGCaptureSubroutine(cfg.CNPGNamespace, cfg.CNPGClusters),
+		backup.NewVeleroCaptureSubroutine(cfg.Namespace),
+	).WithConditions(conditions.NewManager())
 
 	return &PlatformBackupReconciler{lifecycle: lc}
 }
