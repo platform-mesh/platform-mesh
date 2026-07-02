@@ -21,6 +21,7 @@ import (
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/backup"
+	"go.platform-mesh.io/subroutines"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
 
@@ -37,9 +38,12 @@ type PlatformBackupReconciler struct {
 }
 
 func NewPlatformBackupReconciler(mgr mcmanager.Manager, namespace string) *PlatformBackupReconciler {
+	captures := []subroutines.Subroutine{
+		backup.NewEtcdCaptureSubroutine(namespace),
+	}
 	lc := lifecycle.New(mgr, "PlatformBackupReconciler", func() ctrlruntimeclient.Object {
 		return &pmbackupv1alpha1.PlatformBackup{}
-	}, backup.NewEtcdCaptureSubroutine(namespace)).WithConditions(conditions.NewManager())
+	}, captures...).WithConditions(conditions.NewManager())
 
 	return &PlatformBackupReconciler{lifecycle: lc}
 }

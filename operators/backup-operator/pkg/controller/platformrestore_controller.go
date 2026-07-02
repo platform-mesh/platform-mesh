@@ -27,7 +27,6 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -55,7 +54,6 @@ func (r *PlatformRestoreReconciler) SetupWithManager(mgr mcmanager.Manager) erro
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("PlatformRestoreReconciler").
 		For(&pmbackupv1alpha1.PlatformRestore{}).
-		WithOptions(ctrlcontroller.TypedOptions[mcreconcile.Request]{MaxConcurrentReconciles: 4}).
 		Complete(r)
 }
 

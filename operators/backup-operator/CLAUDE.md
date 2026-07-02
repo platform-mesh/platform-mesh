@@ -9,22 +9,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 task setup:controller-gen
 
 # Generate CRD manifests + deepcopy
-make generate
+task generate
 
 # Build binary
-make build
+task build
 
 # Run tests
-make test
+task test
 
 # Lint
-make lint
+task lint
 
 # Coverage
-make cover
+task cover
 
 # Docker image
-make docker-build
+task docker-build
 ```
 
 Single-package test:
@@ -38,15 +38,15 @@ There are three distinct test tiers, each with a different build tag and cluster
 
 | Tier | Build tag | Command | What runs |
 |---|---|---|---|
-| Unit | _(none)_ | `make test` | Pure Go unit tests, no cluster |
-| Simulated E2E | `e2e` | `make test-e2e-kind` | `pkg/e2e/` — uses in-process simulators for etcd-druid. No real pods, no minio. Fast (~15 min). |
-| Real E2E | `e2e_real` | `make test-e2e-kind-real` | `pkg/e2e/real/` — minio deployed in-cluster, real etcd-druid + real etcdbr. Actual snapshots written and replayed. Slower (~40 min). |
+| Unit | _(none)_ | `task test` | Pure Go unit tests, no cluster |
+| Simulated E2E | `e2e` | `task test-e2e-kind` | `pkg/e2e/` — uses in-process simulators for etcd-druid. No real pods, no minio. Fast (~15 min). |
+| Real E2E | `e2e_real` | `task test-e2e-kind-real` | `pkg/e2e/real/` — minio deployed in-cluster, real etcd-druid + real etcdbr. Actual snapshots written and replayed. Slower (~40 min). |
 
 The simulated tests (`pkg/e2e/`) stub out all external components and verify operator control-flow. The real tests (`pkg/e2e/real/`) prove the full round-trip works with real binaries.
 
 To run a single real e2e test:
 ```bash
-make test-e2e-kind-real
+task test-e2e-kind-real
 # or for a specific test: task test-e2e-kind-real -- -run TestRealEtcd_Restore_SingleShard
 ```
 
@@ -62,8 +62,8 @@ This is a Kubernetes operator that orchestrates **etcd-druid** to back up and re
 ### API group
 `backup.platform-mesh.io/v1alpha1` — defined in `api/v1alpha1/`.
 
-- **PlatformBackup** — triggers a coordinated backup: discover kcp-shard Etcd CRs → fan-out parallel full snapshots via EtcdOpsTask → record per-shard snapshot keys in status artefacts.
-- **PlatformRestore** — triggers a restore from a prior backup ID: validate topology → delete and recreate each Etcd CR with the restore annotation → wait for readiness.
+- **PlatformBackup** — performs a Platform Mesh backup.
+- **PlatformRestore** — restores a Platform Mesh backup.
 
 Both types implement the `subroutines` conditions accessor interface (`GetConditions`/`SetConditions`, `GetObservedGeneration`/`SetObservedGeneration`, `GetNextReconcileTime`/`SetNextReconcileTime`).
 
@@ -108,7 +108,7 @@ Follows the **account-operator** conventions exactly:
 ### Code generation
 `zz_generated.deepcopy.go` is produced by `controller-gen object:headerFile=hack/boilerplate.go.txt paths=./...`.
 CRD YAMLs in `config/crd/` are produced by `controller-gen rbac:roleName=manager-role crd paths=./... output:crd:artifacts:config=config/crd`.
-Both are committed and must be regenerated whenever API types change (`make generate`).
+Both are committed and must be regenerated whenever API types change (`task generate`).
 
 ### Dependency versions
 - `sigs.k8s.io/controller-runtime v0.23.3`

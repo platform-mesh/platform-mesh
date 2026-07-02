@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	backupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+	"go.platform-mesh.io/backup-operator/pkg/backup"
 	"go.platform-mesh.io/backup-operator/pkg/restore"
 	"go.platform-mesh.io/subroutines"
 
@@ -85,7 +86,7 @@ func makeEtcdShardForRestore(t *testing.T, cl client.Client, name string) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: testNamespace,
-			Labels:    map[string]string{restore.LabelKeyComponent: restore.LabelComponentKCPShard},
+			Labels:    map[string]string{backup.LabelKeyComponent: backup.LabelComponentKCPShard},
 		},
 		Spec: druidv1alpha1.EtcdSpec{
 			Replicas: 1,

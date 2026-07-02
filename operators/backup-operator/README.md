@@ -34,36 +34,17 @@ topology is confirmed, it drives a non-blocking state machine per shard:
 3. Wait for `status.ready=true` — etcdbr automatically restores from the latest snapshot at the configured prefix on pod startup
 
 `EtcdRestored=True` is set only when every shard reaches the ready state.
-
-## Package layout
-
-```
-cmd/                        Cobra CLI entry-point
-pkg/
-  backup/                   EtcdCaptureSubroutine + unit & integration tests
-  restore/                  EtcdRestoreSubroutine (non-blocking) + unit & integration tests
-  topology/                 ValidateSubroutine — strict shard-set comparison gate
-  controller/               PlatformBackup/Restore reconcilers (wires subroutines)
-  config/                   OperatorConfig (--namespace, --standalone flags)
-  e2e/                      Simulated e2e tests (build tag: e2e)
-  e2e/real/                 Real e2e tests with minio + etcd-druid (build tag: e2e_real)
-config/
-  crd/                      Generated CRD YAML (committed; regenerate with make generate)
-  deploy/                   Deployment, ClusterRole, Role manifests for kind
-  resources/                KCP APIExport and APIResourceSchema manifests
-```
-
 ## Development
 
 ```bash
 # Generate CRDs + deepcopy + RBAC
-make generate
+task generate
 
 # Build binary
-make build
+task build
 
 # Format + lint
-make lint
+task lint
 ```
 
 ## Testing
@@ -72,17 +53,17 @@ There are three test types with increasing infrastructure requirements:
 
 | Type | Build tag | Command | Needs cluster? | Typical runtime |
 |---|---|---|---|---|
-| **Unit** | _(none)_ | `make test` | No | < 5 s |
-| **Integration** | `integration` | `make test-integration` | No (in-process API server via envtest) | ~30 s |
-| **Simulated E2E** | `e2e` | `make test-e2e-kind` | Yes (kind cluster) | ~15 min |
-| **Real E2E** | `e2e_real` | `make test-e2e-kind-real` | Yes (kind cluster + minio) | ~40 min |
+| **Unit** | _(none)_ | `task test` | No | < 5 s |
+| **Integration** | `integration` | `task test-integration` | No (in-process API server via envtest) | ~30 s |
+| **Simulated E2E** | `e2e` | `task test-e2e-kind` | Yes (kind cluster) | ~15 min |
+| **Real E2E** | `e2e_real` | `task test-e2e-kind-real` | Yes (kind cluster + minio) | ~40 min |
 
 ### Unit tests
 
 Tests subroutine logic using a fake in-memory Kubernetes client. No cluster required.
 
 ```bash
-make test
+task test
 # or: go test -count=1 ./...
 ```
 
@@ -91,7 +72,7 @@ make test
 Spins up a real API server in-process via `controller-runtime/envtest` with etcd-druid CRDs loaded from the Go module cache.
 
 ```bash
-make test-integration
+task test-integration
 ```
 
 ### Simulated E2E tests (kind cluster)
@@ -99,7 +80,7 @@ make test-integration
 The simulated e2e suite requires a **Platform Mesh kind cluster** running locally with etcd-druid deployed. Tests use in-process simulators — a task simulator goroutine completes `EtcdOpsTask` CRs immediately, and a ready simulator sets `status.ready=true` on Etcd CRs. All test Etcd CRs carry `druid.gardener.cloud/suspend-etcd-spec-reconcile=true` so etcd-druid does not create real StatefulSets.
 
 ```bash
-make test-e2e-kind
+task test-e2e-kind
 ```
 
 To run specific tests:
@@ -112,7 +93,7 @@ task test-e2e-kind -- -run TestEtcDruid_Restore_TopologyMismatch_SelfHealing
 The real e2e suite deploys minio into the cluster and uses real etcd-druid and etcdbr. Actual snapshots are written to minio and replayed during restore.
 
 ```bash
-make test-e2e-kind-real
+task test-e2e-kind-real
 ```
 
 To run a single test:
@@ -135,7 +116,7 @@ task test-e2e-kind-real -- -run TestRealEtcd_Backup_ContentIntegrity
 |---|---|---|
 | `KUBECONFIG` | `~/.kube/config` | Kubeconfig for the kind cluster |
 | `E2E_NAMESPACE` | `platform-mesh-backup-operator` | Namespace for operator and test objects |
-| `KIND_CLUSTER` | `platform-mesh` | Kind cluster name used by `make deploy-kind` |
+| `KIND_CLUSTER` | `platform-mesh` | Kind cluster name used by `task deploy:kind` |
 | `CONTAINER_RUNTIME` | `docker` | `docker` or `podman` for image build/load |
 
 ## Getting started
