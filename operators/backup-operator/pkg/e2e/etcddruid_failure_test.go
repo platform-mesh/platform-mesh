@@ -402,6 +402,13 @@ func TestEtcDruid_Restore_EtcdNotReady(t *testing.T) {
 	t.Logf("[step 1] created Etcd shard %s", shardName)
 	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
 
+	// Mark the shard ready so the health guard allows the backup. The ready
+	// simulator is intentionally NOT started here: we want exactly one flip to
+	// ready=true for the backup phase so that the slow-ready simulator (started
+	// later) controls the restore phase without racing against a continuous flipper.
+	require.NoError(t, ensureEtcdReady(ctx, shardName))
+	t.Logf("[step 1b] shard %s marked ready for backup phase", shardName)
+
 	// Start the task simulator before the backup so it can complete the EtcdOpsTask
 	// as soon as the operator creates it. The simulator completes tasks unconditionally
 	// without checking Etcd readiness — etcd-druid continuously overwrites ready=false
@@ -551,9 +558,11 @@ func injectTaskSucceededNoLeaseUpdate(ctx context.Context, t *testing.T, taskNam
 }
 
 // slowReadySimulator watches for non-ready Etcd CRs and sets ready=true after delay.
+// It tracks CRs by UID rather than name so that a deleted-and-recreated CR with the
+// same name is treated as a new object and scheduled for its own ready flip.
 func slowReadySimulator(ctx context.Context, t *testing.T, delay time.Duration) {
 	t.Helper()
-	seen := map[string]bool{}
+	seen := map[string]bool{} // keyed by UID
 	for {
 		select {
 		case <-ctx.Done():
@@ -570,11 +579,12 @@ func slowReadySimulator(ctx context.Context, t *testing.T, delay time.Duration) 
 			if etcd.Status.Ready != nil && *etcd.Status.Ready {
 				continue
 			}
-			if seen[etcd.Name] {
+			uid := string(etcd.UID)
+			if seen[uid] {
 				continue
 			}
-			seen[etcd.Name] = true
-			t.Logf("slowReadySimulator: scheduling ready=true for Etcd %s in %s", etcd.Name, delay)
+			seen[uid] = true
+			t.Logf("slowReadySimulator: scheduling ready=true for Etcd %s (uid=%s) in %s", etcd.Name, uid, delay)
 			go func(e *druidv1alpha1.Etcd) {
 				select {
 				case <-ctx.Done():
@@ -1015,4 +1025,60 @@ func TestEtcDruid_Restore_TopologyNonStrict_IgnoresMismatch(t *testing.T) {
 		}
 		t.Logf("[step 3] TopologyValidated condition = %v (expected absent or Skipped/True)", topoCond)
 	}
+}
+
+// TestEtcDruid_Capture_UnhealthyShard_ThenRecovers verifies the full lifecycle of the
+// health guard: backup is blocked while the shard is unhealthy, EtcdSnapshotted stays
+// False/Stopped, and once the shard becomes healthy the backup proceeds and completes.
+func TestEtcDruid_Capture_UnhealthyShard_ThenRecovers(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 8*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+
+	id := suffix()
+	shardName := "e2e-shard-unhealthy-" + id
+	backupName := "e2e-backup-unhealthy-" + id
+
+	// Create shard but do NOT call ensureEtcdReady — start it deliberately unhealthy.
+	shard := newEtcdShard(shardName)
+	require.NoError(t, cl.Create(ctx, shard))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+	t.Logf("[step 1] created Etcd shard %s (ready=false)", shardName)
+
+	startTaskSimulator(ctx, t)
+
+	bkp := newPlatformBackup(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+	t.Logf("[step 2] created PlatformBackup %s", backupName)
+
+	// Wait for the health guard to set EtcdSnapshotted=False/Stopped.
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: backupName}, bkp); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(bkp.Status.Conditions, backup.ConditionEtcdSnapshotted)
+		t.Logf("[poll] EtcdSnapshotted=%v", cond)
+		return cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == "Stopped"
+	}, 2*time.Minute, 5*time.Second, "health guard must set EtcdSnapshotted=False/Stopped while shard is not ready")
+	t.Logf("[step 3] EtcdSnapshotted=False/Stopped confirmed — health guard is working")
+
+	// Now mark the shard ready and start the continuous ready simulator so
+	// the operator's informer cache sees ready=true on the next reconcile.
+	// A one-shot ensureEtcdReady is not sufficient: the informer may serve
+	// a stale snapshot and the health guard would re-block the backup.
+	require.NoError(t, ensureEtcdReady(ctx, shardName))
+	startReadySimulator(ctx, t)
+	t.Logf("[step 4] shard %s marked ready, ready simulator running — backup should now proceed", shardName)
+
+	require.Eventually(t, func() bool {
+		if err := cl.Get(ctx, types.NamespacedName{Name: backupName}, bkp); err != nil {
+			return false
+		}
+		cond := apimeta.FindStatusCondition(bkp.Status.Conditions, backup.ConditionEtcdSnapshotted)
+		t.Logf("[poll] EtcdSnapshotted=%v", cond)
+		return apimeta.IsStatusConditionTrue(bkp.Status.Conditions, backup.ConditionEtcdSnapshotted)
+	}, 5*time.Minute, 5*time.Second, "backup must complete after shard becomes healthy")
+	t.Logf("[step 5] EtcdSnapshotted=True — backup completed after shard recovery")
 }
