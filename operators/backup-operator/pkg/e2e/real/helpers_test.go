@@ -92,6 +92,16 @@ func newRealEtcdShard(name string) *druidv1alpha1.Etcd {
 	}
 }
 
+// newRealEtcdShardMultiMember creates a 3-member Etcd CR. Each kcp shard is
+// typically a single-member etcd, but this variant exercises the case where
+// a shard runs a 3-node ring — the backup-operator must see all three members
+// healthy before it proceeds with a snapshot.
+func newRealEtcdShardMultiMember(name string) *druidv1alpha1.Etcd {
+	shard := newRealEtcdShard(name)
+	shard.Spec.Replicas = 3
+	return shard
+}
+
 // newPlatformBackup returns a cluster-scoped PlatformBackup with etcd enabled.
 // The S3 storage spec here is for the backup-operator's own topology.json upload
 // (etcd snapshots go to minio via the StoreSpec on the Etcd CR above).
@@ -208,17 +218,29 @@ func runEtcdctlPodOutput(ctx context.Context, t *testing.T, nameSuffix string, c
 	return "", fmt.Errorf("etcdctl pod %s timed out", podName)
 }
 
-// waitForShardReady polls until the named Etcd CR has Status.Ready=true.
+// waitForShardReady polls until the named Etcd CR is fully healthy:
+// status.ready=true and currentReplicas == spec.replicas.
 func waitForShardReady(t *testing.T, ctx context.Context, shard *druidv1alpha1.Etcd) {
 	t.Helper()
 	require.Eventually(t, func() bool {
 		if err := cl.Get(ctx, types.NamespacedName{Name: shard.Name, Namespace: e2eNS}, shard); err != nil {
 			return false
 		}
-		t.Logf("[poll] shard %s ready=%v", shard.Name, shard.Status.Ready)
-		return shard.Status.Ready != nil && *shard.Status.Ready
+		t.Logf("[poll] shard %s ready=%v currentReplicas=%d/%d",
+			shard.Name, shard.Status.Ready, shard.Status.CurrentReplicas, shard.Spec.Replicas)
+		return shard.Status.Ready != nil && *shard.Status.Ready &&
+			shard.Status.CurrentReplicas == shard.Spec.Replicas
 	}, 10*time.Minute, 15*time.Second, "shard %s never became ready", shard.Name)
 }
+
+// waitForBackupComplete polls until the PlatformBackup has EtcdSnapshotted=True.
+
+
+
+
+
+
+
 
 // waitForBackupComplete polls until the PlatformBackup has EtcdSnapshotted=True.
 func waitForBackupComplete(t *testing.T, ctx context.Context, bkp *backupv1alpha1.PlatformBackup) {

@@ -127,6 +127,7 @@ func makeEtcdShard(t *testing.T, cl client.Client, name string) {
 	require.NoError(t, cl.Create(t.Context(), etcd))
 	patch := client.MergeFrom(etcd.DeepCopy())
 	etcd.Status.Ready = ptr.To(true)
+	etcd.Status.CurrentReplicas = etcd.Spec.Replicas
 	require.NoError(t, cl.Status().Patch(t.Context(), etcd, patch))
 }
 

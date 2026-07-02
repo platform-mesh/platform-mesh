@@ -75,7 +75,7 @@ func ctxWithClient(cl ctrlruntimeclient.Client) context.Context {
 // fakeEtcdShard builds a minimal Etcd CR with the kcp-shard label.
 func fakeEtcdShard(name string) *druidv1alpha1.Etcd {
 	localProvider := druidv1alpha1.StorageProvider("Local")
-	return &druidv1alpha1.Etcd{
+	e := &druidv1alpha1.Etcd{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: unitTestNamespace,
@@ -92,6 +92,9 @@ func fakeEtcdShard(name string) *druidv1alpha1.Etcd {
 			},
 		},
 	}
+	e.Status.Ready = ptr.To(true)
+	e.Status.CurrentReplicas = 1
+	return e
 }
 
 // fakeFullSnapLease builds a full-snap coordination lease for the given etcd shard.
@@ -220,6 +223,50 @@ func TestCapture_NoShards(t *testing.T) {
 	result, err := newCaptureSub().Process(ctxWithClient(cl), bkp)
 	require.NoError(t, err)
 	assert.False(t, result.IsContinue(), "expected Stop result when no shards found")
+}
+
+// TestCapture_UnhealthyShard verifies that the operator refuses to snapshot when
+// a shard is not fully ready, rather than risk capturing degraded state.
+func TestCapture_UnhealthyShard(t *testing.T) {
+	bkp := fakeBackup("b")
+	shard := fakeEtcdShard("shard-a")
+	// Mark the shard as not ready.
+	shard.Status.Ready = ptr.To(false)
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(shard).
+		WithStatusSubresource(&druidv1alpha1.Etcd{}).
+		Build()
+
+	result, err := newCaptureSub().Process(ctxWithClient(cl), bkp)
+	require.NoError(t, err)
+	assert.True(t, result.IsStopWithRequeue(), "expected StopWithRequeue when shard is not ready")
+	assert.Contains(t, result.Message(), "shard-a")
+}
+
+// TestCapture_UnhealthyShard_DegradedMultiMember verifies that a 3-member shard
+// with only 2 members healthy (one member down, not yet replaced) is also rejected.
+// This is the case described in the health guard: currentReplicas < spec.replicas
+// even though ready may still be true (quorum is achievable with 2/3 but the ring
+// is degraded and snapshotting adds risk).
+func TestCapture_UnhealthyShard_DegradedMultiMember(t *testing.T) {
+	bkp := fakeBackup("b")
+	shard := fakeEtcdShard("shard-3m")
+	shard.Spec.Replicas = 3
+	shard.Status.Ready = ptr.To(true)
+	shard.Status.CurrentReplicas = 2 // one member down
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(shard).
+		WithStatusSubresource(&druidv1alpha1.Etcd{}).
+		Build()
+
+	result, err := newCaptureSub().Process(ctxWithClient(cl), bkp)
+	require.NoError(t, err)
+	assert.True(t, result.IsStopWithRequeue(), "expected StopWithRequeue when a member is down")
+	assert.Contains(t, result.Message(), "shard-3m")
 }
 
 // TestCapture_SingleShard_Success verifies the happy path: task succeeds, lease key is recorded.

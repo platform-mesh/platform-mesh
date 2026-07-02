@@ -111,6 +111,15 @@ func (s *EtcdCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 	}
 
 	log := ctrllog.FromContext(ctx).WithValues("backup", bkp.Name, "shardCount", len(shards))
+
+	// Refuse to snapshot any shard that is not fully healthy. A degraded etcd
+	// cluster is already at risk; snapshotting it would increase that risk and
+	// may capture diverged state. Requeue until all shards recover.
+	if unhealthy := unhealthyShards(shards); len(unhealthy) > 0 {
+		return subroutines.StopWithRequeue(30*time.Second,
+			fmt.Sprintf("refusing backup: etcd shard(s) not fully ready: %v", unhealthy)), nil
+	}
+
 	log.Info("starting etcd snapshot", "shards", shardNames(shards))
 
 	// Read baseline lease keys for all shards in parallel before triggering any
@@ -155,6 +164,18 @@ func (s *EtcdCaptureSubroutine) listShards(ctx context.Context, cl ctrlruntimecl
 	return list.Items, nil
 }
 
+// unhealthyShards returns the names of shards that are not fully ready.
+// A shard is healthy when status.ready=true and currentReplicas == spec.replicas.
+func unhealthyShards(shards []druidv1alpha1.Etcd) []string {
+	var names []string
+	for _, s := range shards {
+		if s.Status.Ready == nil || !*s.Status.Ready || s.Status.CurrentReplicas != s.Spec.Replicas {
+			names = append(names, s.Name)
+		}
+	}
+	return names
+}
+
 func shardNames(shards []druidv1alpha1.Etcd) []string {
 	names := make([]string, len(shards))
 	for i, s := range shards {
@@ -164,8 +185,7 @@ func shardNames(shards []druidv1alpha1.Etcd) []string {
 }
 
 // readBaselineKeys reads the full-snap lease HolderIdentity for all shards concurrently.
-// A cancellable child context is used so that when one shard's lease read fails the
-// remaining goroutines are cancelled promptly, avoiding wasted API calls.
+// Returns an error if any shard's lease cannot be read.
 func (s *EtcdCaptureSubroutine) readBaselineKeys(
 	ctx context.Context,
 	cl ctrlruntimeclient.Client,
@@ -230,10 +250,7 @@ func (s *EtcdCaptureSubroutine) fanOutCapture(
 	return results
 }
 
-// OpsTaskName returns a deterministic, collision-free EtcdOpsTask name for the
-// (backupName, etcdName) pair. A plain concatenation with "-" is ambiguous when
-// names themselves contain "-", so we append a 6-hex-char hash of the full pair
-// as a tiebreaker. The result is capped at 253 characters (the k8s name limit).
+// OpsTaskName returns the EtcdOpsTask name for a (backupName, etcdName) pair.
 func OpsTaskName(backupName, etcdName string) string {
 	h := sha256.Sum256([]byte(backupName + "/" + etcdName))
 	suffix := fmt.Sprintf("%x", h[:3])
@@ -250,9 +267,8 @@ func OpsTaskName(backupName, etcdName string) string {
 	return fmt.Sprintf("%s-%s", base[:keep], suffix)
 }
 
-// captureOne creates an EtcdOpsTask to trigger a full snapshot, polls until it reaches a
-// terminal state, then reads the updated snapshot key from the full-snap lease.
-// State is checked immediately on entry; sleep only follows a non-terminal observation.
+// captureOne creates an EtcdOpsTask for the shard and polls it until it reaches a terminal state.
+// TODO: split into create + check so the operator does not block on a single component's backup.
 func (s *EtcdCaptureSubroutine) captureOne(
 	ctx context.Context,
 	cl ctrlruntimeclient.Client,

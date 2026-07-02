@@ -147,11 +147,13 @@ func startReadySimulator(ctx context.Context, t *testing.T) {
 			}
 			for i := range list.Items {
 				etcd := &list.Items[i]
-				if etcd.Status.Ready != nil && *etcd.Status.Ready {
+				if etcd.Status.Ready != nil && *etcd.Status.Ready &&
+					etcd.Status.CurrentReplicas == etcd.Spec.Replicas {
 					continue
 				}
 				patch := client.MergeFrom(etcd.DeepCopy())
 				etcd.Status.Ready = ptr.To(true)
+				etcd.Status.CurrentReplicas = etcd.Spec.Replicas
 				if err := cl.Status().Patch(ctx, etcd, patch); err != nil {
 					t.Logf("readySimulator: patch %s: %v", etcd.Name, err)
 				}
@@ -179,17 +181,19 @@ func upsertFullSnapLease(ctx context.Context, etcdName, key string) error {
 	return cl.Patch(ctx, &existing, patch)
 }
 
-// ensureEtcdReady sets status.ready=true on the named Etcd CR if it isn't already.
+// ensureEtcdReady sets status.ready=true and currentReplicas=spec.replicas on the named Etcd CR if it isn't already.
 func ensureEtcdReady(ctx context.Context, etcdName string) error {
 	var etcd druidv1alpha1.Etcd
 	if err := cl.Get(ctx, types.NamespacedName{Name: etcdName, Namespace: e2eNS}, &etcd); err != nil {
 		return err
 	}
-	if etcd.Status.Ready != nil && *etcd.Status.Ready {
+	if etcd.Status.Ready != nil && *etcd.Status.Ready &&
+		etcd.Status.CurrentReplicas == etcd.Spec.Replicas {
 		return nil
 	}
 	patch := client.MergeFrom(etcd.DeepCopy())
 	etcd.Status.Ready = ptr.To(true)
+	etcd.Status.CurrentReplicas = etcd.Spec.Replicas
 	return cl.Status().Patch(ctx, &etcd, patch)
 }
 
