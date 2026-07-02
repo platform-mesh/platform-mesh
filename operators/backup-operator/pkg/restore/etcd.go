@@ -18,15 +18,14 @@ package restore
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"sort"
 	"time"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/backup"
+	"go.platform-mesh.io/backup-operator/pkg/internal"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
 
@@ -124,11 +123,7 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 		Int("shardCount", len(shards)).Msg("starting etcd restore")
 
 	// Process shards in deterministic order so log output and error messages are stable.
-	shardNames := make([]string, 0, len(shards))
-	for name := range shards {
-		shardNames = append(shardNames, name)
-	}
-	sort.Strings(shardNames)
+	shardNames := internal.SortedKeys(shards)
 
 	pendingMsg := ""
 	var errs []error
@@ -240,7 +235,7 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 		return subroutines.Pending(5*time.Second, pendingMsg), nil
 	}
 	if len(errs) > 0 {
-		return subroutines.OK(), combineErrors(errs)
+		return subroutines.OK(), internal.CombineErrors(errs)
 	}
 	log.Info().Str("restore", rst.Name).Int("shardCount", len(shards)).Msg("etcd restore complete")
 	return subroutines.OK(), nil
@@ -321,26 +316,4 @@ func (s *EtcdRestoreSubroutine) recreate(
 		return fmt.Errorf("patching annotation on raced Etcd CR: %w", err)
 	}
 	return nil
-}
-
-// combineErrors joins multiple errors into a single error, capping the message length.
-func combineErrors(errs []error) error {
-	if len(errs) == 1 {
-		return errs[0]
-	}
-	const maxMessageBytes = 4096
-	joined := errors.Join(errs...).Error()
-	if len(joined) <= maxMessageBytes {
-		return errors.Join(errs...)
-	}
-	suffix := fmt.Sprintf(" (+%d more shard errors truncated)", len(errs)-1)
-	budget := maxMessageBytes - len(suffix)
-	if budget < 1 {
-		budget = 1
-	}
-	first := errs[0].Error()
-	if len(first) > budget {
-		first = first[:budget]
-	}
-	return fmt.Errorf("%s%s", first, suffix)
 }

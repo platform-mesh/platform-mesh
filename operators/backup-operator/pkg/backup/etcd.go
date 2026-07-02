@@ -19,7 +19,6 @@ package backup
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -27,6 +26,7 @@ import (
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+	"go.platform-mesh.io/backup-operator/pkg/internal"
 	"go.platform-mesh.io/subroutines"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -121,7 +121,6 @@ func (s *EtcdCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 	}
 
 	log.Info("starting etcd snapshot", "shards", shardNames(shards))
-
 	// Read baseline lease keys for all shards in parallel before triggering any
 	// snapshot. Propagate any error — a discarded error here would let a
 	// pre-existing HolderIdentity be mis-recorded as a new key.
@@ -145,7 +144,7 @@ func (s *EtcdCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 		}
 	}
 	if len(errs) > 0 {
-		return subroutines.OK(), fmt.Errorf("etcd snapshot failed: %w", errors.Join(errs...))
+		return subroutines.OK(), fmt.Errorf("etcd snapshot failed: %w", internal.CombineErrors(errs))
 	}
 
 	log.Info("etcd snapshot complete", "shardCount", len(results))
