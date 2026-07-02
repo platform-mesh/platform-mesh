@@ -20,6 +20,7 @@ package restore_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
@@ -27,6 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+	"go.platform-mesh.io/backup-operator/pkg/backup"
 	"go.platform-mesh.io/backup-operator/pkg/restore"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
@@ -74,7 +76,7 @@ func fakeEtcdShard(name string) *druidv1alpha1.Etcd {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: unitTestNamespace,
-			Labels:    map[string]string{restore.LabelKeyComponent: restore.LabelComponentKCPShard},
+			Labels:    map[string]string{backup.LabelKeyComponent: backup.LabelComponentKCPShard},
 		},
 		Spec: druidv1alpha1.EtcdSpec{
 			Replicas: 1,
@@ -199,7 +201,8 @@ func TestRestore_NilEtcdArtefacts(t *testing.T) {
 	assert.True(t, result.IsContinue())
 }
 
-// TestRestore_ShardNotFound verifies that a missing Etcd CR returns an error.
+// TestRestore_ShardNotFound verifies that a missing Etcd CR returns Pending (transient
+// state between delete and recreate), not a permanent error.
 func TestRestore_ShardNotFound(t *testing.T) {
 	bkp := fakeBackupWithShards("backup-1", map[string]string{"missing-shard": "rev-1"})
 	rst := fakeRestore("r", bkp.Name)
@@ -209,9 +212,9 @@ func TestRestore_ShardNotFound(t *testing.T) {
 		WithObjects(bkp).
 		Build()
 
-	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, result.IsPending(), "expected Pending when shard CR is transiently absent")
 }
 
 // TestRestore_SingleShard_AnnotationSet verifies that after the first reconcile the shard
@@ -338,15 +341,16 @@ func TestRestore_MultiShard_OnePending(t *testing.T) {
 	assert.True(t, result.IsPending(), "expected Pending when one shard not yet ready")
 }
 
-// TestRestore_MultiShard_FirstFailureHalts verifies that an error on one shard is returned
-// and the error message identifies the failing shard.
+// TestRestore_MultiShard_FirstFailureHalts verifies that when one shard is absent
+// (transient NotFound) and another is done, the result is Pending (not an error).
+// An absent shard is treated as a transient state between delete and recreate.
 func TestRestore_MultiShard_FirstFailureHalts(t *testing.T) {
 	bkp := fakeBackupWithShards("backup-halt", map[string]string{
 		"shard-a": "rev-1",
 		"shard-b": "rev-2",
 	})
 	rst := fakeRestore("r", bkp.Name)
-	// shard-a present, shard-b absent → error references shard-b
+	// shard-a present and ready, shard-b absent (transiently NotFound)
 	shardA := fakeEtcdShardReady("shard-a", "rev-1")
 
 	cl := fake.NewClientBuilder().
@@ -355,9 +359,9 @@ func TestRestore_MultiShard_FirstFailureHalts(t *testing.T) {
 		WithStatusSubresource(&druidv1alpha1.Etcd{}).
 		Build()
 
-	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "shard-b")
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, result.IsPending(), "expected Pending when one shard is transiently absent")
 }
 
 // TestRestore_GetName verifies the subroutine returns the expected condition name.
@@ -456,7 +460,7 @@ func TestRestore_CreateAndWait_AlreadyExists(t *testing.T) {
 					patchCalled = true
 					assert.Equal(t, snapshotKey, etcd.Annotations[restore.AnnotationKeyRestoredFromSnapshot],
 						"restore annotation must be patched onto the existing CR")
-					assert.Equal(t, restore.LabelComponentKCPShard, etcd.Labels[restore.LabelKeyComponent],
+					assert.Equal(t, backup.LabelComponentKCPShard, etcd.Labels[backup.LabelKeyComponent],
 						"kcp-shard label must be patched onto the existing CR")
 				}
 				return c.Patch(ctx, obj, patch, opts...)
@@ -471,4 +475,392 @@ func TestRestore_CreateAndWait_AlreadyExists(t *testing.T) {
 	// not yet confirmed ready so the subroutine must return Pending, not OK.
 	assert.True(t, result.IsPending(),
 		"expected Pending after AlreadyExists patch — shard readiness not yet confirmed")
+}
+
+// TestRestore_PVCsDeleted_SingleReplica verifies that when a shard with Replicas=1 is
+// restored, the operator deletes the PVC named <shardName>-<shardName>-0 before
+// recreating the Etcd CR.
+//
+// Background: etcd-druid does NOT delete PVCs when the Etcd CR is deleted — the PVC
+// from the StatefulSet volumeClaimTemplate survives. etcdbr skips the S3 restore if it
+// finds a valid data directory on the existing PVC. The operator must wipe the PVCs first.
+func TestRestore_PVCsDeleted_SingleReplica(t *testing.T) {
+	const shardName = "shard-pvc"
+	const snapshotKey = "rev-10"
+
+	bkp := fakeBackupWithShards("backup-pvc", map[string]string{shardName: snapshotKey})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard(shardName)
+
+	// Pre-populate the PVC that etcd-druid would have left behind.
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      shardName + "-" + shardName + "-0",
+			Namespace: unitTestNamespace,
+		},
+	}
+
+	var deletedPVCNames []string
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard, pvc).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.DeleteOption) error {
+				if _, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+					deletedPVCNames = append(deletedPVCNames, obj.GetName())
+				}
+				return c.Delete(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, result.IsPending())
+	assert.Equal(t, []string{shardName + "-" + shardName + "-0"}, deletedPVCNames,
+		"operator must delete the PVC before recreating the Etcd CR")
+}
+
+// TestRestore_PVCsDeleted_MultiReplica verifies that for a shard with Replicas=3 the
+// operator deletes PVCs for all three ordinals (0, 1, 2).
+func TestRestore_PVCsDeleted_MultiReplica(t *testing.T) {
+	const shardName = "shard-multi-pvc"
+	const snapshotKey = "rev-20"
+
+	bkp := fakeBackupWithShards("backup-multi-pvc", map[string]string{shardName: snapshotKey})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard(shardName)
+	shard.Spec.Replicas = 3
+
+	// Pre-populate all three PVCs.
+	objs := make([]ctrlruntimeclient.Object, 0, 5)
+	objs = append(objs, bkp, shard)
+	for i := range int32(3) {
+		objs = append(objs, &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-%s-%d", shardName, shardName, i),
+				Namespace: unitTestNamespace,
+			},
+		})
+	}
+
+	var deletedPVCNames []string
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(objs...).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.DeleteOption) error {
+				if _, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+					deletedPVCNames = append(deletedPVCNames, obj.GetName())
+				}
+				return c.Delete(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, result.IsPending())
+	assert.ElementsMatch(t,
+		[]string{
+			shardName + "-" + shardName + "-0",
+			shardName + "-" + shardName + "-1",
+			shardName + "-" + shardName + "-2",
+		},
+		deletedPVCNames,
+		"operator must delete PVCs for all replicas before recreating the Etcd CR")
+}
+
+// TestRestore_PVCDeleteError_ContinuesRestore verifies that a non-NotFound PVC deletion
+// error does not abort the restore — the operator logs a warning and continues so the
+// Etcd CR is still recreated, giving etcdbr the chance to run.
+func TestRestore_PVCDeleteError_ContinuesRestore(t *testing.T) {
+	const shardName = "shard-pvc-err"
+	const snapshotKey = "rev-30"
+
+	bkp := fakeBackupWithShards("backup-pvc-err", map[string]string{shardName: snapshotKey})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard(shardName)
+
+	pvcDeleteErr := fmt.Errorf("injected storage error")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.DeleteOption) error {
+				if _, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+					return pvcDeleteErr
+				}
+				return c.Delete(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	// PVC deletion failure must not propagate as an error to the caller.
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err, "PVC deletion error must be tolerated — restore should continue")
+	assert.True(t, result.IsPending(), "expected Pending: Etcd CR recreated despite PVC error")
+
+	// The Etcd CR must still have been recreated with the restore annotation.
+	var recreated druidv1alpha1.Etcd
+	require.NoError(t, cl.Get(context.Background(),
+		types.NamespacedName{Name: shardName, Namespace: unitTestNamespace}, &recreated))
+	assert.Equal(t, snapshotKey, recreated.Annotations[restore.AnnotationKeyRestoredFromSnapshot],
+		"restore annotation must be set even when PVC deletion failed")
+}
+
+// TestRestore_PVCsDeleted_CustomVolumeClaimTemplate verifies that when the Etcd spec
+// has a non-default VolumeClaimTemplate name, PVCs are named
+// <vctName>-<shardName>-<ordinal> rather than <shardName>-<shardName>-<ordinal>.
+func TestRestore_PVCsDeleted_CustomVolumeClaimTemplate(t *testing.T) {
+	const shardName = "shard-custom-vct"
+	const vctName = "etcd-data"
+	const snapshotKey = "rev-99"
+
+	bkp := fakeBackupWithShards("backup-custom-vct", map[string]string{shardName: snapshotKey})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard(shardName)
+	shard.Spec.VolumeClaimTemplate = ptr.To(vctName)
+
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      vctName + "-" + shardName + "-0",
+			Namespace: unitTestNamespace,
+		},
+	}
+
+	var deletedPVCNames []string
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard, pvc).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.DeleteOption) error {
+				if _, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+					deletedPVCNames = append(deletedPVCNames, obj.GetName())
+				}
+				return c.Delete(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, result.IsPending())
+	assert.Equal(t, []string{vctName + "-" + shardName + "-0"}, deletedPVCNames,
+		"PVC name must use spec.volumeClaimTemplate when set, not etcd.Name")
+}
+
+// TestRestore_AnnotationSet_ReadyNil verifies that a shard carrying the correct restore
+// annotation but with status.Ready==nil is treated as Pending (not yet ready), not OK.
+func TestRestore_AnnotationSet_ReadyNil(t *testing.T) {
+	bkp := fakeBackupWithShards("backup-readynil", map[string]string{"shard-readynil": "rev-1"})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard("shard-readynil")
+	shard.Annotations = map[string]string{restore.AnnotationKeyRestoredFromSnapshot: "rev-1"}
+	// Status.Ready intentionally left nil
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		Build()
+
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err)
+	assert.True(t, result.IsPending(), "nil Status.Ready must be treated as not-yet-ready (Pending)")
+}
+
+// TestRestore_SourceBackup_APIError verifies that a generic API error fetching the source
+// backup (not NotFound) is surfaced as a reconcile error rather than a StopWithRequeue.
+func TestRestore_SourceBackup_APIError(t *testing.T) {
+	rst := fakeRestore("r", "backup-apierr")
+	apiErr := fmt.Errorf("etcd timeout")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+				if _, ok := obj.(*pmbackupv1alpha1.PlatformBackup); ok {
+					return apiErr
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+
+	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "fetching source backup")
+}
+
+// TestRestore_StripFinalizers_PatchError verifies that when stripFinalizers fails (e.g.
+// Forbidden), the error is propagated as a reconcile error — not silently swallowed.
+func TestRestore_StripFinalizers_PatchError(t *testing.T) {
+	bkp := fakeBackupWithShards("backup-finalizer-err", map[string]string{"shard-fin": "rev-1"})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard("shard-fin")
+	shard.Finalizers = []string{"druid.gardener.cloud/etcd-druid"}
+	patchErr := fmt.Errorf("forbidden: insufficient permissions")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+				if _, ok := obj.(*druidv1alpha1.Etcd); ok {
+					return patchErr
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).
+		Build()
+
+	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.Error(t, err, "stripFinalizers Patch failure must be surfaced as a reconcile error")
+	assert.Contains(t, err.Error(), "stripping finalizers")
+}
+
+// TestRestore_StripFinalizers_PatchError_Terminating verifies the same for the
+// DeletionTimestamp branch: finalizer-strip failure on a terminating CR is an error.
+func TestRestore_StripFinalizers_PatchError_Terminating(t *testing.T) {
+	bkp := fakeBackupWithShards("backup-term-fin-err", map[string]string{"shard-term-fin": "rev-1"})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard("shard-term-fin")
+	now := metav1.Now()
+	shard.DeletionTimestamp = &now
+	shard.Finalizers = []string{"druid.gardener.cloud/etcd-druid"}
+	patchErr := fmt.Errorf("forbidden: insufficient permissions")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+				if _, ok := obj.(*druidv1alpha1.Etcd); ok {
+					return patchErr
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).
+		Build()
+
+	_, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.Error(t, err, "stripFinalizers Patch failure on terminating CR must be surfaced as error")
+	assert.Contains(t, err.Error(), "stripping finalizers")
+}
+
+// TestRestore_PendingWins_OverError verifies that when one shard is pending (NotFound
+// transient) and another produces a hard error (stripFinalizers failed), the result is
+// Pending — the pending state takes priority so the reconcile retries at 5s not backoff.
+func TestRestore_PendingWins_OverError(t *testing.T) {
+	bkp := fakeBackupWithShards("backup-mixed", map[string]string{
+		"shard-a": "rev-1",
+		"shard-b": "rev-2",
+	})
+	rst := fakeRestore("r", bkp.Name)
+
+	// shard-a: has finalizer, Patch will fail → error
+	shardA := fakeEtcdShard("shard-a")
+	shardA.Finalizers = []string{"druid.gardener.cloud/etcd-druid"}
+	patchErr := fmt.Errorf("forbidden")
+
+	// shard-b: absent → Pending (transient NotFound)
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shardA).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+				if _, ok := obj.(*druidv1alpha1.Etcd); ok {
+					return patchErr
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).
+		Build()
+
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err, "mixed pending+error state must return Pending, not an error")
+	assert.True(t, result.IsPending(), "Pending must win over error when any shard is in-flight")
+}
+
+// TestRestore_Recreate_AlreadyExists_ThenGetNotFound verifies that when Create returns
+// AlreadyExists but the subsequent Get also returns NotFound (the raced CR was deleted
+// between Create and Get), recreate() returns nil so the next reconcile retries cleanly.
+func TestRestore_Recreate_AlreadyExists_ThenGetNotFound(t *testing.T) {
+	const snapshotKey = "rev-100"
+	bkp := fakeBackupWithShards("backup-race-notfound", map[string]string{"shard-rnf": snapshotKey})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard("shard-rnf")
+
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+				if _, ok := obj.(*druidv1alpha1.Etcd); ok {
+					// Return AlreadyExists WITHOUT actually creating — so subsequent Get returns NotFound.
+					return apierrors.NewAlreadyExists(schema.GroupResource{Group: "druid.gardener.cloud", Resource: "etcds"}, obj.GetName())
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	// The original shard is deleted by the fake client Delete in the default branch,
+	// then Create returns AlreadyExists but the CR is gone → Get returns NotFound.
+	// The result must be Pending (not an error).
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err, "AlreadyExists→NotFound race must not produce an error")
+	assert.True(t, result.IsPending(), "expected Pending after AlreadyExists→NotFound race")
+}
+
+// TestRestore_Recreate_AlreadyExists_TerminatingCR verifies that when Create returns
+// AlreadyExists and the existing CR is itself terminating, recreate() returns nil without
+// patching — the next reconcile will enter the DeletionTimestamp branch.
+func TestRestore_Recreate_AlreadyExists_TerminatingCR(t *testing.T) {
+	const snapshotKey = "rev-200"
+	bkp := fakeBackupWithShards("backup-race-term", map[string]string{"shard-rterm": snapshotKey})
+	rst := fakeRestore("r", bkp.Name)
+	shard := fakeEtcdShard("shard-rterm")
+
+	patchCalled := false
+	now := metav1.Now()
+	cl := fake.NewClientBuilder().
+		WithScheme(newFakeScheme(t)).
+		WithObjects(bkp, shard).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+				if _, ok := obj.(*druidv1alpha1.Etcd); ok {
+					return apierrors.NewAlreadyExists(schema.GroupResource{Group: "druid.gardener.cloud", Resource: "etcds"}, obj.GetName())
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+			Get: func(ctx context.Context, c ctrlruntimeclient.WithWatch, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
+				if err := c.Get(ctx, key, obj, opts...); err != nil {
+					return err
+				}
+				// After Create returns AlreadyExists, the Get in recreate() should see a terminating CR.
+				if etcd, ok := obj.(*druidv1alpha1.Etcd); ok && key.Name == "shard-rterm" {
+					etcd.DeletionTimestamp = &now
+					etcd.Finalizers = []string{"druid.gardener.cloud/etcd-druid"}
+				}
+				return nil
+			},
+			Patch: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+				if etcd, ok := obj.(*druidv1alpha1.Etcd); ok {
+					// Only flag annotation patches (from recreate), not finalizer-strip patches.
+					if etcd.Annotations[restore.AnnotationKeyRestoredFromSnapshot] != "" {
+						patchCalled = true
+					}
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).
+		Build()
+
+	result, err := newRestoreSub().Process(ctxWithClient(cl), rst)
+	require.NoError(t, err, "AlreadyExists with terminating CR must not error")
+	assert.False(t, patchCalled, "Patch must NOT be called when the raced CR is terminating")
+	assert.True(t, result.IsPending(), "expected Pending — next reconcile will strip finalizers")
 }

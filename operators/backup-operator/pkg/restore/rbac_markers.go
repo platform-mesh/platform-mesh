@@ -18,7 +18,7 @@ limitations under the License.
 package restore
 
 // +kubebuilder:rbac:groups=druid.gardener.cloud,resources=etcds,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=backup.platform-mesh.io,resources=platformbackups,verbs=get;list;watch
 // +kubebuilder:rbac:groups=backup.platform-mesh.io,resources=platformrestores,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=backup.platform-mesh.io,resources=platformrestores/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;delete

@@ -34,6 +34,7 @@ import (
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -48,6 +49,11 @@ func TestRealEtcd_Restore_SingleShard(t *testing.T) {
 	shardName := "e2e-real-shard-" + id
 	backupName := "e2e-real-backup-" + id
 	restoreName := "e2e-real-restore-" + id
+
+	const preKey = "/e2e/pre-backup"
+	const postKey = "/e2e/post-backup"
+	preValue := "pre-" + id
+	postValue := "post-" + id
 
 	shard := newRealEtcdShard(shardName)
 	require.NoError(t, cl.Create(ctx, shard))
@@ -64,10 +70,16 @@ func TestRealEtcd_Restore_SingleShard(t *testing.T) {
 	}, 10*time.Minute, 15*time.Second, "Etcd CR %s never became ready", shardName)
 	t.Logf("[step 2] Etcd.Status.Ready=true")
 
+	etcdEndpoint := fmt.Sprintf("http://%s-client.%s.svc:2379", shardName, e2eNS)
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-pre-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "put", preKey, preValue,
+	}), "etcdctl put pre-backup key failed")
+	t.Logf("[step 3] wrote pre-backup key %s=%s", preKey, preValue)
+
 	bkp := newPlatformBackup(backupName)
 	require.NoError(t, cl.Create(ctx, bkp))
 	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
-	t.Logf("[step 3] created PlatformBackup %s, waiting for EtcdSnapshotted=True...", backupName)
+	t.Logf("[step 4] created PlatformBackup %s, waiting for EtcdSnapshotted=True...", backupName)
 
 	waitForBackupComplete(t, ctx, bkp)
 
@@ -78,36 +90,45 @@ func TestRealEtcd_Restore_SingleShard(t *testing.T) {
 	shardArtefact, ok := bkp.Status.Artefacts.Etcd.Shards[shardName]
 	require.True(t, ok, "no artefact for shard %s", shardName)
 	require.NotEmpty(t, shardArtefact.SnapshotKey)
-	t.Logf("[step 4] backup complete: snapshot key = %q", shardArtefact.SnapshotKey)
+	t.Logf("[step 5] backup complete: snapshot key = %q", shardArtefact.SnapshotKey)
+
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-post-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "put", postKey, postValue,
+	}), "etcdctl put post-backup key failed")
+	t.Logf("[step 6] wrote post-backup key %s=%s (must be absent after restore)", postKey, postValue)
 
 	rst := newPlatformRestore(restoreName, backupName)
 	require.NoError(t, cl.Create(ctx, rst))
 	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
-	t.Logf("[step 5] created PlatformRestore %s, waiting for EtcdRestored=True...", restoreName)
+	t.Logf("[step 7] created PlatformRestore %s, waiting for EtcdRestored=True...", restoreName)
 
 	waitForRestoreComplete(t, ctx, rst)
-	t.Logf("[step 6] EtcdRestored=True confirmed")
+	t.Logf("[step 8] EtcdRestored=True confirmed")
 
 	var recreated druidv1alpha1.Etcd
 	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: e2eNS}, &recreated),
 		"Etcd CR %s not found after restore", shardName)
-
 	gotKey := recreated.Annotations[restore.AnnotationKeyRestoredFromSnapshot]
-	assert.Equal(t, shardArtefact.SnapshotKey, gotKey,
-		"restore annotation on Etcd CR does not match snapshot key")
-	assert.Equal(t, backup.LabelComponentKCPShard, recreated.Labels[backup.LabelKeyComponent],
-		"kcp-shard label missing from recreated Etcd CR")
-	t.Logf("[step 7] Etcd CR recreated with annotation %s=%q", restore.AnnotationKeyRestoredFromSnapshot, gotKey)
+	assert.Equal(t, shardArtefact.SnapshotKey, gotKey, "restore annotation does not match snapshot key")
+	assert.Equal(t, backup.LabelComponentKCPShard, recreated.Labels[backup.LabelKeyComponent], "kcp-shard label missing")
 
-	t.Logf("[step 8] waiting for restored Etcd.Status.Ready=true...")
-	require.Eventually(t, func() bool {
-		if err := cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: e2eNS}, &recreated); err != nil {
-			return false
-		}
-		t.Logf("[poll] restored Etcd ready=%v currentReplicas=%d", recreated.Status.Ready, recreated.Status.CurrentReplicas)
-		return recreated.Status.Ready != nil && *recreated.Status.Ready
-	}, 10*time.Minute, 15*time.Second, "restored Etcd CR %s never became ready", shardName)
-	t.Logf("[step 8] restored Etcd.Status.Ready=true — round-trip complete")
+	waitForShardReady(t, ctx, &recreated)
+	t.Logf("[step 9] restored Etcd.Status.Ready=true")
+
+	preOut, err := runEtcdctlPodOutput(ctx, t, "get-pre-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", preKey,
+	})
+	require.NoError(t, err)
+	require.Contains(t, preOut, preValue, "pre-backup key must survive restore; got %q", preOut)
+	t.Logf("[step 10] pre-backup key present ✓")
+
+	postOut, err := runEtcdctlPodOutput(ctx, t, "get-post-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", postKey,
+	})
+	require.NoError(t, err)
+	require.NotContains(t, postOut, postValue,
+		"post-backup key must be absent — etcdbr reused the stale PVC instead of replaying S3")
+	t.Logf("[step 11] post-backup key absent ✓ — S3 snapshot replay confirmed")
 }
 
 // TestRealEtcd_Restore_SlowReady verifies that EtcdRestored=True is only set after the recreated Etcd CR reaches Status.Ready=true, confirming the operator waits for the full etcdbr startup before declaring success.
@@ -122,6 +143,11 @@ func TestRealEtcd_Restore_SlowReady(t *testing.T) {
 	backupName := "e2e-real-backup-slowready-" + id
 	restoreName := "e2e-real-restore-slowready-" + id
 
+	const preKey = "/e2e/pre-slow"
+	const postKey = "/e2e/post-slow"
+	preValue := "pre-slow-" + id
+	postValue := "post-slow-" + id
+
 	shard := newRealEtcdShard(shardName)
 	require.NoError(t, cl.Create(ctx, shard))
 	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
@@ -130,32 +156,55 @@ func TestRealEtcd_Restore_SlowReady(t *testing.T) {
 	waitForShardReady(t, ctx, shard)
 	t.Logf("[step 1] shard Ready=true")
 
+	etcdEndpoint := fmt.Sprintf("http://%s-client.%s.svc:2379", shardName, e2eNS)
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-pre-slow-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "put", preKey, preValue,
+	}), "etcdctl put pre-backup key failed")
+	t.Logf("[step 2] wrote pre-backup key %s=%s", preKey, preValue)
+
 	bkp := newPlatformBackup(backupName)
 	require.NoError(t, cl.Create(ctx, bkp))
 	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
 
 	waitForBackupComplete(t, ctx, bkp)
-	t.Logf("[step 2] backup complete")
+	t.Logf("[step 3] backup complete")
+
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-post-slow-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "put", postKey, postValue,
+	}), "etcdctl put post-backup key failed")
+	t.Logf("[step 4] wrote post-backup key %s=%s (must be absent after restore)", postKey, postValue)
 
 	rst := newPlatformRestore(restoreName, backupName)
 	require.NoError(t, cl.Create(ctx, rst))
 	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
-	t.Logf("[step 3] created PlatformRestore %s", restoreName)
+	t.Logf("[step 5] created PlatformRestore %s", restoreName)
 
 	restoreStart := time.Now()
-
 	waitForRestoreComplete(t, ctx, rst)
-
 	restoreDuration := time.Since(restoreStart)
-	t.Logf("[step 4] EtcdRestored=True after %s", restoreDuration.Round(time.Second))
+	t.Logf("[step 6] EtcdRestored=True after %s", restoreDuration.Round(time.Second))
 
-	// Assert: restored CR is Ready=true (operator waited for etcdbr to finish).
 	var recreated druidv1alpha1.Etcd
 	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: e2eNS}, &recreated))
 	require.NotNil(t, recreated.Status.Ready, "restored Etcd CR has nil Status.Ready")
 	assert.True(t, *recreated.Status.Ready,
 		"EtcdRestored=True was set but Etcd CR is not Ready — operator did not wait for readiness")
-	t.Logf("[step 5] restored Etcd Ready=true (restore took %s)", restoreDuration.Round(time.Second))
+	t.Logf("[step 7] restored Etcd Ready=true (restore took %s)", restoreDuration.Round(time.Second))
+
+	preOut, err := runEtcdctlPodOutput(ctx, t, "get-pre-slow-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", preKey,
+	})
+	require.NoError(t, err)
+	require.Contains(t, preOut, preValue, "pre-backup key must survive restore; got %q", preOut)
+	t.Logf("[step 8] pre-backup key present ✓")
+
+	postOut, err := runEtcdctlPodOutput(ctx, t, "get-post-slow-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", postKey,
+	})
+	require.NoError(t, err)
+	require.NotContains(t, postOut, postValue,
+		"post-backup key must be absent — etcdbr reused the stale PVC instead of replaying S3")
+	t.Logf("[step 9] post-backup key absent ✓ — S3 snapshot replay confirmed despite slow ready")
 }
 
 // TestRealEtcd_Restore_SourceBackupNotFound verifies that a PlatformRestore referencing a non-existent PlatformBackup results in TopologyValidated with Reason=Stopped, triggering a requeue rather than a permanent failure.
@@ -521,7 +570,9 @@ func TestRealEtcd_Restore_TopologyMatch_FullRoundTrip(t *testing.T) {
 	restoreName := "e2e-real-restore-topo-match-" + id
 
 	const testKey = "/e2e/topology-integrity"
+	const testPostKey = "/e2e/topology-post-backup"
 	testValue := "topo-match-" + id
+	testPostValue := "topo-post-" + id
 
 	shard := newRealEtcdShard(shardName)
 	require.NoError(t, cl.Create(ctx, shard))
@@ -548,6 +599,11 @@ func TestRealEtcd_Restore_TopologyMatch_FullRoundTrip(t *testing.T) {
 	shardArtefact := bkp.Status.Artefacts.Etcd.Shards[shardName]
 	t.Logf("[step 3] backup complete: snapshot key = %q", shardArtefact.SnapshotKey)
 
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-topo-post-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "put", testPostKey, testPostValue,
+	}), "etcdctl put post-backup key failed")
+	t.Logf("[step 3b] wrote post-backup key %s=%s (must be absent after restore)", testPostKey, testPostValue)
+
 	rst := newPlatformRestore(restoreName, backupName) // TopologyValidation=Strict
 	require.NoError(t, cl.Create(ctx, rst))
 	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
@@ -573,7 +629,15 @@ func TestRealEtcd_Restore_TopologyMatch_FullRoundTrip(t *testing.T) {
 	require.NoError(t, err, "etcdctl get failed after restore")
 	require.Contains(t, out, testValue,
 		"key %s not found or value mismatch after topology-aware restore — got: %q", testKey, out)
-	t.Logf("[step 6] key %s=%q confirmed after restore — topology gate + data integrity verified", testKey, testValue)
+	t.Logf("[step 6] pre-backup key %s=%q confirmed after restore ✓", testKey, testValue)
+
+	postOut, postErr := runEtcdctlPodOutput(ctx, t, "get-topo-post-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", testPostKey,
+	})
+	require.NoError(t, postErr)
+	require.NotContains(t, postOut, testPostValue,
+		"post-backup key must be absent — etcdbr reused the stale PVC instead of replaying S3")
+	t.Logf("[step 7] post-backup key absent ✓ — S3 snapshot replay confirmed")
 }
 
 // TestRealEtcd_Restore_CorruptTopologyAfterBackup verifies that adding an extra shard to the live cluster after a backup causes the topology gate to block the restore with TopologyValidated=False, leaving the original shard and its data untouched.
@@ -663,7 +727,14 @@ func TestRealEtcd_Restore_CorruptTopologyAfterBackup(t *testing.T) {
 	t.Logf("[step 6] original shard data %s=%q intact — topology gate protected the cluster", testKey, testValue)
 }
 
-// TestRealEtcd_Restore_CorruptEtcdAfterBackup verifies that after restoring from a snapshot, the pre-backup key is present in the restored etcd cluster, confirming the operator correctly triggered etcdbr to replay the snapshot.
+// TestRealEtcd_Restore_CorruptEtcdAfterBackup verifies that after restoring from a snapshot,
+// the pre-backup key is present and a post-backup key (written after the snapshot was taken)
+// is absent in the restored etcd cluster. This proves the operator caused etcdbr to replay
+// the S3 snapshot rather than reuse the stale PVC data.
+//
+// The PVC deletion step is critical here: without it, etcdbr detects a valid data directory
+// on the surviving PVC and skips the S3 restore entirely — the post-backup key would remain,
+// and the test would fail.
 func TestRealEtcd_Restore_CorruptEtcdAfterBackup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Minute)
 	t.Cleanup(cancel)
@@ -676,7 +747,9 @@ func TestRealEtcd_Restore_CorruptEtcdAfterBackup(t *testing.T) {
 	restoreName := "e2e-real-restore-corrupt-etcd-" + id
 
 	const preKey = "/e2e/pre-backup"
+	const postKey = "/e2e/post-backup"
 	preValue := "before-backup-" + id
+	postValue := "after-backup-" + id
 
 	shard := newRealEtcdShard(shardName)
 	require.NoError(t, cl.Create(ctx, shard))
@@ -703,18 +776,28 @@ func TestRealEtcd_Restore_CorruptEtcdAfterBackup(t *testing.T) {
 	waitForBackupComplete(t, ctx, bkp)
 	t.Logf("[step 3] backup complete — snapshot captures %s", preKey)
 
+	// Write a post-backup key — this must NOT appear after restore, proving
+	// etcdbr replayed the S3 snapshot rather than reusing the stale PVC data.
+	require.NoError(t,
+		runEtcdctlPod(ctx, t, "put-post-"+id, []string{
+			"etcdctl", "--endpoints=" + etcdEndpoint, "put", postKey, postValue,
+		}),
+		"etcdctl put post-backup key failed",
+	)
+	t.Logf("[step 4] wrote post-backup key %s=%s (must be absent after restore)", postKey, postValue)
+
 	rst := newPlatformRestore(restoreName, backupName) // TopologyValidation=Strict
 	require.NoError(t, cl.Create(ctx, rst))
 	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
 
 	waitForRestoreComplete(t, ctx, rst)
-	t.Logf("[step 4] TopologyValidated=True and EtcdRestored=True")
+	t.Logf("[step 5] TopologyValidated=True and EtcdRestored=True")
 
 	// Wait for the restored cluster to be ready before reading.
 	var recreated druidv1alpha1.Etcd
 	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: e2eNS}, &recreated))
 	waitForShardReady(t, ctx, &recreated)
-	t.Logf("[step 5] restored shard Ready=true")
+	t.Logf("[step 6] restored shard Ready=true")
 
 	// Pre-backup key must be present — snapshot replay succeeded.
 	preOut, err := runEtcdctlPodOutput(ctx, t, "get-pre-"+id, []string{
@@ -723,5 +806,173 @@ func TestRealEtcd_Restore_CorruptEtcdAfterBackup(t *testing.T) {
 	require.NoError(t, err, "etcdctl get pre-backup key failed")
 	require.Contains(t, preOut, preValue,
 		"pre-backup key must survive restore (snapshot replay); got %q", preOut)
-	t.Logf("[step 6] pre-backup key %s=%q present after restore ✓", preKey, preValue)
+	t.Logf("[step 7] pre-backup key %s=%q present after restore ✓", preKey, preOut)
+
+	// Post-backup key must be absent — it was written after the snapshot, so the
+	// S3 restore must have rolled the cluster back to the snapshot point.
+	// If this key is present, the PVC was reused and etcdbr skipped the S3 restore.
+	postOut, err := runEtcdctlPodOutput(ctx, t, "get-post-"+id, []string{
+		"etcdctl", "--endpoints=" + etcdEndpoint, "get", "--print-value-only", postKey,
+	})
+	require.NoError(t, err, "etcdctl get post-backup key failed")
+	require.NotContains(t, postOut, postValue,
+		"post-backup key must be absent after restore — if present, etcdbr reused the stale PVC instead of replaying S3")
+	t.Logf("[step 8] post-backup key %s absent after restore ✓ — S3 snapshot replay confirmed", postKey)
+}
+
+// TestRealEtcd_Restore_MultiShard verifies that the operator correctly backs up and
+// restores two independent kcp-shard Etcd CRs in a single PlatformBackup/Restore cycle.
+// Each shard gets its own snapshot key; the operator deletes and recreates both CRs and
+// verifies that data written to each shard before the backup is present after restore.
+func TestRealEtcd_Restore_MultiShard(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+
+	id := suffix()
+	shardAName := "e2e-real-shard-ms-a-" + id
+	shardBName := "e2e-real-shard-ms-b-" + id
+	backupName := "e2e-real-backup-ms-" + id
+	restoreName := "e2e-real-restore-ms-" + id
+
+	const keyA = "/e2e/shard-a"
+	const keyB = "/e2e/shard-b"
+	valA := "val-a-" + id
+	valB := "val-b-" + id
+
+	shardA := newRealEtcdShard(shardAName)
+	shardB := newRealEtcdShard(shardBName)
+	require.NoError(t, cl.Create(ctx, shardA))
+	require.NoError(t, cl.Create(ctx, shardB))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shardA) })
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shardB) })
+
+	waitForShardReady(t, ctx, shardA)
+	waitForShardReady(t, ctx, shardB)
+	t.Logf("[step 1] both shards ready")
+
+	epA := fmt.Sprintf("http://%s-client.%s.svc:2379", shardAName, e2eNS)
+	epB := fmt.Sprintf("http://%s-client.%s.svc:2379", shardBName, e2eNS)
+
+	const postKeyA = "/e2e/post-shard-a"
+	const postKeyB = "/e2e/post-shard-b"
+	postValA := "post-a-" + id
+	postValB := "post-b-" + id
+
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-a-"+id, []string{"etcdctl", "--endpoints=" + epA, "put", keyA, valA}))
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-b-"+id, []string{"etcdctl", "--endpoints=" + epB, "put", keyB, valB}))
+	t.Logf("[step 2] wrote %s=%s to shard-a, %s=%s to shard-b", keyA, valA, keyB, valB)
+
+	bkp := newPlatformBackup(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	waitForBackupComplete(t, ctx, bkp)
+	require.Len(t, bkp.Status.Artefacts.Etcd.Shards, 2, "backup must record artefacts for both shards")
+	t.Logf("[step 3] backup complete — artefacts: %v", bkp.Status.Artefacts.Etcd.Shards)
+
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-post-a-"+id, []string{"etcdctl", "--endpoints=" + epA, "put", postKeyA, postValA}))
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-post-b-"+id, []string{"etcdctl", "--endpoints=" + epB, "put", postKeyB, postValB}))
+	t.Logf("[step 4] wrote post-backup keys (must be absent after restore)")
+
+	rst := newPlatformRestore(restoreName, backupName)
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	waitForRestoreComplete(t, ctx, rst)
+	t.Logf("[step 4] EtcdRestored=True for both shards")
+
+	var recA, recB druidv1alpha1.Etcd
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: shardAName, Namespace: e2eNS}, &recA))
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: shardBName, Namespace: e2eNS}, &recB))
+	waitForShardReady(t, ctx, &recA)
+	waitForShardReady(t, ctx, &recB)
+	t.Logf("[step 5] both restored shards Ready=true")
+
+	outA, err := runEtcdctlPodOutput(ctx, t, "get-a-"+id, []string{"etcdctl", "--endpoints=" + epA, "get", "--print-value-only", keyA})
+	require.NoError(t, err)
+	require.Contains(t, outA, valA, "shard-a key must survive restore; got %q", outA)
+
+	outB, err := runEtcdctlPodOutput(ctx, t, "get-b-"+id, []string{"etcdctl", "--endpoints=" + epB, "get", "--print-value-only", keyB})
+	require.NoError(t, err)
+	require.Contains(t, outB, valB, "shard-b key must survive restore; got %q", outB)
+	t.Logf("[step 6] pre-backup keys confirmed on both shards ✓")
+
+	postOutA, errA := runEtcdctlPodOutput(ctx, t, "get-post-a-"+id, []string{"etcdctl", "--endpoints=" + epA, "get", "--print-value-only", postKeyA})
+	require.NoError(t, errA)
+	require.NotContains(t, postOutA, postValA, "shard-a post-backup key must be absent — stale PVC reused")
+
+	postOutB, errB := runEtcdctlPodOutput(ctx, t, "get-post-b-"+id, []string{"etcdctl", "--endpoints=" + epB, "get", "--print-value-only", postKeyB})
+	require.NoError(t, errB)
+	require.NotContains(t, postOutB, postValB, "shard-b post-backup key must be absent — stale PVC reused")
+	t.Logf("[step 7] post-backup keys absent on both shards ✓ — S3 snapshot replay confirmed")
+}
+
+// TestRealEtcd_Restore_CustomVolumeClaimTemplate verifies that the operator correctly
+// deletes PVCs when the Etcd spec uses a custom VolumeClaimTemplate name. Without this
+// fix, the operator would generate the wrong PVC name, miss the deletion, and etcdbr
+// would reuse the stale PVC instead of restoring from S3.
+func TestRealEtcd_Restore_CustomVolumeClaimTemplate(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Minute)
+	t.Cleanup(cancel)
+
+	cleanupTestResources(t)
+
+	id := suffix()
+	shardName := "e2e-real-shard-cvct-" + id
+	backupName := "e2e-real-backup-cvct-" + id
+	restoreName := "e2e-real-restore-cvct-" + id
+
+	const preKey = "/e2e/pre-backup-cvct"
+	const postKey = "/e2e/post-backup-cvct"
+	preValue := "pre-cvct-" + id
+	postValue := "post-cvct-" + id
+	const customVCT = "etcd-data"
+
+	shard := newRealEtcdShard(shardName)
+	shard.Spec.VolumeClaimTemplate = ptr.To(customVCT)
+	require.NoError(t, cl.Create(ctx, shard))
+	t.Cleanup(func() { stripFinalizersAndDelete(t, shard) })
+
+	waitForShardReady(t, ctx, shard)
+	t.Logf("[step 1] shard %s (VolumeClaimTemplate=%s) Ready=true", shardName, customVCT)
+
+	ep := fmt.Sprintf("http://%s-client.%s.svc:2379", shardName, e2eNS)
+
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-pre-cvct-"+id, []string{"etcdctl", "--endpoints=" + ep, "put", preKey, preValue}))
+	t.Logf("[step 2] wrote pre-backup key %s=%s", preKey, preValue)
+
+	bkp := newPlatformBackup(backupName)
+	require.NoError(t, cl.Create(ctx, bkp))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), bkp) })
+
+	waitForBackupComplete(t, ctx, bkp)
+	t.Logf("[step 3] backup complete")
+
+	require.NoError(t, runEtcdctlPod(ctx, t, "put-post-cvct-"+id, []string{"etcdctl", "--endpoints=" + ep, "put", postKey, postValue}))
+	t.Logf("[step 4] wrote post-backup key %s=%s (must be absent after restore)", postKey, postValue)
+
+	rst := newPlatformRestore(restoreName, backupName)
+	require.NoError(t, cl.Create(ctx, rst))
+	t.Cleanup(func() { _ = cl.Delete(context.Background(), rst) })
+
+	waitForRestoreComplete(t, ctx, rst)
+	t.Logf("[step 5] EtcdRestored=True")
+
+	var recreated druidv1alpha1.Etcd
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: shardName, Namespace: e2eNS}, &recreated))
+	waitForShardReady(t, ctx, &recreated)
+	t.Logf("[step 6] restored shard Ready=true")
+
+	preOut, err := runEtcdctlPodOutput(ctx, t, "get-pre-cvct-"+id, []string{"etcdctl", "--endpoints=" + ep, "get", "--print-value-only", preKey})
+	require.NoError(t, err)
+	require.Contains(t, preOut, preValue, "pre-backup key must survive restore; got %q", preOut)
+	t.Logf("[step 7] pre-backup key present ✓")
+
+	postOut, err := runEtcdctlPodOutput(ctx, t, "get-post-cvct-"+id, []string{"etcdctl", "--endpoints=" + ep, "get", "--print-value-only", postKey})
+	require.NoError(t, err)
+	require.NotContains(t, postOut, postValue,
+		"post-backup key must be absent — if present, the PVC named '%s-%s-0' was not deleted (wrong VCT name used)", customVCT, shardName)
+	t.Logf("[step 8] post-backup key absent ✓ — custom VolumeClaimTemplate PVC correctly deleted")
 }

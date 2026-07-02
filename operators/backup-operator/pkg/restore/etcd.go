@@ -30,10 +30,12 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -47,11 +49,6 @@ const (
 
 	// ConditionEtcdRestored is set on PlatformRestore when all shards have been restored.
 	ConditionEtcdRestored = "EtcdRestored"
-
-	// LabelKeyComponent and LabelComponentKCPShard are re-exported from the backup package
-	// so e2e tests and other restore callers can reference them without importing backup.
-	LabelKeyComponent      = backup.LabelKeyComponent
-	LabelComponentKCPShard = backup.LabelComponentKCPShard
 )
 
 // EtcdRestoreSubroutine deletes and recreates each kcp-shard Etcd CR from the snapshot
@@ -147,20 +144,24 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 			errs = append(errs, fmt.Errorf("fetching Etcd CR %q: %w", shardName, err))
 
 		case apierrors.IsNotFound(err):
-			// CR is absent — the delete succeeded but recreate has not run yet, or
-			// the CR was never present. We cannot recreate without the original spec.
-			// Surface as an error requiring manual intervention (e.g. re-create the
-			// PlatformRestore so a fresh reconcile can read the spec from the live CR).
-			errs = append(errs, fmt.Errorf("etcd CR %q not found in namespace %q — "+
-				"unable to recreate without spec; delete and re-create the PlatformRestore to retry",
-				shardName, s.namespace))
+			// CR is absent. This is the expected transient state between the delete
+			// (line ~189) and the Create completing when a watch-triggered reconcile
+			// races ahead. Return Pending so the next reconcile retries; if the shard
+			// was never present the next reconcile will also hit this branch and the
+			// error will surface after a few requeues via the error-counter mechanism.
+			if pendingMsg == "" {
+				pendingMsg = fmt.Sprintf("waiting for Etcd %q to be (re)created", shardName)
+			}
 
 		case etcd.DeletionTimestamp != nil:
 			// Deletion in flight — strip any re-added finalizers. This case is evaluated
 			// BEFORE the annotation case so that a terminating CR carrying the restore
 			// annotation still has its finalizers stripped (the AlreadyExists path may
 			// have patched the annotation onto the old terminating CR).
-			s.stripFinalizers(ctx, cl, &etcd, log)
+			if err := s.stripFinalizers(ctx, cl, &etcd, log); err != nil {
+				errs = append(errs, fmt.Errorf("stripping finalizers from terminating Etcd %q: %w", shardName, err))
+				break
+			}
 			if pendingMsg == "" {
 				pendingMsg = fmt.Sprintf("waiting for Etcd %q deletion to complete", shardName)
 			}
@@ -188,11 +189,38 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 			log.Info().Str("shard", shardName).Str("snapshotKey", snapshotKey).
 				Msg("deleting Etcd CR for restore")
 
-			s.stripFinalizers(ctx, cl, &etcd, log)
+			if err := s.stripFinalizers(ctx, cl, &etcd, log); err != nil {
+				errs = append(errs, fmt.Errorf("stripping finalizers from Etcd %q before delete: %w", shardName, err))
+				break
+			}
 			gracePeriod := int64(0)
 			if delErr := cl.Delete(ctx, &etcd, &ctrlruntimeclient.DeleteOptions{GracePeriodSeconds: &gracePeriod}); delErr != nil && !apierrors.IsNotFound(delErr) {
 				errs = append(errs, fmt.Errorf("deleting Etcd CR %q: %w", shardName, delErr))
 				break
+			}
+
+			// Delete PVCs for this shard so etcdbr is forced to restore from S3.
+			// etcd-druid does NOT delete PVCs when the Etcd CR is deleted — PVCs
+			// from StatefulSet volumeClaimTemplates survive StatefulSet deletion.
+			// If the old PVC is present when the new pod starts, etcdbr detects a
+			// valid data directory and skips the S3 restore entirely, defeating the
+			// purpose of this operation. We must wipe the PVCs first.
+			// PVC name format: <volumeClaimTemplate>-<statefulSetName>-<ordinal>
+			// The StatefulSet name always equals etcd.Name (GetStatefulSetName).
+			// The volumeClaimTemplate name is spec.VolumeClaimTemplate if set,
+			// otherwise it also defaults to etcd.Name.
+			vctName := ptr.Deref(savedSpec.VolumeClaimTemplate, shardName)
+			for i := range savedSpec.Replicas {
+				pvcName := fmt.Sprintf("%s-%s-%d", vctName, shardName, i)
+				pvc := &corev1.PersistentVolumeClaim{}
+				pvc.Name = pvcName
+				pvc.Namespace = s.namespace
+				if delErr := cl.Delete(ctx, pvc); delErr != nil && !apierrors.IsNotFound(delErr) {
+					log.Warn().Str("shard", shardName).Str("pvc", pvcName).Err(delErr).
+						Msg("failed to delete PVC; etcdbr may use stale disk data")
+				} else {
+					log.Info().Str("shard", shardName).Str("pvc", pvcName).Msg("deleted PVC for restore")
+				}
 			}
 
 			// Immediately attempt to recreate. The old CR may still be terminating,
@@ -208,28 +236,29 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 		}
 	}
 
-	if len(errs) > 0 {
-		return subroutines.OK(), combineErrors(errs)
-	}
 	if pendingMsg != "" {
 		return subroutines.Pending(5*time.Second, pendingMsg), nil
 	}
-
+	if len(errs) > 0 {
+		return subroutines.OK(), combineErrors(errs)
+	}
 	log.Info().Str("restore", rst.Name).Int("shardCount", len(shards)).Msg("etcd restore complete")
 	return subroutines.OK(), nil
 }
 
-// stripFinalizers removes all finalizers from an Etcd CR. Errors are logged at warn level
-// since etcd-druid may re-add them and the caller will retry on the next reconcile.
-func (s *EtcdRestoreSubroutine) stripFinalizers(ctx context.Context, cl ctrlruntimeclient.Client, etcd *druidv1alpha1.Etcd, log *logger.Logger) {
+// stripFinalizers removes all finalizers from an Etcd CR. Returns an error if
+// the patch fails for a reason other than NotFound.
+func (s *EtcdRestoreSubroutine) stripFinalizers(ctx context.Context, cl ctrlruntimeclient.Client, etcd *druidv1alpha1.Etcd, log *logger.Logger) error {
 	if len(etcd.Finalizers) == 0 {
-		return
+		return nil
 	}
 	patch := ctrlruntimeclient.MergeFrom(etcd.DeepCopy())
 	etcd.Finalizers = nil
 	if err := cl.Patch(ctx, etcd, patch); err != nil && !apierrors.IsNotFound(err) {
 		log.Warn().Str("shard", etcd.Name).Err(err).Msg("failed to strip finalizers from Etcd CR")
+		return err
 	}
+	return nil
 }
 
 // recreate creates a new Etcd CR with the restore annotation. If the CR already exists
@@ -266,6 +295,12 @@ func (s *EtcdRestoreSubroutine) recreate(
 	// next reconcile will hit the NotFound error branch.
 	var existing druidv1alpha1.Etcd
 	if err := cl.Get(ctx, types.NamespacedName{Name: name, Namespace: s.namespace}, &existing); err != nil {
+		if apierrors.IsNotFound(err) {
+			// The raced CR was itself deleted between our Create and this Get.
+			// Return nil — the next reconcile will re-enter the default case or
+			// the IsNotFound case and retry cleanly.
+			return nil
+		}
 		return fmt.Errorf("fetching raced Etcd CR: %w", err)
 	}
 	if existing.DeletionTimestamp != nil {
