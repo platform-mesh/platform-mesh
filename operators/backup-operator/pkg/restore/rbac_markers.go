@@ -21,4 +21,4 @@ package restore
 // +kubebuilder:rbac:groups=backup.platform-mesh.io,resources=platformbackups,verbs=get;list;watch
 // +kubebuilder:rbac:groups=backup.platform-mesh.io,resources=platformrestores,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=backup.platform-mesh.io,resources=platformrestores/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;delete
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;delete;patch;update
