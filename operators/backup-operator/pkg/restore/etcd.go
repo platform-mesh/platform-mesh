@@ -184,6 +184,47 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 			log.Info().Str("shard", shardName).Str("snapshotKey", snapshotKey).
 				Msg("deleting Etcd CR for restore")
 
+			// Delete PVCs before recreating the Etcd CR so etcdbr starts with a
+			// fresh volume and is forced to replay the S3 snapshot.
+			//
+			// Implementation notes:
+			// - We strip the pvc-protection finalizer before deleting so the PVC is
+			//   removed immediately even if the etcdbr pod still holds it open.
+			//   Without this, WaitForFirstConsumer PVCs stay Terminating until pod
+			//   termination, and if we race the new StatefulSet the new pod can bind
+			//   to the old Terminating PVC and find stale data.
+			// - We issue the Etcd CR deletion AFTER stripping PVC finalizers so that
+			//   the PVCs are truly gone (or finalizer-stripped) before etcd-druid can
+			//   create a new StatefulSet.
+			// PVC name format: <volumeClaimTemplate>-<statefulSetName>-<ordinal>
+			vctName := ptr.Deref(savedSpec.VolumeClaimTemplate, shardName)
+			for i := range savedSpec.Replicas {
+				pvcName := fmt.Sprintf("%s-%s-%d", vctName, shardName, i)
+				var pvc corev1.PersistentVolumeClaim
+				if getErr := cl.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: s.namespace}, &pvc); getErr != nil {
+					if !apierrors.IsNotFound(getErr) {
+						log.Warn().Str("shard", shardName).Str("pvc", pvcName).Err(getErr).Msg("failed to check PVC")
+					}
+					continue
+				}
+				// Strip the pvc-protection finalizer so the PVC can be deleted
+				// immediately regardless of whether a pod still holds the volume.
+				if len(pvc.Finalizers) > 0 {
+					patch := ctrlruntimeclient.MergeFrom(pvc.DeepCopy())
+					pvc.Finalizers = nil
+					if patchErr := cl.Patch(ctx, &pvc, patch); patchErr != nil && !apierrors.IsNotFound(patchErr) {
+						log.Warn().Str("shard", shardName).Str("pvc", pvcName).Err(patchErr).Msg("failed to strip PVC finalizers")
+					}
+				}
+				gracePeriod := int64(0)
+				if delErr := cl.Delete(ctx, &pvc, &ctrlruntimeclient.DeleteOptions{GracePeriodSeconds: &gracePeriod}); delErr != nil && !apierrors.IsNotFound(delErr) {
+					log.Warn().Str("shard", shardName).Str("pvc", pvcName).Err(delErr).
+						Msg("failed to delete PVC; etcdbr may use stale disk data")
+				} else {
+					log.Info().Str("shard", shardName).Str("pvc", pvcName).Msg("deleted PVC for restore")
+				}
+			}
+
 			if err := s.stripFinalizers(ctx, cl, &etcd, log); err != nil {
 				errs = append(errs, fmt.Errorf("stripping finalizers from Etcd %q before delete: %w", shardName, err))
 				break
@@ -192,30 +233,6 @@ func (s *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 			if delErr := cl.Delete(ctx, &etcd, &ctrlruntimeclient.DeleteOptions{GracePeriodSeconds: &gracePeriod}); delErr != nil && !apierrors.IsNotFound(delErr) {
 				errs = append(errs, fmt.Errorf("deleting Etcd CR %q: %w", shardName, delErr))
 				break
-			}
-
-			// Delete PVCs for this shard so etcdbr is forced to restore from S3.
-			// etcd-druid does NOT delete PVCs when the Etcd CR is deleted — PVCs
-			// from StatefulSet volumeClaimTemplates survive StatefulSet deletion.
-			// If the old PVC is present when the new pod starts, etcdbr detects a
-			// valid data directory and skips the S3 restore entirely, defeating the
-			// purpose of this operation. We must wipe the PVCs first.
-			// PVC name format: <volumeClaimTemplate>-<statefulSetName>-<ordinal>
-			// The StatefulSet name always equals etcd.Name (GetStatefulSetName).
-			// The volumeClaimTemplate name is spec.VolumeClaimTemplate if set,
-			// otherwise it also defaults to etcd.Name.
-			vctName := ptr.Deref(savedSpec.VolumeClaimTemplate, shardName)
-			for i := range savedSpec.Replicas {
-				pvcName := fmt.Sprintf("%s-%s-%d", vctName, shardName, i)
-				pvc := &corev1.PersistentVolumeClaim{}
-				pvc.Name = pvcName
-				pvc.Namespace = s.namespace
-				if delErr := cl.Delete(ctx, pvc); delErr != nil && !apierrors.IsNotFound(delErr) {
-					log.Warn().Str("shard", shardName).Str("pvc", pvcName).Err(delErr).
-						Msg("failed to delete PVC; etcdbr may use stale disk data")
-				} else {
-					log.Info().Str("shard", shardName).Str("pvc", pvcName).Msg("deleted PVC for restore")
-				}
 			}
 
 			// Immediately attempt to recreate. The old CR may still be terminating,
