@@ -78,8 +78,12 @@ func New(definitions map[string]*spec.Schema, resolverProvider *resolver.Service
 		mutationGen:     fields.NewMutationGenerator(resolverProvider),
 		subscriptionGen: fields.NewSubscriptionGenerator(resolverProvider),
 		categoryManager: categoryManager,
-		customQueryGen:  extensions.NewCustomQueryGenerator(resolverProvider, categoryManager),
-		customSubGen:    customSubGen,
+		customQueryGen: extensions.NewCustomQueryGenerator(
+			resolverProvider,
+			categoryManager,
+			registry,
+		),
+		customSubGen: customSubGen,
 	}
 }
 
@@ -105,6 +109,7 @@ func (g *SchemaGenerator) Generate(ctx context.Context) (*graphql.Schema, error)
 	}
 
 	g.customQueryGen.AddTypeByCategoryQuery(rootQuery)
+	g.customQueryGen.AddResourcesByCategoryQuery(rootQuery)
 	g.addApplyYamlMutation(rootMutation)
 
 	if g.customSubGen != nil {
@@ -292,6 +297,7 @@ func (g *SchemaGenerator) processResource(
 		Name:   uniqueTypeName + "_Input",
 		Fields: inputFields,
 	})
+	g.typeRegistry.Register(uniqueTypeName, resourceType, inputType)
 
 	rc := &fields.ResourceContext{
 		GVK:            r.GVK,

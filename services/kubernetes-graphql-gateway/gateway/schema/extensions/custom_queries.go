@@ -20,21 +20,31 @@ import (
 	"github.com/graphql-go/graphql"
 
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
-	typeByCategoryFieldName = "typeByCategory"
+	typeByCategoryFieldName      = "typeByCategory"
+	resourcesByCategoryFieldName = "resourcesByCategory"
 )
 
 type CustomQueryGenerator struct {
 	resolver        *resolver.Service
 	categoryManager *CategoryManager
+	registry        *types.Registry
 }
 
-func NewCustomQueryGenerator(resolver *resolver.Service, categoryManager *CategoryManager) *CustomQueryGenerator {
+func NewCustomQueryGenerator(
+	resolver *resolver.Service,
+	categoryManager *CategoryManager,
+	registry *types.Registry,
+) *CustomQueryGenerator {
 	return &CustomQueryGenerator{
 		resolver:        resolver,
 		categoryManager: categoryManager,
+		registry:        registry,
 	}
 }
 
@@ -58,8 +68,81 @@ func (g *CustomQueryGenerator) AddTypeByCategoryQuery(rootQueryType *graphql.Obj
 	})
 }
 
+func (g *CustomQueryGenerator) AddResourcesByCategoryQuery(rootQueryType *graphql.Object) {
+
+	typesByGVK := make(map[schema.GroupVersionKind]*graphql.Object)
+	for _, v := range g.categoryManager.AllCategories() {
+		for _, t := range v {
+			gvk := schema.GroupVersionKind{
+				Group:   t.Group,
+				Version: t.Version,
+				Kind:    t.Kind,
+			}
+			gObj, _ := g.registry.Get(g.registry.GetUniqueTypeName(&gvk))
+			if gObj == nil {
+				continue
+			}
+			typesByGVK[gvk] = gObj
+		}
+	}
+
+	unionTypes := make([]*graphql.Object, 0, len(typesByGVK))
+	for _, gObj := range typesByGVK {
+		unionTypes = append(unionTypes, gObj)
+	}
+
+	uType := graphql.NewUnion(graphql.UnionConfig{
+		Name:  "CategoryResource",
+		Types: unionTypes,
+		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
+			rawObj, ok := p.Value.(map[string]any)
+			if !ok {
+				return nil
+			}
+
+			apiVersion, ok := getField(rawObj, "apiVersion")
+			if !ok {
+				return nil
+			}
+			kind, ok := getField(rawObj, "kind")
+			if !ok {
+				return nil
+			}
+			gv, err := schema.ParseGroupVersion(apiVersion)
+			if err != nil {
+				return nil
+			}
+
+			gvk := gv.WithKind(kind)
+
+			return typesByGVK[gvk]
+		},
+	})
+
+	rootQueryType.AddFieldConfig(resourcesByCategoryFieldName, &graphql.Field{
+		Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(uType))),
+		Args: graphql.FieldConfigArgument{
+			resolver.NameArg:          resolver.NameArgConfig,
+			resolver.NamespaceArg:     resolver.NamespaceArgConfig,
+			resolver.LabelSelectorArg: resolver.LabelSelectorArgConfig,
+		},
+		Resolve: g.resolver.ResourcesByCategory(g.categoryManager.AllCategories()),
+	})
+
+}
+
 func graphqlStringField() *graphql.Field {
 	return &graphql.Field{
 		Type: graphql.NewNonNull(graphql.String),
 	}
+}
+
+func getField(source map[string]any, field string) (string, bool) {
+	v, got := source[field]
+	if !got {
+		return "", got
+	}
+
+	s, ok := v.(string)
+	return s, ok
 }

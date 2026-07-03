@@ -17,7 +17,13 @@ limitations under the License.
 package resolver
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/graphql-go/graphql"
+
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type TypeByCategory struct {
@@ -35,5 +41,36 @@ func (r *Service) TypeByCategory(m map[string][]TypeByCategory) graphql.FieldRes
 		}
 
 		return m[name], nil
+	}
+}
+
+func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.FieldResolveFn {
+	return func(p graphql.ResolveParams) (any, error) {
+		name, err := GetArg[string](p.Args, NameArg, true)
+		if err != nil {
+			return nil, err
+		}
+
+		members := m[name]
+		result := make([]map[string]any, 0)
+
+		for _, v := range members {
+			gvk := schema.GroupVersionKind{Group: v.Group, Version: v.Version, Kind: v.Kind}
+			scope := apiextensionsv1.ResourceScope(v.Scope)
+			items, err := r.ListItems(gvk, scope)(p)
+			if err != nil {
+				return nil, fmt.Errorf("getting items: %w", err)
+			}
+
+			listresult, ok := items.(*ListResult)
+			if !ok {
+				return nil, errors.New("ListItems returned wrong type: was not *ListResult")
+			}
+
+			result = append(result, listresult.Items...)
+
+		}
+
+		return result, nil
 	}
 }
