@@ -304,7 +304,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 
 	var providerPermissions *pmprovidersv1alpha1.ProviderPermissions
 	for i := range providerPermissionsList.Items {
-		if providerPermissionsList.Items[i].Spec.APIExportRef.Name == apiExport.Name {
+		if providerPermissionsList.Items[i].Spec.APIExport.Ref.Name == apiExport.Name {
 			providerPermissions = &providerPermissionsList.Items[i]
 			break
 		}

@@ -117,7 +117,7 @@ func (r *APIBindingReconciler) mapProviderPermissionsToAPIBindings(ctx context.C
 	var requests []mcreconcile.Request
 	for _, binding := range bindings.Items {
 		if binding.Spec.Reference.Export == nil ||
-			binding.Spec.Reference.Export.Name != pp.Spec.APIExportRef.Name {
+			binding.Spec.Reference.Export.Name != pp.Spec.APIExport.Ref.Name {
 			continue
 		}
 
