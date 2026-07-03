@@ -48,7 +48,6 @@ import (
 	brokerv1alpha1 "go.platform-mesh.io/apis/operatorbroker/v1alpha1"
 	examplev1alpha1 "go.platform-mesh.io/resource-broker/api/example/v1alpha1"
 	"go.platform-mesh.io/resource-broker/test/e2e/internal/manager"
-	"go.platform-mesh.io/resource-broker/test/utils"
 )
 
 func init() {
@@ -188,7 +187,7 @@ func startControlPlane(tb testing.TB) *ControlPlane {
 	tb.Helper()
 
 	c := &ControlPlane{}
-	c.Env, c.Config = utils.DefaultEnvTest(tb)
+	// c.Env, c.Config = utils.DefaultEnvTest(tb)
 
 	var err error
 	c.Cluster, err = cluster.New(c.Config)
