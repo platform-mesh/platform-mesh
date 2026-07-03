@@ -22,9 +22,9 @@ import (
 
 // TODO: move these into a specific application
 
-// +kubebuilder:rbac:groups=broker.platform-mesh.io,resources=migrations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=broker.platform-mesh.io,resources=migrations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=broker.platform-mesh.io,resources=migrations/finalizers,verbs=update
+// +kubebuilder:rbac:groups=coord.broker.platform-mesh.io,resources=migrations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=coord.broker.platform-mesh.io,resources=migrations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=coord.broker.platform-mesh.io,resources=migrations/finalizers,verbs=update
 
 // MigrationSpec defines the desired state of Migration.
 type MigrationSpec struct {

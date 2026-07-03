@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API Schema definitions for the operator v1alpha1 API group.
+// Package v1alpha1 contains API Schema definitions for the broker v1alpha1 API group.
 // +kubebuilder:object:generate=true
-// +groupName=operator.broker.platform-mesh.io
+// +groupName=coord.broker.platform-mesh.io
 package v1alpha1
 
 import (
@@ -26,20 +26,13 @@ import (
 )
 
 const (
-	// GroupVersion is API group used to register these objects.
-	GroupName = "operator.broker.platform-mesh.io"
-
-	// GroupVersion is group version used to register these objects.
+	GroupName    = "coord.broker.platform-mesh.io"
 	GroupVersion = "v1alpha1"
 )
 
 var (
-
-	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
-
-	// AddToScheme adds the types in this group-version to the given scheme.
-	AddToScheme = SchemeBuilder.AddToScheme
+	AddToScheme   = SchemeBuilder.AddToScheme
 
 	// SchemeGroupVersion is group version used to register these objects.
 	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
@@ -48,8 +41,12 @@ var (
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Broker{},
-		&BrokerList{},
+		&Migration{},
+		&MigrationList{},
+		&MigrationConfiguration{},
+		&MigrationConfigurationList{},
+		&StagingWorkspace{},
+		&StagingWorkspaceList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)

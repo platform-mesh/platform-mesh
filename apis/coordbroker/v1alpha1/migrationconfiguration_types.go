@@ -21,9 +21,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// +kubebuilder:rbac:groups=broker.platform-mesh.io,resources=migrationconfigurations,verbs=get;list;watch;update
-// +kubebuilder:rbac:groups=broker.platform-mesh.io,resources=migrationconfigurations/status,verbs=get
-// +kubebuilder:rbac:groups=broker.platform-mesh.io,resources=migrationconfigurations/finalizers,verbs=update
+// +kubebuilder:rbac:groups=coord.broker.platform-mesh.io,resources=migrationconfigurations,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=coord.broker.platform-mesh.io,resources=migrationconfigurations/status,verbs=get
+// +kubebuilder:rbac:groups=coord.broker.platform-mesh.io,resources=migrationconfigurations/finalizers,verbs=update
 
 // MigrationConfigurationSpec defines the desired state of MigrationConfiguration.
 type MigrationConfigurationSpec struct {

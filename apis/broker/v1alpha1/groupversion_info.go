@@ -43,12 +43,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&AcceptAPI{},
 		&AcceptAPIList{},
-		&Migration{},
-		&MigrationList{},
-		&MigrationConfiguration{},
-		&MigrationConfigurationList{},
-		&StagingWorkspace{},
-		&StagingWorkspaceList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
