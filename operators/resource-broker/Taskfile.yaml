@@ -29,12 +29,16 @@ tasks:
       - task: tools:generate-crds
         vars: { PATH: /broker/..., OUTPUT: config/broker/crd }
       - task: tools:generate-crds
+        vars: { PATH: /coordbroker/..., OUTPUT: config/coordbroker/crd }
+      - task: tools:generate-crds
         vars: { BASEDIR: './api', PATH: /generic/..., OUTPUT: config/generic/crd }
       - task: tools:generate-crds
         vars: { BASEDIR: './api', PATH: /example/..., OUTPUT: config/example/crd }
 
       - task: tools:generate-rbac
         vars: { PATHS: '{{.TOPLEVEL}}/apis/broker/...', OUTPUT: config/broker/rbac, ROLE: resource-broker }
+      - task: tools:generate-rbac
+        vars: { PATHS: '{{.TOPLEVEL}}/apis/coordbroker/...', OUTPUT: config/coordbroker/rbac, ROLE: resource-broker }
       - task: tools:generate-rbac
         vars: { PATHS: ./api/generic/..., OUTPUT: config/generic/rbac, ROLE: resource-broker }
       - task: tools:generate-rbac
