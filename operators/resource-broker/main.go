@@ -24,7 +24,6 @@ import (
 	"slices"
 
 	"go.platform-mesh.io/resource-broker/pkg/broker"
-	"go.platform-mesh.io/resource-broker/pkg/version"
 
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -79,8 +78,6 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	setupLog.Info("Starting resource-broker", "version", version.Info())
 
 	ctx := mctrl.SetupSignalHandler()
 
