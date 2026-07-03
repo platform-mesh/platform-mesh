@@ -18,9 +18,30 @@ metadata:
   name: resource-broker
 rules:
 - apiGroups:
-  - ""
+  - coord.broker.platform-mesh.io
   resources:
-  - configmaps
+  - migrationconfigurations
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - coord.broker.platform-mesh.io
+  resources:
+  - migrationconfigurations/finalizers
+  - migrations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - coord.broker.platform-mesh.io
+  resources:
+  - migrationconfigurations/status
+  verbs:
+  - get
+- apiGroups:
+  - coord.broker.platform-mesh.io
+  resources:
+  - migrations
   verbs:
   - create
   - delete
@@ -30,42 +51,10 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
+  - coord.broker.platform-mesh.io
   resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - broker.platform-mesh.io
-  resources:
-  - acceptapis
+  - migrations/status
   verbs:
   - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - broker.platform-mesh.io
-  resources:
-  - acceptapis/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - broker.platform-mesh.io
-  resources:
-  - acceptapis/status
-  verbs:
-  - get
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - create
-  - delete
-  - get
-  - list
   - patch
   - update
-  - watch
