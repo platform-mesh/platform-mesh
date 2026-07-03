@@ -1,9 +1,22 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.20.1
   name: providerpermissions.providers.platform-mesh.io
 spec:
   group: providers.platform-mesh.io
@@ -40,15 +53,21 @@ spec:
           spec:
             description: ProviderPermissionsSpec defines the desired state of ProviderPermissions.
             properties:
-              apiExportRef:
-                description: APIExportRef references the APIExport this configuration
+              apiExport:
+                description: APIExport references the APIExport this configuration
                   applies to
                 properties:
-                  name:
-                    description: Name of the APIExport
-                    type: string
+                  ref:
+                    description: Ref identifies the APIExport
+                    properties:
+                      name:
+                        description: Name of the APIExport
+                        type: string
+                    required:
+                    - name
+                    type: object
                 required:
-                - name
+                - ref
                 type: object
               permissions:
                 additionalProperties:
@@ -90,7 +109,7 @@ spec:
                   type: object
                 description: |-
                   Permissions defines per-resource permission configuration
-                  Key format: {resource}.{group} (e.g., "httpbin.orchestrate.platform-mesh.io")
+                  Key format: {group}.{resource} (e.g., "orchestrate.platform-mesh.io.httpbin")
                 type: object
               roles:
                 description: Roles defines custom roles grouped by resource type
@@ -100,8 +119,8 @@ spec:
                   properties:
                     groupResource:
                       description: |-
-                        GroupResource identifies the resource type in format "{resource}.{group}"
-                        (e.g., "httpbin.orchestrate.platform-mesh.io")
+                        GroupResource identifies the resource type in format "{group}.{resource}"
+                        (e.g., "orchestrate.platform-mesh.io.httpbin")
                       type: string
                     roles:
                       description: Roles defines the roles for this resource type
@@ -136,7 +155,7 @@ spec:
                   type: object
                 type: array
             required:
-            - apiExportRef
+            - apiExport
             type: object
           status:
             description: ProviderPermissionsStatus defines the observed state of ProviderPermissions.

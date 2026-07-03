@@ -6,7 +6,7 @@ spec:
   resources:
   - group: providers.platform-mesh.io
     name: providerpermissions
-    schema: v260624-bc73f71.providerpermissions.providers.platform-mesh.io
+    schema: v260703-0c370717.providerpermissions.providers.platform-mesh.io
     storage:
       crd: {}
 status: {}

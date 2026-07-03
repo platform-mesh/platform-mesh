@@ -1,7 +1,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260624-bc73f71.providerpermissions.providers.platform-mesh.io
+  name: v260703-0c370717.providerpermissions.providers.platform-mesh.io
 spec:
   group: providers.platform-mesh.io
   names:
@@ -36,15 +36,21 @@ spec:
         spec:
           description: ProviderPermissionsSpec defines the desired state of ProviderPermissions.
           properties:
-            apiExportRef:
-              description: APIExportRef references the APIExport this configuration
-                applies to
+            apiExport:
+              description: APIExport references the APIExport this configuration applies
+                to
               properties:
-                name:
-                  description: Name of the APIExport
-                  type: string
+                ref:
+                  description: Ref identifies the APIExport
+                  properties:
+                    name:
+                      description: Name of the APIExport
+                      type: string
+                  required:
+                  - name
+                  type: object
               required:
-              - name
+              - ref
               type: object
             permissions:
               additionalProperties:
@@ -86,7 +92,7 @@ spec:
                 type: object
               description: |-
                 Permissions defines per-resource permission configuration
-                Key format: {resource}.{group} (e.g., "httpbin.orchestrate.platform-mesh.io")
+                Key format: {group}.{resource} (e.g., "orchestrate.platform-mesh.io.httpbin")
               type: object
             roles:
               description: Roles defines custom roles grouped by resource type
@@ -95,8 +101,8 @@ spec:
                 properties:
                   groupResource:
                     description: |-
-                      GroupResource identifies the resource type in format "{resource}.{group}"
-                      (e.g., "httpbin.orchestrate.platform-mesh.io")
+                      GroupResource identifies the resource type in format "{group}.{resource}"
+                      (e.g., "orchestrate.platform-mesh.io.httpbin")
                     type: string
                   roles:
                     description: Roles defines the roles for this resource type
@@ -131,7 +137,7 @@ spec:
                 type: object
               type: array
           required:
-          - apiExportRef
+          - apiExport
           type: object
         status:
           description: ProviderPermissionsStatus defines the observed state of ProviderPermissions.
