@@ -105,7 +105,6 @@ func Validate(source, target *Manifest) error {
 		})
 	}
 
-	// Compare KCP shards by name (order-independent).
 	sourceShards := shardsByName(source.Kcp.Shards)
 	targetShards := shardsByName(target.Kcp.Shards)
 
@@ -144,15 +143,14 @@ func Validate(source, target *Manifest) error {
 		}
 	}
 
-	// Compare CNPG clusters by name.
 	sourceClusters := cnpgClustersByName(source.CNPG.Clusters)
 	targetClusters := cnpgClustersByName(target.CNPG.Clusters)
 	for name, sc := range sourceClusters {
 		tc, ok := targetClusters[name]
 		if !ok {
 			mismatches = append(mismatches, FieldMismatch{
-				Field:  fmt.Sprintf("cnpg.clusters[%s].specDigest", name),
-				Source: sc.SpecDigest,
+				Field:  fmt.Sprintf("cnpg.clusters[%s]", name),
+				Source: name,
 				Target: "<missing>",
 			})
 			continue
@@ -164,17 +162,32 @@ func Validate(source, target *Manifest) error {
 				Target: tc.SpecDigest,
 			})
 		}
+		if sc.MajorVersion != tc.MajorVersion {
+			mismatches = append(mismatches, FieldMismatch{
+				Field:  fmt.Sprintf("cnpg.clusters[%s].majorVersion", name),
+				Source: fmt.Sprintf("%d", sc.MajorVersion),
+				Target: fmt.Sprintf("%d", tc.MajorVersion),
+			})
+		}
+	}
+	for name := range targetClusters {
+		if _, ok := sourceClusters[name]; !ok {
+			mismatches = append(mismatches, FieldMismatch{
+				Field:  fmt.Sprintf("cnpg.clusters[%s]", name),
+				Source: "<missing>",
+				Target: name,
+			})
+		}
 	}
 
-	// Compare OpenFGA stores by name.
 	sourceStores := openfgaStoresByName(source.OpenFGA.Stores)
 	targetStores := openfgaStoresByName(target.OpenFGA.Stores)
 	for name, ss := range sourceStores {
 		ts, ok := targetStores[name]
 		if !ok {
 			mismatches = append(mismatches, FieldMismatch{
-				Field:  fmt.Sprintf("openfga.stores[%s].modelDigest", name),
-				Source: ss.ModelDigest,
+				Field:  fmt.Sprintf("openfga.stores[%s]", name),
+				Source: name,
 				Target: "<missing>",
 			})
 			continue
@@ -184,6 +197,15 @@ func Validate(source, target *Manifest) error {
 				Field:  fmt.Sprintf("openfga.stores[%s].modelDigest", name),
 				Source: ss.ModelDigest,
 				Target: ts.ModelDigest,
+			})
+		}
+	}
+	for name := range targetStores {
+		if _, ok := sourceStores[name]; !ok {
+			mismatches = append(mismatches, FieldMismatch{
+				Field:  fmt.Sprintf("openfga.stores[%s]", name),
+				Source: "<missing>",
+				Target: name,
 			})
 		}
 	}
@@ -236,7 +258,6 @@ func canonicalJSON(v any) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Round-trip through map to sort keys.
 	var m any
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return nil, err
@@ -253,6 +274,12 @@ func canonicalJSON(v any) ([]byte, error) {
 func shardsByName(shards []KcpShard) map[string]KcpShard {
 	m := make(map[string]KcpShard, len(shards))
 	for _, s := range shards {
+		if _, dup := m[s.Name]; dup {
+			// Duplicate shard names produce an unpredictable map; surface the issue
+			// by overwriting with a sentinel that marks the field as ambiguous.
+			m[s.Name] = KcpShard{Name: s.Name, EtcdRef: "<duplicate>", LogicalClusterIDsDigest: "<duplicate>"}
+			continue
+		}
 		m[s.Name] = s
 	}
 	return m
@@ -261,6 +288,10 @@ func shardsByName(shards []KcpShard) map[string]KcpShard {
 func cnpgClustersByName(clusters []CNPGCluster) map[string]CNPGCluster {
 	m := make(map[string]CNPGCluster, len(clusters))
 	for _, c := range clusters {
+		if _, dup := m[c.Name]; dup {
+			m[c.Name] = CNPGCluster{Name: c.Name, SpecDigest: "<duplicate>"}
+			continue
+		}
 		m[c.Name] = c
 	}
 	return m
@@ -269,6 +300,10 @@ func cnpgClustersByName(clusters []CNPGCluster) map[string]CNPGCluster {
 func openfgaStoresByName(stores []OpenFGAStore) map[string]OpenFGAStore {
 	m := make(map[string]OpenFGAStore, len(stores))
 	for _, s := range stores {
+		if _, dup := m[s.Name]; dup {
+			m[s.Name] = OpenFGAStore{Name: s.Name, ModelDigest: "<duplicate>"}
+			continue
+		}
 		m[s.Name] = s
 	}
 	return m

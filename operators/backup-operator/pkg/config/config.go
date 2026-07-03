@@ -17,30 +17,32 @@ limitations under the License.
 package config
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/pflag"
 )
 
-const DefaultNamespace = "platform-mesh"
-
-type KcpConfig struct {
-	ApiExportEndpointSliceName string
-}
+const DefaultNamespace = "platform-mesh-backup-operator"
 
 type OperatorConfig struct {
-	Kcp       KcpConfig
 	Namespace string
 }
 
 func NewOperatorConfig() OperatorConfig {
 	return OperatorConfig{
-		Kcp: KcpConfig{
-			ApiExportEndpointSliceName: "backup.platform-mesh.io",
-		},
 		Namespace: DefaultNamespace,
 	}
 }
 
+func (c *OperatorConfig) Validate() error {
+	c.Namespace = strings.TrimSpace(c.Namespace)
+	if c.Namespace == "" {
+		return fmt.Errorf("--namespace must not be empty")
+	}
+	return nil
+}
+
 func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&c.Kcp.ApiExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.Kcp.ApiExportEndpointSliceName, "Set APIExportEndpointSlice name")
 	fs.StringVar(&c.Namespace, "namespace", c.Namespace, "Namespace in which the operator manages resources")
 }

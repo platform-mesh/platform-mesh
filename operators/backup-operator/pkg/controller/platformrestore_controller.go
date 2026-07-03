@@ -20,6 +20,8 @@ import (
 	"context"
 
 	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+	"go.platform-mesh.io/backup-operator/pkg/restore"
+	"go.platform-mesh.io/backup-operator/pkg/topology"
 	"go.platform-mesh.io/subroutines"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
@@ -36,10 +38,16 @@ type PlatformRestoreReconciler struct {
 	lifecycle *lifecycle.Lifecycle
 }
 
-func NewPlatformRestoreReconciler(mgr mcmanager.Manager) *PlatformRestoreReconciler {
+func NewPlatformRestoreReconciler(mgr mcmanager.Manager, namespace string) *PlatformRestoreReconciler {
+	restores := []subroutines.Subroutine{
+		// TopologyValidateSubroutine runs first and blocks the chain when
+		// TopologyValidation=Strict and the live shard set doesn't match the backup.
+		topology.NewValidateSubroutine(namespace),
+		restore.NewEtcdRestoreSubroutine(namespace),
+	}
 	lc := lifecycle.New(mgr, "PlatformRestoreReconciler", func() ctrlruntimeclient.Object {
 		return &pmbackupv1alpha1.PlatformRestore{}
-	}, []subroutines.Subroutine{}...).WithConditions(conditions.NewManager())
+	}, restores...).WithConditions(conditions.NewManager())
 
 	return &PlatformRestoreReconciler{lifecycle: lc}
 }

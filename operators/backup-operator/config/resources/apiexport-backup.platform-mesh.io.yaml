@@ -12,28 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: build manifests generate test cover lint fmt docker-build
-
-build:
-	task build
-
-manifests:
-	task manifests
-
-generate:
-	task generate
-
-test:
-	task test
-
-cover:
-	task cover
-
-lint:
-	task lint
-
-fmt:
-	task fmt
-
-docker-build:
-	task docker-build
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIExport
+metadata:
+  name: backup.platform-mesh.io
+spec:
+  resources:
+  - group: backup.platform-mesh.io
+    name: platformbackups
+    schema: v260626-631a7ce.platformbackups.backup.platform-mesh.io
+    storage:
+      crd: {}
+  - group: backup.platform-mesh.io
+    name: platformrestores
+    schema: v260626-631a7ce.platformrestores.backup.platform-mesh.io
+    storage:
+      crd: {}
+status: {}

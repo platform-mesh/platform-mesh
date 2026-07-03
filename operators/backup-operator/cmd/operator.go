@@ -26,12 +26,13 @@ import (
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+	singleprovider "sigs.k8s.io/multicluster-runtime/providers/single"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -45,18 +46,25 @@ var operatorCmd = &cobra.Command{
 func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	ctrl.SetLogger(log.ComponentLogger("controller-runtime").Logr())
 
+	if err := operatorCfg.Validate(); err != nil {
+		log.Fatal().Err(err).Msg("invalid configuration")
+	}
+
 	ctx, _, shutdown := platformmeshcontext.StartContext(log, operatorCfg, defaultCfg.ShutdownTimeout)
 	defer shutdown()
 
 	restCfg := ctrl.GetConfigOrDie()
 
-	provider, err := pathaware.New(restCfg, operatorCfg.Kcp.ApiExportEndpointSliceName, apiexport.Options{
-		Log:    &ctrl.Log,
-		Scheme: scheme,
-	})
+	hostClient, err := ctrlruntimeclient.New(restCfg, ctrlruntimeclient.Options{Scheme: scheme})
 	if err != nil {
-		log.Fatal().Err(err).Msg("creating APIExport provider")
+		log.Fatal().Err(err).Msg("creating host cluster client")
 	}
+
+	standaloneCluster, err := cluster.New(restCfg, func(o *cluster.Options) { o.Scheme = scheme })
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating cluster")
+	}
+	provider := singleprovider.New(multicluster.ClusterName("standalone"), standaloneCluster)
 
 	mgr, err := mcmanager.New(restCfg, provider, mcmanager.Options{
 		Scheme: scheme,
@@ -74,15 +82,17 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to start manager")
 	}
 
-	if err := projector.New(mgr.GetLocalManager().GetClient(), operatorCfg.Namespace).EnsureConfigMap(ctx); err != nil {
-		log.Fatal().Err(err).Msg("unable to ensure topology schema ConfigMap")
+	// The cluster's cache must be registered as a runnable so it starts
+	// when the manager starts; without this informers never sync and no events arrive.
+	if err := mgr.GetLocalManager().Add(standaloneCluster); err != nil {
+		log.Fatal().Err(err).Msg("adding cluster to manager")
 	}
 
-	if err := controller.NewPlatformBackupReconciler(mgr).SetupWithManager(mgr); err != nil {
+	if err := controller.NewPlatformBackupReconciler(mgr, operatorCfg.Namespace).SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Str("controller", "PlatformBackup").Msg("unable to create controller")
 	}
 
-	if err := controller.NewPlatformRestoreReconciler(mgr).SetupWithManager(mgr); err != nil {
+	if err := controller.NewPlatformRestoreReconciler(mgr, operatorCfg.Namespace).SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Str("controller", "PlatformRestore").Msg("unable to create controller")
 	}
 
@@ -93,8 +103,32 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to set up ready check")
 	}
 
+	// Ensure the topology schema ConfigMap exists. This is done as a Runnable so
+	// the health probe endpoints are registered before the first API server call,
+	// avoiding CrashLoopBackOff on transient API server unavailability at startup.
+	if err := mgr.GetLocalManager().Add(&projectorRunnable{client: hostClient, namespace: operatorCfg.Namespace}); err != nil {
+		log.Fatal().Err(err).Msg("unable to register topology schema projector")
+	}
+
 	log.Info().Msg("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("problem running manager")
 	}
+}
+
+// projectorRunnable wraps projector.EnsureConfigMap as a controller-runtime Runnable
+// so it runs after the manager has started (health probes registered) rather than
+// blocking the operator from starting entirely when the API server is temporarily unavailable.
+type projectorRunnable struct {
+	client    ctrlruntimeclient.Client
+	namespace string
+}
+
+func (r *projectorRunnable) Start(ctx context.Context) error {
+	if err := projector.New(r.client, r.namespace).EnsureConfigMap(ctx); err != nil {
+		// Non-fatal: the schema ConfigMap is used by clients that read topology
+		// documents; the operator's core backup/restore logic can proceed without it.
+		log.Warn().Err(err).Msg("unable to ensure topology schema ConfigMap; proceeding without it")
+	}
+	return nil
 }
