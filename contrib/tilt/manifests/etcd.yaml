@@ -1,0 +1,64 @@
+# Minimal single-member etcd for the dev environment. kcp shards connect here
+# and isolate their keyspace with --etcd-prefix (see deploy_kcp()). This is a
+# development-only, non-HA, ephemeral etcd — do not use as a template for prod.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kcp-etcd
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etcd
+  namespace: kcp-etcd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: etcd
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      containers:
+        - name: etcd
+          image: gcr.io/etcd-development/etcd:v3.5.16
+          command:
+            - /usr/local/bin/etcd
+            - --name=etcd-0
+            - --data-dir=/var/run/etcd/default.etcd
+            - --listen-client-urls=http://0.0.0.0:2379
+            - --advertise-client-urls=http://etcd.kcp-etcd.svc.cluster.local:2379
+            - --listen-peer-urls=http://0.0.0.0:2380
+            # Single member only peers with itself. Pin the advertised peer URL to
+            # loopback and match it in --initial-cluster. Leaving the advertise URL
+            # unset makes etcd auto-detect the pod IP for it while --initial-cluster
+            # keeps the literal value, and the mismatch is fatal at startup.
+            - --initial-advertise-peer-urls=http://127.0.0.1:2380
+            - --initial-cluster=etcd-0=http://127.0.0.1:2380
+            - --auto-compaction-mode=periodic
+            - --auto-compaction-retention=5m
+            - --quota-backend-bytes=8589934592
+          ports:
+            - containerPort: 2379
+              name: client
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 2379
+            initialDelaySeconds: 3
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd
+  namespace: kcp-etcd
+spec:
+  selector:
+    app: etcd
+  ports:
+    - name: client
+      port: 2379
+      targetPort: 2379
