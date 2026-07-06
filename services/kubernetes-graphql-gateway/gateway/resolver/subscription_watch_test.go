@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -31,6 +30,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"go.platform-mesh.io/kubernetes-graphql-gateway/internal/testfakes"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,55 +40,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// fakeWatcher implements watch.Interface for testing.
-type fakeWatcher struct {
-	events chan watch.Event
-	done   chan struct{}
-	once   sync.Once
-}
-
-func newFakeWatcher() *fakeWatcher {
-	return &fakeWatcher{
-		events: make(chan watch.Event, 10),
-		done:   make(chan struct{}),
-	}
-}
-
-func (f *fakeWatcher) ResultChan() <-chan watch.Event {
-	return f.events
-}
-
-func (f *fakeWatcher) Stop() {
-	f.once.Do(func() {
-		close(f.done)
-	})
-}
-
-// fakeClient implements client.WithWatch with controllable List and Watch behavior.
-type fakeClient struct {
-	ctrlruntimeclient.WithWatch
-	watchCalls int32
-	listCalls  int32
-	watchFn    func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) (watch.Interface, error)
-	listFn     func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error
-}
-
-func (f *fakeClient) Watch(ctx context.Context, obj ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
-	atomic.AddInt32(&f.watchCalls, 1)
-	if f.watchFn != nil {
-		return f.watchFn(ctx, obj, opts...)
-	}
-	return newFakeWatcher(), nil
-}
-
-func (f *fakeClient) List(ctx context.Context, obj ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
-	atomic.AddInt32(&f.listCalls, 1)
-	if f.listFn != nil {
-		return f.listFn(ctx, obj, opts...)
-	}
-	return nil
-}
 
 func makeResolveParams(ctx context.Context) graphql.ResolveParams {
 	return graphql.ResolveParams{
@@ -176,32 +128,32 @@ func TestRunWatch_WatchErrorGone_TriggersReconnection(t *testing.T) {
 	defer cancel()
 
 	var watchCall int32
-	fc := &fakeClient{
-		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+	fc := testfakes.NewClient(
+		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+		func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
-			w := newFakeWatcher()
+			w := testfakes.NewWatcher()
 			if call == 1 {
 				go func() {
-					w.events <- makeStatusEvent(http.StatusGone, metav1.StatusReasonExpired, "resource version too old")
-					close(w.events)
+					w.WriteChan() <- makeStatusEvent(http.StatusGone, metav1.StatusReasonExpired, "resource version too old")
+					close(w.WriteChan())
 				}()
 			} else {
 				go func() {
 					obj := makeUnstructuredObj("test", "default", "200")
-					w.events <- watch.Event{Type: watch.Added, Object: obj}
+					w.WriteChan() <- watch.Event{Type: watch.Added, Object: obj}
 					<-ctx.Done()
-					close(w.events)
+					close(w.WriteChan())
 				}()
 			}
 			return w, nil
 		},
-	}
+	)
 
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
@@ -226,32 +178,32 @@ func TestRunWatch_WatchError500_TriggersReconnection(t *testing.T) {
 	defer cancel()
 
 	var watchCall int32
-	fc := &fakeClient{
-		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+	fc := testfakes.NewClient(
+		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+		func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
-			w := newFakeWatcher()
+			w := testfakes.NewWatcher()
 			if call == 1 {
 				go func() {
-					w.events <- makeStatusEvent(http.StatusInternalServerError, metav1.StatusReasonInternalError, "internal error")
-					close(w.events)
+					w.WriteChan() <- makeStatusEvent(http.StatusInternalServerError, metav1.StatusReasonInternalError, "internal error")
+					close(w.WriteChan())
 				}()
 			} else {
 				go func() {
 					obj := makeUnstructuredObj("test", "default", "200")
-					w.events <- watch.Event{Type: watch.Added, Object: obj}
+					w.WriteChan() <- watch.Event{Type: watch.Added, Object: obj}
 					<-ctx.Done()
-					close(w.events)
+					close(w.WriteChan())
 				}()
 			}
 			return w, nil
 		},
-	}
+	)
 
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
@@ -275,22 +227,22 @@ func TestRunWatch_WatchError403_IsTerminal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	fc := &fakeClient{
-		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+	fc := testfakes.NewClient(
+		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
-			w := newFakeWatcher()
+		func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+			w := testfakes.NewWatcher()
 			go func() {
-				w.events <- makeStatusEvent(http.StatusForbidden, metav1.StatusReasonForbidden, "forbidden")
-				close(w.events)
+				w.WriteChan() <- makeStatusEvent(http.StatusForbidden, metav1.StatusReasonForbidden, "forbidden")
+				close(w.WriteChan())
 			}()
 			return w, nil
 		},
-	}
+	)
 
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
@@ -306,7 +258,7 @@ func TestRunWatch_WatchError403_IsTerminal(t *testing.T) {
 		}
 	}
 	assert.True(t, foundErr, "expected error sent to client for 403")
-	assert.Equal(t, int32(1), atomic.LoadInt32(&fc.watchCalls), "should not retry on 403")
+	assert.Equal(t, int32(1), fc.WatchCalls(), "should not retry on 403")
 }
 
 func TestRunWatch_ChannelClose_TriggersReconnection(t *testing.T) {
@@ -314,31 +266,31 @@ func TestRunWatch_ChannelClose_TriggersReconnection(t *testing.T) {
 	defer cancel()
 
 	var watchCall int32
-	fc := &fakeClient{
-		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+	fc := testfakes.NewClient(
+		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+		func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
-			w := newFakeWatcher()
+			w := testfakes.NewWatcher()
 			if call == 1 {
 				go func() {
-					close(w.events)
+					close(w.WriteChan())
 				}()
 			} else {
 				go func() {
 					obj := makeUnstructuredObj("test", "default", "200")
-					w.events <- watch.Event{Type: watch.Added, Object: obj}
+					w.WriteChan() <- watch.Event{Type: watch.Added, Object: obj}
 					<-ctx.Done()
-					close(w.events)
+					close(w.WriteChan())
 				}()
 			}
 			return w, nil
 		},
-	}
+	)
 
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
@@ -361,22 +313,22 @@ func TestRunWatch_ChannelClose_TriggersReconnection(t *testing.T) {
 func TestRunWatch_ContextCancellation_StopsRetryLoop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	fc := &fakeClient{
-		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+	fc := testfakes.NewClient(
+		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
-			w := newFakeWatcher()
+		func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+			w := testfakes.NewWatcher()
 			go func() {
-				w.events <- makeStatusEvent(http.StatusInternalServerError, metav1.StatusReasonInternalError, "error")
-				close(w.events)
+				w.WriteChan() <- makeStatusEvent(http.StatusInternalServerError, metav1.StatusReasonInternalError, "error")
+				close(w.WriteChan())
 			}()
 			return w, nil
 		},
-	}
+	)
 
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
@@ -408,28 +360,28 @@ func TestRunWatch_WatchCreationFailure_Retries(t *testing.T) {
 	defer cancel()
 
 	var watchCall int32
-	fc := &fakeClient{
-		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+	fc := testfakes.NewClient(
+		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("100")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+		func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
 			if call == 1 {
 				return nil, fmt.Errorf("connection refused")
 			}
-			w := newFakeWatcher()
+			w := testfakes.NewWatcher()
 			go func() {
 				obj := makeUnstructuredObj("test", "default", "200")
-				w.events <- watch.Event{Type: watch.Added, Object: obj}
+				w.WriteChan() <- watch.Event{Type: watch.Added, Object: obj}
 				<-ctx.Done()
-				close(w.events)
+				close(w.WriteChan())
 			}()
 			return w, nil
 		},
-	}
+	)
 
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
@@ -456,25 +408,25 @@ func TestRunWatch_NormalEvents_DeliveredCorrectly(t *testing.T) {
 	obj1 := makeUnstructuredObj("obj1", "default", "100")
 	obj2 := makeUnstructuredObj("obj1", "default", "101")
 
-	fc := &fakeClient{
-		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+	fc := testfakes.NewClient(
+		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			ul := list.(*unstructured.UnstructuredList)
 			ul.SetResourceVersion("99")
 			ul.Items = nil
 			return nil
 		},
-		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
-			w := newFakeWatcher()
+		func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+			w := testfakes.NewWatcher()
 			go func() {
-				w.events <- watch.Event{Type: watch.Added, Object: obj1}
-				w.events <- watch.Event{Type: watch.Modified, Object: obj2}
-				w.events <- watch.Event{Type: watch.Deleted, Object: obj2}
+				w.WriteChan() <- watch.Event{Type: watch.Added, Object: obj1}
+				w.WriteChan() <- watch.Event{Type: watch.Modified, Object: obj2}
+				w.WriteChan() <- watch.Event{Type: watch.Deleted, Object: obj2}
 				time.Sleep(100 * time.Millisecond)
 				cancel()
 			}()
 			return w, nil
 		},
-	}
+	)
 
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
@@ -501,8 +453,8 @@ func TestRunWatch_410OnWatchCreation_ClearsRVAndRelists(t *testing.T) {
 
 	var watchCall int32
 	var listCalls int32
-	fc := &fakeClient{
-		listFn: func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+	fc := testfakes.NewClient(
+		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
 			call := atomic.AddInt32(&listCalls, 1)
 			ul := list.(*unstructured.UnstructuredList)
 			if call == 1 {
@@ -514,19 +466,19 @@ func TestRunWatch_410OnWatchCreation_ClearsRVAndRelists(t *testing.T) {
 			}
 			return nil
 		},
-		watchFn: func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+		func(_ context.Context, _ ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 			call := atomic.AddInt32(&watchCall, 1)
 			if call == 1 {
 				return nil, apierrors.NewResourceExpired("resource version too old")
 			}
-			w := newFakeWatcher()
+			w := testfakes.NewWatcher()
 			go func() {
 				<-ctx.Done()
-				close(w.events)
+				close(w.WriteChan())
 			}()
 			return w, nil
 		},
-	}
+	)
 
 	svc := &Service{runtimeClient: fc}
 	resultChannel := make(chan any, 10)
@@ -574,24 +526,24 @@ func TestSubscribeResourcesByCategory(t *testing.T) {
 		secondVersion := "v1"
 		secondKind := "CertificateRequest"
 
-		client := fakeClient{
-			listFn: listWithItems(),
-			watchFn: func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+		client := testfakes.NewClient(
+			listWithItems(),
+			func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
 				gvk := list.GetObjectKind().GroupVersionKind()
 				kind := strings.TrimSuffix(gvk.Kind, "List")
-				w := newFakeWatcher()
+				w := testfakes.NewWatcher()
 
 				go func() {
 					obj := makeObjKind(kind, "blapper", "system", "baz")
-					w.events <- watch.Event{Type: watch.Added, Object: obj}
+					w.WriteChan() <- watch.Event{Type: watch.Added, Object: obj}
 					<-ctx.Done()
-					close(w.events)
+					close(w.WriteChan())
 				}()
 				return w, nil
 			},
-		}
+		)
 
-		svc := New(&client, nil)
+		svc := New(client, nil)
 
 		typemap := map[string][]TypeByCategory{
 			"cert-manager": {
