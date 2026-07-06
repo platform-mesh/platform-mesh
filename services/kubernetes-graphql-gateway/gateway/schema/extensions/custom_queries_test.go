@@ -71,11 +71,11 @@ func TestBuildResourceUnion(t *testing.T) {
 		},
 	})
 
-	sch, err := graphql.NewSchema(graphql.SchemaConfig{Query: root})
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{Query: root})
 	require.NoError(t, err)
 
 	response := graphql.Do(graphql.Params{
-		Schema:        sch,
+		Schema:        schema,
 		Context:       t.Context(),
 		RequestString: `{ testfield { __typename } }`,
 	})
@@ -94,4 +94,47 @@ func TestBuildResourceUnion(t *testing.T) {
 		r.GetUniqueTypeName(&cert),
 		r.GetUniqueTypeName(&issuer),
 	}, result)
+}
+
+func TestBuildResourceUnion_MalformedAPIVersion(t *testing.T) {
+	r := types.NewRegistry()
+	cert := registerMember(r, "foo.cluster.bar", "v1", "Bucket")
+	issuer := registerMember(r, "foo.cluster.bar", "v1", "Secret")
+
+	categoryName := "foo-category"
+
+	cm := CategoryManager{typeByCategory: map[string][]resolver.TypeByCategory{
+		categoryName: {
+			resolver.TypeByCategory{Group: cert.Group, Version: cert.Version, Kind: cert.Kind},
+			resolver.TypeByCategory{Group: issuer.Group, Version: issuer.Version, Kind: issuer.Kind},
+		},
+	}}
+
+	union := BuildResourceUnion(&cm, r)
+
+	root := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Query",
+		Fields: graphql.Fields{
+			"testfield": &graphql.Field{
+				Type: graphql.NewList(union),
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					return []any{
+							map[string]any{"apiVersion": "foo.cluster.bar/v1", "kind": "Bucket"},
+							map[string]any{"apiVersion": 123, "kind": "Secret"},
+						},
+						nil
+				},
+			},
+		},
+	})
+
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{Query: root})
+	require.NoError(t, err)
+
+	response := graphql.Do(graphql.Params{
+		Schema:        schema,
+		Context:       t.Context(),
+		RequestString: `{ testfield { __typename } }`,
+	})
+	require.NotEmpty(t, response.Errors, "wrong type for apiVersion should result in an error")
 }
