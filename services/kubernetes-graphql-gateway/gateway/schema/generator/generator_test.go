@@ -17,17 +17,129 @@ limitations under the License.
 package generator
 
 import (
+	"context"
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/graphql-go/graphql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	pmgateway "go.platform-mesh.io/apis/gateway"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/internal/testfakes"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kube-openapi/pkg/validation/spec"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+func TestGenerate_resourcesByCategory(t *testing.T) {
+	t.Run("result for objects in two gvks", func(t *testing.T) {
+		categoryName := "foo-managed"
+		first := schemaWithCategory(
+			"foo.tests.bar",
+			"v1beta1",
+			"Foo",
+			apiextensionsv1.NamespaceScoped,
+			categoryName,
+		)
+		second := schemaWithCategory(
+			"foo.tests.bar",
+			"v1",
+			"Bar",
+			apiextensionsv1.NamespaceScoped,
+			categoryName,
+		)
+
+		foo := unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "foo.tests.bar/v1beta1",
+				"kind":       "Foo",
+				"metadata": map[string]any{
+					"name": "first",
+				},
+			},
+		}
+		bar := unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "foo.tests.bar/v1",
+				"kind":       "Bar",
+				"metadata": map[string]any{
+					"name": "second",
+				},
+			},
+		}
+
+		client := testfakes.NewClient(
+			func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+				ul := list.(*unstructured.UnstructuredList)
+				ul.SetResourceVersion("100")
+
+				switch strings.TrimSuffix(ul.GetObjectKind().GroupVersionKind().Kind, "List") {
+				case "Foo":
+					ul.Items = []unstructured.Unstructured{foo}
+				case "Bar":
+					ul.Items = []unstructured.Unstructured{bar}
+				}
+				return nil
+			},
+			nil,
+		)
+
+		resolver := resolver.New(client, nil)
+		sut := New(
+			map[string]*spec.Schema{
+				"foo/key":    first,
+				"foo/second": second,
+			},
+			resolver,
+			nil, // happens to be safe
+		)
+
+		schemagen, err := sut.Generate(t.Context())
+		require.NoError(t, err)
+		require.NotNil(t, schemagen)
+
+		reg := types.NewRegistry()
+		fooType := reg.GetUniqueTypeName(&schema.GroupVersionKind{Group: "foo.tests.bar", Version: "v1beta1", Kind: "Foo"})
+		barType := reg.GetUniqueTypeName(&schema.GroupVersionKind{Group: "foo.tests.bar", Version: "v1", Kind: "Bar"})
+
+		query := fmt.Sprintf(`{
+	resourcesByCategory(name: "%s") {
+    __typename
+    ... on %s { metadata { name } }
+    ... on %s { metadata { name } }
+  }
+	}`, categoryName, fooType, barType)
+
+		result := graphql.Do(graphql.Params{
+			Schema:        *schemagen,
+			Context:       t.Context(),
+			RequestString: query,
+		})
+
+		require.Empty(t, result.Errors)
+
+		queryResults := result.Data.(map[string]any)["resourcesByCategory"].([]any)
+		assert.Len(t, queryResults, 2)
+
+		byType := map[string]string{}
+		for _, v := range queryResults {
+			data := v.(map[string]any)
+			meta := data["metadata"].(map[string]any)
+			typeName := data["__typename"].(string)
+			byType[typeName] = meta["name"].(string)
+		}
+
+		assert.Equal(t, "first", byType[fooType])
+		assert.Equal(t, "second", byType[barType])
+	})
+}
 
 func TestGroupByAPIGroup(t *testing.T) {
 	tests := []struct {
@@ -316,6 +428,44 @@ func schemaWithGVKAndScope(group, version, kind string, scope apiextensionsv1.Re
 			Extensions: spec.Extensions{
 				pmgateway.GVKExtensionKey:   []any{map[string]any{"group": group, "version": version, "kind": kind}},
 				pmgateway.ScopeExtensionKey: string(scope),
+			},
+		},
+	}
+}
+
+func schemaWithCategory(
+	group, version, kind string,
+	scope apiextensionsv1.ResourceScope,
+	categories ...string,
+) *spec.Schema {
+	cat := make([]any, 0, len(categories))
+	for _, v := range categories {
+		cat = append(cat, v)
+	}
+
+	return &spec.Schema{
+		VendorExtensible: spec.VendorExtensible{
+			Extensions: spec.Extensions{
+				pmgateway.GVKExtensionKey:        []any{map[string]any{"group": group, "version": version, "kind": kind}},
+				pmgateway.ScopeExtensionKey:      scope,
+				pmgateway.CategoriesExtensionKey: cat,
+			},
+		},
+		SchemaProps: spec.SchemaProps{
+			Type: spec.StringOrArray{"object"},
+			Properties: map[string]spec.Schema{
+				"metadata": {
+					SchemaProps: spec.SchemaProps{
+						Type: spec.StringOrArray{"object"},
+						Properties: map[string]spec.Schema{
+							"name": {
+								SchemaProps: spec.SchemaProps{
+									Type: spec.StringOrArray{"string"},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	}
