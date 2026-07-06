@@ -23,7 +23,9 @@ import (
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/fields"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -145,19 +147,31 @@ func BuildResourceUnion(cm *CategoryManager, reg *types.Registry) *graphql.Union
 		Name:  "CategoryResource",
 		Types: unionTypes,
 		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
+			logger := log.FromContext(p.Context)
+
 			rawObj, ok := p.Value.(map[string]any)
 			if !ok {
 				return nil
 			}
 
-			apiVersion, ok := getField(rawObj, "apiVersion")
+			apiVersion, ok, err := unstructured.NestedString(rawObj, "apiVersion")
+			if err != nil {
+				logger.Error(err, "reading field on resolve", "field", "apiVersion")
+				return nil
+			}
 			if !ok {
 				return nil
 			}
-			kind, ok := getField(rawObj, "kind")
+
+			kind, ok, err := unstructured.NestedString(rawObj, "kind")
+			if err != nil {
+				logger.Error(err, "reading field on resolve: not a string", "field", "kind")
+				return nil
+			}
 			if !ok {
 				return nil
 			}
+
 			gv, err := schema.ParseGroupVersion(apiVersion)
 			if err != nil {
 				return nil
@@ -170,14 +184,4 @@ func BuildResourceUnion(cm *CategoryManager, reg *types.Registry) *graphql.Union
 	})
 
 	return uType
-}
-
-func getField(source map[string]any, field string) (string, bool) {
-	v, got := source[field]
-	if !got {
-		return "", got
-	}
-
-	s, ok := v.(string)
-	return s, ok
 }
