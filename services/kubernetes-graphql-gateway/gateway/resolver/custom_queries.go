@@ -19,6 +19,7 @@ package resolver
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/graphql-go/graphql"
 
@@ -68,9 +69,63 @@ func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.Fie
 			}
 
 			result = append(result, listresult.Items...)
-
 		}
 
 		return result, nil
+	}
+}
+
+func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) graphql.FieldResolveFn {
+	return func(p graphql.ResolveParams) (any, error) {
+		category, err := GetArg[string](p.Args, NameArg, true)
+		if err != nil {
+			return nil, fmt.Errorf("no name arg in %v; %w", p.Args, err)
+		}
+
+		outCh := make(chan any, 100)
+
+		categoryTypes := m[category]
+
+		var wg sync.WaitGroup
+		for _, cat := range categoryTypes {
+			gvk := schema.GroupVersionKind{Group: cat.Group, Version: cat.Version, Kind: cat.Kind}
+			scope := apiextensionsv1.ResourceScope(cat.Scope)
+
+			sub, err := r.SubscribeItems(gvk, scope)(p)
+			if err != nil {
+				// ignore (eg rbac?) or cancel everything?
+				continue
+			}
+			srcChan, ok := sub.(chan any)
+			if !ok {
+				continue
+			}
+
+			wg.Go(func() {
+				for {
+					// can cut some corners here?
+					select {
+					case blap, ok := <-srcChan:
+						if !ok {
+							return
+						}
+						select {
+						case outCh <- blap:
+						case <-p.Context.Done():
+							return
+						}
+					case <-p.Context.Done():
+						return
+					}
+				}
+			})
+		}
+
+		go func() {
+			wg.Wait()
+			close(outCh)
+		}()
+
+		return outCh, nil
 	}
 }

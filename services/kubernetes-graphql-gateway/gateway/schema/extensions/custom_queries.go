@@ -20,6 +20,7 @@ import (
 	"github.com/graphql-go/graphql"
 
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/fields"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -68,17 +69,66 @@ func (g *CustomQueryGenerator) AddTypeByCategoryQuery(rootQueryType *graphql.Obj
 	})
 }
 
-func (g *CustomQueryGenerator) AddResourcesByCategoryQuery(rootQueryType *graphql.Object) {
+func (g *CustomQueryGenerator) AddResourcesByCategoryQuery(
+	rootQueryType *graphql.Object,
+	resourceUnion *graphql.Union,
+) {
+	rootQueryType.AddFieldConfig(resourcesByCategoryFieldName, &graphql.Field{
+		Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(resourceUnion))),
+		Args: graphql.FieldConfigArgument{
+			resolver.NameArg:          resolver.NameArgConfig,
+			resolver.NamespaceArg:     resolver.NamespaceArgConfig,
+			resolver.LabelSelectorArg: resolver.LabelSelectorArgConfig,
+		},
+		Resolve: g.resolver.ResourcesByCategory(g.categoryManager.AllCategories()),
+	})
+}
 
+func (g *CustomQueryGenerator) AddResourcesByCategorySubscription(
+	rootSubscription *graphql.Object,
+	resourceUnion *graphql.Union,
+) {
+	eventType := graphql.NewObject(
+		graphql.ObjectConfig{
+			Name: resourceUnion.Name() + "Event",
+			Fields: graphql.Fields{
+				"type": &graphql.Field{Type: graphql.NewNonNull(fields.WatchEventTypeEnum)},
+				// must be nullable for delete events?
+				"object": &graphql.Field{Type: resourceUnion},
+			},
+		},
+	)
+
+	rootSubscription.AddFieldConfig(resourcesByCategoryFieldName,
+		&graphql.Field{
+			Type: graphql.NewNonNull(eventType),
+			Args: graphql.FieldConfigArgument{
+				resolver.NameArg:          resolver.NameArgConfig,
+				resolver.NamespaceArg:     resolver.NamespaceArgConfig,
+				resolver.LabelSelectorArg: resolver.LabelSelectorArgConfig,
+			},
+			Resolve:   resolver.CreateSubscriptionResolver(),
+			Subscribe: g.resolver.SubscribeResourcesByCategory(g.categoryManager.AllCategories()),
+		})
+}
+
+func graphqlStringField() *graphql.Field {
+	return &graphql.Field{
+		Type: graphql.NewNonNull(graphql.String),
+	}
+}
+
+// BuildResourceUnion returns a union of all registered resource types.
+func BuildResourceUnion(cm *CategoryManager, reg *types.Registry) *graphql.Union {
 	typesByGVK := make(map[schema.GroupVersionKind]*graphql.Object)
-	for _, v := range g.categoryManager.AllCategories() {
+	for _, v := range cm.AllCategories() {
 		for _, t := range v {
 			gvk := schema.GroupVersionKind{
 				Group:   t.Group,
 				Version: t.Version,
 				Kind:    t.Kind,
 			}
-			gObj, _ := g.registry.Get(g.registry.GetUniqueTypeName(&gvk))
+			gObj, _ := reg.Get(reg.GetUniqueTypeName(&gvk))
 			if gObj == nil {
 				continue
 			}
@@ -119,22 +169,7 @@ func (g *CustomQueryGenerator) AddResourcesByCategoryQuery(rootQueryType *graphq
 		},
 	})
 
-	rootQueryType.AddFieldConfig(resourcesByCategoryFieldName, &graphql.Field{
-		Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(uType))),
-		Args: graphql.FieldConfigArgument{
-			resolver.NameArg:          resolver.NameArgConfig,
-			resolver.NamespaceArg:     resolver.NamespaceArgConfig,
-			resolver.LabelSelectorArg: resolver.LabelSelectorArgConfig,
-		},
-		Resolve: g.resolver.ResourcesByCategory(g.categoryManager.AllCategories()),
-	})
-
-}
-
-func graphqlStringField() *graphql.Field {
-	return &graphql.Field{
-		Type: graphql.NewNonNull(graphql.String),
-	}
+	return uType
 }
 
 func getField(source map[string]any, field string) (string, bool) {

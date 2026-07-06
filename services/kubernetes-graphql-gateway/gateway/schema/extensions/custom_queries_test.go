@@ -79,11 +79,12 @@ func TestUnionFoo(t *testing.T) {
 		},
 	}
 
+	cm := CategoryManager{
+		typeByCategory: typesByCat,
+	}
 	g := CustomQueryGenerator{
-		registry: r,
-		categoryManager: &CategoryManager{
-			typeByCategory: typesByCat,
-		}}
+		registry:        r,
+		categoryManager: &cm}
 
 	root := graphql.NewObject(
 		graphql.ObjectConfig{
@@ -92,7 +93,8 @@ func TestUnionFoo(t *testing.T) {
 		},
 	)
 
-	g.AddResourcesByCategoryQuery(root)
+	resources := BuildResourceUnion(&cm, g.registry)
+	g.AddResourcesByCategoryQuery(root, resources)
 
 	field := root.Fields()["resourcesByCategory"]
 	require.NotNil(t, field)

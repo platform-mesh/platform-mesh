@@ -109,7 +109,10 @@ func (g *SchemaGenerator) Generate(ctx context.Context) (*graphql.Schema, error)
 	}
 
 	g.customQueryGen.AddTypeByCategoryQuery(rootQuery)
-	g.customQueryGen.AddResourcesByCategoryQuery(rootQuery)
+
+	resUnion := extensions.BuildResourceUnion(g.categoryManager, g.typeRegistry)
+	g.customQueryGen.AddResourcesByCategoryQuery(rootQuery, resUnion)
+	g.customQueryGen.AddResourcesByCategorySubscription(rootSubscription, resUnion)
 	g.addApplyYamlMutation(rootMutation)
 
 	if g.customSubGen != nil {

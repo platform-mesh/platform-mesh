@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -148,6 +149,26 @@ func collectResults(ch chan any, timeout time.Duration) []any {
 			return results
 		}
 	}
+}
+
+// collectNResults drains ch until a specific item count has been received.
+func collectNResults(ch chan any, count int) []any {
+	out := make([]any, 0, count)
+	timeout := 5 * time.Second
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for len(out) < count {
+		select {
+		case v, ok := <-ch:
+			if !ok {
+				return out
+			}
+			out = append(out, v)
+		case <-timer.C:
+			return out
+		}
+	}
+	return out
 }
 
 func TestRunWatch_WatchErrorGone_TriggersReconnection(t *testing.T) {
@@ -524,4 +545,124 @@ func TestRunWatch_410OnWatchCreation_ClearsRVAndRelists(t *testing.T) {
 	}
 	assert.GreaterOrEqual(t, addedCount, 2, "expected ADDED events from re-list after 410")
 	assert.GreaterOrEqual(t, atomic.LoadInt32(&listCalls), int32(2), "expected re-list after 410")
+}
+
+func TestSubscribeResourcesByCategory(t *testing.T) {
+	t.Run("merges all input streams", func(t *testing.T) {
+		makeObjKind := func(kind, name, namespace, rv string) *unstructured.Unstructured {
+			return &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       kind,
+					"metadata": map[string]any{
+						"name":            name,
+						"namespace":       namespace,
+						"resourceVersion": rv,
+					},
+				},
+			}
+		}
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		firstGroup := "foomanager.io"
+		firstVersion := "v1"
+		firstKind := "Issuer"
+
+		secondGroup := "foomanager.io"
+		secondVersion := "v1"
+		secondKind := "CertificateRequest"
+
+		client := fakeClient{
+			listFn: listWithItems(),
+			watchFn: func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) (watch.Interface, error) {
+				gvk := list.GetObjectKind().GroupVersionKind()
+				kind := strings.TrimSuffix(gvk.Kind, "List")
+				w := newFakeWatcher()
+
+				go func() {
+					obj := makeObjKind(kind, "blapper", "system", "baz")
+					w.events <- watch.Event{Type: watch.Added, Object: obj}
+					<-ctx.Done()
+					close(w.events)
+				}()
+				return w, nil
+			},
+		}
+
+		svc := New(&client, nil)
+
+		typemap := map[string][]TypeByCategory{
+			"cert-manager": {
+				{
+					Group:   firstGroup,
+					Version: firstVersion,
+					Kind:    firstKind,
+				},
+				{
+					Group:   secondGroup,
+					Version: secondVersion,
+					Kind:    secondKind,
+				},
+			},
+		}
+
+		rFn := svc.SubscribeResourcesByCategory(typemap)
+		chObj, err := rFn(graphql.ResolveParams{
+			Context: ctx,
+			Args: map[string]any{
+				NameArg: "cert-manager",
+			},
+		})
+
+		require.NoError(t, err)
+
+		resultChan, ok := chObj.(chan any)
+		require.True(t, ok)
+
+		result := collectNResults(resultChan, 2)
+
+		// verify
+		require.Len(t, result, 2) // might break with List?
+
+		// assert
+		seenKinds := make(map[string]struct{})
+		for _, v := range result {
+			envelope, ok := v.(SubscriptionEnvelope)
+			require.True(t, ok)
+			assert.Equal(t, EventTypeAdded, envelope.Type)
+
+			fieldVals, ok := envelope.Object.(map[string]any)
+			require.True(t, ok)
+
+			kind := fieldVals["kind"]
+			seenKinds[kind.(string)] = struct{}{}
+		}
+
+		for _, kind := range []string{firstKind, secondKind} {
+			if _, got := seenKinds[kind]; !got {
+				t.Errorf("expected kind %q got none in %v", kind, seenKinds)
+			}
+		}
+
+		cancel()
+
+		select {
+		case _, open := <-resultChan:
+			assert.False(t, open, "fan-in channel should be closed")
+		case <-time.After(time.Second):
+			t.Fatal("fan-in channel did not close on context cancel")
+		}
+	})
+}
+
+// listWithItems returns a listFn returning items for the List operation.
+func listWithItems(items ...unstructured.Unstructured) func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+	return func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
+		ul := list.(*unstructured.UnstructuredList)
+		ul.SetResourceVersion("100")
+		ul.Items = items
+		return nil
+	}
 }
