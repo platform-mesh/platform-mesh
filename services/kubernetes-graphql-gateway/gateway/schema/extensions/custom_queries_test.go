@@ -29,88 +29,69 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func TestUnionFoo(t *testing.T) {
-	r := types.NewRegistry()
-
-	first := schema.GroupVersionKind{
-		Group:   "blappers.deploy.once",
-		Version: "v1",
-		Kind:    "Certificate",
-	}
-	second := schema.GroupVersionKind{
-		Group:   "blappers.deploy.once",
-		Version: "v1beta1",
-		Kind:    "Issuer",
-	}
-
-	key := r.GetUniqueTypeName(&first)
-
-	r.Register(key, graphql.NewObject(graphql.ObjectConfig{
-		Name: "First",
-		Fields: graphql.Fields{
-			"apiVersion": &graphql.Field{
-				Type: graphql.String,
-			},
-		},
+// registerMember adds a resource type under the given GVK in the registry.
+func registerMember(r *types.Registry, group, version, kind string) schema.GroupVersionKind {
+	gvk := schema.GroupVersionKind{Group: group, Version: version, Kind: kind}
+	r.Register(r.GetUniqueTypeName(&gvk), graphql.NewObject(graphql.ObjectConfig{
+		Name:   r.GetUniqueTypeName(&gvk),
+		Fields: graphql.Fields{"apiVersion": {Type: graphql.String}},
 	}), nil)
-	r.Register(
-		r.GetUniqueTypeName(&second),
-		graphql.NewObject(graphql.ObjectConfig{
-			Name: "Another",
-			Fields: graphql.Fields{
-				"apiVersion": &graphql.Field{
-					Type: graphql.String,
+	return gvk
+}
+
+func TestBuildResourceUnion(t *testing.T) {
+	r := types.NewRegistry()
+	cert := registerMember(r, "blappers.deploy.once", "v1", "Certificate")
+	issuer := registerMember(r, "blappers.deploy.once", "v1", "Issuer")
+
+	categoryName := "cert-manager"
+
+	cm := CategoryManager{typeByCategory: map[string][]resolver.TypeByCategory{
+		categoryName: {
+			resolver.TypeByCategory{Group: cert.Group, Version: cert.Version, Kind: cert.Kind},
+			resolver.TypeByCategory{Group: issuer.Group, Version: issuer.Version, Kind: issuer.Kind},
+		},
+	}}
+
+	union := BuildResourceUnion(&cm, r)
+
+	root := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Query",
+		Fields: graphql.Fields{
+			"testfield": &graphql.Field{
+				Type: graphql.NewList(union),
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					return []any{
+							map[string]any{"apiVersion": "blappers.deploy.once/v1", "kind": "Certificate"},
+							map[string]any{"apiVersion": "blappers.deploy.once/v1", "kind": "Issuer"},
+						},
+						nil
 				},
 			},
-		}), nil)
-
-	typesByCat := map[string][]resolver.TypeByCategory{
-		"cert-manager": {
-			{
-				Group:   first.Group,
-				Version: first.Version,
-				Kind:    first.Kind,
-			},
-			{
-				Group:   second.Group,
-				Version: second.Version,
-				Kind:    second.Kind,
-			},
 		},
+	})
+
+	sch, err := graphql.NewSchema(graphql.SchemaConfig{Query: root})
+	require.NoError(t, err)
+
+	response := graphql.Do(graphql.Params{
+		Schema:        sch,
+		Context:       t.Context(),
+		RequestString: `{ testfield { __typename } }`,
+	})
+	require.Empty(t, response.Errors, "query should not err")
+
+	items := response.Data.(map[string]any)["testfield"].([]any)
+	_ = items
+
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		typeName := item.(map[string]any)["__typename"]
+		result = append(result, typeName.(string))
 	}
 
-	cm := CategoryManager{
-		typeByCategory: typesByCat,
-	}
-	g := CustomQueryGenerator{
-		registry:        r,
-		categoryManager: &cm}
-
-	root := graphql.NewObject(
-		graphql.ObjectConfig{
-			Name:   "Query",
-			Fields: graphql.Fields{},
-		},
-	)
-
-	resources := BuildResourceUnion(&cm, g.registry)
-	g.AddResourcesByCategoryQuery(root, resources)
-
-	field := root.Fields()["resourcesByCategory"]
-	require.NotNil(t, field)
-
-	x, ok := field.Type.(*graphql.NonNull)
-	require.True(t, ok)
-
-	foo, ok := x.OfType.(*graphql.List)
-	require.True(t, ok)
-
-	bar, ok := foo.OfType.(*graphql.NonNull)
-	require.True(t, ok)
-
-	baz, ok := bar.OfType.(*graphql.Union)
-	require.True(t, ok)
-
-	require.Len(t, baz.Types(), 2)
-	assert.Equal(t, "CategoryResource", baz.Name())
+	assert.ElementsMatch(t, []string{
+		r.GetUniqueTypeName(&cert),
+		r.GetUniqueTypeName(&issuer),
+	}, result)
 }

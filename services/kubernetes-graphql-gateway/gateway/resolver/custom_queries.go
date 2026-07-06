@@ -87,9 +87,9 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 		categoryTypes := m[category]
 
 		var wg sync.WaitGroup
-		for _, cat := range categoryTypes {
-			gvk := schema.GroupVersionKind{Group: cat.Group, Version: cat.Version, Kind: cat.Kind}
-			scope := apiextensionsv1.ResourceScope(cat.Scope)
+		for _, cType := range categoryTypes {
+			gvk := schema.GroupVersionKind{Group: cType.Group, Version: cType.Version, Kind: cType.Kind}
+			scope := apiextensionsv1.ResourceScope(cType.Scope)
 
 			sub, err := r.SubscribeItems(gvk, scope)(p)
 			if err != nil {
