@@ -203,11 +203,23 @@ if COMPONENTS:
     OCI = 'oci://ghcr.io/platform-mesh/helm-charts'
     # Example wiring for the pilot component. Real deps/versions land with Phase 1.
     if 'account-operator' in COMPONENTS:
+        # Pin a published chart version (the placeholder 0.0.0 was never pushed).
+        # Override with ACCOUNT_OPERATOR_CHART_VERSION to track a newer chart, or
+        # set HELM_CHARTS_DIR to a local helm-charts checkout to render the chart
+        # from source (see chart_path in helpers.py) — then this version is ignored.
         component_build(
             name='account-operator',
             path='operators/account-operator',
             deps=['apis', 'subroutines', 'golang-commons'],
-            image='platform-mesh/account-operator',
-            chart=chart_path('account-operator', '0.0.0', OCI),
+            # Match the image ref the chart renders so Tilt substitutes the
+            # locally-built image (it swaps by repository, keeping the chart's args).
+            image='ghcr.io/platform-mesh/platform-mesh/account-operator',
+            chart=chart_path('account-operator', os.getenv('ACCOUNT_OPERATOR_CHART_VERSION', '0.17.0'), OCI),
             namespace=NAMESPACE,
+            # Skip the account-operator-crds subchart: it emits kcp APIExport/
+            # APIResourceSchema/APIExportEndpointSlice objects whose CRDs live in
+            # kcp workspaces, not the runtime kube cluster. Applying them here
+            # fails and drops the webhook cert with it, wedging the pod in
+            # ContainerCreating. The kcp API registration is wired separately.
+            helm_set=['crds.enabled=false'],
         )

@@ -74,7 +74,7 @@ def chart_path(name, version, oci_repo, cache_dir='.cache/charts'):
     return dest
 
 
-def component_build(name, path, deps, image, chart, namespace, values=[]):
+def component_build(name, path, deps, image, chart, namespace, values=[], helm_set=[]):
     """Hot-reload a monorepo operator/service.
 
     1. compile the component to a linux binary on the host (fast, cached by go)
@@ -85,28 +85,38 @@ def component_build(name, path, deps, image, chart, namespace, values=[]):
 
     deps: extra source dirs that should trigger a rebuild (shared modules like
     apis/, subroutines/, golang-commons/).
+    helm_set: list of "key=value" chart overrides passed as helm --set. Use to
+    drop parts of a production chart that don't belong on the local kube cluster
+    (e.g. crds.enabled=false to skip the kcp APIExport/APIResourceSchema objects,
+    whose CRDs only exist inside kcp workspaces, not the runtime cluster).
     """
-    bin_path = './contrib/tilt/bin/{}'.format(name)
+    # Paths here resolve relative to THIS Tiltfile's directory (contrib/tilt), so
+    # the binary output and runtime image are addressed as ./bin and
+    # ./runtime.Dockerfile, while repo-root sources need a ../.. prefix.
+    bin_path = './bin/{}'.format(name)
     local_resource(
         'build:{}'.format(name),
-        cmd='CGO_ENABLED=0 GOOS=linux GOARCH={arch} go build -o {out} ./{path}'.format(
-            arch=os.getenv('GOARCH', 'arm64'), out=bin_path, path=path,
+        # Build from the repo root so the go.work workspace (apis/, subroutines/,
+        # golang-commons/) is in scope, dropping the linux binary into ./bin.
+        cmd='cd ../.. && CGO_ENABLED=0 GOOS=linux GOARCH={arch} go build -o contrib/tilt/bin/{name} ./{path}'.format(
+            arch=os.getenv('GOARCH', 'arm64'), name=name, path=path,
         ),
-        deps=[path] + deps,
+        deps=['../../{}'.format(d) for d in [path] + deps],
         labels=['components'],
         allow_parallel=True,
     )
     docker_build(
         ref=image,
-        context='./contrib/tilt/bin',
-        dockerfile='./contrib/tilt/runtime.Dockerfile',
+        context='./bin',
+        dockerfile='./runtime.Dockerfile',
         build_args={'BIN': name},
         only=[name],
-        live_update=[sync(bin_path, '/{}'.format(name))],
+        live_update=[sync(bin_path, '/entrypoint')],
     )
     k8s_yaml(helm(
         chart,
         name=name,
         namespace=namespace,
         values=values,
+        set=helm_set,
     ))
