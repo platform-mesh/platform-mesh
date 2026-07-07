@@ -103,14 +103,13 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 
 			wg.Go(func() {
 				for {
-					// can cut some corners here?
 					select {
-					case blap, ok := <-srcChan:
+					case event, ok := <-srcChan:
 						if !ok {
 							return
 						}
 						select {
-						case outCh <- blap:
+						case outCh <- event:
 						case <-p.Context.Done():
 							return
 						}

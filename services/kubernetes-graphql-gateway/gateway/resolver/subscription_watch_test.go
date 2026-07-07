@@ -576,7 +576,7 @@ func TestSubscribeResourcesByCategory(t *testing.T) {
 		result := collectNResults(resultChan, 2)
 
 		// verify
-		require.Len(t, result, 2) // might break with List?
+		require.Len(t, result, 2)
 
 		// assert
 		seenKinds := make(map[string]struct{})
