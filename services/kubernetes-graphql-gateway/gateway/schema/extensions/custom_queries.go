@@ -31,6 +31,7 @@ import (
 const (
 	typeByCategoryFieldName      = "typeByCategory"
 	resourcesByCategoryFieldName = "resourcesByCategory"
+	unionTypeName                = "CategoryResource"
 )
 
 type CustomQueryGenerator struct {
@@ -120,8 +121,10 @@ func graphqlStringField() *graphql.Field {
 	}
 }
 
-// BuildResourceUnion returns a union of all registered resource types.
-func BuildResourceUnion(cm *CategoryManager, reg *types.Registry) *graphql.Union {
+// BuildCategoryResourceUnion builds a union of the resource types in at least one category set.
+// Category members with no type in the registry are skipped.
+// Returns nil when no registered resource types with a category remain.
+func BuildCategoryResourceUnion(cm *CategoryManager, reg *types.Registry) *graphql.Union {
 	typesByGVK := make(map[schema.GroupVersionKind]*graphql.Object)
 	for _, v := range cm.AllCategories() {
 		for _, t := range v {
@@ -143,8 +146,12 @@ func BuildResourceUnion(cm *CategoryManager, reg *types.Registry) *graphql.Union
 		unionTypes = append(unionTypes, gObj)
 	}
 
+	if len(unionTypes) == 0 {
+		return nil
+	}
+
 	uType := graphql.NewUnion(graphql.UnionConfig{
-		Name:  "CategoryResource",
+		Name:  unionTypeName,
 		Types: unionTypes,
 		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
 			logger := log.FromContext(p.Context)

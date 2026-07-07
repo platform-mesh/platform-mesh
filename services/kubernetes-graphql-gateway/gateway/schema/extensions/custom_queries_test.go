@@ -39,7 +39,7 @@ func registerMember(r *types.Registry, group, version, kind string) schema.Group
 	return gvk
 }
 
-func TestBuildResourceUnion(t *testing.T) {
+func TestBuildCategoryResourceUnion(t *testing.T) {
 	r := types.NewRegistry()
 	cert := registerMember(r, "blappers.deploy.once", "v1", "Certificate")
 	issuer := registerMember(r, "blappers.deploy.once", "v1", "Issuer")
@@ -53,7 +53,7 @@ func TestBuildResourceUnion(t *testing.T) {
 		},
 	}}
 
-	union := BuildResourceUnion(&cm, r)
+	union := BuildCategoryResourceUnion(&cm, r)
 
 	root := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Query",
@@ -94,7 +94,7 @@ func TestBuildResourceUnion(t *testing.T) {
 	}, result)
 }
 
-func TestBuildResourceUnion_invalidAPIVersion(t *testing.T) {
+func TestBuildCategoryResourceUnion_invalidAPIVersion(t *testing.T) {
 	tests := []struct {
 		name    string
 		sources []any
@@ -130,7 +130,7 @@ func TestBuildResourceUnion_invalidAPIVersion(t *testing.T) {
 				},
 			}}
 
-			union := BuildResourceUnion(&cm, r)
+			union := BuildCategoryResourceUnion(&cm, r)
 
 			root := graphql.NewObject(graphql.ObjectConfig{
 				Name: "Query",

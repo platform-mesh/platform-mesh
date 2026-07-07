@@ -74,32 +74,7 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 				},
 			},
 		}
-
-		client := testfakes.NewClient(
-			func(ctx context.Context, list ctrlruntimeclient.ObjectList, opts ...ctrlruntimeclient.ListOption) error {
-				ul := list.(*unstructured.UnstructuredList)
-				ul.SetResourceVersion("100")
-
-				switch strings.TrimSuffix(ul.GetObjectKind().GroupVersionKind().Kind, "List") {
-				case "Foo":
-					ul.Items = []unstructured.Unstructured{foo}
-				case "Bar":
-					ul.Items = []unstructured.Unstructured{bar}
-				}
-				return nil
-			},
-			nil,
-		)
-
-		resolver := resolver.New(client, nil)
-		sut := New(
-			map[string]*spec.Schema{
-				"foo/key":    first,
-				"foo/second": second,
-			},
-			resolver,
-			nil, // happens to be safe
-		)
+		sut := setup(listItems(foo, bar), first, second)
 
 		schemagen, err := sut.Generate(t.Context())
 		require.NoError(t, err)
@@ -139,6 +114,79 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 		assert.Equal(t, "first", byType[fooType])
 		assert.Equal(t, "second", byType[barType])
 	})
+	t.Run("resources have no category", func(t *testing.T) {
+		uncategorized := schemaWithCategory(
+			"pm.io",
+			"v1",
+			"Workload",
+			apiextensionsv1.NamespaceScoped,
+		)
+		instance := unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "pm.io/v1",
+				"kind":       "Workload",
+				"metadata": map[string]any{
+					"name": "foo",
+				},
+			},
+		}
+
+		sut := setup(listItems(instance), uncategorized)
+		sch, err := sut.Generate(t.Context())
+		require.NoError(t, err)
+
+		reg := types.NewRegistry()
+		workloadType := reg.GetUniqueTypeName(&schema.GroupVersionKind{Group: "pm.io", Version: "v1", Kind: "Workload"})
+
+		schemaType := sch.Type(workloadType)
+		require.NotNil(t, schemaType, "resource with no category should be in the schema")
+	})
+}
+
+// listItems returns a client List function returning objs filtered by GVK.
+func listItems(
+	objs ...unstructured.Unstructured,
+) func(context.Context, ctrlruntimeclient.ObjectList, ...ctrlruntimeclient.ListOption) error {
+	byGVK := map[schema.GroupVersionKind][]unstructured.Unstructured{}
+	for _, v := range objs {
+		gvk := v.GroupVersionKind()
+		byGVK[gvk] = append(byGVK[gvk], v)
+	}
+
+	return func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+		ul := list.(*unstructured.UnstructuredList)
+		ul.SetResourceVersion("100")
+
+		gvk := ul.GetObjectKind().GroupVersionKind()
+		gvk.Kind = strings.TrimSuffix(gvk.Kind, "List")
+		ul.Items = byGVK[gvk]
+		return nil
+	}
+}
+
+// setup initializes the Generator with schemas and a fake client
+// returning objects through the provided list function.
+func setup(
+	listFn func(context.Context, ctrlruntimeclient.ObjectList, ...ctrlruntimeclient.ListOption) error,
+	schemas ...*spec.Schema,
+) *SchemaGenerator {
+	client := testfakes.NewClient(
+		listFn,
+		nil,
+	)
+
+	resolver := resolver.New(client, nil)
+	definitions := make(map[string]*spec.Schema)
+	for i, v := range schemas {
+		key := fmt.Sprintf("def-%d", i)
+		definitions[key] = v
+	}
+
+	return New(
+		definitions,
+		resolver,
+		nil,
+	)
 }
 
 func TestGroupByAPIGroup(t *testing.T) {
