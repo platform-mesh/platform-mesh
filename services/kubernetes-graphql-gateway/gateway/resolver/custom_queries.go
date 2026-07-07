@@ -82,9 +82,8 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 			return nil, fmt.Errorf("no name arg in %v; %w", p.Args, err)
 		}
 
-		outCh := make(chan any, 100)
-
 		categoryTypes := m[category]
+		outCh := make(chan any, len(categoryTypes))
 
 		var wg sync.WaitGroup
 		for _, cType := range categoryTypes {
