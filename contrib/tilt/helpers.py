@@ -74,7 +74,7 @@ def chart_path(name, version, oci_repo, cache_dir='.cache/charts'):
     return dest
 
 
-def component_build(name, path, deps, image, chart, namespace, values=[], helm_set=[]):
+def component_build(name, path, deps, image, chart, namespace, values=[], helm_set=[], resource_deps=[], objects=[], workload=''):
     """Hot-reload a monorepo operator/service.
 
     1. compile the component to a linux binary on the host (fast, cached by go)
@@ -120,3 +120,16 @@ def component_build(name, path, deps, image, chart, namespace, values=[], helm_s
         values=values,
         set=helm_set,
     ))
+    # Gate the deployed workload on any prerequisites (e.g. the namespace resource)
+    # so a fresh cluster doesn't race "namespace not found". `objects` folds the
+    # chart's non-workload objects (cert-manager PKI, ServiceAccount, RBAC) into
+    # this resource — otherwise Tilt drops them into its dependency-less catch-all
+    # ("uncategorized"), which applies before the namespace and fails on a fresh
+    # cluster. `workload` is the actual Deployment/Tilt resource name when the chart
+    # doesn't name it after the component (renamed back to `name` for the UI).
+    wl = workload if workload else name
+    if resource_deps or objects or wl != name:
+        if wl != name:
+            k8s_resource(wl, new_name=name, objects=objects, resource_deps=resource_deps)
+        else:
+            k8s_resource(name, objects=objects, resource_deps=resource_deps)

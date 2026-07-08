@@ -1,0 +1,56 @@
+- op: add
+  path: /spec/permissionClaims
+  value:
+    # TODO(RFC-006 open question #4): finalise constraints (e.g. namespace selectors)
+    # for each claim once the permission-claim design is settled.
+    - group: ""
+      resource: namespaces
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - group: ""
+      resource: serviceaccounts
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - group: ""
+      resource: secrets
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - group: rbac.authorization.k8s.io
+      resource: roles
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - group: rbac.authorization.k8s.io
+      resource: rolebindings
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+

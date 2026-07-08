@@ -64,6 +64,48 @@ rm -rf "$tmp"'''.format(v=KCP_OPERATOR_VERSION),
     allow_parallel=True,
 )
 
+# ---------------------------------------------------------------------------
+# Delivery engines for the provider-operator's ManagedProvider deploy step
+# ---------------------------------------------------------------------------
+# ManagedProvider.Deploy emits Flux objects; the two RuntimeDeployment types are:
+#   - flux: source.toolkit.fluxcd.io (HelmRepository/OCIRepository) + a
+#           helm.toolkit.fluxcd.io/HelmRelease            → needs Flux only
+#   - ocm:  delivery.ocm.software (Repository/Component/Resource) resolved by the
+#           OCM controller, handed off to a Flux HelmRelease → needs OCM + Flux
+# Both are installed here so either RuntimeDeployment type works out of the box.
+# This is the deliberate ADR-02 divergence: a delivery engine lives in the dev
+# env so ManagedProvider can drive deploys (versions mirror helm-charts/local-setup).
+
+# Flux — source + helm (+ kustomize) controllers. Image-automation, reflection
+# and notification controllers are disabled (unused by ManagedProvider).
+k8s_yaml(blob('apiVersion: v1\nkind: Namespace\nmetadata:\n  name: flux-system\n'))
+helm_remote(
+    'flux2',
+    repo_url='oci://ghcr.io/fluxcd-community/charts',
+    repo_name='flux2',
+    release_name='flux',
+    namespace='flux-system',
+    version='2.17.2',
+    set=[
+        'imageAutomationController.create=false',
+        'imageReflectionController.create=false',
+        'notificationController.create=false',
+    ],
+)
+
+# OCM controller (ocm-k8s-toolkit) — reconciles delivery.ocm.software CRs for the
+# ManagedProvider `ocm` deploy type. Only needed for that type; the `flux` type
+# runs on Flux alone. The chart artifact is literally named `chart` at this OCI path.
+k8s_yaml(blob('apiVersion: v1\nkind: Namespace\nmetadata:\n  name: ocm-system\n'))
+helm_remote(
+    'chart',
+    repo_url='oci://ghcr.io/open-component-model/kubernetes/controller',
+    repo_name='ocm-k8s-toolkit',
+    release_name='ocm-k8s-toolkit',
+    namespace='ocm-system',
+    version='0.3.0',
+)
+
 # Ingress port-forward to the gateway so root.kcp.localhost:8443 is reachable
 # from the host. Mirrors the kcp reference port-forward loop.
 local_resource(

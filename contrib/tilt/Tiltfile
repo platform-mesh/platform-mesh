@@ -193,6 +193,9 @@ deploy_kcp(
         'caFileRef': {'name': 'dex-ca', 'key': 'ca.crt'},
     },
     kubeconfig_dir='.secret/kcp',
+    # The kcp CRs live in platform-mesh-system; make them wait for the namespace
+    # resource so a fresh cluster doesn't race "namespace not found".
+    resource_deps=['namespace'],
 )
 
 # ---------------------------------------------------------------------------
@@ -222,4 +225,47 @@ if COMPONENTS:
             # fails and drops the webhook cert with it, wedging the pod in
             # ContainerCreating. The kcp API registration is wired separately.
             helm_set=['crds.enabled=false'],
+            # Wait for the namespace so a fresh cluster doesn't race "namespace not found".
+            resource_deps=['namespace'],
+            # Fold the chart's non-workload objects into this resource (else Tilt's
+            # dependency-less "uncategorized" catch-all applies them before the
+            # namespace exists). The cluster-scoped ClusterRole/Binding are included
+            # for tidy grouping; the namespaced ones are what actually need the dep.
+            objects=[
+                'account-operator:serviceaccount',
+                'account-operator:clusterrole',
+                'account-operator:clusterrolebinding',
+                'account-operator-ca-cert:certificate',
+                'account-operator-serving-cert:certificate',
+                'account-operator-selfsigned-issuer:issuer',
+                'account-operator-ca-issuer:issuer',
+            ],
+        )
+
+    # provider-operator — the first CORE-layer (RFC 008 L1) component: the kcp
+    # provider-bootstrap + ManagedProvider orchestrator. A standalone component like
+    # account-operator: its own image (ghcr.io/platform-mesh/platform-mesh/
+    # provider-operator) built from operators/provider-operator, and its own
+    # provider-operator helm chart.
+    #
+    # To actually RUN it also needs (Phase 4b, wired next): a kcp admin kubeconfig
+    # secret and the providers.platform-mesh.io APIExport bootstrapped in kcp
+    # (root:platform-mesh-system) for the operator to attach to.
+    if 'provider-operator' in COMPONENTS:
+        component_build(
+            name='provider-operator',
+            path='operators/provider-operator',
+            deps=['apis', 'subroutines', 'golang-commons'],
+            # Match the image the chart renders so Tilt substitutes the local build.
+            image='ghcr.io/platform-mesh/platform-mesh/provider-operator',
+            chart=chart_path('provider-operator', os.getenv('PROVIDER_OPERATOR_CHART_VERSION', '0.1.0'), OCI),
+            namespace=NAMESPACE,
+            resource_deps=['namespace'],
+            # Fold the chart's namespaced non-workload objects into this resource so
+            # they don't land in Tilt's dependency-less catch-all and race the namespace.
+            objects=[
+                'provider-operator:serviceaccount',
+                'provider-operator:role',
+                'provider-operator:rolebinding',
+            ],
         )

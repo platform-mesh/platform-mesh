@@ -36,7 +36,8 @@ operators/services you are working on hot-reload in seconds.
 kind create cluster --name platform-mesh
 tilt up -f contrib/tilt/Tiltfile
 
-# choose a profile (RFC 008 shape) and hot-reload components
+HELM_CHARTS_DIR=/Users/mjudeikis/go/src/github.com/platform-mesh/helm-charts \
+KCP_TILT_DIR=/Users/mjudeikis/go/src/github.com/kcp-dev/kcp/contrib/tilt \
 tilt up -f contrib/tilt/Tiltfile -- --profile=auth account-operator
 ```
 
