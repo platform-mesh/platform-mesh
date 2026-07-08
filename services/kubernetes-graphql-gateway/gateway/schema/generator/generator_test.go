@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/graphql-go/graphql"
@@ -75,7 +74,7 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 				},
 			},
 		}
-		sut := setup(listItems(foo, bar), first, second)
+		sut := setup(testfakes.ListItems(foo, bar), first, second)
 
 		schemagen, err := sut.Generate(t.Context())
 		require.NoError(t, err)
@@ -117,7 +116,7 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 	})
 	t.Run("subscription exposes only subscribeToAll", func(t *testing.T) {
 		schemaDef := schemaWithCategory("a.b.c", "v1", "Fooer", apiextensionsv1.NamespaceScoped, "cat")
-		sut := setup(listItems(), schemaDef)
+		sut := setup(testfakes.ListItems(), schemaDef)
 
 		sch, err := sut.Generate(t.Context())
 		require.NoError(t, err)
@@ -150,7 +149,7 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 			},
 		}
 
-		sut := setup(listItems(instance), uncategorized)
+		sut := setup(testfakes.ListItems(instance), uncategorized)
 		sch, err := sut.Generate(t.Context())
 		require.NoError(t, err)
 
@@ -160,27 +159,6 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 		schemaType := sch.Type(workloadType)
 		require.NotNil(t, schemaType, "resource with no category should be in the schema")
 	})
-}
-
-// listItems returns a client List function returning objs filtered by GVK.
-func listItems(
-	objs ...unstructured.Unstructured,
-) func(context.Context, ctrlruntimeclient.ObjectList, ...ctrlruntimeclient.ListOption) error {
-	byGVK := map[schema.GroupVersionKind][]unstructured.Unstructured{}
-	for _, v := range objs {
-		gvk := v.GroupVersionKind()
-		byGVK[gvk] = append(byGVK[gvk], v)
-	}
-
-	return func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
-		ul := list.(*unstructured.UnstructuredList)
-		ul.SetResourceVersion("100")
-
-		gvk := ul.GetObjectKind().GroupVersionKind()
-		gvk.Kind = strings.TrimSuffix(gvk.Kind, "List")
-		ul.Items = byGVK[gvk]
-		return nil
-	}
 }
 
 // setup initializes the Generator with schemas and a fake client

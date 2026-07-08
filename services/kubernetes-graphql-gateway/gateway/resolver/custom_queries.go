@@ -17,11 +17,11 @@ limitations under the License.
 package resolver
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/graphql-go/graphql"
+	"golang.org/x/sync/errgroup"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -53,22 +53,43 @@ func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.Fie
 		}
 
 		members := m[name]
-		result := make([]map[string]any, 0)
 
-		for _, v := range members {
-			gvk := schema.GroupVersionKind{Group: v.Group, Version: v.Version, Kind: v.Kind}
-			scope := apiextensionsv1.ResourceScope(v.Scope)
-			items, err := r.ListItems(gvk, scope)(p)
-			if err != nil {
-				return nil, fmt.Errorf("getting items: %w", err)
-			}
+		// parallel := len(members)
 
-			listresult, ok := items.(*ListResult)
-			if !ok {
-				return nil, errors.New("ListItems returned wrong type: was not *ListResult")
-			}
+		grp, ctx := errgroup.WithContext(p.Context)
+		p.Context = ctx
+		// revisit after poc: floor(members, maxParallel)
+		grp.SetLimit(len(members))
 
-			result = append(result, listresult.Items...)
+		gather := make([][]map[string]any, len(members))
+
+		for i, v := range members {
+			grp.Go(func() error {
+				gvk := schema.GroupVersionKind{Group: v.Group, Version: v.Version, Kind: v.Kind}
+				scope := apiextensionsv1.ResourceScope(v.Scope)
+				items, err := r.ListItems(gvk, scope)(p)
+				if err != nil {
+					return fmt.Errorf("getting items for gvk %s: %w", gvk, err)
+				}
+
+				listresult, ok := items.(*ListResult)
+				if !ok {
+					return fmt.Errorf("ListItems returned wrong type: expected *ListResult got %T", items)
+				}
+
+				gather[i] = listresult.Items
+				return nil
+			})
+		}
+
+		err = grp.Wait()
+		if err != nil {
+			return nil, err
+		}
+
+		var result []map[string]any
+		for _, v := range gather {
+			result = append(result, v...)
 		}
 
 		return result, nil
@@ -92,11 +113,12 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 
 			sub, err := r.SubscribeItems(gvk, scope)(p)
 			if err != nil {
-				// ignore (eg rbac?) or cancel everything?
+				// TODO: only ignore RBAC errors
 				continue
 			}
 			srcChan, ok := sub.(chan any)
 			if !ok {
+				// TODO: error log
 				continue
 			}
 

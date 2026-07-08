@@ -2,12 +2,36 @@ package testfakes
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"sync/atomic"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// ListItems returns a client List function returning objs filtered by GVK.
+func ListItems(
+	objs ...unstructured.Unstructured,
+) func(context.Context, ctrlruntimeclient.ObjectList, ...ctrlruntimeclient.ListOption) error {
+	byGVK := map[schema.GroupVersionKind][]unstructured.Unstructured{}
+	for _, v := range objs {
+		gvk := v.GroupVersionKind()
+		byGVK[gvk] = append(byGVK[gvk], v)
+	}
+
+	return func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+		ul := list.(*unstructured.UnstructuredList)
+		ul.SetResourceVersion("100")
+
+		gvk := ul.GetObjectKind().GroupVersionKind()
+		gvk.Kind = strings.TrimSuffix(gvk.Kind, "List")
+		ul.Items = byGVK[gvk]
+		return nil
+	}
+}
 
 // FakeClient implements client.WithWatch with controllable List and Watch behavior.
 type FakeClient struct {
