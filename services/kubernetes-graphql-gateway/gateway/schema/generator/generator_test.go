@@ -19,6 +19,7 @@ package generator
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -114,7 +115,7 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 		assert.Equal(t, "first", byType[fooType])
 		assert.Equal(t, "second", byType[barType])
 	})
-	t.Run("exposes subscribeToAll arg", func(t *testing.T) {
+	t.Run("subscription exposes only subscribeToAll", func(t *testing.T) {
 		schemaDef := schemaWithCategory("a.b.c", "v1", "Fooer", apiextensionsv1.NamespaceScoped, "cat")
 		sut := setup(listItems(), schemaDef)
 
@@ -124,15 +125,12 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 		field := sch.SubscriptionType().Fields()["resourcesByCategory"]
 		require.NotNil(t, field)
 
-		var argFound bool
-		for _, v := range field.Args {
-			if v.Name() == "subscribeToAll" {
-				argFound = true
-				break
-			}
+		hasArg := func(argName string) bool {
+			return slices.ContainsFunc(field.Args, func(a *graphql.Argument) bool { return a.Name() == argName })
 		}
 
-		assert.True(t, argFound, "subscribeToAll arg should be on the query")
+		assert.True(t, hasArg("subscribeToAll"), "subscribeToAll arg should be on the subscription")
+		assert.False(t, hasArg("resourceVersion"), "resourceVersion is not supported in resourcesByCategory")
 	})
 
 	t.Run("resources have no category", func(t *testing.T) {
