@@ -207,6 +207,7 @@ func setup(
 		definitions,
 		resolver,
 		nil,
+		true,
 	)
 }
 

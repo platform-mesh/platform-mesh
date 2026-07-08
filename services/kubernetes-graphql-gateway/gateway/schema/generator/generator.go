@@ -62,10 +62,18 @@ type SchemaGenerator struct {
 	categoryManager *extensions.CategoryManager
 	customQueryGen  *extensions.CustomQueryGenerator
 	customSubGen    *extensions.CustomSubscriptionGenerator
+
+	// resourcesByCategoryEnabled is a PoC feature flag which will be removed eventually.
+	resourcesByCategoryEnabled bool
 }
 
 // New creates a new schema generator.
-func New(definitions map[string]*spec.Schema, resolverProvider *resolver.Service, customSubGen *extensions.CustomSubscriptionGenerator) *SchemaGenerator {
+func New(
+	definitions map[string]*spec.Schema,
+	resolverProvider *resolver.Service,
+	customSubGen *extensions.CustomSubscriptionGenerator,
+	resourcesByCategoryEnabled bool,
+) *SchemaGenerator {
 	registry := types.NewRegistry()
 	categoryManager := extensions.NewCategoryManager(definitions)
 
@@ -83,7 +91,8 @@ func New(definitions map[string]*spec.Schema, resolverProvider *resolver.Service
 			categoryManager,
 			registry,
 		),
-		customSubGen: customSubGen,
+		customSubGen:               customSubGen,
+		resourcesByCategoryEnabled: resourcesByCategoryEnabled,
 	}
 }
 
@@ -110,10 +119,12 @@ func (g *SchemaGenerator) Generate(ctx context.Context) (*graphql.Schema, error)
 
 	g.customQueryGen.AddTypeByCategoryQuery(rootQuery)
 
-	resourceWithCategory := extensions.BuildCategoryResourceUnion(g.categoryManager, g.typeRegistry)
-	if resourceWithCategory != nil {
-		g.customQueryGen.AddResourcesByCategoryQuery(rootQuery, resourceWithCategory)
-		g.customQueryGen.AddResourcesByCategorySubscription(rootSubscription, resourceWithCategory)
+	if g.resourcesByCategoryEnabled {
+		resourceWithCategory := extensions.BuildCategoryResourceUnion(g.categoryManager, g.typeRegistry)
+		if resourceWithCategory != nil {
+			g.customQueryGen.AddResourcesByCategoryQuery(rootQuery, resourceWithCategory)
+			g.customQueryGen.AddResourcesByCategorySubscription(rootSubscription, resourceWithCategory)
+		}
 	}
 
 	g.addApplyYamlMutation(rootMutation)

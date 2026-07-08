@@ -49,6 +49,8 @@ type ExtraOptions struct {
 	ServerBindPort int
 	// PlaygroundEnabled indicates whether to enable the GraphQL playground.
 	PlaygroundEnabled bool
+	// ResourcesByCategoryEnabled is the feature gate for the resourcesByCategory query and subscription.
+	ResourcesByCategoryEnabled bool
 	// CORSAllowedOrigins is the list of allowed origins for CORS.
 	CORSAllowedOrigins []string
 	// CORSAllowedHeaders is the list of allowed headers for CORS.
@@ -98,27 +100,28 @@ func NewOptions() *Options {
 		Logs: logs,
 
 		ExtraOptions: ExtraOptions{
-			SchemasDir:               "_output/schemas",
-			SchemaHandler:            "file",
-			GRPCListenerAddress:      "localhost:50051",
-			GRPCMaxRecvMsgSize:       defaults.DefaultGRPCMaxMsgSize,
-			ServerBindAddress:        "0.0.0.0",
-			ServerBindPort:           8080,
-			PlaygroundEnabled:        false,
-			CORSAllowedOrigins:       []string{},
-			CORSAllowedHeaders:       []string{},
-			TokenReviewCacheTTL:      30 * time.Second,
-			RequestTimeout:           60 * time.Second,
-			SubscriptionTimeout:      30 * time.Minute,
-			MaxRequestBodyBytes:      3 * 1024 * 1024,
-			MaxInFlightRequests:      400,
-			MaxInFlightSubscriptions: 50,
-			MaxQueryDepth:            10,
-			MaxQueryComplexity:       1000,
-			MaxQueryBatchSize:        10,
-			ReadHeaderTimeout:        32 * time.Second,
-			IdleTimeout:              90 * time.Second,
-			EndpointSuffix:           "/graphql",
+			SchemasDir:                 "_output/schemas",
+			SchemaHandler:              "file",
+			GRPCListenerAddress:        "localhost:50051",
+			GRPCMaxRecvMsgSize:         defaults.DefaultGRPCMaxMsgSize,
+			ServerBindAddress:          "0.0.0.0",
+			ServerBindPort:             8080,
+			PlaygroundEnabled:          false,
+			ResourcesByCategoryEnabled: false,
+			CORSAllowedOrigins:         []string{},
+			CORSAllowedHeaders:         []string{},
+			TokenReviewCacheTTL:        30 * time.Second,
+			RequestTimeout:             60 * time.Second,
+			SubscriptionTimeout:        30 * time.Minute,
+			MaxRequestBodyBytes:        3 * 1024 * 1024,
+			MaxInFlightRequests:        400,
+			MaxInFlightSubscriptions:   50,
+			MaxQueryDepth:              10,
+			MaxQueryComplexity:         1000,
+			MaxQueryBatchSize:          10,
+			ReadHeaderTimeout:          32 * time.Second,
+			IdleTimeout:                90 * time.Second,
+			EndpointSuffix:             "/graphql",
 		},
 	}
 	return opts
@@ -134,6 +137,7 @@ func (options *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&options.ServerBindPort, "gateway-port", options.ServerBindPort, "port for the GraphQL gateway server")
 	fs.StringVar(&options.ServerBindAddress, "gateway-address", options.ServerBindAddress, "address for the GraphQL gateway server")
 	fs.BoolVar(&options.PlaygroundEnabled, "enable-playground", options.PlaygroundEnabled, "enable the GraphQL playground (allows unauthenticated GET requests to serve the playground UI)")
+	fs.BoolVar(&options.ResourcesByCategoryEnabled, "enable-resources-by-category", options.ResourcesByCategoryEnabled, "enable the resourcesByCategory query and subscription")
 	fs.StringSliceVar(&options.CORSAllowedOrigins, "cors-allowed-origins", options.CORSAllowedOrigins, "list of allowed origins for CORS")
 	fs.StringSliceVar(&options.CORSAllowedHeaders, "cors-allowed-headers", options.CORSAllowedHeaders, "list of allowed headers for CORS")
 	fs.DurationVar(&options.TokenReviewCacheTTL, "token-review-cache-ttl", options.TokenReviewCacheTTL, "TTL for cached TokenReview results (0 to disable caching)")

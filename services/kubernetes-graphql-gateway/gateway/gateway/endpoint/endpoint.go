@@ -102,7 +102,7 @@ func New(
 		return nil, fmt.Errorf("failed to create custom subscription generator: %w", err)
 	}
 
-	schemaProvider, err := schema.New(ctx, schemaData.Components.Schemas, resolverProvider, customSubGen)
+	schemaProvider, err := schema.New(ctx, schemaData.Components.Schemas, resolverProvider, customSubGen, graphqlCfg.ResourcesByCategoryEnabled)
 	if err != nil {
 		validatorCancel()
 		return nil, fmt.Errorf("failed to create GraphQL schema: %w", err)

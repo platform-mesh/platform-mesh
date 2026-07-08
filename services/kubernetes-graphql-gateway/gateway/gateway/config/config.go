@@ -69,9 +69,10 @@ type Gateway struct {
 
 // GraphQL holds GraphQL handler configuration.
 type GraphQL struct {
-	Pretty            bool
-	PlaygroundEnabled bool
-	GraphiQL          bool
+	Pretty                     bool
+	ResourcesByCategoryEnabled bool
+	PlaygroundEnabled          bool
+	GraphiQL                   bool
 }
 
 // Limits holds query validation limits enforced at the GraphQL layer.
