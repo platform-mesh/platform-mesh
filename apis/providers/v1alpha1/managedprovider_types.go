@@ -295,10 +295,6 @@ type ManagedProviderList struct {
 	Items           []ManagedProvider `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&ManagedProvider{}, &ManagedProviderList{})
-}
-
 func (i *ManagedProvider) GetConditions() []metav1.Condition {
 	return i.Status.Conditions
 }

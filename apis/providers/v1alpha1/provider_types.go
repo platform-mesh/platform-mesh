@@ -117,10 +117,6 @@ type ProviderList struct {
 	Items           []Provider `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&Provider{}, &ProviderList{})
-}
-
 func (i *Provider) GetConditions() []metav1.Condition {
 	return i.Status.Conditions
 }
