@@ -114,6 +114,27 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 		assert.Equal(t, "first", byType[fooType])
 		assert.Equal(t, "second", byType[barType])
 	})
+	t.Run("exposes subscribeToAll arg", func(t *testing.T) {
+		schemaDef := schemaWithCategory("a.b.c", "v1", "Fooer", apiextensionsv1.NamespaceScoped, "cat")
+		sut := setup(listItems(), schemaDef)
+
+		sch, err := sut.Generate(t.Context())
+		require.NoError(t, err)
+
+		field := sch.SubscriptionType().Fields()["resourcesByCategory"]
+		require.NotNil(t, field)
+
+		var argFound bool
+		for _, v := range field.Args {
+			if v.Name() == "subscribeToAll" {
+				argFound = true
+				break
+			}
+		}
+
+		assert.True(t, argFound, "subscribeToAll arg should be on the query")
+	})
+
 	t.Run("resources have no category", func(t *testing.T) {
 		uncategorized := schemaWithCategory(
 			"pm.io",

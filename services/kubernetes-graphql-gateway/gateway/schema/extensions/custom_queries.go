@@ -106,9 +106,10 @@ func (g *CustomQueryGenerator) AddResourcesByCategorySubscription(
 		&graphql.Field{
 			Type: graphql.NewNonNull(eventType),
 			Args: graphql.FieldConfigArgument{
-				resolver.NameArg:          resolver.NameArgConfig,
-				resolver.NamespaceArg:     resolver.NamespaceArgConfig,
-				resolver.LabelSelectorArg: resolver.LabelSelectorArgConfig,
+				resolver.NameArg:           resolver.NameArgConfig,
+				resolver.NamespaceArg:      resolver.NamespaceArgConfig,
+				resolver.LabelSelectorArg:  resolver.LabelSelectorArgConfig,
+				resolver.SubscribeToAllArg: resolver.SubscribeToAllArgConfig,
 			},
 			Resolve:   resolver.CreateSubscriptionResolver(),
 			Subscribe: g.resolver.SubscribeResourcesByCategory(g.categoryManager.AllCategories()),
