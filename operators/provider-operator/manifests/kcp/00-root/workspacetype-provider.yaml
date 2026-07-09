@@ -1,0 +1,20 @@
+# Child WorkspaceType for per-provider tenant workspaces (root:providers:<name>).
+# Applied to `root`. Every workspace of this type is auto-bound to the providers
+# APIExport so the Provider API is available inside it.
+#
+# NOTE: PM's original manifest also default-bound core.platform-mesh.io. That API
+# was stripped from this monorepo, so binding it here would leave an unresolvable
+# APIBinding and stall workspace initialization. Only providers.platform-mesh.io
+# is bound.
+apiVersion: tenancy.kcp.io/v1alpha1
+kind: WorkspaceType
+metadata:
+  name: provider
+spec:
+  defaultAPIBindings:
+    - export: providers.platform-mesh.io
+      path: root:platform-mesh-system
+  limitAllowedParents:
+    types:
+      - name: providers
+        path: root

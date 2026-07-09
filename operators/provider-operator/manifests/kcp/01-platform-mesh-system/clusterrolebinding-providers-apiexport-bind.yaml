@@ -1,0 +1,15 @@
+# Binds the providers.platform-mesh.io bind permission to system:authenticated,
+# so any authenticated principal (the init/seed identity, and tenant workspaces)
+# may bind the export. Mirrors kcp's system:kcp:authenticated:apiexport:tenancy:bind.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:kcp:authenticated:apiexport:providers:bind
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:kcp:apiexport:providers:bind
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:authenticated

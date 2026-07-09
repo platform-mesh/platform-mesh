@@ -1,0 +1,18 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: platform-mesh-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: platform-mesh-operator-argocd-rolebinding
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: platform-mesh-operator-argocd-role
+subjects:
+- kind: ServiceAccount
+  name: platform-mesh-operator
+  namespace: platform-mesh-system
+

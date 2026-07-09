@@ -1,0 +1,14 @@
+# Grants the `bind` verb on the providers.platform-mesh.io APIExport. Without it,
+# creating anything that binds this export (the `provider` WorkspaceType's
+# defaultAPIBindings, or an APIBinding in a tenant workspace) is rejected with
+# "no permission to bind to export". Mirrors kcp's own
+# system:kcp:apiexport:tenancy:bind role. Applied in root:platform-mesh-system.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:kcp:apiexport:providers:bind
+rules:
+- apiGroups: ["apis.kcp.io"]
+  resources: ["apiexports"]
+  resourceNames: ["providers.platform-mesh.io"]
+  verbs: ["bind"]

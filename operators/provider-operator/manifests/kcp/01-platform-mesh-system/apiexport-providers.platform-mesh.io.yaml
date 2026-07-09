@@ -1,0 +1,63 @@
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIExport
+metadata:
+  name: providers.platform-mesh.io
+spec:
+  permissionClaims:
+  - group: ""
+    resource: namespaces
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - group: ""
+    resource: serviceaccounts
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - group: ""
+    resource: secrets
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - group: rbac.authorization.k8s.io
+    resource: roles
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - group: rbac.authorization.k8s.io
+    resource: rolebindings
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  resources:
+  - group: providers.platform-mesh.io
+    name: providers
+    schema: v260708-e143b6f4.providers.providers.platform-mesh.io
+    storage:
+      crd: {}
+status: {}

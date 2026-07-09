@@ -1,0 +1,23 @@
+# permissions for end users to view platformmeshs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: platform-mesh-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: platform-mesh-viewer-role
+rules:
+- apiGroups:
+  - core.platform-mesh.io
+  resources:
+  - platformmeshes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - core.platform-mesh.io
+  resources:
+  - platformmeshes/status
+  verbs:
+  - get

@@ -121,9 +121,7 @@ spec:
                         e.g. in SuccessConditions.
                         String values in the templates may contain CEL expressions
                         wrapped in ${...}, evaluated with the staging copies of the
-                        migrating resource bound as `from` and `to`. A string consisting
-                        of a single expression keeps the expression's type; expressions
-                        embedded in a larger string are converted to strings.
+                        migrating resource bound as `from` and `to`.
                         The apiVersion and kind of a template must be static.
                       type: object
                   required:

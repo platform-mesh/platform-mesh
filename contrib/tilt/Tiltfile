@@ -37,6 +37,18 @@ cfg = config.parse()
 PROFILE = cfg.get('profile', 'infra')
 COMPONENTS = cfg.get('components', [])
 
+# Components a profile brings up automatically, on top of anything passed
+# explicitly. provider-operator is an RFC 008 L1 core component, so it comes up
+# from the `core` profile onward (core/auth/full).
+PROFILE_COMPONENTS = {
+    'core': ['provider-operator'],
+    'auth': ['provider-operator'],
+    'full': ['provider-operator'],
+}
+for _c in PROFILE_COMPONENTS.get(PROFILE, []):
+    if _c not in COMPONENTS:
+        COMPONENTS = COMPONENTS + [_c]
+
 # Base domain + namespace shared by the whole environment.
 BASE_DOMAIN = 'pm.localhost'
 NAMESPACE = 'platform-mesh-system'
@@ -240,4 +252,67 @@ if COMPONENTS:
                 'account-operator-selfsigned-issuer:issuer',
                 'account-operator-ca-issuer:issuer',
             ],
+        )
+
+    # provider-operator — the first CORE-layer (RFC 008 L1) component: the kcp
+    # provider-bootstrap + ManagedProvider orchestrator. A standalone component like
+    # account-operator: its own image (ghcr.io/platform-mesh/platform-mesh/
+    # provider-operator) built from operators/provider-operator, and its own
+    # provider-operator helm chart.
+    #
+    # To actually RUN it also needs (Phase 4b, wired next): a kcp admin kubeconfig
+    # secret and the providers.platform-mesh.io APIExport bootstrapped in kcp
+    # (root:platform-mesh-system) for the operator to attach to.
+    if 'provider-operator' in COMPONENTS:
+        component_build(
+            name='provider-operator',
+            path='operators/provider-operator',
+            deps=['apis', 'subroutines', 'golang-commons'],
+            # Match the image the chart renders so Tilt substitutes the local build.
+            image='ghcr.io/platform-mesh/platform-mesh/provider-operator',
+            chart=chart_path('provider-operator', os.getenv('PROVIDER_OPERATOR_CHART_VERSION', '0.1.0'), OCI),
+            namespace=NAMESPACE,
+            # Gate on the namespace and on the kcp admin secret the seed initContainer
+            # mounts — otherwise the pod is scheduled before the secret exists and
+            # stalls in ContainerCreating. providers-kcp-secret transitively depends on
+            # 'kcp-admin extract', so by the time this starts kcp is reachable too.
+            resource_deps=['namespace', 'providers-kcp-secret'],
+            # kcp hostnames resolve only via hostAliases → the gateway IP; the seed
+            # initContainer and the operator reach root.kcp.localhost through it.
+            helm_set=[
+                'hostAliases.enabled=true',
+                'hostAliases.entries[0].ip=10.96.2.2',
+                'hostAliases.entries[0].hostnames[0]=root.kcp.localhost',
+                'hostAliases.entries[0].hostnames[1]=kcp.localhost',
+            ],
+            # Fold the chart's namespaced non-workload objects into this resource so
+            # they don't land in Tilt's dependency-less catch-all and race the namespace.
+            objects=[
+                'provider-operator:serviceaccount',
+                'provider-operator:role',
+                'provider-operator:rolebinding',
+                # ManagedProvider is a runtime-cluster CRD the operator reconciles;
+                # the chart ships it (crds.enabled). Claim it here so it applies with
+                # the operator rather than landing in the catch-all.
+                'managedproviders.providers.platform-mesh.io:customresourcedefinition',
+            ],
+        )
+
+        # provider-operator self-seeds providers.platform-mesh.io in kcp via its `seed`
+        # initContainer (creates the root:platform-mesh-system workspace + APIExport +
+        # APIResourceSchema + APIExportEndpointSlice). Tilt only supplies the kcp admin
+        # kubeconfig secret (kcp-cluster-admin-client-cert) the init container and the
+        # operator read — copied from the extracted root admin kubeconfig.
+        local_resource(
+            'providers-kcp-secret',
+            cmd='''set -eo pipefail
+CTX=kind-platform-mesh
+tmp=$(mktemp)
+kubectl --context "$CTX" -n platform-mesh-system get secret kcp-root-kubeconfig -o jsonpath="{.data.kubeconfig}" | base64 -d > "$tmp"
+kubectl --context "$CTX" -n platform-mesh-system create secret generic kcp-cluster-admin-client-cert --from-file=kubeconfig="$tmp" --dry-run=client -o yaml | kubectl --context "$CTX" apply -f -
+rm -f "$tmp"
+echo "kcp-cluster-admin-client-cert ready; provider-operator seeds providers.platform-mesh.io via its initContainer"''',
+            resource_deps=['kcp-admin extract'],
+            labels=['components'],
+            allow_parallel=True,
         )

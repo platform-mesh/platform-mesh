@@ -1,0 +1,17 @@
+# Parent WorkspaceType for root:providers — the container under which the
+# Provider controller creates per-provider tenant workspaces. Applied to `root`.
+# Children are limited to the `provider` type so nothing else can be nested here.
+apiVersion: tenancy.kcp.io/v1alpha1
+kind: WorkspaceType
+metadata:
+  name: providers
+spec:
+  defaultAPIBindings:
+    - export: tenancy.kcp.io
+      path: root
+    - export: topology.kcp.io
+      path: root
+  limitAllowedChildren:
+    types:
+      - name: provider
+        path: root
