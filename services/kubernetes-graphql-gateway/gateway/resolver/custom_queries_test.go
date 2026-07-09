@@ -6,9 +6,11 @@ import (
 	"testing"
 
 	"github.com/graphql-go/graphql"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/metrics"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/internal/testfakes"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -38,7 +40,10 @@ func TestResourcesByCategory(t *testing.T) {
 
 		client := testfakes.NewClient(
 			testfakes.ListItems(foo, bar), nil)
-		svc := New(client, nil)
+
+		metricsReg := prometheus.NewRegistry()
+		m := metrics.NewResolverMetrics(metricsReg)
+		svc := New(client, m)
 
 		categoryName := "the-category"
 		typeByCat := map[string][]TypeByCategory{
@@ -66,6 +71,16 @@ func TestResourcesByCategory(t *testing.T) {
 			receivedNames[i], _, _ = unstructured.NestedString(v, "metadata", "name")
 		}
 		assert.ElementsMatch(t, []string{"first", "second"}, receivedNames)
+
+		found, count, sum := histObservation(t, metricsReg, "kubernetes_graphql_gateway_category_fanout_types", "category", categoryName)
+		require.True(t, found, "fanout_types not recorded")
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(2), sum)
+
+		found, count, sum = histObservation(t, metricsReg, "kubernetes_graphql_gateway_category_objects_returned", "category", categoryName)
+		require.True(t, found, "objects_returned not recorded")
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(2), sum)
 	})
 	t.Run("zero types in category", func(t *testing.T) {
 		client := testfakes.NewClient(testfakes.ListItems(), nil)
@@ -113,4 +128,25 @@ func TestResourcesByCategory(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
+}
+
+// histObservation returns the sample count and the total sum for a given histogram.
+func histObservation(t *testing.T, reg *prometheus.Registry, name, labelName, labelValue string) (found bool, count uint64, sum float64) {
+	t.Helper()
+	mfs, err := reg.Gather()
+	require.NoError(t, err)
+	for _, mf := range mfs {
+		if mf.GetName() != name {
+			continue
+		}
+		for _, m := range mf.GetMetric() {
+			for _, l := range m.GetLabel() {
+				if l.GetName() == labelName && l.GetValue() == labelValue {
+					h := m.GetHistogram()
+					return true, h.GetSampleCount(), h.GetSampleSum()
+				}
+			}
+		}
+	}
+	return false, 0, 0
 }

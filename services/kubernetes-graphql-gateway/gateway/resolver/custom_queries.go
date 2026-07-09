@@ -54,8 +54,6 @@ func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.Fie
 
 		members := m[name]
 
-		// parallel := len(members)
-
 		grp, ctx := errgroup.WithContext(p.Context)
 		p.Context = ctx
 		// revisit after poc: floor(members, maxParallel)
@@ -92,6 +90,9 @@ func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.Fie
 			result = append(result, v...)
 		}
 
+		if r.metrics != nil {
+			r.metrics.RecordCategoryFanout(name, len(members), len(result))
+		}
 		return result, nil
 	}
 }
