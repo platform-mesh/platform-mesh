@@ -80,7 +80,6 @@ type AccountTestSuite struct {
 
 	logger *logger.Logger
 	ctx    context.Context
-	cancel context.CancelCauseFunc
 }
 
 func TestAccountTestSuite(t *testing.T) {
@@ -97,7 +96,16 @@ func (s *AccountTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 	ctrl.SetLogger(logger.Logr())
 	s.logger = logger
-	s.ctx, s.cancel, _ = platformmeshcontext.StartContext(logger, nil, 0)
+
+	var cancel context.CancelCauseFunc
+	s.ctx, cancel, _ = platformmeshcontext.StartContext(logger, nil, 0)
+
+	// Do not use the Suite's teardown to stop kcp, since this would happen
+	// before the test's Cleanup functions are called. Since we use the envtest's
+	// workspace fixture, we have to keep kcp alive until that fixture can clean up.
+	s.T().Cleanup(func() {
+		cancel(fmt.Errorf("tearing down test suite"))
+	})
 
 	s.scheme = runtime.NewScheme()
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(s.scheme))
@@ -123,13 +131,6 @@ func (s *AccountTestSuite) SetupSuite() {
 	s.startManager()
 
 	s.setupDefaultOrg()
-}
-
-func (s *AccountTestSuite) TearDownSuite() {
-	if err := s.env.Stop(); err != nil {
-		s.T().Logf("Error stopping kcp environment: %v", err)
-	}
-	s.cancel(fmt.Errorf("tearing down test suite"))
 }
 
 func (s *AccountTestSuite) TestAddingFinalizer() {

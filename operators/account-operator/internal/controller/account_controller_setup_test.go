@@ -95,6 +95,12 @@ func (s *AccountTestSuite) setupKCP() {
 	s.kcpConfig, err = s.env.Start()
 	s.Require().NoError(err)
 
+	s.T().Cleanup(func() {
+		if err := s.env.Stop(); err != nil {
+			s.T().Logf("Error stopping kcp environment: %v", err)
+		}
+	})
+
 	s.kcpClient, err = mcc.New(s.kcpConfig, ctrlruntimeclient.Options{
 		Scheme: s.scheme,
 	})
