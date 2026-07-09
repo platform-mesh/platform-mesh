@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"go.platform-mesh.io/golang-commons/logger"
 
+	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/search-service/internal/service/search"
 )
 

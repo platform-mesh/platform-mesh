@@ -24,15 +24,14 @@ import (
 	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	"github.com/spf13/cobra"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	gerrors "go.platform-mesh.io/golang-commons/errors"
 	cmw "go.platform-mesh.io/golang-commons/middleware"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-
 	fgaclient "go.platform-mesh.io/search-service/internal/clients/fga"
 	"go.platform-mesh.io/search-service/internal/clients/kcp"
 	osclient "go.platform-mesh.io/search-service/internal/clients/opensearch"
@@ -41,7 +40,8 @@ import (
 	"go.platform-mesh.io/search-service/internal/router"
 	searchservice "go.platform-mesh.io/search-service/internal/service/search"
 
-	"github.com/spf13/cobra"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var serverCmd = &cobra.Command{

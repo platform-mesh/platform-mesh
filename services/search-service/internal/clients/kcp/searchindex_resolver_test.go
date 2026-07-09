@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"go.platform-mesh.io/search-service/internal/config"
+
 	"k8s.io/client-go/rest"
 )
 
@@ -33,8 +34,8 @@ func TestListIndicesBuildsResourceDescriptors(t *testing.T) {
 		case "/clusters/root:orgs/apis/tenancy.kcp.io/v1alpha1/workspaces/acme":
 			writeJSON(t, w, workspacePayload("acme", "cluster-123"))
 		case "/clusters/root:providers:search/apis/search.platform-mesh.io/v1alpha1/searchindexes":
-			writeJSON(t, w, searchIndexListPayload(map[string]interface{}{
-				"items": []map[string]interface{}{
+			writeJSON(t, w, searchIndexListPayload(map[string]any{
+				"items": []map[string]any{
 					{
 						"metadata": map[string]any{"name": "pm-cluster-123-accounts"},
 						"spec": map[string]any{
@@ -83,8 +84,8 @@ func TestResolveIndexByResource(t *testing.T) {
 		case "/clusters/root:orgs/apis/tenancy.kcp.io/v1alpha1/workspaces/acme":
 			writeJSON(t, w, workspacePayload("acme", "cluster-123"))
 		case "/clusters/root:providers:search/apis/search.platform-mesh.io/v1alpha1/searchindexes":
-			writeJSON(t, w, searchIndexListPayload(map[string]interface{}{
-				"items": []map[string]interface{}{
+			writeJSON(t, w, searchIndexListPayload(map[string]any{
+				"items": []map[string]any{
 					{
 						"metadata": map[string]any{"name": "pm-cluster-123-accounts"},
 						"spec": map[string]any{
@@ -120,10 +121,10 @@ func TestListIndicesFallsBackToOrgWorkspace(t *testing.T) {
 		case "/clusters/root:orgs/apis/tenancy.kcp.io/v1alpha1/workspaces/acme":
 			writeJSON(t, w, workspacePayload("acme", "cluster-123"))
 		case "/clusters/root:providers:search/apis/search.platform-mesh.io/v1alpha1/searchindexes":
-			writeJSON(t, w, searchIndexListPayload(map[string]interface{}{"items": []map[string]interface{}{}}))
+			writeJSON(t, w, searchIndexListPayload(map[string]any{"items": []map[string]any{}}))
 		case "/clusters/root:orgs/apis/search.platform-mesh.io/v1alpha1/searchindexes":
-			writeJSON(t, w, searchIndexListPayload(map[string]interface{}{
-				"items": []map[string]interface{}{
+			writeJSON(t, w, searchIndexListPayload(map[string]any{
+				"items": []map[string]any{
 					{
 						"metadata": map[string]any{"name": "pm-orgs-cluster-123-components"},
 						"spec": map[string]any{
@@ -159,8 +160,8 @@ func TestListIndicesReturnsErrorWhenResourceIsAmbiguous(t *testing.T) {
 		case "/clusters/root:orgs/apis/tenancy.kcp.io/v1alpha1/workspaces/acme":
 			writeJSON(t, w, workspacePayload("acme", "cluster-123"))
 		case "/clusters/root:providers:search/apis/search.platform-mesh.io/v1alpha1/searchindexes":
-			writeJSON(t, w, searchIndexListPayload(map[string]interface{}{
-				"items": []map[string]interface{}{
+			writeJSON(t, w, searchIndexListPayload(map[string]any{
+				"items": []map[string]any{
 					{
 						"metadata": map[string]any{"name": "pm-cluster-123-accounts"},
 						"spec": map[string]any{

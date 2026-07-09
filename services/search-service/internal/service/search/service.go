@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"go.platform-mesh.io/golang-commons/logger"
-
 	"go.platform-mesh.io/search-service/internal/observability"
 )
 

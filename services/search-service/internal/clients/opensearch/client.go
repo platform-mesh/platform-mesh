@@ -91,13 +91,11 @@ func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 		queryClause = map[string]any{
 			"match_all": map[string]any{},
 		}
-
 	} else if mode == search.SearchModeSemantic {
 		queryClause, err = buildSemanticQueryClause(query, semanticFields)
 		if err != nil {
 			return nil, fmt.Errorf("build semantic query clause: %w", err)
 		}
-
 	} else {
 		simple := map[string]any{
 			"query":            query,

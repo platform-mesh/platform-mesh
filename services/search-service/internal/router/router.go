@@ -26,8 +26,8 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"go.platform-mesh.io/golang-commons/logger"
 
+	"go.platform-mesh.io/golang-commons/logger"
 	appcontext "go.platform-mesh.io/search-service/internal/context"
 	"go.platform-mesh.io/search-service/internal/service/search"
 )

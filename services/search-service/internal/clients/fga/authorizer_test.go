@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
-
 	"go.platform-mesh.io/search-service/internal/service/search"
 )
 

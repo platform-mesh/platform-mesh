@@ -26,15 +26,15 @@ import (
 
 	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-service/internal/config"
+	"go.platform-mesh.io/search-service/internal/service/search"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
-
-	"go.platform-mesh.io/search-service/internal/config"
-	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 type SearchIndexResolver struct {
