@@ -1,0 +1,12 @@
+# zizmor configuration for platform-mesh workflows.
+# https://docs.zizmor.sh/configuration/
+rules:
+  # Repo convention: jobs are identified by their key (e.g. `verify`, `test`),
+  # not a separate display name. Adding `name:` to every job would fight the
+  # established style across all workflows here.
+  anonymous-definition:
+    disable: true
+  # ncipollo/release-action is the standardized release tool used across the
+  # monorepo; we intentionally prefer it over an inline `gh release` script.
+  superfluous-actions:
+    disable: true

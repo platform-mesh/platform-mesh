@@ -1,0 +1,26 @@
+name: Zizmor
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '30 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    uses: platform-mesh/.github/.github/workflows/job-zizmor.yml@03e076ff9aebe43ead6b9d77f3bb764a9d411347 # main
+    with:
+      persona: 'auditor'
+    permissions:
+      security-events: write # Needed to write to the GitHub Security tab
+      contents: read # Needed to read repository contents
+      actions: read # Needed to read GitHub Actions workflows

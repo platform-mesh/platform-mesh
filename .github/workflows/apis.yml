@@ -60,10 +60,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.work
-          cache: true
+          cache: true # zizmor: ignore[cache-poisoning]
       - name: Enable git CLI clones using GITHUB_TOKEN
         run: |
           git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
@@ -73,7 +75,7 @@ jobs:
       - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: task lint-${{ env.COMPONENT }}
+      - run: task lint-${COMPONENT}
 
   test:
     runs-on: ubuntu-latest
@@ -81,10 +83,12 @@ jobs:
       GOPRIVATE: github.com/platform-mesh
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.work
-          cache: true
+          cache: true # zizmor: ignore[cache-poisoning]
       - name: Enable git CLI clones using GITHUB_TOKEN
         run: |
           git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
@@ -94,7 +98,7 @@ jobs:
       - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: task test-${{ env.COMPONENT }}
+      - run: task test-${COMPONENT}
 
   # ──────────────────────────────────────────────
   # Tag apis/v*: cut the GitHub release for the module tag.
@@ -104,7 +108,7 @@ jobs:
     needs: [lint, test]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Needed to create the GitHub release for the tag
     steps:
       - name: Create Release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1

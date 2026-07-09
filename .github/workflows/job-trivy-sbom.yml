@@ -45,10 +45,7 @@ on:
       registryToken:
         required: false
 
-permissions:
-  contents: read
-  packages: read
-  security-events: write
+permissions: {} # Default-deny at workflow level; the job elevates what it needs
 
 env:
   REGISTRY_TOKEN: ${{ secrets.registryToken || secrets.GITHUB_TOKEN }}
@@ -60,6 +57,10 @@ env:
 jobs:
   scan-sbom:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # Needed for actions/checkout
+      packages: read # Needed to pull the image/SBOM to scan
+      security-events: write # Needed to upload Trivy SARIF to code scanning
     steps:
       - name: Install ocm and oras
         run: |
@@ -71,7 +72,7 @@ jobs:
         run: |
           REGISTRY_HOST="${IMAGE_REPO%%/*}"
           echo "${REGISTRY_TOKEN}" | \
-            oras login "${REGISTRY_HOST}" -u "${{ github.actor }}" --password-stdin
+            oras login "${REGISTRY_HOST}" -u "${GITHUB_ACTOR}" --password-stdin
 
       - name: Fetch SBOM for component version
         env:
@@ -118,7 +119,7 @@ jobs:
         # Code scanning upload only works on public repos (or private repos with
         # GitHub Advanced Security), so gate it on the repo being public.
         if: hashFiles('trivy.sarif') != '' && github.event.repository.private == false
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           sarif_file: 'trivy.sarif'
           category: 'trivy-sbom-release-scan'

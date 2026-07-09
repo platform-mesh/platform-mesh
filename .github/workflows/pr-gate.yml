@@ -25,10 +25,10 @@ on:
       - reopened
 
 permissions:
-  contents: read
-  checks: read
-  pull-requests: read
-  statuses: read
+  contents: read # Needed for actions/checkout
+  checks: read # Needed to read check-run results for the gate
+  pull-requests: read # Needed to read PR metadata
+  statuses: read # Needed to read commit statuses for the gate
 
 concurrency:
   group: pr-gate-${{ github.ref }}
