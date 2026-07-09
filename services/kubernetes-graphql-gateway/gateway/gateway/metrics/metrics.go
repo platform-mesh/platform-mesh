@@ -123,8 +123,10 @@ func (m *EndpointMetrics) Record(cluster, operation string, d time.Duration, res
 
 // ResolverMetrics tracks Kubernetes API calls made by GraphQL resolvers.
 type ResolverMetrics struct {
-	RequestsTotal   *prometheus.CounterVec
-	RequestDuration *prometheus.HistogramVec
+	RequestsTotal         *prometheus.CounterVec
+	RequestDuration       *prometheus.HistogramVec
+	CategoryWatchesActive *prometheus.GaugeVec
+	WatchInitialItems     *prometheus.HistogramVec
 }
 
 func NewResolverMetrics(reg prometheus.Registerer) *ResolverMetrics {
@@ -138,8 +140,18 @@ func NewResolverMetrics(reg prometheus.Registerer) *ResolverMetrics {
 			Help:    "Duration of Kubernetes API calls in seconds by operation and kind.",
 			Buckets: prometheus.DefBuckets,
 		}, []string{"operation", "kind"}),
+		CategoryWatchesActive: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "kubernetes_graphql_gateway_category_watches_active",
+			Help: "Current number of open resource watches held by category subscriptions.",
+		}, []string{"category"}),
+		WatchInitialItems: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Name:    "kubernetes_graphql_gateway_watch_initial_items",
+			Help:    "Number of objects returned during a subscription's list phase.",
+			Buckets: prometheus.ExponentialBuckets(1, 4, 8),
+		}, []string{"kind"}),
 	}
-	reg.MustRegister(m.RequestsTotal, m.RequestDuration)
+	reg.MustRegister(
+		m.RequestsTotal, m.RequestDuration, m.CategoryWatchesActive, m.WatchInitialItems)
 	return m
 }
 
@@ -147,6 +159,16 @@ func NewResolverMetrics(reg prometheus.Registerer) *ResolverMetrics {
 func (m *ResolverMetrics) Record(operation, kind string, d time.Duration, result string) {
 	m.RequestsTotal.WithLabelValues(operation, kind, result).Inc()
 	m.RequestDuration.WithLabelValues(operation, kind).Observe(d.Seconds())
+}
+
+// UpdateCategoryWatches adds or subtracts the delta and updates the gauge.
+func (m *ResolverMetrics) UpdateCategoryWatches(category string, delta int) {
+	m.CategoryWatchesActive.WithLabelValues(category).Add(float64(delta))
+}
+
+// ObserveWatchInitialItems records the item count during the initial list, labelled by kind.
+func (m *ResolverMetrics) ObserveWatchInitialItems(kind string, n int) {
+	m.WatchInitialItems.WithLabelValues(kind).Observe(float64(n))
 }
 
 // AuthMetrics tracks token authentication attempts.

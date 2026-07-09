@@ -239,6 +239,9 @@ func (r *Service) runWatch(
 			}
 
 			lastRV = list.GetResourceVersion()
+			if r.metrics != nil {
+				r.metrics.ObserveWatchInitialItems(gvk.Kind, len(list.Items))
+			}
 		}
 
 		// --- WATCH phase ---

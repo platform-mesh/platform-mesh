@@ -104,7 +104,12 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 		}
 
 		categoryTypes := m[category]
-		outCh := make(chan any, len(categoryTypes))
+		categoryTypesCount := len(categoryTypes)
+		outCh := make(chan any, categoryTypesCount)
+
+		if r.metrics != nil {
+			r.metrics.UpdateCategoryWatches(category, categoryTypesCount)
+		}
 
 		var wg sync.WaitGroup
 		for _, cType := range categoryTypes {
@@ -143,6 +148,9 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 
 		go func() {
 			wg.Wait()
+			if r.metrics != nil {
+				r.metrics.UpdateCategoryWatches(category, -categoryTypesCount)
+			}
 			close(outCh)
 		}()
 

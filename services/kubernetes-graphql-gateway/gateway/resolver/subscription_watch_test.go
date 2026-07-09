@@ -27,9 +27,12 @@ import (
 
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/graphql/language/ast"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/metrics"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/internal/testfakes"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -543,10 +546,14 @@ func TestSubscribeResourcesByCategory(t *testing.T) {
 			},
 		)
 
-		svc := New(client, nil)
+		metricsReg := prometheus.NewRegistry()
+		m := metrics.NewResolverMetrics(metricsReg)
+		svc := New(client, m)
+
+		const categoryName = "cert-manager"
 
 		typemap := map[string][]TypeByCategory{
-			"cert-manager": {
+			categoryName: {
 				{
 					Group:   firstGroup,
 					Version: firstVersion,
@@ -559,18 +566,19 @@ func TestSubscribeResourcesByCategory(t *testing.T) {
 				},
 			},
 		}
+		resolver := svc.SubscribeResourcesByCategory(typemap)
 
-		rFn := svc.SubscribeResourcesByCategory(typemap)
-		chObj, err := rFn(graphql.ResolveParams{
+		// act
+		resolveResult, err := resolver(graphql.ResolveParams{
 			Context: ctx,
 			Args: map[string]any{
-				NameArg: "cert-manager",
+				NameArg: categoryName,
 			},
 		})
 
 		require.NoError(t, err)
 
-		resultChan, ok := chObj.(chan any)
+		resultChan, ok := resolveResult.(chan any)
 		require.True(t, ok)
 
 		result := collectNResults(resultChan, 2)
@@ -598,6 +606,11 @@ func TestSubscribeResourcesByCategory(t *testing.T) {
 			}
 		}
 
+		series, _ := testutil.GatherAndCount(metricsReg, "kubernetes_graphql_gateway_category_watches_active")
+		assert.Equal(t, 1, series, "gauge should have exactly one series with category as label")
+		gaugeVal := testutil.ToFloat64(m.CategoryWatchesActive.WithLabelValues(categoryName))
+		assert.Equal(t, float64(2), gaugeVal, "expected metric to report two GVK subscriptions")
+
 		cancel()
 
 		select {
@@ -606,6 +619,9 @@ func TestSubscribeResourcesByCategory(t *testing.T) {
 		case <-time.After(time.Second):
 			t.Fatal("fan-in channel did not close on context cancel")
 		}
+
+		gaugeAfter := testutil.ToFloat64(m.CategoryWatchesActive.WithLabelValues(categoryName))
+		assert.Equal(t, float64(0), gaugeAfter, "should be zero after cancellation")
 	})
 }
 
