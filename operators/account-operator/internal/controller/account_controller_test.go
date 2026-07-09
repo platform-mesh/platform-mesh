@@ -145,11 +145,11 @@ func (s *AccountTestSuite) TestAddingFinalizer() {
 		},
 	}
 
-	s.Require().NoError(s.rootOrgsDefaultClient.Create(testContext, account))
+	s.Require().NoError(s.rootOrgsClient.Create(testContext, account))
 
 	createdAccount := pmcorev1alpha1.Account{}
 	s.Assert().Eventually(func() bool {
-		err := s.rootOrgsDefaultClient.Get(testContext, types.NamespacedName{Name: accountName, Namespace: defaultNamespace}, &createdAccount)
+		err := s.rootOrgsClient.Get(testContext, types.NamespacedName{Name: accountName, Namespace: defaultNamespace}, &createdAccount)
 
 		return err == nil && len(createdAccount.Finalizers) == 2
 	}, defaultTestTimeout*2, defaultTickInterval)
