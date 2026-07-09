@@ -28,7 +28,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 KCP_KUBECONFIG="$PORTAL_DIRECTORY/upstream/.secret/kcp/admin.kubeconfig"
-KCP_SERVER="https://localhost:8443/clusters/root:providers:search"
+KCP_WORKSPACE_PATH="root:providers:search"
 
 OUTPUT_KUBECONFIG="$SCRIPT_DIR/../admin.kubeconfig"
 
@@ -48,10 +48,20 @@ if [ ! -f "$KCP_KUBECONFIG" ]; then
     exit 1
 fi
 
+# Derive the base server URL from the existing default cluster entry and append the workspace path
+BASE_SERVER="$(yq eval '.clusters[] | select(.name == "default") | .cluster.server' "$KCP_KUBECONFIG")"
+if [ -z "$BASE_SERVER" ]; then
+  echo "Error: could not find 'default' cluster entry in $KCP_KUBECONFIG"
+  exit 1
+fi
+# Strip any existing /clusters/... suffix so we always start from the shard root
+BASE_URL="${BASE_SERVER%%/clusters/*}"
+KCP_SERVER="${BASE_URL}/clusters/${KCP_WORKSPACE_PATH}"
+
 echo "Copying kubeconfig and setting server to $KCP_SERVER..."
 
 cp "$KCP_KUBECONFIG" "$OUTPUT_KUBECONFIG"
-yq eval -i '(.clusters[] | select(.name == "workspace.kcp.io/current") | .cluster.server) = "'"$KCP_SERVER"'"' "$OUTPUT_KUBECONFIG"
+yq eval -i '(.clusters[] | select(.name == "default") | .cluster.server) = "'"$KCP_SERVER"'"' "$OUTPUT_KUBECONFIG"
 
 echo ""
 echo "Successfully wrote kubeconfig to $OUTPUT_KUBECONFIG"
