@@ -19,7 +19,8 @@ package search
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -33,17 +34,13 @@ func filtersHash(filters map[string][]string) string {
 		return ""
 	}
 
-	keys := make([]string, 0, len(filters))
-	for key := range filters {
-		trimmed := strings.TrimSpace(key)
-		if trimmed != "" {
-			keys = append(keys, trimmed)
-		}
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(filters))
 
 	var b strings.Builder
 	for _, key := range keys {
+		if strings.TrimSpace(key) == "" {
+			continue
+		}
 		rawValues := filters[key]
 		values := make([]string, 0, len(rawValues))
 		for _, value := range rawValues {
@@ -52,7 +49,7 @@ func filtersHash(filters map[string][]string) string {
 				values = append(values, trimmed)
 			}
 		}
-		sort.Strings(values)
+		slices.Sort(values)
 		if len(values) == 0 {
 			continue
 		}

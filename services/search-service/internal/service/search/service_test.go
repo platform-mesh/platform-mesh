@@ -45,9 +45,11 @@ func (f fakeResolver) ListIndices(ctx context.Context, org string) ([]SearchInde
 type fakeSearcher struct {
 	pages []OpenSearchPage
 	calls int
+	reqs  []OpenSearchQuery
 }
 
 func (f *fakeSearcher) Search(ctx context.Context, req OpenSearchQuery) (OpenSearchPage, error) {
+	f.reqs = append(f.reqs, req)
 	if f.calls >= len(f.pages) {
 		return OpenSearchPage{}, nil
 	}
@@ -127,21 +129,113 @@ func TestSearchInvalidCursor(t *testing.T) {
 	}
 }
 
-func TestSearchEmptyQueryMatchesAll(t *testing.T) {
-	hit := OpenSearchHit{ID: "1", Score: 1, Sort: []any{1.0, "1"}, Source: map[string]any{"id": "1"}}
+func TestSearchDefaultsMissingQueryToWildcard(t *testing.T) {
+	searcher := &fakeSearcher{pages: []OpenSearchPage{
+		{Hits: []OpenSearchHit{
+			{ID: "1", Score: 1, Sort: []any{1.0, "1"}, Source: map[string]any{"id": "1"}},
+		}},
+	}}
+	authorizer := &fakeAuthorizer{results: []AuthorizationResult{
+		{Allowed: []bool{true}, Calls: 1},
+	}}
+
 	svc := NewService(
-		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme", Resource: "accounts"}},
-		&fakeSearcher{pages: []OpenSearchPage{{Hits: []OpenSearchHit{hit}}}},
-		&fakeAuthorizer{results: []AuthorizationResult{{Allowed: []bool{true}, Calls: 1}}},
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+		searcher,
+		authorizer,
+		nil,
+		ServiceConfig{FetchBatchSize: 10, MaxScannedHits: 100},
+	)
+
+	_, err := svc.Search(context.Background(), SearchRequest{Organization: "acme", User: "alice@example.com", Query: "  "})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(searcher.reqs) != 1 {
+		t.Fatalf("expected 1 OpenSearch request, got %d", len(searcher.reqs))
+	}
+	if searcher.reqs[0].Query != "*" {
+		t.Fatalf("expected wildcard query, got %q", searcher.reqs[0].Query)
+	}
+}
+
+func TestSearchSemanticModeUsesSemanticFields(t *testing.T) {
+	searcher := &fakeSearcher{pages: []OpenSearchPage{
+		{Hits: []OpenSearchHit{
+			{ID: "1", Score: 1, Sort: []any{1.0, "1"}, Source: map[string]any{"id": "1"}},
+		}},
+	}}
+	authorizer := &fakeAuthorizer{results: []AuthorizationResult{
+		{Allowed: []bool{true}, Calls: 1},
+	}}
+
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{
+			IndexName:      "idx-acme",
+			Resource:       "components",
+			SemanticFields: []string{"description", "spec.summary"},
+		}},
+		searcher,
+		authorizer,
+		nil,
+		ServiceConfig{FetchBatchSize: 10, MaxScannedHits: 100},
+	)
+
+	resp, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		Mode:         SearchModeSemantic,
+		Resource:     "components",
+	})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(resp.Results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(resp.Results))
+	}
+	if len(searcher.reqs) != 1 {
+		t.Fatalf("expected 1 OpenSearch request, got %d", len(searcher.reqs))
+	}
+	if searcher.reqs[0].Mode != SearchModeSemantic {
+		t.Fatalf("expected semantic mode, got %q", searcher.reqs[0].Mode)
+	}
+	if len(searcher.reqs[0].SemanticFields) != 2 {
+		t.Fatalf("expected semantic fields to be forwarded, got %+v", searcher.reqs[0].SemanticFields)
+	}
+}
+
+func TestSearchSemanticModeRequiresResource(t *testing.T) {
+	svc := NewService(fakeResolver{}, &fakeSearcher{}, &fakeAuthorizer{}, nil, ServiceConfig{})
+	_, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		Mode:         SearchModeSemantic,
+	})
+	if !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest, got %v", err)
+	}
+}
+
+func TestSearchSemanticModeRequiresConfiguredFields(t *testing.T) {
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme", Resource: "components"}},
+		&fakeSearcher{},
+		&fakeAuthorizer{},
 		nil,
 		ServiceConfig{},
 	)
-	resp, err := svc.Search(t.Context(), SearchRequest{Organization: "acme", User: "alice@example.com", Query: "  "})
-	if err != nil {
-		t.Fatalf("expected no error for empty query, got %v", err)
-	}
-	if len(resp.Results) == 0 {
-		t.Fatal("expected results for empty query (match-all)")
+
+	_, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		Mode:         SearchModeSemantic,
+		Resource:     "components",
+	})
+	if !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest, got %v", err)
 	}
 }
 
@@ -192,9 +286,9 @@ func TestSearchClampsLimitToConfiguredMax(t *testing.T) {
 func TestFilterValuesPostFiltersAndEnforcesLimit(t *testing.T) {
 	searcher := &fakeSearcher{pages: []OpenSearchPage{
 		{Hits: []OpenSearchHit{
-			{ID: "1", Source: map[string]any{"status": "Terminated"}},
-			{ID: "2", Source: map[string]any{"status": "Active"}},
-			{ID: "3", Source: map[string]any{"status": "Pending"}},
+			{ID: "1", Source: map[string]any{"filterable_fields": map[string]any{"status": "Terminated"}}},
+			{ID: "2", Source: map[string]any{"filterable_fields": map[string]any{"status": "Active"}}},
+			{ID: "3", Source: map[string]any{"filterable_fields": map[string]any{"status": "Pending"}}},
 		}},
 	}}
 
@@ -230,6 +324,71 @@ func TestFilterValuesPostFiltersAndEnforcesLimit(t *testing.T) {
 	}
 }
 
+func TestSearchForwardsConfiguredFieldsWithoutCoreFallback(t *testing.T) {
+	searcher := &fakeSearcher{pages: []OpenSearchPage{
+		{Hits: []OpenSearchHit{
+			{ID: "1", Score: 1, Sort: []any{1.0, "1"}, Source: map[string]any{"id": "1"}},
+		}},
+	}}
+	authorizer := &fakeAuthorizer{results: []AuthorizationResult{
+		{Allowed: []bool{true}, Calls: 1},
+	}}
+
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{
+			IndexName:     "idx-acme",
+			Resource:      "components",
+			DefaultFields: []string{"spec.summary", "metadata.labels.team"},
+		}},
+		searcher,
+		authorizer,
+		nil,
+		ServiceConfig{FetchBatchSize: 10, MaxScannedHits: 100},
+	)
+
+	_, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		Resource:     "components",
+	})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(searcher.reqs) != 1 {
+		t.Fatalf("expected 1 OpenSearch request, got %d", len(searcher.reqs))
+	}
+	fields := searcher.reqs[0].Fields
+	if len(fields) != 2 || fields[0] != "metadata.labels.team" || fields[1] != "spec.summary" {
+		t.Fatalf("unexpected forwarded fields: %v", fields)
+	}
+}
+
+func TestFilterValuesReadsNestedFilterableFields(t *testing.T) {
+	searcher := &fakeSearcher{pages: []OpenSearchPage{
+		{Hits: []OpenSearchHit{
+			{ID: "1", Source: map[string]any{"filterable_fields": map[string]any{"spec": map[string]any{"replicas": float64(3)}}}},
+			{ID: "2", Source: map[string]any{"filterable_fields": map[string]any{"spec": map[string]any{"replicas": float64(5)}}}},
+		}},
+	}}
+
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx", FilterableFields: []string{"spec.replicas"}}},
+		searcher,
+		&fakeAuthorizer{results: []AuthorizationResult{{Allowed: []bool{true, true}, Calls: 1}}},
+		nil,
+		ServiceConfig{FetchBatchSize: 10, MaxScannedHits: 100},
+	)
+
+	resp, err := svc.FilterValues(context.Background(), FilterValuesRequest{Organization: "acme", User: "alice@example.com", Resource: "pods", Field: "spec.replicas", Limit: 10})
+	if err != nil {
+		t.Fatalf("FilterValues returned error: %v", err)
+	}
+	if len(resp.Values) != 2 || resp.Values[0] != "3" || resp.Values[1] != "5" {
+		t.Fatalf("unexpected values: %v", resp.Values)
+	}
+}
+
 func TestFilterValuesRejectsMissingUser(t *testing.T) {
 	svc := NewService(
 		fakeResolver{index: SearchIndexRef{IndexName: "idx", FilterableFields: []string{"status"}}},
@@ -246,5 +405,67 @@ func TestFilterValuesRejectsMissingUser(t *testing.T) {
 	})
 	if !errors.Is(err, ErrInvalidRequest) {
 		t.Fatalf("expected ErrInvalidRequest, got %v", err)
+	}
+}
+
+func TestSearchFlattensCustomFieldsInResponse(t *testing.T) {
+	searcher := &fakeSearcher{pages: []OpenSearchPage{
+		{Hits: []OpenSearchHit{
+			{
+				ID:    "1",
+				Score: 1,
+				Sort:  []any{1.0, "1"},
+				Source: map[string]any{
+					"id": "1",
+					"custom_fields": map[string]any{
+						"apiVersion": "metadata.dxp.sap.com/v1alpha1",
+						"kind":       "Component",
+						"metadata": map[string]any{
+							"annotations": map[string]any{
+								"kcp.io/cluster":                         "ecvrp5ijg9ufrmnl",
+								"migration.platform-mesh.io/source-name": "compo-docs3",
+							},
+							"finalizers": []any{"search.platform-mesh.io/indexable-resource"},
+						},
+					},
+				},
+			},
+		}},
+	}}
+	authorizer := &fakeAuthorizer{results: []AuthorizationResult{
+		{Allowed: []bool{true}, Calls: 1},
+	}}
+
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+		searcher,
+		authorizer,
+		nil,
+		ServiceConfig{FetchBatchSize: 10, MaxScannedHits: 100},
+	)
+
+	resp, err := svc.Search(context.Background(), SearchRequest{Organization: "acme", User: "alice@example.com", Query: "component"})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(resp.Results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(resp.Results))
+	}
+
+	customFields, ok := resp.Results[0].Source["custom_fields"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected flattened custom_fields map, got %T", resp.Results[0].Source["custom_fields"])
+	}
+	if got := customFields["apiVersion"]; got != "metadata.dxp.sap.com/v1alpha1" {
+		t.Fatalf("apiVersion = %v", got)
+	}
+	if got := customFields["metadata.annotations.kcp.io/cluster"]; got != "ecvrp5ijg9ufrmnl" {
+		t.Fatalf("metadata.annotations.kcp.io/cluster = %v", got)
+	}
+	if got := customFields["metadata.annotations.migration.platform-mesh.io/source-name"]; got != "compo-docs3" {
+		t.Fatalf("metadata.annotations.migration.platform-mesh.io/source-name = %v", got)
+	}
+	if _, exists := customFields["metadata"]; exists {
+		t.Fatalf("nested metadata object should not be present in flattened custom_fields: %v", customFields["metadata"])
 	}
 }

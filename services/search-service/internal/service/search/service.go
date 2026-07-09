@@ -19,11 +19,13 @@ package search
 import (
 	"context"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	"go.platform-mesh.io/golang-commons/logger"
+
 	"go.platform-mesh.io/search-service/internal/observability"
 )
 
@@ -95,10 +97,18 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 	if user == "" {
 		return SearchResponse{}, fmt.Errorf("%w: user is required", ErrInvalidRequest)
 	}
+	mode, err := normalizeMode(req.Mode)
+	if err != nil {
+		return SearchResponse{}, err
+	}
 	resource := strings.TrimSpace(req.Resource)
 	filters := normalizeFilters(req.Filters)
 	if resource == "" && len(filters) > 0 {
 		return SearchResponse{}, fmt.Errorf("%w: filters require a resource", ErrInvalidRequest)
+	}
+
+	if mode == SearchModeSemantic && resource == "" {
+		return SearchResponse{}, fmt.Errorf("%w: semantic mode requires a resource", ErrInvalidRequest)
 	}
 
 	limit := req.Limit
@@ -117,8 +127,8 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 		if err != nil {
 			return SearchResponse{}, err
 		}
-		if err := ValidateCursor(decoded, org, qHash, resource, fHash, limit); err != nil {
-			log.Error().Err(err).Str("cursor", req.Cursor).Msg("invalid cursor")
+		if err := ValidateCursor(decoded, org, qHash, mode, resource, fHash, limit); err != nil {
+			log.Error().Err(err).Str("searchmode", mode).Str("cursor", req.Cursor).Msg("invalid cursor")
 			return SearchResponse{}, err
 		}
 		searchAfter = decoded.SearchAfter
@@ -128,28 +138,33 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 		indices         []string
 		resourceByIndex map[string]string
 		searchFields    []string
+		semanticFields  []string
 		filterQuery     map[string][]string
 	)
 
 	if resource != "" {
 		indexRef, err := s.resolver.ResolveIndex(ctx, org, resource)
 		if err != nil {
-			log.Error().Err(err).Str("org", org).Str("resource", resource).Msg("failed to resolve search index")
+			log.Error().Err(err).Str("searchmode", mode).Str("org", org).Str("resource", resource).Msg("failed to resolve search index")
 			return SearchResponse{}, fmt.Errorf("%w: resolve search index: %v", ErrBackend, err)
 		}
 
 		if err := validateFiltersAllowed(filters, indexRef.FilterableFields); err != nil {
 			return SearchResponse{}, err
 		}
+		if mode == SearchModeSemantic && len(indexRef.SemanticFields) == 0 {
+			return SearchResponse{}, fmt.Errorf("%w: resource %q has no semantic fields configured", ErrInvalidRequest, resource)
+		}
 
 		indices = []string{indexRef.IndexName}
 		resourceByIndex = map[string]string{indexRef.IndexName: indexRef.Resource}
 		searchFields = searchableFields(indexRef.DefaultFields)
+		semanticFields = semanticSearchFields(indexRef.SemanticFields)
 		filterQuery = filters
 	} else {
 		indexRefs, err := s.resolver.ListIndices(ctx, org)
 		if err != nil {
-			log.Error().Err(err).Str("org", org).Msg("failed to list search indices")
+			log.Error().Err(err).Str("searchmode", mode).Str("org", org).Msg("failed to list search indices")
 			return SearchResponse{}, fmt.Errorf("%w: list search indices: %v", ErrBackend, err)
 		}
 
@@ -161,6 +176,7 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 	}
 
 	log.Debug().
+		Str("searchmode", mode).
 		Str("organization", org).
 		Str("queryHash", qHash).
 		Int("limit", limit).
@@ -176,12 +192,14 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 outer:
 	for len(results) < limit {
 		page, err := s.searcher.Search(ctx, OpenSearchQuery{
-			Indices:     indices,
-			Query:       query,
-			Fields:      searchFields,
-			Filters:     filterQuery,
-			Size:        s.cfg.FetchBatchSize,
-			SearchAfter: searchAfter,
+			Indices:        indices,
+			Query:          query,
+			Mode:           mode,
+			Fields:         searchFields,
+			SemanticFields: semanticFields,
+			Filters:        filterQuery,
+			Size:           s.cfg.FetchBatchSize,
+			SearchAfter:    searchAfter,
 		})
 		s.metrics.AddOpenSearchCalls(1)
 		if err != nil {
@@ -202,6 +220,7 @@ outer:
 		if err != nil {
 			log.Error().
 				Err(err).
+				Str("searchmode", mode).
 				Str("organization", org).
 				Str("queryHash", qHash).
 				Str("resource", resource).
@@ -222,7 +241,7 @@ outer:
 			nextSearchAfter = hit.Sort
 
 			if i >= len(authz.Allowed) || !authz.Allowed[i] {
-				log.Warn().Str("organization", org).Str("queryHash", qHash).Str("resource", resource).Int("hitIndex", i).Msg("skipping unauthorized search hit")
+				log.Warn().Str("searchmode", mode).Str("organization", org).Str("queryHash", qHash).Str("resource", resource).Int("hitIndex", i).Msg("skipping unauthorized search hit")
 				continue
 			}
 
@@ -245,6 +264,7 @@ outer:
 			Version:     cursorVersion,
 			Org:         org,
 			QueryHash:   qHash,
+			Mode:        mode,
 			Resource:    resource,
 			FiltersHash: fHash,
 			Limit:       limit,
@@ -286,11 +306,7 @@ func (s *Service) ListResources(ctx context.Context, req SearchResourcesRequest)
 		}
 	}
 
-	keys := make([]string, 0, len(byResource))
-	for resource := range byResource {
-		keys = append(keys, resource)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(byResource))
 	for _, resource := range keys {
 		resources = append(resources, byResource[resource])
 	}
@@ -390,7 +406,7 @@ outer:
 			if i >= len(authz.Allowed) || !authz.Allowed[i] {
 				continue
 			}
-			for _, value := range extractFieldValues(hit.Source, field) {
+			for _, value := range extractFieldValues(hit.Source, prefixedDocumentField("filterable_fields", field)) {
 				if _, exists := seen[value]; exists {
 					continue
 				}
@@ -405,21 +421,21 @@ outer:
 		if len(page.Hits) < s.cfg.FetchBatchSize {
 			break
 		}
+
 		searchAfter = page.Hits[len(page.Hits)-1].Sort
 	}
 
-	sort.Strings(values)
+	slices.Sort(values)
 	if len(values) > limit {
 		values = values[:limit]
 	}
+
 	return FilterValuesResponse{Values: values}, nil
 }
 
 func mapHit(hit OpenSearchHit, resource string) SearchHit {
-	src := hit.Source
-	if src == nil {
-		src = map[string]any{}
-	}
+	src := responseSource(hit.Source)
+
 	return SearchHit{
 		ID:               firstString(hit.ID, stringFromMap(src, "id")),
 		Score:            hit.Score,
@@ -439,6 +455,57 @@ func mapHit(hit OpenSearchHit, resource string) SearchHit {
 	}
 }
 
+func responseSource(source map[string]any) map[string]any {
+	if len(source) == 0 {
+		return map[string]any{}
+	}
+
+	out := make(map[string]any, len(source))
+	maps.Copy(out, source)
+
+	customFields, ok := out["custom_fields"].(map[string]any)
+	if !ok {
+		return out
+	}
+
+	out["custom_fields"] = flattenMap(customFields)
+	return out
+}
+
+func flattenMap(values map[string]any) map[string]any {
+	out := make(map[string]any)
+	flattenValue(out, "", values)
+	return out
+}
+
+func flattenValue(out map[string]any, prefix string, value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, nested := range typed {
+			flattenValue(out, joinFieldPath(prefix, key), nested)
+		}
+	case map[string]string:
+		for key, nested := range typed {
+			flattenValue(out, joinFieldPath(prefix, key), nested)
+		}
+	default:
+		if prefix != "" {
+			out[prefix] = value
+		}
+	}
+}
+
+func joinFieldPath(prefix, field string) string {
+	field = strings.TrimSpace(field)
+	if field == "" {
+		return prefix
+	}
+	if prefix == "" {
+		return field
+	}
+	return prefix + "." + field
+}
+
 func indexLookup(refs []SearchIndexRef) ([]string, map[string]string) {
 	indices := make([]string, 0, len(refs))
 	resourceByIndex := make(map[string]string, len(refs))
@@ -456,7 +523,7 @@ func indexLookup(refs []SearchIndexRef) ([]string, map[string]string) {
 			resourceByIndex[indexName] = resource
 		}
 	}
-	sort.Strings(indices)
+	slices.Sort(indices)
 	return indices, resourceByIndex
 }
 
@@ -467,20 +534,24 @@ func resolveHitResource(hit OpenSearchHit, requestedResource string, byIndex map
 	if resource := strings.TrimSpace(byIndex[hit.Index]); resource != "" {
 		return resource
 	}
+
 	return strings.TrimSpace(stringFromMap(hit.Source, "resource"))
 }
 
 func searchableFields(defaultFields []string) []string {
-	fields := append([]string{"name"}, defaultFields...)
-	return dedupeNonEmpty(fields)
+	return dedupeNonEmpty(defaultFields)
 }
 
 func searchableFieldsForRefs(refs []SearchIndexRef) []string {
-	fields := make([]string, 0, len(refs)*2+1)
-	fields = append(fields, "name")
+	fields := make([]string, 0, len(refs)*2)
 	for _, ref := range refs {
 		fields = append(fields, ref.DefaultFields...)
 	}
+
+	return dedupeNonEmpty(fields)
+}
+
+func semanticSearchFields(fields []string) []string {
 	return dedupeNonEmpty(fields)
 }
 
@@ -518,6 +589,7 @@ func normalizeFilters(filters map[string][]string) map[string][]string {
 	if len(normalized) == 0 {
 		return nil
 	}
+
 	return normalized
 }
 
@@ -531,6 +603,7 @@ func validateFiltersAllowed(filters map[string][]string, allowedFields []string)
 			return fmt.Errorf("%w: field %q is not filterable", ErrInvalidRequest, field)
 		}
 	}
+
 	return nil
 }
 
@@ -542,6 +615,7 @@ func fieldSet(values []string) map[string]struct{} {
 			out[trimmed] = struct{}{}
 		}
 	}
+
 	return out
 }
 
@@ -559,8 +633,22 @@ func dedupeNonEmpty(values []string) []string {
 		seen[trimmed] = struct{}{}
 		out = append(out, trimmed)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
+
 	return out
+}
+
+func prefixedDocumentField(prefix, field string) string {
+	field = strings.TrimSpace(field)
+	if field == "" {
+		return ""
+	}
+	for _, existingPrefix := range []string{"custom_fields.", "default_fields.", "semantic_fields.", "filterable_fields."} {
+		if strings.HasPrefix(field, existingPrefix) {
+			return field
+		}
+	}
+	return prefix + "." + field
 }
 
 func extractFieldValues(source map[string]any, fieldPath string) []string {
@@ -578,11 +666,7 @@ func extractFieldValues(source map[string]any, fieldPath string) []string {
 		return nil
 	}
 
-	values := make([]string, 0, len(results))
-	for value := range results {
-		values = append(values, value)
-	}
-	sort.Strings(values)
+	values := slices.Sorted(maps.Keys(results))
 	return values
 }
 
@@ -644,5 +728,6 @@ func firstString(values ...string) string {
 			return value
 		}
 	}
+
 	return ""
 }

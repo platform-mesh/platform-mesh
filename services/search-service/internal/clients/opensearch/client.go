@@ -23,9 +23,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -77,7 +78,12 @@ func NewClient(cfg Config) (*Client, error) {
 
 func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 	query := strings.TrimSpace(req.Query)
-	fields := dedupeStrings(req.Fields)
+	mode, err := searchMode(req.Mode)
+	if err != nil {
+		return nil, err
+	}
+	fields := lexicalSearchFields(req.Fields)
+	semanticFields := prefixedFields("semantic_fields", dedupeStrings(req.SemanticFields))
 	filters := normalizeFilters(req.Filters)
 
 	var queryClause map[string]any
@@ -85,6 +91,13 @@ func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 		queryClause = map[string]any{
 			"match_all": map[string]any{},
 		}
+
+	} else if mode == search.SearchModeSemantic {
+		queryClause, err = buildSemanticQueryClause(query, semanticFields)
+		if err != nil {
+			return nil, fmt.Errorf("build semantic query clause: %w", err)
+		}
+
 	} else {
 		simple := map[string]any{
 			"query":            query,
@@ -100,24 +113,16 @@ func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 
 	if len(filters) > 0 {
 		filterClauses := make([]map[string]any, 0, len(filters))
-		keys := make([]string, 0, len(filters))
-		for key := range filters {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
+		keys := slices.Sorted(maps.Keys(filters))
 
 		for _, field := range keys {
 			values := filters[field]
 			if len(values) == 0 {
 				continue
 			}
-			keywordField := field
-			if !strings.HasSuffix(keywordField, ".keyword") {
-				keywordField += ".keyword"
-			}
 			filterClauses = append(filterClauses, map[string]any{
 				"terms": map[string]any{
-					keywordField: values,
+					prefixedField("filterable_fields", field): values,
 				},
 			})
 		}
@@ -145,10 +150,6 @@ func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 	}
 
 	if field := strings.TrimSpace(req.AggregationField); field != "" {
-		keywordField := field
-		if !strings.HasSuffix(keywordField, ".keyword") {
-			keywordField += ".keyword"
-		}
 		aggSize := req.Size
 		if aggSize <= 0 {
 			aggSize = 10
@@ -156,7 +157,7 @@ func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 		body["aggs"] = map[string]any{
 			"values": map[string]any{
 				"terms": map[string]any{
-					"field": keywordField,
+					"field": prefixedField("filterable_fields", field),
 					"size":  aggSize,
 				},
 			},
@@ -170,6 +171,51 @@ func BuildQueryBody(req search.OpenSearchQuery) ([]byte, error) {
 	return json.Marshal(body)
 }
 
+func buildSemanticQueryClause(query string, semanticFields []string) (map[string]any, error) {
+	if len(semanticFields) == 0 {
+		return nil, fmt.Errorf("semantic mode requires at least one semantic field")
+	}
+	if len(semanticFields) == 1 {
+		return map[string]any{
+			"neural": map[string]any{
+				semanticFields[0]: map[string]any{
+					"query_text": query,
+				},
+			},
+		}, nil
+	}
+
+	shouldClauses := make([]any, 0, len(semanticFields))
+	for _, field := range semanticFields {
+		shouldClauses = append(shouldClauses, map[string]any{
+			"neural": map[string]any{
+				field: map[string]any{
+					"query_text": query,
+				},
+			},
+		})
+	}
+
+	return map[string]any{
+		"bool": map[string]any{
+			"should":               shouldClauses,
+			"minimum_should_match": 1,
+		},
+	}, nil
+}
+
+func searchMode(raw string) (string, error) {
+	mode := strings.ToLower(strings.TrimSpace(raw))
+	switch mode {
+	case "", search.SearchModeLexical:
+		return search.SearchModeLexical, nil
+	case search.SearchModeSemantic:
+		return search.SearchModeSemantic, nil
+	default:
+		return "", fmt.Errorf("unsupported search mode %q", raw)
+	}
+}
+
 func (c *Client) Search(ctx context.Context, query search.OpenSearchQuery) (search.OpenSearchPage, error) {
 	indices := dedupeStrings(query.Indices)
 	if len(indices) == 0 {
@@ -179,6 +225,8 @@ func (c *Client) Search(ctx context.Context, query search.OpenSearchQuery) (sear
 	body, err := BuildQueryBody(search.OpenSearchQuery{
 		Query:            query.Query,
 		Fields:           query.Fields,
+		SemanticFields:   query.SemanticFields,
+		Mode:             query.Mode,
 		Filters:          query.Filters,
 		Size:             query.Size,
 		SearchAfter:      query.SearchAfter,
@@ -193,6 +241,7 @@ func (c *Client) Search(ctx context.Context, query search.OpenSearchQuery) (sear
 	if err != nil {
 		return search.OpenSearchPage{}, fmt.Errorf("create OpenSearch request: %w", err)
 	}
+
 	httpReq.Header.Set("Content-Type", "application/json")
 	if c.username != "" {
 		httpReq.SetBasicAuth(c.username, c.password)
@@ -202,7 +251,9 @@ func (c *Client) Search(ctx context.Context, query search.OpenSearchQuery) (sear
 	if err != nil {
 		return search.OpenSearchPage{}, fmt.Errorf("execute OpenSearch request: %w", err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
@@ -221,7 +272,7 @@ func (c *Client) Search(ctx context.Context, query search.OpenSearchQuery) (sear
 		} `json:"hits"`
 		Aggregations map[string]struct {
 			Buckets []struct {
-				Key string `json:"key"`
+				Key any `json:"key"`
 			} `json:"buckets"`
 		} `json:"aggregations"`
 	}
@@ -244,11 +295,11 @@ func (c *Client) Search(ctx context.Context, query search.OpenSearchQuery) (sear
 	if agg, ok := payload.Aggregations["values"]; ok {
 		values = make([]string, 0, len(agg.Buckets))
 		for _, b := range agg.Buckets {
-			if b.Key != "" {
-				values = append(values, b.Key)
+			if value := scalarString(b.Key); value != "" {
+				values = append(values, value)
 			}
 		}
-		sort.Strings(values)
+		slices.Sort(values)
 	}
 
 	return search.OpenSearchPage{Hits: hits, AggregationValues: values}, nil
@@ -272,7 +323,7 @@ func dedupeStrings(values []string) []string {
 		seen[trimmed] = struct{}{}
 		out = append(out, trimmed)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -299,4 +350,66 @@ func normalizeFilters(filters map[string][]string) map[string][]string {
 		return nil
 	}
 	return out
+}
+
+func prefixedFields(prefix string, fields []string) []string {
+	if len(fields) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if prefixed := prefixedField(prefix, field); prefixed != "" {
+			out = append(out, prefixed)
+		}
+	}
+	return dedupeStrings(out)
+}
+
+func lexicalSearchFields(fields []string) []string {
+	prefixed := prefixedFields("custom_fields", dedupeStrings(fields))
+	return dedupeStrings(append(prefixed, defaultLexicalSearchFields...))
+}
+
+var defaultLexicalSearchFields = []string{
+	"account_name",
+	"api_group",
+	"api_version",
+	"cluster_name",
+	"kind",
+	"name",
+	"namespace",
+	"organization_name",
+	"payload_text",
+	"workspace_path",
+}
+
+func prefixedField(prefix, field string) string {
+	field = strings.TrimSpace(field)
+	if field == "" {
+		return ""
+	}
+	for _, existingPrefix := range []string{"custom_fields.", "default_fields.", "semantic_fields.", "filterable_fields."} {
+		if strings.HasPrefix(field, existingPrefix) {
+			return field
+		}
+	}
+	return prefix + "." + field
+}
+
+func scalarString(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case fmt.Stringer:
+		return strings.TrimSpace(typed.String())
+	case bool:
+		if typed {
+			return "true"
+		}
+		return "false"
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		return fmt.Sprintf("%v", typed)
+	default:
+		return ""
+	}
 }

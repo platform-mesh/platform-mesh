@@ -7,7 +7,7 @@
 
 The platform-mesh `search-service` provides a REST API to query resources indexed in OpenSearch and post-filter results through OpenFGA authorization checks.
 
-The service is organization-aware and derives org context from the request host. It resolves the active SearchIndex in kcp (`root:orgs`) and uses `status.indexName` as source of truth for the OpenSearch index.
+The service is organization-aware and derives org context from the request host. It resolves the active SearchIndex in kcp (`root:providers:search` by default) and uses `status.indexName` as source of truth for the OpenSearch index.
 
 ## Features
 
@@ -21,28 +21,44 @@ The service is organization-aware and derives org context from the request host.
 - SearchIndex-driven resource/field metadata:
   - `defaultFields` drive searchable fields
   - `filterableFields` drive exact-match filters
-  - `semanticFields` are exposed as metadata (no semantic query mode yet)
+  - `semanticFields` drive semantic search when `mode=semantic`
 - Health endpoints: `/healthz`, `/readyz`
 
 ## API
 
 ### Search endpoint
 
-`GET /rest/v1/search?q=<query>&limit=<n>&cursor=<opaque>&resource=<plural>&filter.<field>=<value>`
+`GET /rest/v1/search?q=<query>&mode=<lexical|semantic>&limit=<n>&cursor=<opaque>&resource=<plural>&filter.<field>=<value>`
 
 Query params:
 
 - `q` (required): free-text query
-- `resource` (optional): plural resource name; if omitted, searches across all resources
+- `mode` (optional): search mode; `lexical` by default, `semantic` to use OpenSearch neural search on configured semantic fields
+- `resource` (optional for `lexical`, required for `semantic`): plural resource name; lexical mode can search across all resources, semantic mode must target a single resource
 - `filter.<field>` (optional, repeatable): exact-match filters; requires `resource`
 - `limit` (optional): default `20`, max `100`
 - `cursor` (optional): opaque pagination cursor
+
+Semantic mode behavior:
+
+- The service resolves the target resource's configured `semanticFields` from the active `SearchIndex`
+- Semantic queries are built against `semantic_fields.<field>` entries from the indexed document
+- If one semantic field is configured, the service emits a single OpenSearch `neural` query for that field
+- If multiple semantic fields are configured, the service emits a `bool.should` query with one `neural` clause per semantic field
+- If the target resource does not define any `semanticFields`, the request is rejected
+
+Examples:
+
+- Lexical search across all resources:
+  - `GET /rest/v1/search?q=developer+portal`
+- Semantic search within one resource:
+  - `GET /rest/v1/search?q=developer+portal&resource=components&mode=semantic`
 
 Response shape:
 
 - `results[]` with compact fields (`id`, `score`, `kind`, `name`, `namespace`, `apiGroup`, `apiVersion`, `workspacePath`, `clusterName`, `organizationId`, `organizationName`, `accountId`, `accountName`)
 - `results[].resource` indicates which resource index produced the hit
-- `source` containing the raw indexed document source per hit
+- `source` containing the indexed document source per hit, including `default_fields`, `semantic_fields`, and `filterable_fields`
 - `nextCursor` for pagination
 
 ### Resource metadata endpoint
@@ -66,7 +82,7 @@ Returns distinct authorized values for one filterable field within a single reso
 
 ### Requirements
 
-- Go `1.25+` (see [go.mod](go.mod))
+- Go `1.26+` (see [go.mod](go.mod))
 - Access to:
   - kcp API (for org access check + SearchIndex resolution)
   - OpenSearch
@@ -110,8 +126,9 @@ Main runtime flags (with defaults):
 - `--opensearch-insecure` (default: `false`)
 - `--opensearch-timeout` (default: `10s`)
 - `--openfga-grpc-addr` (default: `openfga:8081`)
-- `--searchindex-workspace-path` (default: `root:orgs`)
-- `--searchindex-group` (default: `core.platform-mesh.io`)
+- `--searchindex-workspace-path` (default: `root:providers:search`)
+- `--searchindex-org-workspace-path` (default: `root:orgs`)
+- `--searchindex-group` (default: `search.platform-mesh.io`)
 - `--searchindex-version` (default: `v1alpha1`)
 - `--searchindex-resource` (default: `searchindexes`)
 - `--search-default-limit` (default: `20`)

@@ -26,8 +26,8 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-
 	"go.platform-mesh.io/golang-commons/logger"
+
 	appcontext "go.platform-mesh.io/search-service/internal/context"
 	"go.platform-mesh.io/search-service/internal/service/search"
 )
@@ -72,6 +72,7 @@ func CreateRouter(svc SearchService, mws []func(http.Handler) http.Handler) *chi
 			Organization: rc.Organization,
 			User:         rc.User,
 			Query:        q,
+			Mode:         strings.TrimSpace(r.URL.Query().Get("mode")),
 			Resource:     strings.TrimSpace(r.URL.Query().Get("resource")),
 			Filters:      filters,
 			Limit:        limit,

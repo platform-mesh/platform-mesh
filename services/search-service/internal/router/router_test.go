@@ -71,7 +71,7 @@ func TestCreateRouterSearchSuccess(t *testing.T) {
 	svc := &fakeSearchService{response: search.SearchResponse{Results: []search.SearchHit{{ID: "1", Score: 1, Source: map[string]any{"id": "1"}}}}}
 	r := CreateRouter(svc, []func(http.Handler) http.Handler{withRequestContext(appcontext.RequestContext{Organization: "acme", User: "alice@example.com"})})
 
-	req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=hello&limit=15&cursor=abc&resource=accounts&filter.status=Ready", nil)
+	req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=hello&mode=semantic&limit=15&cursor=abc&resource=accounts&filter.status=Ready", nil)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -81,7 +81,7 @@ func TestCreateRouterSearchSuccess(t *testing.T) {
 	if svc.lastReq.Organization != "acme" || svc.lastReq.User != "alice@example.com" {
 		t.Fatalf("unexpected request context: %+v", svc.lastReq)
 	}
-	if svc.lastReq.Query != "hello" || svc.lastReq.Limit != 15 || svc.lastReq.Cursor != "abc" || svc.lastReq.Resource != "accounts" {
+	if svc.lastReq.Query != "hello" || svc.lastReq.Mode != search.SearchModeSemantic || svc.lastReq.Limit != 15 || svc.lastReq.Cursor != "abc" || svc.lastReq.Resource != "accounts" {
 		t.Fatalf("unexpected request payload: %+v", svc.lastReq)
 	}
 	if len(svc.lastReq.Filters["status"]) != 1 || svc.lastReq.Filters["status"][0] != "Ready" {

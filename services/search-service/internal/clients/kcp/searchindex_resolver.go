@@ -17,48 +17,73 @@ limitations under the License.
 package kcp
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 
 	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/search-service/internal/config"
-	"go.platform-mesh.io/search-service/internal/service/search"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+
+	"go.platform-mesh.io/search-service/internal/config"
+	"go.platform-mesh.io/search-service/internal/service/search"
 )
 
 type SearchIndexResolver struct {
-	client dynamic.Interface
-	cfg    config.SearchIndexConfig
-	log    *logger.Logger
+	searchIndexClient    dynamic.Interface
+	orgSearchIndexClient dynamic.Interface
+	orgClient            dynamic.Interface
+	cfg                  config.SearchIndexConfig
+	log                  *logger.Logger
 }
 
 const searchIndexOrgClusterIDLabel = "search.platform-mesh.io/org-cluster-id"
 
 func NewSearchIndexResolver(restCfg *rest.Config, cfg config.SearchIndexConfig, log *logger.Logger) (*SearchIndexResolver, error) {
-	scopedCfg, err := configForKCPCluster(cfg.WorkspacePath, restCfg)
+	searchIndexCfg, err := configForKCPCluster(cfg.WorkspacePath, restCfg)
 	if err != nil {
-		return nil, fmt.Errorf("create kcp workspace config: %w", err)
+		return nil, fmt.Errorf("create SearchIndex kcp workspace config: %w", err)
 	}
 
-	dynamicClient, err := dynamic.NewForConfig(scopedCfg)
+	searchIndexClient, err := dynamic.NewForConfig(searchIndexCfg)
 	if err != nil {
-		return nil, fmt.Errorf("create kcp dynamic client: %w", err)
+		return nil, fmt.Errorf("create SearchIndex kcp dynamic client: %w", err)
+	}
+
+	orgWorkspacePath := strings.TrimSpace(cfg.OrgWorkspacePath)
+	if orgWorkspacePath == "" {
+		orgWorkspacePath = "root:orgs"
+		cfg.OrgWorkspacePath = orgWorkspacePath
+	}
+	orgCfg, err := configForKCPCluster(orgWorkspacePath, restCfg)
+	if err != nil {
+		return nil, fmt.Errorf("create org kcp workspace config: %w", err)
+	}
+
+	orgClient, err := dynamic.NewForConfig(orgCfg)
+	if err != nil {
+		return nil, fmt.Errorf("create org kcp dynamic client: %w", err)
+	}
+
+	orgSearchIndexClient, err := dynamic.NewForConfig(orgCfg)
+	if err != nil {
+		return nil, fmt.Errorf("create org SearchIndex dynamic client: %w", err)
 	}
 
 	return &SearchIndexResolver{
-		client: dynamicClient,
-		cfg:    cfg,
-		log:    log,
+		searchIndexClient:    searchIndexClient,
+		orgSearchIndexClient: orgSearchIndexClient,
+		orgClient:            orgClient,
+		cfg:                  cfg,
+		log:                  log,
 	}, nil
 }
 
@@ -94,19 +119,12 @@ func (s *SearchIndexResolver) ListIndices(ctx context.Context, org string) ([]se
 		return nil, err
 	}
 
-	list, err := s.listSearchIndices(ctx, orgClusterID)
+	list, err := s.listSearchIndicesForOrg(ctx, orgClusterID)
 	if err != nil {
 		return nil, fmt.Errorf("list SearchIndex resources: %w", err)
 	}
-
 	if len(list.Items) == 0 {
-		list, err = s.listSearchIndices(ctx, "")
-		if err != nil {
-			return nil, fmt.Errorf("list SearchIndex resources (fallback): %w", err)
-		}
-	}
-	if len(list.Items) == 0 {
-		return nil, fmt.Errorf("no SearchIndex resources found in workspace %q", s.cfg.WorkspacePath)
+		return nil, fmt.Errorf("no SearchIndex resources found in workspaces %q or %q", s.cfg.WorkspacePath, s.cfg.OrgWorkspacePath)
 	}
 
 	refs := make([]search.SearchIndexRef, 0, len(list.Items))
@@ -128,16 +146,17 @@ func (s *SearchIndexResolver) ListIndices(ctx context.Context, org string) ([]se
 		return nil, fmt.Errorf("no active SearchIndex resources found for org %q", org)
 	}
 
-	sort.Slice(refs, func(i, j int) bool {
-		return refs[i].Resource < refs[j].Resource
+	slices.SortFunc(refs, func(a, b search.SearchIndexRef) int {
+		return cmp.Compare(a.Resource, b.Resource)
 	})
+
 	return refs, nil
 }
 
 func (s *SearchIndexResolver) resolveOrganizationClusterID(ctx context.Context, org string) (string, error) {
-	obj, err := s.client.Resource(workspaceGVR).Get(ctx, org, metav1.GetOptions{})
+	obj, err := s.orgClient.Resource(workspaceGVR).Get(ctx, org, metav1.GetOptions{})
 	if err != nil {
-		return "", fmt.Errorf("resolve workspace cluster ID for org %q: %w", org, err)
+		return "", fmt.Errorf("resolve workspace cluster ID for org %q in workspace %q: %w", org, s.cfg.OrgWorkspacePath, err)
 	}
 
 	clusterID, found, err := unstructured.NestedString(obj.Object, "spec", "cluster")
@@ -152,7 +171,47 @@ func (s *SearchIndexResolver) resolveOrganizationClusterID(ctx context.Context, 
 	return clusterID, nil
 }
 
-func (s *SearchIndexResolver) listSearchIndices(ctx context.Context, orgClusterID string) (pmsearchv1alpha1.SearchIndexList, error) {
+func (s *SearchIndexResolver) listSearchIndicesForOrg(ctx context.Context, orgClusterID string) (pmsearchv1alpha1.SearchIndexList, error) {
+	list, err := listSearchIndices(ctx, s.searchIndexClient, s.cfg, orgClusterID)
+	if err != nil {
+		return list, err
+	}
+	if len(list.Items) > 0 {
+		return list, nil
+	}
+
+	list, err = listSearchIndices(ctx, s.searchIndexClient, s.cfg, "")
+	if err != nil {
+		return list, fmt.Errorf("fallback: %w", err)
+	}
+	if len(list.Items) > 0 {
+		return list, nil
+	}
+
+	if s.cfg.OrgWorkspacePath != s.cfg.WorkspacePath {
+		orgList, orgErr := listSearchIndices(ctx, s.orgSearchIndexClient, s.cfg, orgClusterID)
+		if orgErr != nil {
+			return orgList, orgErr
+		}
+		if len(orgList.Items) > 0 {
+			return orgList, nil
+		}
+	}
+
+	if s.cfg.OrgWorkspacePath != s.cfg.WorkspacePath {
+		orgList, orgErr := listSearchIndices(ctx, s.orgSearchIndexClient, s.cfg, "")
+		if orgErr != nil {
+			return orgList, fmt.Errorf("fallback: %w", orgErr)
+		}
+		if len(orgList.Items) > 0 {
+			return orgList, nil
+		}
+	}
+
+	return list, nil
+}
+
+func listSearchIndices(ctx context.Context, client dynamic.Interface, cfg config.SearchIndexConfig, orgClusterID string) (pmsearchv1alpha1.SearchIndexList, error) {
 	var list pmsearchv1alpha1.SearchIndexList
 
 	listOpts := metav1.ListOptions{}
@@ -160,7 +219,7 @@ func (s *SearchIndexResolver) listSearchIndices(ctx context.Context, orgClusterI
 		listOpts.LabelSelector = fmt.Sprintf("%s=%s", searchIndexOrgClusterIDLabel, orgClusterID)
 	}
 
-	objList, err := s.client.Resource(searchIndexGVR(s.cfg)).List(ctx, listOpts)
+	objList, err := client.Resource(searchIndexGVR(cfg)).List(ctx, listOpts)
 	if err != nil {
 		return list, err
 	}
@@ -280,7 +339,7 @@ func normalizeStringSlice(values []string) []string {
 		out = append(out, trimmed)
 	}
 
-	sort.Strings(out)
+	slices.Sort(out)
 
 	return out
 }

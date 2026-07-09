@@ -22,6 +22,7 @@ type SearchRequest struct {
 	Organization string
 	User         string
 	Query        string
+	Mode         string
 	Resource     string
 	Filters      map[string][]string
 	Limit        int
@@ -36,18 +37,18 @@ type SearchResponse struct {
 type SearchHit struct {
 	ID               string         `json:"id"`
 	Score            float64        `json:"score"`
-	Resource         string         `json:"resource,omitempty"`
-	Kind             string         `json:"kind,omitempty"`
-	Name             string         `json:"name,omitempty"`
-	Namespace        string         `json:"namespace,omitempty"`
-	APIGroup         string         `json:"apiGroup,omitempty"`
-	APIVersion       string         `json:"apiVersion,omitempty"`
-	WorkspacePath    string         `json:"workspacePath,omitempty"`
-	ClusterName      string         `json:"clusterName,omitempty"`
-	OrganizationID   string         `json:"organizationId,omitempty"`
-	OrganizationName string         `json:"organizationName,omitempty"`
-	AccountID        string         `json:"accountId,omitempty"`
-	AccountName      string         `json:"accountName,omitempty"`
+	Resource         string         `json:"resource,omitzero"`
+	Kind             string         `json:"kind,omitzero"`
+	Name             string         `json:"name,omitzero"`
+	Namespace        string         `json:"namespace,omitzero"`
+	APIGroup         string         `json:"apiGroup,omitzero"`
+	APIVersion       string         `json:"apiVersion,omitzero"`
+	WorkspacePath    string         `json:"workspacePath,omitzero"`
+	ClusterName      string         `json:"clusterName,omitzero"`
+	OrganizationID   string         `json:"organizationId,omitzero"`
+	OrganizationName string         `json:"organizationName,omitzero"`
+	AccountID        string         `json:"accountId,omitzero"`
+	AccountName      string         `json:"accountName,omitzero"`
 	Source           map[string]any `json:"source"`
 }
 
@@ -57,9 +58,9 @@ type SearchResourcesRequest struct {
 
 type SearchResource struct {
 	Resource         string   `json:"resource"`
-	DefaultFields    []string `json:"defaultFields,omitempty"`
-	FilterableFields []string `json:"filterableFields,omitempty"`
-	SemanticFields   []string `json:"semanticFields,omitempty"`
+	DefaultFields    []string `json:"defaultFields,omitzero"`
+	FilterableFields []string `json:"filterableFields,omitzero"`
+	SemanticFields   []string `json:"semanticFields,omitzero"`
 }
 
 type SearchResourcesResponse struct {
@@ -108,7 +109,9 @@ type OpenSearchPage struct {
 type OpenSearchQuery struct {
 	Indices          []string
 	Query            string
+	Mode             string
 	Fields           []string
+	SemanticFields   []string
 	Filters          map[string][]string
 	Size             int
 	SearchAfter      []any

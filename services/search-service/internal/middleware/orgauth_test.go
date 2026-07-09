@@ -26,6 +26,7 @@ import (
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/jwt"
+
 	appcontext "go.platform-mesh.io/search-service/internal/context"
 )
 
@@ -222,12 +223,12 @@ func TestSetRequestContextLocalhostOverridesOrgAndBypassesValidator(t *testing.T
 	}
 }
 
-func TestSetRequestContextBypassesValidatorInLocalDevelopmentMode(t *testing.T) {
+func TestSetRequestContextBypassesValidatorAndUsesConfiguredOrgInLocalDevelopmentMode(t *testing.T) {
 	validator := &fakeOrgValidator{allowed: false}
-	mw := NewOrgContextMiddleware(validator, true, "local")
+	mw := NewOrgContextMiddleware(validator, true, "local-org-test")
 
 	req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=test", nil)
-	req.Host = "acme.platform-mesh.io"
+	req.Host = "search.portal.localhost"
 
 	ctx := pmcontext.AddAuthHeaderToContext(req.Context(), "Bearer abc")
 	ctx = context.WithValue(ctx, keys.WebTokenCtxKey, jwt.WebToken{
@@ -245,7 +246,7 @@ func TestSetRequestContextBypassesValidatorInLocalDevelopmentMode(t *testing.T) 
 		if err != nil {
 			t.Fatalf("request context missing: %v", err)
 		}
-		if rc.Organization != "acme" {
+		if rc.Organization != "local-org-test" {
 			t.Fatalf("unexpected org: %s", rc.Organization)
 		}
 		w.WriteHeader(http.StatusNoContent)

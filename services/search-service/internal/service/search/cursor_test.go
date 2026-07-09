@@ -23,6 +23,7 @@ func TestCursorRoundTrip(t *testing.T) {
 		Version:     cursorVersion,
 		Org:         "acme",
 		QueryHash:   queryHash("foo"),
+		Mode:        SearchModeSemantic,
 		Limit:       20,
 		SearchAfter: []any{1.23, "abc"},
 	}
@@ -37,7 +38,7 @@ func TestCursorRoundTrip(t *testing.T) {
 		t.Fatalf("DecodeCursor returned error: %v", err)
 	}
 
-	if decoded.Org != state.Org || decoded.QueryHash != state.QueryHash || decoded.Limit != state.Limit {
+	if decoded.Org != state.Org || decoded.QueryHash != state.QueryHash || decoded.Mode != state.Mode || decoded.Limit != state.Limit {
 		t.Fatalf("decoded cursor mismatch: %+v", decoded)
 	}
 	if len(decoded.SearchAfter) != 2 {
@@ -46,14 +47,17 @@ func TestCursorRoundTrip(t *testing.T) {
 }
 
 func TestValidateCursorMismatch(t *testing.T) {
-	state := CursorState{Version: cursorVersion, Org: "acme", QueryHash: queryHash("foo"), Limit: 20, SearchAfter: []any{1.0, "x"}}
-	if err := ValidateCursor(state, "other", queryHash("foo"), "", "", 20); err == nil {
+	state := CursorState{Version: cursorVersion, Org: "acme", QueryHash: queryHash("foo"), Mode: SearchModeLexical, Limit: 20, SearchAfter: []any{1.0, "x"}}
+	if err := ValidateCursor(state, "other", queryHash("foo"), SearchModeLexical, "", "", 20); err == nil {
 		t.Fatalf("expected org mismatch error")
 	}
-	if err := ValidateCursor(state, "acme", queryHash("bar"), "", "", 20); err == nil {
+	if err := ValidateCursor(state, "acme", queryHash("bar"), SearchModeLexical, "", "", 20); err == nil {
 		t.Fatalf("expected query mismatch error")
 	}
-	if err := ValidateCursor(state, "acme", queryHash("foo"), "", "", 30); err == nil {
+	if err := ValidateCursor(state, "acme", queryHash("foo"), SearchModeSemantic, "", "", 20); err == nil {
+		t.Fatalf("expected mode mismatch error")
+	}
+	if err := ValidateCursor(state, "acme", queryHash("foo"), SearchModeLexical, "", "", 30); err == nil {
 		t.Fatalf("expected limit mismatch error")
 	}
 }
