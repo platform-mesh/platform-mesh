@@ -1,0 +1,185 @@
+# Dex — the OIDC issuer for the dev environment. In the RFC 008 `infra`/`core`
+# shapes Dex is *the* external issuer kcp authenticates against (see ADR-02), so
+# operator development runs without Keycloak/OpenFGA. kcp always needs an OIDC
+# issuer wired (spec.auth.oidc on the RootShard), and the kcp-operator refuses to
+# create the shard Deployment until the referenced CA secret (dex-ca) exists — so
+# Dex ships in the base `infra` profile.
+#
+# Topology mirrors kcp: the gateway (manifests/gateway.yaml) is TLS-passthrough on
+# :8443 and routes by SNI, so Dex terminates its own TLS with a cert valid for
+# idp.pm.localhost and is reached through the gateway via a TLSRoute. The public
+# issuer host is idp.pm.localhost (not dex.*) so the implementation stays swappable.
+# The signing CA is published as the `dex-ca` secret the RootShard's OIDC caFileRef mounts.
+#
+# Development-only: in-memory storage, a single static test user (dex/dex),
+# skipApprovalScreen. Do not use as a template for prod.
+
+# --- cert chain -------------------------------------------------------------
+# selfsigned (manifests/issuer.yaml) → dex-ca (root) → dex-server (leaf).
+# kcp trusts dex-ca's ca.crt; Dex serves dex-server, signed by dex-ca.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: dex-ca
+  namespace: platform-mesh-system
+spec:
+  isCA: true
+  commonName: dex-ca
+  secretName: dex-ca
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: dex-ca
+  namespace: platform-mesh-system
+spec:
+  ca:
+    secretName: dex-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: dex-server
+  namespace: platform-mesh-system
+spec:
+  secretName: dex-server
+  dnsNames:
+    - idp.pm.localhost
+    - dex
+    - dex.platform-mesh-system
+    - dex.platform-mesh-system.svc
+    - dex.platform-mesh-system.svc.cluster.local
+  issuerRef:
+    name: dex-ca
+    kind: Issuer
+    group: cert-manager.io
+---
+# --- dex config -------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dex
+  namespace: platform-mesh-system
+data:
+  config.yaml: |
+    issuer: https://idp.pm.localhost:8443
+    storage:
+      type: memory
+    web:
+      https: 0.0.0.0:5556
+      tlsCert: /etc/dex/tls/tls.crt
+      tlsKey: /etc/dex/tls/tls.key
+    telemetry:
+      http: 0.0.0.0:5558
+    oauth2:
+      skipApprovalScreen: true
+    staticClients:
+      - id: platform-mesh
+        name: Platform Mesh
+        public: true
+        redirectURIs:
+          - http://localhost:8000
+          - http://127.0.0.1:8000
+    enablePasswordDB: true
+    staticPasswords:
+      # Test user — email: dex@pm.localhost, password: dex
+      - email: dex@pm.localhost
+        username: dex
+        userID: "00000000-0000-0000-0000-000000000001"
+        hash: "$2a$10$AuO2zT4bk2xn1RXP23XqhO5BMo5PoJFs6tv4MUrKk/mtv97DSNoAC"
+---
+# --- dex deployment ---------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dex
+  namespace: platform-mesh-system
+  labels:
+    app: dex
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dex
+  template:
+    metadata:
+      labels:
+        app: dex
+    spec:
+      containers:
+        - name: dex
+          image: ghcr.io/dexidp/dex:v2.44.0
+          command: ["dex", "serve", "/etc/dex/config/config.yaml"]
+          ports:
+            - name: https
+              containerPort: 5556
+            - name: telemetry
+              containerPort: 5558
+          volumeMounts:
+            - name: config
+              mountPath: /etc/dex/config
+              readOnly: true
+            - name: tls
+              mountPath: /etc/dex/tls
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: telemetry
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: telemetry
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: dex
+        - name: tls
+          secret:
+            secretName: dex-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex
+  namespace: platform-mesh-system
+  labels:
+    app: dex
+spec:
+  selector:
+    app: dex
+  ports:
+    - name: https
+      port: 5556
+      targetPort: https
+---
+# --- gateway route (SNI idp.pm.localhost → dex, TLS passthrough) ------------
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: dex
+  namespace: platform-mesh-system
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: platform-mesh
+      namespace: platform-mesh-system
+      sectionName: passthrough
+  hostnames:
+    - idp.pm.localhost
+  rules:
+    - backendRefs:
+        - name: dex
+          port: 5556

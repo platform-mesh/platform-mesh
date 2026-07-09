@@ -1,0 +1,11 @@
+# Self-signed cert-manager Issuer the kcp shards reference (deploy_kcp default
+# issuer_ref). Separate from the namespace so a not-yet-installed cert-manager
+# CRD only delays the Issuer (Tilt retries it), never the namespace. Replaces
+# mkcert + the local-setup cert scripts.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+  namespace: platform-mesh-system
+spec:
+  selfSigned: {}

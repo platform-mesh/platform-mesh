@@ -1,0 +1,243 @@
+# Copyright 2026 The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Platform Mesh — Tilt local development environment (SKELETON).
+#
+# See contrib/adr/adr-02-tilt-local-dev-environment.md for the full design.
+#
+# Status: proving the kcp static-install hooks. Infra beyond kcp (Keycloak,
+# OpenFGA, portal) and component hot-reload are stubbed and land in later PRs.
+#
+# Quick start:
+#   kind create cluster --name platform-mesh
+#   tilt up -f contrib/tilt/Tiltfile
+#
+# Render-only (no cluster, no remote fetches) for validating manifests:
+#   TILT_NO_INFRA=1 tilt alpha tiltfile-result -f contrib/tilt/Tiltfile
+
+# ---------------------------------------------------------------------------
+# config
+# ---------------------------------------------------------------------------
+
+# Profiles map onto RFC 008 shapes (see ADR). Skeleton implements `infra`.
+config.define_string('profile', args=False, usage='infra|core|auth|full (default: infra)')
+config.define_string_list('components', args=True, usage='monorepo components to hot-reload')
+cfg = config.parse()
+PROFILE = cfg.get('profile', 'infra')
+COMPONENTS = cfg.get('components', [])
+
+# Base domain + namespace shared by the whole environment.
+BASE_DOMAIN = 'pm.localhost'
+NAMESPACE = 'platform-mesh-system'
+
+# Skip remote-fetch infra (cert-manager, envoy gateway, kcp-operator) so the
+# Tiltfile evaluates offline — used for manifest validation. Local manifests and
+# the kcp CRs still render.
+NO_INFRA = os.getenv('TILT_NO_INFRA', '') not in ('', '0', 'false', 'no')
+
+print('Platform Mesh dev env — profile={} components={} no_infra={}'.format(PROFILE, COMPONENTS, NO_INFRA))
+
+# ---------------------------------------------------------------------------
+# context guard
+# ---------------------------------------------------------------------------
+
+# Refuse to deploy anywhere except the dedicated kind cluster. kind names its
+# context "kind-<clustername>", so the cluster from
+#   kind create cluster --name platform-mesh
+# is reached via context "kind-platform-mesh". This prevents an accidental
+# `tilt up` from applying to whatever kubeconfig context happens to be current
+# (a shared dev/staging cluster, another kind, docker-desktop, ...).
+#
+# Only enforced for real deploys (up/ci); `tilt alpha tiltfile-result` and other
+# subcommands evaluate without a cluster and are left alone. Override the target
+# with TILT_ALLOWED_CONTEXT if you named your cluster differently.
+ALLOWED_CONTEXT = os.getenv('TILT_ALLOWED_CONTEXT', 'kind-platform-mesh')
+allow_k8s_contexts(ALLOWED_CONTEXT)
+if config.tilt_subcommand in ('up', 'ci'):
+    _ctx = k8s_context()
+    if _ctx != ALLOWED_CONTEXT:
+        fail(
+            'refusing to run against kube context {!r}: this Tiltfile only targets {!r}.\n'.format(_ctx, ALLOWED_CONTEXT) +
+            'Create/select it with:\n' +
+            '  kind create cluster --name platform-mesh\n' +
+            '  kubectl config use-context {}\n'.format(ALLOWED_CONTEXT) +
+            '(or set TILT_ALLOWED_CONTEXT to override).'
+        )
+
+# ---------------------------------------------------------------------------
+# static infra owned by THIS project
+# ---------------------------------------------------------------------------
+
+# Local manifests (no remote fetch): system namespace, self-signed issuer, the
+# envoy Gateway the kcp routes attach to, and a dev etcd for the shards.
+#
+# The namespace is its own resource with NO CRD-dependent siblings, so it always
+# applies immediately. Everything scoped to platform-mesh-system waits on it
+# (resource_deps) — otherwise a resource bundled with the namespace that fails to
+# apply (e.g. the Issuer before cert-manager's CRD exists) would strand the
+# namespace and every namespaced resource would fail with "namespace not found".
+k8s_yaml('manifests/namespace.yaml')
+k8s_resource(
+    new_name='namespace',
+    objects=['platform-mesh-system:namespace'],
+    labels=['infra'],
+)
+
+# Issuer depends on the namespace; it also needs cert-manager's CRD, so Tilt
+# retries it until cert-manager (infra_remote) is up.
+k8s_yaml('manifests/issuer.yaml')
+k8s_resource(
+    new_name='cert-issuer',
+    objects=['selfsigned:issuer'],
+    labels=['infra'],
+    resource_deps=['namespace'],
+)
+
+# Gateway depends on the namespace; needs the envoy gateway CRDs (infra_remote).
+k8s_yaml('manifests/gateway.yaml')
+k8s_resource(
+    new_name='gateway',
+    objects=['platform-mesh:gatewayclass', 'platform-mesh:gateway'],
+    labels=['infra'],
+    resource_deps=['namespace'],
+)
+
+k8s_yaml('manifests/etcd.yaml')
+k8s_resource('etcd', labels=['infra'])
+
+# Dex — the OIDC issuer kcp authenticates against (RootShard spec.auth.oidc).
+# kcp always needs an issuer wired, and the kcp-operator won't create the shard
+# Deployment until the referenced CA secret (dex-ca) exists, so Dex ships in the
+# base `infra` profile. Terminates its own TLS and is routed by SNI through the
+# passthrough gateway (manifests/dex.yaml); the cert chain publishes `dex-ca`.
+k8s_yaml('manifests/dex.yaml')
+k8s_resource(
+    'dex',
+    objects=[
+        'dex-ca:certificate',
+        'dex-ca:issuer',
+        'dex-server:certificate',
+        'dex:configmap',
+        'dex:tlsroute',
+    ],
+    labels=['infra'],
+    resource_deps=['namespace', 'cert-issuer'],
+)
+
+# Remote-fetch infra (cert-manager, envoy gateway controller, kcp-operator).
+if not NO_INFRA:
+    include('./infra_remote.Tiltfile')
+
+# ---------------------------------------------------------------------------
+# kcp (static, via the upstream kcp Tilt module)
+# ---------------------------------------------------------------------------
+
+# The static-install logic lives upstream in the kcp repo
+# (contrib/tilt/kcp_static.Tiltfile), parameterized for our gateway, hostnames
+# and auth. load_kcp() fetches it from the in-flight branch by default; set
+# KCP_TILT_DIR to a local kcp/contrib/tilt checkout to work offline / hack on
+# the module. Once the upstream PR merges, bump KCP_TILT_REPO/KCP_TILT_REF
+# defaults in helpers.py to the tagged kcp release.
+load('./helpers.py', 'component_build', 'chart_path', 'load_kcp')
+deploy_kcp = load_kcp()
+
+deploy_kcp(
+    base_domain=BASE_DOMAIN,
+    namespace=NAMESPACE,
+    # Attach to OUR gateway instead of kcp's default envoy `eg`. Production wires
+    # the same shape against traefik via .Values.gatewayApi.name.
+    gateway={
+        'name': 'platform-mesh',
+        'namespace': None,
+        'group': 'gateway.networking.k8s.io',
+        'kind': 'Gateway',
+        'section': 'passthrough',
+    },
+    route_version='v1alpha2',
+    # etcd this project provides (manifests/etcd.yaml).
+    etcd_endpoint='http://etcd.kcp-etcd.svc.cluster.local:2379',
+
+    # kcp pods resolve *.pm.localhost only via hostAliases → the gateway IP.
+    # The module derives hostAliases from this list, so add dex alongside the
+    # base + shard names — otherwise the shard/front-proxy OIDC authenticator
+    # can't reach the issuer discovery endpoint (https://idp.pm.localhost:8443)
+    # and logs "lookup idp.pm.localhost ... no such host". Single-shard `infra`;
+    # revisit if extra_shards are added (their hostnames must stay in this list).
+    hostnames=[BASE_DOMAIN, 'root.' + BASE_DOMAIN, 'idp.' + BASE_DOMAIN],
+
+    # Pinned released kcp image (never built from source here).
+    image_tag=os.getenv('KCP_IMAGE_TAG', 'main'),
+
+    # L3 authorization: rebac-authz-webhook secret (auth/full profiles). Wired
+    # here to exercise the hook; the secret itself is created by the auth layer.
+    authorization_webhook_secret='kcp-webhook-secret' if PROFILE in ('auth', 'full') else None,
+    
+    # OIDC issuer: dex in the infra/core profiles (see ADR), served at the
+    # implementation-neutral host oidc.<base_domain> (manifests/dex.yaml).
+    oidc={
+        'issuerURL': 'https://idp.{}:8443'.format(BASE_DOMAIN),
+        'clientID': 'platform-mesh',
+        'groupsClaim': 'groups',
+        'usernameClaim': 'email',
+        'caFileRef': {'name': 'dex-ca', 'key': 'ca.crt'},
+    },
+    kubeconfig_dir='.secret/kcp',
+    # The kcp CRs live in platform-mesh-system; make them wait for the namespace
+    # resource so a fresh cluster doesn't race "namespace not found".
+    resource_deps=['namespace'],
+)
+
+# ---------------------------------------------------------------------------
+# component hot-reload (stub — off by default in the skeleton)
+# ---------------------------------------------------------------------------
+
+if COMPONENTS:
+    OCI = 'oci://ghcr.io/platform-mesh/helm-charts'
+    # Example wiring for the pilot component. Real deps/versions land with Phase 1.
+    if 'account-operator' in COMPONENTS:
+        # Pin a published chart version (the placeholder 0.0.0 was never pushed).
+        # Override with ACCOUNT_OPERATOR_CHART_VERSION to track a newer chart, or
+        # set HELM_CHARTS_DIR to a local helm-charts checkout to render the chart
+        # from source (see chart_path in helpers.py) — then this version is ignored.
+        component_build(
+            name='account-operator',
+            path='operators/account-operator',
+            deps=['apis', 'subroutines', 'golang-commons'],
+            # Match the image ref the chart renders so Tilt substitutes the
+            # locally-built image (it swaps by repository, keeping the chart's args).
+            image='ghcr.io/platform-mesh/platform-mesh/account-operator',
+            chart=chart_path('account-operator', os.getenv('ACCOUNT_OPERATOR_CHART_VERSION', '0.17.0'), OCI),
+            namespace=NAMESPACE,
+            # Skip the account-operator-crds subchart: it emits kcp APIExport/
+            # APIResourceSchema/APIExportEndpointSlice objects whose CRDs live in
+            # kcp workspaces, not the runtime kube cluster. Applying them here
+            # fails and drops the webhook cert with it, wedging the pod in
+            # ContainerCreating. The kcp API registration is wired separately.
+            helm_set=['crds.enabled=false'],
+            # Wait for the namespace so a fresh cluster doesn't race "namespace not found".
+            resource_deps=['namespace'],
+            # Fold the chart's non-workload objects into this resource (else Tilt's
+            # dependency-less "uncategorized" catch-all applies them before the
+            # namespace exists). The cluster-scoped ClusterRole/Binding are included
+            # for tidy grouping; the namespaced ones are what actually need the dep.
+            objects=[
+                'account-operator:serviceaccount',
+                'account-operator:clusterrole',
+                'account-operator:clusterrolebinding',
+                'account-operator-ca-cert:certificate',
+                'account-operator-serving-cert:certificate',
+                'account-operator-selfsigned-issuer:issuer',
+                'account-operator-ca-issuer:issuer',
+            ],
+        )

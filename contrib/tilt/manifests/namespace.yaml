@@ -1,0 +1,8 @@
+# The Platform Mesh system namespace. Kept in its own manifest / Tilt resource
+# with no CRD-dependent siblings so it always applies immediately — everything
+# scoped to platform-mesh-system (issuer, gateway, kcp CRs) depends on it
+# existing first.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-mesh-system
