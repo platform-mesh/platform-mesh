@@ -86,9 +86,11 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 
 		query := fmt.Sprintf(`{
 	resourcesByCategory(name: "%s") {
-    __typename
-    ... on %s { metadata { name } }
-    ... on %s { metadata { name } }
+		items {
+			__typename
+			... on %s { metadata { name } }
+			... on %s { metadata { name } }
+		}
   }
 	}`, categoryName, fooType, barType)
 
@@ -100,7 +102,8 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 
 		require.Empty(t, result.Errors)
 
-		queryResults := result.Data.(map[string]any)["resourcesByCategory"].([]any)
+		data := result.Data.(map[string]any)["resourcesByCategory"].(map[string]any)
+		queryResults := data["items"].([]any)
 		assert.Len(t, queryResults, 2)
 
 		byType := map[string]string{}

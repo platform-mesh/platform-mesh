@@ -32,6 +32,7 @@ const (
 	typeByCategoryFieldName      = "typeByCategory"
 	resourcesByCategoryFieldName = "resourcesByCategory"
 	unionTypeName                = "CategoryResource"
+	categoryListTypeName         = "CategoryResourceList"
 )
 
 type CustomQueryGenerator struct {
@@ -76,8 +77,17 @@ func (g *CustomQueryGenerator) AddResourcesByCategoryQuery(
 	rootQueryType *graphql.Object,
 	resourceUnion *graphql.Union,
 ) {
+	listType := graphql.NewObject(graphql.ObjectConfig{
+		Name: categoryListTypeName,
+		Fields: graphql.Fields{
+			"items": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(resourceUnion))),
+			},
+		},
+	})
+
 	rootQueryType.AddFieldConfig(resourcesByCategoryFieldName, &graphql.Field{
-		Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(resourceUnion))),
+		Type: listType,
 		Args: graphql.FieldConfigArgument{
 			resolver.NameArg:          resolver.NameArgConfig,
 			resolver.NamespaceArg:     resolver.NamespaceArgConfig,

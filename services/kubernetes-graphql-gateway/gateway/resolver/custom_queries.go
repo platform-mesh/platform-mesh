@@ -34,6 +34,11 @@ type TypeByCategory struct {
 	Scope   string
 }
 
+// CategoryListResult is the response type for resourcesByCategory.
+type CategoryListResult struct {
+	Items []map[string]any `json:"items"`
+}
+
 func (r *Service) TypeByCategory(m map[string][]TypeByCategory) graphql.FieldResolveFn {
 	return func(p graphql.ResolveParams) (any, error) {
 		name, err := GetArg[string](p.Args, NameArg, true)
@@ -93,7 +98,9 @@ func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.Fie
 		if r.metrics != nil {
 			r.metrics.RecordCategoryFanout(name, len(members), len(result))
 		}
-		return result, nil
+		return &CategoryListResult{
+			Items: result,
+		}, nil
 	}
 }
 

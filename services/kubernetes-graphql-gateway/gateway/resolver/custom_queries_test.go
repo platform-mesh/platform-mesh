@@ -55,19 +55,19 @@ func TestResourcesByCategory(t *testing.T) {
 
 		resolve := svc.ResourcesByCategory(typeByCat)
 
-		result, err := resolve(graphql.ResolveParams{
+		raw, err := resolve(graphql.ResolveParams{
 			Context: t.Context(),
 			Args:    map[string]any{"name": categoryName},
 		})
 		require.NoError(t, err)
 
-		records, ok := result.([]map[string]any)
+		result, ok := raw.(*CategoryListResult)
 		require.True(t, ok, "unexpected result type")
 
-		require.Len(t, records, 2)
+		require.Len(t, result, 2)
 
-		receivedNames := make([]string, len(records))
-		for i, v := range records {
+		receivedNames := make([]string, len(result.Items))
+		for i, v := range result.Items {
 			receivedNames[i], _, _ = unstructured.NestedString(v, "metadata", "name")
 		}
 		assert.ElementsMatch(t, []string{"first", "second"}, receivedNames)
@@ -99,10 +99,9 @@ func TestResourcesByCategory(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		records, ok := result.([]map[string]any)
+		records, ok := result.(*CategoryListResult)
 		require.True(t, ok, "unexpected result type")
-
-		assert.Empty(t, records)
+		assert.Empty(t, records.Items)
 	})
 	t.Run("error on List", func(t *testing.T) {
 		client := testfakes.NewClient(
