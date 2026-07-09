@@ -64,7 +64,7 @@ func TestResourcesByCategory(t *testing.T) {
 		result, ok := raw.(*CategoryListResult)
 		require.True(t, ok, "unexpected result type")
 
-		require.Len(t, result, 2)
+		require.Len(t, result.Items, 2)
 
 		receivedNames := make([]string, len(result.Items))
 		for i, v := range result.Items {
