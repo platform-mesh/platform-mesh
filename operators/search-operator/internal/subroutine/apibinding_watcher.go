@@ -44,26 +44,29 @@ import (
 // When a binding takes place in an org then all indexes are updated for the
 // fields contained in the bound APIResourceSchemas.
 type apiBindingWatcherSubroutine struct {
-	mgr         mcmanager.Manager
-	orgsClient  ctrlruntimeclient.Client // scoped to root:orgs for Workspace lookups
-	rootCfg     *rest.Config             // clean base kcp REST config (no path) for building workspace clients
-	indexPrefix string
+	mgr                mcmanager.Manager
+	orgsClient         ctrlruntimeclient.Client
+	searchConfigClient ctrlruntimeclient.Client
+	rootCfg            *rest.Config
+	indexPrefix        string
 }
 
 // NewAPIBindingWatcherSubroutine creates a new APIBinding watcher subroutine.
 // orgsClient must be scoped to the root:orgs workspace.
+// searchConfigClient must be scoped to the provider workspace.
 // localCfg must be the admin kcp REST config.
-func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient ctrlruntimeclient.Client, localCfg *rest.Config, indexPrefix string) (lifecyclesubroutine.Subroutine, error) {
+func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient ctrlruntimeclient.Client, searchConfigClient ctrlruntimeclient.Client, localCfg *rest.Config, indexPrefix string) (lifecyclesubroutine.Subroutine, error) {
 	rootCfg, err := stripPathFromConfig(localCfg)
 	if err != nil {
 		return nil, err
 	}
 
 	return &apiBindingWatcherSubroutine{
-		mgr:         mgr,
-		orgsClient:  orgsClient,
-		rootCfg:     rootCfg,
-		indexPrefix: indexPrefix,
+		mgr:                mgr,
+		orgsClient:         orgsClient,
+		searchConfigClient: searchConfigClient,
+		rootCfg:            rootCfg,
+		indexPrefix:        indexPrefix,
 	}, nil
 }
 
@@ -78,8 +81,8 @@ func (s *apiBindingWatcherSubroutine) Finalizers(_ runtimeobject.RuntimeObject) 
 }
 
 // Process ensures that a SearchIndex exists in the org workspace for each bound
-// APIBinding, with DefaultFields populated from the top-level fields of all bound
-// APIResourceSchemas.
+// APIBinding, with fields populated from the bound APIResourceSchemas and any
+// SearchConfig found in the operator provider workspace.
 func (s *apiBindingWatcherSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (result ctrl.Result, opErr errors.OperatorError) {
 	start := time.Now()
 	defer func() {
@@ -118,13 +121,13 @@ func (s *apiBindingWatcherSubroutine) Process(ctx context.Context, instance runt
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	defaultFields, err := s.resolveDefaultFields(ctx, binding)
+	fields, err := s.resolveFieldsForBinding(ctx, binding)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("resolve default fields for binding %q: %w", binding.Name, err), true, false)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("resolve fields for binding %q: %w", binding.Name, err), true, false)
 	}
 
 	for _, br := range binding.Status.AppliedPermissionClaims {
-		if err := s.ensureSearchIndex(ctx, log, orgName, orgClusterID, br.Resource, defaultFields); err != nil {
+		if err := s.ensureSearchIndex(ctx, log, orgName, orgClusterID, br.Resource, fields); err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("ensure SearchIndex for binding %q resource %q: %w", binding.Name, br.Resource, err), true, false)
 		}
 	}
@@ -139,11 +142,19 @@ func (s *apiBindingWatcherSubroutine) Finalize(_ context.Context, _ runtimeobjec
 	return ctrl.Result{}, nil
 }
 
-// resolveDefaultFields collects the top-level field names from every APIResourceSchema
-// referenced by the binding. Fields are returned unique in sorted order.
-func (s *apiBindingWatcherSubroutine) resolveDefaultFields(ctx context.Context, binding *kcpapisv1alpha1.APIBinding) ([]string, error) {
+// searchIndexFields holds the resolved field lists for a SearchIndex.
+type searchIndexFields struct {
+	defaultFields    []string
+	semanticFields   []string
+	filterableFields []string
+}
+
+// resolveFieldsForBinding collects the top-level field names from every APIResourceSchema
+// referenced by the binding, then applies any SearchConfig found in the operator provider workspace
+// to classify fields into default, semantic, and filterable lists.
+func (s *apiBindingWatcherSubroutine) resolveFieldsForBinding(ctx context.Context, binding *kcpapisv1alpha1.APIBinding) (*searchIndexFields, error) {
 	if len(binding.Status.BoundResources) == 0 {
-		return nil, nil
+		return &searchIndexFields{}, nil
 	}
 
 	// The export cluster is the provider workspace that owns the APIExport.
@@ -179,25 +190,112 @@ func (s *apiBindingWatcherSubroutine) resolveDefaultFields(ctx context.Context, 
 		}
 	}
 
-	fields := make([]string, 0, len(seen))
+	allFields := make([]string, 0, len(seen))
 	for f := range seen {
-		fields = append(fields, f)
+		allFields = append(allFields, f)
 	}
-	sort.Strings(fields)
-	return fields, nil
+	sort.Strings(allFields)
+
+	// Try to fetch a SearchConfig from the operator provider workspace to classify fields.
+	searchConfig := s.fetchSearchConfig(ctx, binding)
+	if searchConfig == nil {
+		// No SearchConfig found — fall back to all fields as defaultFields (heuristic).
+		return &searchIndexFields{defaultFields: allFields}, nil
+	}
+
+	return applySearchConfig(allFields, searchConfig), nil
+}
+
+// fetchSearchConfig attempts to load a SearchConfig from the operator provider workspace.
+// It looks for a SearchConfig whose name matches any bound resource schema name.
+// Returns nil if no SearchConfig is found.
+func (s *apiBindingWatcherSubroutine) fetchSearchConfig(ctx context.Context, binding *kcpapisv1alpha1.APIBinding) *pmsearchv1alpha1.SearchConfig {
+	log := logger.LoadLoggerFromContext(ctx)
+
+	for _, br := range binding.Status.BoundResources {
+		cfg := &pmsearchv1alpha1.SearchConfig{}
+		err := s.searchConfigClient.Get(ctx, types.NamespacedName{Name: br.Schema.Name}, cfg)
+		if err == nil {
+			log.Debug().
+				Str("searchConfig", cfg.Name).
+				Str("schema", br.Schema.Name).
+				Msg("found SearchConfig in operator provider workspace")
+			return cfg
+		}
+		if !apierrors.IsNotFound(err) {
+			log.Warn().Err(err).
+				Str("schema", br.Schema.Name).
+				Msg("error fetching SearchConfig from operator provider workspace, falling back to heuristic")
+		}
+	}
+	return nil
+}
+
+// applySearchConfig classifies allFields according to the SearchConfig's declared lists.
+// Priority: excludedFields > exactFields > semanticFields > default (full-text).
+func applySearchConfig(allFields []string, cfg *pmsearchv1alpha1.SearchConfig) *searchIndexFields {
+	excluded := toSet(cfg.Spec.ExcludedFields)
+	semantic := toSet(cfg.Spec.SemanticFields)
+	exact := toSet(cfg.Spec.ExactFields)
+
+	result := &searchIndexFields{}
+	for _, f := range allFields {
+		switch {
+		case excluded[f]:
+			// Skip — not indexed at all.
+		case exact[f]:
+			result.filterableFields = append(result.filterableFields, f)
+		case semantic[f]:
+			result.semanticFields = append(result.semanticFields, f)
+		default:
+			result.defaultFields = append(result.defaultFields, f)
+		}
+	}
+
+	// Also add semantic/exact fields that aren't in allFields (nested paths like "spec.description").
+	for _, f := range cfg.Spec.SemanticFields {
+		if !excluded[f] && !contains(allFields, f) {
+			result.semanticFields = append(result.semanticFields, f)
+		}
+	}
+	for _, f := range cfg.Spec.ExactFields {
+		if !excluded[f] && !contains(allFields, f) {
+			result.filterableFields = append(result.filterableFields, f)
+		}
+	}
+
+	sort.Strings(result.defaultFields)
+	sort.Strings(result.semanticFields)
+	sort.Strings(result.filterableFields)
+	return result
+}
+
+func toSet(slice []string) map[string]bool {
+	m := make(map[string]bool, len(slice))
+	for _, s := range slice {
+		m[s] = true
+	}
+	return m
+}
+
+func contains(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // ensureSearchIndex creates or updates the SearchIndex in the org workspace.
 // The resource is named after the derived index prefix so each binding gets its own SearchIndex.
-// TODO: maybe add a timestamp to avoid multiple edits of the SearchIndex if the
-// APIResourceSchemas change and updates all bindings in an org
 func (s *apiBindingWatcherSubroutine) ensureSearchIndex(
 	ctx context.Context,
 	log *logger.Logger,
 	orgName string,
 	orgClusterID string,
 	resource string,
-	defaultFields []string,
+	fields *searchIndexFields,
 ) error {
 	orgsClient, err := buildWorkspaceScopedClient(s.rootCfg, s.mgr.GetLocalManager().GetScheme(), "root:orgs")
 	if err != nil {
@@ -219,7 +317,9 @@ func (s *apiBindingWatcherSubroutine) ensureSearchIndex(
 				OrganizationClusterID: orgClusterID,
 				NumberOfShards:        1,
 				NumberOfReplicas:      1,
-				DefaultFields:         defaultFields,
+				DefaultFields:         fields.defaultFields,
+				SemanticFields:        fields.semanticFields,
+				FilterableFields:      fields.filterableFields,
 			},
 		}
 		if createErr := orgsClient.Create(ctx, desired); createErr != nil {
@@ -228,18 +328,24 @@ func (s *apiBindingWatcherSubroutine) ensureSearchIndex(
 		log.Info().
 			Str("searchIndex", searchIndexName).
 			Str("orgWorkspace", orgName).
-			Int("defaultFields", len(defaultFields)).
+			Int("defaultFields", len(fields.defaultFields)).
+			Int("semanticFields", len(fields.semanticFields)).
+			Int("filterableFields", len(fields.filterableFields)).
 			Msg("created SearchIndex")
 
 	case err != nil:
 		return fmt.Errorf("get SearchIndex %q: %w", searchIndexName, err)
 
 	default:
-		if stringSlicesEqual(existing.Spec.DefaultFields, defaultFields) {
+		if stringSlicesEqual(existing.Spec.DefaultFields, fields.defaultFields) &&
+			stringSlicesEqual(existing.Spec.SemanticFields, fields.semanticFields) &&
+			stringSlicesEqual(existing.Spec.FilterableFields, fields.filterableFields) {
 			return nil
 		}
 		updated := existing.DeepCopy()
-		updated.Spec.DefaultFields = defaultFields
+		updated.Spec.DefaultFields = fields.defaultFields
+		updated.Spec.SemanticFields = fields.semanticFields
+		updated.Spec.FilterableFields = fields.filterableFields
 		if updateErr := orgsClient.Update(ctx, updated); updateErr != nil {
 			if apierrors.IsConflict(updateErr) {
 				return fmt.Errorf("conflict updating SearchIndex %q, will requeue: %w", searchIndexName, updateErr)
@@ -249,8 +355,10 @@ func (s *apiBindingWatcherSubroutine) ensureSearchIndex(
 		log.Info().
 			Str("searchIndex", searchIndexName).
 			Str("orgWorkspace", orgName).
-			Int("defaultFields", len(defaultFields)).
-			Msg("updated SearchIndex default fields")
+			Int("defaultFields", len(fields.defaultFields)).
+			Int("semanticFields", len(fields.semanticFields)).
+			Int("filterableFields", len(fields.filterableFields)).
+			Msg("updated SearchIndex fields")
 	}
 
 	return nil

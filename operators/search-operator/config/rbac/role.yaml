@@ -46,6 +46,14 @@ rules:
 - apiGroups:
   - search.platform-mesh.io
   resources:
+  - searchconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - search.platform-mesh.io
+  resources:
   - searchindexes
   verbs:
   - create
