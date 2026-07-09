@@ -339,18 +339,44 @@ func mergeFieldPaths(lists ...[]string) []string {
 	return out
 }
 
-// extractConfiguredFields resolves field paths from the unstructured resource object.
-// Dotted paths are traversed as nested maps.
-func extractConfiguredFields(resource *unstructured.Unstructured, fieldPaths []string) map[string]any {
+func extractStringConfiguredFields(resource *unstructured.Unstructured, fieldPaths []string) map[string]any {
+	return extractFieldPaths(resource, fieldPaths, func(value any) (any, bool) {
+		_, ok := value.(string)
+		return value, ok
+	})
+}
+
+func extractFilterableFields(resource *unstructured.Unstructured, fieldPaths []string) map[string]any {
+	return extractFieldPaths(resource, fieldPaths, normalizeFilterableValue)
+}
+
+func extractFieldPaths(
+	resource *unstructured.Unstructured,
+	fieldPaths []string,
+	transformValue func(any) (any, bool),
+) map[string]any {
 	if len(fieldPaths) == 0 {
 		return nil
 	}
 
 	out := make(map[string]any, len(fieldPaths))
 	for _, fieldPath := range fieldPaths {
-		if value, ok := lookupFieldPath(resource.Object, fieldPath); ok {
-			out[fieldPath] = value
+		segments := opensearchSplitFieldPath(fieldPath)
+		if len(segments) == 0 {
+			continue
 		}
+		value, ok := lookupFieldPath(resource.Object, segments)
+		if !ok {
+			continue
+		}
+		if transformValue != nil {
+			var include bool
+			value, include = transformValue(value)
+			if !include {
+				continue
+			}
+		}
+		setFieldPath(out, segments, value)
 	}
 
 	if len(out) == 0 {
@@ -360,12 +386,37 @@ func extractConfiguredFields(resource *unstructured.Unstructured, fieldPaths []s
 	return out
 }
 
-func lookupFieldPath(obj map[string]any, fieldPath string) (any, bool) {
-	segments := opensearchSplitFieldPath(fieldPath)
-	if len(segments) == 0 {
+func normalizeFilterableValue(value any) (any, bool) {
+	switch v := value.(type) {
+	case string, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		return v, true
+	case []string:
+		return v, len(v) > 0
+	case []any:
+		out := make([]any, 0, len(v))
+		for _, item := range v {
+			normalized, ok := normalizeFilterableValue(item)
+			if !ok {
+				return nil, false
+			}
+			if normalizedItems, ok := normalized.([]string); ok {
+				for _, normalizedItem := range normalizedItems {
+					out = append(out, normalizedItem)
+				}
+				continue
+			}
+			if _, ok := normalized.([]any); ok {
+				return nil, false
+			}
+			out = append(out, normalized)
+		}
+		return out, len(out) > 0
+	default:
 		return nil, false
 	}
+}
 
+func lookupFieldPath(obj map[string]any, segments []string) (any, bool) {
 	var current any = obj
 	for _, segment := range segments {
 		currentMap, ok := current.(map[string]any)
@@ -381,7 +432,23 @@ func lookupFieldPath(obj map[string]any, fieldPath string) (any, bool) {
 	return current, true
 }
 
-func buildDocumentSource(doc *opensearch.ResourceDocument, configuredFields map[string]any) (map[string]any, error) {
+func setFieldPath(target map[string]any, segments []string, value any) {
+	current := target
+	for i, segment := range segments {
+		if i == len(segments)-1 {
+			current[segment] = value
+			return
+		}
+		next, ok := current[segment].(map[string]any)
+		if !ok {
+			next = make(map[string]any)
+			current[segment] = next
+		}
+		current = next
+	}
+}
+
+func buildDocumentSource(doc *opensearch.ResourceDocument) (map[string]any, error) {
 	raw, err := json.Marshal(doc)
 	if err != nil {
 		return nil, fmt.Errorf("marshal resource document: %w", err)
@@ -392,45 +459,7 @@ func buildDocumentSource(doc *opensearch.ResourceDocument, configuredFields map[
 		return nil, fmt.Errorf("unmarshal resource document: %w", err)
 	}
 
-	for fieldPath, value := range configuredFields {
-		if err := setFieldPath(source, fieldPath, value); err != nil {
-			return nil, err
-		}
-	}
-
 	return source, nil
-}
-
-func setFieldPath(target map[string]any, fieldPath string, value any) error {
-	segments := opensearchSplitFieldPath(fieldPath)
-	if len(segments) == 0 {
-		return nil
-	}
-
-	current := target
-	for i, segment := range segments {
-		isLeaf := i == len(segments)-1
-		if isLeaf {
-			current[segment] = value
-			return nil
-		}
-
-		next, exists := current[segment]
-		if !exists || next == nil {
-			nextMap := map[string]any{}
-			current[segment] = nextMap
-			current = nextMap
-			continue
-		}
-
-		nextMap, ok := next.(map[string]any)
-		if !ok {
-			return fmt.Errorf("field path %q conflicts with non-object segment %q", fieldPath, segment)
-		}
-		current = nextMap
-	}
-
-	return nil
 }
 
 func opensearchSplitFieldPath(fieldPath string) []string {

@@ -364,7 +364,7 @@ func prefixedFields(prefix string, fields []string) []string {
 }
 
 func lexicalSearchFields(fields []string) []string {
-	prefixed := prefixedFields("custom_fields", dedupeStrings(fields))
+	prefixed := prefixedFields("default_fields", dedupeStrings(fields))
 	return dedupeStrings(append(prefixed, defaultLexicalSearchFields...))
 }
 
@@ -386,7 +386,7 @@ func prefixedField(prefix, field string) string {
 	if field == "" {
 		return ""
 	}
-	for _, existingPrefix := range []string{"custom_fields.", "default_fields.", "semantic_fields.", "filterable_fields."} {
+	for _, existingPrefix := range []string{"default_fields.", "semantic_fields.", "filterable_fields."} {
 		if strings.HasPrefix(field, existingPrefix) {
 			return field
 		}

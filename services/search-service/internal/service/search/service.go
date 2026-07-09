@@ -462,12 +462,10 @@ func responseSource(source map[string]any) map[string]any {
 	out := make(map[string]any, len(source))
 	maps.Copy(out, source)
 
-	customFields, ok := out["custom_fields"].(map[string]any)
-	if !ok {
-		return out
+	if defaultFields, ok := out["default_fields"].(map[string]any); ok {
+		out["default_fields"] = flattenMap(defaultFields)
 	}
 
-	out["custom_fields"] = flattenMap(customFields)
 	return out
 }
 
@@ -642,7 +640,7 @@ func prefixedDocumentField(prefix, field string) string {
 	if field == "" {
 		return ""
 	}
-	for _, existingPrefix := range []string{"custom_fields.", "default_fields.", "semantic_fields.", "filterable_fields."} {
+	for _, existingPrefix := range []string{"default_fields.", "semantic_fields.", "filterable_fields."} {
 		if strings.HasPrefix(field, existingPrefix) {
 			return field
 		}

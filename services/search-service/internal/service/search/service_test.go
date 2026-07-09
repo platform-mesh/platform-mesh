@@ -408,7 +408,7 @@ func TestFilterValuesRejectsMissingUser(t *testing.T) {
 	}
 }
 
-func TestSearchFlattensCustomFieldsInResponse(t *testing.T) {
+func TestSearchFlattensDefaultFieldsInResponse(t *testing.T) {
 	searcher := &fakeSearcher{pages: []OpenSearchPage{
 		{Hits: []OpenSearchHit{
 			{
@@ -417,7 +417,7 @@ func TestSearchFlattensCustomFieldsInResponse(t *testing.T) {
 				Sort:  []any{1.0, "1"},
 				Source: map[string]any{
 					"id": "1",
-					"custom_fields": map[string]any{
+					"default_fields": map[string]any{
 						"apiVersion": "metadata.dxp.sap.com/v1alpha1",
 						"kind":       "Component",
 						"metadata": map[string]any{
@@ -452,20 +452,20 @@ func TestSearchFlattensCustomFieldsInResponse(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(resp.Results))
 	}
 
-	customFields, ok := resp.Results[0].Source["custom_fields"].(map[string]any)
+	defaultFields, ok := resp.Results[0].Source["default_fields"].(map[string]any)
 	if !ok {
-		t.Fatalf("expected flattened custom_fields map, got %T", resp.Results[0].Source["custom_fields"])
+		t.Fatalf("expected flattened default_fields map, got %T", resp.Results[0].Source["default_fields"])
 	}
-	if got := customFields["apiVersion"]; got != "metadata.dxp.sap.com/v1alpha1" {
+	if got := defaultFields["apiVersion"]; got != "metadata.dxp.sap.com/v1alpha1" {
 		t.Fatalf("apiVersion = %v", got)
 	}
-	if got := customFields["metadata.annotations.kcp.io/cluster"]; got != "ecvrp5ijg9ufrmnl" {
+	if got := defaultFields["metadata.annotations.kcp.io/cluster"]; got != "ecvrp5ijg9ufrmnl" {
 		t.Fatalf("metadata.annotations.kcp.io/cluster = %v", got)
 	}
-	if got := customFields["metadata.annotations.migration.platform-mesh.io/source-name"]; got != "compo-docs3" {
+	if got := defaultFields["metadata.annotations.migration.platform-mesh.io/source-name"]; got != "compo-docs3" {
 		t.Fatalf("metadata.annotations.migration.platform-mesh.io/source-name = %v", got)
 	}
-	if _, exists := customFields["metadata"]; exists {
-		t.Fatalf("nested metadata object should not be present in flattened custom_fields: %v", customFields["metadata"])
+	if _, exists := defaultFields["metadata"]; exists {
+		t.Fatalf("nested metadata object should not be present in flattened default_fields: %v", defaultFields["metadata"])
 	}
 }

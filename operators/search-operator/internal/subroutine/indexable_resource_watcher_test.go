@@ -329,8 +329,12 @@ func TestExtractConfiguredFieldsSupportsNestedPaths(t *testing.T) {
 	if got["description"] != "top-level description" {
 		t.Fatalf("description = %v, want top-level description", got["description"])
 	}
-	if got["spec.summary"] != "nested summary" {
-		t.Fatalf("spec.summary = %v, want nested summary", got["spec.summary"])
+	spec, ok := got["spec"].(map[string]any)
+	if !ok {
+		t.Fatalf("spec = %T, want map[string]any", got["spec"])
+	}
+	if spec["summary"] != "nested summary" {
+		t.Fatalf("spec.summary = %v, want nested summary", spec["summary"])
 	}
 }
 
@@ -342,25 +346,50 @@ func TestBuildDocumentSourceAddsConfiguredFields(t *testing.T) {
 		ClusterName:   "root:orgs:sap",
 		WorkspacePath: "root:orgs:sap:team-a",
 		UpdatedAt:     time.Unix(0, 0).UTC(),
+		DefaultFields: map[string]any{
+			"spec": map[string]any{
+				"summary": "nested summary",
+			},
+		},
+		SemanticFields: map[string]any{
+			"description": "top-level description",
+		},
+		FilterableFields: map[string]any{
+			"kind": "Component",
+		},
 	}
 
-	source, err := buildDocumentSource(doc, map[string]any{
-		"description":  "top-level description",
-		"spec.summary": "nested summary",
-	})
+	source, err := buildDocumentSource(doc)
 	if err != nil {
 		t.Fatalf("buildDocumentSource() returned error: %v", err)
 	}
 
-	if got := source["description"]; got != "top-level description" {
-		t.Fatalf("description = %v, want top-level description", got)
+	if _, exists := source["description"]; exists {
+		t.Fatalf("description was written at root, want semantic_fields.description")
 	}
 
-	spec, ok := source["spec"].(map[string]any)
+	semanticFields, ok := source["semantic_fields"].(map[string]any)
 	if !ok {
-		t.Fatalf("spec = %T, want map[string]any", source["spec"])
+		t.Fatalf("semantic_fields = %T, want map[string]any", source["semantic_fields"])
 	}
-	if got := spec["summary"]; got != "nested summary" {
-		t.Fatalf("spec.summary = %v, want nested summary", got)
+	if got := semanticFields["description"]; got != "top-level description" {
+		t.Fatalf("semantic_fields.description = %v, want top-level description", got)
+	}
+
+	filterableFields, ok := source["filterable_fields"].(map[string]any)
+	if !ok {
+		t.Fatalf("filterable_fields = %T, want map[string]any", source["filterable_fields"])
+	}
+	if got := filterableFields["kind"]; got != "Component" {
+		t.Fatalf("filterable_fields.kind = %v, want Component", got)
+	}
+
+	defaultFields, ok := source["default_fields"].(map[string]any)
+	if !ok {
+		t.Fatalf("default_fields = %T, want map[string]any", source["default_fields"])
+	}
+	defaultSpec := defaultFields["spec"].(map[string]any)
+	if got := defaultSpec["summary"]; got != "nested summary" {
+		t.Fatalf("default_fields.spec.summary = %v, want nested summary", got)
 	}
 }

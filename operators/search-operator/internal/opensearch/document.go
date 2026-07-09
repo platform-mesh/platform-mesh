@@ -33,7 +33,10 @@ type FieldMappings struct {
 }
 
 // DefaultIndexMapping returns the default OpenSearch index mapping for workspace and resource documents.
-// - payload_raw is stored but not indexed (enabled=false).
+// - default_fields stores SearchIndex default fields for lexical search and UI source display.
+// - semantic_fields stores SearchIndex semantic fields for neural search.
+// - filterable_fields stores SearchIndex filterable fields as exact-match facets.
+// - payload_raw_json is stored but not indexed.
 // - payload_text stores the full serialized object for full-text search.
 func DefaultIndexMapping(fields FieldMappings, semanticModelID string) (string, error) {
 	properties := map[string]any{
@@ -67,8 +70,14 @@ func DefaultIndexMapping(fields FieldMappings, semanticModelID string) (string, 
 				"object":   map[string]any{"type": "keyword"},
 			},
 		},
-		"created_at":       map[string]any{"type": "date"},
-		"updated_at":       map[string]any{"type": "date"},
+		"created_at":      map[string]any{"type": "date"},
+		"updated_at":      map[string]any{"type": "date"},
+		"default_fields":  map[string]any{"type": "object", "dynamic": true},
+		"semantic_fields": map[string]any{"type": "object", "dynamic": false, "properties": map[string]any{}},
+		"filterable_fields": map[string]any{
+			"type":    "object",
+			"dynamic": true,
+		},
 		"payload_raw_json": map[string]any{"type": "keyword", "index": false, "doc_values": false},
 		"payload_text":     map[string]any{"type": "text"},
 	}
@@ -104,7 +113,16 @@ func DefaultIndexMapping(fields FieldMappings, semanticModelID string) (string, 
 	}
 
 	mapping := map[string]any{
-		"dynamic":    false,
+		"dynamic": false,
+		"dynamic_templates": []map[string]any{
+			{
+				"filterable_fields_keywords": map[string]any{
+					"path_match":         "filterable_fields.*",
+					"match_mapping_type": "string",
+					"mapping":            map[string]any{"type": "keyword"},
+				},
+			},
+		},
 		"properties": properties,
 	}
 

@@ -56,7 +56,7 @@ func TestBuildQueryBodyWithoutSearchAfter(t *testing.T) {
 	if fields[0] != "account_name" || fields[1] != "api_group" {
 		t.Fatalf("expected default lexical fields first, got %v", fields)
 	}
-	if !containsField(fields, "custom_fields.description") || !containsField(fields, "custom_fields.name") {
+	if !containsField(fields, "default_fields.description") || !containsField(fields, "default_fields.name") {
 		t.Fatalf("unexpected search fields: %v", fields)
 	}
 	if !containsField(fields, "payload_text") {
