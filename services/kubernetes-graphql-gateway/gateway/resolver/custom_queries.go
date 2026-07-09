@@ -24,7 +24,9 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type TypeByCategory struct {
@@ -72,6 +74,10 @@ func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.Fie
 				scope := apiextensionsv1.ResourceScope(v.Scope)
 				items, err := r.ListItems(gvk, scope)(p)
 				if err != nil {
+					if apierrors.IsForbidden(err) {
+						log.FromContext(ctx).V(4).Info("skipping forbidden type in category", "category", name, "gvk", gvk, "err", err)
+						return nil
+					}
 					return fmt.Errorf("getting items for gvk %s: %w", gvk, err)
 				}
 
@@ -119,6 +125,8 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 			r.metrics.UpdateCategoryWatches(category, categoryTypesCount)
 		}
 
+		logger := log.FromContext(p.Context)
+
 		var wg sync.WaitGroup
 		for _, cType := range categoryTypes {
 			gvk := schema.GroupVersionKind{Group: cType.Group, Version: cType.Version, Kind: cType.Kind}
@@ -126,12 +134,12 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 
 			sub, err := r.SubscribeItems(gvk, scope)(p)
 			if err != nil {
-				// TODO: only ignore RBAC errors
+				logger.Error(err, "subscribing to type in category", "category", category, "gvk", gvk)
 				continue
 			}
 			srcChan, ok := sub.(chan any)
 			if !ok {
-				// TODO: error log
+				logger.Error(nil, "subscription source is not a channel", "type", fmt.Sprintf("%T", sub))
 				continue
 			}
 
@@ -141,6 +149,16 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 					case event, ok := <-srcChan:
 						if !ok {
 							return
+						}
+
+						if watchErr, isErr := event.(error); isErr {
+							if apierrors.IsForbidden(watchErr) {
+								logger.V(4).Info(
+									"skipping watch on forbidden type in category", "gvk", gvk, "err", watchErr)
+
+								// return without cancel is safe, srcChan is closed once an error is written
+								return
+							}
 						}
 						select {
 						case outCh <- event:
