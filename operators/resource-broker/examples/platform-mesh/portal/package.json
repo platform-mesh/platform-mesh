@@ -26,7 +26,7 @@
     "picomatch@^2": "2.3.2"
   },
   "dependencies": {
-    "@angular/common": "^20.3.19",
+    "@angular/common": "^20.3.25",
     "@angular/compiler": "^20.3.25",
     "@angular/core": "^20.3.19",
     "@angular/forms": "^20.3.19",
