@@ -383,7 +383,7 @@ func extractRequestedFields(info graphql.ResolveInfo) []string {
 		for _, sel := range fieldAST.SelectionSet.Selections {
 			if f, ok := sel.(*ast.Field); ok {
 				if f.Name.Value == "object" {
-					fields = append(fields, parseSelectionSet(f.SelectionSet, "")...)
+					fields = append(fields, parseSelectionSet(f.SelectionSet, "", info.Fragments)...)
 				}
 			}
 		}
@@ -393,7 +393,11 @@ func extractRequestedFields(info graphql.ResolveInfo) []string {
 
 // parseSelectionSet recursively extracts field paths from a selection set.
 // If `prefix` is non-empty, it prefixes subfields with `prefix + "."`.
-func parseSelectionSet(selectionSet *ast.SelectionSet, prefix string) []string {
+func parseSelectionSet(
+	selectionSet *ast.SelectionSet,
+	prefix string,
+	fragments map[string]ast.Definition,
+) []string {
 	var result []string
 	if selectionSet == nil {
 		return result
@@ -410,12 +414,20 @@ func parseSelectionSet(selectionSet *ast.SelectionSet, prefix string) []string {
 
 			// If this field has a sub-selection set, recurse
 			if sel.SelectionSet != nil && len(sel.SelectionSet.Selections) > 0 {
-				subFields := parseSelectionSet(sel.SelectionSet, fullPath)
+				subFields := parseSelectionSet(sel.SelectionSet, fullPath, fragments)
 				result = append(result, subFields...)
 			} else {
 				// Leaf field
 				result = append(result, fullPath)
 			}
+		case *ast.InlineFragment:
+			result = append(result, parseSelectionSet(sel.SelectionSet, prefix, fragments)...)
+		case *ast.FragmentSpread:
+			def, ok := fragments[sel.Name.Value].(*ast.FragmentDefinition)
+			if !ok {
+				continue
+			}
+			result = append(result, parseSelectionSet(def.SelectionSet, prefix, fragments)...)
 		}
 	}
 	return result
