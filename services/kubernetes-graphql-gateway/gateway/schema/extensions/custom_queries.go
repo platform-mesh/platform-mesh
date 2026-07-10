@@ -87,7 +87,7 @@ func (g *CustomQueryGenerator) AddResourcesByCategoryQuery(
 	})
 
 	rootQueryType.AddFieldConfig(resourcesByCategoryFieldName, &graphql.Field{
-		Type: listType,
+		Type: graphql.NewNonNull(listType),
 		Args: graphql.FieldConfigArgument{
 			resolver.NameArg:          resolver.NameArgConfig,
 			resolver.NamespaceArg:     resolver.NamespaceArgConfig,
@@ -105,8 +105,7 @@ func (g *CustomQueryGenerator) AddResourcesByCategorySubscription(
 		graphql.ObjectConfig{
 			Name: resourceUnion.Name() + "Event",
 			Fields: graphql.Fields{
-				"type": &graphql.Field{Type: graphql.NewNonNull(fields.WatchEventTypeEnum)},
-				// must be nullable for delete events?
+				"type":   &graphql.Field{Type: graphql.NewNonNull(fields.WatchEventTypeEnum)},
 				"object": &graphql.Field{Type: resourceUnion},
 			},
 		},
@@ -114,7 +113,7 @@ func (g *CustomQueryGenerator) AddResourcesByCategorySubscription(
 
 	rootSubscription.AddFieldConfig(resourcesByCategoryFieldName,
 		&graphql.Field{
-			Type: graphql.NewNonNull(eventType),
+			Type: eventType,
 			Args: graphql.FieldConfigArgument{
 				resolver.NameArg:           resolver.NameArgConfig,
 				resolver.NamespaceArg:      resolver.NamespaceArgConfig,

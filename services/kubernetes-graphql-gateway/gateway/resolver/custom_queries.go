@@ -21,6 +21,9 @@ import (
 	"sync"
 
 	"github.com/graphql-go/graphql"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -43,25 +46,28 @@ type CategoryListResult struct {
 
 func (r *Service) TypeByCategory(m map[string][]TypeByCategory) graphql.FieldResolveFn {
 	return func(p graphql.ResolveParams) (any, error) {
-		name, err := GetArg[string](p.Args, NameArg, true)
+		category, err := GetArg[string](p.Args, NameArg, true)
 		if err != nil {
 			return nil, err
 		}
 
-		return m[name], nil
+		return m[category], nil
 	}
 }
 
 func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.FieldResolveFn {
 	return func(p graphql.ResolveParams) (any, error) {
-		name, err := GetArg[string](p.Args, NameArg, true)
+		category, err := GetArg[string](p.Args, NameArg, true)
 		if err != nil {
 			return nil, err
 		}
 
-		members := m[name]
+		members := m[category]
 
-		grp, ctx := errgroup.WithContext(p.Context)
+		spanCtx, span := otel.Tracer("").Start(p.Context, "ResourcesByCategory", trace.WithAttributes(attribute.String("category", category)))
+		defer span.End()
+
+		grp, ctx := errgroup.WithContext(spanCtx)
 		p.Context = ctx
 		// revisit after poc: floor(members, maxParallel)
 		grp.SetLimit(len(members))
@@ -75,7 +81,7 @@ func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.Fie
 				items, err := r.ListItems(gvk, scope)(p)
 				if err != nil {
 					if apierrors.IsForbidden(err) {
-						log.FromContext(ctx).V(4).Info("skipping forbidden type in category", "category", name, "gvk", gvk, "err", err)
+						log.FromContext(ctx).V(4).Info("skipping forbidden type in category", "category", category, "gvk", gvk, "err", err)
 						return nil
 					}
 					return fmt.Errorf("getting items for gvk %s: %w", gvk, err)
@@ -102,7 +108,7 @@ func (r *Service) ResourcesByCategory(m map[string][]TypeByCategory) graphql.Fie
 		}
 
 		if r.metrics != nil {
-			r.metrics.RecordCategoryFanout(name, len(members), len(result))
+			r.metrics.RecordCategoryFanout(category, len(members), len(result))
 		}
 		return &CategoryListResult{
 			Items: result,
@@ -114,7 +120,7 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 	return func(p graphql.ResolveParams) (any, error) {
 		category, err := GetArg[string](p.Args, NameArg, true)
 		if err != nil {
-			return nil, fmt.Errorf("no name arg in %v; %w", p.Args, err)
+			return nil, fmt.Errorf("no name arg in %v: %w", p.Args, err)
 		}
 
 		categoryTypes := m[category]
@@ -153,8 +159,8 @@ func (r *Service) SubscribeResourcesByCategory(m map[string][]TypeByCategory) gr
 
 						if watchErr, isErr := event.(error); isErr {
 							if apierrors.IsForbidden(watchErr) {
-								logger.V(4).Info(
-									"skipping watch on forbidden type in category", "gvk", gvk, "err", watchErr)
+								logger.V(4).Info("skipping watch on forbidden type in category",
+									"err", watchErr, "category", category, "gvk", gvk)
 
 								// return without cancel is safe, srcChan is closed once an error is written
 								return
