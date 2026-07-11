@@ -36,6 +36,12 @@ type AcceptAPISpec struct {
 	// +kubebuilder:validation:Required
 	GVR metav1.GroupVersionResource `json:"gvr"`
 
+	// APIExportName is the name of the APIExport in the provider's
+	// workspace that serves the accepted GVR.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	APIExportName string `json:"apiExportName"`
+
 	// Filters to select which resources of the GVR to accept.
 	Filters []Filter `json:"filters,omitempty"`
 }
