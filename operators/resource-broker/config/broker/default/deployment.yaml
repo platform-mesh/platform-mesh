@@ -31,7 +31,14 @@ spec:
         - name: resource-broker
           image: broker
           args:
-            - -watch-kind
-            - Certificate.v1alpha1.example.platform-mesh.io
-            - -watch-kind
-            - VM.v1alpha1.example.platform-mesh.io
+            - -kubeconfig=/kubeconfig/kubeconfig
+            - -kcp-kubeconfig=/kubeconfig/kubeconfig
+            - -acceptapi=acceptapis
+          volumeMounts:
+            - name: kubeconfig
+              mountPath: /kubeconfig
+              readOnly: true
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: kcp-kubeconfig

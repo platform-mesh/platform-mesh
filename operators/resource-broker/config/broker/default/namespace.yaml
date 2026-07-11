@@ -12,15 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-namespace: resource-broker-system
-resources:
-- ../rbac
-- namespace.yaml
-- deployment.yaml
-
-images:
-- name: broker
-  newName: ghcr.io/platform-mesh/resource-broker
-  newTag: latest
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: resource-broker-system
