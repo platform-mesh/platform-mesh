@@ -52,6 +52,10 @@ type CertificateStatus struct {
 	// RelatedResources lists resources related to this VM.
 	// +optional
 	RelatedResources pmbrokerv1alpha1.RelatedResources `json:"relatedResources,omitempty"`
+
+	// Status reports the provider-side availability of the Certificate.
+	// +optional
+	Status pmbrokerv1alpha1.Status `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
