@@ -32,13 +32,13 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// makeCond constructs a metav1.Condition. The status parameter is a boolean
-// where true maps to metav1.ConditionTrue and false to metav1.ConditionFalse.
 const (
 	metadataKey = "metadata"
 	statusKey   = "status"
 )
 
+// makeCond constructs a metav1.Condition. The status parameter is a boolean
+// where true maps to metav1.ConditionTrue and false to metav1.ConditionFalse.
 func makeCond(t ConditionType, ok bool, reason, msg string) metav1.Condition {
 	s := metav1.ConditionFalse
 	if ok {
