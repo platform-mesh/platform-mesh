@@ -57,6 +57,15 @@ type AssignmentSpec struct {
 	AcceptAPIName string `json:"acceptAPIName"`
 }
 
+// Condition types recorded in [AssignmentStatus.Conditions].
+const (
+	// AssignmentConditionStagingWorkspaceReady tracks whether the
+	// StagingWorkspace serving the assignment exists and is ready.
+	AssignmentConditionStagingWorkspaceReady = "StagingWorkspaceReady"
+	// AssignmentConditionReady aggregates the other conditions.
+	AssignmentConditionReady = "Ready"
+)
+
 // AssignmentPhase is the lifecycle phase of an Assignment.
 type AssignmentPhase string
 
@@ -90,6 +99,7 @@ type AssignmentStatus struct {
 	Phase AssignmentPhase `json:"phase,omitempty"`
 
 	// Conditions represent the current state of the Assignment.
+	// Condition types are StagingWorkspaceReady and Ready.
 	// +listType=map
 	// +listMapKey=type
 	// +optional
