@@ -70,6 +70,7 @@ type MigrationStage struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
 
 // MigrationConfiguration is the Schema for the migrationconfigurations API.
 type MigrationConfiguration struct {
