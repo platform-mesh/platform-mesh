@@ -1,5 +1,3 @@
-//go:build kube_legacy
-
 /*
 Copyright The Platform Mesh Authors.
 
@@ -22,94 +20,81 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	corev1 "k8s.io/api/core/v1"
+	pmbrokerv1alpha1 "go.platform-mesh.io/apis/broker/v1alpha1"
+	examplev1alpha1 "go.platform-mesh.io/resource-broker/api/example/v1alpha1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-
-	brokerv1alpha1 "go.platform-mesh.io/apis/operatorbroker/v1alpha1"
-	"go.platform-mesh.io/resource-broker/pkg/broker/generic"
-	"go.platform-mesh.io/resource-broker/test/e2e/internal/manager"
+	"k8s.io/utils/ptr"
 )
 
 // TestManagerCopy only tests that the manager can copy from a source to
 // a destination cluster.
 func TestManagerCopy(t *testing.T) {
-	t.Skip("pending kcp test rewrite")
 	t.Parallel()
 
 	frame := NewFrame(t)
-	cmRules := resourceRules("", "configmaps")
-	provider := frame.NewProvider(t, "provider", providerRules(cmRules...))
-	consumer := frame.NewConsumer(t, "consumer", consumerRules(cmRules...))
+	provider := frame.NewProvider(t, "provider")
+	consumer := frame.NewConsumer(t, "consumer")
 
-	t.Log("Create AcceptAPI in provider control plane")
-	err := provider.Cluster.GetClient().Create(
+	t.Log("Create AcceptAPI in provider workspace")
+	err := provider.Client.Create(
 		t.Context(),
-		&brokerv1alpha1.AcceptAPI{
+		&pmbrokerv1alpha1.AcceptAPI{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "accept-configmaps",
-				Namespace: "default",
+				Name: "accept-certificates",
 			},
-			Spec: brokerv1alpha1.AcceptAPISpec{
+			Spec: pmbrokerv1alpha1.AcceptAPISpec{
 				GVR: metav1.GroupVersionResource{
-					Group:    "",
-					Version:  "v1",
-					Resource: "configmaps",
+					Group:    "example.platform-mesh.io",
+					Version:  "v1alpha1",
+					Resource: "certificates",
 				},
+				APIExportName: exampleExportName,
 			},
 		},
 	)
 	require.NoError(t, err)
 
-	mgrOptions := frame.Options(t)
-	mgrOptions.WatchKinds = []string{"ConfigMap.v1.core"}
-
-	mgr, err := manager.Setup(mgrOptions)
-	require.NoError(t, err)
-
-	go func() {
-		err := mgr.Start(t.Context())
-		assert.NoError(t, err)
-	}()
+	frame.StartBroker(t)
 
 	namespace := "default" //nolint:goconst,nolintlint
-	cmName := "test-configmap"
+	certName := "test-certificate"
 
-	t.Log("Create ConfigMap in consumer control plane")
-	err = consumer.Cluster.GetClient().Create(
+	t.Log("Create Certificate in consumer workspace")
+	err = consumer.Client.Create(
 		t.Context(),
-		&corev1.ConfigMap{
+		&examplev1alpha1.Certificate{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      cmName,
+				Name:      certName,
 				Namespace: namespace,
 			},
-			Data: map[string]string{
-				"key": "value",
+			Spec: examplev1alpha1.CertificateSpec{
+				FQDN: ptr.To("example.com"),
 			},
 		},
 	)
 	require.NoError(t, err)
 
-	t.Log("Wait for ConfigMap to appear in provider control plane")
-	providerCMName := generic.SanitizeClusterName("consumer#consumer#cluster") + "-" + cmName
+	t.Log("Wait for Certificate to appear in staging workspace")
+	stagingClient := frame.StagingClient(t, provider)
 	require.Eventually(t, func() bool {
-		cm := &corev1.ConfigMap{}
-		err := provider.Cluster.GetClient().Get(
+		cert := &examplev1alpha1.Certificate{}
+		err := stagingClient.Get(
 			t.Context(),
 			types.NamespacedName{
-				Name:      providerCMName,
+				Name:      certName,
 				Namespace: namespace,
 			},
-			cm,
+			cert,
 		)
 		if err != nil {
-			t.Logf("error getting configmap from provider control plane: %v", err)
+			t.Logf("error getting certificate from staging workspace: %v", err)
 			return false
 		}
-		return cm.Data["key"] == "value"
+		return ptr.Deref(cert.Spec.FQDN, "") == "example.com"
 	}, wait.ForeverTestTimeout, time.Second)
 }

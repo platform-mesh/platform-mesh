@@ -94,12 +94,11 @@ tasks:
     cmds:
       - go test ./pkg/...
   test-e2e:
-    deps: [tools:envtest]
+    deps: [tools:kcp]
+    env:
+      TEST_KCP_ASSETS: '{{.BIN}}'
     cmds:
-      - |
-        set -ex
-        export KUBEBUILDER_ASSETS=$({{.BIN}}/setup-envtest use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
-        go test -tags integration ./test/e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
+      - go test -count=1 ./test/e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
     cmds:
       - task: test

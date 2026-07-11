@@ -1,5 +1,3 @@
-//go:build kube_legacy
-
 /*
 Copyright The Platform Mesh Authors.
 
@@ -22,69 +20,52 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	pmbrokerv1alpha1 "go.platform-mesh.io/apis/broker/v1alpha1"
+	examplev1alpha1 "go.platform-mesh.io/resource-broker/api/example/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-
-	brokerv1alpha1 "go.platform-mesh.io/apis/operatorbroker/v1alpha1"
-	examplev1alpha1 "go.platform-mesh.io/resource-broker/api/example/v1alpha1"
-	"go.platform-mesh.io/resource-broker/pkg/broker/generic"
-	"go.platform-mesh.io/resource-broker/test/e2e/internal/manager"
 )
 
 // TestRelatedResources tests that related resources are copied from
-// target to source cluster.
+// the staging workspace back to the consumer workspace.
 func TestRelatedResources(t *testing.T) {
-	t.Skip("pending kcp test rewrite")
 	t.Parallel()
 
 	frame := NewFrame(t)
-	rules := append(
-		resourceRules("example.platform-mesh.io", "vms"),
-		resourceRules("", "configmaps")...,
-	)
-	consumer := frame.NewConsumer(t, "consumer", consumerRules(rules...))
-	provider := frame.NewProvider(t, "provider", providerRules(rules...))
+	consumer := frame.NewConsumer(t, "consumer")
+	provider := frame.NewProvider(t, "provider")
 
-	t.Log("Create AcceptAPI in provider control plane")
-	err := provider.Cluster.GetClient().Create(
+	t.Log("Create AcceptAPI in provider workspace")
+	err := provider.Client.Create(
 		t.Context(),
-		&brokerv1alpha1.AcceptAPI{
+		&pmbrokerv1alpha1.AcceptAPI{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "accept-vms",
-				Namespace: "default",
+				Name: "accept-vms",
 			},
-			Spec: brokerv1alpha1.AcceptAPISpec{
+			Spec: pmbrokerv1alpha1.AcceptAPISpec{
 				GVR: metav1.GroupVersionResource{
 					Group:    "example.platform-mesh.io",
 					Version:  "v1alpha1",
 					Resource: "vms",
 				},
+				APIExportName: exampleExportName,
 			},
 		},
 	)
 	require.NoError(t, err)
 
-	mgrOptions := frame.Options(t)
-	mgrOptions.WatchKinds = []string{"VM.v1alpha1.example.platform-mesh.io"}
-
-	mgr, err := manager.Setup(mgrOptions)
-	require.NoError(t, err)
-
-	go func() {
-		err := mgr.Start(t.Context())
-		assert.NoError(t, err)
-	}()
+	frame.StartBroker(t)
 
 	namespace := "default"
 	vmName := "test-vm"
 
-	t.Log("Create VM in consumer control plane")
-	err = consumer.Cluster.GetClient().Create(
+	t.Log("Create VM in consumer workspace")
+	err = consumer.Client.Create(
 		t.Context(),
 		&examplev1alpha1.VM{
 			ObjectMeta: metav1.ObjectMeta{
@@ -99,30 +80,30 @@ func TestRelatedResources(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	t.Log("Wait for VM to appear in provider control plane")
-	providerVMName := generic.SanitizeClusterName("consumer#consumer#cluster") + "-" + vmName
+	t.Log("Wait for VM to appear in staging workspace")
+	stagingClient := frame.StagingClient(t, provider)
 	vm := &examplev1alpha1.VM{}
 	require.Eventually(t, func() bool {
-		err := provider.Cluster.GetClient().Get(
+		err := stagingClient.Get(
 			t.Context(),
 			types.NamespacedName{
-				Name:      providerVMName,
+				Name:      vmName,
 				Namespace: namespace,
 			},
 			vm,
 		)
 		if err != nil {
-			t.Logf("error getting VM from provider control plane: %v", err)
+			t.Logf("error getting VM from staging workspace: %v", err)
 			return false
 		}
-		return vm.Name == providerVMName
+		return vm.Name == vmName
 	}, wait.ForeverTestTimeout, time.Second)
 
-	t.Log("Create related ConfigMap in provider control plane")
+	t.Log("Create related ConfigMap in staging workspace")
 	cmName := "related-configmap"
 	cmKey := "related-key"
 	cmValue := "related-value"
-	err = provider.Cluster.GetClient().Create(
+	err = stagingClient.Create(
 		t.Context(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -136,23 +117,23 @@ func TestRelatedResources(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	t.Log("Update RelatedResources in provider control plane")
+	t.Log("Update RelatedResources in staging workspace")
 	require.Eventually(t, func() bool {
 		vm := &examplev1alpha1.VM{}
-		err := provider.Cluster.GetClient().Get(
+		err := stagingClient.Get(
 			t.Context(),
 			types.NamespacedName{
-				Name:      providerVMName,
+				Name:      vmName,
 				Namespace: namespace,
 			},
 			vm,
 		)
 		if err != nil {
-			t.Logf("error getting VM from provider control plane: %v", err)
+			t.Logf("error getting VM from staging workspace: %v", err)
 			return false
 		}
-		vm.Status.RelatedResources = brokerv1alpha1.RelatedResources{
-			"configmap": brokerv1alpha1.RelatedResource{
+		vm.Status.RelatedResources = pmbrokerv1alpha1.RelatedResources{
+			"configmap": pmbrokerv1alpha1.RelatedResource{
 				Namespace: namespace,
 				Name:      cmName,
 				GVK: metav1.GroupVersionKind{
@@ -163,17 +144,17 @@ func TestRelatedResources(t *testing.T) {
 			},
 		}
 
-		err = provider.Cluster.GetClient().Status().Update(
+		err = stagingClient.Status().Update(
 			t.Context(),
 			vm,
 		)
 		return err == nil
 	}, wait.ForeverTestTimeout, time.Second)
 
-	t.Log("Wait for RelatedResource ConfigMap to appear in source control plane")
+	t.Log("Wait for RelatedResource ConfigMap to appear in consumer workspace")
 	require.Eventually(t, func() bool {
 		cm := &corev1.ConfigMap{}
-		err := consumer.Cluster.GetClient().Get(
+		err := consumer.Client.Get(
 			t.Context(),
 			types.NamespacedName{
 				Name:      cmName,
@@ -182,7 +163,7 @@ func TestRelatedResources(t *testing.T) {
 			cm,
 		)
 		if err != nil {
-			t.Logf("error getting related configmap from source control plane: %v", err)
+			t.Logf("error getting related configmap from consumer workspace: %v", err)
 			return false
 		}
 		return cm.Data[cmKey] == cmValue

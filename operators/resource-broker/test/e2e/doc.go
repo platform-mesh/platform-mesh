@@ -14,7 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package e2e holds the broker end-to-end tests. The current files are
-// preserved as a reference pending a rewrite onto a kcp test setup; every
-// test is gated and t.Skip()s until that rewrite lands.
+// Package e2e holds the broker end-to-end tests.
 package e2e

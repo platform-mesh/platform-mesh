@@ -19,11 +19,16 @@ limitations under the License.
 package e2e
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	brokerv1alpha1 "go.platform-mesh.io/apis/coordbroker/v1alpha1"
+	examplev1alpha1 "go.platform-mesh.io/resource-broker/api/example/v1alpha1"
+	"go.platform-mesh.io/resource-broker/pkg/broker"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,11 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-
-	brokerv1alpha1 "go.platform-mesh.io/apis/operatorbroker/v1alpha1"
-	examplev1alpha1 "go.platform-mesh.io/resource-broker/api/example/v1alpha1"
-	"go.platform-mesh.io/resource-broker/pkg/broker/generic"
-	"go.platform-mesh.io/resource-broker/test/e2e/internal/manager"
 )
 
 // TestMigrationNoStages tests that migrations are created and processed
@@ -51,7 +51,7 @@ func TestMigrationNoStages(t *testing.T) {
 	mgrOptions := frame.Options(t)
 	mgrOptions.WatchKinds = []string{"VM.v1alpha1.example.platform-mesh.io"}
 
-	mgr, err := manager.Setup(mgrOptions)
+	mgr, err := broker.New(mgrOptions)
 	require.NoError(t, err)
 
 	go func() {
@@ -158,7 +158,7 @@ func TestMigrationNoStages(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	providerVMName := generic.SanitizeClusterName("consumer#consumer#cluster") + "-" + vmName
+	providerVMName := sanitizeClusterName("consumer#consumer#cluster") + "-" + vmName
 
 	t.Log("Wait for VM to appear in x86 provider")
 	vm := &examplev1alpha1.VM{}
@@ -279,7 +279,7 @@ func TestMigrationWithStages(t *testing.T) {
 	mgrOptions := frame.Options(t)
 	mgrOptions.WatchKinds = []string{"VM.v1alpha1.example.platform-mesh.io"}
 
-	mgr, err := manager.Setup(mgrOptions)
+	mgr, err := broker.New(mgrOptions)
 	require.NoError(t, err)
 
 	go func() {
@@ -405,7 +405,7 @@ func TestMigrationWithStages(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	providerVMName := generic.SanitizeClusterName("consumer#consumer#cluster") + "-" + vmName
+	providerVMName := sanitizeClusterName("consumer#consumer#cluster") + "-" + vmName
 
 	t.Log("Wait for VM to appear in x86 provider")
 	vm := &examplev1alpha1.VM{}
@@ -494,4 +494,10 @@ func TestMigrationWithStages(t *testing.T) {
 		}
 		return false
 	}, wait.ForeverTestTimeout, time.Second)
+}
+
+// sanitizeClusterName is a legacy shim for the removed
+// pkg/broker/generic.SanitizeClusterName helper.
+func sanitizeClusterName(cluster string) string {
+	return strings.ReplaceAll(cluster, "#", ".")
 }
