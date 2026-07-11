@@ -30,11 +30,11 @@ type StagingWorkspaceSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	ConsumerCluster string `json:"consumerCluster"`
 
-	// ProviderPath is the kcp workspace path of the provider workspace
-	// whose APIExport is bound in the staging workspace.
+	// ProviderCluster is the logical cluster name of the provider
+	// workspace whose APIExport is bound in the staging workspace.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	ProviderPath string `json:"providerPath"`
+	ProviderCluster string `json:"providerCluster"`
 
 	// APIExportName is the name of the provider's APIExport to bind in
 	// the staging workspace.
@@ -52,8 +52,6 @@ const (
 	// StagingWorkspacePhaseReady indicates the staging workspace is fully provisioned and
 	// resources can be staged in it.
 	StagingWorkspacePhaseReady StagingWorkspacePhase = "Ready"
-	// StagingWorkspacePhaseFailed indicates the staging workspace could not be provisioned.
-	StagingWorkspacePhaseFailed StagingWorkspacePhase = "Failed"
 	// StagingWorkspacePhaseTerminating indicates the staging workspace is being torn down because
 	// no assignments reference it anymore.
 	StagingWorkspacePhaseTerminating StagingWorkspacePhase = "Terminating"
@@ -77,10 +75,10 @@ type StagingWorkspaceStatus struct {
 	// +optional
 	Phase StagingWorkspacePhase `json:"phase,omitempty"`
 
-	// ClusterPath is the kcp workspace path of the created staging
+	// ClusterName is the logical cluster name of the created staging
 	// workspace. Set once the workspace exists.
 	// +optional
-	ClusterPath string `json:"clusterPath,omitempty"`
+	ClusterName string `json:"clusterName,omitempty"`
 
 	// Conditions represent the current state of the StagingWorkspace.
 	// +listType=map
@@ -92,13 +90,13 @@ type StagingWorkspaceStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Provider",type="string",JSONPath=".spec.providerPath"
+// +kubebuilder:printcolumn:name="Provider",type="string",JSONPath=".spec.providerCluster"
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // StagingWorkspace represents the kcp workspace in which the broker
 // stages consumer resources to sync them between consumer and provider.
-// One exists per unique (consumerCluster, providerPath, apiExportName)
+// One exists per unique (consumerCluster, providerCluster, apiExportName)
 // tuple; all resources of the same consumer/provider/API share it.
 type StagingWorkspace struct {
 	metav1.TypeMeta   `json:",inline"`

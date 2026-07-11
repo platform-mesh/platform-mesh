@@ -85,12 +85,12 @@ func TestDeepCopyRoundTrip(t *testing.T) {
 		orig := &StagingWorkspace{
 			Spec: StagingWorkspaceSpec{
 				ConsumerCluster: "consumer-a",
-				ProviderPath:    "root:providers:b",
+				ProviderCluster: "provider-cluster-b",
 				APIExportName:   "things.example.com",
 			},
 			Status: StagingWorkspaceStatus{
 				Phase:       StagingWorkspacePhaseReady,
-				ClusterPath: "root:rb:staging-abc123",
+				ClusterName: "staging-abc123",
 			},
 		}
 
