@@ -16,6 +16,3 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
 - broker.platform-mesh.io_acceptapis.yaml
-- broker.platform-mesh.io_migrationconfigurations.yaml
-- broker.platform-mesh.io_migrations.yaml
-- broker.platform-mesh.io_stagingworkspaces.yaml

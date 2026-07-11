@@ -17,17 +17,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.21.0
-  name: stagingworkspaces.broker.platform-mesh.io
+  name: assignments.coord.broker.platform-mesh.io
 spec:
-  group: broker.platform-mesh.io
+  group: coord.broker.platform-mesh.io
   names:
-    kind: StagingWorkspace
-    listKind: StagingWorkspaceList
-    plural: stagingworkspaces
-    singular: stagingworkspace
+    kind: Assignment
+    listKind: AssignmentList
+    plural: assignments
+    singular: assignment
   scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.providerCluster
+      name: Provider
+      type: string
     - jsonPath: .status.phase
       name: Phase
       type: string
@@ -38,10 +41,11 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          StagingWorkspace represents a per-consumer x provider staging kcp workspace.
-          resource-broker creates one for each unique (consumer workspace, provider
-          workspace) pair and uses it to write consumer CRs that the provider's
-          api-syncagent can pick up via the APIExport virtual workspace.
+          Assignment records the sticky assignment of a single consumer resource
+          to a provider. The broker creates one per brokered resource and never
+          re-evaluates the provider choice while the assignment exists. The
+          object name is a deterministic hash of
+          (consumerCluster, gvr, namespace, name).
         properties:
           apiVersion:
             description: |-
@@ -61,38 +65,61 @@ spec:
           metadata:
             type: object
           spec:
-            description: StagingWorkspaceSpec defines the desired state of StagingWorkspace.
+            description: AssignmentSpec defines the desired state of Assignment.
             properties:
-              apiExportName:
+              acceptAPIName:
                 description: |-
-                  APIExportName is the name of the provider's APIExport to bind in the
-                  staging workspace.
+                  AcceptAPIName is the name of the AcceptAPI object in the provider
+                  workspace that accepted the resource.
+                minLength: 1
                 type: string
               consumerCluster:
-                description: ConsumerCluster is the logical cluster name of the consumer
-                  workspace.
-                type: string
-              providerPath:
                 description: |-
-                  ProviderPath is the kcp workspace path of the provider
-                  (value of the kcp.io/path annotation on AcceptAPI objects).
+                  ConsumerCluster is the logical cluster name of the consumer
+                  workspace the resource lives in.
+                minLength: 1
                 type: string
-              workspaceTreeRoot:
+              gvr:
+                description: GVR is the GroupVersionResource of the assigned resource.
+                properties:
+                  group:
+                    type: string
+                  resource:
+                    type: string
+                  version:
+                    type: string
+                required:
+                - group
+                - resource
+                - version
+                type: object
+              name:
+                description: Name is the name of the resource in the consumer workspace.
+                minLength: 1
+                type: string
+              namespace:
                 description: |-
-                  WorkspaceTreeRoot is the kcp workspace path under which the staging
-                  workspace will be created (e.g. "root:rb").
+                  Namespace is the namespace of the resource in the consumer
+                  workspace. Empty for cluster-scoped resources.
+                type: string
+              providerCluster:
+                description: |-
+                  ProviderCluster is the logical cluster name of the provider
+                  workspace the resource is assigned to.
+                minLength: 1
                 type: string
             required:
-            - apiExportName
+            - acceptAPIName
             - consumerCluster
-            - providerPath
-            - workspaceTreeRoot
+            - gvr
+            - name
+            - providerCluster
             type: object
           status:
-            description: StagingWorkspaceStatus defines the observed state of StagingWorkspace.
+            description: AssignmentStatus defines the observed state of Assignment.
             properties:
               conditions:
-                description: Conditions represent the current state of the StagingWorkspace.
+                description: Conditions represent the current state of the Assignment.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -154,10 +181,10 @@ spec:
               phase:
                 description: Phase is the current lifecycle phase.
                 type: string
-              workspaceURL:
+              stagingWorkspace:
                 description: |-
-                  WorkspaceURL is the direct access URL of the created kcp staging
-                  workspace. Set once the workspace reaches the Ready phase.
+                  StagingWorkspace is the name of the StagingWorkspace object the
+                  assignment is served through.
                 type: string
             type: object
         type: object

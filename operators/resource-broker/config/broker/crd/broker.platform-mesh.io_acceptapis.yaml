@@ -52,6 +52,12 @@ spec:
           spec:
             description: AcceptAPISpec defines the desired state of AcceptAPI.
             properties:
+              apiExportName:
+                description: |-
+                  APIExportName is the name of the APIExport in the provider's
+                  workspace that serves the accepted GVR.
+                minLength: 1
+                type: string
               filters:
                 description: Filters to select which resources of the GVR to accept.
                 items:
@@ -100,6 +106,7 @@ spec:
                 - version
                 type: object
             required:
+            - apiExportName
             - gvr
             type: object
           status:
@@ -110,10 +117,9 @@ spec:
                   conditions represent the current state of the AcceptAPI resource.
                   Each condition has a unique type and reflects the status of a specific aspect of the resource.
 
-                  Standard condition types include:
-                  - "Available": the resource is fully functional
-                  - "Progressing": the resource is being created or updated
-                  - "Degraded": the resource failed to reach or maintain its desired state
+                  Condition types used by the broker:
+                  - "BindingVerified": the referenced APIExport was successfully bound in a verification workspace
+                  - "Ready": the AcceptAPI is fully processed and resources can be routed to the provider
 
                   The status of each condition is one of True, False, or Unknown.
                 items:
@@ -174,6 +180,12 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              verificationWorkspace:
+                description: |-
+                  VerificationWorkspace is the name of the verification workspace
+                  this AcceptAPI holds a reference finalizer on. Used to clean up
+                  the old workspace when the spec changes. Set by the broker.
+                type: string
             type: object
         type: object
     served: true

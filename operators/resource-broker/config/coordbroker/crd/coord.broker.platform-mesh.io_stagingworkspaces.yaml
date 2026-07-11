@@ -16,7 +16,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.20.1
+    controller-gen.kubebuilder.io/version: v0.21.0
   name: stagingworkspaces.coord.broker.platform-mesh.io
 spec:
   group: coord.broker.platform-mesh.io
@@ -28,6 +28,9 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.providerPath
+      name: Provider
+      type: string
     - jsonPath: .status.phase
       name: Phase
       type: string
@@ -38,10 +41,10 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          StagingWorkspace represents a per-consumer x provider staging kcp workspace.
-          resource-broker creates one for each unique (consumer workspace, provider
-          workspace) pair and uses it to write consumer CRs that the provider's
-          api-syncagent can pick up via the APIExport virtual workspace.
+          StagingWorkspace represents the kcp workspace in which the broker
+          stages consumer resources to sync them between consumer and provider.
+          One exists per unique (consumerCluster, providerPath, apiExportName)
+          tuple; all resources of the same consumer/provider/API share it.
         properties:
           apiVersion:
             description: |-
@@ -65,32 +68,35 @@ spec:
             properties:
               apiExportName:
                 description: |-
-                  APIExportName is the name of the provider's APIExport to bind in the
-                  staging workspace.
+                  APIExportName is the name of the provider's APIExport to bind in
+                  the staging workspace.
+                minLength: 1
                 type: string
               consumerCluster:
-                description: ConsumerCluster is the logical cluster name of the consumer
-                  workspace.
+                description: |-
+                  ConsumerCluster is the logical cluster name of the consumer
+                  workspace the staging workspace serves.
+                minLength: 1
                 type: string
               providerPath:
                 description: |-
-                  ProviderPath is the kcp workspace path of the provider
-                  (value of the kcp.io/path annotation on AcceptAPI objects).
-                type: string
-              workspaceTreeRoot:
-                description: |-
-                  WorkspaceTreeRoot is the kcp workspace path under which the staging
-                  workspace will be created (e.g. "root:rb").
+                  ProviderPath is the kcp workspace path of the provider workspace
+                  whose APIExport is bound in the staging workspace.
+                minLength: 1
                 type: string
             required:
             - apiExportName
             - consumerCluster
             - providerPath
-            - workspaceTreeRoot
             type: object
           status:
             description: StagingWorkspaceStatus defines the observed state of StagingWorkspace.
             properties:
+              clusterPath:
+                description: |-
+                  ClusterPath is the kcp workspace path of the created staging
+                  workspace. Set once the workspace exists.
+                type: string
               conditions:
                 description: Conditions represent the current state of the StagingWorkspace.
                 items:
@@ -153,11 +159,6 @@ spec:
                 x-kubernetes-list-type: map
               phase:
                 description: Phase is the current lifecycle phase.
-                type: string
-              workspaceURL:
-                description: |-
-                  WorkspaceURL is the direct access URL of the created kcp staging
-                  workspace. Set once the workspace reaches the Ready phase.
                 type: string
             type: object
         type: object

@@ -20,28 +20,9 @@ rules:
 - apiGroups:
   - coord.broker.platform-mesh.io
   resources:
-  - migrationconfigurations
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - coord.broker.platform-mesh.io
-  resources:
-  - migrationconfigurations/finalizers
-  - migrations/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - coord.broker.platform-mesh.io
-  resources:
-  - migrationconfigurations/status
-  verbs:
-  - get
-- apiGroups:
-  - coord.broker.platform-mesh.io
-  resources:
+  - assignments
   - migrations
+  - stagingworkspaces
   verbs:
   - create
   - delete
@@ -53,8 +34,33 @@ rules:
 - apiGroups:
   - coord.broker.platform-mesh.io
   resources:
+  - assignments/finalizers
+  - migrationconfigurations/finalizers
+  - migrations/finalizers
+  - stagingworkspaces/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - coord.broker.platform-mesh.io
+  resources:
+  - assignments/status
   - migrations/status
+  - stagingworkspaces/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - coord.broker.platform-mesh.io
+  resources:
+  - migrationconfigurations
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - coord.broker.platform-mesh.io
+  resources:
+  - migrationconfigurations/status
+  verbs:
+  - get
