@@ -42,9 +42,10 @@ spec:
       openAPIV3Schema:
         description: |-
           Assignment records the sticky assignment of a single consumer resource
-          to a provider. The broker creates one per brokered resource and never
-          re-evaluates the provider choice while the assignment exists. The
-          object name is a deterministic hash of
+          to a provider. The broker creates one per brokered resource. The broker
+          keeps checking that the assigned provider still accepts the resource;
+          when it no longer does, a Migration moves the assignment to a new
+          provider. The object name is a deterministic hash of
           (consumerCluster, gvr, namespace, name).
         properties:
           apiVersion:

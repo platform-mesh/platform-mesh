@@ -25,7 +25,7 @@ spec:
     listKind: MigrationConfigurationList
     plural: migrationconfigurations
     singular: migrationconfiguration
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
