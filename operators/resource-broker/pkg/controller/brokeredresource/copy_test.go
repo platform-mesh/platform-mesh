@@ -182,6 +182,189 @@ func TestCopyProcessStatusCopyBack(t *testing.T) {
 	assert.Equal(t, "Ready", state)
 }
 
+func TestCopyProcessCopiesToMigrationTarget(t *testing.T) {
+	t.Parallel()
+
+	nn := types.NamespacedName{Namespace: testNamespace, Name: testResourceName}
+
+	frozen := testStagingCopy()
+	require.NoError(t, unstructured.SetNestedField(frozen.Object, int64(1), "spec", "size"))
+
+	consumer := testFakeClient(t, testConsumerObject())
+	clients := migrationTestClients{
+		coordination: testFakeClient(t,
+			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
+			testMigration(pmcoordbrokerv1alpha1.MigrationStateInitialInProgress),
+		),
+		provider: testFakeClient(t),
+		staging:  testFakeClient(t, frozen),
+		target:   testFakeClient(t),
+	}
+	s := &copySubroutine{opts: testMigrationOptions(t, clients, nil)}
+
+	ctx := testCopyContext(t, consumer)
+	result, err := s.Process(ctx, testConsumerObject())
+	require.NoError(t, err)
+	assert.True(t, result.IsContinue())
+
+	targetCopy := &unstructured.Unstructured{}
+	targetCopy.SetGroupVersionKind(testGVK)
+	require.NoError(t, clients.target.Get(ctx, nn, targetCopy))
+
+	size, _, err := unstructured.NestedInt64(targetCopy.Object, "spec", "size")
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), size)
+
+	anns := targetCopy.GetAnnotations()
+	assert.Equal(t, testConsumerCluster, anns[ConsumerClusterAnnotation])
+	assert.Equal(t, testResourceName, anns[ConsumerNameAnnotation])
+
+	ns := &corev1.Namespace{}
+	require.NoError(t, clients.target.Get(ctx, types.NamespacedName{Name: testNamespace}, ns))
+
+	// The assigned staging workspace is frozen during the migration; the
+	// consumer update must not reach the old copy.
+	oldCopy := &unstructured.Unstructured{}
+	oldCopy.SetGroupVersionKind(testGVK)
+	require.NoError(t, clients.staging.Get(ctx, nn, oldCopy))
+	size, _, err = unstructured.NestedInt64(oldCopy.Object, "spec", "size")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), size)
+}
+
+func TestCopyProcessMigrationWithoutTargetFreezes(t *testing.T) {
+	t.Parallel()
+
+	nn := types.NamespacedName{Namespace: testNamespace, Name: testResourceName}
+
+	migration := testMigration(pmcoordbrokerv1alpha1.MigrationStatePending)
+	migration.Status.StagingWorkspace = ""
+
+	consumer := testFakeClient(t, testConsumerObject())
+	clients := migrationTestClients{
+		coordination: testFakeClient(t,
+			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
+			migration,
+		),
+		provider: testFakeClient(t),
+		staging:  testFakeClient(t),
+		target:   testFakeClient(t),
+	}
+	s := &copySubroutine{opts: testMigrationOptions(t, clients, nil)}
+
+	ctx := testCopyContext(t, consumer)
+	result, err := s.Process(ctx, testConsumerObject())
+	require.NoError(t, err)
+	assert.Positive(t, result.Requeue())
+	assert.Contains(t, result.Message(), "waiting for migration target staging workspace")
+
+	// Neither staging workspace received a copy.
+	for name, cl := range map[string]ctrlruntimeclient.Client{
+		"staging": clients.staging,
+		"target":  clients.target,
+	} {
+		stagingCopy := &unstructured.Unstructured{}
+		stagingCopy.SetGroupVersionKind(testGVK)
+		require.Error(t, cl.Get(ctx, nn, stagingCopy), name)
+	}
+}
+
+func TestCopyProcessCutoverCompletedResumesNormalPath(t *testing.T) {
+	t.Parallel()
+
+	nn := types.NamespacedName{Namespace: testNamespace, Name: testResourceName}
+
+	consumer := testFakeClient(t, testConsumerObject())
+	clients := migrationTestClients{
+		coordination: testFakeClient(t,
+			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
+			testMigration(pmcoordbrokerv1alpha1.MigrationStateCutoverCompleted),
+		),
+		provider: testFakeClient(t),
+		staging:  testFakeClient(t),
+		target:   testFakeClient(t),
+	}
+	s := &copySubroutine{opts: testMigrationOptions(t, clients, nil)}
+
+	ctx := testCopyContext(t, consumer)
+	result, err := s.Process(ctx, testConsumerObject())
+	require.NoError(t, err)
+	assert.True(t, result.IsContinue())
+
+	// A completed migration no longer freezes the assigned staging
+	// workspace; the copy flows there again.
+	stagingCopy := &unstructured.Unstructured{}
+	stagingCopy.SetGroupVersionKind(testGVK)
+	require.NoError(t, clients.staging.Get(ctx, nn, stagingCopy))
+}
+
+func TestCopyProcessMigrationTargetUpdatesDrift(t *testing.T) {
+	t.Parallel()
+
+	nn := types.NamespacedName{Namespace: testNamespace, Name: testResourceName}
+
+	drifted := testStagingCopy()
+	require.NoError(t, unstructured.SetNestedField(drifted.Object, int64(1), "spec", "size"))
+
+	consumer := testFakeClient(t, testConsumerObject())
+	clients := migrationTestClients{
+		coordination: testFakeClient(t,
+			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
+			testMigration(pmcoordbrokerv1alpha1.MigrationStateInitialInProgress),
+		),
+		provider: testFakeClient(t),
+		staging:  testFakeClient(t),
+		target:   testFakeClient(t, drifted),
+	}
+	s := &copySubroutine{opts: testMigrationOptions(t, clients, nil)}
+
+	ctx := testCopyContext(t, consumer)
+	_, err := s.Process(ctx, testConsumerObject())
+	require.NoError(t, err)
+
+	targetCopy := &unstructured.Unstructured{}
+	targetCopy.SetGroupVersionKind(testGVK)
+	require.NoError(t, clients.target.Get(ctx, nn, targetCopy))
+
+	size, _, err := unstructured.NestedInt64(targetCopy.Object, "spec", "size")
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), size)
+}
+
+func TestCopyProcessMigrationTargetNoStatusSync(t *testing.T) {
+	t.Parallel()
+
+	nn := types.NamespacedName{Namespace: testNamespace, Name: testResourceName}
+
+	targetCopy := testStagingCopy()
+	require.NoError(t, unstructured.SetNestedField(targetCopy.Object, "Ready", "status", "state"))
+
+	consumer := testFakeClient(t, testConsumerObject())
+	clients := migrationTestClients{
+		coordination: testFakeClient(t,
+			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
+			testMigration(pmcoordbrokerv1alpha1.MigrationStateInitialInProgress),
+		),
+		provider: testFakeClient(t),
+		staging:  testFakeClient(t),
+		target:   testFakeClient(t, targetCopy),
+	}
+	s := &copySubroutine{opts: testMigrationOptions(t, clients, nil)}
+
+	ctx := testCopyContext(t, consumer)
+	_, err := s.Process(ctx, testConsumerObject())
+	require.NoError(t, err)
+
+	// The target status must not flow back to the consumer; status keeps
+	// coming from the assigned staging workspace until cutover.
+	consumerObj := &unstructured.Unstructured{}
+	consumerObj.SetGroupVersionKind(testGVK)
+	require.NoError(t, consumer.Get(ctx, nn, consumerObj))
+	_, found, err := unstructured.NestedString(consumerObj.Object, "status", "state")
+	require.NoError(t, err)
+	assert.False(t, found)
+}
+
 func TestCopyProcessNoClusterInContext(t *testing.T) {
 	t.Parallel()
 

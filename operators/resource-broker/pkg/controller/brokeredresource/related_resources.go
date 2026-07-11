@@ -88,7 +88,7 @@ func (s *relatedResourcesSubroutine) Process(ctx context.Context, obj ctrlruntim
 	for _, key := range slices.Sorted(maps.Keys(related)) {
 		rr := related[key]
 		rrName := types.NamespacedName{Namespace: rr.Namespace, Name: rr.Name}
-		if _, err := sync.CopyResource(ctx, rr.SchemaGVK(), rrName, rrName, stagingClient, consumerClient); err != nil {
+		if _, err := sync.Resource(ctx, rr.SchemaGVK(), rrName, rrName, stagingClient, consumerClient); err != nil {
 			return subroutines.Result{}, fmt.Errorf("copying related resource %q: %w", key, err)
 		}
 	}

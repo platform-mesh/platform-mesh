@@ -155,6 +155,7 @@ func NewReconciler(mgr mcmanager.Manager, opts Options) (*Reconciler, error) {
 			return obj
 		},
 		&assignmentSubroutine{opts: opts},
+		&migrationSubroutine{opts: opts},
 		&copySubroutine{opts: opts},
 		&relatedResourcesSubroutine{opts: opts},
 	)

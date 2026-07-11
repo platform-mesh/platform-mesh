@@ -84,6 +84,17 @@ func (s *copySubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obje
 		return subroutines.Result{}, err
 	}
 
+	// If a migration is active the consumer spec must be forward to the new provider.
+	// TODO(ntnn): Ideally there's a validation webhook that prevents
+	// spec changes after a migration has been kicked off.
+	migration, err := s.activeMigration(ctx, consumerCluster, u)
+	if err != nil {
+		return subroutines.Result{}, err
+	}
+	if migration != nil {
+		return s.copyToMigrationTarget(ctx, migration, u, consumerClient, consumerCluster)
+	}
+
 	stagingClient, result, err := stagingClient(ctx, s.opts, consumerCluster, u)
 	if stagingClient == nil {
 		return result, err
@@ -97,7 +108,7 @@ func (s *copySubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obje
 	}
 
 	nn := types.NamespacedName{Namespace: u.GetNamespace(), Name: u.GetName()}
-	if _, err := sync.CopyResource(ctx, s.opts.GVK, nn, nn, consumerClient, stagingClient); err != nil {
+	if _, err := sync.Resource(ctx, s.opts.GVK, nn, nn, consumerClient, stagingClient); err != nil {
 		return subroutines.Result{}, fmt.Errorf("copying resource to staging workspace: %w", err)
 	}
 
@@ -195,4 +206,52 @@ func (s *copySubroutine) annotateCopy(ctx context.Context, stagingClient ctrlrun
 		return fmt.Errorf("annotating staging copy: %w", err)
 	}
 	return nil
+}
+
+// activeMigration returns the active Migration if there is one.
+func (s *copySubroutine) activeMigration(ctx context.Context, consumerCluster string, u *unstructured.Unstructured) (*pmcoordbrokerv1alpha1.Migration, error) {
+	name := migrationName(consumerCluster, s.opts.GVR, u.GetNamespace(), u.GetName())
+
+	migration := &pmcoordbrokerv1alpha1.Migration{}
+	err := s.opts.CoordinationClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name}, migration)
+	switch {
+	case apierrors.IsNotFound(err):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("getting Migration %q: %w", name, err)
+	}
+
+	if migration.Status.State == pmcoordbrokerv1alpha1.MigrationStateCutoverCompleted {
+		return nil, nil
+	}
+	return migration, nil
+}
+
+// copyToMigrationTarget copies the consumer spec to the new provider staging workspace.
+func (s *copySubroutine) copyToMigrationTarget(ctx context.Context, migration *pmcoordbrokerv1alpha1.Migration, u *unstructured.Unstructured, consumerClient ctrlruntimeclient.Client, consumerCluster string) (subroutines.Result, error) {
+	if migration.Status.StagingWorkspace == "" {
+		return subroutines.Pending(s.opts.RequeueInterval, "waiting for migration target staging workspace"), nil
+	}
+
+	targetClient, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot + ":" + migration.Status.StagingWorkspace)
+	if err != nil {
+		return subroutines.Result{}, fmt.Errorf("building client for staging workspace %q: %w", migration.Status.StagingWorkspace, err)
+	}
+
+	if u.GetNamespace() != "" {
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: u.GetNamespace()}}
+		if err := targetClient.Create(ctx, ns); err != nil && !apierrors.IsAlreadyExists(err) {
+			return subroutines.Result{}, fmt.Errorf("creating namespace %q in staging workspace: %w", ns.Name, err)
+		}
+	}
+
+	nn := types.NamespacedName{Namespace: u.GetNamespace(), Name: u.GetName()}
+	if _, err := sync.Spec(ctx, s.opts.GVK, nn, nn, consumerClient, targetClient); err != nil {
+		return subroutines.Result{}, fmt.Errorf("copying resource to migration target: %w", err)
+	}
+
+	if err := s.annotateCopy(ctx, targetClient, nn, consumerCluster); err != nil {
+		return subroutines.Result{}, err
+	}
+	return subroutines.OKWithRequeue(s.opts.RequeueInterval), nil
 }
