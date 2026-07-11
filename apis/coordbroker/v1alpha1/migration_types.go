@@ -16,11 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
-import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-// TODO: move these into a specific application
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // +kubebuilder:rbac:groups=coord.broker.platform-mesh.io,resources=migrations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coord.broker.platform-mesh.io,resources=migrations/status,verbs=get;update;patch
@@ -28,56 +24,73 @@ import (
 
 // MigrationSpec defines the desired state of Migration.
 type MigrationSpec struct {
-	// From indicates the source resource to be migrated.
-	// +required
-	From MigrationRef `json:"from"`
-	// To indicates the target resource to be migrated.
-	// +required
-	To MigrationRef `json:"to"`
+	// Assignment is the name of the Assignment being migrated.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Assignment string `json:"assignment"`
+
+	// From is the provider the resource is migrated away from.
+	// +kubebuilder:validation:Required
+	From MigrationTarget `json:"from"`
+
+	// To is the provider the resource is migrated to.
+	// +kubebuilder:validation:Required
+	To MigrationTarget `json:"to"`
 }
 
-// MigrationRef references a specific resource involved in the
-// migration.
-type MigrationRef struct {
-	// GVK is the GroupVersionKind of the resource.
-	// +required
+// MigrationTarget identifies a provider-side representation of the migrated resource.
+type MigrationTarget struct {
+	// GVK is the GroupVersionKind of the resource at this provider.
+	// +kubebuilder:validation:Required
 	GVK metav1.GroupVersionKind `json:"gvk"`
-	// Name is the name of the resource.
-	// +required
+
+	// ProviderCluster is the logical cluster name of the provider workspace.
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	Name string `json:"name"`
-	// Namespace is the namespace of the resource.
-	// +optional
-	Namespace string `json:"namespace,omitempty"`
-	// ClusterName is the name of the cluster where the resource resides.
-	// +required
+	ProviderCluster string `json:"providerCluster"`
+
+	// AcceptAPIName is the name of the AcceptAPI object in the provider cluster.
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	ClusterName string `json:"clusterName,omitempty"`
+	AcceptAPIName string `json:"acceptAPIName"`
 }
+
+// Condition types recorded in [MigrationStatus.Conditions].
+const (
+	// MigrationConditionStagingWorkspaceReady tracks whether the target StagingWorkspace exists and is ready.
+	MigrationConditionStagingWorkspaceReady = "StagingWorkspaceReady"
+	// MigrationConditionStagesCompleted tracks progress through the stages of the matching MigrationConfiguration.
+	MigrationConditionStagesCompleted = "StagesCompleted"
+	// MigrationConditionCutoverCompleted tracks whether the assignment has been repointed to the target provider.
+	MigrationConditionCutoverCompleted = "CutoverCompleted"
+	// MigrationConditionReady aggregates the other conditions.
+	MigrationConditionReady = "Ready"
+)
 
 // MigrationStatus defines the observed state of Migration.
 type MigrationStatus struct {
-	// state represents the current state of the Migration process.
+	// State represents the current state of the migration process.
+	// +optional
 	State MigrationState `json:"state,omitempty"`
 
-	// conditions represent the current state of the Migration resource.
-	// Each condition has a unique type and reflects the status of a specific aspect of the resource.
-	//
-	// Standard condition types include:
-	// - "Available": the resource is fully functional
-	// - "Progressing": the resource is being created or updated
-	// - "Degraded": the resource failed to reach or maintain its desired state
-	//
-	// The status of each condition is one of True, False, or Unknown.
+	// Stage is the name of the current stage from the matching MigrationConfiguration.
+	// +optional
+	Stage string `json:"stage,omitempty"`
+
+	// FromStagingWorkspace is the origin StagingWorkspace.
+	// +optional
+	FromStagingWorkspace string `json:"fromStagingWorkspace,omitempty"`
+
+	// StagingWorkspace is the destination StagingWorkspace.
+	// +optional
+	StagingWorkspace string `json:"stagingWorkspace,omitempty"`
+
+	// Conditions represent the current state of the Migration.
+	// Condition types are StagingWorkspaceReady, StagesCompleted, CutoverCompleted and Ready.
 	// +listType=map
 	// +listMapKey=type
+	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
-	// id is a unique identifier for the migration.
-	ID string `json:"id,omitempty"`
-
-	// stage is the stage of the migration process, the value is the id of the current stage from the MigrationConfiguration.
-	Stage string `json:"stage,omitempty"`
 }
 
 // MigrationState represents the state of a Migration process.
@@ -101,28 +114,33 @@ const (
 	// MigrationStateCutoverCompleted indicates that the cutover
 	// migration has been completed successfully.
 	MigrationStateCutoverCompleted MigrationState = "CutoverCompleted"
-	// MigrationStateFailed indicates that the migration has failed.
-	MigrationStateFailed MigrationState = "Failed"
 )
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="From",type="string",JSONPath=".spec.from.providerCluster"
+// +kubebuilder:printcolumn:name="To",type="string",JSONPath=".spec.to.providerCluster"
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
-// Migration is the Schema for the migrations API.
+// Migration moves a brokered resource from one provider to another.
 type Migration struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// metadata is a standard object metadata
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty,omitzero"`
+	Spec   MigrationSpec   `json:"spec,omitempty"`
+	Status MigrationStatus `json:"status,omitempty"`
+}
 
-	// spec defines the desired state of Migration
-	// +required
-	Spec MigrationSpec `json:"spec"`
+// GetConditions returns the conditions of the Migration.
+func (migration *Migration) GetConditions() []metav1.Condition {
+	return migration.Status.Conditions
+}
 
-	// status defines the observed state of Migration
-	// +optional
-	Status MigrationStatus `json:"status,omitempty,omitzero"`
+// SetConditions sets the conditions of the Migration.
+func (migration *Migration) SetConditions(conditions []metav1.Condition) {
+	migration.Status.Conditions = conditions
 }
 
 // +kubebuilder:object:root=true
