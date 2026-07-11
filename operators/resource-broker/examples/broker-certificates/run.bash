@@ -45,7 +45,7 @@ _setup() {
     make deploy-operator KUBECONFIG="$kind_platform" || die "Failed to deploy resource-broker-operator"
 
     log "Setting up kcp"
-    kubectl::kustomize "$kind_platform" "./examples/kcp-certs/platform"
+    kubectl::kustomize "$kind_platform" "./examples/broker-certificates/platform"
     kcp::setup::kubeconfigs \
         "$kind_platform" \
         "$kubeconfigs/kcp-admin.kubeconfig" \
@@ -182,7 +182,7 @@ _start_broker() {
         --from-file=kubeconfig="$kubeconfigs/operator.kubeconfig" \
         | kubectl::apply "$kind_platform" "-"
 
-    kubectl::apply "$kind_platform" ./examples/kcp-certs/platform/broker.yaml
+    kubectl::apply "$kind_platform" ./examples/broker-certificates/platform/broker.yaml
     kubectl::wait "$kind_platform" broker/resource-broker resource-broker-system condition=Available
 }
 

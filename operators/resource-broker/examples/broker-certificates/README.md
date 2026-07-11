@@ -31,7 +31,7 @@ For now just add the krew bin folder to path
 export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 if [[ -n "$CI" ]]; then
     _ci() {
-        ./examples/kcp-certs/run.bash ci
+        ./examples/broker-certificates/run.bash ci
     }
     trap _ci EXIT
 fi
@@ -98,18 +98,18 @@ The resource-broker routes Certificate resources from consumers to
 a provider depending on the constraints declared by the providers.
 
 ```bash ci
-./examples/kcp-certs/run.bash setup
+./examples/broker-certificates/run.bash setup
 ```
 
 Build and start the resource-broker in the platform cluster:
 
 <!-- TODO(ntnn): use operator and prebuilt docker image and include in the setup -->
 ```bash ci
-./examples/kcp-certs/run.bash start-broker
+./examples/broker-certificates/run.bash start-broker
 ```
 
 > [!NOTE]
-> At any point you can run `./examples/kcp-certs/run.bash cleanup` to get back to this state.
+> At any point you can run `./examples/broker-certificates/run.bash cleanup` to get back to this state.
 
 ### Example
 
@@ -296,7 +296,7 @@ spec:
 ```
 
 ```bash ci
-kubectl --kubeconfig="./kubeconfigs/workspaces/consumer.kubeconfig" apply -f ./examples/kcp-certs/cert.yaml
+kubectl --kubeconfig="./kubeconfigs/workspaces/consumer.kubeconfig" apply -f ./examples/broker-certificates/cert.yaml
 ```
 
 The resource-broker will see the Certificate in the virtual workspace of the APIExport, pass it to a matching provider. Since the fqdn is `app.internal.corp` the InternalCA provider will issue the certificate.
@@ -541,8 +541,8 @@ kubectl --kubeconfig kubeconfigs/workspaces/consumer.kubeconfig \
 4. (Optional) Clean up resources created during the example
 
 ```bash noci
-./examples/certs/run.bash cleanup
-./examples/certs/run.bash stop-broker
+./examples/broker-certificates/run.bash cleanup
+./examples/broker-certificates/run.bash stop-broker
 ```
 
 Or delete the clusters:

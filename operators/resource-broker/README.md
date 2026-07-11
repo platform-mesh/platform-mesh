@@ -55,7 +55,7 @@ This is to reduce the downtime for the consumer as much as possible, as some ser
 
 The `examples/` directory contains comprehensive walkthroughs. The best place to start is the **Certificate Brokering with kcp** example:
 
-* [Brokering Certificates with kcp](./examples/kcp-certs/README.md)
+* [Brokering Certificates with kcp](./examples/broker-certificates/README.md)
 
 ## License
 
