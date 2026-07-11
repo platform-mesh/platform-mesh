@@ -42,11 +42,7 @@ spec:
       openAPIV3Schema:
         description: |-
           Assignment records the sticky assignment of a single consumer resource
-          to a provider. The broker creates one per brokered resource. The broker
-          keeps checking that the assigned provider still accepts the resource;
-          when it no longer does, a Migration moves the assignment to a new
-          provider. The object name is a deterministic hash of
-          (consumerCluster, gvr, namespace, name).
+          to a provider. The broker creates one per brokered resource.
         properties:
           apiVersion:
             description: |-
@@ -106,7 +102,7 @@ spec:
               providerCluster:
                 description: |-
                   ProviderCluster is the logical cluster name of the provider
-                  workspace the resource is assigned to.
+                  workspace the resource should be served by.
                 minLength: 1
                 type: string
             required:
@@ -119,11 +115,16 @@ spec:
           status:
             description: AssignmentStatus defines the observed state of Assignment.
             properties:
+              acceptAPIName:
+                description: |-
+                  AcceptAPIName is the name of the AcceptAPI object in the provider
+                  workspace currently serving the resource.
+                type: string
               apiExportName:
                 description: |-
                   APIExportName is the name of the APIExport serving the assigned
-                  GVR, resolved from the AcceptAPI once and kept for the lifetime
-                  of the assignment.
+                  GVR, resolved from the AcceptAPI of the provider currently
+                  serving the resource.
                 type: string
               conditions:
                 description: |-
@@ -189,6 +190,11 @@ spec:
                 x-kubernetes-list-type: map
               phase:
                 description: Phase is the current lifecycle phase.
+                type: string
+              providerCluster:
+                description: |-
+                  ProviderCluster is the logical cluster name of the provider
+                  workspace currently serving the resource.
                 type: string
               stagingWorkspace:
                 description: |-

@@ -43,11 +43,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: |-
-          Migration moves a brokered resource from one provider to another.
-          The broker creates one when the assigned provider no longer accepts
-          the resource. The object name is a deterministic hash of the same
-          tuple as the Assignment name (consumerCluster, gvr, namespace, name).
+        description: Migration moves a brokered resource from one provider to another.
         properties:
           apiVersion:
             description: |-
@@ -74,14 +70,11 @@ spec:
                 minLength: 1
                 type: string
               from:
-                description: |-
-                  From is the provider the resource is migrated away from,
-                  a snapshot of the assignment at migration start.
+                description: From is the provider the resource is migrated away from.
                 properties:
                   acceptAPIName:
-                    description: |-
-                      AcceptAPIName is the name of the AcceptAPI object in the provider
-                      workspace.
+                    description: AcceptAPIName is the name of the AcceptAPI object
+                      in the provider cluster.
                     minLength: 1
                     type: string
                   gvk:
@@ -100,9 +93,8 @@ spec:
                     - version
                     type: object
                   providerCluster:
-                    description: |-
-                      ProviderCluster is the logical cluster name of the provider
-                      workspace.
+                    description: ProviderCluster is the logical cluster name of the
+                      provider workspace.
                     minLength: 1
                     type: string
                 required:
@@ -110,13 +102,35 @@ spec:
                 - gvk
                 - providerCluster
                 type: object
+              fromStagingWorkspace:
+                description: |-
+                  FromStagingWorkspace is the origin StagingWorkspace the resource
+                  is migrated away from.
+                minLength: 1
+                type: string
+              name:
+                description: |-
+                  Name is the name of the migrated resource in the staging
+                  workspaces.
+                minLength: 1
+                type: string
+              namespace:
+                description: |-
+                  Namespace is the namespace of the migrated resource in the
+                  staging workspaces. Empty for cluster-scoped resources.
+                type: string
+              stagingWorkspace:
+                description: |-
+                  StagingWorkspace is the destination StagingWorkspace the resource
+                  is migrated to.
+                minLength: 1
+                type: string
               to:
                 description: To is the provider the resource is migrated to.
                 properties:
                   acceptAPIName:
-                    description: |-
-                      AcceptAPIName is the name of the AcceptAPI object in the provider
-                      workspace.
+                    description: AcceptAPIName is the name of the AcceptAPI object
+                      in the provider cluster.
                     minLength: 1
                     type: string
                   gvk:
@@ -135,9 +149,8 @@ spec:
                     - version
                     type: object
                   providerCluster:
-                    description: |-
-                      ProviderCluster is the logical cluster name of the provider
-                      workspace.
+                    description: ProviderCluster is the logical cluster name of the
+                      provider workspace.
                     minLength: 1
                     type: string
                 required:
@@ -148,6 +161,9 @@ spec:
             required:
             - assignment
             - from
+            - fromStagingWorkspace
+            - name
+            - stagingWorkspace
             - to
             type: object
           status:
@@ -156,8 +172,7 @@ spec:
               conditions:
                 description: |-
                   Conditions represent the current state of the Migration.
-                  Condition types are StagingWorkspaceReady, StagesCompleted,
-                  CutoverCompleted and Ready.
+                  Condition types are StagesCompleted, CutoverCompleted and Ready.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -216,20 +231,9 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              fromStagingWorkspace:
-                description: |-
-                  FromStagingWorkspace is the name of the StagingWorkspace object
-                  the assignment was served through at migration start.
-                type: string
               stage:
-                description: |-
-                  Stage is the name of the current stage from the matching
+                description: Stage is the name of the current stage from the matching
                   MigrationConfiguration.
-                type: string
-              stagingWorkspace:
-                description: |-
-                  StagingWorkspace is the name of the StagingWorkspace object
-                  serving the target provider.
                 type: string
               state:
                 description: State represents the current state of the migration process.
