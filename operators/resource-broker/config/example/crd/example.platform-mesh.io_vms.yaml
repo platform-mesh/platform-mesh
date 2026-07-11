@@ -168,6 +168,10 @@ spec:
                   type: object
                 description: RelatedResources lists resources related to this VM.
                 type: object
+              status:
+                description: Status reports the provider-side availability of the
+                  VM.
+                type: string
             type: object
         required:
         - spec
