@@ -171,6 +171,11 @@ type AcceptAPIDenyReason struct {
 
 // AcceptAPIStatus defines the observed state of AcceptAPI.
 type AcceptAPIStatus struct {
+	// ProviderPath is the resolved kcp workspace path of the provider's
+	// workspace (where the AcceptAPI object lives). Set by the broker.
+	// +optional
+	ProviderPath string `json:"providerPath,omitempty"`
+
 	// conditions represent the current state of the AcceptAPI resource.
 	// Each condition has a unique type and reflects the status of a specific aspect of the resource.
 	//
