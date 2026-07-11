@@ -1,4 +1,0 @@
-resources:
-  - apiexport.yaml
-  - bind-acceptapis.yaml
-  - acceptapi.yaml

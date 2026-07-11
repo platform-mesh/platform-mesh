@@ -1,4 +1,0 @@
-namespace: internalca
-resources:
-  - issuer.yaml
-  - rgd.yaml
