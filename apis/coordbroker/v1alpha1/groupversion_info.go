@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API Schema definitions for the broker v1alpha1 API group.
+// Package v1alpha1 contains API Schema definitions for the coord.broker v1alpha1 API group.
 // +kubebuilder:object:generate=true
 // +groupName=coord.broker.platform-mesh.io
 package v1alpha1
@@ -41,6 +41,8 @@ var (
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
+		&Assignment{},
+		&AssignmentList{},
 		&Migration{},
 		&MigrationList{},
 		&MigrationConfiguration{},
