@@ -40,7 +40,6 @@ const (
 	testProviderCluster = "provider-cluster"
 	testExportName      = "example-export"
 	testAcceptAPIName   = "accept-widgets"
-	testStagingName     = "staging-abc123"
 	testTreeRoot        = "root:staging"
 	testNamespace       = "default"
 	testResourceName    = "my-widget"
@@ -49,6 +48,10 @@ const (
 var (
 	testGVK = schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "Widget"}
 	testGVR = metav1.GroupVersionResource{Group: "example.io", Version: "v1", Resource: "widgets"}
+
+	// testStagingName is the staging workspace name derived for the
+	// assigned provider.
+	testStagingName = stagingWorkspaceName(testConsumerCluster, testProviderCluster, testExportName)
 )
 
 func testScheme(t *testing.T) *runtime.Scheme {
@@ -69,7 +72,7 @@ func testFakeClient(t *testing.T, objs ...ctrlruntimeclient.Object) ctrlruntimec
 	return fake.NewClientBuilder().
 		WithScheme(testScheme(t)).
 		WithObjects(objs...).
-		WithStatusSubresource(statusObj, &pmcoordbrokerv1alpha1.Assignment{}).
+		WithStatusSubresource(statusObj, &pmcoordbrokerv1alpha1.Assignment{}, &pmcoordbrokerv1alpha1.StagingWorkspace{}).
 		Build()
 }
 
@@ -135,10 +138,24 @@ func testAssignment(phase pmcoordbrokerv1alpha1.AssignmentPhase) *pmcoordbrokerv
 			AcceptAPIName:   testAcceptAPIName,
 		},
 		Status: pmcoordbrokerv1alpha1.AssignmentStatus{
+			ProviderCluster:  testProviderCluster,
+			AcceptAPIName:    testAcceptAPIName,
 			APIExportName:    testExportName,
 			StagingWorkspace: testStagingName,
 			Phase:            phase,
 		},
+	}
+}
+
+func testStagingWorkspace(phase pmcoordbrokerv1alpha1.StagingWorkspacePhase) *pmcoordbrokerv1alpha1.StagingWorkspace {
+	return &pmcoordbrokerv1alpha1.StagingWorkspace{
+		ObjectMeta: metav1.ObjectMeta{Name: testStagingName},
+		Spec: pmcoordbrokerv1alpha1.StagingWorkspaceSpec{
+			ConsumerCluster: testConsumerCluster,
+			ProviderCluster: testProviderCluster,
+			APIExportName:   testExportName,
+		},
+		Status: pmcoordbrokerv1alpha1.StagingWorkspaceStatus{Phase: phase},
 	}
 }
 

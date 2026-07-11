@@ -229,13 +229,21 @@ func (s *copySubroutine) activeMigration(ctx context.Context, consumerCluster st
 
 // copyToMigrationTarget copies the consumer spec to the new provider staging workspace.
 func (s *copySubroutine) copyToMigrationTarget(ctx context.Context, migration *pmcoordbrokerv1alpha1.Migration, u *unstructured.Unstructured, consumerClient ctrlruntimeclient.Client, consumerCluster string) (subroutines.Result, error) {
-	if migration.Status.StagingWorkspace == "" {
+	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{}
+	err := s.opts.CoordinationClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: migration.Spec.StagingWorkspace}, sw)
+	switch {
+	case apierrors.IsNotFound(err):
+		return subroutines.Pending(s.opts.RequeueInterval, "waiting for migration target staging workspace"), nil
+	case err != nil:
+		return subroutines.Result{}, fmt.Errorf("getting StagingWorkspace %q: %w", migration.Spec.StagingWorkspace, err)
+	}
+	if sw.Status.Phase != pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady {
 		return subroutines.Pending(s.opts.RequeueInterval, "waiting for migration target staging workspace"), nil
 	}
 
-	targetClient, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot + ":" + migration.Status.StagingWorkspace)
+	targetClient, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot + ":" + migration.Spec.StagingWorkspace)
 	if err != nil {
-		return subroutines.Result{}, fmt.Errorf("building client for staging workspace %q: %w", migration.Status.StagingWorkspace, err)
+		return subroutines.Result{}, fmt.Errorf("building client for staging workspace %q: %w", migration.Spec.StagingWorkspace, err)
 	}
 
 	if u.GetNamespace() != "" {

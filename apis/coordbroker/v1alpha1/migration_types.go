@@ -29,6 +29,29 @@ type MigrationSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	Assignment string `json:"assignment"`
 
+	// Namespace is the namespace of the migrated resource in the
+	// staging workspaces. Empty for cluster-scoped resources.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name is the name of the migrated resource in the staging
+	// workspaces.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+
+	// FromStagingWorkspace is the origin StagingWorkspace the resource
+	// is migrated away from.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	FromStagingWorkspace string `json:"fromStagingWorkspace"`
+
+	// StagingWorkspace is the destination StagingWorkspace the resource
+	// is migrated to.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	StagingWorkspace string `json:"stagingWorkspace"`
+
 	// From is the provider the resource is migrated away from.
 	// +kubebuilder:validation:Required
 	From MigrationTarget `json:"from"`
@@ -57,11 +80,9 @@ type MigrationTarget struct {
 
 // Condition types recorded in [MigrationStatus.Conditions].
 const (
-	// MigrationConditionStagingWorkspaceReady tracks whether the target StagingWorkspace exists and is ready.
-	MigrationConditionStagingWorkspaceReady = "StagingWorkspaceReady"
 	// MigrationConditionStagesCompleted tracks progress through the stages of the matching MigrationConfiguration.
 	MigrationConditionStagesCompleted = "StagesCompleted"
-	// MigrationConditionCutoverCompleted tracks whether the assignment has been repointed to the target provider.
+	// MigrationConditionCutoverCompleted tracks whether the destination copy became available for cutover.
 	MigrationConditionCutoverCompleted = "CutoverCompleted"
 	// MigrationConditionReady aggregates the other conditions.
 	MigrationConditionReady = "Ready"
@@ -77,16 +98,8 @@ type MigrationStatus struct {
 	// +optional
 	Stage string `json:"stage,omitempty"`
 
-	// FromStagingWorkspace is the origin StagingWorkspace.
-	// +optional
-	FromStagingWorkspace string `json:"fromStagingWorkspace,omitempty"`
-
-	// StagingWorkspace is the destination StagingWorkspace.
-	// +optional
-	StagingWorkspace string `json:"stagingWorkspace,omitempty"`
-
 	// Conditions represent the current state of the Migration.
-	// Condition types are StagingWorkspaceReady, StagesCompleted, CutoverCompleted and Ready.
+	// Condition types are StagesCompleted, CutoverCompleted and Ready.
 	// +listType=map
 	// +listMapKey=type
 	// +optional

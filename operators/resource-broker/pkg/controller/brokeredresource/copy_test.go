@@ -191,10 +191,11 @@ func TestCopyProcessCopiesToMigrationTarget(t *testing.T) {
 	require.NoError(t, unstructured.SetNestedField(frozen.Object, int64(1), "spec", "size"))
 
 	consumer := testFakeClient(t, testConsumerObject())
-	clients := migrationTestClients{
+	clients := &migrationTestClients{
 		coordination: testFakeClient(t,
 			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
 			testMigration(pmcoordbrokerv1alpha1.MigrationStateInitialInProgress),
+			testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
 		),
 		provider: testFakeClient(t),
 		staging:  testFakeClient(t, frozen),
@@ -237,11 +238,12 @@ func TestCopyProcessMigrationWithoutTargetFreezes(t *testing.T) {
 
 	nn := types.NamespacedName{Namespace: testNamespace, Name: testResourceName}
 
+	// The migration's target staging workspace does not exist yet in the
+	// coordination cluster; the copy must not flow anywhere.
 	migration := testMigration(pmcoordbrokerv1alpha1.MigrationStatePending)
-	migration.Status.StagingWorkspace = ""
 
 	consumer := testFakeClient(t, testConsumerObject())
-	clients := migrationTestClients{
+	clients := &migrationTestClients{
 		coordination: testFakeClient(t,
 			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
 			migration,
@@ -275,7 +277,7 @@ func TestCopyProcessCutoverCompletedResumesNormalPath(t *testing.T) {
 	nn := types.NamespacedName{Namespace: testNamespace, Name: testResourceName}
 
 	consumer := testFakeClient(t, testConsumerObject())
-	clients := migrationTestClients{
+	clients := &migrationTestClients{
 		coordination: testFakeClient(t,
 			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
 			testMigration(pmcoordbrokerv1alpha1.MigrationStateCutoverCompleted),
@@ -307,10 +309,11 @@ func TestCopyProcessMigrationTargetUpdatesDrift(t *testing.T) {
 	require.NoError(t, unstructured.SetNestedField(drifted.Object, int64(1), "spec", "size"))
 
 	consumer := testFakeClient(t, testConsumerObject())
-	clients := migrationTestClients{
+	clients := &migrationTestClients{
 		coordination: testFakeClient(t,
 			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
 			testMigration(pmcoordbrokerv1alpha1.MigrationStateInitialInProgress),
+			testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
 		),
 		provider: testFakeClient(t),
 		staging:  testFakeClient(t),
@@ -340,10 +343,11 @@ func TestCopyProcessMigrationTargetNoStatusSync(t *testing.T) {
 	require.NoError(t, unstructured.SetNestedField(targetCopy.Object, "Ready", "status", "state"))
 
 	consumer := testFakeClient(t, testConsumerObject())
-	clients := migrationTestClients{
+	clients := &migrationTestClients{
 		coordination: testFakeClient(t,
 			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
 			testMigration(pmcoordbrokerv1alpha1.MigrationStateInitialInProgress),
+			testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
 		),
 		provider: testFakeClient(t),
 		staging:  testFakeClient(t),

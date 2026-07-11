@@ -45,7 +45,7 @@ type AssignmentSpec struct {
 	Name string `json:"name"`
 
 	// ProviderCluster is the logical cluster name of the provider
-	// workspace the resource is assigned to.
+	// workspace the resource should be served by.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	ProviderCluster string `json:"providerCluster"`
@@ -83,9 +83,19 @@ const (
 
 // AssignmentStatus defines the observed state of Assignment.
 type AssignmentStatus struct {
+	// ProviderCluster is the logical cluster name of the provider
+	// workspace currently serving the resource.
+	// +optional
+	ProviderCluster string `json:"providerCluster,omitempty"`
+
+	// AcceptAPIName is the name of the AcceptAPI object in the provider
+	// workspace currently serving the resource.
+	// +optional
+	AcceptAPIName string `json:"acceptAPIName,omitempty"`
+
 	// APIExportName is the name of the APIExport serving the assigned
-	// GVR, resolved from the AcceptAPI once and kept for the lifetime
-	// of the assignment.
+	// GVR, resolved from the AcceptAPI of the provider currently
+	// serving the resource.
 	// +optional
 	APIExportName string `json:"apiExportName,omitempty"`
 

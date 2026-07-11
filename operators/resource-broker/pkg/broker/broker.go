@@ -28,7 +28,7 @@ import (
 	"github.com/go-logr/logr"
 
 	"go.platform-mesh.io/resource-broker/pkg/controller/broker/acceptapi"
-	"go.platform-mesh.io/resource-broker/pkg/controller/coordbroker/assignment"
+	"go.platform-mesh.io/resource-broker/pkg/controller/coordbroker/migration"
 	"go.platform-mesh.io/resource-broker/pkg/controller/coordbroker/stagingworkspace"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -81,8 +81,9 @@ type Options struct {
 	// Required.
 	KcpConfig *rest.Config
 
-	// ComputeConfig is the config for the compute cluster.
-	// Reserved for future use, currently unused.
+	// ComputeConfig is the config for the compute cluster migrations deploy
+	// their stage templates into.
+	// Required.
 	ComputeConfig *rest.Config
 
 	// AcceptAPIName is the name of the APIExportEndpointSlice serving
@@ -106,6 +107,11 @@ type Options struct {
 	// Required.
 	StagingTreeRoot string
 
+	// StageNamespace is the namespace in the compute cluster migrations
+	// deploy their stage templates into.
+	// Defaults to the migration controller's default.
+	StageNamespace string
+
 	// SkipNameValidation disables controller name uniqueness validation.
 	// Set when running multiple brokers in one process, e.g. in tests.
 	SkipNameValidation *bool
@@ -121,6 +127,9 @@ func (opts *Options) validate() error {
 	}
 	if opts.KcpConfig == nil {
 		return errors.New("options: KcpConfig is required")
+	}
+	if opts.ComputeConfig == nil {
+		return errors.New("options: ComputeConfig is required")
 	}
 	if opts.AcceptAPIName == "" {
 		return errors.New("options: AcceptAPIName is required")
@@ -247,18 +256,6 @@ func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opt
 
 	filter := providerClusters(CoordinationClusterName)
 
-	assignmentReconciler, err := assignment.NewReconciler(mgr, assignment.Options{
-		WorkspaceClientFunc: wcf,
-		ClusterFilter:       filter,
-		RequeueInterval:     opts.RequeueInterval,
-	})
-	if err != nil {
-		return fmt.Errorf("creating assignment reconciler: %w", err)
-	}
-	if err := assignmentReconciler.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("setting up assignment reconciler: %w", err)
-	}
-
 	stagingReconciler, err := stagingworkspace.NewReconciler(mgr, stagingworkspace.Options{
 		StagingTreeRoot:     opts.StagingTreeRoot,
 		WorkspaceClientFunc: wcf,
@@ -270,6 +267,26 @@ func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opt
 	}
 	if err := stagingReconciler.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("setting up stagingworkspace reconciler: %w", err)
+	}
+
+	computeClient, err := ctrlruntimeclient.New(opts.ComputeConfig, ctrlruntimeclient.Options{Scheme: scheme})
+	if err != nil {
+		return fmt.Errorf("building compute client: %w", err)
+	}
+
+	migrationReconciler, err := migration.NewReconciler(mgr, migration.Options{
+		ComputeClient:       computeClient,
+		WorkspaceClientFunc: wcf,
+		StagingTreeRoot:     opts.StagingTreeRoot,
+		StageNamespace:      opts.StageNamespace,
+		ClusterFilter:       filter,
+		RequeueInterval:     opts.RequeueInterval,
+	})
+	if err != nil {
+		return fmt.Errorf("creating migration reconciler: %w", err)
+	}
+	if err := migrationReconciler.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up migration reconciler: %w", err)
 	}
 
 	return nil
