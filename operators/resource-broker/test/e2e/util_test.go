@@ -20,6 +20,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,7 +34,9 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -218,7 +221,7 @@ func (f *Frame) NewConsumer(tb testing.TB, name string) *ControlPlane {
 
 // NewProvider creates a provider workspace bound to the broker's AcceptAPI
 // export and serving its own export of the example resources.
-func (f *Frame) NewProvider(tb testing.TB, name string) *ControlPlane {
+func (f *Frame) NewProvider(tb testing.TB, name string, claims ...kcpapisv1alpha2.PermissionClaim) *ControlPlane {
 	tb.Helper()
 	require.NotContains(tb, f.Providers, name, "provider already exists")
 
@@ -233,7 +236,7 @@ func (f *Frame) NewProvider(tb testing.TB, name string) *ControlPlane {
 		"apiresourceschema-dnszones.example.platform-mesh.io.yaml",
 		"apiresourceschema-vms.example.platform-mesh.io.yaml",
 	)
-	createExport(tb, cp.Client, "apiexport-example.platform-mesh.io.yaml")
+	createExport(tb, cp.Client, "apiexport-example.platform-mesh.io.yaml", claims...)
 
 	f.Providers[name] = cp
 	return cp
@@ -313,8 +316,13 @@ func (f *Frame) Options(tb testing.TB) broker.Options {
 // the test if it exits with an error.
 func (f *Frame) StartBroker(t *testing.T) {
 	t.Helper()
+	f.StartBrokerWithOptions(t, f.Options(t))
+}
 
-	mgr, err := broker.New(f.Options(t))
+func (f *Frame) StartBrokerWithOptions(t *testing.T, opts broker.Options) {
+	t.Helper()
+
+	mgr, err := broker.New(opts)
 	require.NoError(t, err)
 
 	g, ctx := errgroup.WithContext(t.Context())
@@ -467,4 +475,119 @@ func acceptClaims(claims ...kcpapisv1alpha2.PermissionClaim) []kcpapisv1alpha2.A
 		})
 	}
 	return accepted
+}
+
+// createAcceptAPI creates an AcceptAPI for the given example resource with the given filters in the provider's workspace.
+func createAcceptAPI(t *testing.T, provider *ControlPlane, name, resource string, filters ...pmbrokerv1alpha1.Filter) {
+	t.Helper()
+
+	acceptAPI := &pmbrokerv1alpha1.AcceptAPI{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: pmbrokerv1alpha1.AcceptAPISpec{
+			GVR: metav1.GroupVersionResource{
+				Group:    "example.platform-mesh.io",
+				Version:  "v1alpha1",
+				Resource: resource,
+			},
+			APIExportName: exampleExportName,
+			Filters:       filters,
+		},
+	}
+	require.NoError(t, provider.Client.Create(t.Context(), acceptAPI))
+}
+
+// verificationWorkspaces lists the verification workspaces.
+func (f *Frame) verificationWorkspaces(tb testing.TB) []kcptenancyv1alpha1.Workspace {
+	tb.Helper()
+
+	list := &kcptenancyv1alpha1.WorkspaceList{}
+	if err := f.HomeClient.List(tb.Context(), list); err != nil {
+		tb.Logf("listing workspaces: %v", err)
+		return nil
+	}
+	var out []kcptenancyv1alpha1.Workspace
+	for _, ws := range list.Items {
+		if strings.HasPrefix(ws.Name, "verify-") {
+			out = append(out, ws)
+		}
+	}
+	return out
+}
+
+// listAssignments lists the Assignments in the coordination workspace.
+func (f *Frame) listAssignments(tb testing.TB) []pmcoordbrokerv1alpha1.Assignment {
+	tb.Helper()
+
+	list := &pmcoordbrokerv1alpha1.AssignmentList{}
+	if err := f.CoordinationClient.List(tb.Context(), list); err != nil {
+		tb.Logf("listing assignments: %v", err)
+		return nil
+	}
+	return list.Items
+}
+
+// listStagingWorkspaces lists the StagingWorkspaces in the coordination workspace.
+func (f *Frame) listStagingWorkspaces(tb testing.TB) []pmcoordbrokerv1alpha1.StagingWorkspace {
+	tb.Helper()
+
+	list := &pmcoordbrokerv1alpha1.StagingWorkspaceList{}
+	if err := f.CoordinationClient.List(tb.Context(), list); err != nil {
+		tb.Logf("listing staging workspaces: %v", err)
+		return nil
+	}
+	return list.Items
+}
+
+// listMigrations lists the Migrations in the coordination workspace.
+func (f *Frame) listMigrations(tb testing.TB) []pmcoordbrokerv1alpha1.Migration {
+	tb.Helper()
+
+	list := &pmcoordbrokerv1alpha1.MigrationList{}
+	if err := f.CoordinationClient.List(tb.Context(), list); err != nil {
+		tb.Logf("listing migrations: %v", err)
+		return nil
+	}
+	return list.Items
+}
+
+// waitForBoundAssignment waits until exactly one Assignment exists and is bound, and returns it.
+func waitForBoundAssignment(t *testing.T, frame *Frame) *pmcoordbrokerv1alpha1.Assignment {
+	t.Helper()
+
+	assignment := &pmcoordbrokerv1alpha1.Assignment{}
+	require.Eventually(t, func() bool {
+		assignments := frame.listAssignments(t)
+		if len(assignments) != 1 {
+			t.Logf("want exactly one assignment, have %d", len(assignments))
+			return false
+		}
+		if assignments[0].Status.Phase != pmcoordbrokerv1alpha1.AssignmentPhaseBound {
+			t.Logf("assignment phase is %q", assignments[0].Status.Phase)
+			return false
+		}
+		*assignment = assignments[0]
+		return true
+	}, wait.ForeverTestTimeout, time.Second)
+	return assignment
+}
+
+// updateVM gets, mutates, and updates the VM until the update succeeds.
+func updateVM(t *testing.T, cl ctrlruntimeclient.Client, nn types.NamespacedName, mutate func(*examplev1alpha1.VM)) {
+	t.Helper()
+
+	require.Eventually(t, func() bool {
+		current := &examplev1alpha1.VM{}
+		if err := cl.Get(t.Context(), nn, current); err != nil {
+			t.Logf("getting vm: %v", err)
+			return false
+		}
+		mutate(current)
+		if err := cl.Update(t.Context(), current); err != nil {
+			t.Logf("updating vm: %v", err)
+			return false
+		}
+		return true
+	}, wait.ForeverTestTimeout, time.Second)
 }
