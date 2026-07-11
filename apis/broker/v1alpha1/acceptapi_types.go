@@ -38,9 +38,6 @@ type AcceptAPISpec struct {
 
 	// Filters to select which resources of the GVR to accept.
 	Filters []Filter `json:"filters,omitempty"`
-
-	// // Template is the template to use for the accepted resources.
-	// Template metav1.RawExtension `json:"template,omitempty"`
 }
 
 // Filter defines a filter to select resources.
