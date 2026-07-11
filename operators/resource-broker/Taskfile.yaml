@@ -52,6 +52,21 @@ tasks:
         vars: { BASEDIR: './api', PATH: /generic/... }
       - task: tools:generate-deepcopy
         vars: { BASEDIR: './api', PATH: /example/... }
+      - task: e2e-fixtures
+
+  e2e-fixtures:
+    desc: Generate kcp fixtures (APIResourceSchemas, APIExports) for the e2e suite
+    deps: [tools:apigen]
+    cmds:
+      # apigen chokes on kustomization.yaml, so stage the CRDs in a tmp dir.
+      - |
+        set -e
+        tmp=$(mktemp -d)
+        trap 'rm -rf "$tmp"' EXIT
+        cp config/broker/crd/broker.platform-mesh.io_acceptapis.yaml "$tmp"
+        cp config/example/crd/example.platform-mesh.io_certificates.yaml "$tmp"
+        cp config/example/crd/example.platform-mesh.io_vms.yaml "$tmp"
+        {{.BIN}}/apigen --input-dir "$tmp" --output-dir test/e2e/setup --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt
 
   build:
     desc: Build the module
