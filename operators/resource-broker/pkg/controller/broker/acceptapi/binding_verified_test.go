@@ -361,3 +361,36 @@ func TestWorkspaceName(t *testing.T) {
 	assert.Equal(t, name, workspaceName(testCluster, testExportName))
 	assert.NotEqual(t, name, workspaceName(testCluster, "other-export"))
 }
+
+func TestLogicalClusterName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		cluster string
+		want    string
+	}{
+		{
+			name:    "unprefixed passes through",
+			cluster: "2ru0gvvvpvme7pnp",
+			want:    "2ru0gvvvpvme7pnp",
+		},
+		{
+			name:    "provider prefix stripped",
+			cluster: "acceptapi#2ru0gvvvpvme7pnp",
+			want:    "2ru0gvvvpvme7pnp",
+		},
+		{
+			name:    "nested prefixes stripped to last segment",
+			cluster: "outer#inner#2ru0gvvvpvme7pnp",
+			want:    "2ru0gvvvpvme7pnp",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, logicalClusterName(tc.cluster))
+		})
+	}
+}

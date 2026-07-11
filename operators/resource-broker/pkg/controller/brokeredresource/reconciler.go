@@ -88,6 +88,15 @@ type Options struct {
 	// Defaults to a uniformly random pick.
 	PickAcceptAPI func(refs []AcceptAPIRef) AcceptAPIRef
 
+	// ControllerName overrides the derived controller name. Set it when
+	// registering the same GVR for multiple providers.
+	// Defaults to a name derived from GVR.
+	ControllerName string
+
+	// ClusterFilter restricts which provider clusters the controller engages.
+	// Optional, defaults to engaging all clusters.
+	ClusterFilter mcbuilder.ClusterFilterFunc
+
 	// RequeueInterval is the poll interval while waiting for assignment,
 	// staging copy and status changes.
 	// Defaults to [DefaultRequeueInterval].
@@ -96,9 +105,10 @@ type Options struct {
 
 // Reconciler reconciles consumer objects of a single brokered GVR.
 type Reconciler struct {
-	gvk       schema.GroupVersionKind
-	name      string
-	lifecycle *lifecycle.Lifecycle
+	gvk           schema.GroupVersionKind
+	name          string
+	clusterFilter mcbuilder.ClusterFilterFunc
+	lifecycle     *lifecycle.Lifecycle
 }
 
 // NewReconciler validates and defaults opts and returns a new brokered
@@ -131,7 +141,10 @@ func NewReconciler(mgr mcmanager.Manager, opts Options) (*Reconciler, error) {
 		opts.RequeueInterval = DefaultRequeueInterval
 	}
 
-	name := controllerName(opts.GVR)
+	name := opts.ControllerName
+	if name == "" {
+		name = controllerName(opts.GVR)
+	}
 	gvk := opts.GVK
 
 	lc := lifecycle.New(mgr, name,
@@ -145,7 +158,7 @@ func NewReconciler(mgr mcmanager.Manager, opts Options) (*Reconciler, error) {
 		&relatedResourcesSubroutine{opts: opts},
 	)
 
-	return &Reconciler{gvk: gvk, name: name, lifecycle: lc}, nil
+	return &Reconciler{gvk: gvk, name: name, clusterFilter: opts.ClusterFilter, lifecycle: lc}, nil
 }
 
 // SetupWithManager registers the reconciler and its watches with the manager.
@@ -154,7 +167,7 @@ func (r *Reconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	obj.SetGroupVersionKind(r.gvk)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(r.name).
-		For(obj).
+		For(obj, mcbuilder.WithClusterFilter(r.clusterFilter)).
 		Complete(r)
 }
 

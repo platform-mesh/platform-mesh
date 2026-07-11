@@ -52,6 +52,10 @@ type Options struct {
 	// Required.
 	WorkspaceClientFunc func(path string) (ctrlruntimeclient.Client, error)
 
+	// ClusterFilter restricts which provider clusters the controller engages.
+	// Optional, defaults to engaging all clusters.
+	ClusterFilter mcbuilder.ClusterFilterFunc
+
 	// RequeueInterval is the poll interval while waiting for workspaces and bindings to become ready.
 	// Defaults to [DefaultRequeueInterval].
 	RequeueInterval time.Duration
@@ -59,7 +63,8 @@ type Options struct {
 
 // Reconciler reconciles StagingWorkspace objects.
 type Reconciler struct {
-	lifecycle *lifecycle.Lifecycle
+	clusterFilter mcbuilder.ClusterFilterFunc
+	lifecycle     *lifecycle.Lifecycle
 }
 
 // NewReconciler validates and defaults opts and returns a new StagingWorkspace reconciler.
@@ -80,14 +85,14 @@ func NewReconciler(mgr mcmanager.Manager, opts Options) (*Reconciler, error) {
 		&bindingReadySubroutine{opts: opts},
 	).WithConditions(conditions.NewManager())
 
-	return &Reconciler{lifecycle: lc}, nil
+	return &Reconciler{clusterFilter: opts.ClusterFilter, lifecycle: lc}, nil
 }
 
 // SetupWithManager registers the reconciler and its watches with the manager.
 func (r *Reconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(ControllerName).
-		For(&pmcoordbrokerv1alpha1.StagingWorkspace{}).
+		For(&pmcoordbrokerv1alpha1.StagingWorkspace{}, mcbuilder.WithClusterFilter(r.clusterFilter)).
 		Complete(r)
 }
 

@@ -82,7 +82,7 @@ func (s *bindingVerifiedSubroutine) Process(ctx context.Context, obj ctrlruntime
 	if !ok {
 		return subroutines.Result{}, fmt.Errorf("no cluster name in context")
 	}
-	providerCluster := cluster.String()
+	providerCluster := logicalClusterName(cluster.String())
 
 	refFinalizer := referenceFinalizer(providerCluster, acceptAPI)
 	wsName := workspaceName(providerCluster, acceptAPI.Spec.APIExportName)
@@ -118,7 +118,7 @@ func (s *bindingVerifiedSubroutine) Finalize(ctx context.Context, obj ctrlruntim
 	if !ok {
 		return subroutines.Result{}, fmt.Errorf("no cluster name in context")
 	}
-	refFinalizer := referenceFinalizer(cluster.String(), acceptAPI)
+	refFinalizer := referenceFinalizer(logicalClusterName(cluster.String()), acceptAPI)
 
 	if err := s.releaseWorkspace(ctx, wsName, refFinalizer); err != nil {
 		return subroutines.Result{}, fmt.Errorf("releasing verification workspace %q: %w", wsName, err)
@@ -274,4 +274,14 @@ func workspaceName(providerCluster, apiExportName string) string {
 
 func referenceFinalizer(providerCluster string, acceptAPI *pmbrokerv1alpha1.AcceptAPI) string {
 	return refFinalizerPrefix + names.Hash(providerCluster, acceptAPI.Name)
+}
+
+// logicalClusterName strips a multi-provider prefix ("<provider>#") from the
+// cluster name, yielding the raw logical cluster name usable as a workspace
+// path.
+func logicalClusterName(cluster string) string {
+	if idx := strings.LastIndex(cluster, "#"); idx >= 0 {
+		return cluster[idx+1:]
+	}
+	return cluster
 }

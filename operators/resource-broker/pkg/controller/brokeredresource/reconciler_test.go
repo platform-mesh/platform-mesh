@@ -238,3 +238,19 @@ func TestControllerName(t *testing.T) {
 		})
 	}
 }
+
+func TestControllerNameOverride(t *testing.T) {
+	t.Parallel()
+
+	clients := testClients{
+		coordination: testFakeClient(t),
+		staging:      testFakeClient(t),
+	}
+
+	opts := testOptions(t, clients, nil)
+	opts.ControllerName = "brokeredresource-my-slice-widgets.example.io"
+
+	r, err := NewReconciler(nil, opts)
+	require.NoError(t, err)
+	assert.Equal(t, "brokeredresource-my-slice-widgets.example.io", r.name)
+}
