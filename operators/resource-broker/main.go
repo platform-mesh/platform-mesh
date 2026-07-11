@@ -19,12 +19,11 @@ package main
 
 import (
 	"flag"
-	"maps"
 	"os"
-	"slices"
 
 	"go.platform-mesh.io/resource-broker/pkg/broker"
 
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -41,7 +40,7 @@ var (
 	fKcpKubeconfig = flag.String(
 		"kcp-kubeconfig",
 		"",
-		"Kubeconfig for the coordination cluster. If not set, in-cluster config will be used.",
+		"Kubeconfig for the kcp instance. If not set, in-cluster config will be used.",
 	)
 	fComputeKubeconfig = flag.String(
 		"compute-kubeconfig",
@@ -52,28 +51,51 @@ var (
 	fAcceptAPI = flag.String(
 		"acceptapi",
 		"",
-		"APIExportEndpointSlice name to watch for AcceptAPIs.",
-	)
-	fBrokerAPI = flag.String(
-		"brokerapi",
-		"",
-		"APIExportEndpointSlice name to watch for APIs to broker.",
+		"APIExportEndpointSlice name to watch for AcceptAPIs. All other APIExportEndpointSlices in the broker workspace serve brokered APIs.",
 	)
 
-	fWorkspaceTreeRoot = flag.String("workspace-tree-root", "root:platform", "kcp workspace path under which staging workspaces are created")
+	fCoordinationWorkspace = flag.String(
+		"coordination-workspace",
+		"root:platform:coordination",
+		"kcp workspace path holding Assignments and StagingWorkspaces",
+	)
+	fVerificationTreeRoot = flag.String(
+		"verification-tree-root",
+		"root:platform",
+		"kcp workspace path under which verification workspaces are created",
+	)
+	fStagingTreeRoot = flag.String(
+		"staging-tree-root",
+		"root:platform",
+		"kcp workspace path under which staging workspaces are created",
+	)
 )
+
+// loadKubeconfig loads a rest config from the given kubeconfig path, falling
+// back to fallback if the path is empty.
+func loadKubeconfig(path string, fallback *rest.Config) (*rest.Config, error) {
+	if path == "" {
+		return fallback, nil
+	}
+
+	raw, err := clientcmd.LoadFromFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return clientcmd.NewNonInteractiveClientConfig(
+		*raw,
+		raw.CurrentContext,
+		&clientcmd.ConfigOverrides{},
+		nil,
+	).ClientConfig()
+}
 
 func main() {
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
-
-	watchKinds := map[string]bool{}
-	flag.Func("watch-kind", "Kind to watch in the form of Kind.version.group", func(s string) error {
-		watchKinds[s] = true
-		return nil
-	})
 
 	flag.Parse()
 
@@ -87,59 +109,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	computeConfig := local
-	if *fComputeKubeconfig != "" {
-		rawComputeConfig, err := clientcmd.LoadFromFile(*fComputeKubeconfig)
-		if err != nil {
-			setupLog.Error(err, "unable to load compute kubeconfig", "path", *fComputeKubeconfig)
-			os.Exit(1)
-		}
-
-		computeConfig, err = clientcmd.NewNonInteractiveClientConfig(
-			*rawComputeConfig,
-			rawComputeConfig.CurrentContext,
-			&clientcmd.ConfigOverrides{},
-			nil,
-		).ClientConfig()
-		if err != nil {
-			setupLog.Error(err, "unable to create compute rest config")
-			os.Exit(1)
-		}
+	kcpConfig, err := loadKubeconfig(*fKcpKubeconfig, local)
+	if err != nil {
+		setupLog.Error(err, "unable to load kcp kubeconfig", "path", *fKcpKubeconfig)
+		os.Exit(1)
 	}
 
-	kcpConfig := local
-	if *fKcpKubeconfig != "" {
-		rawCoordinationConfig, err := clientcmd.LoadFromFile(*fKcpKubeconfig)
-		if err != nil {
-			setupLog.Error(err, "unable to load coordination kubeconfig", "path", *fKcpKubeconfig)
-			os.Exit(1)
-		}
-
-		kcpConfig, err = clientcmd.NewNonInteractiveClientConfig(
-			*rawCoordinationConfig,
-			rawCoordinationConfig.CurrentContext,
-			&clientcmd.ConfigOverrides{},
-			nil,
-		).ClientConfig()
-		if err != nil {
-			setupLog.Error(err, "unable to create coordination rest config")
-			os.Exit(1)
-		}
+	computeConfig, err := loadKubeconfig(*fComputeKubeconfig, local)
+	if err != nil {
+		setupLog.Error(err, "unable to load compute kubeconfig", "path", *fComputeKubeconfig)
+		os.Exit(1)
 	}
 
 	brk, err := broker.New(broker.Options{
-		Name:       "kcp-main",
-		Log:        setupLog.WithName("broker"),
-		WatchKinds: slices.Collect(maps.Keys(watchKinds)),
+		Log: setupLog.WithName("broker"),
 
-		LocalConfig:           local,
-		KcpConfig:             kcpConfig,
-		MigrationCoordination: kcpConfig,
-		ComputeConfig:         computeConfig,
+		LocalConfig:   local,
+		KcpConfig:     kcpConfig,
+		ComputeConfig: computeConfig,
 
-		AcceptAPIName:     *fAcceptAPI,
-		BrokerAPIName:     *fBrokerAPI,
-		WorkspaceTreeRoot: *fWorkspaceTreeRoot,
+		AcceptAPIName: *fAcceptAPI,
+
+		CoordinationWorkspace: *fCoordinationWorkspace,
+		VerificationTreeRoot:  *fVerificationTreeRoot,
+		StagingTreeRoot:       *fStagingTreeRoot,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to setup broker")
