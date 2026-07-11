@@ -76,7 +76,7 @@ tasks:
   docker-build:
     desc: Build the Docker image
     cmds:
-      - echo "TBD"
+      - docker build -f Dockerfile ../../
 
   ## Testing
   fmt:
