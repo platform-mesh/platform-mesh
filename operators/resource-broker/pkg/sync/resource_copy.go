@@ -118,15 +118,20 @@ func CopyResource(
 
 	if !EqualObjects(sourceObj, existing) {
 		log.V(2).Info("Objects not equal, updating target")
-		// TODO this only copies fields from source to target, omitting
-		// if source deletes a field that exists in target.
-		// A more robust merge strategy would be better.
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// Re-fetch the target object to get the latest resourceVersion
 			if err := target.Get(ctx, targetName, existing); err != nil {
 				return err
 			}
 			toUpdate := existing.DeepCopy()
+			for k := range toUpdate.Object {
+				if k == metadataKey || k == statusKey {
+					continue
+				}
+				if _, ok := sourceObj.Object[k]; !ok {
+					delete(toUpdate.Object, k)
+				}
+			}
 			for k, v := range sourceObj.Object {
 				if k == metadataKey || k == statusKey {
 					continue

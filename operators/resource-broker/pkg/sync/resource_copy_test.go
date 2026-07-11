@@ -24,6 +24,11 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestStripClusterMetadata(t *testing.T) {
@@ -330,4 +335,123 @@ func TestMakeCond(t *testing.T) {
 		assert.Equal(t, "Status sync failed", cond.Message)
 		assert.False(t, cond.LastTransitionTime.IsZero())
 	})
+}
+
+var testGVK = schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "Widget"}
+
+func testCopyScheme(t *testing.T) *runtime.Scheme {
+	t.Helper()
+	s := runtime.NewScheme()
+	s.AddKnownTypeWithName(testGVK, &unstructured.Unstructured{})
+	s.AddKnownTypeWithName(testGVK.GroupVersion().WithKind(testGVK.Kind+"List"), &unstructured.UnstructuredList{})
+	return s
+}
+
+func testCopyClient(t *testing.T, objs ...ctrlruntimeclient.Object) ctrlruntimeclient.Client {
+	t.Helper()
+	statusObj := &unstructured.Unstructured{}
+	statusObj.SetGroupVersionKind(testGVK)
+	return fake.NewClientBuilder().
+		WithScheme(testCopyScheme(t)).
+		WithObjects(objs...).
+		WithStatusSubresource(statusObj).
+		Build()
+}
+
+func testWidget(fields map[string]any) *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "example.io/v1",
+		"kind":       "Widget",
+		"metadata": map[string]any{
+			"name":      "my-widget",
+			"namespace": "default",
+		},
+	}}
+	for k, v := range fields {
+		obj.Object[k] = v
+	}
+	return obj
+}
+
+func TestCopyResource(t *testing.T) {
+	t.Parallel()
+
+	nn := types.NamespacedName{Namespace: "default", Name: "my-widget"}
+
+	tests := []struct {
+		name       string
+		source     *unstructured.Unstructured
+		target     *unstructured.Unstructured
+		wantSpec   map[string]any
+		wantExtra  map[string]any // top-level keys expected present on target
+		wantAbsent []string       // top-level keys expected absent on target
+		wantStatus map[string]any // status expected on source after copy-back
+	}{
+		{
+			name:     "creates missing target",
+			source:   testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}}),
+			wantSpec: map[string]any{"size": int64(3)},
+		},
+		{
+			name:     "updates drifted target",
+			source:   testWidget(map[string]any{"spec": map[string]any{"size": int64(5)}}),
+			target:   testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}}),
+			wantSpec: map[string]any{"size": int64(5)},
+		},
+		{
+			name:       "deletes top-level keys removed from source",
+			source:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}}),
+			target:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}, "extra": map[string]any{"stale": true}}),
+			wantSpec:   map[string]any{"size": int64(3)},
+			wantAbsent: []string{"extra"},
+		},
+		{
+			name:      "copies added top-level keys",
+			source:    testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}, "extra": map[string]any{"fresh": true}}),
+			target:    testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}}),
+			wantSpec:  map[string]any{"size": int64(3)},
+			wantExtra: map[string]any{"fresh": true},
+		},
+		{
+			name:       "copies status back to source",
+			source:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}}),
+			target:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}, "status": map[string]any{"phase": "Ready"}}),
+			wantSpec:   map[string]any{"size": int64(3)},
+			wantStatus: map[string]any{"phase": "Ready"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			sourceClient := testCopyClient(t, tc.source)
+			var targetObjs []ctrlruntimeclient.Object
+			if tc.target != nil {
+				targetObjs = append(targetObjs, tc.target)
+			}
+			targetClient := testCopyClient(t, targetObjs...)
+
+			_, err := CopyResource(t.Context(), testGVK, nn, nn, sourceClient, targetClient)
+			require.NoError(t, err)
+
+			got := &unstructured.Unstructured{}
+			got.SetGroupVersionKind(testGVK)
+			require.NoError(t, targetClient.Get(t.Context(), nn, got))
+			assert.Equal(t, tc.wantSpec, got.Object["spec"])
+			if tc.wantExtra != nil {
+				assert.Equal(t, tc.wantExtra, got.Object["extra"])
+			}
+			for _, key := range tc.wantAbsent {
+				assert.NotContains(t, got.Object, key)
+			}
+
+			if tc.wantStatus != nil {
+				src := &unstructured.Unstructured{}
+				src.SetGroupVersionKind(testGVK)
+				require.NoError(t, sourceClient.Get(t.Context(), nn, src))
+				assert.Equal(t, tc.wantStatus, src.Object["status"])
+			}
+		})
+	}
 }
