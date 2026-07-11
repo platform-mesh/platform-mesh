@@ -45,10 +45,11 @@ func makeCond(t ConditionType, ok bool, reason, msg string) metav1.Condition {
 		s = metav1.ConditionTrue
 	}
 	return metav1.Condition{
-		Type:    t.String(),
-		Status:  s,
-		Reason:  reason,
-		Message: msg,
+		Type:               t.String(),
+		Status:             s,
+		Reason:             reason,
+		Message:            msg,
+		LastTransitionTime: metav1.Now(),
 	}
 }
 

@@ -316,6 +316,7 @@ func TestMakeCond(t *testing.T) {
 		assert.Equal(t, metav1.ConditionTrue, cond.Status)
 		assert.Equal(t, "Success", cond.Reason)
 		assert.Equal(t, "Resource copied successfully", cond.Message)
+		assert.False(t, cond.LastTransitionTime.IsZero())
 	})
 
 	t.Run("creates condition with false status", func(t *testing.T) {
@@ -327,5 +328,6 @@ func TestMakeCond(t *testing.T) {
 		assert.Equal(t, metav1.ConditionFalse, cond.Status)
 		assert.Equal(t, "Failed", cond.Reason)
 		assert.Equal(t, "Status sync failed", cond.Message)
+		assert.False(t, cond.LastTransitionTime.IsZero())
 	})
 }
