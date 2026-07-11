@@ -18,6 +18,9 @@ mkdir -p "$workspace_kubeconfigs"
 
 kind_platform="$kubeconfigs/platform.kubeconfig"
 ws_platform="$workspace_kubeconfigs/platform.kubeconfig"
+ws_broker="$workspace_kubeconfigs/broker.kubeconfig"
+ws_staging="$workspace_kubeconfigs/staging.kubeconfig"
+ws_verification="$workspace_kubeconfigs/verification.kubeconfig"
 
 kind_internalca="$kubeconfigs/internalca.kubeconfig"
 ws_internalca="$workspace_kubeconfigs/internalca.kubeconfig"
@@ -27,7 +30,6 @@ ws_externalca="$workspace_kubeconfigs/externalca.kubeconfig"
 
 kind_consumer="$kubeconfigs/consumer.kubeconfig"
 ws_consumer="$workspace_kubeconfigs/consumer.kubeconfig"
-vw_consumer="$workspace_kubeconfigs/consumer.vw.kubeconfig"
 
 _setup() {
     log "Setting up platform cluster"
@@ -35,14 +37,6 @@ _setup() {
     helm::install::certmanager "$kind_platform"
     helm::install::etcddruid "$kind_platform"
     helm::install::kcp "$kind_platform"
-
-    log "Deploy resource-broker-operator"
-    if [[ -z "$CI" ]]; then
-        make docker-build-operator || die "Failed to build resource-broker-operator docker image"
-    fi
-    make kind-load-operator KIND_CLUSTER=broker-platform \
-        || die "Failed to load resource-broker-operator into kind cluster"
-    make deploy-operator KUBECONFIG="$kind_platform" || die "Failed to deploy resource-broker-operator"
 
     log "Setting up kcp"
     kubectl::kustomize "$kind_platform" "./examples/broker-certificates/platform"
@@ -54,12 +48,20 @@ _setup() {
     log "Setting up platform kcp workspace"
     kcp::create_workspace "$kubeconfigs/kcp-admin.kubeconfig" "$ws_platform" "platform"
 
-    log "Installing broker CRDs into platform workspace"
+    log "Setting up broker kcp workspaces"
+    # root:platform:broker doubles as the coordination workspace, with
+    # the staging and verification tree roots as children.
+    kcp::create_workspace "$ws_platform" "$ws_broker" "broker"
+    kcp::create_workspace "$ws_broker" "$ws_staging" "staging"
+    kcp::create_workspace "$ws_broker" "$ws_verification" "verification"
+
+    log "Installing coordination CRDs into broker workspace"
     kubectl::apply \
-        "$ws_platform" \
-        ./config/broker/crd/broker.platform-mesh.io_migrationconfigurations.yaml \
-        ./config/broker/crd/broker.platform-mesh.io_migrations.yaml \
-        ./config/broker/crd/broker.platform-mesh.io_stagingworkspaces.yaml
+        "$ws_broker" \
+        ./config/coordbroker/crd/coord.broker.platform-mesh.io_assignments.yaml \
+        ./config/coordbroker/crd/coord.broker.platform-mesh.io_migrationconfigurations.yaml \
+        ./config/coordbroker/crd/coord.broker.platform-mesh.io_migrations.yaml \
+        ./config/coordbroker/crd/coord.broker.platform-mesh.io_stagingworkspaces.yaml
 
     log "Setting up AcceptAPI APIExport for providers"
     kcp::apiexport "$ws_platform" ./config/broker/crd/broker.platform-mesh.io_acceptapis.yaml \
@@ -86,13 +88,6 @@ _setup() {
     log "Setting up consumer kcp workspace"
     kcp::create_workspace "$kubeconfigs/kcp-admin.kubeconfig" "$ws_consumer" "consumer"
 
-}
-
-_cluster_id() {
-    local kubeconfig="$1"
-    local resource="$2"
-    kubectl --kubeconfig "$kubeconfig" get "$resource" \
-        -o jsonpath='{.metadata.annotations.kcp\.io/cluster}'
 }
 
 _provider_setup_new() {
@@ -134,27 +129,6 @@ _provider_setup_new() {
     AGENT_NAME="$name" apisyncagent::publish "$kind_kubeconfig" \
         "certificates" "Certificate" "example.platform-mesh.io" "v1alpha1" \
         "certificate" "service" "Secret" "status.relatedResources.secret.name"
-
-    log "Bind APIExport $name locally in $name workspace"
-    kcp::apibinding "$ws_kubeconfig" "root:$name" certificates \
-        secrets "" '*' \
-        events "" '*' \
-        namespaces "" '*'
-
-    # Grab the VW endpoint URL for later use
-    local cluster_id="$(_cluster_id "$ws_kubeconfig" apiexportendpointslices/certificates)"
-    local endpoint_url="https://127.0.0.1:8443/services/apiexport/$cluster_id/certificates/clusters/$cluster_id"
-
-    # Create a service account for the broker to use; this should get proper
-    # RBAC in a prod setup
-    local sa_token="$(kcp::serviceaccount::admin "$ws_kubeconfig" broker default)"
-    # Create a kubeconfig for the VW
-    local ws_vw="${ws_kubeconfig%%.kubeconfig}.vw.kubeconfig"
-    kubeconfig::create::token "$ws_vw" "$endpoint_url" "$sa_token"
-
-    # Create a secret with the kubeconfig, this will be pulled by the
-    # broker.
-    kubectl::kubeconfig::secret "$ws_kubeconfig" "$ws_vw" "$name" default "broker-platform-control-plane:32443"
 }
 
 _start_broker() {
@@ -162,12 +136,12 @@ _start_broker() {
 
     log "Deploy resource-broker"
     if [[ -z "$CI" ]]; then
-        make docker-build || die "Failed to build resource-broker docker image"
+        task docker-build || die "Failed to build resource-broker docker image"
     fi
-    make kind-load KIND_CLUSTER=broker-platform \
+    task kind-load KIND_CLUSTER=broker-platform \
         || die "Failed to load resource-broker image into kind cluster"
 
-    # Grab the new kubeconfig for the operator, targeting the platform
+    # Grab the new kubeconfig for the broker, targeting the platform
     # workspace. This will be mounted into the resource-broker pod.
     KUBECONFIG="$kind_platform" \
         kubectl get secret operator-kubeconfig -o jsonpath='{.data.kubeconfig}' \
@@ -178,32 +152,38 @@ _start_broker() {
         "$kubeconfigs/operator.kubeconfig" \
         || die "Failed to modify operator kubeconfig server URL"
 
+    kubectl::kustomize "$kind_platform" "./examples/broker-certificates/platform/broker"
+
     kubectl create secret generic kcp-kubeconfig --namespace=resource-broker-system --dry-run=client -o yaml \
         --from-file=kubeconfig="$kubeconfigs/operator.kubeconfig" \
         | kubectl::apply "$kind_platform" "-"
 
-    kubectl::apply "$kind_platform" ./examples/broker-certificates/platform/broker.yaml
-    kubectl::wait "$kind_platform" broker/resource-broker resource-broker-system condition=Available
+    kubectl::wait "$kind_platform" deployment/resource-broker resource-broker-system condition=Available
 }
 
 _stop_broker() {
-    kubectl --kubeconfig "$kind_platform" delete -n resource-broker-system broker/resource-broker
+    kubectl --kubeconfig "$kind_platform" delete -k ./examples/broker-certificates/platform/broker
 }
 
 _cleanup() {
     log "Cleaning up example resources in consumer ws"
+    # The broker cascades the deletion from here: the staging copy, related
+    # resources, the Assignment and the StagingWorkspace are all cleaned up
+    # by their finalizers.
     kubectl::delete "$ws_consumer" certificates.example.platform-mesh.io/cert-from-consumer
-    log "Cleaning up example resources in consumer vw"
-    kubectl::delete "$vw_consumer" certificates.example.platform-mesh.io/cert-from-consumer
 
-    # api-syncagent creates its own names and namespaces, so query them
+    log "Cleaning up AcceptAPIs in provider workspaces"
+    kubectl --kubeconfig "$ws_internalca" delete --ignore-not-found acceptapis --all
+    kubectl --kubeconfig "$ws_externalca" delete --ignore-not-found acceptapis --all
+
+    # api-syncagent creates its own names and namespaces on the compute
+    # clusters, so query them for leftovers.
     local provider_cert provider_ns
 
     log "Cleaning up example resources in internalca"
     provider_cert="$(kubectl --kubeconfig "$kind_internalca" get certificates.example.platform-mesh.io -A -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)" || true
     provider_ns="$(kubectl --kubeconfig "$kind_internalca" get certificates.example.platform-mesh.io -A -o jsonpath='{.items[0].metadata.namespace}' 2>/dev/null)" || true
     if [[ -n "$provider_cert" ]]; then
-        kubectl::delete "$kubeconfigs/workspaces/internalca.vw.kubeconfig" "certificates.example.platform-mesh.io/$provider_cert"
         kubectl --kubeconfig "$kind_internalca" delete --ignore-not-found -n "$provider_ns" \
             "certificates.example.platform-mesh.io/$provider_cert"
         kubectl --kubeconfig "$kind_internalca" delete --ignore-not-found -n "$provider_ns" \
@@ -214,7 +194,6 @@ _cleanup() {
     provider_cert="$(kubectl --kubeconfig "$kind_externalca" get certificates.example.platform-mesh.io -A -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)" || true
     provider_ns="$(kubectl --kubeconfig "$kind_externalca" get certificates.example.platform-mesh.io -A -o jsonpath='{.items[0].metadata.namespace}' 2>/dev/null)" || true
     if [[ -n "$provider_cert" ]]; then
-        kubectl::delete "$kubeconfigs/workspaces/externalca.vw.kubeconfig" "certificates.example.platform-mesh.io/$provider_cert"
         kubectl --kubeconfig "$kind_externalca" delete --ignore-not-found -n "$provider_ns" \
             "certificates.example.platform-mesh.io/$provider_cert"
         kubectl --kubeconfig "$kind_externalca" delete --ignore-not-found -n "$provider_ns" \
@@ -237,19 +216,26 @@ _cleanup() {
 
 _ci() {
     # Collect logs for debugging - ignore errors since resources may not exist if test failed early
-    kubectl --kubeconfig "$kind_platform" logs -n resource-broker-system deployment/resource-broker-operator > resource-broker-operator.log 2>&1 || true
     kubectl --kubeconfig "$kind_platform" logs -n resource-broker-system deployment/resource-broker > resource-broker.log 2>&1 || true
     kubectl --kubeconfig "$ws_consumer" get certificates.example.platform-mesh.io cert-from-consumer -o yaml > consumer-certificate.yaml 2>&1 || true
 
+    # Broker-internal state: Assignments and StagingWorkspaces in the
+    # broker (coordination) workspace, verification/staging workspaces
+    # under their tree roots.
+    kubectl --kubeconfig "$ws_broker" get assignments -o yaml > broker-assignments.yaml 2>&1 || true
+    kubectl --kubeconfig "$ws_broker" get stagingworkspaces -o yaml > broker-stagingworkspaces.yaml 2>&1 || true
+    kubectl --kubeconfig "$ws_staging" get workspaces -o yaml > staging-workspaces.yaml 2>&1 || true
+    kubectl --kubeconfig "$ws_verification" get workspaces -o yaml > verification-workspaces.yaml 2>&1 || true
+
+    kubectl --kubeconfig "$ws_internalca" get acceptapis -o yaml > internalca-acceptapis.yaml 2>&1 || true
     kubectl --kubeconfig "$kind_internalca" logs deployment/api-syncagent-internalca > internalca-api-syncagent.log 2>&1 || true
     kubectl --kubeconfig "$kind_internalca" logs -n cert-manager deployment/cert-manager > internalca-cert-manager.log 2>&1 || true
     kubectl --kubeconfig "$kind_internalca" get certificates.example.platform-mesh.io -A -o yaml > internalca-certificates.yaml 2>&1 || true
-    kubectl --kubeconfig "$kubeconfigs/workspaces/internalca.vw.kubeconfig" get certificates.example.platform-mesh.io -A -o yaml > internalca-vw-certificates.yaml 2>&1 || true
 
+    kubectl --kubeconfig "$ws_externalca" get acceptapis -o yaml > externalca-acceptapis.yaml 2>&1 || true
     kubectl --kubeconfig "$kind_externalca" logs deployment/api-syncagent-externalca > externalca-api-syncagent.log 2>&1 || true
     kubectl --kubeconfig "$kind_externalca" logs -n cert-manager deployment/cert-manager > externalca-cert-manager.log 2>&1 || true
     kubectl --kubeconfig "$kind_externalca" get certificates.example.platform-mesh.io -A -o yaml > externalca-certificates.yaml 2>&1 || true
-    kubectl --kubeconfig "$kubeconfigs/workspaces/externalca.vw.kubeconfig" get certificates.example.platform-mesh.io -A -o yaml > externalca-vw-certificates.yaml 2>&1 || true
 }
 
 case "$1" in

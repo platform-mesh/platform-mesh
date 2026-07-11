@@ -135,6 +135,26 @@ kubectl::wait::list() {
     log "Found '$_resource' after $retry_count retries"
 }
 
+kubectl::wait::empty() {
+    local _kubeconfig="$1"
+    local _resource="$2"
+    local retry_count=0
+    local max_retries=360
+    while [[ "$(kubectl::wait::_list "$@")" -gt 0 ]] ; do
+        retry_count=$((retry_count + 1))
+        if [[ $retry_count -ge $max_retries ]]; then
+            die "Timed out waiting for '$_resource' to be empty: $_kubeconfig"
+        fi
+        if [[ $((retry_count % 30)) -eq 0 ]]; then
+            log "Still waiting for '$_resource' to be empty ($retry_count/$max_retries)... kubeconfig=$_kubeconfig"
+            # Print additional debug info every 30 seconds
+            kubectl --kubeconfig "$_kubeconfig" get "$_resource" --all-namespaces 2>&1 || true
+        fi
+        sleep 1
+    done
+    log "No '$_resource' left after $retry_count retries"
+}
+
 kubectl::wait::suffix() {
     local kubeconfig="$1"
     local resource="$2"
@@ -245,15 +265,6 @@ helm::install::certmanager() {
           "$@"
 }
 
-helm::install::etcd() {
-    local kubeconfig="$1"
-    shift 1
-    helm::install "$kubeconfig" \
-        etcd oci://registry-1.docker.io/bitnamicharts/etcd \
-        --set auth.rbac.enabled=false --set auth.rbac.create=false \
-        "$@"
-}
-
 helm::install::etcddruid() {
     local kubeconfig="$1"
     shift 1
@@ -330,25 +341,11 @@ apisyncagent::publish() {
         echo "kind: PublishedResource"
         echo "metadata:"
         echo "  name: $name"
-        if [[ -n "$LABEL_KEY" ]] && [[ -n "$LABEL_VALUE" ]]; then
-            echo "  labels:"
-            echo "    $LABEL_KEY: $LABEL_VALUE"
-        fi
         echo "spec:"
         echo "  resource:"
         echo "    kind: $kind"
         echo "    apiGroup: $group"
         echo "    versions: [$versions]"
-        # TODO: This is really ugly but I don't want to copy/paste the
-        # function to maintain another version and I don't want to touch
-        # the old examples.
-        # This shouldn't even be a function in the first place :D
-        if [[ -n "$PROJECTION_GROUP" ]]; then
-            echo "  projection:"
-            echo "    group: $PROJECTION_GROUP"
-            echo "  naming:"
-            echo "    namespace: $AGENT_NAME-{{.ClusterName}}"
-        fi
         echo "  related:"
         while [[ "$#" -gt 0 ]]; do
             apisyncagent::publish::related "$@"
@@ -541,20 +538,27 @@ kcp::create_workspace() {
     local check_kubeconfig="$target_kubeconfig.check"
     cp "$target_kubeconfig" "$check_kubeconfig"
 
-    while ! KUBECONFIG="$target_kubeconfig" kubectl get workspacetype universal &>/dev/null; do
-        log "WorkspaceType universal not found yet, retrying..."
+    # Wait until the parent workspace serves the tenancy API. WorkspaceTypes
+    # only exist in root, so they cannot be used as a readiness gate for
+    # nested workspaces.
+    while ! KUBECONFIG="$target_kubeconfig" kubectl get workspaces &>/dev/null; do
+        log "Workspace API not ready yet, retrying..."
         sleep 2
     done
-    KUBECONFIG="$target_kubeconfig" \
-        kubectl wait --timeout="$timeout" \
-            --for=condition=Ready=True \
-            workspacetypes universal \
-            || die "Timed out waiting for workspacetype universal to become Ready"
 
     log "Creating workspace $wsname"
-    KUBECONFIG="$target_kubeconfig" \
-        kubectl create-workspace "$wsname" --enter --ignore-existing \
-        || die "Failed to create workspace $wsname"
+    local attempt created=""
+    for attempt in {1..30}; do
+        if KUBECONFIG="$target_kubeconfig" \
+            kubectl create-workspace "$wsname" --enter --ignore-existing; then
+            created=1
+            break
+        fi
+        # Right after kcp bootstrap the workspace type may not be ready yet.
+        log "Failed to create workspace $wsname (attempt $attempt), retrying..."
+        sleep 2
+    done
+    [[ -n "$created" ]] || die "Failed to create workspace $wsname"
 
     log "Waiting for workspace $wsname to become Ready"
     while ! KUBECONFIG="$check_kubeconfig" kubectl get workspace "$wsname" &>/dev/null; do
@@ -573,13 +577,22 @@ kcp::apiexport() {
     local crd_file="$2"
     shift 2
 
-    kubectl kcp crd snapshot \
-        --filename "$crd_file" \
-        --prefix current \
-        | KUBECONFIG="$kubeconfig" kubectl apply -f -
+    # Strip leading comment-only documents (license headers); kcp crd
+    # snapshot fails on documents without a kind.
+    local stripped_crd
+    stripped_crd="$(mktemp)"
+    yq 'select(.kind == "CustomResourceDefinition") | ... comments=""' "$crd_file" >"$stripped_crd" \
+        || die "Failed to extract CRD from $crd_file"
 
-    local group="$(yq '.spec.group' "$crd_file")"
-    local export_name="$(yq '.spec.names.plural' "$crd_file")"
+    local schema
+    schema="$(kubectl kcp crd snapshot --filename "$stripped_crd" --prefix current)" \
+        || die "Failed to snapshot CRD $crd_file"
+    KUBECONFIG="$kubeconfig" kubectl apply -f- <<<"$schema" \
+        || die "Failed to apply APIResourceSchema for $crd_file"
+
+    local group="$(yq '.spec.group' "$stripped_crd")"
+    local export_name="$(yq '.spec.names.plural' "$stripped_crd")"
+    rm -f "$stripped_crd"
 
     {
         echo "apiVersion: apis.kcp.io/v1alpha2"

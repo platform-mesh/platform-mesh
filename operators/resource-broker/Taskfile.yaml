@@ -75,8 +75,33 @@ tasks:
 
   docker-build:
     desc: Build the Docker image
+    vars:
+      IMG: '{{.IMG | default "localhost/resource-broker:dev"}}'
     cmds:
-      - docker build -f Dockerfile ../../
+      - docker build -t {{.IMG}} -f Dockerfile ../../
+
+  kind-load:
+    desc: Load the Docker image into a kind cluster
+    vars:
+      IMG: '{{.IMG | default "localhost/resource-broker:dev"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "kind"}}'
+    cmds:
+      - kind load docker-image --name {{.KIND_CLUSTER}} {{.IMG}}
+
+  ## Examples
+  example-*:
+    desc: Run an example (extracts the ci blocks from its README)
+    vars:
+      EXAMPLE: '{{index .MATCH 0}}'
+    cmds:
+      - defer: rm -f run.bash
+      - go run github.com/ntnn/mdextract@main -output run.bash -tags bash,ci ./examples/{{.EXAMPLE}}/README.md
+      - bash -xe ./run.bash
+
+  examples:
+    desc: Run all examples
+    cmds:
+      - task: example-broker-certificates
 
   ## Testing
   fmt:

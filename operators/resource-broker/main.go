@@ -56,17 +56,17 @@ var (
 
 	fCoordinationWorkspace = flag.String(
 		"coordination-workspace",
-		"root:platform:coordination",
+		"root:platform:broker",
 		"kcp workspace path holding Assignments and StagingWorkspaces",
 	)
 	fVerificationTreeRoot = flag.String(
 		"verification-tree-root",
-		"root:platform",
+		"root:platform:broker:verification",
 		"kcp workspace path under which verification workspaces are created",
 	)
 	fStagingTreeRoot = flag.String(
 		"staging-tree-root",
-		"root:platform",
+		"root:platform:broker:staging",
 		"kcp workspace path under which staging workspaces are created",
 	)
 )
