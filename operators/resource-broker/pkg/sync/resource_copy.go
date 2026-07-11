@@ -82,18 +82,6 @@ func EqualObjects(a, b *unstructured.Unstructured) bool {
 	)
 }
 
-// StatusTransformer is a function that transforms the status before it is
-// synced from target to source. This can be used to rewrite resource names
-// or other fields that differ between clusters.
-type StatusTransformer func(status any) any
-
-// CopyResourceOptions contains optional parameters for CopyResource.
-type CopyResourceOptions struct {
-	// StatusTransformer is called to transform the status before syncing
-	// from target to source. If nil, the status is copied verbatim.
-	StatusTransformer StatusTransformer
-}
-
 // CopyResource copies a resource from source to target and reflects the
 // status back. The sourceName and targetName parameters allow the resource
 // to have different names in the source and target clusters.
@@ -102,12 +90,7 @@ func CopyResource(
 	gvk schema.GroupVersionKind,
 	sourceName, targetName types.NamespacedName,
 	source, target ctrlruntimeclient.Client,
-	opts ...CopyResourceOptions,
 ) (metav1.Condition, error) {
-	var opt CopyResourceOptions
-	if len(opts) > 0 {
-		opt = opts[0]
-	}
 	log := logr.FromContextOrDiscard(ctx).WithValues("sourceName", sourceName, "targetName", targetName)
 
 	sourceObj := &unstructured.Unstructured{}
@@ -165,10 +148,6 @@ func CopyResource(
 		"sourceHasStatus", sourceObj.Object[statusKey] != nil)
 
 	if status, ok := existing.Object[statusKey]; ok {
-		// Apply status transformation if provided
-		if opt.StatusTransformer != nil {
-			status = opt.StatusTransformer(status)
-		}
 		if !cmp.Equal(sourceObj.Object[statusKey], status, cmpopts.EquateEmpty()) {
 			log.Info("Syncing status from target to source")
 			// Re-fetch source to get latest resourceVersion before status update
