@@ -20,12 +20,12 @@ spec:
   resources:
   - group: example.platform-mesh.io
     name: certificates
-    schema: v260711-ec65ec1b.certificates.example.platform-mesh.io
+    schema: v260711-7867861d.certificates.example.platform-mesh.io
     storage:
       crd: {}
   - group: example.platform-mesh.io
     name: vms
-    schema: v260711-ec65ec1b.vms.example.platform-mesh.io
+    schema: v260711-7867861d.vms.example.platform-mesh.io
     storage:
       crd: {}
 status: {}

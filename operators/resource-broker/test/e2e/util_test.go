@@ -150,10 +150,14 @@ type Frame struct {
 	HomePath   logicalcluster.Path
 	HomeClient ctrlruntimeclient.Client
 
-	// CoordinationPath is the workspace holding Assignments and
-	// StagingWorkspaces.
+	// CoordinationPath is the workspace holding Assignments,
+	// StagingWorkspaces and Migrations.
 	CoordinationPath   logicalcluster.Path
 	CoordinationClient ctrlruntimeclient.Client
+
+	// ComputePath is the workspace migrations deploy stage templates into.
+	ComputePath   logicalcluster.Path
+	ComputeClient ctrlruntimeclient.Client
 
 	Consumers map[string]*ControlPlane
 	Providers map[string]*ControlPlane
@@ -184,8 +188,13 @@ func NewFrame(tb testing.TB) *Frame {
 	f.CoordinationClient = kcpClient.Cluster(f.CoordinationPath)
 	applyCRDs(tb, f.CoordinationClient,
 		"../../config/coordbroker/crd/coord.broker.platform-mesh.io_assignments.yaml",
+		"../../config/coordbroker/crd/coord.broker.platform-mesh.io_migrationconfigurations.yaml",
+		"../../config/coordbroker/crd/coord.broker.platform-mesh.io_migrations.yaml",
 		"../../config/coordbroker/crd/coord.broker.platform-mesh.io_stagingworkspaces.yaml",
 	)
+
+	_, f.ComputePath = envtest.NewWorkspaceFixture(tb, kcpClient, core.RootCluster.Path(), envtest.WithNamePrefix("compute"))
+	f.ComputeClient = kcpClient.Cluster(f.ComputePath)
 
 	return f
 }
@@ -233,6 +242,27 @@ func (f *Frame) NewProvider(tb testing.TB, name string) *ControlPlane {
 func (f *Frame) StagingClient(tb testing.TB, provider *ControlPlane) ctrlruntimeclient.Client {
 	tb.Helper()
 
+	return kcpClient.Cluster(f.stagingPath(tb, provider))
+}
+
+// StagingWatchClient waits for the staging workspace serving the given
+// provider and returns a watch-capable client for it.
+func (f *Frame) StagingWatchClient(tb testing.TB, provider *ControlPlane) ctrlruntimeclient.WithWatch {
+	tb.Helper()
+
+	cfg := rest.CopyConfig(kcpConfig)
+	cfg.Host += "/clusters/" + f.stagingPath(tb, provider).String()
+
+	cl, err := ctrlruntimeclient.NewWithWatch(cfg, ctrlruntimeclient.Options{Scheme: testScheme})
+	require.NoError(tb, err)
+	return cl
+}
+
+// stagingPath waits for the staging workspace serving the given provider and
+// returns its workspace path.
+func (f *Frame) stagingPath(tb testing.TB, provider *ControlPlane) logicalcluster.Path {
+	tb.Helper()
+
 	var swName string
 	envtest.Eventually(tb, func() (bool, string) {
 		list := &pmcoordbrokerv1alpha1.StagingWorkspaceList{}
@@ -248,7 +278,7 @@ func (f *Frame) StagingClient(tb testing.TB, provider *ControlPlane) ctrlruntime
 		return false, fmt.Sprintf("no staging workspace for provider cluster %s among %d items", provider.ClusterName, len(list.Items))
 	}, wait.ForeverTestTimeout, time.Second, "staging workspace for provider cluster %s", provider.ClusterName)
 
-	return kcpClient.Cluster(f.HomePath.Join(swName))
+	return f.HomePath.Join(swName)
 }
 
 // Options returns broker options wired to this frame's workspaces.
@@ -258,10 +288,14 @@ func (f *Frame) Options(tb testing.TB) broker.Options {
 	homeConfig := rest.CopyConfig(kcpConfig)
 	homeConfig.Host += "/clusters/" + f.HomePath.String()
 
+	computeConfig := rest.CopyConfig(kcpConfig)
+	computeConfig.Host += "/clusters/" + f.ComputePath.String()
+
 	return broker.Options{
 		Log:                   log.Log.WithName(tb.Name()),
 		LocalConfig:           homeConfig,
 		KcpConfig:             homeConfig,
+		ComputeConfig:         computeConfig,
 		AcceptAPIName:         acceptAPIExportName,
 		CoordinationWorkspace: f.CoordinationPath.String(),
 		VerificationTreeRoot:  f.HomePath.String(),

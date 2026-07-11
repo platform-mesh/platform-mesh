@@ -1,5 +1,3 @@
-//go:build kube_legacy
-
 /*
 Copyright The Platform Mesh Authors.
 
@@ -19,485 +17,426 @@ limitations under the License.
 package e2e
 
 import (
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	brokerv1alpha1 "go.platform-mesh.io/apis/coordbroker/v1alpha1"
+	pmbrokerv1alpha1 "go.platform-mesh.io/apis/broker/v1alpha1"
+	pmcoordbrokerv1alpha1 "go.platform-mesh.io/apis/coordbroker/v1alpha1"
 	examplev1alpha1 "go.platform-mesh.io/resource-broker/api/example/v1alpha1"
-	"go.platform-mesh.io/resource-broker/pkg/broker"
+	"go.platform-mesh.io/resource-broker/pkg/controller/brokeredresource"
+	"go.platform-mesh.io/resource-broker/pkg/controller/coordbroker/migration"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// TestMigrationNoStages tests that migrations are created and processed
-// correctly.
+var vmGVK = metav1.GroupVersionKind{
+	Group:   "example.platform-mesh.io",
+	Version: "v1alpha1",
+	Kind:    "VM",
+}
+
+// createVMAcceptAPI creates an AcceptAPI for VMs limited to the given
+// architecture in the provider's workspace.
+func createVMAcceptAPI(t *testing.T, provider *ControlPlane, name, arch string) {
+	t.Helper()
+
+	acceptAPI := &pmbrokerv1alpha1.AcceptAPI{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: pmbrokerv1alpha1.AcceptAPISpec{
+			GVR: metav1.GroupVersionResource{
+				Group:    "example.platform-mesh.io",
+				Version:  "v1alpha1",
+				Resource: "vms",
+			},
+			APIExportName: exampleExportName,
+			Filters: []pmbrokerv1alpha1.Filter{
+				{Key: "arch", ValueIn: []string{arch}},
+			},
+		},
+	}
+	require.NoError(t, provider.Client.Create(t.Context(), acceptAPI))
+}
+
+// waitForVM waits until the VM is visible through the given client and
+// returns it.
+func waitForVM(t *testing.T, cl ctrlruntimeclient.Client, nn types.NamespacedName) *examplev1alpha1.VM {
+	t.Helper()
+
+	vm := &examplev1alpha1.VM{}
+	require.Eventually(t, func() bool {
+		if err := cl.Get(t.Context(), nn, vm); err != nil {
+			t.Logf("getting vm: %v", err)
+			return false
+		}
+		return true
+	}, wait.ForeverTestTimeout, time.Second)
+	return vm
+}
+
+// waitForMigration waits until a Migration exists in the coordination
+// workspace and returns it.
+func waitForMigration(t *testing.T, frame *Frame) *pmcoordbrokerv1alpha1.Migration {
+	t.Helper()
+
+	migrations := &pmcoordbrokerv1alpha1.MigrationList{}
+	require.Eventually(t, func() bool {
+		if err := frame.CoordinationClient.List(t.Context(), migrations); err != nil {
+			t.Logf("listing migrations: %v", err)
+			return false
+		}
+		return len(migrations.Items) > 0
+	}, wait.ForeverTestTimeout, time.Second)
+	return &migrations.Items[0]
+}
+
+// markVMAvailable waits for the VM to appear with the expected architecture
+// in the staging workspace and marks it available, simulating the provider.
+func markVMAvailable(t *testing.T, stagingClient ctrlruntimeclient.Client, nn types.NamespacedName, arch string) {
+	t.Helper()
+
+	require.Eventually(t, func() bool {
+		vm := &examplev1alpha1.VM{}
+		if err := stagingClient.Get(t.Context(), nn, vm); err != nil {
+			t.Logf("getting staging vm: %v", err)
+			return false
+		}
+		if vm.Spec.Arch != arch {
+			t.Logf("staging vm arch is %q, want %q", vm.Spec.Arch, arch)
+			return false
+		}
+		if vm.Status.Status == pmbrokerv1alpha1.StatusAvailable {
+			return true
+		}
+		vm.Status.Status = pmbrokerv1alpha1.StatusAvailable
+		if err := stagingClient.Status().Update(t.Context(), vm); err != nil {
+			t.Logf("updating staging vm status: %v", err)
+			return false
+		}
+		return true
+	}, wait.ForeverTestTimeout, time.Second)
+}
+
+// waitForMigrationFinished waits until the migration is cleaned up and the
+// old provider's staging workspace is released.
+func waitForMigrationFinished(t *testing.T, frame *Frame, oldProvider *ControlPlane) {
+	t.Helper()
+
+	// The migration is deleted after the cutover once the old staging copy
+	// is gone.
+	require.Eventually(t, func() bool {
+		migrations := &pmcoordbrokerv1alpha1.MigrationList{}
+		if err := frame.CoordinationClient.List(t.Context(), migrations); err != nil {
+			t.Logf("listing migrations: %v", err)
+			return false
+		}
+		return len(migrations.Items) == 0
+	}, wait.ForeverTestTimeout, time.Second)
+
+	// The old provider's staging workspace is unreferenced afterwards and
+	// gets garbage collected.
+	require.Eventually(t, func() bool {
+		stagingWorkspaces := &pmcoordbrokerv1alpha1.StagingWorkspaceList{}
+		if err := frame.CoordinationClient.List(t.Context(), stagingWorkspaces); err != nil {
+			t.Logf("listing staging workspaces: %v", err)
+			return false
+		}
+		for _, sw := range stagingWorkspaces.Items {
+			if sw.Spec.ProviderCluster == oldProvider.ClusterName {
+				t.Logf("staging workspace %s still references old provider", sw.Name)
+				return false
+			}
+		}
+		return true
+	}, wait.ForeverTestTimeout, time.Second)
+}
+
 func TestMigrationNoStages(t *testing.T) {
-	t.Skip("pending kcp test rewrite")
 	t.Parallel()
 
 	frame := NewFrame(t)
-	vmRules := resourceRules("example.platform-mesh.io", "vms")
-	frame.Coordination.AddUser(t, "broker", coordinationRules(vmRules...))
 
-	mgrOptions := frame.Options(t)
-	mgrOptions.WatchKinds = []string{"VM.v1alpha1.example.platform-mesh.io"}
+	x86 := frame.NewProvider(t, "x86")
+	arm := frame.NewProvider(t, "arm64")
+	createVMAcceptAPI(t, x86, "accept-x86", "x86_64")
+	createVMAcceptAPI(t, arm, "accept-arm64", "arm64")
 
-	mgr, err := broker.New(mgrOptions)
-	require.NoError(t, err)
-
-	go func() {
-		err := mgr.Start(t.Context())
-		assert.NoError(t, err)
-	}()
-
-	t.Log("Create MigrationConfig in coordination control plane")
-	err = frame.Coordination.Cluster.GetClient().Create(
-		t.Context(),
-		&brokerv1alpha1.MigrationConfiguration{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "migrate-vm",
-				Namespace: "default",
-			},
-			Spec: brokerv1alpha1.MigrationConfigurationSpec{
-				From: metav1.GroupVersionKind{
-					Group:   "example.platform-mesh.io",
-					Version: "v1alpha1",
-					Kind:    "VM",
-				},
-				To: metav1.GroupVersionKind{
-					Group:   "example.platform-mesh.io",
-					Version: "v1alpha1",
-					Kind:    "VM",
-				},
-				// No stages for test, the migration should still be
-				// created in the platform control plane.
-				Stages: []brokerv1alpha1.MigrationStage{},
-			},
+	config := &pmcoordbrokerv1alpha1.MigrationConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "migrate-vm",
 		},
-	)
-	require.NoError(t, err)
-
-	t.Log("Create x86_64 provider and AcceptAPI")
-	x86Provider := frame.NewProvider(t, "x86", providerRules(vmRules...))
-	err = x86Provider.Cluster.GetClient().Create(
-		t.Context(),
-		&brokerv1alpha1.AcceptAPI{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "accept-x86",
-				Namespace: "default",
-			},
-			Spec: brokerv1alpha1.AcceptAPISpec{
-				GVR: metav1.GroupVersionResource{
-					Group:    "example.platform-mesh.io",
-					Version:  "v1alpha1",
-					Resource: "vms",
-				},
-				Filters: []brokerv1alpha1.Filter{
-					{
-						Key:     "arch",
-						ValueIn: []string{"x86_64"},
-					},
-				},
-			},
+		Spec: pmcoordbrokerv1alpha1.MigrationConfigurationSpec{
+			From: vmGVK,
+			To:   vmGVK,
 		},
-	)
-	require.NoError(t, err)
+	}
+	require.NoError(t, frame.CoordinationClient.Create(t.Context(), config))
 
-	t.Log("Create arm64 provider and AcceptAPI")
-	armProvider := frame.NewProvider(t, "arm64", providerRules(vmRules...))
-	err = armProvider.Cluster.GetClient().Create(
-		t.Context(),
-		&brokerv1alpha1.AcceptAPI{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "accept-arm64",
-				Namespace: "default",
-			},
-			Spec: brokerv1alpha1.AcceptAPISpec{
-				GVR: metav1.GroupVersionResource{
-					Group:    "example.platform-mesh.io",
-					Version:  "v1alpha1",
-					Resource: "vms",
-				},
-				Filters: []brokerv1alpha1.Filter{
-					{
-						Key:     "arch",
-						ValueIn: []string{"arm64"},
-					},
-				},
-			},
-		},
-	)
-	require.NoError(t, err)
+	frame.StartBroker(t)
 
-	vmName := "test-vm"
-	vmNamespace := "default" //nolint:goconst,nolintlint
-
-	t.Log("Create Consumer with one VM")
 	consumer := frame.NewConsumer(t, "consumer")
-	err = consumer.Cluster.GetClient().Create(
-		t.Context(),
-		&examplev1alpha1.VM{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      vmName,
-				Namespace: vmNamespace,
-			},
-			Spec: examplev1alpha1.VMSpec{
-				Arch:   "x86_64",
-				Memory: 512,
-			},
+	vm := &examplev1alpha1.VM{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm",
+			Namespace: "default",
 		},
-	)
-	require.NoError(t, err)
-
-	providerVMName := sanitizeClusterName("consumer#consumer#cluster") + "-" + vmName
-
-	t.Log("Wait for VM to appear in x86 provider")
-	vm := &examplev1alpha1.VM{}
-	require.Eventually(t, func() bool {
-		err := x86Provider.Cluster.GetClient().Get(
-			t.Context(),
-			types.NamespacedName{
-				Name:      providerVMName,
-				Namespace: vmNamespace,
-			},
-			vm,
-		)
-		if err != nil {
-			return false
-		}
-		return vm.Spec.Arch == "x86_64"
-	}, wait.ForeverTestTimeout, time.Second)
-
-	t.Log("Update VM to arm64 in Consumer")
-	vm = &examplev1alpha1.VM{}
-	err = consumer.Cluster.GetClient().Get(
-		t.Context(),
-		types.NamespacedName{
-			Name:      vmName,
-			Namespace: vmNamespace,
+		Spec: examplev1alpha1.VMSpec{
+			Arch:   "x86_64",
+			Memory: 512,
 		},
-		vm,
-	)
-	require.NoError(t, err)
-	vm.Spec.Arch = "arm64"
+	}
+	require.NoError(t, consumer.Client.Create(t.Context(), vm))
+	nn := types.NamespacedName{Namespace: vm.Namespace, Name: vm.Name}
 
-	err = consumer.Cluster.GetClient().Update(t.Context(), vm)
-	require.NoError(t, err)
+	x86Staging := frame.StagingClient(t, x86)
+	waitForVM(t, x86Staging, nn)
 
-	t.Log("Check that Migration is created in coordination control plane")
+	// Changing the architecture makes the x86 AcceptAPI reject the VM and
+	// triggers a migration to the arm64 provider.
 	require.Eventually(t, func() bool {
-		migration := &brokerv1alpha1.Migration{}
-		err := frame.Coordination.Cluster.GetClient().Get(
-			t.Context(),
-			types.NamespacedName{
-				Name:      vmName,
-				Namespace: vmNamespace,
-			},
-			migration,
-		)
-		return err == nil
-	}, wait.ForeverTestTimeout, time.Second)
-
-	t.Log("Wait for Migration to complete in coordination control plane")
-	assert.Eventually(t, func() bool {
-		migration := &brokerv1alpha1.Migration{}
-		err := frame.Coordination.Cluster.GetClient().Get(
-			t.Context(),
-			types.NamespacedName{
-				Name:      vmName,
-				Namespace: vmNamespace,
-			},
-			migration,
-		)
-		if err != nil {
+		current := &examplev1alpha1.VM{}
+		if err := consumer.Client.Get(t.Context(), nn, current); err != nil {
+			t.Logf("getting vm: %v", err)
 			return false
 		}
-		t.Logf("Migration status: %+v", migration.Status)
-		return migration.Status.State == brokerv1alpha1.MigrationStateCutoverCompleted
-	}, wait.ForeverTestTimeout, time.Second)
-
-	t.Log("Check that VM appears in arm64 provider")
-	require.Eventually(t, func() bool {
-		vm := &examplev1alpha1.VM{}
-		err := armProvider.Cluster.GetClient().Get(
-			t.Context(),
-			types.NamespacedName{
-				Name:      providerVMName,
-				Namespace: vmNamespace,
-			},
-			vm,
-		)
-		if err != nil {
+		current.Spec.Arch = "arm64"
+		if err := consumer.Client.Update(t.Context(), current); err != nil {
+			t.Logf("updating vm: %v", err)
 			return false
 		}
-		return vm.Spec.Arch == "arm64"
+		return true
 	}, wait.ForeverTestTimeout, time.Second)
 
-	t.Log("Check that VM is removed from x86 provider")
-	require.Eventually(t, func() bool {
-		vm := &examplev1alpha1.VM{}
-		err := x86Provider.Cluster.GetClient().Get(
-			t.Context(),
-			types.NamespacedName{
-				Name:      providerVMName,
-				Namespace: vmNamespace,
-			},
-			vm,
-		)
-		switch {
-		case apierrors.IsNotFound(err):
-			t.Logf("x86 VM successfully deleted")
-			return true
-		case err != nil:
-			t.Logf("Error checking x86 VM deletion: %v", err)
-		default:
-			t.Logf("x86 VM still exists: %+v", vm)
-		}
-		return false
-	}, wait.ForeverTestTimeout, time.Second)
+	waitForMigration(t, frame)
+
+	armStaging := frame.StagingClient(t, arm)
+	markVMAvailable(t, armStaging, nn, "arm64")
+
+	waitForMigrationFinished(t, frame, x86)
 }
 
-// TestMigrationWithStages tests that migrations are created and processed
-// correctly with stages defined.
 func TestMigrationWithStages(t *testing.T) {
-	t.Skip("pending kcp test rewrite")
 	t.Parallel()
 
 	frame := NewFrame(t)
-	vmRules := resourceRules("example.platform-mesh.io", "vms")
-	frame.Coordination.AddUser(t, "broker", coordinationRules(vmRules...))
 
-	mgrOptions := frame.Options(t)
-	mgrOptions.WatchKinds = []string{"VM.v1alpha1.example.platform-mesh.io"}
+	x86 := frame.NewProvider(t, "x86")
+	arm := frame.NewProvider(t, "arm64")
+	createVMAcceptAPI(t, x86, "accept-x86", "x86_64")
+	createVMAcceptAPI(t, arm, "accept-arm64", "arm64")
 
-	mgr, err := broker.New(mgrOptions)
-	require.NoError(t, err)
-
-	go func() {
-		err := mgr.Start(t.Context())
-		assert.NoError(t, err)
-	}()
-
-	t.Log("Create MigrationConfig in coordination control plane")
-	err = frame.Coordination.Cluster.GetClient().Create(
-		t.Context(),
-		&brokerv1alpha1.MigrationConfiguration{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "migrate-vm",
-				Namespace: "default",
-			},
-			Spec: brokerv1alpha1.MigrationConfigurationSpec{
-				From: metav1.GroupVersionKind{
-					Group:   "example.platform-mesh.io",
-					Version: "v1alpha1",
-					Kind:    "VM",
-				},
-				To: metav1.GroupVersionKind{
-					Group:   "example.platform-mesh.io",
-					Version: "v1alpha1",
-					Kind:    "VM",
-				},
-				Stages: []brokerv1alpha1.MigrationStage{
-					{
-						Name: "dummy-configmap",
-						Templates: map[string]runtime.RawExtension{
-							"dummy": {
-								Object: &corev1.ConfigMap{
-									TypeMeta: metav1.TypeMeta{
-										APIVersion: "v1",
-										Kind:       "ConfigMap",
-									},
-									ObjectMeta: metav1.ObjectMeta{
-										Name: "dummy-config",
-									},
-									Data: map[string]string{
-										"key": "value",
-									},
-								},
-							},
+	config := &pmcoordbrokerv1alpha1.MigrationConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "migrate-vm",
+		},
+		Spec: pmcoordbrokerv1alpha1.MigrationConfigurationSpec{
+			From: vmGVK,
+			To:   vmGVK,
+			Stages: []pmcoordbrokerv1alpha1.MigrationStage{
+				{
+					Name: "copy-data",
+					Templates: map[string]runtime.RawExtension{
+						"dummy": {
+							Raw: []byte(`{"apiVersion":"v1","kind":"ConfigMap","data":{"key":"value"}}`),
 						},
-						SuccessConditions: []string{},
+					},
+					SuccessConditions: []string{
+						`dummy.data.key == "done"`,
 					},
 				},
 			},
 		},
-	)
-	require.NoError(t, err)
+	}
+	require.NoError(t, frame.CoordinationClient.Create(t.Context(), config))
 
-	t.Log("Create x86_64 provider and AcceptAPI")
-	x86Provider := frame.NewProvider(t, "x86", providerRules(vmRules...))
-	err = x86Provider.Cluster.GetClient().Create(
-		t.Context(),
-		&brokerv1alpha1.AcceptAPI{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "accept-x86",
-				Namespace: "default",
-			},
-			Spec: brokerv1alpha1.AcceptAPISpec{
-				GVR: metav1.GroupVersionResource{
-					Group:    "example.platform-mesh.io",
-					Version:  "v1alpha1",
-					Resource: "vms",
-				},
-				Filters: []brokerv1alpha1.Filter{
-					{
-						Key:     "arch",
-						ValueIn: []string{"x86_64"},
-					},
-				},
-			},
+	frame.StartBroker(t)
+
+	consumer := frame.NewConsumer(t, "consumer")
+	vm := &examplev1alpha1.VM{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm",
+			Namespace: "default",
 		},
-	)
-	require.NoError(t, err)
-
-	t.Log("Create arm64 provider and AcceptAPI")
-	armProvider := frame.NewProvider(t, "arm64", providerRules(vmRules...))
-	err = armProvider.Cluster.GetClient().Create(
-		t.Context(),
-		&brokerv1alpha1.AcceptAPI{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "accept-arm64",
-				Namespace: "default",
-			},
-			Spec: brokerv1alpha1.AcceptAPISpec{
-				GVR: metav1.GroupVersionResource{
-					Group:    "example.platform-mesh.io",
-					Version:  "v1alpha1",
-					Resource: "vms",
-				},
-				Filters: []brokerv1alpha1.Filter{
-					{
-						Key:     "arch",
-						ValueIn: []string{"arm64"},
-					},
-				},
-			},
+		Spec: examplev1alpha1.VMSpec{
+			Arch:   "x86_64",
+			Memory: 512,
 		},
-	)
-	require.NoError(t, err)
+	}
+	require.NoError(t, consumer.Client.Create(t.Context(), vm))
+	nn := types.NamespacedName{Namespace: vm.Namespace, Name: vm.Name}
 
-	vmName := "test-vm"
-	vmNamespace := "default" //nolint:goconst,nolintlint
+	x86Staging := frame.StagingClient(t, x86)
+	waitForVM(t, x86Staging, nn)
 
-	t.Log("Create Consumer with one VM")
-	consumer := frame.NewConsumer(t, "consumer", consumerRules(vmRules...))
-	err = consumer.Cluster.GetClient().Create(
-		t.Context(),
-		&examplev1alpha1.VM{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      vmName,
-				Namespace: vmNamespace,
-			},
-			Spec: examplev1alpha1.VMSpec{
-				Arch:   "x86_64",
-				Memory: 512,
-			},
-		},
-	)
-	require.NoError(t, err)
-
-	providerVMName := sanitizeClusterName("consumer#consumer#cluster") + "-" + vmName
-
-	t.Log("Wait for VM to appear in x86 provider")
-	vm := &examplev1alpha1.VM{}
 	require.Eventually(t, func() bool {
-		err := x86Provider.Cluster.GetClient().Get(
-			t.Context(),
-			types.NamespacedName{
-				Name:      providerVMName,
-				Namespace: vmNamespace,
-			},
-			vm,
-		)
-		if err != nil {
+		current := &examplev1alpha1.VM{}
+		if err := consumer.Client.Get(t.Context(), nn, current); err != nil {
+			t.Logf("getting vm: %v", err)
 			return false
 		}
-		return vm.Spec.Arch == "x86_64"
-	}, wait.ForeverTestTimeout, time.Second)
-
-	t.Log("Update VM to arm64 in Consumer")
-	vm = &examplev1alpha1.VM{}
-	err = consumer.Cluster.GetClient().Get(
-		t.Context(),
-		types.NamespacedName{
-			Name:      vmName,
-			Namespace: vmNamespace,
-		},
-		vm,
-	)
-	require.NoError(t, err)
-
-	vm.Spec.Arch = "arm64"
-	err = consumer.Cluster.GetClient().Update(t.Context(), vm)
-	require.NoError(t, err)
-
-	t.Log("Check that Migration is created in coordination control plane")
-	migration := &brokerv1alpha1.Migration{}
-	require.Eventually(t, func() bool {
-		err := frame.Coordination.Cluster.GetClient().Get(
-			t.Context(),
-			types.NamespacedName{
-				Name:      vmName,
-				Namespace: vmNamespace,
-			},
-			migration,
-		)
-		return err == nil
-	}, wait.ForeverTestTimeout, time.Second)
-	t.Logf("Migration ID: %s", migration.Status.ID)
-
-	t.Log("Wait for VM to appear in arm provider")
-	require.Eventually(t, func() bool {
-		vm := &examplev1alpha1.VM{}
-		err := armProvider.Cluster.GetClient().Get(
-			t.Context(),
-			types.NamespacedName{
-				Name:      providerVMName,
-				Namespace: vmNamespace,
-			},
-			vm,
-		)
-		if err != nil {
-			t.Logf("Error getting arm64 VM: %v", err)
+		current.Spec.Arch = "arm64"
+		if err := consumer.Client.Update(t.Context(), current); err != nil {
+			t.Logf("updating vm: %v", err)
 			return false
 		}
-		return vm.Spec.Arch == "arm64"
+		return true
 	}, wait.ForeverTestTimeout, time.Second)
 
-	t.Log("Check that VM is removed from x86 provider")
-	assert.Eventually(t, func() bool {
-		vm := &examplev1alpha1.VM{}
-		err := x86Provider.Cluster.GetClient().Get(
-			t.Context(),
-			types.NamespacedName{
-				Name:      providerVMName,
-				Namespace: vmNamespace,
-			},
-			vm,
-		)
-		if apierrors.IsNotFound(err) {
-			t.Logf("x86 VM successfully deleted")
-			return true
+	migrationCR := waitForMigration(t, frame)
+
+	// The stage deploys the template into the compute workspace and waits
+	// for its success conditions.
+	cmName := types.NamespacedName{
+		Namespace: migration.DefaultStageNamespace,
+		Name:      migrationCR.Name + "-dummy",
+	}
+	stageCM := &corev1.ConfigMap{}
+	require.Eventually(t, func() bool {
+		if err := frame.ComputeClient.Get(t.Context(), cmName, stageCM); err != nil {
+			t.Logf("getting stage configmap: %v", err)
+			return false
 		}
-		t.Logf("Error checking x86 VM deletion: %v", err)
-		if err == nil {
-			t.Logf("x86 VM still exists: %+v", vm)
-		}
-		return false
+		return true
+	}, wait.ForeverTestTimeout, time.Second)
+	require.Equal(t, "copy-data", stageCM.Labels[migration.MigrationStageLabel])
+	require.Equal(t, migrationCR.Name, stageCM.Labels[migration.MigrationNameLabel])
+	require.Equal(t, "value", stageCM.Data["key"])
+
+	// Completing the stage's work unblocks the migration.
+	stageCM.Data["key"] = "done"
+	require.NoError(t, frame.ComputeClient.Update(t.Context(), stageCM))
+
+	armStaging := frame.StagingClient(t, arm)
+	markVMAvailable(t, armStaging, nn, "arm64")
+
+	waitForMigrationFinished(t, frame, x86)
+
+	// The stage resources are cleaned up after the stage succeeded.
+	require.Eventually(t, func() bool {
+		err := frame.ComputeClient.Get(t.Context(), cmName, &corev1.ConfigMap{})
+		return err != nil
 	}, wait.ForeverTestTimeout, time.Second)
 }
 
-// sanitizeClusterName is a legacy shim for the removed
-// pkg/broker/generic.SanitizeClusterName helper.
-func sanitizeClusterName(cluster string) string {
-	return strings.ReplaceAll(cluster, "#", ".")
+func TestMigrationFreezesOrigin(t *testing.T) {
+	t.Parallel()
+
+	frame := NewFrame(t)
+
+	x86 := frame.NewProvider(t, "x86")
+	arm := frame.NewProvider(t, "arm64")
+	createVMAcceptAPI(t, x86, "accept-x86", "x86_64")
+	createVMAcceptAPI(t, arm, "accept-arm64", "arm64")
+
+	config := &pmcoordbrokerv1alpha1.MigrationConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "migrate-vm",
+		},
+		Spec: pmcoordbrokerv1alpha1.MigrationConfigurationSpec{
+			From: vmGVK,
+			To:   vmGVK,
+		},
+	}
+	require.NoError(t, frame.CoordinationClient.Create(t.Context(), config))
+
+	frame.StartBroker(t)
+
+	consumer := frame.NewConsumer(t, "consumer")
+	vm := &examplev1alpha1.VM{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm",
+			Namespace: "default",
+		},
+		Spec: examplev1alpha1.VMSpec{
+			Arch:   "x86_64",
+			Memory: 512,
+		},
+	}
+	require.NoError(t, consumer.Client.Create(t.Context(), vm))
+	nn := types.NamespacedName{Namespace: vm.Namespace, Name: vm.Name}
+
+	x86Staging := frame.StagingClient(t, x86)
+	waitForVM(t, x86Staging, nn)
+
+	// Wait for the origin staging copy to settle: the broker annotates the
+	// copy after creating it.
+	settled := &examplev1alpha1.VM{}
+	require.Eventually(t, func() bool {
+		if err := x86Staging.Get(t.Context(), nn, settled); err != nil {
+			t.Logf("getting staging vm: %v", err)
+			return false
+		}
+		anns := settled.GetAnnotations()
+		return anns[brokeredresource.ConsumerClusterAnnotation] != "" &&
+			anns[brokeredresource.ConsumerNameAnnotation] != ""
+	}, wait.ForeverTestTimeout, time.Second)
+
+	// Watch the origin staging copy: during the migration nothing but its
+	// deletion may come through. Starting from the settled resource version
+	// avoids the synthetic initial ADDED event.
+	watcher, err := frame.StagingWatchClient(t, x86).Watch(t.Context(), &examplev1alpha1.VMList{},
+		ctrlruntimeclient.InNamespace(nn.Namespace),
+		ctrlruntimeclient.MatchingFields{"metadata.name": nn.Name},
+		&ctrlruntimeclient.ListOptions{Raw: &metav1.ListOptions{ResourceVersion: settled.ResourceVersion}},
+	)
+	require.NoError(t, err)
+	t.Cleanup(watcher.Stop)
+
+	events := make(chan watch.Event, 64)
+	go func() {
+		defer close(events)
+		for event := range watcher.ResultChan() {
+			events <- event
+		}
+	}()
+
+	// Changing the architecture makes the x86 AcceptAPI reject the VM and
+	// triggers a migration to the arm64 provider.
+	require.Eventually(t, func() bool {
+		current := &examplev1alpha1.VM{}
+		if err := consumer.Client.Get(t.Context(), nn, current); err != nil {
+			t.Logf("getting vm: %v", err)
+			return false
+		}
+		current.Spec.Arch = "arm64"
+		if err := consumer.Client.Update(t.Context(), current); err != nil {
+			t.Logf("updating vm: %v", err)
+			return false
+		}
+		return true
+	}, wait.ForeverTestTimeout, time.Second)
+
+	waitForMigration(t, frame)
+
+	armStaging := frame.StagingClient(t, arm)
+	markVMAvailable(t, armStaging, nn, "arm64")
+
+	waitForMigrationFinished(t, frame, x86)
+
+	watcher.Stop()
+
+	sawDelete := false
+	for event := range events {
+		switch event.Type {
+		case watch.Deleted:
+			sawDelete = true
+		case watch.Error:
+			// The origin staging workspace is torn down at the end of
+			// the migration, which may terminate the watch.
+			t.Logf("watch error event: %v", event.Object)
+		default:
+			require.Failf(t, "origin staging copy changed during migration",
+				"event %s: %v", event.Type, event.Object)
+		}
+	}
+	t.Logf("saw deletion of origin staging copy: %v", sawDelete)
 }

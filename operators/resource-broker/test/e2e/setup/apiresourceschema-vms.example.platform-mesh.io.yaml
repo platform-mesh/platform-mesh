@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260711-ec65ec1b.vms.example.platform-mesh.io
+  name: v260711-7867861d.vms.example.platform-mesh.io
 spec:
   group: example.platform-mesh.io
   names:
@@ -165,6 +165,9 @@ spec:
                 type: object
               description: RelatedResources lists resources related to this VM.
               type: object
+            status:
+              description: Status reports the provider-side availability of the VM.
+              type: string
           type: object
       required:
       - spec
