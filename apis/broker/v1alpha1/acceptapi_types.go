@@ -169,20 +169,34 @@ type AcceptAPIDenyReason struct {
 	Rule string
 }
 
+// Condition types for AcceptAPI. The condition types for the
+// subroutines match the subroutine names; reasons are set by the
+// subroutines lifecycle (Complete, Pending, Error, Stopped, Skipped).
+const (
+	// AcceptAPIConditionBindingVerified indicates whether the broker
+	// successfully bound the referenced APIExport in a verification
+	// workspace.
+	AcceptAPIConditionBindingVerified = "BindingVerified"
+
+	// AcceptAPIConditionReady indicates whether the AcceptAPI is fully
+	// processed and resources can be routed to the provider.
+	AcceptAPIConditionReady = "Ready"
+)
+
 // AcceptAPIStatus defines the observed state of AcceptAPI.
 type AcceptAPIStatus struct {
-	// ProviderPath is the resolved kcp workspace path of the provider's
-	// workspace (where the AcceptAPI object lives). Set by the broker.
+	// VerificationWorkspace is the name of the verification workspace
+	// this AcceptAPI holds a reference finalizer on. Used to clean up
+	// the old workspace when the spec changes. Set by the broker.
 	// +optional
-	ProviderPath string `json:"providerPath,omitempty"`
+	VerificationWorkspace string `json:"verificationWorkspace,omitempty"`
 
 	// conditions represent the current state of the AcceptAPI resource.
 	// Each condition has a unique type and reflects the status of a specific aspect of the resource.
 	//
-	// Standard condition types include:
-	// - "Available": the resource is fully functional
-	// - "Progressing": the resource is being created or updated
-	// - "Degraded": the resource failed to reach or maintain its desired state
+	// Condition types used by the broker:
+	// - "BindingVerified": the referenced APIExport was successfully bound in a verification workspace
+	// - "Ready": the AcceptAPI is fully processed and resources can be routed to the provider
 	//
 	// The status of each condition is one of True, False, or Unknown.
 	// +listType=map
@@ -201,6 +215,16 @@ type AcceptAPI struct {
 
 	Spec   AcceptAPISpec   `json:"spec,omitempty"`
 	Status AcceptAPIStatus `json:"status,omitempty"`
+}
+
+// GetConditions returns the conditions of the AcceptAPI.
+func (acceptAPI *AcceptAPI) GetConditions() []metav1.Condition {
+	return acceptAPI.Status.Conditions
+}
+
+// SetConditions sets the conditions of the AcceptAPI.
+func (acceptAPI *AcceptAPI) SetConditions(conditions []metav1.Condition) {
+	acceptAPI.Status.Conditions = conditions
 }
 
 // +kubebuilder:object:root=true
