@@ -65,6 +65,7 @@ tasks:
         trap 'rm -rf "$tmp"' EXIT
         cp config/broker/crd/broker.platform-mesh.io_acceptapis.yaml "$tmp"
         cp config/example/crd/example.platform-mesh.io_certificates.yaml "$tmp"
+        cp config/example/crd/example.platform-mesh.io_dnszones.yaml "$tmp"
         cp config/example/crd/example.platform-mesh.io_vms.yaml "$tmp"
         {{.BIN}}/apigen --input-dir "$tmp" --output-dir test/e2e/setup --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt
 

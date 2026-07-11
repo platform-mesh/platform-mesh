@@ -177,6 +177,7 @@ func NewFrame(tb testing.TB) *Frame {
 	applySchemas(tb, f.HomeClient,
 		"apiresourceschema-acceptapis.broker.platform-mesh.io.yaml",
 		"apiresourceschema-certificates.example.platform-mesh.io.yaml",
+		"apiresourceschema-dnszones.example.platform-mesh.io.yaml",
 		"apiresourceschema-vms.example.platform-mesh.io.yaml",
 	)
 	createExport(tb, f.HomeClient, "apiexport-broker.platform-mesh.io.yaml")
@@ -229,6 +230,7 @@ func (f *Frame) NewProvider(tb testing.TB, name string) *ControlPlane {
 	waitEndpointSlice(tb, f.HomeClient, acceptAPIExportName)
 	applySchemas(tb, cp.Client,
 		"apiresourceschema-certificates.example.platform-mesh.io.yaml",
+		"apiresourceschema-dnszones.example.platform-mesh.io.yaml",
 		"apiresourceschema-vms.example.platform-mesh.io.yaml",
 	)
 	createExport(tb, cp.Client, "apiexport-example.platform-mesh.io.yaml")

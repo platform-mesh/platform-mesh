@@ -24,6 +24,11 @@ spec:
     storage:
       crd: {}
   - group: example.platform-mesh.io
+    name: dnszones
+    schema: v260711-fc9d4149.dnszones.example.platform-mesh.io
+    storage:
+      crd: {}
+  - group: example.platform-mesh.io
     name: vms
     schema: v260711-7867861d.vms.example.platform-mesh.io
     storage:
