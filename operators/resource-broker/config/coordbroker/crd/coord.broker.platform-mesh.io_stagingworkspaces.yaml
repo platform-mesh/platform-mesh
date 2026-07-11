@@ -28,7 +28,7 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.providerPath
+    - jsonPath: .spec.providerCluster
       name: Provider
       type: string
     - jsonPath: .status.phase
@@ -43,7 +43,7 @@ spec:
         description: |-
           StagingWorkspace represents the kcp workspace in which the broker
           stages consumer resources to sync them between consumer and provider.
-          One exists per unique (consumerCluster, providerPath, apiExportName)
+          One exists per unique (consumerCluster, providerCluster, apiExportName)
           tuple; all resources of the same consumer/provider/API share it.
         properties:
           apiVersion:
@@ -78,23 +78,23 @@ spec:
                   workspace the staging workspace serves.
                 minLength: 1
                 type: string
-              providerPath:
+              providerCluster:
                 description: |-
-                  ProviderPath is the kcp workspace path of the provider workspace
-                  whose APIExport is bound in the staging workspace.
+                  ProviderCluster is the logical cluster name of the provider
+                  workspace whose APIExport is bound in the staging workspace.
                 minLength: 1
                 type: string
             required:
             - apiExportName
             - consumerCluster
-            - providerPath
+            - providerCluster
             type: object
           status:
             description: StagingWorkspaceStatus defines the observed state of StagingWorkspace.
             properties:
-              clusterPath:
+              clusterName:
                 description: |-
-                  ClusterPath is the kcp workspace path of the created staging
+                  ClusterName is the logical cluster name of the created staging
                   workspace. Set once the workspace exists.
                 type: string
               conditions:
