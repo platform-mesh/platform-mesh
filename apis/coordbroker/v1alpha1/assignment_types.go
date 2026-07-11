@@ -74,6 +74,12 @@ const (
 
 // AssignmentStatus defines the observed state of Assignment.
 type AssignmentStatus struct {
+	// APIExportName is the name of the APIExport serving the assigned
+	// GVR, resolved from the AcceptAPI once and kept for the lifetime
+	// of the assignment.
+	// +optional
+	APIExportName string `json:"apiExportName,omitempty"`
+
 	// StagingWorkspace is the name of the StagingWorkspace object the
 	// assignment is served through.
 	// +optional
