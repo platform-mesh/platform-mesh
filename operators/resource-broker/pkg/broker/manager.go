@@ -19,7 +19,6 @@ package broker
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -28,12 +27,12 @@ import (
 
 // newManager returns a multicluster manager configured to coexist with other
 // managers in the same process.
-func newManager(cfg *rest.Config, scheme *runtime.Scheme, provider multicluster.Provider) (mcmanager.Manager, error) {
+func newManager(cfg *rest.Config, scheme *runtime.Scheme, provider multicluster.Provider, skipNameValidation *bool) (mcmanager.Manager, error) {
 	return mcmanager.New(cfg, provider, mcmanager.Options{
 		Scheme:           scheme,
 		PprofBindAddress: "0",
 		Controller: config.Controller{
-			SkipNameValidation: ptr.To(true),
+			SkipNameValidation: skipNameValidation,
 		},
 		Metrics: metricsserver.Options{
 			BindAddress: "0",

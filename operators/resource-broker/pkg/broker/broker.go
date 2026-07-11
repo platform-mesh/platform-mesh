@@ -104,6 +104,10 @@ type Options struct {
 	// are created.
 	// Required.
 	StagingTreeRoot string
+
+	// SkipNameValidation disables controller name uniqueness validation.
+	// Set when running multiple brokers in one process, e.g. in tests.
+	SkipNameValidation *bool
 }
 
 func (opts *Options) validate() error {
@@ -152,7 +156,7 @@ func New(opts Options) (*Broker, error) {
 
 	multiProvider := multi.New(multi.Options{})
 
-	mgr, err := newManager(opts.LocalConfig, scheme, multiProvider)
+	mgr, err := newManager(opts.LocalConfig, scheme, multiProvider, opts.SkipNameValidation)
 	if err != nil {
 		return nil, fmt.Errorf("creating manager: %w", err)
 	}

@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	crcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -167,6 +168,11 @@ func (r *Reconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	obj.SetGroupVersionKind(r.gvk)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(r.name).
+		WithOptions(crcontroller.TypedOptions[mcreconcile.Request]{
+			// The multicluster builder does not propagate manager-level
+			// controller options; forward the setting manually.
+			SkipNameValidation: mgr.GetControllerOptions().SkipNameValidation,
+		}).
 		For(obj, mcbuilder.WithClusterFilter(r.clusterFilter)).
 		Complete(r)
 }

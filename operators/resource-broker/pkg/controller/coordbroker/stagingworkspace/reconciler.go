@@ -28,6 +28,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	crcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -92,6 +93,11 @@ func NewReconciler(mgr mcmanager.Manager, opts Options) (*Reconciler, error) {
 func (r *Reconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(ControllerName).
+		WithOptions(crcontroller.TypedOptions[mcreconcile.Request]{
+			// The multicluster builder does not propagate manager-level
+			// controller options; forward the setting manually.
+			SkipNameValidation: mgr.GetControllerOptions().SkipNameValidation,
+		}).
 		For(&pmcoordbrokerv1alpha1.StagingWorkspace{}, mcbuilder.WithClusterFilter(r.clusterFilter)).
 		Complete(r)
 }
