@@ -273,5 +273,5 @@ func workspaceName(providerCluster, apiExportName string) string {
 }
 
 func referenceFinalizer(providerCluster string, acceptAPI *pmbrokerv1alpha1.AcceptAPI) string {
-	return refFinalizerPrefix + names.Hash(providerCluster, acceptAPI.Namespace, acceptAPI.Name)
+	return refFinalizerPrefix + names.Hash(providerCluster, acceptAPI.Name)
 }

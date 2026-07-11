@@ -52,7 +52,7 @@ func testAcceptAPI() *pmbrokerv1alpha1.AcceptAPI {
 }
 
 func testRefFinalizer() string {
-	return refFinalizerPrefix + names.Hash(testCluster, "", "my-accept")
+	return refFinalizerPrefix + names.Hash(testCluster, "my-accept")
 }
 
 func testSubroutine(t *testing.T, treeObjs, wsObjs []ctrlruntimeclient.Object) (*bindingVerifiedSubroutine, ctrlruntimeclient.Client, ctrlruntimeclient.Client) {
