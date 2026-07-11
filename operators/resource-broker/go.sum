@@ -87,6 +87,8 @@ github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
 github.com/kcp-dev/multicluster-provider v0.8.0 h1:GpifvXjgUUy/V3BDwcPayBhcg85ANN/lI/zWNkEeJpk=
 github.com/kcp-dev/multicluster-provider v0.8.0/go.mod h1:7LkQot2Ljmsv1w5ZjfHpjVEbQwtFQiA6LAWHbiHCGUI=
+github.com/kcp-dev/multicluster-provider/client v0.8.0 h1:OpXBExOSKifMNsscAd07jTob3IWzlKFjPzE3cH0dY7s=
+github.com/kcp-dev/multicluster-provider/client v0.8.0/go.mod h1:kK9CSLmECoRiOU+xKOhIE4tHpQBcBbBvWOgKORC/eqI=
 github.com/kcp-dev/sdk v0.32.3 h1:aJZYLduj+6Xcnjbw4MjYKCp/WfpX6XGFXCMalKMT0Ek=
 github.com/kcp-dev/sdk v0.32.3/go.mod h1:861Aee5vMdMs1gA6Xg8DPlLhy/pt5ReYzdIcsFVr/b4=
 github.com/klauspost/compress v1.18.5 h1:/h1gH5Ce+VWNLSWqPzOVn6XBO+vJbCNGvjoaGBFW2IE=
@@ -142,6 +144,8 @@ go.opentelemetry.io/otel/trace v1.44.0 h1:jxF5CsGYCe74MCRx2X4g7WsY/VBKRqqpNvXlX/
 go.opentelemetry.io/otel/trace v1.44.0/go.mod h1:oLl1jrMQAVo6v3GAggN+1VH9VIz9iUSvW53sW1Q8PIE=
 go.platform-mesh.io/apis v0.0.3 h1:UEE6UJo07NG8rkgdHxox0tPAfHZb0xkMcrJe7RmQeq0=
 go.platform-mesh.io/apis v0.0.3/go.mod h1:EVGHwmU3TD2fihHslTET/J94rW8LWagQzW8/vgRLAkA=
+go.platform-mesh.io/subroutines v0.6.1 h1:ejeC97tKlFyhfo2AIxANya7y6dzPgutJH/Tm0fCwPa0=
+go.platform-mesh.io/subroutines v0.6.1/go.mod h1:hS3XeKAMoJuMJB5CqLiT/RtSOOUXKC3m/eKI1MKjlok=
 go.uber.org/goleak v1.3.1-0.20251210191316-2b7fd8a0d244 h1:OdZ8e4E9yDUGiis9x2ta/Ec5yhMAKT6ZivRvakyxC7E=
 go.uber.org/goleak v1.3.1-0.20251210191316-2b7fd8a0d244/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
