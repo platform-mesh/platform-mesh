@@ -107,6 +107,16 @@ type Assignment struct {
 	Status AssignmentStatus `json:"status,omitempty"`
 }
 
+// GetConditions returns the conditions of the Assignment.
+func (assignment *Assignment) GetConditions() []metav1.Condition {
+	return assignment.Status.Conditions
+}
+
+// SetConditions sets the conditions of the Assignment.
+func (assignment *Assignment) SetConditions(conditions []metav1.Condition) {
+	assignment.Status.Conditions = conditions
+}
+
 // +kubebuilder:object:root=true
 
 // AssignmentList contains a list of Assignment.
