@@ -83,10 +83,10 @@ func EqualObjects(a, b *unstructured.Unstructured) bool {
 	)
 }
 
-// CopyResource copies a resource from source to target and reflects the
-// status back. The sourceName and targetName parameters allow the resource
-// to have different names in the source and target clusters.
-func CopyResource(
+// Spec copies a resource from source to target without touching the status.
+// The sourceName and targetName parameters allow the resource to have
+// different names in the source and target clusters.
+func Spec(
 	ctx context.Context,
 	gvk schema.GroupVersionKind,
 	sourceName, targetName types.NamespacedName,
@@ -143,35 +143,61 @@ func CopyResource(
 		if err != nil {
 			return makeCond(ConditionResourceCopied, false, "UpdateFailed", err.Error()), err
 		}
-		// After updating, re-fetch target to get updated status for sync
-		if err := target.Get(ctx, targetName, existing); err != nil {
-			return makeCond(ConditionResourceCopied, false, "GetTargetFailed", err.Error()), err
-		}
 	}
 
-	log.Info("Checking status sync",
-		"targetHasStatus", existing.Object[statusKey] != nil,
-		"sourceHasStatus", sourceObj.Object[statusKey] != nil)
+	return makeCond(ConditionResourceCopied, true, "Copied", "Resource copied to destination"), nil
+}
 
-	if status, ok := existing.Object[statusKey]; ok {
-		if !cmp.Equal(sourceObj.Object[statusKey], status, cmpopts.EquateEmpty()) {
-			log.Info("Syncing status from target to source")
-			// Re-fetch source to get latest resourceVersion before status update
-			if err := source.Get(ctx, sourceName, sourceObj); err != nil {
-				return makeCond(ConditionStatusSynced, false, "GetSourceFailed", err.Error()), err
-			}
-			sourceObj.Object[statusKey] = status
-			if err := source.Status().Update(ctx, sourceObj); err != nil {
-				log.Error(err, "Failed to update status on source")
-				return makeCond(ConditionStatusSynced, false, "StatusUpdateFailed", err.Error()), err
-			}
-			log.Info("Status synced successfully")
-		} else {
-			log.V(2).Info("Status already equal, no update needed")
+// Status reflects the status of the target resource back to the source
+// resource. A target without a status is a no-op.
+func Status(
+	ctx context.Context,
+	gvk schema.GroupVersionKind,
+	sourceName, targetName types.NamespacedName,
+	source, target ctrlruntimeclient.Client,
+) (metav1.Condition, error) {
+	log := logr.FromContextOrDiscard(ctx).WithValues("sourceName", sourceName, "targetName", targetName)
+
+	targetObj := &unstructured.Unstructured{}
+	targetObj.SetGroupVersionKind(gvk)
+	if err := target.Get(ctx, targetName, targetObj); err != nil {
+		return makeCond(ConditionStatusSynced, false, "GetTargetFailed", err.Error()), err
+	}
+
+	status, ok := targetObj.Object[statusKey]
+	if !ok {
+		log.V(2).Info("Target has no status to sync")
+		return makeCond(ConditionStatusSynced, true, "StatusSynced", "Target has no status to sync"), nil
+	}
+
+	sourceObj := &unstructured.Unstructured{}
+	sourceObj.SetGroupVersionKind(gvk)
+	if err := source.Get(ctx, sourceName, sourceObj); err != nil {
+		return makeCond(ConditionStatusSynced, false, "GetSourceFailed", err.Error()), err
+	}
+
+	if !cmp.Equal(sourceObj.Object[statusKey], status, cmpopts.EquateEmpty()) {
+		log.V(2).Info("Syncing status from target to source")
+		sourceObj.Object[statusKey] = status
+		if err := source.Status().Update(ctx, sourceObj); err != nil {
+			return makeCond(ConditionStatusSynced, false, "StatusUpdateFailed", err.Error()), err
 		}
-	} else {
-		log.Info("Target has no status to sync")
 	}
 
 	return makeCond(ConditionStatusSynced, true, "StatusSynced", "Status copied back to source"), nil
+}
+
+// Resource copies a resource from source to target and reflects the status
+// back, combining [Spec] and [Status].
+func Resource(
+	ctx context.Context,
+	gvk schema.GroupVersionKind,
+	sourceName, targetName types.NamespacedName,
+	source, target ctrlruntimeclient.Client,
+) (metav1.Condition, error) {
+	if cond, err := Spec(ctx, gvk, sourceName, targetName, source, target); err != nil {
+		return cond, err
+	}
+
+	return Status(ctx, gvk, sourceName, targetName, source, target)
 }

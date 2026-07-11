@@ -373,7 +373,7 @@ func testWidget(fields map[string]any) *unstructured.Unstructured {
 	return obj
 }
 
-func TestCopyResource(t *testing.T) {
+func TestSpec(t *testing.T) {
 	t.Parallel()
 
 	nn := types.NamespacedName{Namespace: "default", Name: "my-widget"}
@@ -385,7 +385,6 @@ func TestCopyResource(t *testing.T) {
 		wantSpec   map[string]any
 		wantExtra  map[string]any // top-level keys expected present on target
 		wantAbsent []string       // top-level keys expected absent on target
-		wantStatus map[string]any // status expected on source after copy-back
 	}{
 		{
 			name:     "creates missing target",
@@ -413,10 +412,118 @@ func TestCopyResource(t *testing.T) {
 			wantExtra: map[string]any{"fresh": true},
 		},
 		{
-			name:       "copies status back to source",
+			name:       "does not sync status back to source",
 			source:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}}),
 			target:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}, "status": map[string]any{"phase": "Ready"}}),
 			wantSpec:   map[string]any{"size": int64(3)},
+			wantAbsent: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			sourceClient := testCopyClient(t, tc.source)
+			var targetObjs []ctrlruntimeclient.Object
+			if tc.target != nil {
+				targetObjs = append(targetObjs, tc.target)
+			}
+			targetClient := testCopyClient(t, targetObjs...)
+
+			_, err := Spec(t.Context(), testGVK, nn, nn, sourceClient, targetClient)
+			require.NoError(t, err)
+
+			got := &unstructured.Unstructured{}
+			got.SetGroupVersionKind(testGVK)
+			require.NoError(t, targetClient.Get(t.Context(), nn, got))
+			assert.Equal(t, tc.wantSpec, got.Object["spec"])
+			if tc.wantExtra != nil {
+				assert.Equal(t, tc.wantExtra, got.Object["extra"])
+			}
+			for _, key := range tc.wantAbsent {
+				assert.NotContains(t, got.Object, key)
+			}
+
+			src := &unstructured.Unstructured{}
+			src.SetGroupVersionKind(testGVK)
+			require.NoError(t, sourceClient.Get(t.Context(), nn, src))
+			assert.NotContains(t, src.Object, "status", "Spec must not sync status back to source")
+		})
+	}
+}
+
+func TestStatus(t *testing.T) {
+	t.Parallel()
+
+	nn := types.NamespacedName{Namespace: "default", Name: "my-widget"}
+
+	tests := []struct {
+		name       string
+		source     *unstructured.Unstructured
+		target     *unstructured.Unstructured
+		wantStatus map[string]any // status expected on source afterwards
+	}{
+		{
+			name:       "copies status back to source",
+			source:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}}),
+			target:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}, "status": map[string]any{"phase": "Ready"}}),
+			wantStatus: map[string]any{"phase": "Ready"},
+		},
+		{
+			name:       "updates stale status on source",
+			source:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}, "status": map[string]any{"phase": "Pending"}}),
+			target:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}, "status": map[string]any{"phase": "Ready"}}),
+			wantStatus: map[string]any{"phase": "Ready"},
+		},
+		{
+			name:       "target without status is a no-op",
+			source:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}, "status": map[string]any{"phase": "Pending"}}),
+			target:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}}),
+			wantStatus: map[string]any{"phase": "Pending"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			sourceClient := testCopyClient(t, tc.source)
+			targetClient := testCopyClient(t, tc.target)
+
+			_, err := Status(t.Context(), testGVK, nn, nn, sourceClient, targetClient)
+			require.NoError(t, err)
+
+			src := &unstructured.Unstructured{}
+			src.SetGroupVersionKind(testGVK)
+			require.NoError(t, sourceClient.Get(t.Context(), nn, src))
+			assert.Equal(t, tc.wantStatus, src.Object["status"])
+		})
+	}
+}
+
+func TestResource(t *testing.T) {
+	t.Parallel()
+
+	nn := types.NamespacedName{Namespace: "default", Name: "my-widget"}
+
+	tests := []struct {
+		name       string
+		source     *unstructured.Unstructured
+		target     *unstructured.Unstructured
+		wantSpec   map[string]any
+		wantStatus map[string]any // status expected on source after copy-back
+	}{
+		{
+			name:     "creates missing target",
+			source:   testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}}),
+			wantSpec: map[string]any{"size": int64(3)},
+		},
+		{
+			name:       "updates target and copies status back",
+			source:     testWidget(map[string]any{"spec": map[string]any{"size": int64(5)}}),
+			target:     testWidget(map[string]any{"spec": map[string]any{"size": int64(3)}, "status": map[string]any{"phase": "Ready"}}),
+			wantSpec:   map[string]any{"size": int64(5)},
 			wantStatus: map[string]any{"phase": "Ready"},
 		},
 	}
@@ -432,19 +539,13 @@ func TestCopyResource(t *testing.T) {
 			}
 			targetClient := testCopyClient(t, targetObjs...)
 
-			_, err := CopyResource(t.Context(), testGVK, nn, nn, sourceClient, targetClient)
+			_, err := Resource(t.Context(), testGVK, nn, nn, sourceClient, targetClient)
 			require.NoError(t, err)
 
 			got := &unstructured.Unstructured{}
 			got.SetGroupVersionKind(testGVK)
 			require.NoError(t, targetClient.Get(t.Context(), nn, got))
 			assert.Equal(t, tc.wantSpec, got.Object["spec"])
-			if tc.wantExtra != nil {
-				assert.Equal(t, tc.wantExtra, got.Object["extra"])
-			}
-			for _, key := range tc.wantAbsent {
-				assert.NotContains(t, got.Object, key)
-			}
 
 			if tc.wantStatus != nil {
 				src := &unstructured.Unstructured{}
