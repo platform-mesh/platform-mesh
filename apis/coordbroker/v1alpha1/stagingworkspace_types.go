@@ -108,6 +108,16 @@ type StagingWorkspace struct {
 	Status StagingWorkspaceStatus `json:"status,omitempty"`
 }
 
+// GetConditions returns the conditions of the StagingWorkspace.
+func (stagingWorkspace *StagingWorkspace) GetConditions() []metav1.Condition {
+	return stagingWorkspace.Status.Conditions
+}
+
+// SetConditions sets the conditions of the StagingWorkspace.
+func (stagingWorkspace *StagingWorkspace) SetConditions(conditions []metav1.Condition) {
+	stagingWorkspace.Status.Conditions = conditions
+}
+
 // +kubebuilder:object:root=true
 
 // StagingWorkspaceList contains a list of StagingWorkspace.
