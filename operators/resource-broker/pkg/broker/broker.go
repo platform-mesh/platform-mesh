@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 
@@ -108,6 +109,10 @@ type Options struct {
 	// SkipNameValidation disables controller name uniqueness validation.
 	// Set when running multiple brokers in one process, e.g. in tests.
 	SkipNameValidation *bool
+
+	// RequeueInterval is the requeue interval passed to all controllers.
+	// Defaults to each controller's default.
+	RequeueInterval time.Duration
 }
 
 func (opts *Options) validate() error {
@@ -208,6 +213,7 @@ func setupAcceptAPI(mgr mcmanager.Manager, multiProvider *multi.Provider, opts O
 		VerificationTreeRoot: opts.VerificationTreeRoot,
 		WorkspaceClientFunc:  wcf,
 		ClusterFilter:        providerClusters(AcceptAPIProviderName),
+		RequeueInterval:      opts.RequeueInterval,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("creating acceptapi reconciler: %w", err)
@@ -244,6 +250,7 @@ func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opt
 	assignmentReconciler, err := assignment.NewReconciler(mgr, assignment.Options{
 		WorkspaceClientFunc: wcf,
 		ClusterFilter:       filter,
+		RequeueInterval:     opts.RequeueInterval,
 	})
 	if err != nil {
 		return fmt.Errorf("creating assignment reconciler: %w", err)
@@ -256,6 +263,7 @@ func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opt
 		StagingTreeRoot:     opts.StagingTreeRoot,
 		WorkspaceClientFunc: wcf,
 		ClusterFilter:       filter,
+		RequeueInterval:     opts.RequeueInterval,
 	})
 	if err != nil {
 		return fmt.Errorf("creating stagingworkspace reconciler: %w", err)

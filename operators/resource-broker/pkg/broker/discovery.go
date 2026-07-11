@@ -211,6 +211,7 @@ func registerBrokeredResource(mgr mcmanager.Manager, opts Options, wcf workspace
 			ListAcceptAPIs:      listAcceptAPIs(acceptAPIProvider.Lister()),
 			ControllerName:      name,
 			ClusterFilter:       providerClusters(slice),
+			RequeueInterval:     opts.RequeueInterval,
 		})
 		if err != nil {
 			return fmt.Errorf("creating reconciler: %w", err)
