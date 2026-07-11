@@ -118,8 +118,16 @@ spec:
           status:
             description: AssignmentStatus defines the observed state of Assignment.
             properties:
+              apiExportName:
+                description: |-
+                  APIExportName is the name of the APIExport serving the assigned
+                  GVR, resolved from the AcceptAPI once and kept for the lifetime
+                  of the assignment.
+                type: string
               conditions:
-                description: Conditions represent the current state of the Assignment.
+                description: |-
+                  Conditions represent the current state of the Assignment.
+                  Condition types are StagingWorkspaceReady and Ready.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
