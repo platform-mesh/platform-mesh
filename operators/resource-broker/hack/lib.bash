@@ -30,6 +30,19 @@ kind::cluster() {
     fi
 }
 
+kind::load::image() {
+    local name="broker-$1"
+    local image="$2"
+    if ! docker image inspect "$image" >/dev/null 2>&1; then
+        if ! docker pull "$image"; then
+            log "Failed to pull image $image, skipping pre-load"
+            return 0
+        fi
+    fi
+    kind load docker-image --name "$name" "$image" \
+        || log "Failed to load image $image into cluster $name"
+}
+
 kubectl::apply::one() {
     local kubeconfig="$1"
     local resource="$2"
