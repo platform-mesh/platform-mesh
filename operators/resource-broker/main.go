@@ -40,12 +40,12 @@ var (
 	fKcpKubeconfig = flag.String(
 		"kcp-kubeconfig",
 		"",
-		"Kubeconfig for the kcp instance. If not set, in-cluster config will be used.",
+		"Kubeconfig for the kcp instance. If not set, the local config is used.",
 	)
 	fComputeKubeconfig = flag.String(
 		"compute-kubeconfig",
 		"",
-		"Kubeconfig for the compute cluster. If not set, in-cluster config will be used.",
+		"Kubeconfig for the compute cluster. If not set, the local config is used.",
 	)
 
 	fAcceptAPI = flag.String(
@@ -68,6 +68,12 @@ var (
 		"staging-tree-root",
 		"root:platform:broker:staging",
 		"kcp workspace path under which staging workspaces are created",
+	)
+
+	fRequeueInterval = flag.Duration(
+		"requeue-interval",
+		0,
+		"Interval between reconciliations while waiting on pending state transitions. If not set, the controller defaults are used.",
 	)
 )
 
@@ -133,6 +139,8 @@ func main() {
 		CoordinationWorkspace: *fCoordinationWorkspace,
 		VerificationTreeRoot:  *fVerificationTreeRoot,
 		StagingTreeRoot:       *fStagingTreeRoot,
+
+		RequeueInterval: *fRequeueInterval,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to setup broker")
