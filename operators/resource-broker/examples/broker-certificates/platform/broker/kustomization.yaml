@@ -21,3 +21,20 @@ images:
 - name: ghcr.io/platform-mesh/resource-broker
   newName: localhost/resource-broker
   newTag: dev
+
+patches:
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: resource-broker
+    spec:
+      template:
+        spec:
+          containers:
+            - name: resource-broker
+              args:
+                - -kubeconfig=/kubeconfig/kubeconfig
+                - -kcp-kubeconfig=/kubeconfig/kubeconfig
+                - -acceptapi=acceptapis
+                - -requeue-interval=1s
