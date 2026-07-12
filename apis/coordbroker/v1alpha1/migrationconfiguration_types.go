@@ -68,6 +68,8 @@ type MigrationStage struct {
 	// +optional
 	SuccessConditions []string `json:"successConditions,omitempty"`
 
+	// TODO(ntnn): fail condition + rollback
+
 	// templates is a map of Kubernetes resource templates of resources
 	// to be deployed as part of this migration stage. The key makes the
 	// respective resources available to reference in CEL expressions,
