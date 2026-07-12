@@ -19,6 +19,7 @@ package stagingworkspace
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	pmcoordbrokerv1alpha1 "go.platform-mesh.io/apis/coordbroker/v1alpha1"
 	"go.platform-mesh.io/subroutines"
@@ -33,6 +34,11 @@ import (
 
 // StagingFinalizer is placed on StagingWorkspace objects to delete their backing kcp workspaces.
 const StagingFinalizer = "broker.platform-mesh.io/staging"
+
+// stagingRefFinalizerPrefix is used to construct finalizer on StagingWorkspaces for Assignments and Migrations.
+// A StagingWorkspace is deleted after the last finalizer matching this prefix has been removed from the StagingWorkspace.
+// Teardown of the backing kcp workspace waits until the last reference is released.
+const RefFinalizerPrefix = "broker.platform-mesh.io/ref-"
 
 // workspaceReadySubroutine ensures the kcp workspace backing a StagingWorkspace exists and is ready.
 type workspaceReadySubroutine struct {
@@ -100,6 +106,15 @@ func (s *workspaceReadySubroutine) Finalize(ctx context.Context, obj ctrlruntime
 	sw, ok := obj.(*pmcoordbrokerv1alpha1.StagingWorkspace)
 	if !ok {
 		return subroutines.Result{}, fmt.Errorf("expected StagingWorkspace, got %T", obj)
+	}
+
+	// Held references mean the workspace is still in use, e.g. by an active
+	// migration; the workspace stays usable until the last reference is
+	// released.
+	for _, f := range sw.Finalizers {
+		if strings.HasPrefix(f, RefFinalizerPrefix) {
+			return subroutines.Pending(s.opts.RequeueInterval, "waiting for references to be released"), nil
+		}
 	}
 
 	sw.Status.Phase = pmcoordbrokerv1alpha1.StagingWorkspacePhaseTerminating

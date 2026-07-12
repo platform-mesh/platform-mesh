@@ -19,9 +19,11 @@ package brokeredresource
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	pmbrokerv1alpha1 "go.platform-mesh.io/apis/broker/v1alpha1"
 	pmcoordbrokerv1alpha1 "go.platform-mesh.io/apis/coordbroker/v1alpha1"
+	"go.platform-mesh.io/resource-broker/pkg/controller/coordbroker/stagingworkspace"
 	"go.platform-mesh.io/resource-broker/pkg/names"
 	"go.platform-mesh.io/subroutines"
 
@@ -31,7 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
@@ -157,7 +161,8 @@ func (s *assignmentSubroutine) ensureBound(ctx context.Context, assignment *pmco
 	case apierrors.IsNotFound(err):
 		sw = &pmcoordbrokerv1alpha1.StagingWorkspace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: wsName,
+				Name:       wsName,
+				Finalizers: []string{stagingRefFinalizer(assignment.Name)},
 			},
 			Spec: pmcoordbrokerv1alpha1.StagingWorkspaceSpec{
 				ConsumerCluster: assignment.Spec.ConsumerCluster,
@@ -175,8 +180,16 @@ func (s *assignmentSubroutine) ensureBound(ctx context.Context, assignment *pmco
 	}
 
 	if !sw.DeletionTimestamp.IsZero() {
+		// The workspace was deleted out of band. Release our reference so it can finish terminating; the next reconcile recreates it.
+		if err := s.releaseStagingWorkspace(ctx, wsName, assignment.Name); err != nil {
+			return subroutines.Result{}, err
+		}
 		assignment.Status.Phase = pmcoordbrokerv1alpha1.AssignmentPhasePending
 		return subroutines.Pending(s.opts.RequeueInterval, "staging workspace is terminating"), nil
+	}
+
+	if err := s.addStagingWorkspaceRef(ctx, wsName, assignment.Name); err != nil {
+		return subroutines.Result{}, err
 	}
 
 	if sw.Status.Phase != pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady {
@@ -240,24 +253,45 @@ func (s *assignmentSubroutine) startMigration(ctx context.Context, consumerClust
 	}
 
 	destWorkspace := stagingWorkspaceName(assignment.Spec.ConsumerCluster, pick.Cluster, pick.AcceptAPI.Spec.APIExportName)
-	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: destWorkspace,
-		},
-		Spec: pmcoordbrokerv1alpha1.StagingWorkspaceSpec{
-			ConsumerCluster: assignment.Spec.ConsumerCluster,
-			ProviderCluster: pick.Cluster,
-			APIExportName:   pick.AcceptAPI.Spec.APIExportName,
-		},
-	}
-	if err := s.opts.CoordinationClient.Create(ctx, sw); err != nil && !apierrors.IsAlreadyExists(err) {
-		return subroutines.Result{}, fmt.Errorf("creating StagingWorkspace %q: %w", destWorkspace, err)
+	migrationName := s.migrationName(consumerCluster, u)
+	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{}
+	err = s.opts.CoordinationClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: destWorkspace}, sw)
+	switch {
+	case apierrors.IsNotFound(err):
+		sw = &pmcoordbrokerv1alpha1.StagingWorkspace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       destWorkspace,
+				Finalizers: []string{stagingRefFinalizer(assignment.Name)},
+			},
+			Spec: pmcoordbrokerv1alpha1.StagingWorkspaceSpec{
+				ConsumerCluster: assignment.Spec.ConsumerCluster,
+				ProviderCluster: pick.Cluster,
+				APIExportName:   pick.AcceptAPI.Spec.APIExportName,
+			},
+		}
+		if err := s.opts.CoordinationClient.Create(ctx, sw); err != nil && !apierrors.IsAlreadyExists(err) {
+			return subroutines.Result{}, fmt.Errorf("creating StagingWorkspace %q: %w", destWorkspace, err)
+		}
+	case err != nil:
+		return subroutines.Result{}, fmt.Errorf("getting StagingWorkspace %q: %w", destWorkspace, err)
+	default:
+		// Migrating back to a recently released provider reuses the same
+		// staging workspace name; wait out the previous instance.
+
+		// The StagingWorkspace could be in deletion because it was unused.
+		// Requeue so it gets recreated once the deletion finished.
+		if !sw.DeletionTimestamp.IsZero() {
+			return subroutines.Pending(s.opts.RequeueInterval, "waiting for previous staging workspace to terminate"), nil
+		}
+		if err := s.addStagingWorkspaceRef(ctx, destWorkspace, assignment.Name); err != nil {
+			return subroutines.Result{}, err
+		}
 	}
 
 	gvk := metav1.GroupVersionKind{Group: s.opts.GVK.Group, Version: s.opts.GVK.Version, Kind: s.opts.GVK.Kind}
 	migration := &pmcoordbrokerv1alpha1.Migration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: s.migrationName(consumerCluster, u),
+			Name: migrationName,
 		},
 		Spec: pmcoordbrokerv1alpha1.MigrationSpec{
 			Assignment:           assignment.Name,
@@ -319,14 +353,14 @@ func (s *assignmentSubroutine) finishMigration(ctx context.Context, assignment *
 			}
 			return subroutines.Pending(s.opts.RequeueInterval, "waiting for old staging copy to be deleted"), nil
 		}
+
+		if err := s.releaseStagingWorkspace(ctx, from, assignment.Name); err != nil {
+			return subroutines.Result{}, err
+		}
 	}
 
 	if err := s.opts.CoordinationClient.Delete(ctx, migration); ctrlruntimeclient.IgnoreNotFound(err) != nil {
 		return subroutines.Result{}, fmt.Errorf("deleting Migration %q: %w", migration.Name, err)
-	}
-
-	if err := s.releaseStagingWorkspace(ctx, from, assignment.Name, migration.Name); err != nil {
-		return subroutines.Result{}, err
 	}
 
 	return subroutines.Pending(s.opts.RequeueInterval, "waiting for migration to be deleted"), nil
@@ -354,11 +388,8 @@ func (s *assignmentSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclie
 	case err != nil:
 		return subroutines.Result{}, fmt.Errorf("getting Migration: %w", err)
 	default:
-		for _, wsName := range []string{migration.Spec.StagingWorkspace, migration.Spec.FromStagingWorkspace} {
-			if wsName == "" {
-				continue
-			}
-			if err := s.releaseStagingWorkspace(ctx, wsName, assignmentName, migration.Name); err != nil {
+		if migration.Spec.StagingWorkspace != "" {
+			if err := s.releaseStagingWorkspace(ctx, migration.Spec.StagingWorkspace, assignmentName); err != nil {
 				return subroutines.Result{}, err
 			}
 		}
@@ -380,7 +411,7 @@ func (s *assignmentSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclie
 	}
 
 	if wsName := assignment.Status.StagingWorkspace; wsName != "" {
-		if err := s.releaseStagingWorkspace(ctx, wsName, assignment.Name, ""); err != nil {
+		if err := s.releaseStagingWorkspace(ctx, wsName, assignment.Name); err != nil {
 			return subroutines.Result{}, err
 		}
 	}
@@ -448,39 +479,52 @@ func (s *assignmentSubroutine) resolveAPIExportName(ctx context.Context, provide
 	return acceptAPI.Spec.APIExportName, nil
 }
 
-// releaseStagingWorkspace deletes the StagingWorkspace unless another Assignment or Migration still references it.
-func (s *assignmentSubroutine) releaseStagingWorkspace(ctx context.Context, wsName, ownAssignment, ownMigration string) error {
-	assignments := &pmcoordbrokerv1alpha1.AssignmentList{}
-	if err := s.opts.CoordinationClient.List(ctx, assignments); err != nil {
-		return fmt.Errorf("listing Assignments: %w", err)
-	}
-	for _, other := range assignments.Items {
-		if other.Name == ownAssignment || !other.DeletionTimestamp.IsZero() {
-			continue
+// addStagingWorkspaceRef ensures the reference finalizer for owner is present on the StagingWorkspace.
+func (s *assignmentSubroutine) addStagingWorkspaceRef(ctx context.Context, wsName, owner string) error {
+	finalizer := stagingRefFinalizer(owner)
+	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{}
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := s.opts.CoordinationClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: wsName}, sw); err != nil {
+			return err
 		}
-		if other.Status.StagingWorkspace == wsName {
+		if !controllerutil.AddFinalizer(sw, finalizer) {
+			return nil
+		}
+		return s.opts.CoordinationClient.Update(ctx, sw)
+	})
+	if err != nil {
+		return fmt.Errorf("adding reference finalizer to StagingWorkspace %q: %w", wsName, err)
+	}
+	return nil
+}
+
+// releaseStagingWorkspace drops the owner's reference finalizer and deletes
+// the StagingWorkspace if no reference finalizers remain.
+func (s *assignmentSubroutine) releaseStagingWorkspace(ctx context.Context, wsName, owner string) error {
+	finalizer := stagingRefFinalizer(owner)
+	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{}
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := s.opts.CoordinationClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: wsName}, sw); err != nil {
+			return err
+		}
+		if !controllerutil.RemoveFinalizer(sw, finalizer) {
+			return nil
+		}
+		return s.opts.CoordinationClient.Update(ctx, sw)
+	})
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("removing reference finalizer from StagingWorkspace %q: %w", wsName, err)
+	}
+
+	for _, f := range sw.Finalizers {
+		if strings.HasPrefix(f, stagingworkspace.RefFinalizerPrefix) {
 			return nil
 		}
 	}
 
-	migrations := &pmcoordbrokerv1alpha1.MigrationList{}
-	if err := s.opts.CoordinationClient.List(ctx, migrations); err != nil {
-		return fmt.Errorf("listing Migrations: %w", err)
-	}
-	for _, migration := range migrations.Items {
-		if migration.Name == ownMigration || !migration.DeletionTimestamp.IsZero() {
-			continue
-		}
-		if migration.Spec.StagingWorkspace == wsName || migration.Spec.FromStagingWorkspace == wsName {
-			return nil
-		}
-	}
-
-	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: wsName,
-		},
-	}
 	if err := s.opts.CoordinationClient.Delete(ctx, sw); ctrlruntimeclient.IgnoreNotFound(err) != nil {
 		return fmt.Errorf("deleting unreferenced StagingWorkspace %q: %w", wsName, err)
 	}
@@ -508,4 +552,9 @@ func migrationName(consumerCluster string, gvr metav1.GroupVersionResource, name
 // consumer/provider/APIExport tuple.
 func stagingWorkspaceName(consumerCluster, providerCluster, apiExportName string) string {
 	return stagingWorkspaceNamePrefix + names.Hash(consumerCluster, providerCluster, apiExportName)
+}
+
+// stagingRefFinalizer derives the reference finalizer for an Assignment or Migration name.
+func stagingRefFinalizer(owner string) string {
+	return stagingworkspace.RefFinalizerPrefix + owner
 }

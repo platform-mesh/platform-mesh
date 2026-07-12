@@ -44,10 +44,11 @@ var testTargetStagingName = stagingWorkspaceName(testConsumerCluster, testOtherP
 // migrationTestClients bundles the fake clients used by tests exercising
 // migration behavior.
 type migrationTestClients struct {
-	coordination ctrlruntimeclient.Client
-	provider     ctrlruntimeclient.Client
-	staging      ctrlruntimeclient.Client
-	target       ctrlruntimeclient.Client
+	coordination  ctrlruntimeclient.Client
+	provider      ctrlruntimeclient.Client
+	otherProvider ctrlruntimeclient.Client
+	staging       ctrlruntimeclient.Client
+	target        ctrlruntimeclient.Client
 }
 
 // testMigrationOptions returns Options with a WorkspaceClientFunc that
@@ -65,6 +66,12 @@ func testMigrationOptions(t *testing.T, clients *migrationTestClients, refs []Ac
 			switch path {
 			case testProviderCluster:
 				return clients.provider, nil
+			case testOtherProviderCluster:
+				if clients.otherProvider != nil {
+					return clients.otherProvider, nil
+				}
+				t.Fatalf("unexpected workspace client path %q", path)
+				return nil, nil
 			case testTreeRoot + ":" + testStagingName:
 				return clients.staging, nil
 			case testTreeRoot + ":" + testTargetStagingName:

@@ -403,6 +403,41 @@ func TestMigrationStagePreconditions(t *testing.T) {
 	waitForMigrationFinished(t, fix.frame, fix.x86)
 }
 
+// TestMigrationStagingWorkspaceHeldDuringMigration verifies that a migration
+// target staging workspace deleted mid-migration is held by its reference
+// finalizer and the migration still completes.
+func TestMigrationStagingWorkspaceHeldDuringMigration(t *testing.T) {
+	t.Parallel()
+
+	fix := newMigrationFixture(t)
+	migrationCR := fix.triggerMigration(t)
+
+	swKey := types.NamespacedName{Name: migrationCR.Spec.StagingWorkspace}
+	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{}
+	require.Eventually(t, func() bool {
+		if err := fix.frame.CoordinationClient.Get(t.Context(), swKey, sw); err != nil {
+			return false
+		}
+		return sw.Status.Phase == pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady
+	}, wait.ForeverTestTimeout, time.Second, "target staging workspace should become ready")
+	oldUID := sw.UID
+	require.NoError(t, fix.frame.CoordinationClient.Delete(t.Context(), sw))
+
+	// The reference finalizer holds the workspace: same object, still Ready.
+	require.Never(t, func() bool {
+		current := &pmcoordbrokerv1alpha1.StagingWorkspace{}
+		if err := fix.frame.CoordinationClient.Get(t.Context(), swKey, current); err != nil {
+			return true
+		}
+		return current.UID != oldUID || current.Status.Phase != pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady
+	}, 5*time.Second, time.Second, "staging workspace should be held while the migration is running")
+
+	armStaging := fix.frame.StagingClient(t, fix.arm)
+	waitForVM(t, armStaging, fix.nn)
+	markVMAvailable(t, armStaging, fix.nn, "arm64")
+	waitForMigrationFinished(t, fix.frame, fix.x86)
+}
+
 // TestMigrationTemplateInterpolation verifies that stage template values
 // can reference the staging copies via CEL expressions.
 func TestMigrationTemplateInterpolation(t *testing.T) {

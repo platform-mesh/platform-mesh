@@ -175,6 +175,27 @@ func TestWorkspaceReadyFinalize(t *testing.T) {
 	}
 }
 
+func TestWorkspaceReadyFinalizeHeldByReferences(t *testing.T) {
+	opts, clients := testOptions(t, []ctrlruntimeclient.Object{
+		readyWorkspace(testName, "logical-cluster-1"),
+	}, nil, nil)
+	s := &workspaceReadySubroutine{opts: opts}
+
+	sw := testStagingWorkspace()
+	sw.Finalizers = []string{StagingFinalizer, RefFinalizerPrefix + "migration-abc"}
+	sw.Status.Phase = pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady
+
+	result, err := s.Finalize(t.Context(), sw)
+	require.NoError(t, err)
+	assert.True(t, result.IsPending())
+	assert.Contains(t, result.Message(), "waiting for references to be released")
+	// The workspace stays usable: phase untouched, backing workspace kept.
+	assert.Equal(t, pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady, sw.Status.Phase)
+	ws := &kcptenancyv1alpha1.Workspace{}
+	require.NoError(t, clients.tree.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: testName}, ws))
+	assert.True(t, ws.DeletionTimestamp.IsZero())
+}
+
 func TestWorkspaceReadyFinalizeTerminatingWorkspace(t *testing.T) {
 	opts, clients := testOptions(t, []ctrlruntimeclient.Object{
 		readyWorkspace(testName, "logical-cluster-1"),

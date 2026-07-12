@@ -50,14 +50,15 @@ func TestAssignmentProcess(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		coordObjs     []ctrlruntimeclient.Object
-		providerObjs  []ctrlruntimeclient.Object
-		refs          []AcceptAPIRef
-		wantOK        bool
-		wantMsg       string
-		wantPhase     pmcoordbrokerv1alpha1.AssignmentPhase
-		wantMigration bool
+		name              string
+		coordObjs         []ctrlruntimeclient.Object
+		providerObjs      []ctrlruntimeclient.Object
+		otherProviderObjs []ctrlruntimeclient.Object
+		refs              []AcceptAPIRef
+		wantOK            bool
+		wantMsg           string
+		wantPhase         pmcoordbrokerv1alpha1.AssignmentPhase
+		wantMigration     bool
 	}{
 		{
 			name:    "creates assignment for matching accept api",
@@ -199,10 +200,53 @@ func TestAssignmentProcess(t *testing.T) {
 			coordObjs: []ctrlruntimeclient.Object{
 				testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
 				testMigration(pmcoordbrokerv1alpha1.MigrationStateInitialInProgress),
+				testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
 			},
 			wantMsg:       "waiting for migration to complete",
 			wantMigration: true,
 			wantPhase:     pmcoordbrokerv1alpha1.AssignmentPhaseBound,
+		},
+		{
+			name: "waits for migration even when target staging workspace is missing",
+			coordObjs: []ctrlruntimeclient.Object{
+				testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
+				testMigration(pmcoordbrokerv1alpha1.MigrationStateInitialInProgress),
+			},
+			wantMsg:       "waiting for migration to complete",
+			wantMigration: true,
+			wantPhase:     pmcoordbrokerv1alpha1.AssignmentPhaseBound,
+		},
+		{
+			name: "waits for migration while target staging workspace is terminating",
+			coordObjs: []ctrlruntimeclient.Object{
+				testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
+				testMigration(pmcoordbrokerv1alpha1.MigrationStateInitialInProgress),
+				func() ctrlruntimeclient.Object {
+					sw := testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady)
+					sw.Finalizers = []string{stagingRefFinalizer(testMigrationName())}
+					sw.DeletionTimestamp = &metav1.Time{Time: metav1.Now().Time}
+					return sw
+				}(),
+			},
+			wantMsg:       "waiting for migration to complete",
+			wantMigration: true,
+			wantPhase:     pmcoordbrokerv1alpha1.AssignmentPhaseBound,
+		},
+		{
+			name: "migration waits for previous staging workspace to terminate",
+			coordObjs: []ctrlruntimeclient.Object{
+				testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
+				testStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
+				func() ctrlruntimeclient.Object {
+					sw := testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady)
+					sw.Finalizers = []string{"keep/me"}
+					sw.DeletionTimestamp = &metav1.Time{Time: metav1.Now().Time}
+					return sw
+				}(),
+			},
+			refs:      []AcceptAPIRef{testOtherAcceptAPIRef()},
+			wantMsg:   "waiting for previous staging workspace to terminate",
+			wantPhase: pmcoordbrokerv1alpha1.AssignmentPhaseBound,
 		},
 	}
 
@@ -211,10 +255,11 @@ func TestAssignmentProcess(t *testing.T) {
 			t.Parallel()
 
 			clients := &migrationTestClients{
-				coordination: testFakeClient(t, tc.coordObjs...),
-				provider:     testFakeClient(t, tc.providerObjs...),
-				staging:      testFakeClient(t),
-				target:       testFakeClient(t),
+				coordination:  testFakeClient(t, tc.coordObjs...),
+				provider:      testFakeClient(t, tc.providerObjs...),
+				otherProvider: testFakeClient(t, tc.otherProviderObjs...),
+				staging:       testFakeClient(t),
+				target:        testFakeClient(t),
 			}
 			sub := &assignmentSubroutine{opts: testMigrationOptions(t, clients, tc.refs)}
 			ctx := mccontext.WithCluster(t.Context(), testConsumerCluster)
@@ -303,12 +348,14 @@ func TestAssignmentProcessAdoptsSpecStatus(t *testing.T) {
 	assert.Equal(t, testStagingName, updated.Status.StagingWorkspace)
 	assert.Equal(t, pmcoordbrokerv1alpha1.AssignmentPhasePending, updated.Status.Phase)
 
-	// The staging workspace must exist with the resolved spec.
+	// The staging workspace must exist with the resolved spec and the
+	// assignment's reference finalizer.
 	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{}
 	require.NoError(t, clients.coordination.Get(ctx, types.NamespacedName{Name: testStagingName}, sw))
 	assert.Equal(t, testConsumerCluster, sw.Spec.ConsumerCluster)
 	assert.Equal(t, testProviderCluster, sw.Spec.ProviderCluster)
 	assert.Equal(t, testExportName, sw.Spec.APIExportName)
+	assert.Contains(t, sw.Finalizers, stagingRefFinalizer(testAssignmentName()))
 }
 
 func TestAssignmentProcessStartMigration(t *testing.T) {
@@ -338,11 +385,12 @@ func TestAssignmentProcessStartMigration(t *testing.T) {
 	assert.Equal(t, testOtherProviderCluster, assignment.Spec.ProviderCluster)
 	assert.Equal(t, testOtherAcceptAPIName, assignment.Spec.AcceptAPIName)
 
-	// The destination staging workspace must exist.
+	// The destination staging workspace must exist, referenced by the assignment.
 	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{}
 	require.NoError(t, clients.coordination.Get(ctx, types.NamespacedName{Name: testTargetStagingName}, sw))
 	assert.Equal(t, testOtherProviderCluster, sw.Spec.ProviderCluster)
 	assert.Equal(t, testOtherExportName, sw.Spec.APIExportName)
+	assert.Contains(t, sw.Finalizers, stagingRefFinalizer(testAssignmentName()))
 
 	// The migration must snapshot both staging workspaces and targets.
 	migration := &pmcoordbrokerv1alpha1.Migration{}
@@ -419,7 +467,16 @@ func TestAssignmentProcessFinishesMigration(t *testing.T) {
 				coordination: testFakeClient(t,
 					testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
 					testMigration(pmcoordbrokerv1alpha1.MigrationStateCutoverCompleted),
-					testStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
+					func() ctrlruntimeclient.Object {
+						sw := testStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady)
+						sw.Finalizers = []string{stagingRefFinalizer(testAssignmentName())}
+						return sw
+					}(),
+					func() ctrlruntimeclient.Object {
+						sw := testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady)
+						sw.Finalizers = []string{stagingRefFinalizer(testAssignmentName())}
+						return sw
+					}(),
 				),
 				provider: testFakeClient(t),
 				staging:  testFakeClient(t, tc.stagingObjs...),
@@ -466,8 +523,68 @@ func TestAssignmentProcessFinishesMigration(t *testing.T) {
 			sw := &pmcoordbrokerv1alpha1.StagingWorkspace{}
 			err = clients.coordination.Get(ctx, types.NamespacedName{Name: testStagingName}, sw)
 			require.True(t, apierrors.IsNotFound(err))
+
+			// The target staging workspace keeps the assignment's reference.
+			target := &pmcoordbrokerv1alpha1.StagingWorkspace{}
+			require.NoError(t, clients.coordination.Get(ctx, types.NamespacedName{Name: testTargetStagingName}, target))
+			assert.Contains(t, target.Finalizers, stagingRefFinalizer(testAssignmentName()))
 		})
 	}
+}
+
+// TestAssignmentProcessFinishesMigrationWithTerminatingTarget verifies that a
+// target staging workspace deleted out of band is held through the migration,
+// released once the migration is finished, and then recreated.
+func TestAssignmentProcessFinishesMigrationWithTerminatingTarget(t *testing.T) {
+	t.Parallel()
+
+	clients := &migrationTestClients{
+		coordination: testFakeClient(t,
+			testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
+			testMigration(pmcoordbrokerv1alpha1.MigrationStateCutoverCompleted),
+			func() ctrlruntimeclient.Object {
+				sw := testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady)
+				sw.Finalizers = []string{stagingRefFinalizer(testAssignmentName())}
+				sw.DeletionTimestamp = &metav1.Time{Time: metav1.Now().Time}
+				return sw
+			}(),
+		),
+		provider:      testFakeClient(t),
+		otherProvider: testFakeClient(t, testOtherAcceptAPIRef().AcceptAPI),
+		staging:       testFakeClient(t),
+		target:        testFakeClient(t),
+	}
+	sub := &assignmentSubroutine{opts: testMigrationOptions(t, clients, nil)}
+	ctx := mccontext.WithCluster(t.Context(), testConsumerCluster)
+
+	result, err := sub.Process(ctx, testConsumerObject())
+	require.NoError(t, err)
+	assert.Positive(t, result.Requeue())
+	assert.Contains(t, result.Message(), "waiting for migration to be deleted")
+
+	migration := &pmcoordbrokerv1alpha1.Migration{}
+	err = clients.coordination.Get(ctx, types.NamespacedName{Name: testMigrationName()}, migration)
+	require.True(t, apierrors.IsNotFound(err))
+
+	// The workspace is still held by the assignment's reference.
+	sw := &pmcoordbrokerv1alpha1.StagingWorkspace{}
+	require.NoError(t, clients.coordination.Get(ctx, types.NamespacedName{Name: testTargetStagingName}, sw))
+
+	// The next reconcile releases the reference so the workspace can finish
+	// terminating.
+	result, err = sub.Process(ctx, testConsumerObject())
+	require.NoError(t, err)
+	assert.Contains(t, result.Message(), "staging workspace is terminating")
+	err = clients.coordination.Get(ctx, types.NamespacedName{Name: testTargetStagingName}, sw)
+	require.True(t, apierrors.IsNotFound(err))
+
+	// The reconcile after that recreates it.
+	result, err = sub.Process(ctx, testConsumerObject())
+	require.NoError(t, err)
+	assert.Contains(t, result.Message(), "created staging workspace")
+	sw = &pmcoordbrokerv1alpha1.StagingWorkspace{}
+	require.NoError(t, clients.coordination.Get(ctx, types.NamespacedName{Name: testTargetStagingName}, sw))
+	assert.Contains(t, sw.Finalizers, stagingRefFinalizer(testAssignmentName()))
 }
 
 func TestAssignmentProcessNoClusterInContext(t *testing.T) {
@@ -506,7 +623,11 @@ func TestAssignmentFinalize(t *testing.T) {
 			name: "deletes assignment and releases staging workspace",
 			coordObjs: []ctrlruntimeclient.Object{
 				testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
-				testStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
+				func() ctrlruntimeclient.Object {
+					sw := testStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady)
+					sw.Finalizers = []string{stagingRefFinalizer(testAssignmentName())}
+					return sw
+				}(),
 			},
 			wantMsg:            "waiting for assignment to be deleted",
 			wantAssignmentGone: true,
@@ -516,11 +637,13 @@ func TestAssignmentFinalize(t *testing.T) {
 			name: "keeps staging workspace referenced by another assignment",
 			coordObjs: []ctrlruntimeclient.Object{
 				testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
-				testStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
 				func() ctrlruntimeclient.Object {
-					other := testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound)
-					other.Name = "assignment-other"
-					return other
+					sw := testStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady)
+					sw.Finalizers = []string{
+						stagingRefFinalizer(testAssignmentName()),
+						stagingRefFinalizer("assignment-other"),
+					}
+					return sw
 				}(),
 			},
 			wantMsg:            "waiting for assignment to be deleted",
@@ -528,16 +651,27 @@ func TestAssignmentFinalize(t *testing.T) {
 			wantKeptWorkspaces: []string{testStagingName},
 		},
 		{
-			name: "migration cleanup releases both staging workspaces",
+			name: "migration cleanup releases the migration staging workspace",
 			coordObjs: []ctrlruntimeclient.Object{
 				testAssignment(pmcoordbrokerv1alpha1.AssignmentPhaseBound),
 				testMigration(pmcoordbrokerv1alpha1.MigrationStatePending),
-				testStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
-				testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady),
+				func() ctrlruntimeclient.Object {
+					sw := testStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady)
+					sw.Finalizers = []string{stagingRefFinalizer(testAssignmentName())}
+					return sw
+				}(),
+				func() ctrlruntimeclient.Object {
+					sw := testTargetStagingWorkspace(pmcoordbrokerv1alpha1.StagingWorkspacePhaseReady)
+					sw.Finalizers = []string{stagingRefFinalizer(testAssignmentName())}
+					return sw
+				}(),
 			},
-			wantMsg:            "waiting for migration to be deleted",
-			wantMigrationGone:  true,
-			wantGoneWorkspaces: []string{testStagingName, testTargetStagingName},
+			wantMsg:           "waiting for migration to be deleted",
+			wantMigrationGone: true,
+			// The origin workspace is released by the assignment cleanup on
+			// a later reconcile.
+			wantKeptWorkspaces: []string{testStagingName},
+			wantGoneWorkspaces: []string{testTargetStagingName},
 		},
 	}
 
