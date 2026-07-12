@@ -74,6 +74,10 @@ type MigrationStage struct {
 	// to be deployed as part of this migration stage. The key makes the
 	// respective resources available to reference in CEL expressions,
 	// e.g. in SuccessConditions.
+	// String values in the templates may contain CEL expressions
+	// wrapped in ${...}, evaluated with the staging copies of the
+	// migrating resource bound as `from` and `to`.
+	// The apiVersion and kind of a template must be static.
 	// +optional
 	Templates map[string]runtime.RawExtension `json:"templates,omitempty"`
 
