@@ -297,6 +297,18 @@ helm::install::kro() {
         "$@"
 }
 
+helm::install::cnpg() {
+    local kubeconfig="$1"
+    shift 1
+    helm::repo cnpg https://cloudnative-pg.github.io/charts
+    helm::install "$kubeconfig" \
+        cnpg cnpg/cloudnative-pg \
+        --version=0.29.0 \
+        --namespace=cnpg-system \
+        --create-namespace \
+        "$@"
+}
+
 helm::install::api_syncagent() {
     local kubeconfig="$1"
     local apiExportName="$2"
