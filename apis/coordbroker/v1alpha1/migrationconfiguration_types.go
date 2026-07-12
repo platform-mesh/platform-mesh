@@ -48,8 +48,20 @@ type MigrationStage struct {
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 
+	// preconditions is a list of CEL expressions that are requires to
+	// be true before the templates are deployed.
+	// As in SuccessConditions the migrating resources are available as
+	// `from` and `to` in the CEL context.
+	// A common precondition for the first stage is waiting for the
+	// destination to be ready, e.g.:
+	//   to.status.status == 'Available`
+	// +optional
+	Preconditions []string `json:"preconditions,omitempty"`
+
 	// successConditions is a list of CEL expressions that must all be
 	// true for the stage to be considered successful.
+	// The migrating resources are available as `from` and `to` in the
+	// CEL context.
 	// Warning: If empty the resources are deployed and the stage is
 	// immediately considered successful in the next reconciliation
 	// loop.
