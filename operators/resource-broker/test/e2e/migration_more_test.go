@@ -403,6 +403,37 @@ func TestMigrationStagePreconditions(t *testing.T) {
 	waitForMigrationFinished(t, fix.frame, fix.x86)
 }
 
+// TestMigrationTemplateInterpolation verifies that stage template values
+// can reference the staging copies via CEL expressions.
+func TestMigrationTemplateInterpolation(t *testing.T) {
+	t.Parallel()
+
+	stage := pmcoordbrokerv1alpha1.MigrationStage{
+		Name: "copy-data",
+		Templates: map[string]runtime.RawExtension{
+			"dummy": {
+				Raw: []byte(`{"apiVersion":"v1","kind":"ConfigMap","data":{"key":"value","from":"${from.spec.arch}","to":"pre-${to.spec.arch}"}}`),
+			},
+		},
+		SuccessConditions: []string{`dummy.data.key == "done"`},
+	}
+	fix := newMigrationFixture(t, stage)
+	migrationCR := fix.triggerMigration(t)
+
+	stageCM := types.NamespacedName{Namespace: migration.DefaultStageNamespace, Name: migrationCR.Name + "-dummy"}
+	require.Eventually(t, func() bool {
+		cm := &corev1.ConfigMap{}
+		if err := fix.frame.ComputeClient.Get(t.Context(), stageCM, cm); err != nil {
+			return false
+		}
+		return cm.Data["from"] == "x86_64" && cm.Data["to"] == "pre-arm64"
+	}, wait.ForeverTestTimeout, time.Second, "stage configmap should carry interpolated values")
+
+	completeStageConfigMap(t, fix.frame.ComputeClient, stageCM)
+	markVMAvailable(t, fix.frame.StagingClient(t, fix.arm), fix.nn, "arm64")
+	waitForMigrationFinished(t, fix.frame, fix.x86)
+}
+
 // TestMigrationCustomStageNamespace verifies that stage templates are
 // deployed into the configured stage namespace.
 func TestMigrationCustomStageNamespace(t *testing.T) {

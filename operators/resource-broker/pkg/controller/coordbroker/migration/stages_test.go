@@ -230,6 +230,37 @@ func TestStagesProcess(t *testing.T) {
 			toStagingObjs:   []ctrlruntimeclient.Object{testStagingWidget("")},
 			wantState:       pmcoordbrokerv1alpha1.MigrationStateCutoverInProgress,
 		},
+		{
+			name:      "template values are interpolated",
+			migration: testMigration(pmcoordbrokerv1alpha1.MigrationStatePending),
+			coordObjs: []ctrlruntimeclient.Object{
+				testConfiguration(pmcoordbrokerv1alpha1.MigrationStage{
+					Name: "copy",
+					Templates: map[string]runtime.RawExtension{"cm": {
+						Raw: []byte(`{"apiVersion":"v1","kind":"ConfigMap","data":{"origin":"${from.status.status}","combo":"pre-${to.status.status}"}}`),
+					}},
+					SuccessConditions: []string{`cm.data.origin == "Available" && cm.data.combo == "pre-Provisioning"`},
+				}),
+			},
+			fromStagingObjs: []ctrlruntimeclient.Object{testStagingWidget("Available")},
+			toStagingObjs:   []ctrlruntimeclient.Object{testStagingWidget("Provisioning")},
+			wantState:       pmcoordbrokerv1alpha1.MigrationStateCutoverInProgress,
+		},
+		{
+			name:      "template interpolation error",
+			migration: testMigration(pmcoordbrokerv1alpha1.MigrationStatePending),
+			coordObjs: []ctrlruntimeclient.Object{
+				testConfiguration(pmcoordbrokerv1alpha1.MigrationStage{
+					Name: "copy",
+					Templates: map[string]runtime.RawExtension{"cm": {
+						Raw: []byte(`{"apiVersion":"v1","kind":"ConfigMap","data":{"key":"${bogus.field}"}}`),
+					}},
+				}),
+			},
+			fromStagingObjs: []ctrlruntimeclient.Object{testStagingWidget("Available")},
+			toStagingObjs:   []ctrlruntimeclient.Object{testStagingWidget("")},
+			wantErr:         `interpolating template "cm" of stage "copy"`,
+		},
 	}
 
 	for _, tc := range tests {

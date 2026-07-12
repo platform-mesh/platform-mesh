@@ -20,8 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/cel-go/cel"
-
 	pmcoordbrokerv1alpha1 "go.platform-mesh.io/apis/coordbroker/v1alpha1"
 	"go.platform-mesh.io/resource-broker/pkg/sync"
 	"go.platform-mesh.io/subroutines"
@@ -135,7 +133,7 @@ func (s *stagesSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Ob
 		migration.Status.State = pmcoordbrokerv1alpha1.MigrationStateInitialInProgress
 	}
 
-	resources, err := s.deployStage(ctx, migration.Name, stage)
+	resources, err := s.deployStage(ctx, migration.Name, stage, copies)
 	if err != nil {
 		return subroutines.Result{}, err
 	}
@@ -287,7 +285,7 @@ func (s *stagesSubroutine) copyRelatedResource(ctx context.Context, stagingClien
 
 // deployStage deploys the stage templates to the compute cluster and
 // returns the deployed resources keyed by template name.
-func (s *stagesSubroutine) deployStage(ctx context.Context, migrationName string, stage pmcoordbrokerv1alpha1.MigrationStage) (map[string]*unstructured.Unstructured, error) {
+func (s *stagesSubroutine) deployStage(ctx context.Context, migrationName string, stage pmcoordbrokerv1alpha1.MigrationStage, copies map[string]any) (map[string]*unstructured.Unstructured, error) {
 	resources := make(map[string]*unstructured.Unstructured, len(stage.Templates))
 
 	for name, template := range stage.Templates {
@@ -295,6 +293,11 @@ func (s *stagesSubroutine) deployStage(ctx context.Context, migrationName string
 		if err := resource.UnmarshalJSON(template.Raw); err != nil {
 			return nil, fmt.Errorf("unmarshaling template %q of stage %q: %w", name, stage.Name, err)
 		}
+		interpolated, err := interpolate(ctx, resource.Object, copies)
+		if err != nil {
+			return nil, fmt.Errorf("interpolating template %q of stage %q: %w", name, stage.Name, err)
+		}
+		resource.Object = interpolated.(map[string]any)
 		resource.SetName(migrationName + "-" + name)
 		resource.SetNamespace(s.opts.StageNamespace)
 		resource.SetLabels(map[string]string{
@@ -304,7 +307,7 @@ func (s *stagesSubroutine) deployStage(ctx context.Context, migrationName string
 
 		existing := &unstructured.Unstructured{}
 		existing.SetGroupVersionKind(resource.GroupVersionKind())
-		err := s.opts.ComputeClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(resource), existing)
+		err = s.opts.ComputeClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(resource), existing)
 		switch {
 		case apierrors.IsNotFound(err):
 			if err := s.opts.ComputeClient.Create(ctx, resource); err != nil {
@@ -372,14 +375,9 @@ func checkSuccessConditions(ctx context.Context, stage pmcoordbrokerv1alpha1.Mig
 
 // evalConditions evaluates the CEL expressions with the given variables bound as DynType. All expressions must evaluate to true.
 func evalConditions(ctx context.Context, label string, expressions []string, vars map[string]any) (bool, error) {
-	envOpts := make([]cel.EnvOption, 0, len(vars))
-	for name := range vars {
-		envOpts = append(envOpts, cel.Variable(name, cel.DynType))
-	}
-
-	env, err := cel.NewEnv(envOpts...)
+	env, err := celEnv(vars)
 	if err != nil {
-		return false, fmt.Errorf("creating CEL environment: %w", err)
+		return false, err
 	}
 
 	for _, expression := range expressions {
