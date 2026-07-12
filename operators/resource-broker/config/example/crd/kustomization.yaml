@@ -17,4 +17,5 @@ kind: Kustomization
 resources:
 - example.platform-mesh.io_certificates.yaml
 - example.platform-mesh.io_dnszones.yaml
+- example.platform-mesh.io_postgres.yaml
 - example.platform-mesh.io_vms.yaml
