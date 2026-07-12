@@ -376,6 +376,33 @@ func TestCutoverWaitsForAvailable(t *testing.T) {
 	waitForMigrationFinished(t, fix.frame, fix.x86)
 }
 
+// TestMigrationStagePreconditions verifies that a stage's templates are
+// only deployed once its preconditions are met.
+func TestMigrationStagePreconditions(t *testing.T) {
+	t.Parallel()
+
+	stage := configMapStage("copy-data", "dummy", false, `dummy.data.key == "done"`)
+	stage.Preconditions = []string{`to.status.status == "Available"`}
+	fix := newMigrationFixture(t, stage)
+	migrationCR := fix.triggerMigration(t)
+
+	armStaging := fix.frame.StagingClient(t, fix.arm)
+	waitForVM(t, armStaging, fix.nn)
+
+	stageCM := types.NamespacedName{Namespace: migration.DefaultStageNamespace, Name: migrationCR.Name + "-dummy"}
+	require.Never(t, func() bool {
+		return fix.frame.ComputeClient.Get(t.Context(), stageCM, &corev1.ConfigMap{}) == nil
+	}, 5*time.Second, time.Second, "stage must not be deployed before its preconditions are met")
+
+	markVMAvailable(t, armStaging, fix.nn, "arm64")
+	require.Eventually(t, func() bool {
+		return fix.frame.ComputeClient.Get(t.Context(), stageCM, &corev1.ConfigMap{}) == nil
+	}, wait.ForeverTestTimeout, time.Second, "stage should be deployed once its preconditions are met")
+
+	completeStageConfigMap(t, fix.frame.ComputeClient, stageCM)
+	waitForMigrationFinished(t, fix.frame, fix.x86)
+}
+
 // TestMigrationCustomStageNamespace verifies that stage templates are
 // deployed into the configured stage namespace.
 func TestMigrationCustomStageNamespace(t *testing.T) {

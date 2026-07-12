@@ -118,6 +118,19 @@ func (s *stagesSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Ob
 	}
 	stage := config.Spec.Stages[stageIndex]
 
+	copies, err := s.stagingCopies(ctx, migration)
+	if err != nil {
+		return subroutines.Result{}, err
+	}
+
+	ready, err := evalConditions(ctx, "precondition", stage.Preconditions, copies)
+	if err != nil {
+		return subroutines.Result{}, err
+	}
+	if !ready {
+		return subroutines.Pending(s.opts.RequeueInterval, fmt.Sprintf("waiting for stage %q preconditions", stage.Name)), nil
+	}
+
 	if migration.Status.State == pmcoordbrokerv1alpha1.MigrationStatePending {
 		migration.Status.State = pmcoordbrokerv1alpha1.MigrationStateInitialInProgress
 	}
@@ -127,7 +140,7 @@ func (s *stagesSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Ob
 		return subroutines.Result{}, err
 	}
 
-	success, err := checkSuccessConditions(ctx, stage, resources)
+	success, err := checkSuccessConditions(ctx, stage, resources, copies)
 	if err != nil {
 		return subroutines.Result{}, err
 	}
@@ -308,14 +321,60 @@ func (s *stagesSubroutine) deployStage(ctx context.Context, migrationName string
 	return resources, nil
 }
 
-// checkSuccessConditions evaluates the stage's CEL success conditions
-// against the deployed resources. All expressions must evaluate to true.
-func checkSuccessConditions(ctx context.Context, stage pmcoordbrokerv1alpha1.MigrationStage, resources map[string]*unstructured.Unstructured) (bool, error) {
-	envOpts := make([]cel.EnvOption, 0, len(resources))
-	evalArgs := make(map[string]any, len(resources))
+// stagingCopies returns the staging copies of the migrated resource keyed as `from` and `to` for use as CEL variables.
+func (s *stagesSubroutine) stagingCopies(ctx context.Context, migration *pmcoordbrokerv1alpha1.Migration) (map[string]any, error) {
+	nn := types.NamespacedName{Namespace: migration.Spec.Namespace, Name: migration.Spec.Name}
+
+	vars := make(map[string]any, 2)
+	for name, ref := range map[string]struct {
+		workspace string
+		target    pmcoordbrokerv1alpha1.MigrationTarget
+	}{
+		"from": {migration.Spec.FromStagingWorkspace, migration.Spec.From},
+		"to":   {migration.Spec.StagingWorkspace, migration.Spec.To},
+	} {
+		if ref.workspace == "" {
+			continue
+		}
+
+		stagingClient, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot + ":" + ref.workspace)
+		if err != nil {
+			return nil, fmt.Errorf("building client for staging workspace %q: %w", ref.workspace, err)
+		}
+
+		u := &unstructured.Unstructured{}
+		u.SetGroupVersionKind(schema.GroupVersionKind{Group: ref.target.GVK.Group, Version: ref.target.GVK.Version, Kind: ref.target.GVK.Kind})
+		switch err := stagingClient.Get(ctx, nn, u); {
+		case apierrors.IsNotFound(err):
+			continue
+		case err != nil:
+			return nil, fmt.Errorf("getting staging copy in workspace %q: %w", ref.workspace, err)
+		}
+		vars[name] = u.Object
+	}
+
+	return vars, nil
+}
+
+// checkSuccessConditions evaluates the stage's CEL success conditions against the deployed resources and the staging copies.
+// All expressions must evaluate to true.
+func checkSuccessConditions(ctx context.Context, stage pmcoordbrokerv1alpha1.MigrationStage, resources map[string]*unstructured.Unstructured, copies map[string]any) (bool, error) {
+	evalArgs := make(map[string]any, len(resources)+len(copies))
+	for name, copy := range copies {
+		evalArgs[name] = copy
+	}
 	for name, resource := range resources {
-		envOpts = append(envOpts, cel.Variable(name, cel.DynType))
 		evalArgs[name] = resource.Object
+	}
+
+	return evalConditions(ctx, "success condition", stage.SuccessConditions, evalArgs)
+}
+
+// evalConditions evaluates the CEL expressions with the given variables bound as DynType. All expressions must evaluate to true.
+func evalConditions(ctx context.Context, label string, expressions []string, vars map[string]any) (bool, error) {
+	envOpts := make([]cel.EnvOption, 0, len(vars))
+	for name := range vars {
+		envOpts = append(envOpts, cel.Variable(name, cel.DynType))
 	}
 
 	env, err := cel.NewEnv(envOpts...)
@@ -323,25 +382,25 @@ func checkSuccessConditions(ctx context.Context, stage pmcoordbrokerv1alpha1.Mig
 		return false, fmt.Errorf("creating CEL environment: %w", err)
 	}
 
-	for _, expression := range stage.SuccessConditions {
+	for _, expression := range expressions {
 		ast, issues := env.Compile(expression)
 		if issues != nil && issues.Err() != nil {
-			return false, fmt.Errorf("compiling success condition %q: %w", expression, issues.Err())
+			return false, fmt.Errorf("compiling %s %q: %w", label, expression, issues.Err())
 		}
 
 		program, err := env.Program(ast)
 		if err != nil {
-			return false, fmt.Errorf("building program for success condition %q: %w", expression, err)
+			return false, fmt.Errorf("building program for %s %q: %w", label, expression, err)
 		}
 
-		value, _, err := program.ContextEval(ctx, evalArgs)
+		value, _, err := program.ContextEval(ctx, vars)
 		if err != nil {
-			return false, fmt.Errorf("evaluating success condition %q: %w", expression, err)
+			return false, fmt.Errorf("evaluating %s %q: %w", label, expression, err)
 		}
 
 		success, ok := value.Value().(bool)
 		if !ok {
-			return false, fmt.Errorf("success condition %q did not evaluate to a boolean", expression)
+			return false, fmt.Errorf("%s %q did not evaluate to a boolean", label, expression)
 		}
 		if !success {
 			return false, nil

@@ -187,6 +187,49 @@ func TestStagesProcess(t *testing.T) {
 			wantState:       pmcoordbrokerv1alpha1.MigrationStateInitialCompleted,
 			wantStage:       "verify",
 		},
+		{
+			name:      "stage with unmet precondition waits",
+			migration: testMigration(pmcoordbrokerv1alpha1.MigrationStatePending),
+			coordObjs: []ctrlruntimeclient.Object{
+				testConfiguration(pmcoordbrokerv1alpha1.MigrationStage{
+					Name:          "copy",
+					Preconditions: []string{`to.status.status == "Available"`},
+					Templates:     map[string]runtime.RawExtension{"cm": testTemplate(t)},
+				}),
+			},
+			fromStagingObjs: []ctrlruntimeclient.Object{testStagingWidget("Available")},
+			toStagingObjs:   []ctrlruntimeclient.Object{testStagingWidget("Provisioning")},
+			wantPending:     true,
+			wantMessage:     `waiting for stage "copy" preconditions`,
+			wantState:       pmcoordbrokerv1alpha1.MigrationStatePending,
+		},
+		{
+			name:      "stage with met precondition completes",
+			migration: testMigration(pmcoordbrokerv1alpha1.MigrationStatePending),
+			coordObjs: []ctrlruntimeclient.Object{
+				testConfiguration(pmcoordbrokerv1alpha1.MigrationStage{
+					Name:          "copy",
+					Preconditions: []string{`to.status.status == "Available"`},
+				}),
+			},
+			fromStagingObjs: []ctrlruntimeclient.Object{testStagingWidget("Available")},
+			toStagingObjs:   []ctrlruntimeclient.Object{testStagingWidget("Available")},
+			wantState:       pmcoordbrokerv1alpha1.MigrationStateCutoverInProgress,
+		},
+		{
+			name:      "success condition can reference staging copies",
+			migration: testMigration(pmcoordbrokerv1alpha1.MigrationStatePending),
+			coordObjs: []ctrlruntimeclient.Object{
+				testConfiguration(pmcoordbrokerv1alpha1.MigrationStage{
+					Name:              "copy",
+					Templates:         map[string]runtime.RawExtension{"cm": testTemplate(t)},
+					SuccessConditions: []string{`from.status.status == "Available" && cm.data.key == "value"`},
+				}),
+			},
+			fromStagingObjs: []ctrlruntimeclient.Object{testStagingWidget("Available")},
+			toStagingObjs:   []ctrlruntimeclient.Object{testStagingWidget("")},
+			wantState:       pmcoordbrokerv1alpha1.MigrationStateCutoverInProgress,
+		},
 	}
 
 	for _, tc := range tests {
@@ -350,6 +393,12 @@ func TestCheckSuccessConditions(t *testing.T) {
 		},
 	}
 
+	copies := map[string]any{
+		"to": map[string]any{
+			"status": map[string]any{"status": "Available"},
+		},
+	}
+
 	tests := []struct {
 		name       string
 		conditions []string
@@ -381,6 +430,11 @@ func TestCheckSuccessConditions(t *testing.T) {
 			conditions: []string{`cm.metadata.name == "stage-cm"`},
 			want:       true,
 		},
+		{
+			name:       "staging copy access",
+			conditions: []string{`to.status.status == "Available"`},
+			want:       true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -391,7 +445,7 @@ func TestCheckSuccessConditions(t *testing.T) {
 				Name:              "copy",
 				SuccessConditions: tc.conditions,
 			}
-			got, err := checkSuccessConditions(t.Context(), stage, resources)
+			got, err := checkSuccessConditions(t.Context(), stage, resources, copies)
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)
 				return
