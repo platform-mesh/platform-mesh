@@ -119,6 +119,12 @@ spec:
                         to be deployed as part of this migration stage. The key makes the
                         respective resources available to reference in CEL expressions,
                         e.g. in SuccessConditions.
+                        String values in the templates may contain CEL expressions
+                        wrapped in ${...}, evaluated with the staging copies of the
+                        migrating resource bound as `from` and `to`. A string consisting
+                        of a single expression keeps the expression's type; expressions
+                        embedded in a larger string are converted to strings.
+                        The apiVersion and kind of a template must be static.
                       type: object
                   required:
                   - name
