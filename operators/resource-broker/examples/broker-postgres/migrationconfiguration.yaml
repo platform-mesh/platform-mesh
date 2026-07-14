@@ -1,0 +1,46 @@
+apiVersion: coord.broker.platform-mesh.io/v1alpha1
+kind: MigrationConfiguration
+metadata:
+  name: migrate-postgres
+spec:
+  from:
+    group: example.platform-mesh.io
+    version: v1alpha1
+    kind: Postgres
+  to:
+    group: example.platform-mesh.io
+    version: v1alpha1
+    kind: Postgres
+  stages:
+    - name: pg-dump
+      preconditions:
+        - to.status.status == "Available"
+      successConditions:
+        - has(dump.status.succeeded) && dump.status.succeeded >= 1
+      templates:
+        dump:
+          apiVersion: batch/v1
+          kind: Job
+          spec:
+            backoffLimit: 10
+            template:
+              spec:
+                restartPolicy: OnFailure
+                containers:
+                  - name: pg-dump
+                    image: postgres:16
+                    command:
+                      - sh
+                      - -c
+                      - pg_dump "$FROM_URI" --clean --if-exists | psql "$TO_URI"
+                    env:
+                      - name: FROM_URI
+                        valueFrom:
+                          secretKeyRef:
+                            name: from-${from.status.relatedResources.credentials.name}
+                            key: uri
+                      - name: TO_URI
+                        valueFrom:
+                          secretKeyRef:
+                            name: to-${to.status.relatedResources.credentials.name}
+                            key: uri

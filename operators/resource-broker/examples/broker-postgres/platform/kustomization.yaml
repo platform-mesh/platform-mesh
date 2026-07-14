@@ -1,0 +1,6 @@
+resources:
+  - etcd.yaml
+  - issuer.yaml
+  - kcp.yaml
+# not including broker.yaml. this is installed when the broker image
+# is built and loaded into kind.

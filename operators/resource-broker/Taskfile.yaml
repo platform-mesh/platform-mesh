@@ -103,6 +103,7 @@ tasks:
     desc: Run all examples
     cmds:
       - task: example-broker-certificates
+      - task: example-broker-postgres
 
   ## Testing
   fmt:

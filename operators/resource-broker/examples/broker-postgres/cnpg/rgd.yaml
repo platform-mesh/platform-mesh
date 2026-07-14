@@ -1,0 +1,99 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: postgres.example.platform-mesh.io
+spec:
+
+  schema:
+    group: example.platform-mesh.io
+    apiVersion: v1alpha1
+    kind: Postgres
+    spec:
+      tier: string
+      version: string
+      database: string
+    status:
+      status: ${cluster.status.conditions.exists(c, c.type == "Ready" && c.status == "True") ? "Available":"Provisioning"}
+      conditions: ${cluster.status.conditions}
+      relatedResources:
+        credentials:
+          gvk:
+            group: ${secret.apiVersion == "v1" ? "core":secret.apiVersion.split("/")[0]}
+            version: ${secret.?apiVersion}
+            kind: ${secret.?kind}
+          name: ${secret.metadata.name}
+          # See broker-certificates for why the origin namespace is
+          # hardcoded via the syncagent annotation. Status expressions
+          # cannot reference the schema, so the annotation is read from
+          # the cluster, which copies it.
+          namespace: ${cluster.metadata.?annotations["remote-object-namespace"]}
+
+  resources:
+
+    - id: authsecret
+      template:
+        apiVersion: v1
+        kind: Secret
+        type: kubernetes.io/basic-auth
+        metadata:
+          name: ${schema.metadata.name}-app-auth
+          namespace: ${schema.metadata.namespace}
+        stringData:
+          username: app
+          password: apppass
+
+    - id: cluster
+      # see kropg
+      readyWhen:
+        - ${cluster.status.conditions.exists(c, c.type == "Ready" && c.status == "True")}
+      template:
+        apiVersion: postgresql.cnpg.io/v1
+        kind: Cluster
+        metadata:
+          name: pg-${schema.metadata.name}
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            remote-object-name: ${schema.metadata.?annotations["syncagent.kcp.io/remote-object-name"]}
+            remote-object-namespace: ${schema.metadata.?annotations["syncagent.kcp.io/remote-object-namespace"]}
+        spec:
+          instances: 1
+          imageName: ghcr.io/cloudnative-pg/postgresql:${schema.spec.version}
+          bootstrap:
+            initdb:
+              database: ${schema.spec.database}
+              owner: app
+              secret:
+                name: ${authsecret.metadata.name}
+          storage:
+            size: 1Gi
+
+    - id: service
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.metadata.name}-nodeport
+          namespace: ${schema.metadata.namespace}
+        spec:
+          type: NodePort
+          selector:
+            cnpg.io/cluster: pg-${schema.metadata.name}
+            cnpg.io/instanceRole: primary
+          ports:
+            - port: 5432
+              targetPort: 5432
+
+    - id: secret
+      template:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: ${schema.metadata.?annotations["syncagent.kcp.io/remote-object-name"]}
+          namespace: ${schema.metadata.namespace}
+        stringData:
+          host: broker-cnpg-control-plane
+          port: ${string(service.spec.ports[0].nodePort)}
+          username: app
+          password: apppass
+          dbname: ${schema.spec.database}
+          uri: postgresql://app:apppass@broker-cnpg-control-plane:${string(service.spec.ports[0].nodePort)}/${schema.spec.database}

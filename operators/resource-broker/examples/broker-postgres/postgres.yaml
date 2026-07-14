@@ -1,0 +1,8 @@
+apiVersion: example.platform-mesh.io/v1alpha1
+kind: Postgres
+metadata:
+  name: pg-from-consumer
+spec:
+  tier: dev
+  version: "16"
+  database: app
