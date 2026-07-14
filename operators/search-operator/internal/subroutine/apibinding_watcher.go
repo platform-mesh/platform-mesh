@@ -211,10 +211,16 @@ func (s *apiBindingWatcherSubroutine) resolveFieldsForBinding(ctx context.Contex
 // Returns nil if no SearchConfig is found.
 func (s *apiBindingWatcherSubroutine) fetchSearchConfig(ctx context.Context, binding *kcpapisv1alpha1.APIBinding) *pmsearchv1alpha1.SearchConfig {
 	log := logger.LoadLoggerFromContext(ctx)
+	mcMngr := s.mgr.GetLocalManager()
+
+	searchConfigClient, err := GetScopedClient(mcMngr.GetConfig(), mcMngr.GetScheme(), "root:providers:hyperspace")
+	if err != nil {
+		return nil
+	}
 
 	for _, br := range binding.Status.BoundResources {
 		cfg := &pmsearchv1alpha1.SearchConfig{}
-		err := s.searchConfigClient.Get(ctx, types.NamespacedName{Name: br.Schema.Name}, cfg)
+		err := searchConfigClient.Get(ctx, types.NamespacedName{Name: "v260115-ddf70747.apidefinitions.metadata.dxp.sap.com"}, cfg)
 		if err == nil {
 			log.Debug().
 				Str("searchConfig", cfg.Name).
