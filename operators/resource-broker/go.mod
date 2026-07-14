@@ -2,6 +2,8 @@ module go.platform-mesh.io/resource-broker
 
 go 1.26.3
 
+replace go.platform-mesh.io/apis => ../../apis
+
 require (
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
