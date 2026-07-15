@@ -267,11 +267,13 @@ func TestSubscribeResourcesByCategory_Permissions(t *testing.T) {
 		listErr       error
 		expectedNames []string
 		expectError   bool
+		wantEvents    int
 	}{
 		{
 			name:          "all types allowed",
 			expectedNames: []string{"first", "second"},
 			expectError:   false,
+			wantEvents:    2,
 		},
 		{
 			name:          "one of two types forbidden",
@@ -279,6 +281,7 @@ func TestSubscribeResourcesByCategory_Permissions(t *testing.T) {
 			listErr:       forbidden,
 			expectedNames: []string{"first"},
 			expectError:   false,
+			wantEvents:    1,
 		},
 		{
 			name:          "all types forbidden",
@@ -286,6 +289,7 @@ func TestSubscribeResourcesByCategory_Permissions(t *testing.T) {
 			listErr:       forbidden,
 			expectedNames: nil,
 			expectError:   false,
+			wantEvents:    0,
 		},
 		{
 			name:          "unauthorized is not suppressed",
@@ -293,6 +297,7 @@ func TestSubscribeResourcesByCategory_Permissions(t *testing.T) {
 			listErr:       apierrors.NewUnauthorized("token expired"),
 			expectedNames: []string{"first"},
 			expectError:   true,
+			wantEvents:    2,
 		},
 	}
 
@@ -324,26 +329,40 @@ func TestSubscribeResourcesByCategory_Permissions(t *testing.T) {
 			outCh, ok := raw.(chan any)
 			require.True(t, ok, "unexpected result type")
 
-			receivedNames, receivedErr := drainEvents(t, outCh)
+			receivedNames, receivedErr := readEvents(t, outCh, tt.wantEvents)
 			assert.ElementsMatch(t, tt.expectedNames, receivedNames)
-
 			if tt.expectError {
 				assert.Error(t, receivedErr)
-				return
+			} else {
+				assert.NoError(t, receivedErr)
 			}
-			assert.NoError(t, receivedErr)
+
+			cancel()
+			for open := true; open; {
+				select {
+				case _, ok := <-outCh:
+					open = ok
+				case <-time.After(drainTimeout):
+					t.Fatal("subscription did not end after context cancel")
+				}
+			}
 		})
 	}
 }
 
-// drainEvents collects the names of all objects, as well as the last error.
-func drainEvents(t *testing.T, outCh <-chan any) (names []string, err error) {
+// drainTimeout is a fallback for the subscription wait in tests.
+const drainTimeout = 2 * time.Second
+
+// readEvents reads exactly expected number of events or errors from outCh.
+// Returns the collected metadata.name values and any received error.
+func readEvents(t *testing.T, outCh <-chan any, expected int) (names []string, err error) {
 	t.Helper()
-	for {
+	var result []string
+	for got := range expected {
 		select {
 		case event, ok := <-outCh:
 			if !ok {
-				return names, err
+				t.Fatalf("channel closed after %d events, want %d", got, expected)
 			}
 			switch v := event.(type) {
 			case error:
@@ -351,14 +370,15 @@ func drainEvents(t *testing.T, outCh <-chan any) (names []string, err error) {
 			case SubscriptionEnvelope:
 				obj, _ := v.Object.(map[string]any)
 				name, _, _ := unstructured.NestedString(obj, "metadata", "name")
-				names = append(names, name)
+				result = append(result, name)
 			default:
 				t.Fatalf("unexpected event type %T", event)
 			}
-		case <-time.After(200 * time.Millisecond):
-			return names, err
+		case <-time.After(drainTimeout):
+			t.Fatalf("timed out waiting for events: got %d, want %d", got, expected)
 		}
 	}
+	return result, err
 }
 
 // listErrForKinds returns a List function which fails with listErr for deniedKinds.
