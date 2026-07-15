@@ -119,17 +119,21 @@ func (c *clusterCache) Engage(ctx context.Context, name multicluster.ClusterName
 	r := &resolver{cl: cl, cancel: cancel}
 	c.resolvers[name] = r
 
+	// Handle cluster discovery asynchronously in order to not block Engage() calls on
+	// clusters with (hopefully just temporarily) missing permission claims.
+	//
 	// Always return nil: Clusters.Add removes the cluster if Engage errors, and
 	// nothing re-drives it afterwards. Resolve in the background instead.
 	go func() {
-		defer func() {
-			c.resolversLock.Lock()
-			if cur, ok := c.resolvers[name]; ok && cur == r {
-				delete(c.resolvers, name)
-			}
-			c.resolversLock.Unlock()
-		}()
 		c.resolve(resolveCtx, name, cl)
+
+		c.resolversLock.Lock()
+		defer c.resolversLock.Unlock()
+
+		// cleanup if we're still active and have not been replaced by another Engage() call
+		if c.resolvers[name] == r {
+			delete(c.resolvers, name)
+		}
 	}()
 
 	return nil
