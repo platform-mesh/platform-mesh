@@ -1,0 +1,167 @@
+# Copyright 2026 The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# provider-operator — component Tiltfile.
+#
+# Merged into the dev environment by contrib/tilt/Tiltfile, which loads and calls
+# deploy_provider_operator(...) when the component is enabled (core/auth/full
+# profiles). All provider-operator-specific wiring lives here so components stay
+# self-contained; the file defines symbols only (no top-level side effects) so it
+# is safe to load().
+#
+# ── PRODUCTION CONTRACT — what platform-mesh-operator must replicate ──────────
+# There is no Tilt in a real install. platform-mesh-operator owns the same
+# prerequisites this file stands in for during the dev loop. When implementing it
+# outside Tilt, reproduce these three things:
+#
+#   1. A DEDICATED BOOTSTRAP IDENTITY for provider-operator — NOT the raw
+#      system:masters root-shard admin kubeconfig. It must hold cluster-admin
+#      across kcp workspaces yet authenticate as a normal (non-system:masters)
+#      user, because kcp deliberately does not record a workspace owner for
+#      system:masters callers (pkg/admission/workspace: isSystemPrivileged skips
+#      the owner annotation). Without a recorded owner, LogicalCluster.spec
+#      .createdBy is empty and the system:apibindings initializer wedges every
+#      seeded workspace in Initializing forever ("had no createdBy recorded").
+#      Here this is a kcp-operator Kubeconfig CR (`providers-bootstrapper`) in the
+#      group system:kcp:admin — globally bound to cluster-admin by kcp's bootstrap
+#      policy (pkg/authorization/bootstrap/policy.go) but distinct from
+#      system:masters — targeting the front-proxy (which preserves system:kcp:admin
+#      while dropping system:masters on ingress).
+#
+#   2. DELIVERY of that identity's kubeconfig to provider-operator as the secret it
+#      reads: KCP.ClusterAdminSecretName (runner) and seed.kcpAdminSecretName
+#      (init container), default `kcp-cluster-admin-client-cert`. Here it is copied
+#      out of the minted `kcp-providers-bootstrapper-kubeconfig` secret.
+#
+#   3. DEPLOYING provider-operator itself (image + chart). Its `seed` initContainer
+#      bootstraps the providers.platform-mesh.io API surface and the
+#      root:platform-mesh-system / root:providers workspaces AS that identity.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Contract #1: the dedicated bootstrap-identity Kubeconfig CR. Inlined (rather
+# than a sibling YAML file) so this component Tiltfile carries no file-path
+# dependency when loaded from the top-level Tiltfile.
+_BOOTSTRAPPER_KUBECONFIG = {
+    'apiVersion': 'operator.kcp.io/v1alpha1',
+    'kind': 'Kubeconfig',
+    'metadata': {
+        'name': 'providers-bootstrapper',
+        'namespace': 'platform-mesh-system',
+    },
+    'spec': {
+        'username': 'providers-bootstrapper',
+        # system:kcp:admin ⇒ cluster-admin in every workspace, but NOT the
+        # system:masters superuser — so kcp records this identity as the owner.
+        'groups': ['system:kcp:admin'],
+        'validity': '8766h',
+        'secretRef': {'name': 'kcp-providers-bootstrapper-kubeconfig'},
+        # Front-proxy target keeps the request on the system:kcp:admin path.
+        'target': {'frontProxyRef': {'name': 'frontproxy'}},
+    },
+}
+
+# Copy the minted bootstrapper kubeconfig into the secret provider-operator reads
+# (contract #2). Runs with the top-level Tiltfile's working directory; uses an
+# explicit --context so it is independent of that cwd.
+_KCP_SECRET_CMD = '''set -eo pipefail
+CTX=kind-platform-mesh
+NS=platform-mesh-system
+kubectl --context "$CTX" -n "$NS" wait secret/kcp-providers-bootstrapper-kubeconfig --for=create --timeout=5m
+tmp=$(mktemp)
+kubectl --context "$CTX" -n "$NS" get secret kcp-providers-bootstrapper-kubeconfig -o jsonpath="{.data.kubeconfig}" | base64 -d > "$tmp"
+kubectl --context "$CTX" -n "$NS" create secret generic kcp-cluster-admin-client-cert --from-file=kubeconfig="$tmp" --dry-run=client -o yaml | kubectl --context "$CTX" apply -f -
+rm -f "$tmp"
+echo "kcp-cluster-admin-client-cert ready (providers-bootstrapper identity); provider-operator seeds providers.platform-mesh.io via its initContainer"'''
+
+
+def deploy_provider_operator(namespace, oci, component_build, chart_path):
+    """Wire the provider-operator component into the dev environment.
+
+    Args:
+      namespace:       target namespace (platform-mesh-system).
+      oci:             OCI repo base for published charts.
+      component_build: helper from contrib/tilt/helpers.py (paths stay anchored
+                       to contrib/tilt where it is defined).
+      chart_path:      helper from contrib/tilt/helpers.py.
+    """
+    # provider-operator — the first CORE-layer (RFC 008 L1) component: the kcp
+    # provider-bootstrap + ManagedProvider orchestrator. Its own image built from
+    # operators/provider-operator and its own provider-operator Helm chart.
+    component_build(
+        name='provider-operator',
+        path='operators/provider-operator',
+        deps=['apis', 'subroutines', 'golang-commons'],
+        # Match the image the chart renders so Tilt substitutes the local build.
+        image='ghcr.io/platform-mesh/platform-mesh/provider-operator',
+        chart=chart_path('provider-operator', os.getenv('PROVIDER_OPERATOR_CHART_VERSION', '0.1.0'), oci),
+        namespace=namespace,
+        # Gate on the namespace and on the kcp kubeconfig secret the seed
+        # initContainer mounts — otherwise the pod is scheduled before the secret
+        # exists and stalls in ContainerCreating. providers-kcp-secret transitively
+        # waits on the front-proxy, so by the time this starts kcp is reachable too.
+        resource_deps=['namespace', 'providers-kcp-secret'],
+        # kcp hostnames resolve only via hostAliases → the gateway IP; the seed
+        # initContainer and the operator reach kcp through it.
+        helm_set=[
+            'hostAliases.enabled=true',
+            'hostAliases.entries[0].ip=10.96.2.2',
+            'hostAliases.entries[0].hostnames[0]=root.pm.localhost',
+            'hostAliases.entries[0].hostnames[1]=pm.localhost',
+        ],
+        # Fold the chart's namespaced non-workload objects into this resource so
+        # they don't land in Tilt's dependency-less catch-all and race the namespace.
+        objects=[
+            'provider-operator:serviceaccount',
+            'provider-operator:role',
+            'provider-operator:rolebinding',
+            # ManagedProvider is a runtime-cluster CRD the operator reconciles;
+            # the chart ships it (crds.enabled). Claim it here so it applies with
+            # the operator rather than landing in the catch-all.
+            'managedproviders.providers.platform-mesh.io:customresourcedefinition',
+        ],
+    )
+
+    # Contract #1 — the dedicated bootstrap identity. k8s_kind("Kubeconfig") is
+    # already registered by the kcp module (deploy_kcp runs first), so Tilt groups
+    # this CR into a resource named after the object; configure it by that name.
+    # The Kubeconfig CR reports readiness via Available/ReferenceValid conditions,
+    # which Tilt's kstatus does not recognise as "ready", so this resource sits at
+    # runtime=pending. Nothing gates on its Tilt readiness (providers-kcp-secret
+    # waits on the minted secret in-script instead); pod_readiness='ignore' keeps it
+    # from being reported as a hard failure.
+    k8s_yaml(encode_yaml(_BOOTSTRAPPER_KUBECONFIG))
+    k8s_resource(
+        'providers-bootstrapper',
+        labels=['components'],
+        pod_readiness='ignore',
+        resource_deps=['namespace', 'frontproxy'],
+    )
+
+    # Contract #2 — deliver the identity's kubeconfig as the secret the operator
+    # (and its seed initContainer) read. Contract #3 (the seed itself) then runs
+    # inside the operator pod on startup.
+    #
+    # Gate on the front-proxy (which reaches runtime=ok), NOT on the Kubeconfig CR
+    # resource above — that never goes "ready" in Tilt's view (see note), so a
+    # resource_dep on it would wedge this forever. The CR is applied in parallel by
+    # its own resource; the script below waits for the kcp-operator to mint the
+    # secret, which is the real readiness signal. This mirrors the kcp module's
+    # own "kcp-admin extract", which waits on kubeconfig conditions in-script.
+    local_resource(
+        'providers-kcp-secret',
+        cmd=_KCP_SECRET_CMD,
+        resource_deps=['frontproxy'],
+        labels=['components'],
+        allow_parallel=True,
+    )
