@@ -51,22 +51,52 @@ type Provider interface {
 	Get(clusterName multicluster.ClusterName) (ClusterInfo, bool)
 }
 
-type clusterCache struct {
-	lock  sync.RWMutex
-	cache map[multicluster.ClusterName]ClusterInfo
-	mgr   mcmanager.Manager
+var defaultBackoff = wait.Backoff{
+	Duration: time.Second,
+	Factor:   2.0,
+	Jitter:   0.1,
+	Steps:    9,
+	Cap:      5 * time.Minute,
 }
 
-func New(mgr mcmanager.Manager) (*clusterCache, error) {
-	return &clusterCache{
-		cache: make(map[multicluster.ClusterName]ClusterInfo),
-		mgr:   mgr,
-	}, nil
+type resolver struct {
+	cl     cluster.Cluster
+	cancel context.CancelFunc
+}
+
+type clusterCache struct {
+	cacheLock sync.RWMutex
+	cache     map[multicluster.ClusterName]ClusterInfo
+
+	resolversLock sync.Mutex
+	resolvers     map[multicluster.ClusterName]*resolver
+
+	mgr     mcmanager.Manager
+	backoff wait.Backoff
+}
+
+type Option func(*clusterCache)
+
+func WithBackoff(b wait.Backoff) Option {
+	return func(c *clusterCache) { c.backoff = b }
+}
+
+func New(mgr mcmanager.Manager, opts ...Option) (*clusterCache, error) {
+	c := &clusterCache{
+		cache:     make(map[multicluster.ClusterName]ClusterInfo),
+		resolvers: make(map[multicluster.ClusterName]*resolver),
+		mgr:       mgr,
+		backoff:   defaultBackoff,
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c, nil
 }
 
 func (c *clusterCache) Get(clusterName multicluster.ClusterName) (ClusterInfo, bool) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
 	val, ok := c.cache[clusterName]
 	return val, ok
 }
@@ -74,23 +104,70 @@ func (c *clusterCache) Get(clusterName multicluster.ClusterName) (ClusterInfo, b
 func (c *clusterCache) Engage(ctx context.Context, name multicluster.ClusterName, cl cluster.Cluster) error {
 	klog.V(5).InfoS("Engaging cluster", "clusterName", name)
 
-	var lc unstructured.Unstructured
-	err := wait.PollUntilContextCancel(ctx, time.Second, true, func(ctx context.Context) (bool, error) {
-		lc = unstructured.Unstructured{}
-		lc.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   "core.kcp.io",
-			Version: "v1alpha1",
-			Kind:    "LogicalCluster",
-		})
-		if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: "cluster"}, &lc); err != nil {
-			klog.V(5).ErrorS(err, "Failed to get LogicalCluster, will retry", "clusterName", name)
-			return false, nil
+	c.resolversLock.Lock()
+	defer c.resolversLock.Unlock()
+
+	if old, ok := c.resolvers[name]; ok {
+		if old.cl == cl {
+			return nil
 		}
-		return true, nil
+		old.cancel()
+		delete(c.resolvers, name)
+	}
+
+	resolveCtx, cancel := context.WithCancel(ctx)
+	r := &resolver{cl: cl, cancel: cancel}
+	c.resolvers[name] = r
+
+	// Always return nil: Clusters.Add removes the cluster if Engage errors, and
+	// nothing re-drives it afterwards. Resolve in the background instead.
+	go func() {
+		defer func() {
+			c.resolversLock.Lock()
+			if cur, ok := c.resolvers[name]; ok && cur == r {
+				delete(c.resolvers, name)
+			}
+			c.resolversLock.Unlock()
+		}()
+		c.resolve(resolveCtx, name, cl)
+	}()
+
+	return nil
+}
+
+// resolve retries until it succeeds or ctx is cancelled. It loops by hand rather
+// than via wait.ExponentialBackoffWithContext, which stops after Backoff.Steps;
+// DelayFunc caps at Backoff.Cap and keeps returning it.
+func (c *clusterCache) resolve(ctx context.Context, name multicluster.ClusterName, cl cluster.Cluster) {
+	delay := c.backoff.DelayFunc()
+	for {
+		done, err := c.tryResolve(ctx, name, cl)
+		if done {
+			return
+		}
+		if err != nil {
+			klog.V(5).ErrorS(err, "Failed to resolve cluster, will retry", "clusterName", name)
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay()):
+		}
+	}
+}
+
+// tryResolve returns done=true when the cluster was cached or intentionally
+// skipped, and (false, err) when it should be retried.
+func (c *clusterCache) tryResolve(ctx context.Context, name multicluster.ClusterName, cl cluster.Cluster) (bool, error) {
+	lc := unstructured.Unstructured{}
+	lc.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "core.kcp.io",
+		Version: "v1alpha1",
+		Kind:    "LogicalCluster",
 	})
-	if err != nil {
-		klog.ErrorS(err, "Failed to get LogicalCluster, context cancelled", "clusterName", name)
-		return err
+	if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: "cluster"}, &lc); err != nil {
+		return false, err
 	}
 
 	annotationPath := lc.GetAnnotations()["kcp.io/path"]
@@ -99,7 +176,7 @@ func (c *clusterCache) Engage(ctx context.Context, name multicluster.ClusterName
 	const orgsPrefix = "root:orgs:"
 	if !strings.HasPrefix(annotationPath, orgsPrefix) {
 		klog.V(5).InfoS("Cluster path does not have orgs prefix, skipping", "clusterName", name, "path", annotationPath)
-		return nil
+		return true, nil
 	}
 
 	orgName, _, _ := strings.Cut(annotationPath[len(orgsPrefix):], ":")
@@ -107,60 +184,44 @@ func (c *clusterCache) Engage(ctx context.Context, name multicluster.ClusterName
 
 	parentClusterID, found, err := unstructured.NestedString(lc.Object, "spec", "owner", "cluster")
 	if err != nil {
-		klog.ErrorS(err, "Failed to get owner.cluster from LogicalCluster spec", "clusterName", name)
-		return err
+		return false, err
 	}
 	if !found {
-		klog.Error("No owner.cluster found in LogicalCluster spec", "clusterName", name)
-		return errors.New("owner.cluster not found in LogicalCluster spec")
+		return false, errors.New("owner.cluster not found in LogicalCluster spec")
 	}
 
-	var store unstructured.Unstructured
-	err = wait.PollUntilContextCancel(ctx, time.Second, true, func(ctx context.Context) (bool, error) {
-		store = unstructured.Unstructured{}
-		store.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   "core.platform-mesh.io",
-			Version: "v1alpha1",
-			Kind:    "Store",
-		})
-
-		orgsCluster, err := c.mgr.GetCluster(ctx, "root:orgs")
-		if err != nil {
-			return false, err
-		}
-		orgsClient := orgsCluster.GetClient()
-
-		if err := orgsClient.Get(ctx, types.NamespacedName{Name: orgName}, &store); err != nil {
-			klog.V(5).ErrorS(err, "Failed to get Store for org, will retry", "clusterName", name, "orgName", orgName)
-			return false, nil
-		}
-		return true, nil
+	store := unstructured.Unstructured{}
+	store.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "core.platform-mesh.io",
+		Version: "v1alpha1",
+		Kind:    "Store",
 	})
+	orgsCluster, err := c.mgr.GetCluster(ctx, "root:orgs")
 	if err != nil {
-		klog.ErrorS(err, "Failed to get Store for org", "clusterName", name, "orgName", orgName)
-		return err
+		return false, err
+	}
+	if err := orgsCluster.GetClient().Get(ctx, types.NamespacedName{Name: orgName}, &store); err != nil {
+		return false, err
 	}
 
 	storeID, found, err := unstructured.NestedString(store.Object, "status", "storeId")
 	if err != nil {
-		klog.ErrorS(err, "Failed to get storeId from Store status", "clusterName", name, "orgName", orgName)
-		return err
+		return false, err
 	}
 	if !found {
-		klog.V(5).InfoS("storeId not found in Store status", "clusterName", name, "orgName", orgName)
-		return errors.New("storeId not found in Store status")
+		return false, errors.New("storeId not found in Store status")
 	}
 
 	cfg := rest.CopyConfig(cl.GetConfig())
 
 	parsed, err := url.Parse(cfg.Host)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	path, err := url.JoinPath("clusters", name.String())
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	parsed.Path = path
@@ -168,22 +229,22 @@ func (c *clusterCache) Engage(ctx context.Context, name multicluster.ClusterName
 
 	httpClient, err := rest.HTTPClientFor(cfg)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	restMapper, err := apiutil.NewDynamicRESTMapper(cfg, httpClient)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	c.lock.Lock()
+	c.cacheLock.Lock()
 	c.cache[name] = ClusterInfo{
 		StoreID:         storeID,
 		RESTMapper:      restMapper,
 		AccountName:     accountName,
 		ParentClusterID: parentClusterID,
 	}
-	c.lock.Unlock()
+	c.cacheLock.Unlock()
 
 	klog.V(5).InfoS("Cached cluster info",
 		"clusterName", name,
@@ -191,7 +252,7 @@ func (c *clusterCache) Engage(ctx context.Context, name multicluster.ClusterName
 		"accountName", accountName,
 		"parentClusterID", parentClusterID)
 
-	return nil
+	return true, nil
 }
 
 func (c *clusterCache) Start(_ context.Context) error { // coverage-ignore
