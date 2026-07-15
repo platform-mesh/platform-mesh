@@ -34,6 +34,7 @@ import (
 	"go.platform-mesh.io/kubernetes-graphql-gateway/sdk"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -134,11 +135,20 @@ func NewConfig(options *options.CompletedOptions) (*Config, error) {
 		cacheNamespaces[ns] = ctrlcache.Config{}
 	}
 
+	var defaultLabelSelector labels.Selector
+	if options.CacheLabelSelector != "" {
+		defaultLabelSelector, err = labels.Parse(options.CacheLabelSelector)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing cache label selector: %w", err)
+		}
+	}
+
 	switch options.Provider {
 	case "single":
 		cl, err := ctrlcluster.New(config.ClientConfig, func(o *ctrlcluster.Options) {
 			o.Scheme = scheme
 			o.Cache.DefaultNamespaces = cacheNamespaces
+			o.Cache.DefaultLabelSelector = defaultLabelSelector
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error creating cluster for single provider: %w", err)
@@ -197,6 +207,7 @@ func NewConfig(options *options.CompletedOptions) (*Config, error) {
 		singleCluster, err := ctrlcluster.New(singleConfig, func(o *ctrlcluster.Options) {
 			o.Scheme = scheme
 			o.Cache.DefaultNamespaces = cacheNamespaces
+			o.Cache.DefaultLabelSelector = defaultLabelSelector
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error creating cluster for single provider: %w", err)

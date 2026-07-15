@@ -27,6 +27,7 @@ import (
 	"go.platform-mesh.io/kubernetes-graphql-gateway/defaults"
 	providerkcp "go.platform-mesh.io/kubernetes-graphql-gateway/providers/kcp/options"
 
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/component-base/logs"
@@ -79,6 +80,11 @@ type ExtraOptions struct {
 	// CacheNamespaces restricts the cache to these namespaces for namespaced resources.
 	// Cluster-scoped resources are unaffected.
 	CacheNamespaces []string
+
+	// CacheLabelSelector restricts the cache to objects matching this label selector.
+	// It is parsed as a Kubernetes label selector string (e.g. "app=foo,tier!=bar").
+	// Only applies to the single provider cluster. When empty, no label selector is set.
+	CacheLabelSelector string
 
 	// EnableResourceController enables the resource controller.
 	EnableResourceController bool
@@ -160,6 +166,8 @@ func (options *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&options.AdditionalPathAnnotationKey, "additional-path-annotation-key", options.AdditionalPathAnnotationKey, "additional path annotation key for workspace schema generation")
 
 	fs.StringSliceVar(&options.CacheNamespaces, "cache-namespaces", options.CacheNamespaces, "Namespaces to restrict the cache to for namespaced resources (e.g. secrets, configmaps). Cluster-scoped resources are unaffected. When empty, all namespaces are cached")
+
+	fs.StringVar(&options.CacheLabelSelector, "cache-label-selector", options.CacheLabelSelector, "Label selector to restrict the cache to matching objects (e.g. 'app=foo,tier!=bar'). Only applies to the single provider cluster. When empty, no label selector is set")
 
 	fs.BoolVar(&options.EnableResourceController, "enable-resource-controller", options.EnableResourceController, "Enable the resource controller for watching the configured anchor resource and generating schemas")
 	fs.BoolVar(&options.EnableClusterAccessController, "enable-clusteraccess-controller", options.EnableClusterAccessController, "Enable the ClusterAccess controller for managing remote cluster schemas")
@@ -256,6 +264,12 @@ func (options *CompletedOptions) Validate() error {
 	for _, ns := range options.CacheNamespaces {
 		if strings.TrimSpace(ns) == "" {
 			return fmt.Errorf("empty namespace in --cache-namespaces")
+		}
+	}
+
+	if options.CacheLabelSelector != "" {
+		if _, err := labels.Parse(options.CacheLabelSelector); err != nil {
+			return fmt.Errorf("invalid --cache-label-selector %q: %w", options.CacheLabelSelector, err)
 		}
 	}
 
