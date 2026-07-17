@@ -26,10 +26,6 @@ limitations under the License.
 //	                                               go.platform-mesh.io/subroutines (no image)
 //	apis               apis/v<X.Y.Z>               go-gettable module tag for
 //	                                               go.platform-mesh.io/apis (no image)
-//	golang-commons     golang-commons/v<X.Y.Z>     golang-commons.yml: go-gettable module
-//	                                               tag + GitHub release (no image)
-//	subroutines        subroutines/v<X.Y.Z>        subroutines.yml: go-gettable module
-//	                                               tag + GitHub release (no image)
 //	account-operator   account-operator/v<X.Y.Z>   account-operator.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
 //	backup-operator    backup-operator/v<X.Y.Z>    backup-operator.yml: signed image,
@@ -48,6 +44,7 @@ limitations under the License.
 //	                                               GitHub release, chart bump, SBOM, OCM
 //	terminal-controller-manager   terminal-controller-manager/v<X.Y.Z>
 //	                                               terminal-controller-manager.yml: signed image,
+//	                                               GitHub release, chart bump, SBOM, OCM
 //	iam-service   iam-service/v<X.Y.Z>             iam-service.yml: signed image,
 //	                                               GitHub release, chart bump, SBOM, OCM
 //	kubernetes-graphql-gateway   kubernetes-graphql-gateway/v<X.Y.Z>
@@ -65,12 +62,12 @@ limitations under the License.
 //
 // Usage:
 //
-//	release <component|all> [flags]
+//	task release -- <component|all> [flags]
 //
-//	release account-operator             # bump account-operator/v* patch and push
-//	release apis --minor                 # bump apis/v* minor
-//	release account-operator --tag v0.0.1   # explicit version
-//	release all --dry-run                # preview every component's next tag
+//	task release -- account-operator             # bump account-operator/v* patch and push
+//	task release -- apis --minor                 # bump apis/v* minor
+//	task release -- account-operator --tag v0.0.1   # explicit version
+//	task release -- all --dry-run                # preview every component's next tag
 //
 // Flags:
 //
@@ -468,14 +465,12 @@ func usage() {
 	fmt.Print(`release — cut release tags for platform-mesh monorepo components
 
 Usage:
-  release <component|all> [flags]
+  task release -- <component|all> [flags]
 
 Components:
   golang-commons               golang-commons/v<X.Y.Z>               (go-gettable module tag, no image)
   subroutines                  subroutines/v<X.Y.Z>                  (go-gettable module tag, no image)
   apis                         apis/v<X.Y.Z>                         (go-gettable module tag, no image)
-  golang-commons               golang-commons/v<X.Y.Z>               (go-gettable module tag + GitHub release, no image)
-  subroutines                  subroutines/v<X.Y.Z>                  (go-gettable module tag + GitHub release, no image)
   account-operator             account-operator/v<X.Y.Z>             (signed image + release + chart + SBOM + OCM)
   backup-operator              backup-operator/v<X.Y.Z>              (signed image + release + chart + SBOM + OCM)
   extension-manager-operator   extension-manager-operator/v<X.Y.Z>   (signed image + release + chart + SBOM + OCM)
@@ -487,7 +482,6 @@ Components:
   terminal-controller-manager  terminal-controller-manager/v<X.Y.Z>  (signed image + release + chart + SBOM + OCM)
   iam-service                  iam-service/v<X.Y.Z>                  (signed image + release + chart + SBOM + OCM)
   rebac-authz-webhook          rebac-authz-webhook/v<X.Y.Z>          (signed image + release + chart + SBOM + OCM)
-  terminal-controller-manager  terminal-controller-manager/v<X.Y.Z>  (signed image + release + chart + SBOM + OCM)
   virtual-workspaces           virtual-workspaces/v<X.Y.Z>           (signed image + release + chart + SBOM + OCM)
   all                          every component                       (independent versions)
 
@@ -501,10 +495,10 @@ Flags:
   -y, --yes        skip the confirmation prompt
 
 Examples:
-  release account-operator            bump account-operator/v* patch and push
-  release apis --minor                bump apis/v* minor
-  release account-operator --rc       cut the next rc (e.g. v0.0.2-rc1, then -rc2, ...)
-  release account-operator --tag v0.0.1
-  release all --dry-run
+  task release -- account-operator            bump account-operator/v* patch and push
+  task release -- apis --minor                bump apis/v* minor
+  task release -- account-operator --rc       cut the next rc (e.g. v0.0.2-rc1, then -rc2, ...)
+  task release -- account-operator --tag v0.0.1
+  task release -- all --dry-run
 `)
 }
