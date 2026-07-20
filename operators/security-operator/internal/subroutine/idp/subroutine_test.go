@@ -41,6 +41,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -1336,6 +1337,7 @@ func TestSubroutineProcessUpstreamProviders(t *testing.T) {
 		obj           *pmcorev1alpha1.IdentityProviderConfiguration
 		secrets       []ctrlruntimeclient.Object
 		setupIDPMocks func(mux *http.ServeMux)
+		expectErr     bool
 		assertStatus  func(t *testing.T, idp *pmcorev1alpha1.IdentityProviderConfiguration)
 	}{
 		{
@@ -1349,8 +1351,21 @@ func TestSubroutineProcessUpstreamProviders(t *testing.T) {
 			},
 			secrets: []ctrlruntimeclient.Object{dexSecret},
 			setupIDPMocks: func(mux *http.ServeMux) {
+				idpCreated := false
 				mux.HandleFunc("GET /admin/realms/test-realm/identity-provider/instances/dex", func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusNotFound)
+					if !idpCreated {
+						w.WriteHeader(http.StatusNotFound)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_ = json.NewEncoder(w).Encode(keycloak.IdentityProviderRepresentation{
+						Alias:      "dex",
+						ProviderID: "oidc",
+						Config: map[string]string{
+							"authorizationUrl": "https://portal.localhost:8443/dex/auth",
+							"clientId":         "keycloak-broker",
+						},
+					})
 				})
 				mux.HandleFunc("POST /admin/realms/test-realm/identity-provider/instances", func(w http.ResponseWriter, r *http.Request) {
 					body, err := io.ReadAll(r.Body)
@@ -1358,7 +1373,11 @@ func TestSubroutineProcessUpstreamProviders(t *testing.T) {
 					var rep keycloak.IdentityProviderRepresentation
 					require.NoError(t, json.Unmarshal(body, &rep))
 					assert.Equal(t, "https://portal.localhost:8443/dex/auth", rep.Config["authorizationUrl"])
+					idpCreated = true
 					w.WriteHeader(http.StatusCreated)
+				})
+				mux.HandleFunc("PUT /admin/realms/test-realm/identity-provider/instances/dex", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNoContent)
 				})
 			},
 			assertStatus: func(t *testing.T, idp *pmcorev1alpha1.IdentityProviderConfiguration) {
@@ -1369,7 +1388,7 @@ func TestSubroutineProcessUpstreamProviders(t *testing.T) {
 			},
 		},
 		{
-			name: "records upstream failure without failing reconcile",
+			name: "records upstream failure in condition without failing reconcile",
 			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
 				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
@@ -1378,11 +1397,17 @@ func TestSubroutineProcessUpstreamProviders(t *testing.T) {
 				},
 			},
 			setupIDPMocks: func(mux *http.ServeMux) {},
+			expectErr:     false,
 			assertStatus: func(t *testing.T, idp *pmcorev1alpha1.IdentityProviderConfiguration) {
 				status, ok := idp.Status.ManagedUpstreamIdentityProviders["dex"]
 				require.True(t, ok)
 				assert.False(t, status.Ready)
 				assert.Contains(t, status.Message, "client secret")
+
+				cond := meta.FindStatusCondition(idp.Status.Conditions, "UpstreamProvidersReady")
+				require.NotNil(t, cond, "expected UpstreamProvidersReady condition")
+				assert.Equal(t, metav1.ConditionFalse, cond.Status)
+				assert.Contains(t, cond.Message, "dex")
 			},
 		},
 		{
@@ -1394,12 +1419,15 @@ func TestSubroutineProcessUpstreamProviders(t *testing.T) {
 				},
 				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
 					ManagedUpstreamIdentityProviders: map[string]pmcorev1alpha1.UpstreamIdentityProviderStatus{
-						"dex": {Alias: "dex", Ready: true},
+						"dex": {Alias: "dex", Ready: true, OrganizationID: "org-1"},
 					},
 				},
 			},
 			setupIDPMocks: func(mux *http.ServeMux) {
 				mux.HandleFunc("DELETE /admin/realms/test-realm/identity-provider/instances/dex", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNoContent)
+				})
+				mux.HandleFunc("DELETE /admin/realms/test-realm/organizations/org-1", func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusNoContent)
 				})
 			},
@@ -1457,7 +1485,11 @@ func TestSubroutineProcessUpstreamProviders(t *testing.T) {
 			ctx = l.WithContext(ctx)
 
 			_, opErr := s.Process(ctx, tt.obj)
-			assert.NoError(t, opErr)
+			if tt.expectErr {
+				assert.NotNil(t, opErr, "expected an operator error")
+			} else {
+				assert.Nil(t, opErr, "did not expect an operator error")
+			}
 
 			updated := &pmcorev1alpha1.IdentityProviderConfiguration{}
 			require.NoError(t, kcpClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(tt.obj), updated))

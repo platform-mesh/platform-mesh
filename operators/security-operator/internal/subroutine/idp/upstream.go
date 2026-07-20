@@ -24,9 +24,11 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/security-operator/internal/config"
+	"go.platform-mesh.io/security-operator/internal/util"
 	"go.platform-mesh.io/security-operator/pkg/clientreg/keycloak"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -37,6 +39,7 @@ func (s *subroutine) reconcileUpstreamIdentityProviders(
 	adminClient *keycloak.AdminClient,
 	log *logger.Logger,
 ) map[string]pmcorev1alpha1.UpstreamIdentityProviderStatus {
+	realmName := idpConfig.Name
 	desiredAliases := make(map[string]struct{}, len(idpConfig.Spec.UpstreamIdentityProviders))
 	managed := make(map[string]pmcorev1alpha1.UpstreamIdentityProviderStatus)
 
@@ -49,20 +52,23 @@ func (s *subroutine) reconcileUpstreamIdentityProviders(
 		desiredAliases[alias] = struct{}{}
 
 		status := pmcorev1alpha1.UpstreamIdentityProviderStatus{
-			Alias:        alias,
-			LastSyncTime: metav1.Now(),
+			Alias: alias,
 		}
 
-		if err := s.reconcileUpstreamProvider(ctx, adminClient, upstream); err != nil {
+		prevOrgID := idpConfig.Status.ManagedUpstreamIdentityProviders[alias].OrganizationID
+		if orgID, domains, err := s.reconcileUpstreamIdentityProvider(ctx, adminClient, realmName, upstream, prevOrgID, log); err != nil {
 			status.Ready = false
 			status.Message = err.Error()
 			log.Error().Err(err).Str("alias", alias).Msg("failed to reconcile upstream identity provider")
 		} else {
 			status.Ready = true
 			status.Message = ""
+			status.OrganizationID = orgID
+			status.LinkedEmailDomains = domains
 			log.Info().Str("alias", alias).Msg("upstream identity provider reconciled")
 		}
 
+		status.LastSyncTime = upstreamStatusLastSyncTimeIfChanged(idpConfig.Status.ManagedUpstreamIdentityProviders, status)
 		managed[alias] = status
 	}
 
@@ -72,40 +78,72 @@ func (s *subroutine) reconcileUpstreamIdentityProviders(
 		}
 
 		log.Info().Str("alias", alias).Msg("deleting upstream identity provider removed from spec")
+		prevStatus := idpConfig.Status.ManagedUpstreamIdentityProviders[alias]
 		if err := adminClient.DeleteIdentityProvider(ctx, alias); err != nil {
-			managed[alias] = pmcorev1alpha1.UpstreamIdentityProviderStatus{
-				Alias:        alias,
-				Ready:        false,
-				Message:      fmt.Sprintf("failed to delete: %v", err),
-				LastSyncTime: metav1.Now(),
+			deleteStatus := pmcorev1alpha1.UpstreamIdentityProviderStatus{
+				Alias:   alias,
+				Ready:   false,
+				Message: fmt.Sprintf("failed to delete: %v", err),
 			}
+			deleteStatus.LastSyncTime = upstreamStatusLastSyncTimeIfChanged(idpConfig.Status.ManagedUpstreamIdentityProviders, deleteStatus)
+			managed[alias] = deleteStatus
 			log.Error().Err(err).Str("alias", alias).Msg("failed to delete upstream identity provider")
+			continue
+		}
+		if prevStatus.OrganizationID != "" {
+			if err := adminClient.DeleteOrganization(ctx, prevStatus.OrganizationID); err != nil {
+				log.Error().
+					Err(err).
+					Str("alias", alias).
+					Str("organizationId", prevStatus.OrganizationID).
+					Msg("failed to delete keycloak organization for removed upstream identity provider")
+			}
 		}
 	}
 
 	return managed
 }
 
-func (s *subroutine) reconcileUpstreamProvider(
+// upstreamStatusLastSyncTimeIfChanged keeps the previous LastSyncTime when the meaningful
+// status fields are unchanged so the resource status converges (and the
+// controller stops reconciling); it only advances to now on an actual change.
+func upstreamStatusLastSyncTimeIfChanged(
+	previous map[string]pmcorev1alpha1.UpstreamIdentityProviderStatus,
+	next pmcorev1alpha1.UpstreamIdentityProviderStatus,
+) metav1.Time {
+	if existing, ok := previous[next.Alias]; ok {
+		candidate := next
+		candidate.LastSyncTime = existing.LastSyncTime
+		if equality.Semantic.DeepEqual(existing, candidate) {
+			return existing.LastSyncTime
+		}
+	}
+	return metav1.Now()
+}
+
+func (s *subroutine) reconcileUpstreamIdentityProvider(
 	ctx context.Context,
 	adminClient *keycloak.AdminClient,
+	realmName string,
 	upstream *pmcorev1alpha1.UpstreamIdentityProvider,
-) error {
+	prevOrgID string,
+	log *logger.Logger,
+) (string, []string, error) {
 	if upstream.Type != pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC {
-		return fmt.Errorf("unsupported upstream identity provider type %q", upstream.Type)
+		return "", nil, fmt.Errorf("unsupported upstream identity provider type %q", upstream.Type)
 	}
 	if upstream.OIDC == nil {
-		return fmt.Errorf("oidc config is required for provider %q", upstream.Alias)
+		return "", nil, fmt.Errorf("oidc config is required for provider %q", upstream.Alias)
 	}
 
 	clientSecret, err := s.readClientSecret(ctx, upstream.OIDC.ClientSecretRef)
 	if err != nil {
-		return fmt.Errorf("reading client secret: %w", err)
+		return "", nil, fmt.Errorf("reading client secret: %w", err)
 	}
 
-	rep, err := keycloak.ToKeycloakIdentityProvider(*upstream, clientSecret)
+	desired, err := keycloak.ToKeycloakIdentityProvider(*upstream, clientSecret)
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 
 	if upstream.OIDC.DiscoveryURL != "" {
@@ -115,10 +153,10 @@ func (s *subroutine) reconcileUpstreamProvider(
 			upstream.OIDC.DiscoveryURL,
 		)
 		if err != nil {
-			return fmt.Errorf("importing oidc discovery config: %w", err)
+			return "", nil, fmt.Errorf("importing oidc discovery config: %w", err)
 		}
 		keycloak.MergeImportedOIDCConfig(
-			&rep,
+			&desired,
 			imported,
 			"clientId",
 			"clientSecret",
@@ -131,16 +169,88 @@ func (s *subroutine) reconcileUpstreamProvider(
 		)
 	}
 
-	existing, err := adminClient.GetIdentityProvider(ctx, upstream.Alias)
+	current, err := adminClient.GetIdentityProvider(ctx, upstream.Alias)
 	if err != nil {
-		return fmt.Errorf("checking identity provider existence: %w", err)
+		return "", nil, fmt.Errorf("checking identity provider existence: %w", err)
 	}
 
-	if existing == nil {
-		return adminClient.CreateIdentityProvider(ctx, rep)
+	if current == nil {
+		if err := adminClient.CreateIdentityProvider(ctx, desired); err != nil {
+			return "", nil, err
+		}
+		current, err = adminClient.GetIdentityProvider(ctx, upstream.Alias)
+		if err != nil {
+			return "", nil, fmt.Errorf("loading identity provider after create: %w", err)
+		}
+		if current == nil {
+			return "", nil, fmt.Errorf("identity provider %q not found after create", upstream.Alias)
+		}
 	}
 
-	return adminClient.UpdateIdentityProvider(ctx, upstream.Alias, rep)
+	keycloak.MergeIdentityProviderSpec(current, desired)
+
+	var domains []string
+	if upstream.EmailDomainRouting != nil {
+		domains = util.NormalizeEmailDomains(upstream.EmailDomainRouting.Domains)
+	}
+	if len(domains) == 0 {
+		// Prefer the organization ID tracked in our status: Keycloak's GET on the
+		// identity provider does not always populate organizationId, so relying on
+		// it alone can orphan the organization when a provider drops its domains.
+		orgID := prevOrgID
+		if orgID == "" {
+			orgID = current.OrganizationID
+		}
+		keycloak.ClearOrganizationBrokerConfig(current)
+		if err := adminClient.UpdateIdentityProvider(ctx, upstream.Alias, *current); err != nil {
+			return "", nil, fmt.Errorf("clearing organization linkage: %w", err)
+		}
+		if orgID != "" {
+			if err := adminClient.DeleteOrganization(ctx, orgID); err != nil {
+				return "", nil, fmt.Errorf("deleting keycloak organization: %w", err)
+			}
+		}
+		return "", nil, nil
+	}
+
+	org, reusedExistingOrg, err := adminClient.CreateOrUpdateOrganizationForDomains(
+		ctx,
+		keycloakOrganizationNameForUpstream(realmName, upstream),
+		keycloakOrganizationAliasForUpstream(realmName, upstream),
+		domains,
+	)
+	if err != nil {
+		return "", nil, fmt.Errorf("ensuring keycloak organization: %w", err)
+	}
+	if reusedExistingOrg {
+		log.Warn().
+			Str("alias", upstream.Alias).
+			Str("organizationId", org.ID).
+			Str("organizationName", org.Name).
+			Msg("reusing existing Keycloak organization for email domain; updating name, alias, and domains to match upstream spec")
+	}
+
+	keycloak.LinkIdentityProviderOrganization(current, org.ID, *upstream)
+	if err := adminClient.UpdateIdentityProvider(ctx, upstream.Alias, *current); err != nil {
+		return "", nil, fmt.Errorf("linking identity provider to organization: %w", err)
+	}
+
+	return org.ID, domains, nil
+}
+
+func keycloakOrganizationNameForUpstream(realmName string, upstream *pmcorev1alpha1.UpstreamIdentityProvider) string {
+	if name := strings.TrimSpace(upstream.DisplayName); name != "" {
+		return name
+	}
+	return fmt.Sprintf("%s upstream SSO", realmName)
+}
+
+func keycloakOrganizationAliasForUpstream(realmName string, upstream *pmcorev1alpha1.UpstreamIdentityProvider) string {
+	alias := strings.TrimSpace(upstream.Alias)
+	if alias == "" {
+		alias = "upstream"
+	}
+	return fmt.Sprintf("%s-%s-domains", realmName, alias)
 }
 
 func (s *subroutine) readClientSecret(ctx context.Context, secretRef corev1.SecretReference) (string, error) {

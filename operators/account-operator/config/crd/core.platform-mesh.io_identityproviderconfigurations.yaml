@@ -108,6 +108,32 @@ spec:
                       type: boolean
                     displayName:
                       type: string
+                    emailDomainRouting:
+                      description: |-
+                        EmailDomainRouting configures email-domain based identity-first login for
+                        this upstream IdP. It is provider-agnostic; the operator translates it to
+                        the backend's routing mechanism (for Keycloak, Organizations).
+                      properties:
+                        autoRedirect:
+                          description: |-
+                            AutoRedirect immediately sends users whose email domain matches straight to
+                            this upstream IdP instead of showing the provider-selection screen.
+                          type: boolean
+                        domains:
+                          description: Domains lists the email domains routed to this
+                            upstream IdP.
+                          items:
+                            type: string
+                          minItems: 1
+                          type: array
+                        hideUntilDomainMatch:
+                          description: |-
+                            HideUntilDomainMatch hides this upstream IdP on the login page until a
+                            matching email domain routes a user to it.
+                          type: boolean
+                      required:
+                      - domains
+                      type: object
                     enabled:
                       type: boolean
                     essentialClaim:
@@ -325,7 +351,13 @@ spec:
                     lastSyncTime:
                       format: date-time
                       type: string
+                    linkedEmailDomains:
+                      items:
+                        type: string
+                      type: array
                     message:
+                      type: string
+                    organizationId:
                       type: string
                     ready:
                       type: boolean

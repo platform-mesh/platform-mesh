@@ -69,6 +69,97 @@ func TestToKeycloakIdentityProvider_Manual(t *testing.T) {
 	assert.Equal(t, "https://issuer.example/token", rep.Config["tokenUrl"])
 }
 
+func TestToKeycloakIdentityProvider_OrganizationConfig(t *testing.T) {
+	redirect := true
+	hideUnresolved := true
+
+	rep, err := ToKeycloakIdentityProvider(pmcorev1alpha1.UpstreamIdentityProvider{
+		Alias: "dex",
+		Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
+		EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
+			Domains:              []string{"portal.localhost"},
+			AutoRedirect:         &redirect,
+			HideUntilDomainMatch: &hideUnresolved,
+		},
+		OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
+			DiscoveryURL: "https://dex.example/.well-known/openid-configuration",
+			ClientID:     "broker",
+		},
+	}, "secret")
+	require.NoError(t, err)
+
+	assert.NotContains(t, rep.Config, "kc.org.domain")
+	assert.Empty(t, rep.OrganizationID)
+}
+
+func TestLinkIdentityProviderOrganization(t *testing.T) {
+	redirect := true
+	hideUnresolved := true
+
+	rep := IdentityProviderRepresentation{
+		Alias: "dex",
+		Config: map[string]string{
+			"clientId": "broker",
+		},
+	}
+
+	LinkIdentityProviderOrganization(&rep, "org-1", pmcorev1alpha1.UpstreamIdentityProvider{
+		Alias: "dex",
+		EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
+			Domains:              []string{"portal.localhost"},
+			AutoRedirect:         &redirect,
+			HideUntilDomainMatch: &hideUnresolved,
+		},
+	})
+
+	assert.True(t, rep.HideOnLogin)
+	assert.Equal(t, "org-1", rep.OrganizationID)
+	assert.Equal(t, "portal.localhost", rep.Config["kc.org.domain"])
+	assert.Equal(t, "true", rep.Config["kc.org.broker.redirect.mode.email-matches"])
+	assert.Equal(t, "true", rep.Config["kc.org.broker.login.hide-when-org-unknown"])
+}
+
+func TestClearOrganizationBrokerConfig(t *testing.T) {
+	rep := IdentityProviderRepresentation{
+		OrganizationID: "org-1",
+		Config: map[string]string{
+			"clientId":      "broker",
+			"kc.org.domain": "portal.localhost",
+			"kc.org.broker.redirect.mode.email-matches": "true",
+			"kc.org.broker.login.hide-when-org-unknown": "true",
+		},
+	}
+
+	ClearOrganizationBrokerConfig(&rep)
+
+	assert.Empty(t, rep.OrganizationID)
+	assert.Equal(t, "broker", rep.Config["clientId"])
+	assert.NotContains(t, rep.Config, "kc.org.domain")
+	assert.NotContains(t, rep.Config, "kc.org.broker.redirect.mode.email-matches")
+	assert.NotContains(t, rep.Config, "kc.org.broker.login.hide-when-org-unknown")
+}
+
+func TestLinkIdentityProviderOrganization_DisabledRedirect(t *testing.T) {
+	redirect := false
+	rep := IdentityProviderRepresentation{
+		Config: map[string]string{
+			"kc.org.broker.redirect.mode.email-matches": "true",
+		},
+	}
+
+	LinkIdentityProviderOrganization(&rep, "org-1", pmcorev1alpha1.UpstreamIdentityProvider{
+		Alias: "dex",
+		EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
+			Domains:      []string{"portal.localhost"},
+			AutoRedirect: &redirect,
+		},
+	})
+
+	assert.Equal(t, "org-1", rep.OrganizationID)
+	assert.Equal(t, "portal.localhost", rep.Config["kc.org.domain"])
+	assert.NotContains(t, rep.Config, "kc.org.broker.redirect.mode.email-matches")
+}
+
 func TestAdminClient_ImportIdentityProviderConfig(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /admin/realms/test-realm/identity-provider/import-config", func(w http.ResponseWriter, r *http.Request) {

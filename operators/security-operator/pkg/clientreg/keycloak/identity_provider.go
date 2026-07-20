@@ -23,8 +23,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/security-operator/internal/util"
 )
 
 // IdentityProviderRepresentation mirrors Keycloak's identity provider
@@ -35,6 +37,7 @@ type IdentityProviderRepresentation struct {
 	ProviderID                    string            `json:"providerId"`
 	Enabled                       bool              `json:"enabled"`
 	HideOnLogin                   bool              `json:"hideOnLogin,omitempty"`
+	OrganizationID                string            `json:"organizationId,omitempty"`
 	LinkOnly                      bool              `json:"linkOnly,omitempty"`
 	StoreToken                    bool              `json:"storeToken,omitempty"`
 	StoredTokensReadable          bool              `json:"storedTokensReadable,omitempty"`
@@ -320,6 +323,83 @@ func ToKeycloakIdentityProvider(
 	setConfigBoolPtr(cfg, "allowClientIdAsAudienceForClientAssertion", oidc.AllowsClientIDAsAudienceForAssertions)
 
 	return rep, nil
+}
+
+// MergeIdentityProviderSpec copies spec-driven fields from src onto dst, preserving
+// dst.Alias and merging config entries from src.
+func MergeIdentityProviderSpec(dst *IdentityProviderRepresentation, src IdentityProviderRepresentation) {
+	dst.DisplayName = src.DisplayName
+	dst.ProviderID = src.ProviderID
+	dst.Enabled = src.Enabled
+	dst.HideOnLogin = src.HideOnLogin
+	dst.LinkOnly = src.LinkOnly
+	dst.StoreToken = src.StoreToken
+	dst.StoredTokensReadable = src.StoredTokensReadable
+	dst.TrustEmail = src.TrustEmail
+	dst.GUIOrder = src.GUIOrder
+	dst.VerifyEssentialClaim = src.VerifyEssentialClaim
+	dst.EssentialClaim = src.EssentialClaim
+	dst.EssentialClaimValue = src.EssentialClaimValue
+	dst.FirstBrokerLoginFlowAlias = src.FirstBrokerLoginFlowAlias
+	dst.PostBrokerLoginFlowAlias = src.PostBrokerLoginFlowAlias
+	dst.SyncMode = src.SyncMode
+	dst.CaseSensitiveOriginalUsername = src.CaseSensitiveOriginalUsername
+	dst.AddReadTokenRoleOnCreate = src.AddReadTokenRoleOnCreate
+
+	if dst.Config == nil {
+		dst.Config = map[string]string{}
+	}
+	for key, value := range src.Config {
+		dst.Config[key] = value
+	}
+}
+
+// ClearOrganizationBrokerConfig removes Keycloak organization linkage from a broker.
+func ClearOrganizationBrokerConfig(rep *IdentityProviderRepresentation) {
+	rep.OrganizationID = ""
+	if rep.Config == nil {
+		return
+	}
+	delete(rep.Config, "kc.org.domain")
+	delete(rep.Config, "kc.org.broker.redirect.mode.email-matches")
+	delete(rep.Config, "kc.org.broker.login.hide-when-org-unknown")
+}
+
+// LinkIdentityProviderOrganization sets the Keycloak organization linkage on a
+// broker representation, or clears it when the upstream defines no email domains.
+func LinkIdentityProviderOrganization(
+	rep *IdentityProviderRepresentation,
+	organizationID string,
+	upstream pmcorev1alpha1.UpstreamIdentityProvider,
+) {
+	ClearOrganizationBrokerConfig(rep)
+
+	routing := upstream.EmailDomainRouting
+	if routing == nil {
+		return
+	}
+	domains := util.NormalizeEmailDomains(routing.Domains)
+	if len(domains) == 0 {
+		return
+	}
+
+	if rep.Config == nil {
+		rep.Config = map[string]string{}
+	}
+
+	rep.OrganizationID = organizationID
+	setConfigString(rep.Config, "kc.org.domain", strings.Join(domains, ","))
+
+	if boolPtrOrDefault(routing.AutoRedirect, false) {
+		setConfigString(rep.Config, "kc.org.broker.redirect.mode.email-matches", "true")
+		if upstream.HideOnLoginPage == nil {
+			rep.HideOnLogin = true
+		}
+	}
+
+	if boolPtrOrDefault(routing.HideUntilDomainMatch, false) {
+		setConfigString(rep.Config, "kc.org.broker.login.hide-when-org-unknown", "true")
+	}
 }
 
 func boolPtrOrDefault(v *bool, def bool) bool {

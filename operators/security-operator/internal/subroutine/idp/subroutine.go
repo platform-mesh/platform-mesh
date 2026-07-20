@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc"
@@ -37,6 +38,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -203,7 +205,14 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 	realmName := idpConfig.Name
 	oidcClient, adminClient := s.newOIDCClient(realmName)
 
-	if err := s.ensureRealm(ctx, adminClient, realmName, idpConfig.Spec.RegistrationAllowed, log); err != nil {
+	if err := s.ensureRealm(
+		ctx,
+		adminClient,
+		realmName,
+		idpConfig.Spec.RegistrationAllowed,
+		needsOrganizationsEnabled(idpConfig.Spec.UpstreamIdentityProviders),
+		log,
+	); err != nil {
 		return subroutines.OK(), err
 	}
 
@@ -237,6 +246,11 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 	original := idpConfig.DeepCopy()
 	idpConfig.Status.ManagedClients = managedClients
 	idpConfig.Status.ManagedUpstreamIdentityProviders = managedUpstream
+	// Record upstream provider health in a dedicated condition instead of failing
+	// the reconcile. This keeps the aggregate Ready condition (which org
+	// onboarding depends on) driven by realm and client readiness, while a broken
+	// upstream broker stays observable and does not block unrelated progress.
+	setUpstreamProvidersReadyCondition(idpConfig, managedUpstream)
 	if err := kcpClient.Status().Patch(ctx, idpConfig, ctrlruntimeclient.MergeFrom(original)); err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to patch IDP status: %w", err)
 	}
@@ -244,7 +258,56 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 	return subroutines.OK(), nil
 }
 
-func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.AdminClient, realmName string, registrationAllowed bool, log *logger.Logger) error {
+// conditionUpstreamProvidersReady tracks upstream identity provider health
+// separately from the aggregate Ready condition.
+const conditionUpstreamProvidersReady = "UpstreamProvidersReady"
+
+// setUpstreamProvidersReadyCondition records upstream identity provider health in
+// a dedicated status condition, independent of the aggregate Ready condition.
+func setUpstreamProvidersReadyCondition(
+	idpConfig *pmcorev1alpha1.IdentityProviderConfiguration,
+	managed map[string]pmcorev1alpha1.UpstreamIdentityProviderStatus,
+) {
+	condition := metav1.Condition{
+		Type:               conditionUpstreamProvidersReady,
+		ObservedGeneration: idpConfig.Generation,
+		Status:             metav1.ConditionTrue,
+		Reason:             "AllUpstreamProvidersReady",
+		Message:            "all upstream identity providers are ready",
+	}
+	if len(managed) == 0 {
+		condition.Reason = "NoUpstreamProviders"
+		condition.Message = "no upstream identity providers configured"
+	}
+	if failed := unreadyUpstreamIdentityProviderAliases(managed); len(failed) > 0 {
+		condition.Status = metav1.ConditionFalse
+		condition.Reason = "UpstreamProvidersNotReady"
+		condition.Message = fmt.Sprintf("upstream identity providers not ready: %s", strings.Join(failed, ", "))
+	}
+	meta.SetStatusCondition(&idpConfig.Status.Conditions, condition)
+}
+
+// unreadyUpstreamIdentityProviderAliases returns the sorted aliases of managed upstream
+// identity providers whose reconciliation did not succeed.
+func unreadyUpstreamIdentityProviderAliases(managed map[string]pmcorev1alpha1.UpstreamIdentityProviderStatus) []string {
+	var aliases []string
+	for alias, status := range managed {
+		if !status.Ready {
+			aliases = append(aliases, alias)
+		}
+	}
+	slices.Sort(aliases)
+	return aliases
+}
+
+func (s *subroutine) ensureRealm(
+	ctx context.Context,
+	adminClient *keycloak.AdminClient,
+	realmName string,
+	registrationAllowed bool,
+	organizationsEnabled bool,
+	log *logger.Logger,
+) error {
 	realmConfig := keycloak.RealmConfig{
 		Realm:                       realmName,
 		DisplayName:                 realmName,
@@ -252,6 +315,7 @@ func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.Admi
 		LoginWithEmailAllowed:       true,
 		RegistrationEmailAsUsername: true,
 		RegistrationAllowed:         registrationAllowed,
+		OrganizationsEnabled:        organizationsEnabled,
 		SSOSessionIdleTimeout:       s.cfg.IDP.AccessTokenLifespan,
 		AccessTokenLifespan:         s.cfg.IDP.AccessTokenLifespan,
 	}

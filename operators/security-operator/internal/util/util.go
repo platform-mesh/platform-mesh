@@ -18,6 +18,7 @@ package util
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -35,4 +36,24 @@ func CapGroupToRelationLength(gvr schema.GroupVersionResource, maxLength int) st
 	}
 
 	return group
+}
+
+// NormalizeEmailDomains trims, lowercases, deduplicates, and drops empty entries
+// from a list of email domains. Lowercasing keeps behaviour consistent with
+// Keycloak, which matches organization domains case-insensitively.
+func NormalizeEmailDomains(domains []string) []string {
+	out := make([]string, 0, len(domains))
+	seen := make(map[string]struct{}, len(domains))
+	for _, domain := range domains {
+		domain = strings.ToLower(strings.TrimSpace(domain))
+		if domain == "" {
+			continue
+		}
+		if _, ok := seen[domain]; ok {
+			continue
+		}
+		seen[domain] = struct{}{}
+		out = append(out, domain)
+	}
+	return out
 }

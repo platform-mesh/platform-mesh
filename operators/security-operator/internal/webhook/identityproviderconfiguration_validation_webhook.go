@@ -19,6 +19,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -27,6 +28,7 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/security-operator/internal/config"
+	"go.platform-mesh.io/security-operator/internal/util"
 	"go.platform-mesh.io/security-operator/pkg/clientreg"
 	"go.platform-mesh.io/security-operator/pkg/clientreg/keycloak"
 
@@ -82,12 +84,15 @@ func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Cont
 		return nil, fmt.Errorf("keycloak realm %q already exists", realmName)
 	}
 
+	if err := validateUpstreamIdentityProviders(idp.Spec.UpstreamIdentityProviders); err != nil {
+		return nil, err
+	}
+
 	return nil, nil
 }
 
 func (v *identityProviderConfigurationValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *pmcorev1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
-	newIDP := newObj.(*pmcorev1alpha1.IdentityProviderConfiguration)
-	if err := validateUpstreamIdentityProviders(newIDP.Spec.UpstreamIdentityProviders); err != nil {
+	if err := validateUpstreamIdentityProviders(newObj.Spec.UpstreamIdentityProviders); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -121,6 +126,7 @@ func newKeycloakAdminClient(ctx context.Context, cfg *config.Config) (*keycloak.
 
 func validateUpstreamIdentityProviders(providers []pmcorev1alpha1.UpstreamIdentityProvider) error {
 	seen := make(map[string]struct{}, len(providers))
+	seenDomains := make(map[string]string, len(providers))
 
 	for i := range providers {
 		provider := &providers[i]
@@ -146,6 +152,50 @@ func validateUpstreamIdentityProviders(providers []pmcorev1alpha1.UpstreamIdenti
 		if err := validateOIDCUpstreamConfig(alias, provider.OIDC); err != nil {
 			return err
 		}
+
+		if err := validateUpstreamEmailDomainRouting(alias, provider, seenDomains); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+var emailDomainPattern = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+$`)
+
+func validateUpstreamEmailDomainRouting(
+	alias string,
+	provider *pmcorev1alpha1.UpstreamIdentityProvider,
+	seenDomains map[string]string,
+) error {
+	routing := provider.EmailDomainRouting
+	if routing == nil {
+		return nil
+	}
+
+	domains := util.NormalizeEmailDomains(routing.Domains)
+	if len(domains) == 0 {
+		return fmt.Errorf(
+			"upstream identity provider %q: emailDomainRouting.domains must not be empty",
+			alias,
+		)
+	}
+
+	for _, domain := range domains {
+		if !emailDomainPattern.MatchString(domain) {
+			return fmt.Errorf("upstream identity provider %q: invalid email domain %q", alias, domain)
+		}
+		// Backends match routing domains case-insensitively, so detect
+		// cross-provider duplicates on the lowercased domain.
+		key := strings.ToLower(domain)
+		if otherAlias, ok := seenDomains[key]; ok {
+			return fmt.Errorf(
+				"email domain %q is already assigned to upstream identity provider %q",
+				domain,
+				otherAlias,
+			)
+		}
+		seenDomains[key] = alias
 	}
 
 	return nil

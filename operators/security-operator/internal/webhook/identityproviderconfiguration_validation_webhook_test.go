@@ -208,6 +208,125 @@ func TestIdentityProviderConfigurationValidator_ValidateUpdate(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "email domain routing requires domains",
+			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+					ClientName:   "portal",
+					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+					RedirectURIs: []string{"https://example.com/*"},
+				}},
+				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{{
+					Alias: "dex",
+					Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
+					EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
+						AutoRedirect: func() *bool {
+							v := true
+							return &v
+						}(),
+					},
+					OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
+						DiscoveryURL:    "https://dex.example/.well-known/openid-configuration",
+						ClientID:        "broker",
+						ClientSecretRef: corev1.SecretReference{Name: "dex-secret"},
+					},
+				}},
+			},
+			wantErr: true,
+		},
+		{
+			name: "duplicate email domain denied",
+			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+					ClientName:   "portal",
+					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+					RedirectURIs: []string{"https://example.com/*"},
+				}},
+				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{
+					{
+						Alias: "dex",
+						Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
+						EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
+							Domains: []string{"corp.example.com"},
+							AutoRedirect: func() *bool {
+								v := true
+								return &v
+							}(),
+						},
+						OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
+							DiscoveryURL:    "https://dex.example/.well-known/openid-configuration",
+							ClientID:        "broker",
+							ClientSecretRef: corev1.SecretReference{Name: "dex-secret"},
+						},
+					},
+					{
+						Alias: "okta",
+						Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
+						EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
+							Domains: []string{"corp.example.com"},
+							AutoRedirect: func() *bool {
+								v := true
+								return &v
+							}(),
+						},
+						OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
+							DiscoveryURL:    "https://okta.example/.well-known/openid-configuration",
+							ClientID:        "broker",
+							ClientSecretRef: corev1.SecretReference{Name: "okta-secret"},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "email domains without autoRedirect allowed",
+			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+					ClientName:   "portal",
+					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+					RedirectURIs: []string{"https://example.com/*"},
+				}},
+				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{{
+					Alias: "dex",
+					Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
+					EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
+						Domains: []string{"corp.example.com"},
+					},
+					OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
+						DiscoveryURL:    "https://dex.example/.well-known/openid-configuration",
+						ClientID:        "broker",
+						ClientSecretRef: corev1.SecretReference{Name: "dex-secret"},
+					},
+				}},
+			},
+		},
+		{
+			name: "valid email domain redirect config",
+			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+					ClientName:   "portal",
+					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+					RedirectURIs: []string{"https://example.com/*"},
+				}},
+				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{{
+					Alias: "dex",
+					Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
+					EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
+						Domains: []string{"portal.localhost"},
+						AutoRedirect: func() *bool {
+							v := true
+							return &v
+						}(),
+					},
+					OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
+						DiscoveryURL:    "https://dex.example/.well-known/openid-configuration",
+						ClientID:        "broker",
+						ClientSecretRef: corev1.SecretReference{Name: "dex-secret"},
+					},
+				}},
+			},
+		},
 	}
 
 	for _, tt := range tests {
