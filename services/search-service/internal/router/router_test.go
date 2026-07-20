@@ -71,7 +71,11 @@ func TestCreateRouterSearchSuccess(t *testing.T) {
 	svc := &fakeSearchService{response: search.SearchResponse{Results: []search.SearchHit{{ID: "1", Score: 1, Source: map[string]any{"id": "1"}}}}}
 	r := CreateRouter(svc, []func(http.Handler) http.Handler{withRequestContext(appcontext.RequestContext{Organization: "acme", User: "alice@example.com"})})
 
-	req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=hello&mode=semantic&limit=15&cursor=abc&resource=accounts&filter.status=Ready", nil)
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/rest/v1/search?q=hello&mode=semantic&limit=15&page=3&cursor=abc&resource=accounts&filter.status=Ready",
+		nil,
+	)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -81,7 +85,13 @@ func TestCreateRouterSearchSuccess(t *testing.T) {
 	if svc.lastReq.Organization != "acme" || svc.lastReq.User != "alice@example.com" {
 		t.Fatalf("unexpected request context: %+v", svc.lastReq)
 	}
-	if svc.lastReq.Query != "hello" || svc.lastReq.Mode != search.SearchModeSemantic || svc.lastReq.Limit != 15 || svc.lastReq.Cursor != "abc" || svc.lastReq.Resource != "accounts" {
+	requestFieldsMatch := svc.lastReq.Query == "hello" &&
+		svc.lastReq.Mode == search.SearchModeSemantic &&
+		svc.lastReq.Limit == 15 &&
+		svc.lastReq.Page == 3 &&
+		svc.lastReq.Cursor == "abc" &&
+		svc.lastReq.Resource == "accounts"
+	if !requestFieldsMatch {
 		t.Fatalf("unexpected request payload: %+v", svc.lastReq)
 	}
 	if len(svc.lastReq.Filters["status"]) != 1 || svc.lastReq.Filters["status"][0] != "Ready" {
@@ -94,6 +104,23 @@ func TestCreateRouterSearchSuccess(t *testing.T) {
 	}
 	if len(payload.Results) != 1 {
 		t.Fatalf("expected one result")
+	}
+}
+
+func TestCreateRouterSearchAcceptsFirstPage(t *testing.T) {
+	svc := &fakeSearchService{}
+	r := CreateRouter(svc, []func(http.Handler) http.Handler{
+		withRequestContext(appcontext.RequestContext{Organization: "acme", User: "alice@example.com"}),
+	})
+	req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=hello&page=1", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rr.Code)
+	}
+	if svc.lastReq.Page != 1 {
+		t.Fatalf("expected page 1, got %d", svc.lastReq.Page)
 	}
 }
 
@@ -170,6 +197,33 @@ func TestCreateRouterInvalidLimit(t *testing.T) {
 	r.ServeHTTP(rr, req)
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rr.Code)
+	}
+}
+
+func TestCreateRouterInvalidPage(t *testing.T) {
+	tests := []struct {
+		name string
+		page string
+	}{
+		{name: "not a number", page: "bad"},
+		{name: "zero", page: "0"},
+		{name: "negative", page: "-1"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &fakeSearchService{}
+			r := CreateRouter(svc, []func(http.Handler) http.Handler{
+				withRequestContext(appcontext.RequestContext{Organization: "acme", User: "alice@example.com"}),
+			})
+			req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=hello&page="+tc.page, nil)
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d", rr.Code)
+			}
+		})
 	}
 }
 

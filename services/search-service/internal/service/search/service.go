@@ -118,6 +118,28 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 		limit = s.cfg.MaxLimit
 	}
 
+	resultOffset := 0
+	if req.Cursor == "" {
+		if req.Page < 0 {
+			return SearchResponse{}, fmt.Errorf("%w: page must not be negative", ErrInvalidRequest)
+		}
+		if req.Page > 1 {
+			maxPage := s.cfg.MaxScannedHits / limit
+			if maxPage == 0 {
+				maxPage = 1
+			}
+			if req.Page > maxPage {
+				return SearchResponse{}, fmt.Errorf(
+					"%w: page exceeds the maximum of %d for limit %d",
+					ErrInvalidRequest,
+					maxPage,
+					limit,
+				)
+			}
+			resultOffset = (req.Page - 1) * limit
+		}
+	}
+
 	qHash := queryHash(query)
 	fHash := filtersHash(filters)
 	var searchAfter []any
@@ -186,6 +208,7 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 	results := make([]SearchHit, 0, limit)
 	var nextSearchAfter []any
 	var totalScanned int
+	var authorizedHits int
 	var exhausted bool
 
 outer:
@@ -241,6 +264,10 @@ outer:
 
 			if i >= len(authz.Allowed) || !authz.Allowed[i] {
 				log.Warn().Str("searchmode", mode).Str("organization", org).Str("queryHash", qHash).Str("resource", resource).Int("hitIndex", i).Msg("skipping unauthorized search hit")
+				continue
+			}
+			authorizedHits++
+			if authorizedHits <= resultOffset {
 				continue
 			}
 

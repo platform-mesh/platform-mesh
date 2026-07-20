@@ -19,6 +19,7 @@ package search
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 )
 
@@ -105,6 +106,225 @@ func TestSearchFillsAuthorizedPageAcrossBatches(t *testing.T) {
 	}
 	if resp.NextCursor == nil {
 		t.Fatalf("expected non-nil next cursor")
+	}
+}
+
+func TestSearchReturnsRequestedPageOfAuthorizedResults(t *testing.T) {
+	searcher := &fakeSearcher{pages: []OpenSearchPage{
+		{Hits: []OpenSearchHit{
+			{ID: "1", Sort: []any{1.0, "1"}, Source: map[string]any{"id": "1"}},
+			{ID: "2", Sort: []any{0.9, "2"}, Source: map[string]any{"id": "2"}},
+		}},
+		{Hits: []OpenSearchHit{
+			{ID: "3", Sort: []any{0.8, "3"}, Source: map[string]any{"id": "3"}},
+			{ID: "4", Sort: []any{0.7, "4"}, Source: map[string]any{"id": "4"}},
+		}},
+		{Hits: []OpenSearchHit{
+			{ID: "5", Sort: []any{0.6, "5"}, Source: map[string]any{"id": "5"}},
+			{ID: "6", Sort: []any{0.5, "6"}, Source: map[string]any{"id": "6"}},
+		}},
+	}}
+	authorizer := &fakeAuthorizer{results: []AuthorizationResult{
+		{Allowed: []bool{true, false}, Denied: 1, Calls: 1},
+		{Allowed: []bool{true, true}, Calls: 1},
+		{Allowed: []bool{false, true}, Denied: 1, Calls: 1},
+	}}
+
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+		searcher,
+		authorizer,
+		nil,
+		ServiceConfig{DefaultLimit: 20, MaxLimit: 100, FetchBatchSize: 2, MaxScannedHits: 1000},
+	)
+
+	resp, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		Limit:        2,
+		Page:         2,
+	})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(resp.Results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(resp.Results))
+	}
+	if resp.Results[0].ID != "4" || resp.Results[1].ID != "6" {
+		t.Fatalf("expected authorized results [4 6], got [%s %s]", resp.Results[0].ID, resp.Results[1].ID)
+	}
+	if searcher.calls != 3 {
+		t.Fatalf("expected 3 OpenSearch calls, got %d", searcher.calls)
+	}
+	if resp.NextCursor == nil {
+		t.Fatalf("expected non-nil next cursor")
+	}
+}
+
+func TestSearchPageOneMatchesOmittedPage(t *testing.T) {
+	tests := []struct {
+		name string
+		page int
+	}{
+		{name: "page omitted"},
+		{name: "first page", page: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			searcher := &fakeSearcher{pages: []OpenSearchPage{{Hits: []OpenSearchHit{
+				{ID: "1", Sort: []any{1.0, "1"}, Source: map[string]any{"id": "1"}},
+				{ID: "2", Sort: []any{0.9, "2"}, Source: map[string]any{"id": "2"}},
+				{ID: "3", Sort: []any{0.8, "3"}, Source: map[string]any{"id": "3"}},
+			}}}}
+			authorizer := &fakeAuthorizer{results: []AuthorizationResult{{
+				Allowed: []bool{true, true, true},
+				Calls:   1,
+			}}}
+			svc := NewService(
+				fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+				searcher,
+				authorizer,
+				nil,
+				ServiceConfig{
+					DefaultLimit:   20,
+					MaxLimit:       100,
+					FetchBatchSize: 3,
+					MaxScannedHits: 1000,
+				},
+			)
+
+			resp, err := svc.Search(context.Background(), SearchRequest{
+				Organization: "acme",
+				User:         "alice@example.com",
+				Query:        "foo",
+				Limit:        2,
+				Page:         tc.page,
+			})
+			if err != nil {
+				t.Fatalf("Search returned error: %v", err)
+			}
+			hasFirstPage := len(resp.Results) == 2 &&
+				resp.Results[0].ID == "1" &&
+				resp.Results[1].ID == "2"
+			if !hasFirstPage {
+				t.Fatalf("expected first page results [1 2], got %+v", resp.Results)
+			}
+		})
+	}
+}
+
+func TestSearchRejectsPageBeyondScannedHitsLimit(t *testing.T) {
+	searcher := &fakeSearcher{}
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+		searcher,
+		&fakeAuthorizer{},
+		nil,
+		ServiceConfig{
+			DefaultLimit:   20,
+			MaxLimit:       100,
+			FetchBatchSize: 2,
+			MaxScannedHits: 4,
+		},
+	)
+
+	_, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		Limit:        2,
+		Page:         math.MaxInt,
+	})
+	if !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest, got %v", err)
+	}
+	if searcher.calls != 0 {
+		t.Fatalf("expected no OpenSearch calls, got %d", searcher.calls)
+	}
+}
+
+func TestSearchPageBeyondAvailableResultsIsEmpty(t *testing.T) {
+	searcher := &fakeSearcher{pages: []OpenSearchPage{{Hits: []OpenSearchHit{
+		{ID: "1", Sort: []any{1.0, "1"}, Source: map[string]any{"id": "1"}},
+	}}}}
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+		searcher,
+		&fakeAuthorizer{results: []AuthorizationResult{{Allowed: []bool{true}, Calls: 1}}},
+		nil,
+		ServiceConfig{
+			DefaultLimit:   20,
+			MaxLimit:       100,
+			FetchBatchSize: 2,
+			MaxScannedHits: 4,
+		},
+	)
+
+	resp, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		Limit:        2,
+		Page:         2,
+	})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(resp.Results) != 0 {
+		t.Fatalf("expected no results, got %+v", resp.Results)
+	}
+	if resp.NextCursor != nil {
+		t.Fatalf("expected no next cursor, got %q", *resp.NextCursor)
+	}
+}
+
+func TestSearchCursorTakesPrecedenceOverPage(t *testing.T) {
+	searchAfter := []any{0.9, "previous"}
+	cursor, err := EncodeCursor(CursorState{
+		Org:         "acme",
+		QueryHash:   queryHash("foo"),
+		Mode:        SearchModeLexical,
+		FiltersHash: filtersHash(nil),
+		Limit:       2,
+		SearchAfter: searchAfter,
+	})
+	if err != nil {
+		t.Fatalf("EncodeCursor returned error: %v", err)
+	}
+
+	searcher := &fakeSearcher{pages: []OpenSearchPage{{Hits: []OpenSearchHit{
+		{ID: "1", Sort: []any{0.8, "1"}, Source: map[string]any{"id": "1"}},
+		{ID: "2", Sort: []any{0.7, "2"}, Source: map[string]any{"id": "2"}},
+	}}}}
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+		searcher,
+		&fakeAuthorizer{results: []AuthorizationResult{{Allowed: []bool{true, true}, Calls: 1}}},
+		nil,
+		ServiceConfig{DefaultLimit: 20, MaxLimit: 100, FetchBatchSize: 2, MaxScannedHits: 1000},
+	)
+
+	resp, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		Limit:        2,
+		Page:         3,
+		Cursor:       cursor,
+	})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(resp.Results) != 2 || resp.Results[0].ID != "1" || resp.Results[1].ID != "2" {
+		t.Fatalf("expected cursor results [1 2], got %+v", resp.Results)
+	}
+	if len(searcher.reqs) != 1 || len(searcher.reqs[0].SearchAfter) != 2 {
+		t.Fatalf("expected cursor search_after, got %+v", searcher.reqs)
+	}
+	if searcher.reqs[0].SearchAfter[1] != "previous" {
+		t.Fatalf("unexpected search_after: %+v", searcher.reqs[0].SearchAfter)
 	}
 }
 

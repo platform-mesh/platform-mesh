@@ -15,7 +15,7 @@ The service is organization-aware and derives org context from the request host.
   - `GET /rest/v1/search`
   - `GET /rest/v1/search/resources`
   - `GET /rest/v1/search/filter-values`
-- Free-text search in OpenSearch with stable cursor pagination (`search_after`)
+- Free-text search in OpenSearch with cursor and page-based pagination
 - OpenFGA post-filtering (`relation=get`) with fail-closed behavior for incomplete auth context
 - Org-aware context + kcp token/org access pre-check
 - SearchIndex-driven resource/field metadata:
@@ -28,7 +28,7 @@ The service is organization-aware and derives org context from the request host.
 
 ### Search endpoint
 
-`GET /rest/v1/search?q=<query>&mode=<lexical|semantic>&limit=<n>&cursor=<opaque>&resource=<plural>&filter.<field>=<value>`
+`GET /rest/v1/search?q=<query>&mode=<lexical|semantic>&limit=<n>&page=<n>&cursor=<opaque>&resource=<plural>&filter.<field>=<value>`
 
 Query params:
 
@@ -37,7 +37,14 @@ Query params:
 - `resource` (optional for `lexical`, required for `semantic`): plural resource name; lexical mode can search across all resources, semantic mode must target a single resource
 - `filter.<field>` (optional, repeatable): exact-match filters; requires `resource`
 - `limit` (optional): default `20`, max `100`
+- `page` (optional): 1-based result page using `limit` as the page size; used when `cursor` is omitted
 - `cursor` (optional): opaque pagination cursor
+
+If both `page` and `cursor` are provided, cursor-based pagination takes precedence.
+
+Page-based pagination scans and authorizes preceding hits, so it is bounded by
+`MaxScannedHits / limit` (1000 scanned hits by default). Requests beyond that bound are rejected; use cursor-based
+pagination for deep traversal.
 
 Semantic mode behavior:
 
@@ -59,7 +66,8 @@ Response shape:
 - `results[]` with compact fields (`id`, `score`, `kind`, `name`, `namespace`, `apiGroup`, `apiVersion`, `workspacePath`, `clusterName`, `organizationId`, `organizationName`, `accountId`, `accountName`)
 - `results[].resource` indicates which resource index produced the hit
 - `source` containing the indexed document source per hit, including `default_fields`, `semantic_fields`, and `filterable_fields`
-- `nextCursor` for pagination
+- `nextCursor` for sequential continuation. It can also be returned for a page-based request; pass it as `cursor`
+  (without `page`) to continue after that page.
 
 ### Resource metadata endpoint
 

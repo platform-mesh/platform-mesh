@@ -61,6 +61,11 @@ func CreateRouter(svc SearchService, mws []func(http.Handler) http.Handler) *chi
 			http.Error(w, "invalid limit", http.StatusBadRequest)
 			return
 		}
+		page, err := parseOptionalPage(r.URL.Query().Get("page"))
+		if err != nil {
+			http.Error(w, "invalid page", http.StatusBadRequest)
+			return
+		}
 
 		filters, err := parseFilters(r.URL.Query())
 		if err != nil {
@@ -76,6 +81,7 @@ func CreateRouter(svc SearchService, mws []func(http.Handler) http.Handler) *chi
 			Resource:     strings.TrimSpace(r.URL.Query().Get("resource")),
 			Filters:      filters,
 			Limit:        limit,
+			Page:         page,
 			Cursor:       strings.TrimSpace(r.URL.Query().Get("cursor")),
 		})
 		if err != nil {
@@ -175,6 +181,19 @@ func parseOptionalLimit(raw string) (int, error) {
 		return 0, nil
 	}
 	return strconv.Atoi(raw)
+}
+
+func parseOptionalPage(raw string) (int, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, nil
+	}
+
+	page, err := strconv.Atoi(raw)
+	if err != nil || page < 1 {
+		return 0, fmt.Errorf("page must be a positive integer")
+	}
+	return page, nil
 }
 
 func parseFilters(values map[string][]string) (map[string][]string, error) {

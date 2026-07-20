@@ -26,6 +26,7 @@ type SearchRequest struct {
 	Resource     string
 	Filters      map[string][]string
 	Limit        int
+	Page         int
 	Cursor       string
 }
 
