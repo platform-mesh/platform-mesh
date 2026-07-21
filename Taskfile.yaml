@@ -348,6 +348,13 @@ tasks:
       - for: {var: COMPONENTS}
         cmd: task tidy-{{.ITEM}}
       - go work sync
+      # ref: https://github.com/golang/go/issues/63901
+      # TLDR: go work sync doesn't actually everything.
+      # We force fill the go.work.sum by downloading all deps.
+      # Without this the go.work.sum is randomly updated when
+      # a developer pulls a dependency they didn't have in the module
+      # cache yet.
+      - go mod download all
   "tidy-*":
     desc: "Tidy one module's go.mod (e.g. task tidy-apis)."
     env:
