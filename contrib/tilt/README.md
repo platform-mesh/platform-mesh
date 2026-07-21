@@ -34,10 +34,10 @@ operators/services you are working on hot-reload in seconds.
 # a stray `tilt up` hitting a shared/other cluster). Override with
 # TILT_ALLOWED_CONTEXT if you must.
 kind create cluster --name platform-mesh
-tilt up -f contrib/tilt/Tiltfile -- --profile=core 
+tilt up -f contrib/tilt/Tiltfile -- --profile=core
 
-HELM_CHARTS_DIR=/Users/mjudeikis/go/src/github.com/platform-mesh/helm-charts \
-KCP_TILT_DIR=/Users/mjudeikis/go/src/github.com/kcp-dev/kcp/contrib/tilt \
+HELM_CHARTS_DIR=go/src/github.com/platform-mesh/helm-charts \
+KCP_TILT_DIR=go/src/github.com/kcp-dev/kcp/contrib/tilt \
 tilt up -f contrib/tilt/Tiltfile -- --profile=core
 ```
 
