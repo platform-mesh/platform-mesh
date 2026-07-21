@@ -98,5 +98,3 @@ require (
 )
 
 replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.8.0
-
-replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20230525234044-86246a831fb4
