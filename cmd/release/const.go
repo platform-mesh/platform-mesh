@@ -54,6 +54,7 @@ var componentOrder = []string{
 	"terminal-controller-manager",
 	"rebac-authz-webhook",
 	"virtual-workspaces",
+	"resource-broker",
 }
 
 var components = map[string]component{
@@ -72,6 +73,7 @@ var components = map[string]component{
 	"terminal-controller-manager": {"terminal-controller-manager/v", "terminal-controller-manager.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"rebac-authz-webhook":         {"rebac-authz-webhook/v", "rebac-authz-webhook.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 	"virtual-workspaces":          {"virtual-workspaces/v", "virtual-workspaces.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
+	"resource-broker":             {"resource-broker/v", "resource-broker.yml: builds + signs the image, cuts a GitHub release, bumps the chart, publishes SBOM + signed OCM component"},
 }
 
 // libraryComponents are go-gettable modules other modules in the repo import.
