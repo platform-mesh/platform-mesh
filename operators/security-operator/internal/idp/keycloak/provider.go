@@ -420,6 +420,14 @@ func (c *AdminClient) AssignRoleToUser(ctx context.Context, orgID string, userID
 	return errorResponse(responseData, statusCode, "assign role to user")
 }
 
+func (c *AdminClient) GrantServiceAccountRole(ctx context.Context, orgID string, clientID string, role idp.Role) error {
+	user, err := c.GetServiceAccountUser(ctx, orgID, clientID)
+	if err != nil {
+		return err
+	}
+	return c.AssignRoleToUser(ctx, orgID, user.ID, role)
+}
+
 func (c *AdminClient) GetClient(ctx context.Context, orgID string, clientID, registrationURI, registrationToken string) (dcr.ClientInformation, error) {
 	return c.getDCRClient(orgID).Read(ctx, clientID, registrationURI, registrationToken)
 }

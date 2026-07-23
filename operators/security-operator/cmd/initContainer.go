@@ -129,13 +129,8 @@ var initContainerCmd = &cobra.Command{
 				return fmt.Errorf("failed to get client secret for %q: %w", clientCfg.Name, err)
 			}
 
-			serviceAccountUser, err := provider.GetServiceAccountUser(ctx, realm, clientUUID)
-			if err != nil {
-				return fmt.Errorf("failed to get service account user for %q: %w", clientCfg.Name, err)
-			}
-
-			if err := provider.AssignRoleToUser(ctx, realm, serviceAccountUser.ID, *adminRole); err != nil {
-				return fmt.Errorf("failed to assign admin role to %q: %w", clientCfg.Name, err)
+			if err := provider.GrantServiceAccountRole(ctx, realm, clientUUID, *adminRole); err != nil {
+				return fmt.Errorf("failed to grant admin role to %q: %w", clientCfg.Name, err)
 			}
 
 			secret := &corev1.Secret{

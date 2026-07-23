@@ -38,6 +38,7 @@ type Auth0Config struct {
 	BaseURL      string
 	ClientID     string
 	ClientSecret string
+	Audience     string
 }
 
 type KeycloakConfig struct {
@@ -164,6 +165,10 @@ func NewConfig() Config {
 			ClientID:     "security-operator",
 			ClientSecret: os.Getenv("KEYCLOAK_CLIENT_SECRET"),
 		},
+		Auth0: Auth0Config{
+			ClientID:     "security-operator",
+			ClientSecret: os.Getenv("AUTH0_CLIENT_SECRET"),
+		},
 		Initializer: InitializerConfig{
 			WorkspaceInitializerEnabled: true,
 			IDPEnabled:                  true,
@@ -227,6 +232,7 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.Keycloak.ClientID, "keycloak-client-id", c.Keycloak.ClientID, "Set Keycloak client ID")
 	fs.StringVar(&c.Auth0.BaseURL, "auth0-base-url", c.Auth0.BaseURL, "Set Auth0 base URL")
 	fs.StringVar(&c.Auth0.ClientID, "auth0-client-id", c.Auth0.ClientID, "Set Auth0 client ID")
+	fs.StringVar(&c.Auth0.Audience, "auth0-audience", c.Auth0.Audience, "Set the Auth0 API identifier (audience) granted to service-account clients; defaults to the Management API audience")
 	fs.BoolVar(&c.Initializer.WorkspaceInitializerEnabled, "initializer-workspace-enabled", c.Initializer.WorkspaceInitializerEnabled, "Enable workspace initialization")
 	fs.BoolVar(&c.Initializer.IDPEnabled, "initializer-idp-enabled", c.Initializer.IDPEnabled, "Enable IDP initialization")
 	fs.BoolVar(&c.Initializer.InviteEnabled, "initializer-invite-enabled", c.Initializer.InviteEnabled, "Enable invite initialization")

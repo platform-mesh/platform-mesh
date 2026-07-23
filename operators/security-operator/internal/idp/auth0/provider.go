@@ -46,27 +46,34 @@ var (
 type ManagementClient struct {
 	mgmt         *mgmtclient.Management
 	baseURL      string
+	audience     string
 	oauth2Config clientcredentials.Config
 
 	mu sync.Mutex
 	ts oauth2.TokenSource
 }
 
-func NewManagementClient(ctx context.Context, baseURL, clientID, clientSecret string, opts ...option.RequestOption) *ManagementClient {
+func NewManagementClient(ctx context.Context, baseURL, clientID, clientSecret, audience string, opts ...option.RequestOption) *ManagementClient {
 	baseURL = strings.TrimSuffix(baseURL, "/")
 	if !strings.Contains(baseURL, "://") {
 		baseURL = "https://" + baseURL
 	}
 
+	mgmtAudience := baseURL + "/api/v2/"
+	if audience == "" {
+		audience = mgmtAudience
+	}
+
 	c := &ManagementClient{
-		baseURL: baseURL,
+		baseURL:  baseURL,
+		audience: audience,
 		oauth2Config: clientcredentials.Config{
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			TokenURL:     baseURL + "/oauth/token",
 			AuthStyle:    oauth2.AuthStyleInParams,
 			EndpointParams: url.Values{
-				"audience": {baseURL + "/api/v2/"},
+				"audience": {mgmtAudience},
 			},
 		},
 	}
@@ -358,8 +365,28 @@ func (c *ManagementClient) GetClientSecret(ctx context.Context, orgID string, cl
 	return deref(client.ClientSecret), nil
 }
 
-func (c *ManagementClient) GetServiceAccountUser(ctx context.Context, orgID string, clientID string) (*idp.User, error) {
-	return nil, fmt.Errorf("service account users are not supported by the Auth0 provider")
+// Auth0 has no service-account user, so authorization is
+// expressed as a client grant (client + audience + scopes). When the role
+// carries no scopes, all scopes of the audience's resource server are granted.
+func (c *ManagementClient) GrantServiceAccountRole(ctx context.Context, orgID string, clientID string, role idp.Role) error {
+	if c.audience == "" {
+		return fmt.Errorf("cannot grant role %q to client %q: Auth0 audience is not configured", role.Name, clientID)
+	}
+
+	req := &management.CreateClientGrantRequestContent{
+		ClientID: &clientID,
+		Audience: c.audience,
+		Scope:    role.Scopes,
+	}
+	if len(role.Scopes) == 0 {
+		allowAll := true
+		req.AllowAllScopes = &allowAll
+	}
+
+	if _, err := c.mgmt.ClientGrants.Create(ctx, req); err != nil {
+		return fmt.Errorf("failed to create client grant for client %q: %w", clientID, err)
+	}
+	return nil
 }
 
 func (c *ManagementClient) GetOrganizationRole(ctx context.Context, orgID string, roleName string) (*idp.Role, error) {
@@ -382,15 +409,6 @@ func (c *ManagementClient) GetOrganizationRole(ctx context.Context, orgID string
 	}
 
 	return nil, nil
-}
-
-func (c *ManagementClient) AssignRoleToUser(ctx context.Context, orgID string, serviceAccountUserID string, adminRole idp.Role) error {
-	if err := c.mgmt.Users.Roles.Assign(ctx, serviceAccountUserID, &management.AssignUserRolesRequestContent{
-		Roles: []string{adminRole.ID},
-	}); err != nil {
-		return fmt.Errorf("failed to assign role %q to user %q: %w", adminRole.Name, serviceAccountUserID, err)
-	}
-	return nil
 }
 
 func (c *ManagementClient) IssuerURL(_ string) string {

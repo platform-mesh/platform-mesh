@@ -22,18 +22,19 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"go.platform-mesh.io/security-operator/internal/config"
-	"go.platform-mesh.io/security-operator/internal/idp"
-	"go.platform-mesh.io/security-operator/internal/idp/keycloak"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
+
+	"go.platform-mesh.io/security-operator/internal/config"
+	"go.platform-mesh.io/security-operator/internal/idp"
+	"go.platform-mesh.io/security-operator/internal/idp/auth0"
+	"go.platform-mesh.io/security-operator/internal/idp/keycloak"
 )
 
 func Create2LeggedProvider(cfg *config.Config) (idp.Provider, error) {
-	switch cfg.IDP.Implementation {
-	case "keycloak":
-		ctx := context.Background()
-
+	ctx := context.Background()
+	switch config.IDProvider(cfg.IDP.Implementation) {
+	case config.KeycloakIDProvider:
 		issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 		provider, err := oidc.NewProvider(ctx, issuer)
 		if err != nil {
@@ -49,17 +50,17 @@ func Create2LeggedProvider(cfg *config.Config) (idp.Provider, error) {
 		baseHTTPClient := cCfg.Client(ctx)
 
 		return keycloak.New(baseHTTPClient, cfg.Keycloak.BaseURL, createKeycloakConfig(cfg)), nil
-
+	case config.Auth0IDProvider:
+		return auth0.NewManagementClient(ctx, cfg.Auth0.BaseURL, cfg.Auth0.ClientID, cfg.Auth0.ClientSecret, cfg.Auth0.Audience), nil
 	default:
-		panic("invalid IDP provider")
+		return nil, fmt.Errorf("invalid IDP provider: %q", cfg.IDP.Implementation)
 	}
 }
 
 func Create3LeggedProvider(cfg *config.InitContainerConfiguration, globalConfig *config.Config, password string) (idp.Provider, error) {
-	switch globalConfig.IDP.Implementation {
-	case "keycloak":
-		ctx := context.Background()
-
+	ctx := context.Background()
+	switch config.IDProvider(globalConfig.IDP.Implementation) {
+	case config.KeycloakIDProvider:
 		issuer := fmt.Sprintf("%s/realms/master", cfg.IDPBaseURL)
 		provider, err := oidc.NewProvider(ctx, issuer)
 		if err != nil {
@@ -79,9 +80,11 @@ func Create3LeggedProvider(cfg *config.InitContainerConfiguration, globalConfig 
 		httpClient := oauthCfg.Client(ctx, token)
 
 		return keycloak.New(httpClient, cfg.IDPBaseURL, createKeycloakConfig(globalConfig)), nil
+	case config.Auth0IDProvider:
+		return auth0.NewManagementClient(ctx, cfg.IDPBaseURL, cfg.IDPClientID, password, globalConfig.Auth0.Audience), nil
 
 	default:
-		panic("invalid IDP provider")
+		return nil, fmt.Errorf("invalid IDP provider: %q", globalConfig.IDP.Implementation)
 	}
 }
 

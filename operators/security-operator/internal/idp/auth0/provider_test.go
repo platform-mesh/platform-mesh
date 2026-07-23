@@ -59,7 +59,7 @@ func closedServer(t *testing.T) *httptest.Server {
 
 func testClient(t *testing.T, srv *httptest.Server) *ManagementClient {
 	t.Helper()
-	return NewManagementClient(context.Background(), srv.URL, "client-id", "client-secret")
+	return NewManagementClient(context.Background(), srv.URL, "client-id", "client-secret", "")
 }
 
 func TestNewManagementClient_BaseURL(t *testing.T) {
@@ -74,7 +74,7 @@ func TestNewManagementClient_BaseURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewManagementClient(context.Background(), tt.baseURL, "id", "secret")
+			c := NewManagementClient(context.Background(), tt.baseURL, "id", "secret", "")
 			assert.Equal(t, tt.want, c.baseURL)
 		})
 	}
@@ -592,7 +592,7 @@ func TestManagementClient_ListUsers(t *testing.T) {
 }
 
 func TestManagementClient_Endpoints(t *testing.T) {
-	c := NewManagementClient(context.Background(), "https://tenant.auth0.com", "id", "secret")
+	c := NewManagementClient(context.Background(), "https://tenant.auth0.com", "id", "secret", "")
 	assert.Equal(t, "https://tenant.auth0.com/", c.IssuerURL(""))
 	assert.Equal(t, "https://tenant.auth0.com/.well-known/jwks.json", c.JWKSURL(""))
 	assert.Equal(t, "https://tenant.auth0.com/authorize", c.AuthorizationEndpoint(""))
@@ -847,9 +847,70 @@ func TestManagementClient_GetClientSecret(t *testing.T) {
 	}
 }
 
-func TestManagementClient_GetServiceAccountUser(t *testing.T) {
-	srv := testServer(t, func(w http.ResponseWriter, r *http.Request) {})
-	_, err := testClient(t, srv).GetServiceAccountUser(context.Background(), "my-org", "c1")
+func TestManagementClient_GrantServiceAccountRole(t *testing.T) {
+	tests := []struct {
+		name        string
+		role        idp.Role
+		audience    string
+		setupServer func(t *testing.T) *httptest.Server
+		wantErr     bool
+	}{
+		{
+			name: "grant with explicit scopes",
+			role: idp.Role{ID: "r1", Name: "admin", Scopes: []string{"read:x", "write:y"}},
+			setupServer: func(t *testing.T) *httptest.Server {
+				return testServer(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodPost, r.Method)
+					assert.Equal(t, "/api/v2/client-grants", r.URL.Path)
+					var body map[string]any
+					require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+					assert.Equal(t, "c1", body["client_id"])
+					assert.Equal(t, []any{"read:x", "write:y"}, body["scope"])
+					assert.Nil(t, body["allow_all_scopes"])
+					json.NewEncoder(w).Encode(map[string]any{"id": "cg1"}) //nolint:errcheck
+				})
+			},
+		},
+		{
+			name: "grant with no scopes allows all",
+			role: idp.Role{ID: "r1", Name: "admin"},
+			setupServer: func(t *testing.T) *httptest.Server {
+				return testServer(t, func(w http.ResponseWriter, r *http.Request) {
+					var body map[string]any
+					require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+					assert.Equal(t, true, body["allow_all_scopes"])
+					json.NewEncoder(w).Encode(map[string]any{"id": "cg1"}) //nolint:errcheck
+				})
+			},
+		},
+		{
+			name: "create error",
+			role: idp.Role{ID: "r1", Name: "admin"},
+			setupServer: func(t *testing.T) *httptest.Server {
+				return testServer(t, func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusForbidden)
+				})
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := tt.setupServer(t)
+			err := testClient(t, srv).GrantServiceAccountRole(context.Background(), "my-org", "c1", tt.role)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestManagementClient_GrantServiceAccountRole_NoAudience(t *testing.T) {
+	c := NewManagementClient(context.Background(), "https://tenant.auth0.com", "id", "secret", "")
+	c.audience = ""
+	err := c.GrantServiceAccountRole(context.Background(), "my-org", "c1", idp.Role{Name: "admin"})
 	require.Error(t, err)
 }
 
@@ -907,45 +968,6 @@ func TestManagementClient_GetOrganizationRole(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantRole, role)
-		})
-	}
-}
-
-func TestManagementClient_AssignRoleToUser(t *testing.T) {
-	tests := []struct {
-		name        string
-		setupServer func(t *testing.T) *httptest.Server
-		wantErr     bool
-	}{
-		{
-			name: "role assigned",
-			setupServer: func(t *testing.T) *httptest.Server {
-				return testServer(t, func(w http.ResponseWriter, r *http.Request) {
-					assert.Equal(t, http.MethodPost, r.Method)
-					assert.Equal(t, "/api/v2/users/auth0|123/roles", r.URL.Path)
-					w.WriteHeader(http.StatusNoContent)
-				})
-			},
-		},
-		{
-			name: "assign error",
-			setupServer: func(t *testing.T) *httptest.Server {
-				return testServer(t, func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusForbidden)
-				})
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			srv := tt.setupServer(t)
-			err := testClient(t, srv).AssignRoleToUser(context.Background(), "my-org", "auth0|123", idp.Role{ID: "r1", Name: "admin"})
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
 		})
 	}
 }

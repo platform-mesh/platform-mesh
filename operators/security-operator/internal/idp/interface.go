@@ -61,8 +61,7 @@ type Provider interface {
 	ListClients(ctx context.Context, orgID string) ([]Client, error)
 	CreateServiceAccountClient(ctx context.Context, orgID string, config ServiceAccountClientConfig) (*Client, error)
 	GetClientSecret(ctx context.Context, orgID string, clientID string) (string, error)
-	GetServiceAccountUser(ctx context.Context, orgID string, clientID string) (*User, error)
-	AssignRoleToUser(ctx context.Context, orgID string, serviceAccountUserID string, adminRole Role) error
+	GrantServiceAccountRole(ctx context.Context, orgID string, clientID string, role Role) error
 }
 
 type OrganizationConfig struct {
@@ -85,8 +84,9 @@ type Client struct {
 }
 
 type Role struct {
-	ID   string
-	Name string
+	ID     string
+	Name   string
+	Scopes []string
 }
 
 type User struct {
