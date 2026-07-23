@@ -55,6 +55,7 @@ func init() {
 	initContainerCfg = config.NewInitContainerConfig()
 
 	defaultCfg.AddFlags(rootCmd.PersistentFlags())
+	cfg.AddBasicFlags(rootCmd.PersistentFlags())
 	cfg.AddFlags(operatorCmd.Flags())
 	cfg.AddFlags(modelGeneratorCmd.Flags())
 	cfg.AddFlags(initializerCmd.Flags())

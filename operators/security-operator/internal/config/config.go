@@ -185,7 +185,13 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+func (c *Config) AddBasicFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&c.IDP.Implementation, "idp-implementation", c.IDP.Implementation, fmt.Sprintf("Which IDP to use in Platform Mesh (one of %v)", allIDProviders))
+	fs.StringVar(&c.Keycloak.BaseURL, "keycloak-base-url", c.Keycloak.BaseURL, "Set Keycloak base URL")
+}
+
 func (c *Config) AddFlags(fs *pflag.FlagSet) {
+	c.AddBasicFlags(fs)
 	fs.StringVar(&c.FGA.Target, "fga-target", c.FGA.Target, "Set the OpenFGA API target")
 	fs.DurationVar(&c.FGA.StoreIDCacheTTL, "fga-store-id-cache-ttl", c.FGA.StoreIDCacheTTL, "TTL for the OpenFGA store ID cache (e.g. 5m, 1h)")
 	fs.StringVar(&c.FGA.ObjectType, "fga-object-type", c.FGA.ObjectType, "Set the OpenFGA object type for account tuples")
@@ -206,7 +212,6 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&c.HttpClientTimeoutSeconds, "http-client-timeout-seconds", c.HttpClientTimeoutSeconds, "Set HTTP client timeout in seconds")
 	fs.BoolVar(&c.SetDefaultPassword, "set-default-password", c.SetDefaultPassword, "Enable setting default password for identity provider users")
 	fs.BoolVar(&c.AllowMemberTuplesEnabled, "allow-member-tuples-enabled", c.AllowMemberTuplesEnabled, "Enable allow-member tuples management")
-	fs.StringVar(&c.IDP.Implementation, "idp-implementation", c.IDP.Implementation, fmt.Sprintf("Which IDP to use in Platform Mesh (one of %v)", allIDProviders))
 	fs.StringSliceVar(&c.IDP.RealmDenyList, "idp-realm-deny-list", c.IDP.RealmDenyList, "Comma-separated list of Keycloak realms to ignore")
 	fs.StringVar(&c.IDP.SMTPServer, "idp-smtp-server", c.IDP.SMTPServer, "Set Keycloak SMTP server host")
 	fs.IntVar(&c.IDP.SMTPPort, "idp-smtp-port", c.IDP.SMTPPort, "Set Keycloak SMTP server port")
@@ -219,7 +224,6 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&c.IDP.KubectlClientRedirectURLs, "idp-kubectl-client-redirect-urls", c.IDP.KubectlClientRedirectURLs, "Redirect URLs for the kubectl Keycloak client")
 	fs.IntVar(&c.IDP.AccessTokenLifespan, "idp-access-token-lifespan", c.IDP.AccessTokenLifespan, "Keycloak access token lifespan in seconds")
 	fs.BoolVar(&c.IDP.RegistrationAllowed, "idp-registration-allowed", c.IDP.RegistrationAllowed, "Enable Keycloak self-registration")
-	fs.StringVar(&c.Keycloak.BaseURL, "keycloak-base-url", c.Keycloak.BaseURL, "Set Keycloak base URL")
 	fs.StringVar(&c.Keycloak.ClientID, "keycloak-client-id", c.Keycloak.ClientID, "Set Keycloak client ID")
 	fs.StringVar(&c.Auth0.BaseURL, "auth0-base-url", c.Auth0.BaseURL, "Set Auth0 base URL")
 	fs.StringVar(&c.Auth0.ClientID, "auth0-client-id", c.Auth0.ClientID, "Set Auth0 client ID")

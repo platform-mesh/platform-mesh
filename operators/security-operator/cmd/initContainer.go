@@ -50,6 +50,15 @@ var initContainerCmd = &cobra.Command{
 			log.Warn().Err(err).Msg("Failed to load config file, using flags/env only")
 		}
 
+		switch cfg.IDP.Implementation {
+		case "keycloak":
+			initContainerConfig.IDPBaseURL = cfg.Keycloak.BaseURL
+			initContainerConfig.IDPClientID = "admin-cli"
+			initContainerConfig.IDPUser = "keycloak-admin"
+		case "auth0":
+			initContainerConfig.IDPBaseURL = cfg.Auth0.BaseURL
+		}
+
 		if initContainerConfig.IDPBaseURL == "" {
 			return fmt.Errorf("idp-base-url is required")
 		}
