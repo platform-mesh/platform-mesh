@@ -30,9 +30,10 @@ const (
 )
 
 type Config struct {
-	AccessTokenLifespan time.Duration
-	SetDefaultPassword  bool
-	SMTP                *SMTPConfig
+	AccessTokenLifespan      time.Duration
+	SetDefaultPassword       bool
+	HttpClientTimeoutSeconds time.Duration
+	SMTP                     *SMTPConfig
 }
 
 type realmConfig struct {

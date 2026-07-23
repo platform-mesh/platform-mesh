@@ -100,7 +100,13 @@ func (c *AdminClient) CreateTokenRefresher(orgID string) dcr.TokenRefresherFunc 
 }
 
 func (c *AdminClient) RegistrationEndpoint(orgID string, clientID string) string {
-	return fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", c.baseURL, orgID, clientID)
+	url := fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect", c.baseURL, orgID)
+
+	if clientID != "" {
+		url += "/" + clientID
+	}
+
+	return url
 }
 
 func (c *AdminClient) OrganizationExists(ctx context.Context, orgID string) (bool, error) {
@@ -210,6 +216,18 @@ func (c *AdminClient) DeleteOrganization(ctx context.Context, orgID string) erro
 	return errorResponse(responseData, statusCode, "delete realm")
 }
 
+func (c *AdminClient) ClientExists(ctx context.Context, orgID string, clientName string) (bool, error) {
+	client, err := c.getClient(ctx, orgID, func(client idp.Client) bool {
+		return client.Name == clientName
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return client != nil, nil
+}
+
+// TODO: Harmonize: ByName() returns an error if nothing was found, but ByID() only returns nil. Both should be behaving similarily.
 func (c *AdminClient) GetClientByName(ctx context.Context, orgID string, clientName string) (*idp.Client, error) {
 	return c.getClient(ctx, orgID, func(client idp.Client) bool {
 		return client.Name == clientName
@@ -243,7 +261,7 @@ func (c *AdminClient) getClient(ctx context.Context, orgID string, pred func(idp
 		}
 	}
 
-	return nil, fmt.Errorf("client not found")
+	return nil, nil
 }
 
 func (c *AdminClient) ListClients(ctx context.Context, orgID string) ([]idp.Client, error) {
@@ -407,7 +425,7 @@ func (c *AdminClient) GetClient(ctx context.Context, orgID string, clientID, reg
 }
 
 func (c *AdminClient) CreateClient(ctx context.Context, orgID string, metadata dcr.ClientMetadata) (dcr.ClientInformation, error) {
-	return c.getDCRClient(orgID).Register(ctx, c.RegistrationEndpoint(orgID, metadata.ClientID), metadata)
+	return c.getDCRClient(orgID).Register(ctx, c.RegistrationEndpoint(orgID, ""), metadata)
 }
 
 func (c *AdminClient) UpdateClient(ctx context.Context, orgID string, registrationURI, registrationToken string, metadata dcr.ClientMetadata) (dcr.ClientInformation, error) {
@@ -419,8 +437,13 @@ func (c *AdminClient) DeleteClient(ctx context.Context, orgID string, clientID, 
 }
 
 func (c *AdminClient) getDCRClient(orgID string) dcr.Client {
+	httpClient := &http.Client{
+		Timeout:   c.cfg.HttpClientTimeoutSeconds,
+		Transport: dcr.NewRetryTransport(nil, c.CreateTokenRefresher(orgID)),
+	}
+
 	return dcr.NewClient(
-		dcr.WithHTTPClient(c.httpClient),
+		dcr.WithHTTPClient(httpClient),
 		dcr.WithTokenProvider(c.CreateTokenProvider(orgID)),
 	)
 }
@@ -436,7 +459,7 @@ func (c *AdminClient) GetUserByEmail(ctx context.Context, orgID, email string) (
 	}
 
 	if len(users) == 0 {
-		return nil, fmt.Errorf("user not found")
+		return nil, nil
 	}
 
 	return users[0].ToPublic(), nil

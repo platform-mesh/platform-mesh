@@ -32,6 +32,7 @@ type Provider interface {
 
 	GetClientByName(ctx context.Context, orgID string, clientName string) (*Client, error)
 	GetClientByID(ctx context.Context, orgID string, clientID string) (*Client, error)
+	ClientExists(ctx context.Context, orgID string, clientName string) (bool, error)
 
 	// Realm (org) Management (provider-specific)
 	CreateOrganization(ctx context.Context, orgID string, config OrganizationConfig) error

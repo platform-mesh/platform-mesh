@@ -71,7 +71,7 @@ func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.
 		subs = append(subs, subroutine.NewWorkspaceInitializer(cfg, mgr, kcpClientGetter, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientGetter))
 	}
 	if cfg.Initializer.IDPEnabled {
-		idpSub, err := subroutine.NewIDPSubroutine(mgr, kcpClientGetter, cfg)
+		idpSub, err := subroutine.NewIDPSubroutine(mgr, kcpClientGetter, cfg, provider)
 		if err != nil {
 			return nil, fmt.Errorf("creating IDP subroutine: %w", err)
 		}

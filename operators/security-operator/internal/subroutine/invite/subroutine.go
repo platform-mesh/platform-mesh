@@ -94,7 +94,7 @@ func (s *subroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) 
 		return subroutines.OK(), err
 	}
 
-	if idpUser == nil {
+	if idpUser != nil {
 		log.Info().Str("email", invite.Spec.Email).Msg("User already exists, skipping invite")
 		s.limiter.Forget(invite)
 		return subroutines.OK(), nil

@@ -49,12 +49,13 @@ const (
 	secretNamespace   = "default"
 )
 
-func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) (*IDPSubroutine, error) {
+func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config, provider idp.Provider) (*IDPSubroutine, error) {
 	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 	return &IDPSubroutine{
+		provider:                  provider,
 		mgr:                       mgr,
 		kcpClientGetter:           kcpClientGetter,
 		additionalRedirectURLs:    cfg.IDP.AdditionalRedirectURLs,

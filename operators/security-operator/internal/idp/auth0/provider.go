@@ -283,6 +283,17 @@ func (c *ManagementClient) ListClients(ctx context.Context, orgID string) ([]idp
 	return clients, nil
 }
 
+func (c *ManagementClient) ClientExists(ctx context.Context, orgID string, clientName string) (bool, error) {
+	client, err := c.findClient(ctx, orgID, func(client idp.Client) bool {
+		return client.Name == clientName
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return client != nil, nil
+}
+
 func (c *ManagementClient) GetClientByName(ctx context.Context, orgID string, clientName string) (*idp.Client, error) {
 	return c.findClient(ctx, orgID, func(client idp.Client) bool {
 		return client.Name == clientName
