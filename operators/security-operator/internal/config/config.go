@@ -193,6 +193,7 @@ func (c *Config) Validate() error {
 func (c *Config) AddBasicFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.IDP.Implementation, "idp-implementation", c.IDP.Implementation, fmt.Sprintf("Which IDP to use in Platform Mesh (one of %v)", allIDProviders))
 	fs.StringVar(&c.Keycloak.BaseURL, "keycloak-base-url", c.Keycloak.BaseURL, "Set Keycloak base URL")
+	fs.StringVar(&c.Auth0.BaseURL, "auth0-base-url", c.Auth0.BaseURL, "Set Auth0 base URL")
 }
 
 func (c *Config) AddFlags(fs *pflag.FlagSet) {
@@ -230,7 +231,6 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&c.IDP.AccessTokenLifespan, "idp-access-token-lifespan", c.IDP.AccessTokenLifespan, "Keycloak access token lifespan in seconds")
 	fs.BoolVar(&c.IDP.RegistrationAllowed, "idp-registration-allowed", c.IDP.RegistrationAllowed, "Enable Keycloak self-registration")
 	fs.StringVar(&c.Keycloak.ClientID, "keycloak-client-id", c.Keycloak.ClientID, "Set Keycloak client ID")
-	fs.StringVar(&c.Auth0.BaseURL, "auth0-base-url", c.Auth0.BaseURL, "Set Auth0 base URL")
 	fs.StringVar(&c.Auth0.ClientID, "auth0-client-id", c.Auth0.ClientID, "Set Auth0 client ID")
 	fs.StringVar(&c.Auth0.Audience, "auth0-audience", c.Auth0.Audience, "Set the Auth0 API identifier (audience) granted to service-account clients; defaults to the Management API audience")
 	fs.BoolVar(&c.Initializer.WorkspaceInitializerEnabled, "initializer-workspace-enabled", c.Initializer.WorkspaceInitializerEnabled, "Enable workspace initialization")

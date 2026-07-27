@@ -50,13 +50,22 @@ var initContainerCmd = &cobra.Command{
 			log.Warn().Err(err).Msg("Failed to load config file, using flags/env only")
 		}
 
+		var idpAuthSecret string // can be a password for keycloak or a clientsecret for auth0
+
 		switch cfg.IDP.Implementation {
 		case "keycloak":
 			initContainerConfig.IDPBaseURL = cfg.Keycloak.BaseURL
 			initContainerConfig.IDPClientID = "admin-cli"
 			initContainerConfig.IDPUser = "keycloak-admin"
+
+			idpAuthSecret, err = readPasswordFromFile(initContainerConfig.PasswordFile)
+			if err != nil {
+				return fmt.Errorf("failed to read password: %w", err)
+			}
 		case "auth0":
 			initContainerConfig.IDPBaseURL = cfg.Auth0.BaseURL
+			initContainerConfig.IDPClientID = "..."
+			idpAuthSecret = "..."
 		}
 
 		if initContainerConfig.IDPBaseURL == "" {
@@ -66,12 +75,7 @@ var initContainerCmd = &cobra.Command{
 			return fmt.Errorf("at least one client must be configured")
 		}
 
-		password, err := readPasswordFromFile(initContainerConfig.PasswordFile)
-		if err != nil {
-			return fmt.Errorf("failed to read password: %w", err)
-		}
-
-		provider, err := factory.Create3LeggedProvider(initContainerConfig, &cfg, password)
+		provider, err := factory.Create3LeggedProvider(initContainerConfig, &cfg, idpAuthSecret)
 		if err != nil {
 			return fmt.Errorf("failed to create IDP provider: %w", err)
 		}
@@ -94,10 +98,13 @@ var initContainerCmd = &cobra.Command{
 		existingClients, err := provider.ListClients(ctx, realm)
 		if err != nil {
 			return fmt.Errorf("failed to list existing clients: %w", err)
+
 		}
+		fmt.Printf("existingClientMap:\n")
 		existingClientMap := make(map[string]*idp.Client)
 		for i := range existingClients {
-			existingClientMap[existingClients[i].ClientID] = &existingClients[i]
+			fmt.Printf("  %s = %+v\n", existingClients[i].Name, existingClients[i])
+			existingClientMap[existingClients[i].Name] = &existingClients[i]
 		}
 
 		for _, clientCfg := range initContainerConfig.Clients {
@@ -129,9 +136,10 @@ var initContainerCmd = &cobra.Command{
 				return fmt.Errorf("failed to get client secret for %q: %w", clientCfg.Name, err)
 			}
 
-			if err := provider.GrantServiceAccountRole(ctx, realm, clientUUID, *adminRole); err != nil {
-				return fmt.Errorf("failed to grant admin role to %q: %w", clientCfg.Name, err)
-			}
+			fmt.Printf("SKIPPING GrantServiceAccountRole\n")
+			// if err := provider.GrantServiceAccountRole(ctx, realm, clientUUID, *adminRole); err != nil {
+			// 	return fmt.Errorf("failed to grant admin role to %q: %w", clientCfg.Name, err)
+			// }
 
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
