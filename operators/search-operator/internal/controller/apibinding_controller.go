@@ -58,7 +58,7 @@ func NewAPIBindingReconciler(log *logger.Logger, mcMgr mcmanager.Manager, cfg *c
 		return nil, fmt.Errorf("create root:orgs scoped client: %w", err)
 	}
 
-	watcherSubroutine, err := subroutine.NewAPIBindingWatcherSubroutine(mcMgr, orgsClient, localMgr.GetConfig(), cfg.OpenSearch.IndexNamePrefix)
+	watcherSubroutine, err := subroutine.NewAPIBindingWatcherSubroutine(mcMgr, orgsClient, localMgr.GetConfig(), cfg.OpenSearch.IndexNamePrefix, *cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create APIBindingWatcherSubroutine: %w", err)
 	}

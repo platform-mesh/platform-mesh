@@ -156,13 +156,6 @@ func buildCanonicalIndexName(prefix, organizationClusterID, resource string) str
 	return strings.Trim(indexName, "-")
 }
 
-// may be removed later. Mgr already scoped for provider
-func buildClusterIDScopedClient(rootCfg *rest.Config, scheme *runtime.Scheme, clusterID string) (ctrlruntimeclient.Client, error) {
-	cfg := rest.CopyConfig(rootCfg)
-	cfg.Host = fmt.Sprintf("%s/clusters/%s", cfg.Host, clusterID)
-	return ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: scheme})
-}
-
 // GetScopedClient creates a client scoped to a specific logical cluster path (e.g. "root:orgs")
 func GetScopedClient(cfg *rest.Config, scheme *runtime.Scheme, clusterPath string) (ctrlruntimeclient.Client, error) {
 	scopedCfg := rest.CopyConfig(cfg)

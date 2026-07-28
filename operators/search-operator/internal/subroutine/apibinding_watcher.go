@@ -19,7 +19,6 @@ package subroutine
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	pmsearchv1alpha1 "go.platform-mesh.io/apis/search/v1alpha1"
@@ -32,7 +31,6 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -46,28 +44,36 @@ import (
 // When a binding takes place in an org then all indexes are updated for the
 // fields contained in the bound APIResourceSchemas.
 type apiBindingWatcherSubroutine struct {
-	mgr         mcmanager.Manager
-	orgsClient  ctrlruntimeclient.Client
-	rootCfg     *rest.Config
-	cfg         config.Config
-	indexPrefix string
+	mgr             mcmanager.Manager
+	orgsClient      ctrlruntimeclient.Client
+	rootCfg         *rest.Config
+	cfg             config.Config
+	indexPrefix     string
+	providerByGroup map[string]string
 }
 
 // NewAPIBindingWatcherSubroutine creates a new APIBinding watcher subroutine.
 // orgsClient must be scoped to the root:orgs workspace.
 // searchConfigClient must be scoped to the provider workspace.
 // localCfg must be the admin kcp REST config.
-func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient ctrlruntimeclient.Client, localCfg *rest.Config, indexPrefix string) (lifecyclesubroutine.Subroutine, error) {
+func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient ctrlruntimeclient.Client, localCfg *rest.Config, indexPrefix string, cfg config.Config) (lifecyclesubroutine.Subroutine, error) {
 	rootCfg, err := stripPathFromConfig(localCfg)
 	if err != nil {
 		return nil, err
 	}
 
+	providerByGroup := make(map[string]string, len(cfg.SearchableResource.Resources))
+	for _, rss := range cfg.SearchableResource.Resources {
+		providerByGroup[rss.Group] = rss.Provider
+	}
+
 	return &apiBindingWatcherSubroutine{
-		mgr:         mgr,
-		orgsClient:  orgsClient,
-		rootCfg:     rootCfg,
-		indexPrefix: indexPrefix,
+		mgr:             mgr,
+		orgsClient:      orgsClient,
+		rootCfg:         rootCfg,
+		cfg:             cfg,
+		indexPrefix:     indexPrefix,
+		providerByGroup: providerByGroup,
 	}, nil
 }
 
@@ -122,14 +128,13 @@ func (s *apiBindingWatcherSubroutine) Process(ctx context.Context, instance runt
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	fields, err := s.resolveFieldsForBinding(ctx, binding)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("resolve fields for binding %q: %w", binding.Name, err), true, false)
-	}
-
-	for _, br := range binding.Status.AppliedPermissionClaims {
-		if err := s.ensureSearchIndex(ctx, log, orgName, orgClusterID, br.Resource, fields); err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("ensure SearchIndex for binding %q resource %q: %w", binding.Name, br.Resource, err), true, false)
+	for _, pc := range binding.Status.AppliedPermissionClaims {
+		fields, err := s.resolveFieldsForPermissionClaim(ctx, pc, s.providerByGroup)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("resolve fields for binding %q: %w", binding.Name, err), true, false)
+		}
+		if err := s.ensureSearchIndex(ctx, log, orgName, orgClusterID, pc.Resource, fields); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("ensure SearchIndex for binding %q resource %q: %w", binding.Name, pc.Resource, err), true, false)
 		}
 	}
 
@@ -150,163 +155,132 @@ type searchIndexFields struct {
 	filterableFields []string
 }
 
-// resolveFieldsForBinding collects the top-level field names from every APIResourceSchema
-// referenced by the binding, then applies any SearchConfig found in the operator provider workspace
-// to classify fields into default, semantic, and filterable lists.
-func (s *apiBindingWatcherSubroutine) resolveFieldsForBinding(ctx context.Context, binding *kcpapisv1alpha1.APIBinding) (*searchIndexFields, error) {
-	if len(binding.Status.BoundResources) == 0 {
-		return &searchIndexFields{}, nil
-	}
-
-	// The export cluster is the provider workspace that owns the APIExport.
-	// It is not a consumer of the export, so it does not appear in the multicluster
-	// manager's cluster list. Build a direct client using the cluster ID via the
-	// clusters API instead of going through GetCluster.
-	exportClient, err := buildClusterIDScopedClient(s.rootCfg, s.mgr.GetLocalManager().GetScheme(), binding.Status.APIExportClusterName)
-	if err != nil {
-		return nil, fmt.Errorf("get export cluster client %q: %w", binding.Status.APIExportClusterName, err)
-	}
-
-	seen := make(map[string]struct{})
-	for _, br := range binding.Status.BoundResources {
-		schema := &kcpapisv1alpha1.APIResourceSchema{}
-		if err := exportClient.Get(ctx, types.NamespacedName{Name: br.Schema.Name}, schema); err != nil {
-			return nil, fmt.Errorf("get APIResourceSchema %q: %w", br.Schema.Name, err)
-		}
-
-		for _, version := range schema.Spec.Versions {
-			if !version.Served {
-				continue
-			}
-			props, err := version.GetSchema()
-			if err != nil {
-				return nil, fmt.Errorf("parse schema for %q version %q: %w", br.Schema.Name, version.Name, err)
-			}
-			if props == nil {
-				continue
-			}
-			for fieldName := range props.Properties {
-				seen[fieldName] = struct{}{}
-			}
-		}
-	}
-
-	allFields := make([]string, 0, len(seen))
-	for f := range seen {
-		allFields = append(allFields, f)
-	}
-	sort.Strings(allFields)
-
-	// Try to fetch a SearchConfig from the operator provider workspace to classify fields.
-	searchConfig := s.fetchSearchConfig(ctx, binding)
-	if searchConfig == nil {
-		// No SearchConfig found — fall back to all fields as defaultFields (heuristic).
-		return &searchIndexFields{defaultFields: allFields}, nil
-	}
-
-	return applySearchConfig(allFields, searchConfig), nil
-}
-
-// fetchSearchConfig attempts to load a SearchConfig from the operator provider workspace.
-// It looks for a SearchConfig whose name matches any bound resource schema name.
-// Returns nil if no SearchConfig is found.
-func (s *apiBindingWatcherSubroutine) fetchSearchConfig(ctx context.Context, binding *kcpapisv1alpha1.APIBinding) *pmsearchv1alpha1.SearchConfig {
+// resolveFieldsForPermissionClaim finds the APIResourceSchema for the claimed (group, resource)
+// by searching configured provider workspaces, then classifies fields using any SearchConfig
+// found in the same provider workspace.
+func (s *apiBindingWatcherSubroutine) resolveFieldsForPermissionClaim(ctx context.Context, pc kcpapisv1alpha1.PermissionClaim, providerByGroup map[string]string) (*searchIndexFields, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 	mcMngr := s.mgr.GetLocalManager()
 
-	providerMap := make(map[schema.GroupKind]string)
-	for _, rss := range s.cfg.SearchableResource.Resources {
-		providerMap[schema.GroupKind{
-			Group: rss.Group,
-			Kind:  rss.Kind,
-		}] = rss.Provider
+	provider, ok := providerByGroup[pc.Group]
+	if !ok {
+		log.Debug().Str("group", pc.Group).Str("resource", pc.Resource).Msg("no provider found for permission claim, skipping")
+		return &searchIndexFields{}, nil
 	}
 
-	for _, br := range binding.Status.BoundResources {
-		provider := providerMap[schema.GroupKind{
-			Group: br.Group,
-			Kind:  br.Schema.Name,
-		}]
-		providerPath := fmt.Sprintf("root:providers:%s", provider)
-		searchConfigClient, err := GetScopedClient(mcMngr.GetConfig(), mcMngr.GetScheme(), providerPath)
-		if err != nil {
-			log.Warn().
-				Str("Provider", providerPath).
-				Msg("Not found")
+	providerPath := fmt.Sprintf("root:providers:%s", provider)
+	if provider == "platform-mesh-system" {
+		providerPath = "root:platform-mesh-system"
+	}
+	providerClient, err := GetScopedClient(mcMngr.GetConfig(), mcMngr.GetScheme(), providerPath)
+	if err != nil {
+		return nil, fmt.Errorf("build provider client %q: %w", providerPath, err)
+	}
+
+	schemaList := &kcpapisv1alpha1.APIResourceSchemaList{}
+	if err := providerClient.List(ctx, schemaList); err != nil {
+		return nil, fmt.Errorf("list APIResourceSchemas in %q: %w", providerPath, err)
+	}
+
+	var matched *kcpapisv1alpha1.APIResourceSchema
+	for i := range schemaList.Items {
+		s := &schemaList.Items[i]
+		if s.Spec.Group == pc.Group && s.Spec.Names.Plural == pc.Resource {
+			matched = s
+			break
+		}
+	}
+	if matched == nil {
+		log.Debug().Str("group", pc.Group).Str("resource", pc.Resource).Str("provider", providerPath).Msg("no matching APIResourceSchema found")
+		return &searchIndexFields{}, nil
+	}
+
+	defaultFields := make(map[string]struct{})
+	semanticFields := make(map[string]struct{})
+	exactFields := make(map[string]struct{})
+
+	var cf *searchConfigFilter
+	searchCfg := &pmsearchv1alpha1.SearchConfig{}
+	if err := providerClient.Get(ctx, types.NamespacedName{Name: matched.Name}, searchCfg); err != nil {
+		log.Warn().Str("schema", matched.Name).Msg("no SearchConfig found, all fields are default fields")
+	} else {
+		log.Debug().Str("searchConfig", searchCfg.Name).Str("schema", matched.Name).Msg("found SearchConfig in provider workspace")
+		filter := newSearchConfigFilter(searchCfg)
+		cf = &filter
+	}
+
+	for _, version := range matched.Spec.Versions {
+		if !version.Served {
 			continue
 		}
-		cfg := &pmsearchv1alpha1.SearchConfig{}
-		err = searchConfigClient.Get(ctx, types.NamespacedName{Name: br.Schema.Name}, cfg)
-		if err == nil {
-			log.Debug().
-				Str("searchConfig", cfg.Name).
-				Str("schema", br.Schema.Name).
-				Msg("found SearchConfig in operator provider workspace")
-			return cfg
+		props, err := version.GetSchema()
+		if err != nil {
+			return nil, fmt.Errorf("parse schema for %q version %q: %w", matched.Name, version.Name, err)
 		}
-		if !apierrors.IsNotFound(err) {
-			log.Warn().Err(err).
-				Str("schema", br.Schema.Name).
-				Msg("error fetching SearchConfig from operator provider workspace, falling back to heuristic")
+		if props == nil {
+			continue
+		}
+		for fieldName := range props.Properties {
+			if cf == nil {
+				defaultFields[fieldName] = struct{}{}
+			} else {
+				cf.sortIntoAnyOf(fieldName, &defaultFields, &exactFields, &semanticFields)
+			}
 		}
 	}
-	return nil
+
+	return &searchIndexFields{
+		defaultFields:    sliceFromSet(defaultFields),
+		semanticFields:   sliceFromSet(semanticFields),
+		filterableFields: sliceFromSet(exactFields),
+	}, nil
 }
 
-// applySearchConfig classifies allFields according to the SearchConfig's declared lists.
-// Priority: excludedFields > exactFields > semanticFields > default (full-text).
-func applySearchConfig(allFields []string, cfg *pmsearchv1alpha1.SearchConfig) *searchIndexFields {
-	excluded := toSet(cfg.Spec.ExcludedFields)
-	semantic := toSet(cfg.Spec.SemanticFields)
-	exact := toSet(cfg.Spec.ExactFields)
-
-	result := &searchIndexFields{}
-	for _, f := range allFields {
-		switch {
-		case excluded[f]:
-			// Skip — not indexed at all.
-		case exact[f]:
-			result.filterableFields = append(result.filterableFields, f)
-		case semantic[f]:
-			result.semanticFields = append(result.semanticFields, f)
-		default:
-			result.defaultFields = append(result.defaultFields, f)
-		}
-	}
-
-	// Also add semantic/exact fields that aren't in allFields (nested paths like "spec.description").
-	for _, f := range cfg.Spec.SemanticFields {
-		if !excluded[f] && !contains(allFields, f) {
-			result.semanticFields = append(result.semanticFields, f)
-		}
-	}
-	for _, f := range cfg.Spec.ExactFields {
-		if !excluded[f] && !contains(allFields, f) {
-			result.filterableFields = append(result.filterableFields, f)
-		}
-	}
-
-	sort.Strings(result.defaultFields)
-	sort.Strings(result.semanticFields)
-	sort.Strings(result.filterableFields)
-	return result
+// searchConfigFilter holds pre-built sets from a SearchConfig for fast field classification.
+type searchConfigFilter struct {
+	excluded map[string]struct{}
+	exact    map[string]struct{}
+	semantic map[string]struct{}
 }
 
-func toSet(slice []string) map[string]bool {
-	m := make(map[string]bool, len(slice))
-	for _, s := range slice {
-		m[s] = true
+func newSearchConfigFilter(cfg *pmsearchv1alpha1.SearchConfig) searchConfigFilter {
+	toStructSet := func(fields []string) map[string]struct{} {
+		m := make(map[string]struct{}, len(fields))
+		for _, f := range fields {
+			m[f] = struct{}{}
+		}
+		return m
 	}
-	return m
+	return searchConfigFilter{
+		excluded: toStructSet(cfg.Spec.ExcludedFields),
+		exact:    toStructSet(cfg.Spec.ExactFields),
+		semantic: toStructSet(cfg.Spec.SemanticFields),
+	}
 }
 
-func contains(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
+// sortIntoAnyOf places element into a if it is not in excluded, into b if it is in exact,
+// and into c if it is in semantic. a, b, c are mutually exclusive via priority order.
+func (f searchConfigFilter) sortIntoAnyOf(element string, defaultFields, semanticFields, exactFields *map[string]struct{}) {
+	if _, excluded := f.excluded[element]; excluded {
+		return
 	}
-	return false
+	if _, isExact := f.exact[element]; isExact {
+		(*exactFields)[element] = struct{}{}
+		return
+	}
+	if _, isSemantic := f.semantic[element]; isSemantic {
+		(*semanticFields)[element] = struct{}{}
+		return
+	}
+	(*defaultFields)[element] = struct{}{}
+}
+
+func sliceFromSet(set map[string]struct{}) []string {
+	s := make([]string, 0, len(set))
+	for k := range set {
+		s = append(s, k)
+	}
+	return s
 }
 
 // ensureSearchIndex creates or updates the SearchIndex in the org workspace.
