@@ -27,10 +27,12 @@ import (
 	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-operator/internal/config"
 	"go.platform-mesh.io/search-operator/internal/metrics"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -44,29 +46,28 @@ import (
 // When a binding takes place in an org then all indexes are updated for the
 // fields contained in the bound APIResourceSchemas.
 type apiBindingWatcherSubroutine struct {
-	mgr                mcmanager.Manager
-	orgsClient         ctrlruntimeclient.Client
-	searchConfigClient ctrlruntimeclient.Client
-	rootCfg            *rest.Config
-	indexPrefix        string
+	mgr         mcmanager.Manager
+	orgsClient  ctrlruntimeclient.Client
+	rootCfg     *rest.Config
+	cfg         config.Config
+	indexPrefix string
 }
 
 // NewAPIBindingWatcherSubroutine creates a new APIBinding watcher subroutine.
 // orgsClient must be scoped to the root:orgs workspace.
 // searchConfigClient must be scoped to the provider workspace.
 // localCfg must be the admin kcp REST config.
-func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient ctrlruntimeclient.Client, searchConfigClient ctrlruntimeclient.Client, localCfg *rest.Config, indexPrefix string) (lifecyclesubroutine.Subroutine, error) {
+func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient ctrlruntimeclient.Client, localCfg *rest.Config, indexPrefix string) (lifecyclesubroutine.Subroutine, error) {
 	rootCfg, err := stripPathFromConfig(localCfg)
 	if err != nil {
 		return nil, err
 	}
 
 	return &apiBindingWatcherSubroutine{
-		mgr:                mgr,
-		orgsClient:         orgsClient,
-		searchConfigClient: searchConfigClient,
-		rootCfg:            rootCfg,
-		indexPrefix:        indexPrefix,
+		mgr:         mgr,
+		orgsClient:  orgsClient,
+		rootCfg:     rootCfg,
+		indexPrefix: indexPrefix,
 	}, nil
 }
 
@@ -213,14 +214,29 @@ func (s *apiBindingWatcherSubroutine) fetchSearchConfig(ctx context.Context, bin
 	log := logger.LoadLoggerFromContext(ctx)
 	mcMngr := s.mgr.GetLocalManager()
 
-	searchConfigClient, err := GetScopedClient(mcMngr.GetConfig(), mcMngr.GetScheme(), "root:providers:hyperspace")
-	if err != nil {
-		return nil
+	providerMap := make(map[schema.GroupKind]string)
+	for _, rss := range s.cfg.SearchableResource.Resources {
+		providerMap[schema.GroupKind{
+			Group: rss.Group,
+			Kind:  rss.Kind,
+		}] = rss.Provider
 	}
 
 	for _, br := range binding.Status.BoundResources {
+		provider := providerMap[schema.GroupKind{
+			Group: br.Group,
+			Kind:  br.Schema.Name,
+		}]
+		providerPath := fmt.Sprintf("root:providers:%s", provider)
+		searchConfigClient, err := GetScopedClient(mcMngr.GetConfig(), mcMngr.GetScheme(), providerPath)
+		if err != nil {
+			log.Warn().
+				Str("Provider", providerPath).
+				Msg("Not found")
+			continue
+		}
 		cfg := &pmsearchv1alpha1.SearchConfig{}
-		err := searchConfigClient.Get(ctx, types.NamespacedName{Name: "v260115-ddf70747.apidefinitions.metadata.dxp.sap.com"}, cfg)
+		err = searchConfigClient.Get(ctx, types.NamespacedName{Name: br.Schema.Name}, cfg)
 		if err == nil {
 			log.Debug().
 				Str("searchConfig", cfg.Name).

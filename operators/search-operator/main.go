@@ -185,9 +185,9 @@ func main() {
 	}
 
 	// Setup IndexableResource controllers for each configured searchable resource type
-	for _, GVK := range cfg.SearchableResource.Resources {
+	for _, GVKP := range cfg.SearchableResource.Resources {
 		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(GVK)
+		obj.SetGroupVersionKind(GVKP.GroupVersionKind)
 		idxRssReconciler, err := controller.NewIndexableResource(log, *cfg, mgr, osClient, apiExportEndpointSliceName, obj)
 		if err != nil {
 			setupLog.Error(err, "unable to create IndexableResource reconciler")
@@ -201,7 +201,7 @@ func main() {
 
 	// Setup APIBinding controller: reconciles APIBindings and ensures SearchIndex resources
 	// in the owning org workspace for each bound export.
-	apiBindingReconciler, err := controller.NewAPIBindingReconciler(log, mgr, cfg.OpenSearch.IndexNamePrefix)
+	apiBindingReconciler, err := controller.NewAPIBindingReconciler(log, mgr, cfg)
 	if err != nil {
 		setupLog.Error(err, "unable to create APIBinding reconciler")
 		os.Exit(1)

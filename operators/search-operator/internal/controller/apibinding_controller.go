@@ -26,6 +26,7 @@ import (
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "go.platform-mesh.io/golang-commons/controller/lifecycle/subroutine"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/search-operator/internal/config"
 	"go.platform-mesh.io/search-operator/internal/subroutine"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,11 +45,12 @@ import (
 // APIBindingReconciler watches APIBinding resources across all workspaces
 type APIBindingReconciler struct {
 	log         *logger.Logger
+	cfg         *config.Config
 	mclifecycle *multicluster.LifecycleManager
 }
 
 // NewAPIBindingReconciler creates a new APIBinding reconciler.
-func NewAPIBindingReconciler(log *logger.Logger, mcMgr mcmanager.Manager, indexPrefix string) (*APIBindingReconciler, error) {
+func NewAPIBindingReconciler(log *logger.Logger, mcMgr mcmanager.Manager, cfg *config.Config) (*APIBindingReconciler, error) {
 	localMgr := mcMgr.GetLocalManager()
 
 	orgsClient, err := subroutine.GetScopedClient(localMgr.GetConfig(), localMgr.GetScheme(), "root:orgs")
@@ -56,18 +58,14 @@ func NewAPIBindingReconciler(log *logger.Logger, mcMgr mcmanager.Manager, indexP
 		return nil, fmt.Errorf("create root:orgs scoped client: %w", err)
 	}
 
-	searchConfigClient, err := ctrlruntimeclient.New(localMgr.GetConfig(), ctrlruntimeclient.Options{Scheme: localMgr.GetScheme()})
-	if err != nil {
-		return nil, fmt.Errorf("create provider workspace SearchConfig client: %w", err)
-	}
-
-	watcherSubroutine, err := subroutine.NewAPIBindingWatcherSubroutine(mcMgr, orgsClient, searchConfigClient, localMgr.GetConfig(), indexPrefix)
+	watcherSubroutine, err := subroutine.NewAPIBindingWatcherSubroutine(mcMgr, orgsClient, localMgr.GetConfig(), cfg.OpenSearch.IndexNamePrefix)
 	if err != nil {
 		return nil, fmt.Errorf("create APIBindingWatcherSubroutine: %w", err)
 	}
 
 	return &APIBindingReconciler{
 		log: log,
+		cfg: cfg,
 		mclifecycle: builder.NewBuilder("apibinding", "APIBindingReconciler", []lifecyclesubroutine.Subroutine{
 			watcherSubroutine,
 		}, log).BuildMultiCluster(mcMgr),
