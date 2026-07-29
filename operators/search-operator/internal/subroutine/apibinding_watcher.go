@@ -185,7 +185,7 @@ func (s *apiBindingWatcherSubroutine) resolveFieldsForPermissionClaim(ctx contex
 	var matched *kcpapisv1alpha1.APIResourceSchema
 	for i := range schemaList.Items {
 		s := &schemaList.Items[i]
-		if s.Spec.Group == pc.Group && s.Spec.Names.Plural == pc.Resource {
+		if s.Spec.Names.Plural == pc.Resource {
 			matched = s
 			break
 		}
