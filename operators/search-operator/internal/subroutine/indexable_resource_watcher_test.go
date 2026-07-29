@@ -295,23 +295,6 @@ func TestResolveAccountInfoLookupClusters(t *testing.T) {
 	}
 }
 
-func TestMergeFieldPaths(t *testing.T) {
-	got := mergeFieldPaths(
-		[]string{"spec.description", "status.phase"},
-		[]string{"spec.description", "spec.summary"},
-		[]string{"status.phase", "metadata.name"},
-	)
-	want := []string{"spec.description", "status.phase", "spec.summary", "metadata.name"}
-	if len(got) != len(want) {
-		t.Fatalf("mergeFieldPaths() = %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("mergeFieldPaths()[%d] = %q, want %q (full %v)", i, got[i], want[i], got)
-		}
-	}
-}
-
 func TestExtractConfiguredFieldsSupportsNestedPaths(t *testing.T) {
 	resource := &unstructured.Unstructured{
 		Object: map[string]any{

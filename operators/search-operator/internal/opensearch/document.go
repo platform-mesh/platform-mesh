@@ -94,23 +94,6 @@ func DefaultIndexMapping(fields FieldMappings, semanticModelID string) (string, 
 			}
 		}
 	}
-	for _, fieldPath := range fields.Filterable {
-		leaf := map[string]any{"type": "keyword"}
-		if err := setLeafMapping(properties, fieldPath, leaf, false); err != nil {
-			return "", err
-		}
-	}
-	for _, fieldPath := range fields.Default {
-		leaf := map[string]any{
-			"type": "text",
-			"fields": map[string]any{
-				"keyword": map[string]any{"type": "keyword", "ignore_above": 256},
-			},
-		}
-		if err := setLeafMapping(properties, fieldPath, leaf, false); err != nil {
-			return "", err
-		}
-	}
 
 	mapping := map[string]any{
 		"dynamic": false,
@@ -149,10 +132,7 @@ func setLeafMapping(properties map[string]any, fieldPath string, leafMapping map
 		isLeaf := i == len(segments)-1
 
 		if isLeaf {
-			if exists && !overwrite {
-				return nil
-			}
-			current[segment] = leafMapping
+			current[segment] = map[string]any{"type": "semantic", "model_id": semanticModelID}
 			return nil
 		}
 
