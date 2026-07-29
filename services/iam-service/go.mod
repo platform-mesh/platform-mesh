@@ -31,7 +31,10 @@ require (
 	sigs.k8s.io/multicluster-runtime v0.24.1
 )
 
-require golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
+require (
+	github.com/google/cel-go v0.30.0 // indirect
+	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
+)
 
 replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.8.0
 

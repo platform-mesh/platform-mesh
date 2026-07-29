@@ -6,7 +6,7 @@ replace go.platform-mesh.io/apis => ../../apis
 
 require (
 	github.com/go-logr/logr v1.4.3
-	github.com/google/cel-go v0.28.1
+	github.com/google/cel-go v0.30.0
 	github.com/google/go-cmp v0.7.0
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.8.0

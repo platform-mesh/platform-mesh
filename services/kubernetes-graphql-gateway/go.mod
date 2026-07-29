@@ -11,7 +11,7 @@ require (
 	github.com/go-openapi/testify/v2 v2.4.2
 	github.com/gobuffalo/flect v1.0.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/google/cel-go v0.28.1
+	github.com/google/cel-go v0.30.0
 	github.com/google/gnostic-models v0.7.1
 	github.com/graphql-go/graphql v0.8.1
 	github.com/graphql-go/handler v0.2.4
