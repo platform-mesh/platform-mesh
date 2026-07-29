@@ -24,7 +24,7 @@ require (
 	go.platform-mesh.io/golang-commons v0.18.1
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.21.0
-	google.golang.org/grpc v1.81.1
+	google.golang.org/grpc v1.82.1
 	k8s.io/client-go v0.36.0
 	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
 	sigs.k8s.io/controller-runtime v0.24.1
