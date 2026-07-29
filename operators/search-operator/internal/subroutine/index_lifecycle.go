@@ -157,7 +157,11 @@ func (s *IndexLifecycleSubroutine) Process(ctx context.Context, instance runtime
 	created := false
 	replicasUpdated := false
 	if !desiredExists && !legacyExists {
-		mapping, err := opensearch.DefaultIndexMapping(searchIndex.Spec.SemanticFields, s.semanticModelID)
+		mapping, err := opensearch.DefaultIndexMapping(opensearch.FieldMappings{
+			Default:    searchIndex.Spec.DefaultFields,
+			Semantic:   searchIndex.Spec.SemanticFields,
+			Filterable: searchIndex.Spec.FilterableFields,
+		}, s.semanticModelID)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to build index mapping for %q: %w", desiredIndexName, err), false, false)
 		}

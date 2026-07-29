@@ -164,8 +164,12 @@ func (s *IndexableResourceWatcherSubroutine) Process(ctx context.Context, instan
 	doc.APIVersion = gvk.Version
 	doc.OrganizationName = orgName
 	doc.OrganizationID = orgID
-	doc.CustomFields = extractCustomFields(resource, searchIndex.Spec.DefaultFields)
-	semanticFieldValues := extractConfiguredFields(resource, searchIndex.Spec.SemanticFields)
+	allFieldPaths := mergeFieldPaths(
+		searchIndex.Spec.DefaultFields,
+		searchIndex.Spec.SemanticFields,
+		searchIndex.Spec.FilterableFields,
+	)
+	configuredFieldValues := extractConfiguredFields(resource, allFieldPaths)
 
 	accountInfo, err := s.getAccountInfo(ctx, workspacePath, gvk, resource)
 	if err != nil {
@@ -226,7 +230,7 @@ func (s *IndexableResourceWatcherSubroutine) Process(ctx context.Context, instan
 	doc.PayloadRawJSON = payloadRawJSON
 	doc.PayloadText = payloadText
 
-	documentBody, err := buildDocumentSource(doc, semanticFieldValues)
+	documentBody, err := buildDocumentSource(doc, configuredFieldValues)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(
 			fmt.Errorf("failed to build document source for %s: %w", docID, err), true, false,
@@ -318,20 +322,19 @@ func getSearchIndex(ctx context.Context, orgsClient ctrlruntimeclient.Client, or
 	return searchIndex, nil
 }
 
-// extractCustomFields copies only the top-level fields listed in defaultFields
-// from the unstructured resource object. Fields not present in the resource are skipped.
-func extractCustomFields(resource *unstructured.Unstructured, defaultFields []string) map[string]any {
-	if len(defaultFields) == 0 {
-		return nil
-	}
-	out := make(map[string]any, len(defaultFields))
-	for _, field := range defaultFields {
-		if v, ok := resource.Object[field]; ok {
-			out[field] = v
+// mergeFieldPaths concatenates the field-path lists into a single deduplicated slice,
+// preserving first-seen order.
+func mergeFieldPaths(lists ...[]string) []string {
+	seen := make(map[string]struct{})
+	out := make([]string, 0)
+	for _, list := range lists {
+		for _, path := range list {
+			if _, ok := seen[path]; ok {
+				continue
+			}
+			seen[path] = struct{}{}
+			out = append(out, path)
 		}
-	}
-	if len(out) == 0 {
-		return nil
 	}
 	return out
 }

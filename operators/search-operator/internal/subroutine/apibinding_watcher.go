@@ -30,6 +30,7 @@ import (
 	"go.platform-mesh.io/search-operator/internal/metrics"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
@@ -220,11 +221,11 @@ func (s *apiBindingWatcherSubroutine) resolveFieldsForPermissionClaim(ctx contex
 		if props == nil {
 			continue
 		}
-		for fieldName := range props.Properties {
+		for _, fieldPath := range collectLeafFieldPaths(props) {
 			if cf == nil {
-				defaultFields[fieldName] = struct{}{}
+				defaultFields[fieldPath] = struct{}{}
 			} else {
-				cf.sortIntoAnyOf(fieldName, &defaultFields, &exactFields, &semanticFields)
+				cf.sortIntoAnyOf(fieldPath, &defaultFields, &semanticFields, &exactFields)
 			}
 		}
 	}
@@ -234,6 +235,40 @@ func (s *apiBindingWatcherSubroutine) resolveFieldsForPermissionClaim(ctx contex
 		semanticFields:   sliceFromSet(semanticFields),
 		filterableFields: sliceFromSet(exactFields),
 	}, nil
+}
+
+// maxSchemaWalkDepth bounds recursion into pathological / deeply nested schemas.
+const maxSchemaWalkDepth = 10
+
+// collectLeafFieldPaths walks the schema's Properties recursively and returns a dot-notation
+// path for every leaf field. A leaf is any node with no child Properties, which includes
+// scalars, arrays, and map-typed (additionalProperties) nodes. Arrays and maps are emitted as
+// a single leaf path (they are not descended into), so the paths stay resolvable by the
+// map-only lookupFieldPath used during indexing.
+func collectLeafFieldPaths(root *apiextensionsv1.JSONSchemaProps) []string {
+	var out []string
+	var walk func(prefix string, node *apiextensionsv1.JSONSchemaProps, depth int)
+	walk = func(prefix string, node *apiextensionsv1.JSONSchemaProps, depth int) {
+		if node == nil {
+			return
+		}
+		if depth > maxSchemaWalkDepth || len(node.Properties) == 0 {
+			if prefix != "" {
+				out = append(out, prefix)
+			}
+			return
+		}
+		for name := range node.Properties {
+			child := node.Properties[name] // map values are not addressable; copy first
+			path := name
+			if prefix != "" {
+				path = prefix + "." + name
+			}
+			walk(path, &child, depth+1)
+		}
+	}
+	walk("", root, 0)
+	return out
 }
 
 // searchConfigFilter holds pre-built sets from a SearchConfig for fast field classification.
@@ -258,8 +293,8 @@ func newSearchConfigFilter(cfg *pmsearchv1alpha1.SearchConfig) searchConfigFilte
 	}
 }
 
-// sortIntoAnyOf places element into a if it is not in excluded, into b if it is in exact,
-// and into c if it is in semantic. a, b, c are mutually exclusive via priority order.
+// sortIntoAnyOf classifies element by priority: excluded fields are dropped; otherwise it goes
+// into exactFields if listed as exact, semanticFields if listed as semantic, else defaultFields.
 func (f searchConfigFilter) sortIntoAnyOf(element string, defaultFields, semanticFields, exactFields *map[string]struct{}) {
 	if _, excluded := f.excluded[element]; excluded {
 		return

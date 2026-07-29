@@ -22,7 +22,7 @@ import (
 )
 
 func TestDefaultIndexMappingIsValidJSON(t *testing.T) {
-	mapping, err := DefaultIndexMapping(nil, "")
+	mapping, err := DefaultIndexMapping(FieldMappings{}, "")
 	if err != nil {
 		t.Fatalf("DefaultIndexMapping() returned error: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestDefaultIndexMappingIsValidJSON(t *testing.T) {
 }
 
 func TestDefaultIndexMappingIncludesSemanticFields(t *testing.T) {
-	mapping, err := DefaultIndexMapping([]string{"description", "spec.summary"}, "model-123")
+	mapping, err := DefaultIndexMapping(FieldMappings{Semantic: []string{"description", "spec.summary"}}, "model-123")
 	if err != nil {
 		t.Fatalf("DefaultIndexMapping() returned error: %v", err)
 	}
@@ -69,7 +69,80 @@ func TestDefaultIndexMappingIncludesSemanticFields(t *testing.T) {
 }
 
 func TestDefaultIndexMappingRequiresSemanticModelID(t *testing.T) {
-	if _, err := DefaultIndexMapping([]string{"description"}, ""); err == nil {
+	if _, err := DefaultIndexMapping(FieldMappings{Semantic: []string{"description"}}, ""); err == nil {
 		t.Fatal("DefaultIndexMapping() error = nil, want semantic model id validation error")
+	}
+}
+
+func TestDefaultIndexMappingIncludesFilterableFields(t *testing.T) {
+	mapping, err := DefaultIndexMapping(FieldMappings{Filterable: []string{"status.phase"}}, "")
+	if err != nil {
+		t.Fatalf("DefaultIndexMapping() returned error: %v", err)
+	}
+
+	var js map[string]any
+	if err := json.Unmarshal([]byte(mapping), &js); err != nil {
+		t.Fatalf("DefaultIndexMapping() returned invalid JSON: %v", err)
+	}
+
+	properties := js["properties"].(map[string]any)
+	status := properties["status"].(map[string]any)
+	statusProps := status["properties"].(map[string]any)
+	phase := statusProps["phase"].(map[string]any)
+	if got := phase["type"]; got != "keyword" {
+		t.Fatalf("status.phase type = %v, want keyword", got)
+	}
+}
+
+func TestDefaultIndexMappingIncludesDefaultFields(t *testing.T) {
+	mapping, err := DefaultIndexMapping(FieldMappings{Default: []string{"spec.description"}}, "")
+	if err != nil {
+		t.Fatalf("DefaultIndexMapping() returned error: %v", err)
+	}
+
+	var js map[string]any
+	if err := json.Unmarshal([]byte(mapping), &js); err != nil {
+		t.Fatalf("DefaultIndexMapping() returned invalid JSON: %v", err)
+	}
+
+	properties := js["properties"].(map[string]any)
+	spec := properties["spec"].(map[string]any)
+	specProps := spec["properties"].(map[string]any)
+	desc := specProps["description"].(map[string]any)
+	if got := desc["type"]; got != "text" {
+		t.Fatalf("spec.description type = %v, want text", got)
+	}
+	fields, ok := desc["fields"].(map[string]any)
+	if !ok {
+		t.Fatalf("spec.description missing keyword subfield, got %v", desc["fields"])
+	}
+	keyword := fields["keyword"].(map[string]any)
+	if got := keyword["type"]; got != "keyword" {
+		t.Fatalf("spec.description.keyword type = %v, want keyword", got)
+	}
+}
+
+func TestDefaultIndexMappingSemanticWinsPriority(t *testing.T) {
+	// Same path present in all three lists must resolve to the semantic mapping without error.
+	mapping, err := DefaultIndexMapping(FieldMappings{
+		Default:    []string{"spec.title"},
+		Semantic:   []string{"spec.title"},
+		Filterable: []string{"spec.title"},
+	}, "model-123")
+	if err != nil {
+		t.Fatalf("DefaultIndexMapping() returned error: %v", err)
+	}
+
+	var js map[string]any
+	if err := json.Unmarshal([]byte(mapping), &js); err != nil {
+		t.Fatalf("DefaultIndexMapping() returned invalid JSON: %v", err)
+	}
+
+	properties := js["properties"].(map[string]any)
+	spec := properties["spec"].(map[string]any)
+	specProps := spec["properties"].(map[string]any)
+	title := specProps["title"].(map[string]any)
+	if got := title["type"]; got != "semantic" {
+		t.Fatalf("spec.title type = %v, want semantic (priority)", got)
 	}
 }
