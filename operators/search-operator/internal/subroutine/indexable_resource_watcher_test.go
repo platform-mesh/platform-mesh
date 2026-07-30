@@ -321,6 +321,88 @@ func TestExtractConfiguredFieldsSupportsNestedPaths(t *testing.T) {
 	}
 }
 
+func TestExtractConfiguredFieldsSkipsDotOnlyMapKeys(t *testing.T) {
+	resource := &unstructured.Unstructured{
+		Object: map[string]any{
+			"metadata": map[string]any{
+				"labels": map[string]any{
+					".":     "dot-only-key",
+					"..":    "double-dot-key",
+					"valid": "keep-this",
+				},
+			},
+		},
+	}
+
+	got := extractConfiguredFields(resource, []string{"metadata.labels"})
+	meta, ok := got["metadata"].(map[string]any)
+	if !ok {
+		t.Fatalf("metadata = %T, want map[string]any", got["metadata"])
+	}
+	labels, ok := meta["labels"].(map[string]any)
+	if !ok {
+		t.Fatalf("metadata.labels = %T, want map[string]any", meta["labels"])
+	}
+
+	if _, exists := labels["."]; exists {
+		t.Error("labels[\".\"] should have been stripped")
+	}
+	if _, exists := labels[".."]; exists {
+		t.Error("labels[\"..\"] should have been stripped")
+	}
+	if labels["valid"] != "keep-this" {
+		t.Errorf("labels[\"valid\"] = %v, want keep-this", labels["valid"])
+	}
+}
+
+func TestExtractConfiguredFieldsSkipsDotOnlyKeysInArrayOfObjects(t *testing.T) {
+	resource := &unstructured.Unstructured{
+		Object: map[string]any{
+			"spec": map[string]any{
+				"items": []any{
+					map[string]any{
+						".":     "bad",
+						"valid": "good",
+					},
+					map[string]any{
+						"..": "also-bad",
+						"ok": "fine",
+					},
+				},
+			},
+		},
+	}
+
+	got := extractConfiguredFields(resource, []string{"spec.items"})
+	spec, ok := got["spec"].(map[string]any)
+	if !ok {
+		t.Fatalf("spec = %T, want map[string]any", got["spec"])
+	}
+	items, ok := spec["items"].([]any)
+	if !ok {
+		t.Fatalf("spec.items = %T, want []any", spec["items"])
+	}
+	if len(items) != 2 {
+		t.Fatalf("spec.items len = %d, want 2", len(items))
+	}
+
+	first := items[0].(map[string]any)
+	if _, exists := first["."]; exists {
+		t.Error("items[0][\".\"] should have been stripped")
+	}
+	if first["valid"] != "good" {
+		t.Errorf("items[0][\"valid\"] = %v, want good", first["valid"])
+	}
+
+	second := items[1].(map[string]any)
+	if _, exists := second[".."]; exists {
+		t.Error("items[1][\"..\"] should have been stripped")
+	}
+	if second["ok"] != "fine" {
+		t.Errorf("items[1][\"ok\"] = %v, want fine", second["ok"])
+	}
+}
+
 func TestBuildDocumentSourceAddsConfiguredFields(t *testing.T) {
 	doc := &opensearch.ResourceDocument{
 		ID:            "doc-1",
