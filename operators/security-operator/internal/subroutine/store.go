@@ -19,13 +19,13 @@ package subroutine
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	commonsstore "go.platform-mesh.io/golang-commons/fga/store"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/subroutines"
@@ -91,15 +91,13 @@ func (s *storeSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obj
 	if store.Status.StoreID == "" {
 		log.Info().Msg("Store ID not set, trying to find store by name")
 
-		list, err := s.fga.ListStores(ctx, &openfgav1.ListStoresRequest{})
+		storeID, found, err := commonsstore.FindStoreIDByName(ctx, s.fga, store.Name)
 		if err != nil {
 			return subroutines.OK(), err
 		}
-
-		storeIdx := slices.IndexFunc(list.GetStores(), func(i *openfgav1.Store) bool { return i.GetName() == store.Name })
-		if storeIdx != -1 {
+		if found {
 			log.Info().Msg("Store found, updating store ID")
-			store.Status.StoreID = list.GetStores()[storeIdx].GetId()
+			store.Status.StoreID = storeID
 			return subroutines.OK(), nil
 		}
 
