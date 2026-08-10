@@ -47,6 +47,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&AccountInfoList{},
 		&APIExportPolicy{},
 		&APIExportPolicyList{},
+		&ProviderVisibilityPolicy{},
+		&ProviderVisibilityPolicyList{},
 		&AuthorizationModel{},
 		&AuthorizationModelList{},
 		&IdentityProviderConfiguration{},
