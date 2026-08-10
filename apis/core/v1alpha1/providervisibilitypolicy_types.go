@@ -25,6 +25,13 @@ type ProviderVisibilityPolicySpec struct {
 type ProviderVisibilityPolicyStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// TODO: add status fields
+	ResolvedProviderExports []ResolvedProviderExport `json:"resolvedProviderExports,omitempty"`
+}
+
+type ResolvedProviderExport struct {
+	ClusterPath    string   `json:"clusterPath"`
+	ClusterID      string   `json:"clusterID"`
+	APIExportNames []string `json:"apiExportNames"`
 }
 
 // TODO: this is the org ref, simple string enough?

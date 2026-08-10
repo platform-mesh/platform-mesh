@@ -54,6 +54,11 @@ spec:
     storage:
       crd: {}
   - group: core.platform-mesh.io
+    name: providervisibilitypolicies
+    schema: v260810-e7fde50f.providervisibilitypolicies.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
     name: stores
     schema: v250718-a64f278.stores.core.platform-mesh.io
     storage:
