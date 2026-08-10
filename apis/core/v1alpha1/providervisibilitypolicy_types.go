@@ -1,6 +1,10 @@
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	lifecycleapi "go.platform-mesh.io/golang-commons/controller/lifecycle/api"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
@@ -12,6 +16,16 @@ type ProviderVisibilityPolicy struct {
 
 	Spec   ProviderVisibilityPolicySpec   `json:"spec,omitempty"`
 	Status ProviderVisibilityPolicyStatus `json:"status,omitempty"`
+}
+
+// GetConditions implements [api.RuntimeObjectConditions].
+func (in *ProviderVisibilityPolicy) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions implements [api.RuntimeObjectConditions].
+func (in *ProviderVisibilityPolicy) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
 }
 
 type ProviderVisibilityPolicySpec struct {
@@ -47,6 +61,8 @@ type ProviderExport struct {
 type ProviderRef struct {
 	ClusterPath string `json:"clusterPath"`
 }
+
+var _ lifecycleapi.RuntimeObjectConditions = &ProviderVisibilityPolicy{}
 
 // +kubebuilder:object:root=true
 
