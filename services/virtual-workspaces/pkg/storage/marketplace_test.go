@@ -18,11 +18,13 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/virtual-workspaces/pkg/config"
 
@@ -41,9 +43,14 @@ import (
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 )
 
-// Default provider and cluster values.
+// Default user and org cluster IDs for PM users.
 const (
-	testOrgClusterID      = "acme-org-cluster-id"
+	testOrgClusterID     = "acme-org-cluster-id"
+	testAccountClusterID = "user-cluster-id"
+)
+
+// Default provider values.
+const (
 	testProviderClusterID = "abcd-provider-cluster-id"
 	testProviderName      = "abcd"
 	testExportName        = "widgets.abcd.io"
@@ -54,6 +61,7 @@ func marketplaceTestScheme(t *testing.T) *runtime.Scheme {
 	s := runtime.NewScheme()
 	utilruntime.Must(pmuiv1alpha1.AddToScheme(s))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(s))
+	utilruntime.Must(pmcorev1alpha1.AddToScheme(s))
 	return s
 }
 
@@ -87,17 +95,71 @@ func makeExport(cfg config.ServiceConfig, name, clusterID, provider string) *kcp
 	}
 }
 
+// makeAccountInfo returns the AccountInfo materialized in an account's own
+// workspace. Organization is copied down the account chain, so a sub-account
+// carries its org's location verbatim.
+func makeAccountInfo(accountClusterID, orgClusterID string) pmcorev1alpha1.AccountInfo {
+	org := pmcorev1alpha1.AccountLocation{
+		Name:               "acme",
+		Path:               "root:orgs:acme",
+		GeneratedClusterId: orgClusterID,
+		OriginClusterId:    "root-orgs-ID",
+	}
+	return pmcorev1alpha1.AccountInfo{
+		ObjectMeta: metav1.ObjectMeta{Name: accountInfoName},
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account: pmcorev1alpha1.AccountLocation{
+				Name:               "user",
+				Path:               org.Path + ":user",
+				GeneratedClusterId: accountClusterID,
+			},
+			ParentAccount: &org,
+			Organization:  org,
+		},
+	}
+}
+
+func makePolicy(orgClusterID, providerClusterID string, exportNames ...string) pmcorev1alpha1.ProviderVisibilityPolicy {
+	return pmcorev1alpha1.ProviderVisibilityPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "policy-" + providerClusterID,
+		},
+		// the Marketplace func only reads Status for the cluster IDs, spec irrelevant:
+		// Spec: pmcorev1alpha1.ProviderVisibilityPolicySpec{},
+		Status: pmcorev1alpha1.ProviderVisibilityPolicyStatus{
+			AccountClusterID: orgClusterID,
+			ResolvedProviderExports: []pmcorev1alpha1.ResolvedProviderExport{
+				{
+					// ClusterPath: ,
+					ClusterID:      providerClusterID,
+					APIExportNames: exportNames,
+				},
+			},
+		},
+	}
+}
+
 // listMarketplace decorates and runs the Marketplace func.
 func listMarketplace(
 	t *testing.T,
-	lister ctrlruntimeclient.Client,
-	bindings ctrlruntimeclient.Client,
 	cfg config.ServiceConfig,
+	lister ctrlruntimeclient.Client,
+	caller pmcorev1alpha1.AccountInfo,
+	extraObjects ...ctrlruntimeclient.Object,
 ) *unstructured.UnstructuredList {
 	t.Helper()
+	callerCluster := caller.Spec.Account.GeneratedClusterId
 
-	getClusterClient := func(context.Context, string) (ctrlruntimeclient.Client, error) {
-		return bindings, nil
+	getClusterClient := func(ctx context.Context, name string) (ctrlruntimeclient.Client, error) {
+		if name != callerCluster {
+			return nil, fmt.Errorf("getClusterClient for %q, expected to equal caller cluster %q", name, callerCluster)
+		}
+		clientSchema := marketplaceTestScheme(t)
+		return fake.NewClientBuilder().
+				WithScheme(clientSchema).
+				WithObjects(append([]ctrlruntimeclient.Object{&caller}, extraObjects...)...).
+				Build(),
+			nil
 	}
 
 	var funcs forwardingregistry.StoreFuncs
@@ -105,7 +167,7 @@ func listMarketplace(
 		Decorate(schema.GroupResource{}, &funcs)
 
 	ctx := genericapirequest.WithCluster(t.Context(), genericapirequest.Cluster{
-		Name: logicalcluster.Name(testOrgClusterID),
+		Name: logicalcluster.Name(callerCluster),
 	})
 
 	obj, err := funcs.ListerFunc(ctx, &internalversion.ListOptions{})
@@ -122,20 +184,23 @@ func TestMarketplace_ExportsFromForeignCluster(t *testing.T) {
 	s := marketplaceTestScheme(t)
 
 	const (
-		providerClusterID = "id-one"
-		otherClusterID    = "id-two"
+		// The correct provider cluster.
+		expectedProviderClusterID = "id-one"
+		// A cluster with an export having a duplicate content-for label.
+		otherProviderClusterID = "id-two"
 	)
 
-	providerExport := makeExport(cfg, "foo-one", providerClusterID, testProviderName)
+	providerExport := makeExport(cfg, "foo-one", expectedProviderClusterID, testProviderName)
 	// any workspace can define its own content-for label values:
-	otherExport := makeExport(cfg, "foo-two", otherClusterID, testProviderName)
+	foreignExport := makeExport(cfg, "foo-two", otherProviderClusterID, testProviderName)
 
 	lister := fake.NewClientBuilder().
 		WithScheme(s).
-		WithObjects(makeProviderMeta(providerClusterID), providerExport, otherExport).
+		WithObjects(makeProviderMeta(expectedProviderClusterID), providerExport, foreignExport).
 		Build()
 
-	list := listMarketplace(t, lister, fake.NewClientBuilder().WithScheme(s).Build(), cfg)
+	caller := makeAccountInfo(testAccountClusterID, testOrgClusterID)
+	list := listMarketplace(t, cfg, lister, caller)
 
 	require.Len(t, list.Items, 1)
 
@@ -143,21 +208,60 @@ func TestMarketplace_ExportsFromForeignCluster(t *testing.T) {
 		list.Items[0].Object, "spec", "apiExport", "metadata", "annotations", "kcp.io/cluster")
 	require.NoError(t, err)
 	require.True(t, found)
-	assert.Equal(t, providerClusterID, exportCluster)
+	assert.Equal(t, expectedProviderClusterID, exportCluster)
 }
 
 func TestMarketplace_ExportsOfKnownProviders(t *testing.T) {
 	cfg := config.NewServiceConfig()
 	s := marketplaceTestScheme(t)
 
+	tenantAccountClusterID := "usracc-cluster-ID"
+	orgLocation := pmcorev1alpha1.AccountLocation{
+		Name:               "foocorp",
+		Path:               "root:orgs:foocorp",
+		GeneratedClusterId: testOrgClusterID,
+	}
+	org := pmcorev1alpha1.AccountInfo{
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			Account:      orgLocation,
+			Organization: orgLocation,
+		},
+	}
+	caller := pmcorev1alpha1.AccountInfo{
+		ObjectMeta: metav1.ObjectMeta{Name: "account"},
+		Spec: pmcorev1alpha1.AccountInfoSpec{
+			ParentAccount: &org.Spec.Account,
+			Organization:  org.Spec.Organization,
+			Account: pmcorev1alpha1.AccountLocation{
+				Name:               "usracc",
+				Path:               org.Spec.Account.Path + ":usracc",
+				GeneratedClusterId: tenantAccountClusterID,
+			},
+		},
+	}
+
+	pvp := pmcorev1alpha1.ProviderVisibilityPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foocorp-policy",
+		},
+		Spec: pmcorev1alpha1.ProviderVisibilityPolicySpec{},
+		Status: pmcorev1alpha1.ProviderVisibilityPolicyStatus{
+			AccountClusterID: testOrgClusterID,
+			ResolvedProviderExports: []pmcorev1alpha1.ResolvedProviderExport{
+				{
+					ClusterID:      testProviderClusterID,
+					APIExportNames: []string{testExportName},
+				},
+			},
+		},
+	}
+
 	lister := fake.NewClientBuilder().
 		WithScheme(s).
-		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg)).
+		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg), &pvp).
 		Build()
 
-	bindings := fake.NewClientBuilder().WithScheme(s).Build()
-
-	list := listMarketplace(t, lister, bindings, cfg)
+	list := listMarketplace(t, cfg, lister, caller)
 
 	require.Len(t, list.Items, 1)
 	// convention might change, max len etc:
@@ -173,22 +277,20 @@ func TestMarketplace_InstalledBinding(t *testing.T) {
 		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg)).
 		Build()
 
-	bindings := fake.NewClientBuilder().
-		WithScheme(s).
-		WithObjects(&kcpapisv1alpha1.APIBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: "widgets-binding"},
-			Spec: kcpapisv1alpha1.APIBindingSpec{
-				Reference: kcpapisv1alpha1.BindingReference{
-					Export: &kcpapisv1alpha1.ExportBindingReference{Name: testExportName},
-				},
+	binding := kcpapisv1alpha1.APIBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "widgets-binding"},
+		Spec: kcpapisv1alpha1.APIBindingSpec{
+			Reference: kcpapisv1alpha1.BindingReference{
+				Export: &kcpapisv1alpha1.ExportBindingReference{Name: testExportName},
 			},
-			Status: kcpapisv1alpha1.APIBindingStatus{
-				APIExportClusterName: testProviderClusterID,
-			},
-		}).
-		Build()
+		},
+		Status: kcpapisv1alpha1.APIBindingStatus{
+			APIExportClusterName: testProviderClusterID,
+		},
+	}
 
-	list := listMarketplace(t, lister, bindings, cfg)
+	todo := pmcorev1alpha1.AccountInfo{}
+	list := listMarketplace(t, cfg, lister, todo, &binding)
 
 	require.Len(t, list.Items, 1)
 	name, found, err := unstructured.NestedString(list.Items[0].Object, "spec", "apiBindingName")
@@ -208,7 +310,23 @@ func TestMarketplace_ExportsWithoutMatchingProvider(t *testing.T) {
 		WithObjects(makeProviderMeta("whatever"), orphanedExport).
 		Build()
 
-	list := listMarketplace(t, lister, fake.NewClientBuilder().WithScheme(s).Build(), cfg)
+	todo := pmcorev1alpha1.AccountInfo{}
+	list := listMarketplace(t, cfg, lister, todo)
 
 	assert.Empty(t, list.Items, "should skip unknown providers")
+}
+
+func TestMarketplace_ExportsWithoutPolicy(t *testing.T) {
+	cfg := config.NewServiceConfig()
+	s := marketplaceTestScheme(t)
+
+	lister := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg)).
+		Build()
+
+	caller := makeAccountInfo(testAccountClusterID, testOrgClusterID)
+	list := listMarketplace(t, cfg, lister, caller)
+
+	assert.Empty(t, list.Items, "an account with no policy in org must see nothing")
 }

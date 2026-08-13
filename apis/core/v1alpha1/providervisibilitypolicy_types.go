@@ -54,7 +54,8 @@ type ProviderVisibilityPolicySpec struct {
 
 type ProviderVisibilityPolicyStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
-	// TODO: add status fields
+	// AccountClusterID is the logical cluster ID of the account allowed in the policy.
+	AccountClusterID        string                   `json:"accountClusterID,omitempty"`
 	ResolvedProviderExports []ResolvedProviderExport `json:"resolvedProviderExports,omitempty"`
 }
 

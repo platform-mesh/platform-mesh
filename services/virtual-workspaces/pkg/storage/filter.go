@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strings"
 
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmmarketplacev1alpha1 "go.platform-mesh.io/apis/marketplace/v1alpha1"
 	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/virtual-workspaces/pkg/config"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/klog/v2"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +45,9 @@ import (
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 )
+
+// accountInfoName is the fixed name given to AccountInfo by the account-operator.
+const accountInfoName = "account"
 
 type clusterPathKey struct{}
 
@@ -210,6 +215,46 @@ func Marketplace(
 				return nil, fmt.Errorf("failed to get cluster from provider: %w", err)
 			}
 
+			var results unstructured.UnstructuredList
+			results.SetGroupVersionKind(pmmarketplacev1alpha1.SchemeGroupVersion.WithKind("MarketplaceEntryList"))
+
+			var accountInfo pmcorev1alpha1.AccountInfo
+			err = cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: accountInfoName}, &accountInfo)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return &results, nil
+				}
+				return nil, fmt.Errorf("getting AccountInfo: %w", err)
+			}
+
+			orgID := accountInfo.Spec.Organization.GeneratedClusterId
+			if orgID == "" {
+				return &results, nil
+			}
+
+			var policies pmcorev1alpha1.ProviderVisibilityPolicyList
+			err = lister.List(ctx, &policies)
+			if err != nil {
+				return nil, fmt.Errorf("listing ProviderVisibilityPolicy: %w", err)
+			}
+
+			allowedExportsByCluster := make(map[string]sets.Set[string])
+			for _, policy := range policies.Items {
+				if policy.Status.AccountClusterID != orgID {
+					continue
+				}
+				for _, providerExport := range policy.Status.ResolvedProviderExports {
+					if allowedExportsByCluster[providerExport.ClusterID] == nil {
+						allowedExportsByCluster[providerExport.ClusterID] = make(sets.Set[string])
+					}
+					allowedExportsByCluster[providerExport.ClusterID].Insert(providerExport.APIExportNames...)
+				}
+			}
+
+			if len(allowedExportsByCluster) == 0 {
+				return &results, nil
+			}
+
 			// Get APIBindings for this specific cluster
 			installedAPIBindings := &kcpapisv1alpha1.APIBindingList{}
 			if err := cl.List(ctx, installedAPIBindings); err != nil {
@@ -220,9 +265,6 @@ func Marketplace(
 			if err := lister.List(ctx, &providerList); err != nil {
 				return nil, fmt.Errorf("failed to list providermetadatas: %w", err)
 			}
-
-			var results unstructured.UnstructuredList
-			results.SetGroupVersionKind(pmmarketplacev1alpha1.SchemeGroupVersion.WithKind("MarketplaceEntryList"))
 
 			// For each provider, find matching APIExports across all shards
 			for _, provider := range providerList.Items {
@@ -242,6 +284,10 @@ func Marketplace(
 						continue
 					}
 					if len(export.Spec.LatestResourceSchemas) == 0 {
+						continue
+					}
+
+					if !allowedExportsByCluster[logicalcluster.From(&export).String()].Has(export.Name) {
 						continue
 					}
 
