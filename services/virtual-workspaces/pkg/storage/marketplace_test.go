@@ -240,25 +240,11 @@ func TestMarketplace_ExportsOfKnownProviders(t *testing.T) {
 		},
 	}
 
-	pvp := pmcorev1alpha1.ProviderVisibilityPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "foocorp-policy",
-		},
-		Spec: pmcorev1alpha1.ProviderVisibilityPolicySpec{},
-		Status: pmcorev1alpha1.ProviderVisibilityPolicyStatus{
-			AccountClusterID: testOrgClusterID,
-			ResolvedProviderExports: []pmcorev1alpha1.ResolvedProviderExport{
-				{
-					ClusterID:      testProviderClusterID,
-					APIExportNames: []string{testExportName},
-				},
-			},
-		},
-	}
+	policy := makePolicy(testOrgClusterID, testProviderClusterID, testExportName)
 
 	lister := fake.NewClientBuilder().
 		WithScheme(s).
-		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg), &pvp).
+		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg), &policy).
 		Build()
 
 	list := listMarketplace(t, cfg, lister, caller)
