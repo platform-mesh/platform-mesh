@@ -45,12 +45,21 @@ func TestProviderVisibilityPolicySubroutine_Process(t *testing.T) {
 		kcpClientGetter := mocks.NewMockKCPClientGetter(t)
 		sut := subroutine.NewProviderVisibilityPolicySubroutine(kcpClientGetter)
 
-		const providerClusterPath = "root:providers:abcd"
-		const providerAPIExport = "widgets.abcd.io"
+		const (
+			providerClusterPath = "root:providers:abcd"
+			providerClusterID   = "abcd-cluster-id"
+			providerAPIExport   = "widgets.abcd.io"
+		)
+		const (
+			accountClusterPath = "root:orgs:acme"
+			accountClusterID   = "acme-self-cluster-id"
+			orgClusterID       = "acme-org-cluster-id"
+		)
 
 		policy := pmcorev1alpha1.ProviderVisibilityPolicy{
 			ObjectMeta: metav1.ObjectMeta{Name: "abcd"},
 			Spec: pmcorev1alpha1.ProviderVisibilityPolicySpec{
+				AccountRef: pmcorev1alpha1.AccountRef{ClusterPath: accountClusterPath},
 				ProviderExports: []pmcorev1alpha1.ProviderExport{
 					{
 						ProviderRef:    pmcorev1alpha1.ProviderRef{ClusterPath: providerClusterPath},
@@ -66,7 +75,26 @@ func TestProviderVisibilityPolicySubroutine_Process(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "cluster",
 					Annotations: map[string]string{
-						"kcp.io/cluster": "abcd-cluster-id",
+						"kcp.io/cluster": providerClusterID,
+					},
+				},
+			}).
+			Build()
+
+		accountClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(&pmcorev1alpha1.AccountInfo{
+				ObjectMeta: metav1.ObjectMeta{Name: "account"},
+				Spec: pmcorev1alpha1.AccountInfoSpec{
+					Account: pmcorev1alpha1.AccountLocation{
+						Name:               "acme",
+						Path:               accountClusterPath,
+						GeneratedClusterId: accountClusterID,
+					},
+					Organization: pmcorev1alpha1.AccountLocation{
+						Name:               "acme",
+						Path:               accountClusterPath,
+						GeneratedClusterId: orgClusterID,
 					},
 				},
 			}).
@@ -77,6 +105,11 @@ func TestProviderVisibilityPolicySubroutine_Process(t *testing.T) {
 			WithObjects(policy.DeepCopy()).
 			WithStatusSubresource(&pmcorev1alpha1.ProviderVisibilityPolicy{}).
 			Build()
+
+		kcpClientGetter.EXPECT().
+			NewClientForLogicalCluster(mock.Anything,
+				string(config.MultiProviderName(config.CoreProviderName, accountClusterPath))).
+			Return(accountClient, nil)
 
 		kcpClientGetter.EXPECT().
 			NewClientForLogicalCluster(mock.Anything,
@@ -94,9 +127,11 @@ func TestProviderVisibilityPolicySubroutine_Process(t *testing.T) {
 		var persisted pmcorev1alpha1.ProviderVisibilityPolicy
 		require.NoError(t, policyClient.Get(t.Context(), ctrlruntimeclient.ObjectKeyFromObject(&policy), &persisted))
 
+		assert.Equal(t, orgClusterID, persisted.Status.AccountClusterID)
+
 		require.Len(t, persisted.Status.ResolvedProviderExports, 1)
 		assert.Equal(t, providerClusterPath, persisted.Status.ResolvedProviderExports[0].ClusterPath)
-		assert.Equal(t, "abcd-cluster-id", persisted.Status.ResolvedProviderExports[0].ClusterID)
+		assert.Equal(t, providerClusterID, persisted.Status.ResolvedProviderExports[0].ClusterID)
 	})
 
 }

@@ -53,6 +53,20 @@ func (p *ProviderVisibilityPolicySubroutine) Process(ctx context.Context, obj ct
 		return subroutines.OK(), fmt.Errorf("unexpected type %T for reconciler %q", obj, p.GetName())
 	}
 
+	accountClient, err := p.kcpClientGetter.NewClientForLogicalCluster(ctx,
+		string(config.MultiProviderName(config.CoreProviderName, policy.Spec.AccountRef.ClusterPath)))
+	if err != nil {
+		return subroutines.OK(),
+			fmt.Errorf("getting client for account workspace %q: %w", policy.Spec.AccountRef.ClusterPath, err)
+	}
+
+	var accInfo pmcorev1alpha1.AccountInfo
+	err = accountClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "account"}, &accInfo)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting AccountInfo for %q: %w", policy.Spec.AccountRef.ClusterPath, err)
+	}
+	accountClusterID := accInfo.Spec.Organization.GeneratedClusterId
+
 	var providerExports []pmcorev1alpha1.ResolvedProviderExport
 	for _, export := range policy.Spec.ProviderExports {
 		// provider Cluster ID
@@ -74,6 +88,7 @@ func (p *ProviderVisibilityPolicySubroutine) Process(ctx context.Context, obj ct
 	}
 
 	orig := policy.DeepCopy()
+	policy.Status.AccountClusterID = accountClusterID
 	policy.Status.ResolvedProviderExports = providerExports
 
 	cl, err := p.kcpClientGetter.NewClientFromContext(ctx)
