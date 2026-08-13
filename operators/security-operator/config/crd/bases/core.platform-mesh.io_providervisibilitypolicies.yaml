@@ -83,6 +83,10 @@ spec:
             type: object
           status:
             properties:
+              accountClusterID:
+                description: AccountClusterID is the logical cluster ID of the account
+                  allowed in the policy.
+                type: string
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
