@@ -82,12 +82,12 @@ func makeDefaultExport(cfg config.ServiceConfig) *kcpapisv1alpha1.APIExport {
 }
 
 // makeExport returns an APIExport with the given name and provider label.
-func makeExport(cfg config.ServiceConfig, name, clusterID, provider string) *kcpapisv1alpha1.APIExport {
+func makeExport(cfg config.ServiceConfig, name, clusterID, providerLabel string) *kcpapisv1alpha1.APIExport {
 	return &kcpapisv1alpha1.APIExport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Annotations: map[string]string{"kcp.io/cluster": clusterID},
-			Labels:      map[string]string{cfg.ContentForLabel: provider},
+			Labels:      map[string]string{cfg.ContentForLabel: providerLabel},
 		},
 		Spec: kcpapisv1alpha1.APIExportSpec{
 			LatestResourceSchemas: []string{"v260810" + name},
@@ -95,9 +95,7 @@ func makeExport(cfg config.ServiceConfig, name, clusterID, provider string) *kcp
 	}
 }
 
-// makeAccountInfo returns the AccountInfo materialized in an account's own
-// workspace. Organization is copied down the account chain, so a sub-account
-// carries its org's location verbatim.
+// makeAccountInfo returns the AccountInfo created in an account's own workspace.
 func makeAccountInfo(accountClusterID, orgClusterID string) pmcorev1alpha1.AccountInfo {
 	org := pmcorev1alpha1.AccountLocation{
 		Name:               "acme",
@@ -119,22 +117,31 @@ func makeAccountInfo(accountClusterID, orgClusterID string) pmcorev1alpha1.Accou
 	}
 }
 
-func makePolicy(orgClusterID, providerClusterID string, exportNames ...string) pmcorev1alpha1.ProviderVisibilityPolicy {
+// makePolicy grants the caller organization visibility of the given exports.
+func makePolicy(caller pmcorev1alpha1.AccountInfo, exports ...*kcpapisv1alpha1.APIExport) pmcorev1alpha1.ProviderVisibilityPolicy {
+	var clusterOrder []string
+	namesByCluster := map[string][]string{}
+	for _, export := range exports {
+		clusterID := export.Annotations["kcp.io/cluster"]
+		if _, seen := namesByCluster[clusterID]; !seen {
+			clusterOrder = append(clusterOrder, clusterID)
+		}
+		namesByCluster[clusterID] = append(namesByCluster[clusterID], export.Name)
+	}
+
+	resolved := make([]pmcorev1alpha1.ResolvedProviderExport, 0, len(clusterOrder))
+	for _, clusterID := range clusterOrder {
+		resolved = append(resolved, pmcorev1alpha1.ResolvedProviderExport{
+			ClusterID:      clusterID,
+			APIExportNames: namesByCluster[clusterID],
+		})
+	}
+
 	return pmcorev1alpha1.ProviderVisibilityPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "policy-" + providerClusterID,
-		},
-		// the Marketplace func only reads Status for the cluster IDs, spec irrelevant:
-		// Spec: pmcorev1alpha1.ProviderVisibilityPolicySpec{},
+		ObjectMeta: metav1.ObjectMeta{Name: "policy-" + exports[0].Name},
 		Status: pmcorev1alpha1.ProviderVisibilityPolicyStatus{
-			AccountClusterID: orgClusterID,
-			ResolvedProviderExports: []pmcorev1alpha1.ResolvedProviderExport{
-				{
-					// ClusterPath: ,
-					ClusterID:      providerClusterID,
-					APIExportNames: exportNames,
-				},
-			},
+			AccountClusterID:        caller.Spec.Organization.GeneratedClusterId,
+			ResolvedProviderExports: resolved,
 		},
 	}
 }
@@ -190,66 +197,46 @@ func TestMarketplace_ExportsFromForeignCluster(t *testing.T) {
 		otherProviderClusterID = "id-two"
 	)
 
-	providerExport := makeExport(cfg, "foo-one", expectedProviderClusterID, testProviderName)
+	providerExport := makeExport(cfg, testExportName, expectedProviderClusterID, testProviderName)
 	// any workspace can define its own content-for label values:
-	foreignExport := makeExport(cfg, "foo-two", otherProviderClusterID, testProviderName)
+	foreignExport := makeExport(cfg, "backups.other.io", otherProviderClusterID, testProviderName)
+
+	caller := makeAccountInfo(testAccountClusterID, testOrgClusterID)
+	// allow both exports
+	policy := makePolicy(caller, providerExport, foreignExport)
 
 	lister := fake.NewClientBuilder().
 		WithScheme(s).
-		WithObjects(makeProviderMeta(expectedProviderClusterID), providerExport, foreignExport).
+		WithObjects(
+			makeProviderMeta(expectedProviderClusterID),
+			providerExport,
+			foreignExport,
+			&policy,
+		).
 		Build()
 
-	caller := makeAccountInfo(testAccountClusterID, testOrgClusterID)
 	list := listMarketplace(t, cfg, lister, caller)
 
-	require.Len(t, list.Items, 1)
-
-	exportCluster, found, err := unstructured.NestedString(
-		list.Items[0].Object, "spec", "apiExport", "metadata", "annotations", "kcp.io/cluster")
-	require.NoError(t, err)
-	require.True(t, found)
-	assert.Equal(t, expectedProviderClusterID, exportCluster)
+	require.Len(t, list.Items, 1, "an entitled export from another cluster must not join the provider's card")
+	assert.Equal(t, testExportName+"-"+testProviderName, list.Items[0].GetName())
 }
 
 func TestMarketplace_ExportsOfKnownProviders(t *testing.T) {
 	cfg := config.NewServiceConfig()
 	s := marketplaceTestScheme(t)
 
-	tenantAccountClusterID := "usracc-cluster-ID"
-	orgLocation := pmcorev1alpha1.AccountLocation{
-		Name:               "foocorp",
-		Path:               "root:orgs:foocorp",
-		GeneratedClusterId: testOrgClusterID,
-	}
-	org := pmcorev1alpha1.AccountInfo{
-		Spec: pmcorev1alpha1.AccountInfoSpec{
-			Account:      orgLocation,
-			Organization: orgLocation,
-		},
-	}
-	caller := pmcorev1alpha1.AccountInfo{
-		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-		Spec: pmcorev1alpha1.AccountInfoSpec{
-			ParentAccount: &org.Spec.Account,
-			Organization:  org.Spec.Organization,
-			Account: pmcorev1alpha1.AccountLocation{
-				Name:               "usracc",
-				Path:               org.Spec.Account.Path + ":usracc",
-				GeneratedClusterId: tenantAccountClusterID,
-			},
-		},
-	}
-
-	policy := makePolicy(testOrgClusterID, testProviderClusterID, testExportName)
+	caller := makeAccountInfo(testAccountClusterID, testOrgClusterID)
+	export := makeDefaultExport(cfg)
+	policy := makePolicy(caller, export)
 
 	lister := fake.NewClientBuilder().
 		WithScheme(s).
-		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg), &policy).
+		WithObjects(makeProviderMeta(testProviderClusterID), export, &policy).
 		Build()
 
 	list := listMarketplace(t, cfg, lister, caller)
 
-	require.Len(t, list.Items, 1)
+	require.Len(t, list.Items, 1, "an entitled export must appear in the catalogue")
 	// convention might change, max len etc:
 	assert.Equal(t, testExportName+"-"+testProviderName, list.Items[0].GetName())
 }
@@ -258,31 +245,34 @@ func TestMarketplace_InstalledBinding(t *testing.T) {
 	cfg := config.NewServiceConfig()
 	s := marketplaceTestScheme(t)
 
+	caller := makeAccountInfo(testAccountClusterID, testOrgClusterID)
+	export := makeDefaultExport(cfg)
+	policy := makePolicy(caller, export)
+
 	lister := fake.NewClientBuilder().
 		WithScheme(s).
-		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg)).
+		WithObjects(makeProviderMeta(testProviderClusterID), export, &policy).
 		Build()
 
 	binding := kcpapisv1alpha1.APIBinding{
 		ObjectMeta: metav1.ObjectMeta{Name: "widgets-binding"},
 		Spec: kcpapisv1alpha1.APIBindingSpec{
 			Reference: kcpapisv1alpha1.BindingReference{
-				Export: &kcpapisv1alpha1.ExportBindingReference{Name: testExportName},
+				Export: &kcpapisv1alpha1.ExportBindingReference{Name: export.Name},
 			},
 		},
 		Status: kcpapisv1alpha1.APIBindingStatus{
-			APIExportClusterName: testProviderClusterID,
+			APIExportClusterName: export.Annotations["kcp.io/cluster"],
 		},
 	}
 
-	todo := pmcorev1alpha1.AccountInfo{}
-	list := listMarketplace(t, cfg, lister, todo, &binding)
+	list := listMarketplace(t, cfg, lister, caller, &binding)
 
-	require.Len(t, list.Items, 1)
+	require.Len(t, list.Items, 1, "an entitled export must appear in the catalogue")
 	name, found, err := unstructured.NestedString(list.Items[0].Object, "spec", "apiBindingName")
 	require.NoError(t, err)
 	require.True(t, found)
-	assert.Equal(t, "widgets-binding", name)
+	assert.Equal(t, "widgets-binding", name, "an export the caller already binds must report its binding")
 }
 
 func TestMarketplace_ExportsWithoutMatchingProvider(t *testing.T) {
@@ -291,15 +281,17 @@ func TestMarketplace_ExportsWithoutMatchingProvider(t *testing.T) {
 
 	orphanedExport := makeExport(cfg, testExportName, "foocluster-123", "unknown-provider")
 
+	caller := makeAccountInfo(testAccountClusterID, testOrgClusterID)
+	policy := makePolicy(caller, orphanedExport)
+
 	lister := fake.NewClientBuilder().
 		WithScheme(s).
-		WithObjects(makeProviderMeta("whatever"), orphanedExport).
+		WithObjects(makeProviderMeta("whatever"), orphanedExport, &policy).
 		Build()
 
-	todo := pmcorev1alpha1.AccountInfo{}
-	list := listMarketplace(t, cfg, lister, todo)
+	list := listMarketplace(t, cfg, lister, caller)
 
-	assert.Empty(t, list.Items, "should skip unknown providers")
+	assert.Empty(t, list.Items, "an entitled export whose provider is unknown must not be listed")
 }
 
 func TestMarketplace_ExportsWithoutPolicy(t *testing.T) {
@@ -315,4 +307,42 @@ func TestMarketplace_ExportsWithoutPolicy(t *testing.T) {
 	list := listMarketplace(t, cfg, lister, caller)
 
 	assert.Empty(t, list.Items, "an account with no policy in org must see nothing")
+}
+
+func TestMarketplace_ExportsFromMultiplePolicies(t *testing.T) {
+	cfg := config.NewServiceConfig()
+	s := marketplaceTestScheme(t)
+
+	const secondExportName = "backups.abcd.io"
+
+	caller := makeAccountInfo(testAccountClusterID, testOrgClusterID)
+	widgetsExport := makeDefaultExport(cfg)
+	backupsExport := makeExport(cfg, secondExportName, testProviderClusterID, testProviderName)
+
+	widgetsPolicy := makePolicy(caller, widgetsExport)
+	backupsPolicy := makePolicy(caller, backupsExport)
+
+	lister := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(
+			makeProviderMeta(testProviderClusterID),
+			widgetsExport,
+			backupsExport,
+			&widgetsPolicy,
+			&backupsPolicy,
+		).
+		Build()
+
+	list := listMarketplace(t, cfg, lister, caller)
+
+	require.Len(t, list.Items, 2, "policies naming the same provider cluster must result in the union")
+
+	var names []string
+	for _, entry := range list.Items {
+		names = append(names, entry.GetName())
+	}
+	assert.ElementsMatch(t, []string{
+		testExportName + "-" + testProviderName,
+		secondExportName + "-" + testProviderName,
+	}, names)
 }
