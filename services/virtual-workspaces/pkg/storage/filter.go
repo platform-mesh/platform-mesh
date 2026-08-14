@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/klog/v2"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -200,6 +201,7 @@ func Marketplace(
 	lister mcpcache.Lister,
 	clusterClient func(context.Context, string) (ctrlruntimeclient.Client, error),
 	cfg config.ServiceConfig,
+	visibleExports VisibleExportsFunc,
 ) forwardingregistry.StorageWrapper {
 	return forwardingregistry.StorageWrapperFunc(func(resource schema.GroupResource, storage *forwardingregistry.StoreFuncs) {
 		storage.ListerFunc = func(ctx context.Context, options *internalversion.ListOptions) (runtime.Object, error) {
@@ -208,6 +210,17 @@ func Marketplace(
 			cl, err := clusterClient(ctx, cluster.Name.String())
 			if err != nil {
 				return nil, fmt.Errorf("failed to get cluster from provider: %w", err)
+			}
+
+			var results unstructured.UnstructuredList
+			results.SetGroupVersionKind(pmmarketplacev1alpha1.SchemeGroupVersion.WithKind("MarketplaceEntryList"))
+
+			exportsByCluster, err := visibleExports(ctx, cluster.Name.String())
+			if err != nil {
+				return nil, fmt.Errorf("retrieving visible exports for %q: %w", cluster.Name.String(), err)
+			}
+			if len(exportsByCluster) == 0 {
+				return &results, nil
 			}
 
 			// Get APIBindings for this specific cluster
@@ -220,9 +233,6 @@ func Marketplace(
 			if err := lister.List(ctx, &providerList); err != nil {
 				return nil, fmt.Errorf("failed to list providermetadatas: %w", err)
 			}
-
-			var results unstructured.UnstructuredList
-			results.SetGroupVersionKind(pmmarketplacev1alpha1.SchemeGroupVersion.WithKind("MarketplaceEntryList"))
 
 			// For each provider, find matching APIExports across all shards
 			for _, provider := range providerList.Items {
@@ -241,6 +251,10 @@ func Marketplace(
 					if logicalcluster.From(&export) != providerClusterID {
 						continue
 					}
+					if !exportsByCluster[logicalcluster.From(&export).String()].Has(export.Name) {
+						continue
+					}
+
 					if len(export.Spec.LatestResourceSchemas) == 0 {
 						continue
 					}
@@ -280,4 +294,13 @@ func Marketplace(
 			return &results, nil
 		}
 	})
+}
+
+// VisibleExportsFunc returns APIExports visible to the workspace identified by logicalClusterID.
+// The result maps a provider's cluster ID to the names of the visible APIExports.
+type VisibleExportsFunc func(ctx context.Context, logicalClusterID string) (map[string]sets.Set[string], error)
+
+// DenyAllExports is the VisibleExportsFunc wired as a placeholder.
+func DenyAllExports(context.Context, string) (map[string]sets.Set[string], error) {
+	return nil, nil
 }

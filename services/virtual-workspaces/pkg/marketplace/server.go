@@ -94,6 +94,7 @@ func BuildVirtualWorkspace(
 						return cl.GetClient(), nil
 					},
 					cfg,
+					storage.DenyAllExports,
 				)
 
 				storageProvider := storage.CreateStorageProviderFunc(

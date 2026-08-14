@@ -18,6 +18,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -87,12 +89,29 @@ func makeExport(cfg config.ServiceConfig, name, clusterID, provider string) *kcp
 	}
 }
 
+// allowExports returns a source granting visibility of exactly the given
+// exports, mapped by the kcp.io/cluster annotation.
+func allowExports(exports ...*kcpapisv1alpha1.APIExport) func(context.Context, string) (map[string]sets.Set[string], error) {
+	allowed := map[string]sets.Set[string]{}
+	for _, export := range exports {
+		clusterID := export.Annotations["kcp.io/cluster"]
+		if allowed[clusterID] == nil {
+			allowed[clusterID] = sets.New[string]()
+		}
+		allowed[clusterID].Insert(export.Name)
+	}
+	return func(context.Context, string) (map[string]sets.Set[string], error) {
+		return allowed, nil
+	}
+}
+
 // listMarketplace decorates and runs the Marketplace func.
 func listMarketplace(
 	t *testing.T,
 	lister ctrlruntimeclient.Client,
 	bindings ctrlruntimeclient.Client,
 	cfg config.ServiceConfig,
+	visibleExports VisibleExportsFunc,
 ) *unstructured.UnstructuredList {
 	t.Helper()
 
@@ -101,7 +120,7 @@ func listMarketplace(
 	}
 
 	var funcs forwardingregistry.StoreFuncs
-	Marketplace(lister, getClusterClient, cfg).
+	Marketplace(lister, getClusterClient, cfg, visibleExports).
 		Decorate(schema.GroupResource{}, &funcs)
 
 	ctx := genericapirequest.WithCluster(t.Context(), genericapirequest.Cluster{
@@ -115,6 +134,118 @@ func listMarketplace(
 	require.True(t, ok, "lister returned %T, want *unstructured.UnstructuredList", obj)
 
 	return list
+}
+
+func TestMarketplace_NoExportsVisible(t *testing.T) {
+	cfg := config.NewServiceConfig()
+	s := marketplaceTestScheme(t)
+
+	lister := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg)).
+		Build()
+
+	bindings := fake.NewClientBuilder().WithScheme(s).Build()
+
+	list := listMarketplace(t, lister, bindings, cfg, DenyAllExports)
+
+	assert.Empty(t, list.Items, "an export must stay hidden until a visibility source names it")
+}
+
+func TestMarketplace_OnlyNamedExportsVisible(t *testing.T) {
+	cfg := config.NewServiceConfig()
+	s := marketplaceTestScheme(t)
+
+	visible := makeDefaultExport(cfg)
+	hidden := makeExport(cfg, "backups.abcd.io", testProviderClusterID, testProviderName)
+
+	lister := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(makeProviderMeta(testProviderClusterID), visible, hidden).
+		Build()
+
+	bindings := fake.NewClientBuilder().WithScheme(s).Build()
+
+	list := listMarketplace(t, lister, bindings, cfg, allowExports(visible))
+
+	require.Len(t, list.Items, 1, "only one visible export expected")
+	assert.Equal(t, testExportName+"-"+testProviderName, list.Items[0].GetName())
+}
+
+func TestMarketplace_AllExportsVisible(t *testing.T) {
+	cfg := config.NewServiceConfig()
+	s := marketplaceTestScheme(t)
+
+	widgets := makeDefaultExport(cfg)
+	backups := makeExport(cfg, "backups.abcd.io", testProviderClusterID, testProviderName)
+
+	lister := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(makeProviderMeta(testProviderClusterID), widgets, backups).
+		Build()
+
+	bindings := fake.NewClientBuilder().WithScheme(s).Build()
+
+	list := listMarketplace(t, lister, bindings, cfg, allowExports(widgets, backups))
+
+	require.Len(t, list.Items, 2, "every export the source names must be listed")
+
+	var names []string
+	for _, entry := range list.Items {
+		names = append(names, entry.GetName())
+	}
+	assert.ElementsMatch(t, []string{
+		testExportName + "-" + testProviderName,
+		"backups.abcd.io-" + testProviderName,
+	}, names)
+}
+
+func TestMarketplace_SourceSeesRequestCluster(t *testing.T) {
+	cfg := config.NewServiceConfig()
+	s := marketplaceTestScheme(t)
+
+	lister := fake.NewClientBuilder().WithScheme(s).Build()
+	bindings := fake.NewClientBuilder().WithScheme(s).Build()
+
+	var askedFor string
+	source := func(_ context.Context, cluster string) (map[string]sets.Set[string], error) {
+		askedFor = cluster
+		return nil, nil
+	}
+
+	listMarketplace(t, lister, bindings, cfg, source)
+
+	assert.Equal(t, testOrgClusterID, askedFor,
+		"the visibility verdict must be computed for the requesting cluster")
+}
+
+func TestMarketplace_SourceErrorFailsClosed(t *testing.T) {
+	cfg := config.NewServiceConfig()
+	s := marketplaceTestScheme(t)
+
+	lister := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg)).
+		Build()
+
+	failingSource := func(context.Context, string) (map[string]sets.Set[string], error) {
+		return nil, errors.New("source unavailable")
+	}
+
+	getClusterClient := func(context.Context, string) (ctrlruntimeclient.Client, error) {
+		return fake.NewClientBuilder().WithScheme(s).Build(), nil
+	}
+
+	var funcs forwardingregistry.StoreFuncs
+	Marketplace(lister, getClusterClient, cfg, failingSource).
+		Decorate(schema.GroupResource{}, &funcs)
+
+	ctx := genericapirequest.WithCluster(t.Context(), genericapirequest.Cluster{
+		Name: logicalcluster.Name(testOrgClusterID),
+	})
+
+	_, err := funcs.ListerFunc(ctx, &internalversion.ListOptions{})
+	require.Error(t, err, "a failing source must fail the request, not fail open")
 }
 
 func TestMarketplace_ExportsFromForeignCluster(t *testing.T) {
@@ -135,7 +266,9 @@ func TestMarketplace_ExportsFromForeignCluster(t *testing.T) {
 		WithObjects(makeProviderMeta(providerClusterID), providerExport, otherExport).
 		Build()
 
-	list := listMarketplace(t, lister, fake.NewClientBuilder().WithScheme(s).Build(), cfg)
+	// both exports visible, so any filtering below is cluster scoping, not visibility
+	list := listMarketplace(t, lister, fake.NewClientBuilder().WithScheme(s).Build(), cfg,
+		allowExports(providerExport, otherExport))
 
 	require.Len(t, list.Items, 1)
 
@@ -150,14 +283,16 @@ func TestMarketplace_ExportsOfKnownProviders(t *testing.T) {
 	cfg := config.NewServiceConfig()
 	s := marketplaceTestScheme(t)
 
+	export := makeDefaultExport(cfg)
+
 	lister := fake.NewClientBuilder().
 		WithScheme(s).
-		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg)).
+		WithObjects(makeProviderMeta(testProviderClusterID), export).
 		Build()
 
 	bindings := fake.NewClientBuilder().WithScheme(s).Build()
 
-	list := listMarketplace(t, lister, bindings, cfg)
+	list := listMarketplace(t, lister, bindings, cfg, allowExports(export))
 
 	require.Len(t, list.Items, 1)
 	// convention might change, max len etc:
@@ -168,9 +303,11 @@ func TestMarketplace_InstalledBinding(t *testing.T) {
 	cfg := config.NewServiceConfig()
 	s := marketplaceTestScheme(t)
 
+	export := makeDefaultExport(cfg)
+
 	lister := fake.NewClientBuilder().
 		WithScheme(s).
-		WithObjects(makeProviderMeta(testProviderClusterID), makeDefaultExport(cfg)).
+		WithObjects(makeProviderMeta(testProviderClusterID), export).
 		Build()
 
 	bindings := fake.NewClientBuilder().
@@ -188,7 +325,7 @@ func TestMarketplace_InstalledBinding(t *testing.T) {
 		}).
 		Build()
 
-	list := listMarketplace(t, lister, bindings, cfg)
+	list := listMarketplace(t, lister, bindings, cfg, allowExports(export))
 
 	require.Len(t, list.Items, 1)
 	name, found, err := unstructured.NestedString(list.Items[0].Object, "spec", "apiBindingName")
@@ -208,7 +345,9 @@ func TestMarketplace_ExportsWithoutMatchingProvider(t *testing.T) {
 		WithObjects(makeProviderMeta("whatever"), orphanedExport).
 		Build()
 
-	list := listMarketplace(t, lister, fake.NewClientBuilder().WithScheme(s).Build(), cfg)
+	// visible but orphaned: provider metadata, not visibility, must hide it
+	list := listMarketplace(t, lister, fake.NewClientBuilder().WithScheme(s).Build(), cfg,
+		allowExports(orphanedExport))
 
 	assert.Empty(t, list.Items, "should skip unknown providers")
 }
