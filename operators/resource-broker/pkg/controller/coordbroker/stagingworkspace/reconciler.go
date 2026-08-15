@@ -49,9 +49,14 @@ type Options struct {
 	// Required.
 	StagingTreeRoot string
 
-	// WorkspaceClientFunc returns a client scoped to the workspace with the given path.
+	// StagingClientFunc returns a client scoped to the workspace with the given path
+	// within the staging tree.
 	// Required.
-	WorkspaceClientFunc func(path string) (ctrlruntimeclient.Client, error)
+	StagingClientFunc func(path string) (ctrlruntimeclient.Client, error)
+
+	// ProviderClientFunc returns a client scoped to a provider workspace with the given path.
+	// Required.
+	ProviderClientFunc func(path string) (ctrlruntimeclient.Client, error)
 
 	// ClusterFilter restricts which provider clusters the controller engages.
 	// Optional, defaults to engaging all clusters.
@@ -73,8 +78,11 @@ func NewReconciler(mgr mcmanager.Manager, opts Options) (*Reconciler, error) {
 	if opts.StagingTreeRoot == "" {
 		return nil, errors.New("options: StagingTreeRoot is required")
 	}
-	if opts.WorkspaceClientFunc == nil {
-		return nil, errors.New("options: WorkspaceClientFunc is required")
+	if opts.StagingClientFunc == nil {
+		return nil, errors.New("options: StagingClientFunc is required")
+	}
+	if opts.ProviderClientFunc == nil {
+		return nil, errors.New("options: ProviderClientFunc is required")
 	}
 	if opts.RequeueInterval <= 0 {
 		opts.RequeueInterval = DefaultRequeueInterval

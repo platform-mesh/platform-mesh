@@ -95,14 +95,14 @@ func testOptions(t *testing.T, clients *testClients) Options {
 		StagingTreeRoot: testTreeRoot,
 		StageNamespace:  DefaultStageNamespace,
 		RequeueInterval: time.Second,
-		WorkspaceClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
+		StagingClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
 			switch path {
 			case testTreeRoot + ":" + testFromStagingName:
 				return clients.fromStaging, nil
 			case testTreeRoot + ":" + testToStagingName:
 				return clients.toStaging, nil
 			default:
-				t.Fatalf("unexpected workspace client path %q", path)
+				t.Fatalf("unexpected staging client path %q", path)
 				return nil, nil
 			}
 		},
@@ -185,9 +185,9 @@ func TestNewReconcilerValidation(t *testing.T) {
 			wantErr: "options: ComputeClient is required",
 		},
 		{
-			name:    "missing workspace client func",
-			mutate:  func(opts *Options) { opts.WorkspaceClientFunc = nil },
-			wantErr: "options: WorkspaceClientFunc is required",
+			name:    "missing staging client func",
+			mutate:  func(opts *Options) { opts.StagingClientFunc = nil },
+			wantErr: "options: StagingClientFunc is required",
 		},
 		{
 			name:    "missing staging tree root",

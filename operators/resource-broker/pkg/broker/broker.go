@@ -86,6 +86,18 @@ type Options struct {
 	// Required.
 	ComputeConfig *rest.Config
 
+	// CoordConfig is the base config for the coordination workspace.
+	// If nil, derived from KcpConfig.
+	CoordConfig *rest.Config
+
+	// VerificationConfig is the base config for the verification tree.
+	// If nil, uses KcpConfig.
+	VerificationConfig *rest.Config
+
+	// StagingConfig is the base config for the staging tree.
+	// If nil, uses KcpConfig.
+	StagingConfig *rest.Config
+
 	// AcceptAPIName is the name of the APIExportEndpointSlice serving
 	// AcceptAPIs. All other APIExportEndpointSlices in the broker workspace
 	// serve brokered resources.
@@ -163,9 +175,36 @@ func New(opts Options) (*Broker, error) {
 		return nil, fmt.Errorf("building scheme: %w", err)
 	}
 
-	wcf, err := workspaceClientFunc(opts.KcpConfig, scheme)
+	// Provider client func - for provider workspace access (AcceptAPIs, APIExports)
+	providerWcf, err := workspaceClientFunc(opts.KcpConfig, scheme)
 	if err != nil {
-		return nil, fmt.Errorf("building workspace client factory: %w", err)
+		return nil, fmt.Errorf("building provider workspace client factory: %w", err)
+	}
+
+	// Verification client func
+	verificationCfg := opts.VerificationConfig
+	if verificationCfg == nil {
+		verificationCfg = opts.KcpConfig
+	}
+	verificationWcf, err := workspaceClientFunc(verificationCfg, scheme)
+	if err != nil {
+		return nil, fmt.Errorf("building verification workspace client factory: %w", err)
+	}
+
+	// Staging client func
+	stagingCfg := opts.StagingConfig
+	if stagingCfg == nil {
+		stagingCfg = opts.KcpConfig
+	}
+	stagingWcf, err := workspaceClientFunc(stagingCfg, scheme)
+	if err != nil {
+		return nil, fmt.Errorf("building staging workspace client factory: %w", err)
+	}
+
+	// Coordination config for cluster path derivation
+	coordBaseCfg := opts.CoordConfig
+	if coordBaseCfg == nil {
+		coordBaseCfg = opts.KcpConfig
 	}
 
 	multiProvider := multi.New(multi.Options{})
@@ -177,16 +216,16 @@ func New(opts Options) (*Broker, error) {
 
 	b := &Broker{log: opts.Log, mgr: mgr}
 
-	acceptAPIProvider, err := setupAcceptAPI(mgr, multiProvider, opts, scheme, wcf)
+	acceptAPIProvider, err := setupAcceptAPI(mgr, multiProvider, opts, scheme, verificationWcf)
 	if err != nil {
 		return nil, fmt.Errorf("setting up acceptapi controller: %w", err)
 	}
 
-	if err := setupCoordination(mgr, multiProvider, opts, scheme, wcf); err != nil {
+	if err := setupCoordination(mgr, multiProvider, opts, scheme, stagingWcf, providerWcf, coordBaseCfg); err != nil {
 		return nil, fmt.Errorf("setting up coordination controllers: %w", err)
 	}
 
-	if err := setupDiscovery(mgr, multiProvider, opts, scheme, wcf, acceptAPIProvider); err != nil {
+	if err := setupDiscovery(mgr, multiProvider, opts, scheme, stagingWcf, providerWcf, acceptAPIProvider); err != nil {
 		return nil, fmt.Errorf("setting up discovery controller: %w", err)
 	}
 
@@ -209,7 +248,7 @@ func providerClusters(name string) mcbuilder.ClusterFilterFunc {
 
 // setupAcceptAPI wires the AcceptAPI reconciler on the AcceptAPI virtual
 // workspace and returns the provider for listing AcceptAPIs.
-func setupAcceptAPI(mgr mcmanager.Manager, multiProvider *multi.Provider, opts Options, scheme *runtime.Scheme, wcf workspaceClientFn) (*apiexport.Provider, error) {
+func setupAcceptAPI(mgr mcmanager.Manager, multiProvider *multi.Provider, opts Options, scheme *runtime.Scheme, verificationWcf workspaceClientFn) (*apiexport.Provider, error) {
 	provider, err := apiexport.New(opts.KcpConfig, opts.AcceptAPIName, apiexport.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("creating acceptapi provider: %w", err)
@@ -219,10 +258,10 @@ func setupAcceptAPI(mgr mcmanager.Manager, multiProvider *multi.Provider, opts O
 	}
 
 	reconciler, err := acceptapi.NewReconciler(mgr, acceptapi.Options{
-		VerificationTreeRoot: opts.VerificationTreeRoot,
-		WorkspaceClientFunc:  wcf,
-		ClusterFilter:        providerClusters(AcceptAPIProviderName),
-		RequeueInterval:      opts.RequeueInterval,
+		VerificationTreeRoot:   opts.VerificationTreeRoot,
+		VerificationClientFunc: verificationWcf,
+		ClusterFilter:          providerClusters(AcceptAPIProviderName),
+		RequeueInterval:        opts.RequeueInterval,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("creating acceptapi reconciler: %w", err)
@@ -236,8 +275,8 @@ func setupAcceptAPI(mgr mcmanager.Manager, multiProvider *multi.Provider, opts O
 
 // setupCoordination wires the Assignment and StagingWorkspace reconcilers on
 // the coordination workspace.
-func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opts Options, scheme *runtime.Scheme, wcf workspaceClientFn) error {
-	coordConfig, err := configForClusterPath(opts.KcpConfig, opts.CoordinationWorkspace)
+func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opts Options, scheme *runtime.Scheme, stagingWcf, providerWcf workspaceClientFn, coordBaseCfg *rest.Config) error {
+	coordConfig, err := configForClusterPath(coordBaseCfg, opts.CoordinationWorkspace)
 	if err != nil {
 		return fmt.Errorf("building coordination config: %w", err)
 	}
@@ -257,10 +296,11 @@ func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opt
 	filter := providerClusters(CoordinationClusterName)
 
 	stagingReconciler, err := stagingworkspace.NewReconciler(mgr, stagingworkspace.Options{
-		StagingTreeRoot:     opts.StagingTreeRoot,
-		WorkspaceClientFunc: wcf,
-		ClusterFilter:       filter,
-		RequeueInterval:     opts.RequeueInterval,
+		StagingTreeRoot:    opts.StagingTreeRoot,
+		StagingClientFunc:  stagingWcf,
+		ProviderClientFunc: providerWcf,
+		ClusterFilter:      filter,
+		RequeueInterval:    opts.RequeueInterval,
 	})
 	if err != nil {
 		return fmt.Errorf("creating stagingworkspace reconciler: %w", err)
@@ -275,12 +315,12 @@ func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opt
 	}
 
 	migrationReconciler, err := migration.NewReconciler(mgr, migration.Options{
-		ComputeClient:       computeClient,
-		WorkspaceClientFunc: wcf,
-		StagingTreeRoot:     opts.StagingTreeRoot,
-		StageNamespace:      opts.StageNamespace,
-		ClusterFilter:       filter,
-		RequeueInterval:     opts.RequeueInterval,
+		ComputeClient:     computeClient,
+		StagingClientFunc: stagingWcf,
+		StagingTreeRoot:   opts.StagingTreeRoot,
+		StageNamespace:    opts.StageNamespace,
+		ClusterFilter:     filter,
+		RequeueInterval:   opts.RequeueInterval,
 	})
 	if err != nil {
 		return fmt.Errorf("creating migration reconciler: %w", err)
@@ -295,8 +335,8 @@ func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opt
 // setupDiscovery wires the discovery controller watching
 // APIExportEndpointSlices in the broker workspace. Each slice except the
 // AcceptAPI one gets a provider and controllers for its brokered resources.
-func setupDiscovery(mgr mcmanager.Manager, multiProvider *multi.Provider, opts Options, scheme *runtime.Scheme, wcf workspaceClientFn, acceptAPIProvider *apiexport.Provider) error {
-	coordinationClient, err := wcf(opts.CoordinationWorkspace)
+func setupDiscovery(mgr mcmanager.Manager, multiProvider *multi.Provider, opts Options, scheme *runtime.Scheme, stagingWcf, providerWcf workspaceClientFn, acceptAPIProvider *apiexport.Provider) error {
+	coordinationClient, err := stagingWcf(opts.CoordinationWorkspace)
 	if err != nil {
 		return fmt.Errorf("building coordination client: %w", err)
 	}
@@ -315,9 +355,9 @@ func setupDiscovery(mgr mcmanager.Manager, multiProvider *multi.Provider, opts O
 		kcpConfig:     opts.KcpConfig,
 		scheme:        scheme,
 		acceptAPIName: opts.AcceptAPIName,
-		wcf:           wcf,
+		wcf:           providerWcf,
 		providers:     multiProvider,
-		register:      registerBrokeredResource(mgr, opts, wcf, coordinationClient, acceptAPIProvider),
+		register:      registerBrokeredResource(mgr, opts, stagingWcf, providerWcf, coordinationClient, acceptAPIProvider),
 	}
 
 	slicesForExport := handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj ctrlruntimeclient.Object) []reconcile.Request {
