@@ -201,10 +201,14 @@ func New(opts Options) (*Broker, error) {
 		return nil, fmt.Errorf("building staging workspace client factory: %w", err)
 	}
 
-	// Coordination config for cluster path derivation
-	coordBaseCfg := opts.CoordConfig
-	if coordBaseCfg == nil {
-		coordBaseCfg = opts.KcpConfig
+	// Coordination config and client func
+	coordCfg := opts.CoordConfig
+	if coordCfg == nil {
+		coordCfg = opts.KcpConfig
+	}
+	coordWcf, err := workspaceClientFunc(coordCfg, scheme)
+	if err != nil {
+		return nil, fmt.Errorf("building coordination workspace client factory: %w", err)
 	}
 
 	multiProvider := multi.New(multi.Options{})
@@ -221,11 +225,11 @@ func New(opts Options) (*Broker, error) {
 		return nil, fmt.Errorf("setting up acceptapi controller: %w", err)
 	}
 
-	if err := setupCoordination(mgr, multiProvider, opts, scheme, stagingWcf, providerWcf, coordBaseCfg); err != nil {
+	if err := setupCoordination(mgr, multiProvider, opts, scheme, stagingWcf, providerWcf, coordCfg); err != nil {
 		return nil, fmt.Errorf("setting up coordination controllers: %w", err)
 	}
 
-	if err := setupDiscovery(mgr, multiProvider, opts, scheme, stagingWcf, providerWcf, acceptAPIProvider); err != nil {
+	if err := setupDiscovery(mgr, multiProvider, opts, scheme, stagingWcf, providerWcf, coordWcf, acceptAPIProvider); err != nil {
 		return nil, fmt.Errorf("setting up discovery controller: %w", err)
 	}
 
@@ -335,8 +339,8 @@ func setupCoordination(mgr mcmanager.Manager, multiProvider *multi.Provider, opt
 // setupDiscovery wires the discovery controller watching
 // APIExportEndpointSlices in the broker workspace. Each slice except the
 // AcceptAPI one gets a provider and controllers for its brokered resources.
-func setupDiscovery(mgr mcmanager.Manager, multiProvider *multi.Provider, opts Options, scheme *runtime.Scheme, stagingWcf, providerWcf workspaceClientFn, acceptAPIProvider *apiexport.Provider) error {
-	coordinationClient, err := stagingWcf(opts.CoordinationWorkspace)
+func setupDiscovery(mgr mcmanager.Manager, multiProvider *multi.Provider, opts Options, scheme *runtime.Scheme, stagingWcf, providerWcf, coordWcf workspaceClientFn, acceptAPIProvider *apiexport.Provider) error {
+	coordinationClient, err := coordWcf(opts.CoordinationWorkspace)
 	if err != nil {
 		return fmt.Errorf("building coordination client: %w", err)
 	}
