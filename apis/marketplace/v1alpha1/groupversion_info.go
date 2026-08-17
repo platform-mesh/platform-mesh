@@ -43,6 +43,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&MarketplaceEntry{},
 		&MarketplaceEntryList{},
+		&VisibilityGrant{},
+		&VisibilityGrantList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
