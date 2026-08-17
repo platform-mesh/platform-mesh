@@ -299,8 +299,3 @@ func Marketplace(
 // VisibleExportsFunc returns APIExports visible to the workspace identified by logicalClusterID.
 // The result maps a provider's cluster ID to the names of the visible APIExports.
 type VisibleExportsFunc func(ctx context.Context, logicalClusterID string) (map[string]sets.Set[string], error)
-
-// DenyAllExports is the VisibleExportsFunc wired as a placeholder.
-func DenyAllExports(context.Context, string) (map[string]sets.Set[string], error) {
-	return nil, nil
-}

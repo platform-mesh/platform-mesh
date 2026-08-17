@@ -1,0 +1,46 @@
+# Maximal permission policy RBAC for the marketplace.platform-mesh.io APIExport.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: marketplace-visibilitygrant-read
+rules:
+- apiGroups: ["marketplace.platform-mesh.io"]
+  resources: ["visibilitygrants"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: visibilitygrant-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: marketplace-visibilitygrant-read
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: apis.kcp.io:binding:system:authenticated
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: marketplace-visibilitygrant-write
+rules:
+- apiGroups: ["marketplace.platform-mesh.io"]
+  resources: ["visibilitygrants"]
+  verbs: ["create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: visibilitygrant-write
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: marketplace-visibilitygrant-write
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  # TODO: this is deployment config? Is there a canonical admin group?
+  # or just a convention we are following for now (e.g. local-setup etc)?
+  name: apis.kcp.io:binding:pm:platform-admins

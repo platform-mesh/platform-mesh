@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	pmmarketplacev1alpha1 "go.platform-mesh.io/apis/marketplace/v1alpha1"
 	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/virtual-workspaces/pkg/config"
 
@@ -56,6 +57,7 @@ func marketplaceTestScheme(t *testing.T) *runtime.Scheme {
 	s := runtime.NewScheme()
 	utilruntime.Must(pmuiv1alpha1.AddToScheme(s))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(s))
+	utilruntime.Must(pmmarketplacev1alpha1.AddToScheme(s))
 	return s
 }
 

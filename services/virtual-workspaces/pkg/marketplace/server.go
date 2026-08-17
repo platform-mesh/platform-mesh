@@ -28,6 +28,7 @@ import (
 	"go.platform-mesh.io/virtual-workspaces/pkg/proxy"
 	"go.platform-mesh.io/virtual-workspaces/pkg/storage"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -37,8 +38,10 @@ import (
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/client-go/dynamic"
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/virtual-workspace-framework/framework"
 	virtualworkspacesdynamic "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic"
@@ -94,7 +97,14 @@ func BuildVirtualWorkspace(
 						return cl.GetClient(), nil
 					},
 					cfg,
-					storage.DenyAllExports,
+					storage.VisibleExportsFromGrants(
+						provider.Lister(),
+						func(ctx context.Context, clusterID string) (*kcpcorev1alpha1.LogicalCluster, error) {
+							return kcpClusterClient.CoreV1alpha1().LogicalClusters().
+								Cluster(logicalcluster.Name(clusterID).Path()).
+								Get(ctx, kcpcorev1alpha1.LogicalClusterName, v1.GetOptions{})
+						},
+					),
 				)
 
 				storageProvider := storage.CreateStorageProviderFunc(

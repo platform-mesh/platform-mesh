@@ -19,6 +19,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	pmmarketplacev1alpha1 "go.platform-mesh.io/apis/marketplace/v1alpha1"
 	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/virtual-workspaces/pkg/authentication"
 	"go.platform-mesh.io/virtual-workspaces/pkg/contentconfiguration"
@@ -55,6 +56,7 @@ func init() {
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(pmuiv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmmarketplacev1alpha1.AddToScheme(scheme))
 }
 
 var startCmd = &cobra.Command{
