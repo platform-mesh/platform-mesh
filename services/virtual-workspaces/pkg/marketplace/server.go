@@ -62,6 +62,7 @@ func BuildVirtualWorkspace(
 	kcpClusterClient kcpclientset.ClusterInterface,
 	virtualWorkspaceBaseURL string,
 	provider *apiexport.Provider,
+	grantsProvider *apiexport.Provider,
 ) virtualrootapiserver.NamedVirtualWorkspace {
 	clusterResolver := proxy.NewClusterResolver(kcpClusterClient)
 
@@ -98,7 +99,7 @@ func BuildVirtualWorkspace(
 					},
 					cfg,
 					storage.VisibleExportsFromGrants(
-						provider.Lister(),
+						grantsProvider.Lister(),
 						func(ctx context.Context, clusterID string) (*kcpcorev1alpha1.LogicalCluster, error) {
 							return kcpClusterClient.CoreV1alpha1().LogicalClusters().
 								Cluster(logicalcluster.Name(clusterID).Path()).

@@ -19,6 +19,7 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
+// makeHierarchy creates a tree of logical clusters where each entry is a child of the previous one.
 func makeHierarchy(children ...string) []*kcpcorev1alpha1.LogicalCluster {
 	makeCluster := func(name string, ownerLC *kcpcorev1alpha1.LogicalCluster) kcpcorev1alpha1.LogicalCluster {
 		var owner *kcpcorev1alpha1.LogicalClusterOwner
@@ -156,6 +157,105 @@ func TestVisibleExportsFromGrants(t *testing.T) {
 		result, err := fn(t.Context(), "c")
 		require.NoError(t, err, "should not error on broken cluster graph")
 		require.Empty(t, result)
+	})
+}
+
+func TestVisibleExportsFromGrants_AggregatingPRoviderGrants(t *testing.T) {
+	scheme := marketplaceTestScheme(t)
+
+	t.Run("single provider with export grants across two workspaces", func(t *testing.T) {
+		parent := "foo-id"
+		targetws := "bar-id"
+		workspaces := makeHierarchy(parent, targetws)
+
+		provider := "foo-storage"
+		firstExport := "disks.foo"
+		first := pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: provider,
+			APIExports:        []string{firstExport},
+		}
+		firstGrant := makeGrant(t, parent, first)
+
+		secondExport := "snapshots.foo"
+		second := pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: provider,
+			APIExports:        []string{secondExport},
+		}
+		secondGrant := makeGrant(t, targetws, second)
+
+		lister := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&firstGrant, &secondGrant).Build()
+
+		fn := VisibleExportsFromGrants(lister, makeClusterFn(workspaces...))
+
+		result, err := fn(t.Context(), targetws)
+		require.NoError(t, err)
+		require.Len(t, result, 1, "should be single provider in map")
+
+		exports, got := result[provider]
+		require.True(t, got)
+		require.Len(t, exports, 2, "an export should not be missing")
+
+		assert.True(t, exports.HasAll(firstExport, secondExport))
+	})
+	t.Run("two providers across workspaces", func(t *testing.T) {
+		parent := "org-foo-id"
+		targetWS := "team-engineering-id"
+		workspaces := makeHierarchy(parent, targetWS)
+
+		firstProvider := "org-shared-foo"
+		firstExport := "buckets.foo"
+		firstGrant := makeGrant(t, parent, pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: firstProvider,
+			APIExports:        []string{firstExport},
+		})
+
+		secondProvider := "team-eng-id"
+		secondExport := "whiteboards"
+		secondGrant := makeGrant(t, targetWS, pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: secondProvider,
+			APIExports:        []string{secondExport},
+		})
+
+		lister := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&firstGrant, &secondGrant).Build()
+		fn := VisibleExportsFromGrants(lister, makeClusterFn(workspaces...))
+
+		result, err := fn(t.Context(), targetWS)
+		require.NoError(t, err)
+		require.Len(t, result, 2, "a provider is missing")
+
+		parentGranted := result[firstProvider]
+		assert.True(t, parentGranted.Has(firstExport))
+
+		targetWSGranted := result[secondProvider]
+		assert.True(t, targetWSGranted.Has(secondExport))
+	})
+	t.Run("multiple grants in a single workspace", func(t *testing.T) {
+		targetWS := "baz-id"
+		workspaces := makeHierarchy(targetWS)
+
+		provider := "coffee"
+		firstExport := "more.coffee"
+		secondExport := "less.coffee"
+
+		firstGrant := makeGrant(t, targetWS, pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: provider,
+			APIExports:        []string{firstExport},
+		})
+		secondGrant := makeGrant(t, targetWS, pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: provider,
+			APIExports:        []string{secondExport},
+		})
+
+		lister := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&firstGrant, &secondGrant).Build()
+		fn := VisibleExportsFromGrants(lister, makeClusterFn(workspaces...))
+
+		result, err := fn(t.Context(), targetWS)
+		require.NoError(t, err)
+		require.Len(t, result, 1, "should not result in duplicate provider entries")
+		require.True(t, result[provider].HasAll(firstExport, secondExport))
 	})
 }
 

@@ -119,9 +119,21 @@ var startCmd = &cobra.Command{
 			}
 		}()
 
+		grantsProvider, err := apiexport.New(providerCfg, cfg.GrantsAPIExportEndpointSliceName, apiexport.Options{
+			Scheme: scheme,
+		})
+		if err != nil {
+			return err
+		}
+		go func() {
+			if err := grantsProvider.Start(ctx, nil); err != nil {
+				klog.ErrorS(err, "grants provider stopped with error")
+			}
+		}()
+
 		rootAPIServerConfig.Extra.VirtualWorkspaces = []virtualrootapiserver.NamedVirtualWorkspace{
 			contentconfiguration.BuildVirtualWorkspace(ctx, cfg, dynamicClient, clusterClient, contentconfiguration.VirtualWorkspaceBaseURL()),
-			marketplace.BuildVirtualWorkspace(ctx, cfg, dynamicClient, clusterClient, marketplace.VirtualWorkspaceBaseURL(), marketplaceProvider),
+			marketplace.BuildVirtualWorkspace(ctx, cfg, dynamicClient, clusterClient, marketplace.VirtualWorkspaceBaseURL(), marketplaceProvider, grantsProvider),
 		}
 
 		rootAPIServerConfig.Generic.Authentication.Authenticator = union.New(
