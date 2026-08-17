@@ -44,3 +44,7 @@ subjects:
   # TODO: this is deployment config? Is there a canonical admin group?
   # or just a convention we are following for now (e.g. local-setup etc)?
   name: apis.kcp.io:binding:pm:platform-admins
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  # local-setup KCP admin:
+  name: apis.kcp.io:binding:kcp-admin
