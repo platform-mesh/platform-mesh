@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: build manifests generate test cover lint fmt docker-build
+.PHONY: build manifests generate test cover lint fmt docker-build deploy deploy-kind
 
 build:
 	task build
@@ -37,3 +37,15 @@ fmt:
 
 docker-build:
 	task docker-build
+
+install:
+	kubectl apply -f config/crd
+
+uninstall:
+	kubectl delete -f config/crd
+
+deploy:
+	task deploy:kind
+
+deploy-kind:
+	task docker:kind

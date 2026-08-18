@@ -33,6 +33,12 @@ type Processor interface {
 	Process(ctx context.Context, obj ctrlruntimeclient.Object) (Result, error)
 }
 
+// StatusProcessor Processor handles the main reconciliation logic for a subroutine and returns a bool for status change.
+type StatusProcessor interface {
+	Subroutine
+	Process(ctx context.Context, obj ctrlruntimeclient.Object) (Result, bool, error)
+}
+
 // Finalizer handles cleanup when an object is being deleted.
 type Finalizer interface {
 	Subroutine

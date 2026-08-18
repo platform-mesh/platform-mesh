@@ -1,0 +1,36 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: platform-mesh-velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/managed-by: platform-mesh-backup-operator
+    app.kubernetes.io/part-of: platform-mesh
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - "*"
+  - nonResourceURLs:
+      - "*"
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: platform-mesh-velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/managed-by: platform-mesh-backup-operator
+    app.kubernetes.io/part-of: platform-mesh
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: platform-mesh-velero
+subjects:
+  - kind: ServiceAccount
+    name: velero
+    namespace: platform-mesh-velero

@@ -19,7 +19,7 @@ metadata:
 spec:
   storage:
     s3:
-      endpoint: https://s3.example.com
+      endpoint: http://minio.platform-mesh-system.svc.cluster.local:9000
       bucket: platform-mesh-backups
       region: us-east-1
       credentialsRef:

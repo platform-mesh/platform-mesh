@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cnpg_backup_role.yaml
+  - role.yaml
+  - clusterrole.yaml
+  - velero_installer_role.yaml
+  - velero_runtime_role.yaml
