@@ -21,7 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
 // MarketplaceEntrySpec defines the desired state of MarketplaceEntry.
@@ -35,7 +35,7 @@ type MarketplaceEntrySpec struct {
 	ProviderMetadata pmuiv1alpha1.ProviderMetadata `json:"providerMetadata"`
 
 	// PermissionClaims are the permission claims associated with the marketplace entry.
-	APIExport kcpapisv1alpha1.APIExport `json:"apiExport"`
+	APIExport kcpapisv1alpha2.APIExport `json:"apiExport"`
 }
 
 // MarketplaceEntryStatus defines the observed state of MarketplaceEntry.

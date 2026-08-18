@@ -115,20 +115,6 @@ spec:
                             type: object
                             x-kubernetes-map-type: atomic
                         type: object
-                      latestResourceSchemas:
-                        description: |-
-                          latestResourceSchemas records the latest APIResourceSchemas that are exposed
-                          with this APIExport.
-
-                          The schemas can be changed in the life-cycle of the APIExport. These changes
-                          have no effect on existing APIBindings, but only on newly bound ones.
-
-                          For updating existing APIBindings, use an APIDeployment keeping bound
-                          workspaces up-to-date.
-                        items:
-                          type: string
-                        type: array
-                        x-kubernetes-list-type: set
                       maximalPermissionPolicy:
                         description: |-
                           maximalPermissionPolicy will allow for a service provider to set an upper bound on what is allowed
@@ -145,13 +131,6 @@ spec:
                           but in addition the RBAC policy here in the APIExport workspace has to grant access to the
                           user `apis.kcp.io:binding:adam` with the groups `apis.kcp.io:binding:system:authenticated`
                           and `apis.kcp.io:binding:a-team`.
-
-                          If an APIExport with a maximalPermissionPolicy is deleted, these additional checks will no longer
-                          be applied to resources of this APIExport.
-
-                          For example: Assume an APIExport with a maximalPermissionPolicy that only allows creation and
-                          deletion of resources, but not updates - if the APIExport is deleted users will be able to update
-                          the resources of the APIExport again (given the constraints of their workspace's RBAC policies).
                         properties:
                           local:
                             description: local is the policy that is defined in same
@@ -176,18 +155,73 @@ spec:
                             Its purpose is to determine the added permissions that a service provider may
                             request and that a consumer may accept and allow the service provider access to.
                           properties:
-                            all:
+                            defaultSelector:
                               description: |-
-                                all claims all resources for the given group/resource.
-                                This is mutually exclusive with resourceSelector.
-                              type: boolean
+                                defaultSelector is the default selector to use when creating APIBindings
+                                via WorkspaceType's defaultAPIBindings. If not set, the APIBinding will
+                                default to matchAll: true.
+
+                                This allows API providers to suggest a default scope for permission claims
+                                that will be used when workspaces are automatically created with default
+                                APIBindings. Users can always override the default selector by accepting the
+                                claim with a different selector or by manually creating APIBindings with a custom selector.
+                              properties:
+                                matchAll:
+                                  description: matchAll grants access to all objects
+                                    of the claimed resource.
+                                  type: boolean
+                                matchExpressions:
+                                  description: matchExpressions is a list of label
+                                    selector requirements. The requirements are ANDed.
+                                  items:
+                                    description: |-
+                                      A label selector requirement is a selector that contains values, a key, and an operator that
+                                      relates the key and values.
+                                    properties:
+                                      key:
+                                        description: key is the label key that the
+                                          selector applies to.
+                                        type: string
+                                      operator:
+                                        description: |-
+                                          operator represents a key's relationship to a set of values.
+                                          Valid operators are In, NotIn, Exists and DoesNotExist.
+                                        type: string
+                                      values:
+                                        description: |-
+                                          values is an array of string values. If the operator is In or NotIn,
+                                          the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                          the values array must be empty. This array is replaced during a strategic
+                                          merge patch.
+                                        items:
+                                          type: string
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                    required:
+                                    - key
+                                    - operator
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                matchLabels:
+                                  additionalProperties:
+                                    type: string
+                                  description: |-
+                                    matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                    map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                    operator is "In", and the values array contains only "value". The requirements are ANDed.
+                                  type: object
+                              type: object
+                              x-kubernetes-map-type: atomic
                             group:
+                              default: ""
                               description: |-
                                 group is the name of an API group.
                                 For core groups this is the empty string '""'.
                               pattern: ^(|[a-z0-9]([-a-z0-9]*[a-z0-9](\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)?)$
                               type: string
                             identityHash:
+                              default: ""
                               description: |-
                                 This is the identity for a given APIExport that the APIResourceSchema belongs to.
                                 The hash can be found on APIExport and APIResourceSchema's status.
@@ -201,42 +235,114 @@ spec:
                                 not provided by an api export.
                               pattern: ^[a-z][-a-z0-9]*[a-z0-9]$
                               type: string
-                            resourceSelector:
-                              description: resourceSelector is a list of claimed resource
-                                selectors.
+                            verbs:
+                              description: |-
+                                verbs is a list of supported API operation types (this includes
+                                but is not limited to get, list, watch, create, update, patch,
+                                delete, deletecollection, and proxy).
                               items:
-                                properties:
-                                  name:
-                                    description: |-
-                                      name of an object within a claimed group/resource.
-                                      It matches the metadata.name field of the underlying object.
-                                      If namespace is unset, all objects matching that name will be claimed.
-                                    maxLength: 253
-                                    minLength: 1
-                                    pattern: ^([a-z0-9][-a-z0-9_.]*)?[a-z0-9]$
-                                    type: string
-                                  namespace:
-                                    description: |-
-                                      namespace containing the named object. Matches metadata.namespace field.
-                                      If "name" is unset, all objects from the namespace are being claimed.
-                                    minLength: 1
-                                    type: string
-                                type: object
-                                x-kubernetes-validations:
-                                - message: at least one field must be set
-                                  rule: has(self.__namespace__) || has(self.name)
+                                type: string
+                              minItems: 1
                               type: array
+                              x-kubernetes-list-type: set
                           required:
                           - resource
+                          - verbs
                           type: object
-                          x-kubernetes-validations:
-                          - message: either "all" or "resourceSelector" must be set
-                            rule: (has(self.all) && self.all) != (has(self.resourceSelector)
-                              && size(self.resourceSelector) > 0)
                         type: array
                         x-kubernetes-list-map-keys:
                         - group
                         - resource
+                        x-kubernetes-list-type: map
+                      resources:
+                        description: |-
+                          Resources records the APIResourceSchemas that are exposed with this
+                          APIExport.
+
+                          The schemas can be changed in the life-cycle of the APIExport. These changes
+                          have no effect on existing APIBindings, but only on newly bound ones.
+
+                          For updating existing APIBindings, use an APIDeployment keeping bound
+                          workspaces up-to-date.
+                        items:
+                          description: ResourceSchema defines the resource schemas
+                            that are exposed with this APIExport.
+                          properties:
+                            group:
+                              description: Group is the API group of the resource.
+                                Empty string represents the core group.
+                              type: string
+                            name:
+                              description: Name is the name of the resource.
+                              type: string
+                            schema:
+                              description: |-
+                                Schema is the name of the referenced APIResourceSchema. This must be of the format
+                                "<version>.<name>.<group>".
+                              type: string
+                            storage:
+                              default:
+                                crd: {}
+                              description: Storage defines how the resource is stored.
+                              properties:
+                                crd:
+                                  description: |-
+                                    CRD storage defines that this APIResourceSchema is exposed as
+                                    CustomResourceDefinitions inside the workspaces that bind to the APIExport.
+                                    Like in vanilla Kubernetes, users can then create, update and delete
+                                    custom resources.
+                                  type: object
+                                virtual:
+                                  description: |-
+                                    Virtual storage defines that this APIResourceSchema is exposed as
+                                    a projection of the referenced resource inside the workspaces that
+                                    bind to the APIExport.
+                                  properties:
+                                    identityHash:
+                                      description: IdentityHash is the identity of
+                                        the virtual resource.
+                                      type: string
+                                    reference:
+                                      description: |-
+                                        Reference points to another object that has a URL to a virtual workspace
+                                        in a "url" field in its status. The object can be of any kind.
+                                      properties:
+                                        apiGroup:
+                                          description: |-
+                                            APIGroup is the group for the resource being referenced.
+                                            If APIGroup is not specified, the specified Kind must be in the core API group.
+                                            For any other third-party types, APIGroup is required.
+                                          type: string
+                                        kind:
+                                          description: Kind is the type of resource
+                                            being referenced
+                                          type: string
+                                        name:
+                                          description: Name is the name of resource
+                                            being referenced
+                                          type: string
+                                      required:
+                                      - kind
+                                      - name
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                  required:
+                                  - identityHash
+                                  - reference
+                                  type: object
+                              type: object
+                              x-kubernetes-validations:
+                              - message: Exactly one of crd or virtual must be set
+                                rule: has(self.crd) != has(self.virtual)
+                          required:
+                          - group
+                          - name
+                          - schema
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        - group
                         x-kubernetes-list-type: map
                     type: object
                   status:
@@ -297,8 +403,11 @@ spec:
                       virtualWorkspaces:
                         description: |-
                           virtualWorkspaces contains all APIExport virtual workspace URLs.
+                          this field is empty unless kcp has been started with the
+                          'EnableDeprecatedAPIExportVirtualWorkspacesUrls' feature gate.
 
-                          Deprecated: use APIExportEndpointSlice.status.endpoints instead
+                          Deprecated: use APIExportEndpointSlice.status.endpoints instead. This
+                          field will be removed in an upcoming API version.
                         items:
                           properties:
                             url:
