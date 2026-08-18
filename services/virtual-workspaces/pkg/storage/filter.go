@@ -41,6 +41,7 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 	mcpcache "github.com/kcp-dev/multicluster-provider/pkg/cache"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 )
 
@@ -226,7 +227,7 @@ func Marketplace(
 
 			// For each provider, find matching APIExports across all shards
 			for _, provider := range providerList.Items {
-				exportList := &kcpapisv1alpha1.APIExportList{}
+				exportList := &kcpapisv1alpha2.APIExportList{}
 
 				if err := lister.List(ctx, exportList, &ctrlruntimeclient.ListOptions{
 					LabelSelector: labels.SelectorFromValidatedSet(map[string]string{
@@ -241,7 +242,7 @@ func Marketplace(
 					if logicalcluster.From(&export) != providerClusterID {
 						continue
 					}
-					if len(export.Spec.LatestResourceSchemas) == 0 {
+					if len(export.Spec.Resources) == 0 {
 						continue
 					}
 

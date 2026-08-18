@@ -38,6 +38,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 )
 
@@ -47,6 +48,8 @@ const (
 	testProviderClusterID = "abcd-provider-cluster-id"
 	testProviderName      = "abcd"
 	testExportName        = "widgets.abcd.io"
+	testResourceName      = "widgets"
+	testResourceGroup     = "abcd.io"
 )
 
 func marketplaceTestScheme(t *testing.T) *runtime.Scheme {
@@ -54,6 +57,7 @@ func marketplaceTestScheme(t *testing.T) *runtime.Scheme {
 	s := runtime.NewScheme()
 	utilruntime.Must(pmuiv1alpha1.AddToScheme(s))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(s))
+	utilruntime.Must(kcpapisv1alpha2.AddToScheme(s))
 	return s
 }
 
@@ -69,20 +73,27 @@ func makeProviderMeta(clusterID string) *pmuiv1alpha1.ProviderMetadata {
 }
 
 // makeDefaultExport with default values.
-func makeDefaultExport(cfg config.ServiceConfig) *kcpapisv1alpha1.APIExport {
+func makeDefaultExport(cfg config.ServiceConfig) *kcpapisv1alpha2.APIExport {
 	return makeExport(cfg, testExportName, testProviderClusterID, testProviderName)
 }
 
 // makeExport returns an APIExport with the given name and provider label.
-func makeExport(cfg config.ServiceConfig, name, clusterID, provider string) *kcpapisv1alpha1.APIExport {
-	return &kcpapisv1alpha1.APIExport{
+func makeExport(cfg config.ServiceConfig, name, clusterID, provider string) *kcpapisv1alpha2.APIExport {
+	return &kcpapisv1alpha2.APIExport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Annotations: map[string]string{"kcp.io/cluster": clusterID},
 			Labels:      map[string]string{cfg.ContentForLabel: provider},
 		},
-		Spec: kcpapisv1alpha1.APIExportSpec{
-			LatestResourceSchemas: []string{"v260810" + name},
+		Spec: kcpapisv1alpha2.APIExportSpec{
+			Resources: []kcpapisv1alpha2.ResourceSchema{{
+				Name:   testResourceName,
+				Group:  testResourceGroup,
+				Schema: "v260810." + testResourceName + "." + testResourceGroup,
+				Storage: kcpapisv1alpha2.ResourceSchemaStorage{
+					CRD: &kcpapisv1alpha2.ResourceSchemaStorageCRD{},
+				},
+			}},
 		},
 	}
 }
