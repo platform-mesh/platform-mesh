@@ -59,13 +59,24 @@ func (v *VeleroCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimecl
 		Str("platformBackup", backup.Name).
 		Msg("ensuring Velero BackupStorageLocation")
 
-	if err := velero.NewStorageLocation(v.client).EnsureForBackup(ctx, *backup); err != nil {
+	locationAvailable, err := velero.NewStorageLocation(v.client).EnsureAvailableForBackup(ctx, *backup)
+	if err != nil {
 		log.Error().
 			Str("subroutine", veleroSubroutineName).
 			Str("platformBackup", backup.Name).
 			Err(err).
 			Msg("failed to ensure Velero BackupStorageLocation")
 		return subroutines.OK(), false, fmt.Errorf("failed to ensure Velero BackupStorageLocation: %w", err)
+	}
+	if !locationAvailable {
+		log.Info().
+			Str("subroutine", veleroSubroutineName).
+			Str("platformBackup", backup.Name).
+			Msg("waiting for Velero BackupStorageLocation to become available")
+		return subroutines.StopWithRequeue(
+			3*time.Second,
+			"waiting for Velero BackupStorageLocation default to become available",
+		), false, nil
 	}
 
 	if backup.Status.Artefacts.Velero != nil && backup.Status.Artefacts.Velero.BackupName != "" {
@@ -112,14 +123,36 @@ func (v *VeleroCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimecl
 			Str("veleroBackup", current.Name).
 			Msg("Velero Backup completed")
 
-	case velerov1.BackupPhaseFailed, velerov1.BackupPhasePartiallyFailed, velerov1.BackupPhaseFailedValidation:
+	case velerov1.BackupPhaseFailedValidation:
+		if err := v.client.Delete(ctx, current); err != nil {
+			return subroutines.OK(), false, fmt.Errorf("delete failed-validation Velero Backup %s/%s: %w", current.Namespace, current.Name, err)
+		}
+		log.Warn().
+			Str("subroutine", veleroSubroutineName).
+			Str("platformBackup", backup.Name).
+			Str("veleroBackup", current.Name).
+			Strs("validationErrors", current.Status.ValidationErrors).
+			Msg("deleted failed-validation Velero Backup; retrying after storage location recovery")
+		return subroutines.StopWithRequeue(
+			3*time.Second,
+			fmt.Sprintf("retrying failed-validation Velero Backup %s/%s", current.Namespace, current.Name),
+		), false, nil
+
+	case velerov1.BackupPhaseFailed, velerov1.BackupPhasePartiallyFailed:
 		log.Error().
 			Str("subroutine", veleroSubroutineName).
 			Str("platformBackup", backup.Name).
 			Str("veleroBackup", current.Name).
 			Str("phase", string(current.Status.Phase)).
 			Msg("Velero Backup failed")
-		return subroutines.OK(), false, fmt.Errorf("velero backup %s/%s reached phase %s", current.Namespace, current.Name, current.Status.Phase)
+		return subroutines.OK(), false, fmt.Errorf(
+			"velero backup %s/%s reached phase %s: %s (errors=%d)",
+			current.Namespace,
+			current.Name,
+			current.Status.Phase,
+			current.Status.FailureReason,
+			current.Status.Errors,
+		)
 
 	default:
 		log.Info().

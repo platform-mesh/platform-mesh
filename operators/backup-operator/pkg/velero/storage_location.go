@@ -36,6 +36,21 @@ func (s *StorageLocation) EnsureForBackup(ctx context.Context, backup v1alpha1.P
 	return s.ensure(ctx, backup.Spec.Storage)
 }
 
+// EnsureAvailableForBackup ensures the storage location is configured, then
+// reports whether Velero has validated it and can accept a Backup. A newly
+// created or updated location has no status until Velero reconciles it.
+func (s *StorageLocation) EnsureAvailableForBackup(ctx context.Context, backup v1alpha1.PlatformBackup) (bool, error) {
+	if err := s.EnsureForBackup(ctx, backup); err != nil {
+		return false, err
+	}
+
+	var location velerov1.BackupStorageLocation
+	if err := s.client.Get(ctx, types.NamespacedName{Name: defaultBucketName, Namespace: DefaultNamespace}, &location); err != nil {
+		return false, fmt.Errorf("get BackupStorageLocation after ensuring it: %w", err)
+	}
+	return location.Status.Phase == velerov1.BackupStorageLocationPhaseAvailable, nil
+}
+
 func (s *StorageLocation) EnsureForRestore(ctx context.Context, restore v1alpha1.PlatformRestore) error {
 	return s.ensure(ctx, restore.Spec.Source.Storage)
 }

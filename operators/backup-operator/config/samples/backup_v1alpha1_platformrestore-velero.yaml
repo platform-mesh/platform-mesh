@@ -1,0 +1,17 @@
+apiVersion: backup.platform-mesh.io/v1alpha1
+kind: PlatformRestore
+metadata:
+  name: platformrestore-velero-sample
+spec:
+  source:
+    backupID: platformbackup-velero-sample
+    storage:
+      s3:
+        endpoint: http://minio.platform-mesh-system.svc.cluster.local:9000
+        bucket: velero-backups
+        region: us-east-1
+        credentialsRef:
+          name: velero-backup-s3
+  topologyValidation: Strict
+  repair:
+    delete: false
