@@ -12,7 +12,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/sdk/apis/core"
@@ -63,6 +65,52 @@ func makeClusterFn(clusters ...*kcpcorev1alpha1.LogicalCluster) func(ctx context
 		}
 
 		return lc, nil
+	}
+}
+
+func TestCanonicalHome_FooDbg(t *testing.T) {
+	scheme := marketplaceTestScheme(t)
+
+	homeID := "org-foo-id"
+
+	grant := makeGrant(t, homeID, pmmarketplacev1alpha1.ProviderExports{
+		ProviderClusterID: "baz-provider-id",
+		APIExports:        []string{"buckets.baz"},
+	})
+	orgClusterClient := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects(&grant).Build()
+
+	// todo: clean up: not unnecessary, just for showcase purposes:
+	targetClusterClient := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects().Build()
+	seed := map[string]ctrlruntimeclient.Client{
+		"root:orgs:foo-corp":                   orgClusterClient,
+		"root:orgs:foo-corp:engineering:team1": targetClusterClient,
+	}
+
+	ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp:engineering:team1"))
+	sut := CanonicalHome(clustersByPath(seed), "root:orgs")
+
+	result, err := sut(ctx, "team-cluster-id")
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+
+	assert.True(t, result["baz-provider-id"].Has("buckets.baz"))
+
+}
+
+func clustersByPath(
+	clusterClients map[string]ctrlruntimeclient.Client,
+) func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error) {
+
+	return func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error) {
+		cc, got := clusterClients[path.String()]
+		if !got {
+			// make sure the sentinel error is as expected:
+			return nil, fmt.Errorf("cluster by path %q not found: %w",
+				path.String(), multicluster.ErrClusterNotFound)
+		}
+		return cc, nil
 	}
 }
 

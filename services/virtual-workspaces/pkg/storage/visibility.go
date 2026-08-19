@@ -2,11 +2,14 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	pmmarketplacev1alpha1 "go.platform-mesh.io/apis/marketplace/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/util/sets"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	mcpcache "github.com/kcp-dev/multicluster-provider/pkg/cache"
@@ -19,6 +22,63 @@ func DenyAllExports(context.Context, string) (map[string]sets.Set[string], error
 	return nil, nil
 }
 
+func CanonicalHome(
+	clusterByPath func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error),
+	homePattern string,
+) VisibleExportsFunc {
+	return func(ctx context.Context, logicalClusterID string) (map[string]sets.Set[string], error) {
+
+		path, got := ClusterPathFrom(ctx)
+		if !got {
+			return nil, errors.New("get canonical home: no cluster path in context")
+		}
+
+		if !strings.HasPrefix(path.String(), homePattern) {
+			// TODO: test and return error
+		}
+
+		tenantPath := strings.TrimPrefix(path.String(), homePattern)
+
+		pathSegments := strings.Split(tenantPath, ":")
+		if len(pathSegments) <= 1 {
+			// todo: test and slap back
+		}
+
+		grantsHomeSegment := pathSegments[1]
+		home := fmt.Sprintf("%s:%s", homePattern, grantsHomeSegment)
+
+		// eg
+		// homeClusterPath := "root:orgs:foo-corp"
+		homePath := logicalcluster.NewPath(home)
+		homeClient, err := clusterByPath(ctx, homePath)
+		if err != nil {
+			// TODO: if err multicluster.ErrClusterNotFound => return emptyMap, nil
+			return nil, err
+		}
+
+		var grants pmmarketplacev1alpha1.VisibilityGrantList
+		err = homeClient.List(ctx, &grants)
+		if err != nil {
+			return nil, err
+		}
+
+		result := make(map[string]sets.Set[string])
+
+		for _, grantObj := range grants.Items {
+			for _, provider := range grantObj.Spec.Providers {
+				entries, got := result[provider.ProviderClusterID]
+				if !got {
+					entries = make(sets.Set[string])
+				}
+				entries.Insert(provider.APIExports...)
+				result[provider.ProviderClusterID] = entries
+			}
+		}
+
+		return result, nil
+	}
+}
+
 func VisibleExportsFromGrants(
 	client mcpcache.Lister,
 	getLogicalCluster func(ctx context.Context, clusterID string) (*kcpcorev1alpha1.LogicalCluster, error),
@@ -26,7 +86,6 @@ func VisibleExportsFromGrants(
 	return func(ctx context.Context, logicalClusterID string) (map[string]sets.Set[string], error) {
 		// ancestors:
 		clusterIDs := make(sets.Set[string])
-
 		clusterID := logicalClusterID
 		for !clusterIDs.Has(clusterID) {
 			if clusterID == core.RootCluster.String() {
