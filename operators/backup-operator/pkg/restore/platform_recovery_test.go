@@ -22,7 +22,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,7 +70,7 @@ func TestEnsureIdentityProviderAPIBindingResourcesRepairsCoreNamingConflict(t *t
 		coreExport,
 	)
 	recovery := &PlatformRecoverySubroutine{}
-	restore := &v1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
+	restore := &pmbackupv1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
 
 	ready, err := recovery.ensureIdentityProviderAPIBindingResources(
 		context.Background(), restore, client, client, client,
@@ -130,7 +132,7 @@ func TestEnsureKCPWebhookBootstrapRestoredRepairsIncompleteTransition(t *testing
 	t.Parallel()
 
 	const webhookArg = "--authorization-webhook-config-file=/etc/kcp/authorization/webhook/kubeconfig"
-	restore := &v1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{
+	restore := &pmbackupv1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{
 		Name: "restore", UID: types.UID("restore-uid"),
 	}}
 	state := &corev1.ConfigMap{
@@ -138,12 +140,14 @@ func TestEnsureKCPWebhookBootstrapRestoredRepairsIncompleteTransition(t *testing
 			Name: restoreStateConfigMapName(restore), Namespace: platformMeshNamespace,
 		},
 		Data: map[string]string{
+			"platformRestoreUID":           "restore-uid",
 			kcpWebhookBootstrapDisabledKey: "restore-uid",
 			replicaStateKey(workloadRef{Namespace: kcpOperatorNamespace, Kind: "Deployment", Name: "kcp-operator"}): "2",
 		},
 	}
 
-	objects := []ctrlruntimeclient.Object{state}
+	objects := make([]ctrlruntimeclient.Object, 1, 1+len(kcpWebhookConsumers)+1)
+	objects[0] = state
 	for _, workload := range kcpWebhookConsumers {
 		state.Data[kcpWebhookArgumentPrefix+workload.Name] = webhookArg
 		objects = append(objects, testDeployment(workload, 1, []string{"--authorization-webhook-version=v1"}))
@@ -252,7 +256,7 @@ func TestEnsureKCPFrontProxyReadyRestartsOnceAfterKCPRecovery(t *testing.T) {
 		WithObjects(frontProxy).
 		Build()
 	recovery := NewPlatformRecoverySubroutine(client)
-	restore := &v1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
+	restore := &pmbackupv1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
 
 	ready, err := recovery.ensureKCPFrontProxyReady(context.Background(), restore)
 	require.NoError(t, err)

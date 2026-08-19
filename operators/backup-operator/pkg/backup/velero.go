@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package backup
 
 import (
@@ -5,12 +21,12 @@ import (
 	"fmt"
 	"time"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/velero"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
-
-	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -38,9 +54,9 @@ func (v *VeleroCaptureSubroutine) GetName() string {
 }
 
 func (v *VeleroCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	backup, ok := obj.(*v1alpha1.PlatformBackup)
+	backup, ok := obj.(*pmbackupv1alpha1.PlatformBackup)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected a v1alpha1.PlatformBackup, got a %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected a pmbackupv1alpha1.PlatformBackup, got a %T", obj)
 	}
 
 	log := logger.LoadLoggerFromContext(ctx)
@@ -108,7 +124,7 @@ func (v *VeleroCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimecl
 	switch current.Status.Phase {
 	case velerov1.BackupPhaseCompleted:
 		if backup.Status.Artefacts.Velero == nil {
-			backup.Status.Artefacts.Velero = &v1alpha1.VeleroArtefact{}
+			backup.Status.Artefacts.Velero = &pmbackupv1alpha1.VeleroArtefact{}
 			statusChanged = true
 		}
 

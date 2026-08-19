@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 
 	corev1 "k8s.io/api/core/v1"
@@ -93,7 +93,7 @@ var organizationWebhookTrusts = []organizationWebhookTrust{
 // without changing their shared use by identity validation.
 func (p *PlatformRecoverySubroutine) recoverOrganizations(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (recoveryWait, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 	log.Info().Str("step", "organization-webhook-trust").Msg("starting platform recovery step")
@@ -212,7 +212,7 @@ func ensureValidatingWebhookCABundle(
 // afterwards so its environment contains that value.
 func (p *PlatformRecoverySubroutine) ensureOrganizationControllersReady(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	bootstrap := platformDeployment("security-operator")
 	restarted, err := restartDeployment(
@@ -274,7 +274,7 @@ func (p *PlatformRecoverySubroutine) ensureOrganizationControllersReady(
 
 func (p *PlatformRecoverySubroutine) restoredOrganizationResourcesReady(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	dynamicClient, err := p.kcpRecoveryDynamicClient(ctx, orgsLogicalClusterPath)
 	if err != nil {
@@ -287,7 +287,7 @@ func (p *PlatformRecoverySubroutine) restoredOrganizationResourcesReady(
 
 func ensureOrganizationResourcesReady(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 	dynamicClient dynamic.Interface,
 ) (bool, bool, error) {
 	log := logger.LoadLoggerFromContext(ctx)
@@ -368,8 +368,10 @@ func ensureOrganizationResourcesReady(
 					Bool("ready", ready).
 					Msg("triggered restored organization resource reconciliation")
 				changed = true
+			}
+
+			if !ready {
 				allReady = false
-				continue
 			}
 		}
 	}
@@ -379,7 +381,7 @@ func ensureOrganizationResourcesReady(
 
 func repairRestoredAccountWorkspaceTypeCollision(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 	dynamicClient dynamic.Interface,
 	account *unstructured.Unstructured,
 ) (bool, error) {

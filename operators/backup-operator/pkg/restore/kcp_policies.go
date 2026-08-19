@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package restore
 
 import (
@@ -10,8 +26,9 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7"
-	"go.platform-mesh.io/apis/backup/v1alpha1"
-	"go.platform-mesh.io/golang-commons/logger"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -62,7 +78,7 @@ const (
 
 type kcpPolicyRestoreManifest map[string][]map[string]any
 
-func (p *PlatformRecoverySubroutine) restoreKCPPolicies(ctx context.Context, pr *v1alpha1.PlatformRestore) (bool, error) {
+func (p *PlatformRecoverySubroutine) restoreKCPPolicies(ctx context.Context, pr *pmbackupv1alpha1.PlatformRestore) (bool, error) {
 	cm, err := ensureRestoreStateConfigMap(ctx, p.client, pr)
 	if err != nil {
 		return false, err
@@ -80,7 +96,7 @@ func (p *PlatformRecoverySubroutine) restoreKCPPolicies(ctx context.Context, pr 
 	if err != nil {
 		return false, err
 	}
-	defer object.Close()
+	defer func() { _ = object.Close() }()
 	raw, err := io.ReadAll(object)
 	if err != nil {
 		return false, err
@@ -309,54 +325,7 @@ func kcpSystemBaseURL(logicalPath string) string {
 	return kcpRootSystemBaseURLDefault
 }
 
-// kcpDynamicClient builds a front-proxy client from the destination KCP admin
-// kubeconfig. This is deliberately separate from kcpRecoveryDynamicClient:
-// the latter uses root-client and physical shard routing while recovery is
-// rebuilding authorization; this client uses the restored front-proxy route.
-func (p *PlatformRecoverySubroutine) kcpDynamicClient(ctx context.Context, logicalPath string) (dynamic.Interface, error) {
-	config, err := p.kcpRESTConfig(ctx, logicalPath)
-	if err != nil {
-		return nil, err
-	}
-	return dynamic.NewForConfig(config)
-}
-
-func (p *PlatformRecoverySubroutine) kcpRESTConfig(ctx context.Context, logicalPath string) (*rest.Config, error) {
-	log := logger.LoadLoggerFromContext(ctx)
-
-	var secret corev1.Secret
-	if err := p.client.Get(ctx, ctrlruntimeclient.ObjectKey{
-		Namespace: platformMeshNamespace,
-		Name:      kcpAdminSecretName,
-	}, &secret); err != nil {
-		return nil, fmt.Errorf("waiting for %s/%s: %w", platformMeshNamespace, kcpAdminSecretName, err)
-	}
-
-	raw := secret.Data["kubeconfig"]
-	if len(raw) == 0 {
-		return nil, fmt.Errorf("waiting for %s/%s data.kubeconfig", platformMeshNamespace, kcpAdminSecretName)
-	}
-
-	config, err := clientcmd.RESTConfigFromKubeConfig(raw)
-	if err != nil {
-		return nil, fmt.Errorf("parse %s kubeconfig: %w", kcpAdminSecretName, err)
-	}
-
-	baseURL := os.Getenv("KCP_BASE_URL")
-	if baseURL == "" {
-		baseURL = kcpBaseURLDefault
-	}
-
-	config = rest.CopyConfig(config)
-	config.Host = fmt.Sprintf("%s/clusters/%s", strings.TrimRight(baseURL, "/"), logicalPath)
-	config.APIPath = ""
-	config.Timeout = 30 * time.Second
-
-	log.Info().Str("logicalPath", logicalPath).Str("host", config.Host).Msg("built KCP REST config")
-	return config, nil
-}
-
-func (p *PlatformRecoverySubroutine) restoreKCPWorkspaces(ctx context.Context, pr *v1alpha1.PlatformRestore) (bool, error) {
+func (p *PlatformRecoverySubroutine) restoreKCPWorkspaces(ctx context.Context, pr *pmbackupv1alpha1.PlatformRestore) (bool, error) {
 	cm, err := ensureRestoreStateConfigMap(ctx, p.client, pr)
 	if err != nil {
 		return false, err
@@ -374,7 +343,7 @@ func (p *PlatformRecoverySubroutine) restoreKCPWorkspaces(ctx context.Context, p
 	if err != nil {
 		return false, err
 	}
-	defer object.Close()
+	defer func() { _ = object.Close() }()
 	raw, err := io.ReadAll(object)
 	if err != nil {
 		return false, err
@@ -446,7 +415,7 @@ type kcpClaimsRecoveryProgress struct {
 // policies, then APIBinding claims.
 func (p *PlatformRecoverySubroutine) recoverKCPClaims(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (kcpClaimsRecoveryProgress, error) {
 	changed, err := p.restoreKCPWorkspaces(ctx, pr)
 	if err != nil {

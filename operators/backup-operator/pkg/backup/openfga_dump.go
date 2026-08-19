@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package backup
 
 import (
@@ -10,8 +26,10 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/subroutines"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -34,7 +52,7 @@ func NewOpenFGADumpSubroutine(client ctrlruntimeclient.Client) *OpenFGADumpSubro
 func (o *OpenFGADumpSubroutine) GetName() string { return "openfga-dump" }
 
 func (o *OpenFGADumpSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	b, ok := obj.(*v1alpha1.PlatformBackup)
+	b, ok := obj.(*pmbackupv1alpha1.PlatformBackup)
 	if !ok {
 		return subroutines.OK(), false, fmt.Errorf("expected PlatformBackup, got %T", obj)
 	}
@@ -89,7 +107,7 @@ func (o *OpenFGADumpSubroutine) database(ctx context.Context) (string, error) {
 	return database, nil
 }
 
-func (o *OpenFGADumpSubroutine) s3(ctx context.Context, storage v1alpha1.StorageSpec) (*minio.Client, error) {
+func (o *OpenFGADumpSubroutine) s3(ctx context.Context, storage pmbackupv1alpha1.StorageSpec) (*minio.Client, error) {
 	var secret corev1.Secret
 	if err := o.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: "platform-mesh-velero", Name: storage.S3.CredentialsRef.Name}, &secret); err != nil {
 		return nil, err

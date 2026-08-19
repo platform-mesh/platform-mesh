@@ -20,16 +20,18 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
+
 	"go.platform-mesh.io/backup-operator/pkg/controller"
 	"go.platform-mesh.io/backup-operator/pkg/topology/projector"
 	"go.platform-mesh.io/backup-operator/pkg/velero"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var operatorCmd = &cobra.Command{

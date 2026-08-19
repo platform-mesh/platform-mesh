@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package restore
 
 import (
@@ -6,9 +22,10 @@ import (
 	"path"
 	"time"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -48,9 +65,9 @@ func (c *CNPGRestoreSubroutine) GetName() string {
 }
 
 func (c *CNPGRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	platformRestore, ok := obj.(*v1alpha1.PlatformRestore)
+	platformRestore, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected a v1alpha1.PlatformRestore, got %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected a pmbackupv1alpha1.PlatformRestore, got %T", obj)
 	}
 
 	if restoreTerminal(platformRestore) {
@@ -63,7 +80,7 @@ func (c *CNPGRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 
 	log := logger.LoadLoggerFromContext(ctx)
 
-	statusChanged := setPhase(platformRestore, v1alpha1.RestorePhaseRestoringCNPG)
+	statusChanged := setPhase(platformRestore, pmbackupv1alpha1.RestorePhaseRestoringCNPG)
 
 	if !cnpgRestoreCleanupStarted(platformRestore) {
 		if err := c.deleteCNPGRuntimeObjects(ctx); err != nil {
@@ -185,7 +202,7 @@ func cnpgClusterObject() *unstructured.Unstructured {
 	return obj
 }
 
-func cnpgRecoverySpec(restore *v1alpha1.PlatformRestore) map[string]any {
+func cnpgRecoverySpec(restore *pmbackupv1alpha1.PlatformRestore) map[string]any {
 	endpoint := restore.Spec.Source.Storage.S3.Endpoint
 	// CNPG capture snapshots the completed base backup and WAL archive under
 	// this PlatformBackup-specific prefix. Never recover from the live source
@@ -317,7 +334,7 @@ func (c *CNPGRestoreSubroutine) deleteCNPGPodsAndPVCs(ctx context.Context) error
 	return nil
 }
 
-func cnpgRestoreCleanupStarted(platformRestore *v1alpha1.PlatformRestore) bool {
+func cnpgRestoreCleanupStarted(platformRestore *pmbackupv1alpha1.PlatformRestore) bool {
 	condition := meta.FindStatusCondition(platformRestore.Status.Conditions, cnpgRestoreCleanupStartedCondition)
 	return condition != nil &&
 		condition.Status == metav1.ConditionTrue &&
@@ -348,7 +365,7 @@ func (c *CNPGRestoreSubroutine) cnpgPodsAndPVCsGone(ctx context.Context) (bool, 
 	return len(pvcs.Items) == 0, nil
 }
 
-func cnpgRestoreCompleted(platformRestore *v1alpha1.PlatformRestore) bool {
+func cnpgRestoreCompleted(platformRestore *pmbackupv1alpha1.PlatformRestore) bool {
 	condition := meta.FindStatusCondition(
 		platformRestore.Status.Conditions,
 		cnpgRestoreCompletedCondition,
@@ -359,8 +376,8 @@ func cnpgRestoreCompleted(platformRestore *v1alpha1.PlatformRestore) bool {
 		condition.ObservedGeneration == platformRestore.Generation
 }
 
-func markCNPGRestoreCompleted(platformRestore *v1alpha1.PlatformRestore) bool {
-	statusChanged := setPhase(platformRestore, v1alpha1.RestorePhaseRestoringCNPG)
+func markCNPGRestoreCompleted(platformRestore *pmbackupv1alpha1.PlatformRestore) bool {
+	statusChanged := setPhase(platformRestore, pmbackupv1alpha1.RestorePhaseRestoringCNPG)
 
 	if markPhaseReady(
 		platformRestore,

@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package restore
 
 import (
@@ -10,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/subroutines"
 
 	corev1 "k8s.io/api/core/v1"
@@ -35,15 +51,15 @@ func (i *IdentityValidationSubroutine) GetName() string {
 }
 
 func (i *IdentityValidationSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	pr, ok := obj.(*v1alpha1.PlatformRestore)
+	pr, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected v1alpha1.PlatformRestore, got %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected pmbackupv1alpha1.PlatformRestore, got %T", obj)
 	}
 
-	if pr.Status.Phase == v1alpha1.RestorePhaseFailed {
+	if pr.Status.Phase == pmbackupv1alpha1.RestorePhaseFailed {
 		return subroutines.OK(), false, nil
 	}
-	if pr.Status.Phase == v1alpha1.RestorePhaseSucceeded {
+	if pr.Status.Phase == pmbackupv1alpha1.RestorePhaseSucceeded {
 		// A restore that was marked successful by an older operator may still
 		// have a Portal bootstrap credential that cannot read its initial KCP
 		// resources. Permit a metadata-only reconciliation to repair and check
@@ -56,7 +72,7 @@ func (i *IdentityValidationSubroutine) Process(ctx context.Context, obj ctrlrunt
 		return subroutines.StopWithRequeue(5*time.Second, "waiting for platform recovery"), false, nil
 	}
 
-	if changed := setPhase(pr, v1alpha1.RestorePhaseValidatingIdentity); changed {
+	if changed := setPhase(pr, pmbackupv1alpha1.RestorePhaseValidatingIdentity); changed {
 		return subroutines.StopWithRequeue(time.Second, "phase set to ValidatingIdentity"), true, nil
 	}
 
@@ -87,7 +103,7 @@ func (i *IdentityValidationSubroutine) Process(ctx context.Context, obj ctrlrunt
 // usable by Portal before identity validation can complete. It is also safe for
 // a terminal Succeeded restore, provided the caller only changes object metadata
 // to request reconciliation.
-func (i *IdentityValidationSubroutine) repairPortalAccess(ctx context.Context, pr *v1alpha1.PlatformRestore) (subroutines.Result, bool) {
+func (i *IdentityValidationSubroutine) repairPortalAccess(ctx context.Context, pr *pmbackupv1alpha1.PlatformRestore) (subroutines.Result, bool) {
 	recovery := NewPlatformRecoverySubroutine(i.client)
 	claimsReady, err := recovery.ensureKCPAPIClaims(ctx, pr)
 	if err != nil {
@@ -245,7 +261,7 @@ func getKCPPath(ctx context.Context, httpClient *http.Client, baseURL string, pa
 	if err != nil {
 		return fmt.Errorf("waiting for kcp discovery %s: %w", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
@@ -281,7 +297,7 @@ func contentVirtualWorkspacePathResolved(
 	if err != nil {
 		return false, fmt.Errorf("request content virtual workspace %s: %w", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
 		return true, nil

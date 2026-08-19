@@ -1,13 +1,30 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package backup
 
 import (
 	"context"
 	"testing"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	backupvelero "go.platform-mesh.io/backup-operator/pkg/velero"
 
-	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -93,22 +110,22 @@ func newVeleroTestClient(t *testing.T, objects ...ctrlruntimeclient.Object) ctrl
 	return ctrlruntimefake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
 }
 
-func testPlatformBackup() *v1alpha1.PlatformBackup {
-	return &v1alpha1.PlatformBackup{
+func testPlatformBackup() *pmbackupv1alpha1.PlatformBackup {
+	return &pmbackupv1alpha1.PlatformBackup{
 		ObjectMeta: metav1.ObjectMeta{Name: "backup"},
-		Spec: v1alpha1.PlatformBackupSpec{
-			Storage: v1alpha1.StorageSpec{S3: v1alpha1.S3StorageSpec{
+		Spec: pmbackupv1alpha1.PlatformBackupSpec{
+			Storage: pmbackupv1alpha1.StorageSpec{S3: pmbackupv1alpha1.S3StorageSpec{
 				Endpoint:       "http://minio:9000",
 				Bucket:         "backups",
 				Region:         "us-east-1",
 				CredentialsRef: corev1.LocalObjectReference{Name: "credentials"},
 			}},
-			Components: v1alpha1.ComponentsSpec{Velero: v1alpha1.VeleroSpec{Enabled: true}},
+			Components: pmbackupv1alpha1.ComponentsSpec{Velero: pmbackupv1alpha1.VeleroSpec{Enabled: true}},
 		},
 	}
 }
 
-func testStorageLocation(backup *v1alpha1.PlatformBackup) *velerov1.BackupStorageLocation {
+func testStorageLocation(backup *pmbackupv1alpha1.PlatformBackup) *velerov1.BackupStorageLocation {
 	return &velerov1.BackupStorageLocation{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: backupvelero.DefaultNamespace},
 		Spec: velerov1.BackupStorageLocationSpec{

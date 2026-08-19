@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package restore
 
 import (
@@ -7,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
 
@@ -67,9 +83,9 @@ func (e *EtcdRestoreSubroutine) GetName() string {
 }
 
 func (e *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	platformRestore, ok := obj.(*v1alpha1.PlatformRestore)
+	platformRestore, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected a v1alpha1.PlatformRestore, got %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected a pmbackupv1alpha1.PlatformRestore, got %T", obj)
 	}
 
 	if restoreTerminal(platformRestore) {
@@ -82,7 +98,7 @@ func (e *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 
 	log := logger.LoadLoggerFromContext(ctx)
 
-	statusChanged := setPhase(platformRestore, v1alpha1.RestorePhaseRestoringEtcd)
+	statusChanged := setPhase(platformRestore, pmbackupv1alpha1.RestorePhaseRestoringEtcd)
 
 	state, initialized, err := e.ensureRestoreState(ctx, platformRestore)
 	if err != nil {
@@ -203,7 +219,7 @@ func (e *EtcdRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 
 func (e *EtcdRestoreSubroutine) ensureRestoreState(
 	ctx context.Context,
-	platformRestore *v1alpha1.PlatformRestore,
+	platformRestore *pmbackupv1alpha1.PlatformRestore,
 ) (*corev1.ConfigMap, bool, error) {
 	name := etcdRestoreStateConfigMapName(platformRestore)
 
@@ -294,7 +310,7 @@ func (e *EtcdRestoreSubroutine) ensureRestoreState(
 
 func (e *EtcdRestoreSubroutine) deleteEtcdCR(
 	ctx context.Context,
-	platformRestore *v1alpha1.PlatformRestore,
+	platformRestore *pmbackupv1alpha1.PlatformRestore,
 	state *corev1.ConfigMap,
 	shardName string,
 	statusChanged bool,
@@ -340,7 +356,7 @@ func (e *EtcdRestoreSubroutine) deleteEtcdCR(
 
 func (e *EtcdRestoreSubroutine) recreateEtcdCRWhenDeleted(
 	ctx context.Context,
-	platformRestore *v1alpha1.PlatformRestore,
+	platformRestore *pmbackupv1alpha1.PlatformRestore,
 	state *corev1.ConfigMap,
 	shardName string,
 	statusChanged bool,
@@ -457,7 +473,7 @@ func (e *EtcdRestoreSubroutine) listAllKCPShards(ctx context.Context) (*unstruct
 // rebuild derived entries from the restored authoritative KCP shards.
 func (e *EtcdRestoreSubroutine) resetEtcdCache(
 	ctx context.Context,
-	platformRestore *v1alpha1.PlatformRestore,
+	platformRestore *pmbackupv1alpha1.PlatformRestore,
 	state *corev1.ConfigMap,
 ) (bool, subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
@@ -597,13 +613,13 @@ func etcdObject(name string) *unstructured.Unstructured {
 }
 
 func sanitizedEtcdManifest(etcd *unstructured.Unstructured) (string, error) {
-	copy := etcd.DeepCopy()
+	etcdCopy := etcd.DeepCopy()
 
-	unstructured.RemoveNestedField(copy.Object, "status")
+	unstructured.RemoveNestedField(etcdCopy.Object, "status")
 
-	metadata, ok := copy.Object["metadata"].(map[string]any)
+	metadata, ok := etcdCopy.Object["metadata"].(map[string]any)
 	if !ok {
-		return "", fmt.Errorf("Etcd %s/%s has invalid metadata", etcd.GetNamespace(), etcd.GetName())
+		return "", fmt.Errorf("etcd %s/%s has invalid metadata", etcd.GetNamespace(), etcd.GetName())
 	}
 
 	delete(metadata, "uid")
@@ -615,7 +631,7 @@ func sanitizedEtcdManifest(etcd *unstructured.Unstructured) (string, error) {
 	delete(metadata, "deletionTimestamp")
 	delete(metadata, "deletionGracePeriodSeconds")
 
-	raw, err := json.Marshal(copy.Object)
+	raw, err := json.Marshal(etcdCopy.Object)
 	if err != nil {
 		return "", err
 	}
@@ -656,7 +672,7 @@ func etcdRestoreShardNames(state *corev1.ConfigMap) []string {
 	return names
 }
 
-func etcdRestoreStateConfigMapName(platformRestore *v1alpha1.PlatformRestore) string {
+func etcdRestoreStateConfigMapName(platformRestore *pmbackupv1alpha1.PlatformRestore) string {
 	return fmt.Sprintf("%s-%s", platformRestore.Name, etcdRestoreStateConfigMapSuffix)
 }
 
@@ -673,7 +689,7 @@ func etcdReady(etcd *unstructured.Unstructured) bool {
 	return err == nil && found && ready
 }
 
-func etcdRestoreCompleted(platformRestore *v1alpha1.PlatformRestore) bool {
+func etcdRestoreCompleted(platformRestore *pmbackupv1alpha1.PlatformRestore) bool {
 	condition := meta.FindStatusCondition(
 		platformRestore.Status.Conditions,
 		etcdRestoreCompletedCondition,

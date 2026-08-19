@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package velero
 
 import (
@@ -5,7 +21,9 @@ import (
 	"fmt"
 
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,7 +39,7 @@ func NewRestore(client ctrlruntimeclient.Client) *Restore {
 	}
 }
 
-func (r *Restore) Ensure(ctx context.Context, restore v1alpha1.PlatformRestore, backupName string) (*velerov1.Restore, error) {
+func (r *Restore) Ensure(ctx context.Context, restore pmbackupv1alpha1.PlatformRestore, backupName string) (*velerov1.Restore, error) {
 	restoreName := fmt.Sprintf("%s-platform-mesh", restore.Name)
 
 	current := &velerov1.Restore{}

@@ -17,16 +17,16 @@ limitations under the License.
 package cmd
 
 import (
-	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
-	"go.platform-mesh.io/backup-operator/pkg/config"
-	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
-	"go.platform-mesh.io/golang-commons/logger"
-
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 	"github.com/spf13/cobra"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	velerov2alpha1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v2alpha1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+	"go.platform-mesh.io/backup-operator/pkg/config"
+	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/logger"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"

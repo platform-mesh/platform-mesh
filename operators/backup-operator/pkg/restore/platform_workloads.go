@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package restore
 
 import (
@@ -7,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
 
@@ -37,9 +53,9 @@ const (
 	controlPlaneRestartSubroutineName = "control-plane-restart"
 )
 
-func restoreTerminal(platformRestore *v1alpha1.PlatformRestore) bool {
-	return platformRestore.Status.Phase == v1alpha1.RestorePhaseSucceeded ||
-		platformRestore.Status.Phase == v1alpha1.RestorePhaseFailed
+func restoreTerminal(platformRestore *pmbackupv1alpha1.PlatformRestore) bool {
+	return platformRestore.Status.Phase == pmbackupv1alpha1.RestorePhaseSucceeded ||
+		platformRestore.Status.Phase == pmbackupv1alpha1.RestorePhaseFailed
 }
 
 type workloadRef struct {
@@ -126,16 +142,16 @@ var kcpWebhookConsumers = []workloadRef{
 	platformDeployment("triton-shard-kcp"),
 }
 
-func restoreStateConfigMapName(pr *v1alpha1.PlatformRestore) string {
+func restoreStateConfigMapName(pr *pmbackupv1alpha1.PlatformRestore) string {
 	return fmt.Sprintf("%s-%s", pr.Name, restoreStateConfigMapSuffix)
 }
 
-func conditionIsTrue(pr *v1alpha1.PlatformRestore, conditionType string) bool {
+func conditionIsTrue(pr *pmbackupv1alpha1.PlatformRestore, conditionType string) bool {
 	cond := meta.FindStatusCondition(pr.Status.Conditions, conditionType)
 	return cond != nil && cond.Status == metav1.ConditionTrue
 }
 
-func setPhase(platformRestore *v1alpha1.PlatformRestore, phase v1alpha1.RestorePhase) bool {
+func setPhase(platformRestore *pmbackupv1alpha1.PlatformRestore, phase pmbackupv1alpha1.RestorePhase) bool {
 	changed := false
 	if platformRestore.Status.Phase != phase {
 		platformRestore.Status.Phase = phase
@@ -155,11 +171,11 @@ func setPhase(platformRestore *v1alpha1.PlatformRestore, phase v1alpha1.RestoreP
 	) || changed
 }
 
-func markCondition(pr *v1alpha1.PlatformRestore, conditionType, reason, message string) bool {
+func markCondition(pr *pmbackupv1alpha1.PlatformRestore, conditionType, reason, message string) bool {
 	return setCondition(pr, conditionType, metav1.ConditionTrue, reason, message)
 }
 
-func markPhaseReady(pr *v1alpha1.PlatformRestore, conditionType, reason, message string) bool {
+func markPhaseReady(pr *pmbackupv1alpha1.PlatformRestore, conditionType, reason, message string) bool {
 	changed := markCondition(pr, conditionType, reason, message)
 	if setCondition(
 		pr,
@@ -174,7 +190,7 @@ func markPhaseReady(pr *v1alpha1.PlatformRestore, conditionType, reason, message
 }
 
 func setCondition(
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 	conditionType string,
 	status metav1.ConditionStatus,
 	reason string,
@@ -199,10 +215,10 @@ func setCondition(
 	return true
 }
 
-func markRestoreSucceeded(pr *v1alpha1.PlatformRestore) bool {
+func markRestoreSucceeded(pr *pmbackupv1alpha1.PlatformRestore) bool {
 	changed := false
-	if pr.Status.Phase != v1alpha1.RestorePhaseSucceeded {
-		pr.Status.Phase = v1alpha1.RestorePhaseSucceeded
+	if pr.Status.Phase != pmbackupv1alpha1.RestorePhaseSucceeded {
+		pr.Status.Phase = pmbackupv1alpha1.RestorePhaseSucceeded
 		changed = true
 	}
 	if pr.Status.ObservedGeneration != pr.Generation {
@@ -229,7 +245,7 @@ func markRestoreSucceeded(pr *v1alpha1.PlatformRestore) bool {
 	return changed
 }
 
-func ensureRestoreStateConfigMap(ctx context.Context, cl ctrlruntimeclient.Client, pr *v1alpha1.PlatformRestore) (*corev1.ConfigMap, error) {
+func ensureRestoreStateConfigMap(ctx context.Context, cl ctrlruntimeclient.Client, pr *pmbackupv1alpha1.PlatformRestore) (*corev1.ConfigMap, error) {
 	cm := &corev1.ConfigMap{}
 	key := ctrlruntimeclient.ObjectKey{
 		Namespace: platformMeshNamespace,
@@ -459,14 +475,14 @@ func restartDeployment(ctx context.Context, cl ctrlruntimeclient.Client, w workl
 }
 
 func (q *QuiescePlatformSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	pr, ok := obj.(*v1alpha1.PlatformRestore)
+	pr, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected v1alpha1.PlatformRestore, got %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected pmbackupv1alpha1.PlatformRestore, got %T", obj)
 	}
 	if restoreTerminal(pr) || conditionIsTrue(pr, conditionPlatformQuiesced) {
 		return subroutines.OK(), false, nil
 	}
-	if changed := setPhase(pr, v1alpha1.RestorePhaseQuiescingPlatform); changed {
+	if changed := setPhase(pr, pmbackupv1alpha1.RestorePhaseQuiescingPlatform); changed {
 		return subroutines.StopWithRequeue(time.Second, "phase set to QuiescingPlatform"), true, nil
 	}
 
@@ -509,14 +525,14 @@ func (q *QuiescePlatformSubroutine) Process(ctx context.Context, obj ctrlruntime
 }
 
 func (c *ControlPlaneRestartSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	pr, ok := obj.(*v1alpha1.PlatformRestore)
+	pr, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected v1alpha1.PlatformRestore, got %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected pmbackupv1alpha1.PlatformRestore, got %T", obj)
 	}
 	if restoreTerminal(pr) || conditionIsTrue(pr, conditionControlPlaneRestarted) {
 		return subroutines.OK(), false, nil
 	}
-	if changed := setPhase(pr, v1alpha1.RestorePhaseRestartingControlPlane); changed {
+	if changed := setPhase(pr, pmbackupv1alpha1.RestorePhaseRestartingControlPlane); changed {
 		return subroutines.StopWithRequeue(time.Second, "phase set to RestartingControlPlane"), true, nil
 	}
 

@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package restore
 
 import (
@@ -6,8 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -50,7 +67,7 @@ func (e applicationWorkloadCheckError) Unwrap() error { return e.err }
 // schema routing before those consumers are allowed to initialize caches.
 func (p *PlatformRecoverySubroutine) repairBootstrapConsumers(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (recoveryWait, error) {
 	steps := []struct {
 		repair func() (bool, error)
@@ -79,7 +96,7 @@ func (p *PlatformRecoverySubroutine) repairBootstrapConsumers(
 // then waits for every token consumer to use its destination credential.
 func (p *PlatformRecoverySubroutine) recoverApplicationTokens(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (recoveryWait, error) {
 	changed, err := p.ensureKCPApplicationTokenBootstrapAccess(ctx)
 	if err != nil {
@@ -142,7 +159,7 @@ type kcpBootstrapCredentialRequest struct {
 // authorization, while ReBAC needs KCP API discovery to start.
 func (p *PlatformRecoverySubroutine) ensureReBACBootstrapCredential(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	recipe := applicationTokenRecipes[1] // rebac-authz-webhook-kubeconfig
 	return p.ensureKCPBootstrapCredentialWithServer(
@@ -160,7 +177,7 @@ func (p *PlatformRecoverySubroutine) ensureReBACBootstrapCredential(
 
 func (p *PlatformRecoverySubroutine) ensureVirtualWorkspacesBootstrapCredential(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	return p.ensureKCPBootstrapCredential(
 		ctx,
@@ -176,7 +193,7 @@ func (p *PlatformRecoverySubroutine) ensureVirtualWorkspacesBootstrapCredential(
 
 func (p *PlatformRecoverySubroutine) ensureExtensionManagerBootstrapCredential(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	return p.ensureKCPBootstrapCredential(
 		ctx,
@@ -192,7 +209,7 @@ func (p *PlatformRecoverySubroutine) ensureExtensionManagerBootstrapCredential(
 
 func (p *PlatformRecoverySubroutine) ensureKCPBootstrapCredential(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 	secretName, logicalPath string,
 	workload workloadRef,
 	credentialAnnotation, restartAnnotation, component string,
@@ -211,7 +228,7 @@ func (p *PlatformRecoverySubroutine) ensureKCPBootstrapCredential(
 // preserves logical root-proxy routing for descendant workspace resolution.
 func (p *PlatformRecoverySubroutine) ensureKCPBootstrapCredentialWithServer(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 	secretName, logicalPath string,
 	workload workloadRef,
 	credentialAnnotation, restartAnnotation, component, serverOverride string,
@@ -229,7 +246,7 @@ func (p *PlatformRecoverySubroutine) ensureKCPBootstrapCredentialWithServer(
 
 func (p *PlatformRecoverySubroutine) ensureKCPBootstrapCredentialRequest(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 	request kcpBootstrapCredentialRequest,
 ) (bool, error) {
 	log := logger.LoadLoggerFromContext(ctx)
@@ -342,7 +359,7 @@ func (p *PlatformRecoverySubroutine) ensureVirtualWorkspacesArgument(ctx context
 
 // ensurePortalBootstrapCredential preserves Portal's provider-scoped content
 // virtual-workspace kubeconfig and destination CA trust.
-func (p *PlatformRecoverySubroutine) ensurePortalBootstrapCredential(ctx context.Context, pr *v1alpha1.PlatformRestore) (bool, error) {
+func (p *PlatformRecoverySubroutine) ensurePortalBootstrapCredential(ctx context.Context, pr *pmbackupv1alpha1.PlatformRestore) (bool, error) {
 	var target, admin, serverCA, rootCA corev1.Secret
 	for _, item := range []struct {
 		name   string

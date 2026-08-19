@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package restore
 
 import (
@@ -6,8 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
+
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,7 +35,7 @@ var kcpOperatorResources = []schema.GroupVersionKind{
 	{Group: "operator.kcp.io", Version: "v1alpha1", Kind: "Shard"},
 }
 
-func (p *PlatformRecoverySubroutine) ensureKCPWebhookDisabled(ctx context.Context, pr *v1alpha1.PlatformRestore, disabledKey, restoredKey string) (bool, error) {
+func (p *PlatformRecoverySubroutine) ensureKCPWebhookDisabled(ctx context.Context, pr *pmbackupv1alpha1.PlatformRestore, disabledKey, restoredKey string) (bool, error) {
 	cm, err := ensureRestoreStateConfigMap(ctx, p.client, pr)
 	if err != nil {
 		return false, err
@@ -58,7 +75,7 @@ func (p *PlatformRecoverySubroutine) ensureKCPWebhookDisabled(ctx context.Contex
 	return false, nil
 }
 
-func (p *PlatformRecoverySubroutine) ensureKCPWebhookRestored(ctx context.Context, pr *v1alpha1.PlatformRestore, disabledKey, restoredKey string) (bool, error) {
+func (p *PlatformRecoverySubroutine) ensureKCPWebhookRestored(ctx context.Context, pr *pmbackupv1alpha1.PlatformRestore, disabledKey, restoredKey string) (bool, error) {
 	cm, err := ensureRestoreStateConfigMap(ctx, p.client, pr)
 	if err != nil {
 		return false, err
@@ -150,7 +167,7 @@ func (p *PlatformRecoverySubroutine) restoreKCPWebhookArgument(ctx context.Conte
 // authorization and waits until endpoint discovery can be served.
 func (p *PlatformRecoverySubroutine) ensureReBACAvailability(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (recoveryWait, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 	webhook := platformDeployment("rebac-authz-webhook")
@@ -184,7 +201,7 @@ func (p *PlatformRecoverySubroutine) ensureReBACAvailability(
 // bootstrap consumers are healthy, then refreshes front-proxy derived state.
 func (p *PlatformRecoverySubroutine) closeKCPBootstrapWindow(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (recoveryWait, error) {
 	ready, err := p.ensureKCPWebhookBootstrapRestored(ctx, pr)
 	if err != nil {
@@ -210,20 +227,10 @@ func (p *PlatformRecoverySubroutine) closeKCPBootstrapWindow(
 	return recoveryWait{}, nil
 }
 
-func (p *PlatformRecoverySubroutine) ensureKCPWebhookBootstrapDisabled(ctx context.Context, pr *v1alpha1.PlatformRestore) (bool, error) {
+func (p *PlatformRecoverySubroutine) ensureKCPWebhookBootstrapDisabled(ctx context.Context, pr *pmbackupv1alpha1.PlatformRestore) (bool, error) {
 	return p.ensureKCPWebhookDisabled(ctx, pr, kcpWebhookBootstrapDisabledKey, kcpWebhookBootstrapRestoredKey)
 }
 
-// ensureKCPIdentityRepairWebhookDisabled creates an independent, one-time
-// bootstrap window for a restore already in identity validation.
-func (p *PlatformRecoverySubroutine) ensureKCPIdentityRepairWebhookDisabled(ctx context.Context, pr *v1alpha1.PlatformRestore) (bool, error) {
-	return p.ensureKCPWebhookDisabled(ctx, pr, kcpIdentityRepairWebhookDisabledKey, kcpIdentityRepairWebhookRestoredKey)
-}
-
-func (p *PlatformRecoverySubroutine) ensureKCPWebhookBootstrapRestored(ctx context.Context, pr *v1alpha1.PlatformRestore) (bool, error) {
+func (p *PlatformRecoverySubroutine) ensureKCPWebhookBootstrapRestored(ctx context.Context, pr *pmbackupv1alpha1.PlatformRestore) (bool, error) {
 	return p.ensureKCPWebhookRestored(ctx, pr, kcpWebhookBootstrapDisabledKey, kcpWebhookBootstrapRestoredKey)
-}
-
-func (p *PlatformRecoverySubroutine) ensureKCPIdentityRepairWebhookRestored(ctx context.Context, pr *v1alpha1.PlatformRestore) (bool, error) {
-	return p.ensureKCPWebhookRestored(ctx, pr, kcpIdentityRepairWebhookDisabledKey, kcpIdentityRepairWebhookRestoredKey)
 }

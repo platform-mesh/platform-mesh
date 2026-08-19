@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package restore
 
 import (
@@ -13,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
 
@@ -102,7 +118,7 @@ var storeGVR = schema.GroupVersionResource{
 // security operator has recreated usable OpenFGA stores and models.
 func (p *PlatformRecoverySubroutine) recoverOpenFGAStores(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (recoveryWait, error) {
 	done, err := p.ensureOpenFGAStores(ctx, pr)
 	if err != nil {
@@ -129,9 +145,9 @@ func (p *PlatformRecoverySubroutine) GetName() string {
 }
 
 func (p *PlatformRecoverySubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	pr, ok := obj.(*v1alpha1.PlatformRestore)
+	pr, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected v1alpha1.PlatformRestore, got %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected pmbackupv1alpha1.PlatformRestore, got %T", obj)
 	}
 
 	if restoreTerminal(pr) ||
@@ -324,7 +340,7 @@ func (p *PlatformRecoverySubroutine) Process(ctx context.Context, obj ctrlruntim
 // internal bindings lets KCP derive current claims from the restored exports.
 func (p *PlatformRecoverySubroutine) ensureKCPAPIClaims(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 	// Requests made through the front-proxy are first authorized in the root
@@ -439,7 +455,7 @@ func (p *PlatformRecoverySubroutine) ensureKCPAPIClaims(
 // a permanent APIBinding NamingConflicts condition.
 func (p *PlatformRecoverySubroutine) ensureIdentityProviderAPIBindingReady(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	consumer, err := p.kcpRecoveryDynamicClient(ctx, platformSystemPath)
 	if err != nil {
@@ -469,7 +485,7 @@ func (p *PlatformRecoverySubroutine) ensureIdentityProviderAPIBindingReady(
 
 func (p *PlatformRecoverySubroutine) ensureIdentityProviderAPIBindingResources(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 	consumer dynamic.Interface,
 	identityProvider dynamic.Interface,
 	coreProvider dynamic.Interface,
@@ -861,7 +877,7 @@ func (p *PlatformRecoverySubroutine) ensureKCPAuthorizationConfiguration(ctx con
 // returning NoOpinion for bound resources even after the shard is healthy.
 func (p *PlatformRecoverySubroutine) ensureKCPFrontProxyReady(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	frontProxy := platformDeployment("frontproxy-front-proxy")
 	changed, err := restartDeployment(
@@ -1053,7 +1069,7 @@ func ensureKCPRoleAndBinding(ctx context.Context, client dynamic.Interface, role
 
 func (p *PlatformRecoverySubroutine) ensureReBACWebhookTrust(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
@@ -1187,7 +1203,7 @@ func (p *PlatformRecoverySubroutine) ensureReBACWebhookTrust(
 
 func (p *PlatformRecoverySubroutine) ensureApplicationTokens(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
@@ -1216,7 +1232,7 @@ func (p *PlatformRecoverySubroutine) ensureApplicationTokens(
 
 func (p *PlatformRecoverySubroutine) refreshToken(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 	recipe tokenRecipe,
 ) (bool, error) {
 	log := logger.LoadLoggerFromContext(ctx)
@@ -1246,7 +1262,7 @@ func (p *PlatformRecoverySubroutine) refreshToken(
 	raw := secret.Data["kubeconfig"]
 	if len(raw) == 0 {
 		return false, fmt.Errorf(
-			"Secret %s/%s has no data.kubeconfig",
+			"secret %s/%s has no data.kubeconfig",
 			platformMeshNamespace,
 			recipe.SecretName,
 		)
@@ -1534,7 +1550,7 @@ func (p *PlatformRecoverySubroutine) refreshToken(
 
 func (p *PlatformRecoverySubroutine) patchSecretWithAdminCredential(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 	recipe tokenRecipe,
 	secret *corev1.Secret,
 ) (bool, error) {
@@ -1556,7 +1572,7 @@ func (p *PlatformRecoverySubroutine) patchSecretWithAdminCredential(
 	adminRaw := adminSecret.Data["kubeconfig"]
 	if len(adminRaw) == 0 {
 		return false, fmt.Errorf(
-			"Secret %s/%s has no data.kubeconfig",
+			"secret %s/%s has no data.kubeconfig",
 			platformMeshNamespace,
 			kcpAdminSecretName,
 		)
@@ -1583,7 +1599,7 @@ func (p *PlatformRecoverySubroutine) patchSecretWithAdminCredential(
 	targetRaw := secret.Data["kubeconfig"]
 	if len(targetRaw) == 0 {
 		return false, fmt.Errorf(
-			"Secret %s/%s has no data.kubeconfig",
+			"secret %s/%s has no data.kubeconfig",
 			platformMeshNamespace,
 			recipe.SecretName,
 		)
@@ -1779,7 +1795,7 @@ func currentAuthInfoEntry(
 
 func (p *PlatformRecoverySubroutine) ensureOpenFGAStores(
 	ctx context.Context,
-	pr *v1alpha1.PlatformRestore,
+	pr *pmbackupv1alpha1.PlatformRestore,
 ) (bool, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
@@ -2023,45 +2039,6 @@ func (p *PlatformRecoverySubroutine) ensureOpenFGAStores(
 	return true, nil
 }
 
-func (p *PlatformRecoverySubroutine) accountsReady(
-	ctx context.Context,
-) (bool, error) {
-	log := logger.LoadLoggerFromContext(ctx)
-
-	// Account readiness is checked while restored authorization policies may
-	// still reject kcp-admin through the front-proxy. Use the destination
-	// recovery credential until identity recovery is complete.
-	dynamicClient, err := p.kcpRecoveryDynamicClient(ctx, orgsLogicalClusterPath)
-	if err != nil {
-		return false, err
-	}
-
-	accounts, err := dynamicClient.Resource(accountGVR).List(
-		ctx,
-		metav1.ListOptions{},
-	)
-	if err != nil {
-		return false, fmt.Errorf("list restored Account resources: %w", err)
-	}
-
-	for index := range accounts.Items {
-		account := &accounts.Items[index]
-		if !unstructuredConditionTrue(account, "Ready") {
-			log.Info().
-				Str("account", account.GetName()).
-				Msg("waiting for Account Ready condition")
-
-			return false, nil
-		}
-	}
-
-	log.Info().
-		Int("accounts", len(accounts.Items)).
-		Msg("all restored Account resources are ready")
-
-	return true, nil
-}
-
 func unstructuredConditionTrue(obj *unstructured.Unstructured, conditionType string) bool {
 	conditions, found, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
 	if err != nil || !found {
@@ -2114,7 +2091,7 @@ func (p *PlatformRecoverySubroutine) listOpenFGAStores(
 	if err != nil {
 		return nil, fmt.Errorf("list OpenFGA stores: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf(
@@ -2172,7 +2149,7 @@ func (p *PlatformRecoverySubroutine) openFGAAuthorizationModelExists(
 	if err != nil {
 		return false, fmt.Errorf("list OpenFGA authorization models: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode != http.StatusOK {
 		return false, fmt.Errorf("list OpenFGA authorization models: status=%d", response.StatusCode)

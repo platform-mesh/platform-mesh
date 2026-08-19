@@ -1,9 +1,30 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package velero
 
 import (
 	"context"
 	"fmt"
 	"time"
+
+	velerov1crds "github.com/vmware-tanzu/velero/config/crd/v1/crds"
+	velerov2alpha1crds "github.com/vmware-tanzu/velero/config/crd/v2alpha1/crds"
+
+	"go.platform-mesh.io/golang-commons/logger"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -15,11 +36,6 @@ import (
 	"k8s.io/utils/ptr"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	velerov1crds "github.com/vmware-tanzu/velero/config/crd/v1/crds"
-	velerov2alpha1crds "github.com/vmware-tanzu/velero/config/crd/v2alpha1/crds"
-
-	"go.platform-mesh.io/golang-commons/logger"
 )
 
 const (
@@ -295,7 +311,7 @@ func (i *Installer) ensureServerDeployment(ctx context.Context) error {
 		deploy.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: serverLabels,
 		}
-		deploy.Spec.Template.ObjectMeta.Labels = serverLabels
+		deploy.Spec.Template.Labels = serverLabels
 		deploy.Spec.Template.Spec.ServiceAccountName = veleroName
 		deploy.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyAlways
 
@@ -393,7 +409,7 @@ func (i *Installer) ensureNodeAgent(ctx context.Context) error {
 			MatchLabels: agentLabels,
 		}
 
-		ds.Spec.Template.ObjectMeta.Labels = agentLabels
+		ds.Spec.Template.Labels = agentLabels
 		ds.Spec.Template.Spec.ServiceAccountName = veleroName
 		ds.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyAlways
 

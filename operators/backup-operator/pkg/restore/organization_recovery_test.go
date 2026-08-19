@@ -23,7 +23,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -87,10 +88,10 @@ func TestEnsureValidatingWebhookCABundleRepairsStaleCAAndIsIdempotent(t *testing
 func TestEnsureOrganizationResourcesReadyTouchesRestoredResourcesOnce(t *testing.T) {
 	t.Parallel()
 
-	restore := &v1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
+	restore := &pmbackupv1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
 	readyAccount := testOrganizationResource(accountGVR, "Account", "sap", true)
 	failedIDP := testOrganizationResource(identityProviderConfigurationGVR, "IdentityProviderConfiguration", "sap", false)
-	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), readyAccount, failedIDP)
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), organizationResourcesListKinds(), readyAccount, failedIDP)
 
 	ready, changed, err := ensureOrganizationResourcesReady(context.Background(), restore, client)
 	require.NoError(t, err)
@@ -122,7 +123,7 @@ func TestEnsureOrganizationResourcesReadyTouchesRestoredResourcesOnce(t *testing
 func TestEnsureOrganizationResourcesReadyRepairsRestoredWorkspaceTypeCollision(t *testing.T) {
 	t.Parallel()
 
-	restore := &v1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
+	restore := &pmbackupv1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
 	account := testOrganizationResource(accountGVR, "Account", "sap", false)
 	require.NoError(t, unstructured.SetNestedSlice(account.Object, []any{
 		map[string]any{
@@ -138,7 +139,7 @@ func TestEnsureOrganizationResourcesReadyRepairsRestoredWorkspaceTypeCollision(t
 	}}
 	accountType := orgType.DeepCopy()
 	accountType.SetName("sap-account")
-	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), account, orgType, accountType)
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), organizationResourcesListKinds(), account, orgType, accountType)
 
 	ready, changed, err := ensureOrganizationResourcesReady(context.Background(), restore, client)
 	require.NoError(t, err)
@@ -171,7 +172,7 @@ func TestEnsureOrganizationControllersReadyRestartsBootstrapBeforeConsumers(t *t
 		WithObjects(bootstrap, accountOperator, systemOperator).
 		Build()
 	recovery := NewPlatformRecoverySubroutine(client)
-	restore := &v1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
+	restore := &pmbackupv1alpha1.PlatformRestore{ObjectMeta: metav1.ObjectMeta{UID: types.UID("restore-uid")}}
 
 	ready, err := recovery.ensureOrganizationControllersReady(context.Background(), restore)
 	require.NoError(t, err)
@@ -212,6 +213,14 @@ func testOrganizationResource(
 			"conditions": readyConditions(ready),
 		},
 	}}
+}
+
+func organizationResourcesListKinds() map[schema.GroupVersionResource]string {
+	return map[schema.GroupVersionResource]string{
+		accountGVR:                       "AccountList",
+		identityProviderConfigurationGVR: "IdentityProviderConfigurationList",
+		workspaceTypeGVR:                 "WorkspaceTypeList",
+	}
 }
 
 func readyConditions(ready bool) []any {

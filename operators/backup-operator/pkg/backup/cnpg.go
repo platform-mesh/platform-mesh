@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package backup
 
 import (
@@ -15,12 +31,12 @@ import (
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	corev1 "k8s.io/api/core/v1"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,9 +72,9 @@ func (c *CNPGCaptureSubroutine) GetName() string {
 }
 
 func (c *CNPGCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	backup, ok := obj.(*v1alpha1.PlatformBackup)
+	backup, ok := obj.(*pmbackupv1alpha1.PlatformBackup)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected a v1alpha1.PlatformBackup, got a %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected a pmbackupv1alpha1.PlatformBackup, got a %T", obj)
 	}
 
 	log := logger.LoadLoggerFromContext(ctx)
@@ -140,7 +156,7 @@ func (c *CNPGCaptureSubroutine) Process(ctx context.Context, obj ctrlruntimeclie
 			}
 
 			if backup.Status.Artefacts.CNPG == nil {
-				backup.Status.Artefacts.CNPG = &v1alpha1.CNPGArtefact{}
+				backup.Status.Artefacts.CNPG = &pmbackupv1alpha1.CNPGArtefact{}
 			}
 
 			if backup.Status.Artefacts.CNPG.Backups == nil {
@@ -193,7 +209,7 @@ func buildBackupCR(taskName, namespace, clusterName string) *cnpgv1.Backup {
 // under a PlatformBackup-specific prefix. CNPG's normal Barman prefix is live:
 // a later cluster with the same serverName can otherwise change the objects a
 // PlatformRestore reads.
-func (c *CNPGCaptureSubroutine) snapshotCNPGArchive(ctx context.Context, backup *v1alpha1.PlatformBackup, clusterName string, task *cnpgv1.Backup) (bool, error) {
+func (c *CNPGCaptureSubroutine) snapshotCNPGArchive(ctx context.Context, backup *pmbackupv1alpha1.PlatformBackup, clusterName string, task *cnpgv1.Backup) (bool, error) {
 	beginWAL := strings.TrimSpace(task.Status.BeginWal)
 	if beginWAL == "" {
 		return false, nil
@@ -284,7 +300,7 @@ func (c *CNPGCaptureSubroutine) snapshotCNPGArchive(ctx context.Context, backup 
 	return true, nil
 }
 
-func (c *CNPGCaptureSubroutine) cnpgS3Client(ctx context.Context, backup *v1alpha1.PlatformBackup) (*minio.Client, error) {
+func (c *CNPGCaptureSubroutine) cnpgS3Client(ctx context.Context, backup *pmbackupv1alpha1.PlatformBackup) (*minio.Client, error) {
 	secret := &corev1.Secret{}
 	if err := c.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: c.operandNamespace, Name: cnpgSecretName}, secret); err != nil {
 		return nil, fmt.Errorf("get CNPG backup secret %s/%s: %w", c.operandNamespace, cnpgSecretName, err)
@@ -346,7 +362,7 @@ func cnpgWALMatchesSystemID(ctx context.Context, client *minio.Client, bucket, o
 	if err != nil {
 		return false, fmt.Errorf("get CNPG WAL %s: %w", objectKey, err)
 	}
-	defer object.Close()
+	defer func() { _ = object.Close() }()
 
 	var reader io.Reader = object
 	if strings.HasSuffix(objectKey, ".gz") {
@@ -354,7 +370,7 @@ func cnpgWALMatchesSystemID(ctx context.Context, client *minio.Client, bucket, o
 		if err != nil {
 			return false, fmt.Errorf("open compressed CNPG WAL %s: %w", objectKey, err)
 		}
-		defer gzipReader.Close()
+		defer func() { _ = gzipReader.Close() }()
 		reader = gzipReader
 	}
 
@@ -374,7 +390,7 @@ func cnpgObjectBytes(ctx context.Context, client *minio.Client, bucket, objectKe
 	if err != nil {
 		return nil, err
 	}
-	defer object.Close()
+	defer func() { _ = object.Close() }()
 	return io.ReadAll(object)
 }
 

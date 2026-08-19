@@ -1,13 +1,29 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package velero
 
 import (
 	"context"
 	"fmt"
 
-	"go.platform-mesh.io/apis/backup/v1alpha1"
-	"go.platform-mesh.io/golang-commons/logger"
-
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,14 +48,14 @@ func NewStorageLocation(client ctrlruntimeclient.Client) *StorageLocation {
 	}
 }
 
-func (s *StorageLocation) EnsureForBackup(ctx context.Context, backup v1alpha1.PlatformBackup) error {
+func (s *StorageLocation) EnsureForBackup(ctx context.Context, backup pmbackupv1alpha1.PlatformBackup) error {
 	return s.ensure(ctx, backup.Spec.Storage)
 }
 
 // EnsureAvailableForBackup ensures the storage location is configured, then
 // reports whether Velero has validated it and can accept a Backup. A newly
 // created or updated location has no status until Velero reconciles it.
-func (s *StorageLocation) EnsureAvailableForBackup(ctx context.Context, backup v1alpha1.PlatformBackup) (bool, error) {
+func (s *StorageLocation) EnsureAvailableForBackup(ctx context.Context, backup pmbackupv1alpha1.PlatformBackup) (bool, error) {
 	if err := s.EnsureForBackup(ctx, backup); err != nil {
 		return false, err
 	}
@@ -51,11 +67,11 @@ func (s *StorageLocation) EnsureAvailableForBackup(ctx context.Context, backup v
 	return location.Status.Phase == velerov1.BackupStorageLocationPhaseAvailable, nil
 }
 
-func (s *StorageLocation) EnsureForRestore(ctx context.Context, restore v1alpha1.PlatformRestore) error {
+func (s *StorageLocation) EnsureForRestore(ctx context.Context, restore pmbackupv1alpha1.PlatformRestore) error {
 	return s.ensure(ctx, restore.Spec.Source.Storage)
 }
 
-func (s *StorageLocation) ensure(ctx context.Context, storage v1alpha1.StorageSpec) error {
+func (s *StorageLocation) ensure(ctx context.Context, storage pmbackupv1alpha1.StorageSpec) error {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	desired := &velerov1.BackupStorageLocation{

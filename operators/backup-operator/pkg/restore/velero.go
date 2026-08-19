@@ -1,3 +1,19 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package restore
 
 import (
@@ -6,7 +22,8 @@ import (
 	"time"
 
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
-	"go.platform-mesh.io/apis/backup/v1alpha1"
+
+	pmbackupv1alpha1 "go.platform-mesh.io/apis/backup/v1alpha1"
 	"go.platform-mesh.io/backup-operator/pkg/velero"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/subroutines"
@@ -53,9 +70,9 @@ func (v *VeleroRestoreSubroutine) GetName() string {
 }
 
 func (v *VeleroRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	platformRestore, ok := obj.(*v1alpha1.PlatformRestore)
+	platformRestore, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected a v1alpha1.PlatformRestore, got %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected a pmbackupv1alpha1.PlatformRestore, got %T", obj)
 	}
 
 	if restoreTerminal(platformRestore) {
@@ -66,7 +83,7 @@ func (v *VeleroRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimecl
 		return subroutines.OK(), false, nil
 	}
 
-	if changed := setPhase(platformRestore, v1alpha1.RestorePhaseRestoringVelero); changed {
+	if changed := setPhase(platformRestore, pmbackupv1alpha1.RestorePhaseRestoringVelero); changed {
 		return subroutines.StopWithRequeue(time.Second, "phase set to RestoringVelero"), true, nil
 	}
 
@@ -180,7 +197,7 @@ func (v *VeleroRestoreSubroutine) veleroBackupReady(ctx context.Context, name st
 	}
 }
 
-func markVeleroRestoreCompleted(platformRestore *v1alpha1.PlatformRestore) bool {
+func markVeleroRestoreCompleted(platformRestore *pmbackupv1alpha1.PlatformRestore) bool {
 	return markCondition(
 		platformRestore,
 		conditionVeleroRestoreCompleted,
@@ -190,16 +207,16 @@ func markVeleroRestoreCompleted(platformRestore *v1alpha1.PlatformRestore) bool 
 }
 
 func (c *CredentialRestoreSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, bool, error) {
-	pr, ok := obj.(*v1alpha1.PlatformRestore)
+	pr, ok := obj.(*pmbackupv1alpha1.PlatformRestore)
 	if !ok {
-		return subroutines.OK(), false, fmt.Errorf("expected v1alpha1.PlatformRestore, got %T", obj)
+		return subroutines.OK(), false, fmt.Errorf("expected pmbackupv1alpha1.PlatformRestore, got %T", obj)
 	}
 
 	if restoreTerminal(pr) || conditionIsTrue(pr, conditionCredentialsRestored) {
 		return subroutines.OK(), false, nil
 	}
 
-	if changed := setPhase(pr, v1alpha1.RestorePhaseRestoringCredentials); changed {
+	if changed := setPhase(pr, pmbackupv1alpha1.RestorePhaseRestoringCredentials); changed {
 		return subroutines.StopWithRequeue(time.Second, "phase set to RestoringCredentials"), true, nil
 	}
 
@@ -299,7 +316,7 @@ func (c *CredentialRestoreSubroutine) veleroBackupReady(ctx context.Context, nam
 	case "Completed":
 		return true, nil
 	case "Failed", "PartiallyFailed", "FailedValidation":
-		return false, fmt.Errorf("Velero Backup %s/%s failed with phase %s", velero.DefaultNamespace, name, phase)
+		return false, fmt.Errorf("velero Backup %s/%s failed with phase %s", velero.DefaultNamespace, name, phase)
 	default:
 		return false, nil
 	}
