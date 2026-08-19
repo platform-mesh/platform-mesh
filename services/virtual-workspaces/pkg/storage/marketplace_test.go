@@ -41,6 +41,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 )
 
@@ -58,6 +59,7 @@ func marketplaceTestScheme(t *testing.T) *runtime.Scheme {
 	utilruntime.Must(pmuiv1alpha1.AddToScheme(s))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(s))
 	utilruntime.Must(pmmarketplacev1alpha1.AddToScheme(s))
+	utilruntime.Must(kcpcorev1alpha1.AddToScheme(s))
 	return s
 }
 

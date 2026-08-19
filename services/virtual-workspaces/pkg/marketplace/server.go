@@ -40,6 +40,7 @@ import (
 	"github.com/kcp-dev/client-go/dynamic"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
@@ -62,7 +63,7 @@ func BuildVirtualWorkspace(
 	kcpClusterClient kcpclientset.ClusterInterface,
 	virtualWorkspaceBaseURL string,
 	provider *apiexport.Provider,
-	grantsProvider *apiexport.Provider,
+	grantsProvider *pathaware.Provider,
 ) virtualrootapiserver.NamedVirtualWorkspace {
 	clusterResolver := proxy.NewClusterResolver(kcpClusterClient)
 
