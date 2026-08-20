@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -325,4 +326,64 @@ func makeClusterMap(clusters ...*kcpcorev1alpha1.LogicalCluster) map[string]*kcp
 		result[logicalcluster.From(v).String()] = v
 	}
 	return result
+}
+
+func TestCanonicalHome_InvalidLocations(t *testing.T) {
+	scheme := marketplaceTestScheme(t)
+
+	grant := makeGrant(t, "org-foo-id", pmmarketplacev1alpha1.ProviderExports{
+		ProviderClusterID: "baz-provider-id",
+		APIExports:        []string{"buckets.baz"},
+	})
+	homeClient := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects(&grant).Build()
+
+	sut := CanonicalHome(clustersByPath(map[string]ctrlruntimeclient.Client{
+		"root:orgs:foo-corp": homeClient,
+	}), "root:orgs")
+
+	tests := []struct {
+		name        string
+		requestPath string
+	}{
+		{"request from root", "root"},
+		{"request from the home pattern level", "root:orgs"},
+		{"unrelated workspace tree", "root:compute:foo-corp"},
+		{"pattern partial match", "root:orgs2:foo-corp:team1"},
+		{"sibling org without the binding", "root:orgs:unrelated-org:team1"},
+		{"empty request path", ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := WithClusterPath(t.Context(), logicalcluster.NewPath(tc.requestPath))
+
+			result, err := sut(ctx, "some-cluster-id")
+			require.NoError(t, err, "denied locations should result in empty response and not an err")
+			assert.Empty(t, result, "grants of root:orgs:foo-corp must not return for %q", tc.requestPath)
+		})
+	}
+}
+
+func TestCanonicalHome_Errors(t *testing.T) {
+	t.Run("missing cluster path in context", func(t *testing.T) {
+		sut := CanonicalHome(clustersByPath(nil), "root:orgs")
+
+		result, err := sut(t.Context(), "some-cluster-id")
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("unexpected resolution errors propagate", func(t *testing.T) {
+		connErr := syscall.ECONNREFUSED
+		sut := CanonicalHome(func(context.Context, logicalcluster.Path) (ctrlruntimeclient.Client, error) {
+			return nil, connErr
+		}, "root:orgs")
+
+		ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp:team1"))
+
+		result, err := sut(ctx, "some-cluster-id")
+		require.ErrorIs(t, err, connErr)
+		assert.Nil(t, result)
+	})
 }

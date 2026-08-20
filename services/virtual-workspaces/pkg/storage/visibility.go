@@ -10,6 +10,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	mcpcache "github.com/kcp-dev/multicluster-provider/pkg/cache"
@@ -27,32 +28,33 @@ func CanonicalHome(
 	homePattern string,
 ) VisibleExportsFunc {
 	return func(ctx context.Context, logicalClusterID string) (map[string]sets.Set[string], error) {
-
 		path, got := ClusterPathFrom(ctx)
 		if !got {
 			return nil, errors.New("get canonical home: no cluster path in context")
 		}
 
+		result := make(map[string]sets.Set[string])
+
 		if !strings.HasPrefix(path.String(), homePattern) {
-			// TODO: test and return error
+			return result, nil
 		}
 
-		tenantPath := strings.TrimPrefix(path.String(), homePattern)
+		tenantPath := strings.TrimPrefix(path.String(), homePattern+":")
 
 		pathSegments := strings.Split(tenantPath, ":")
 		if len(pathSegments) <= 1 {
-			// todo: test and slap back
+			return result, nil
 		}
 
 		grantsHomeSegment := pathSegments[1]
 		home := fmt.Sprintf("%s:%s", homePattern, grantsHomeSegment)
 
-		// eg
-		// homeClusterPath := "root:orgs:foo-corp"
 		homePath := logicalcluster.NewPath(home)
 		homeClient, err := clusterByPath(ctx, homePath)
 		if err != nil {
-			// TODO: if err multicluster.ErrClusterNotFound => return emptyMap, nil
+			if errors.Is(err, multicluster.ErrClusterNotFound) {
+				return result, nil
+			}
 			return nil, err
 		}
 
@@ -61,8 +63,6 @@ func CanonicalHome(
 		if err != nil {
 			return nil, err
 		}
-
-		result := make(map[string]sets.Set[string])
 
 		for _, grantObj := range grants.Items {
 			for _, provider := range grantObj.Spec.Providers {
