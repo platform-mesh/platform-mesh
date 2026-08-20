@@ -23,15 +23,13 @@ import (
 
 	"go.platform-mesh.io/backup-operator/pkg/controller"
 	"go.platform-mesh.io/backup-operator/pkg/topology/projector"
+	"go.platform-mesh.io/backup-operator/pkg/velero"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -50,15 +48,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 
 	restCfg := ctrl.GetConfigOrDie()
 
-	provider, err := pathaware.New(restCfg, operatorCfg.Kcp.ApiExportEndpointSliceName, apiexport.Options{
-		Log:    &ctrl.Log,
-		Scheme: scheme,
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating APIExport provider")
-	}
-
-	mgr, err := mcmanager.New(restCfg, provider, mcmanager.Options{
+	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress:   defaultCfg.Metrics.BindAddress,
@@ -74,8 +64,20 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to start manager")
 	}
 
-	if err := projector.New(mgr.GetLocalManager().GetClient(), operatorCfg.Namespace).EnsureConfigMap(ctx); err != nil {
+	directClient, err := ctrlruntimeclient.New(restCfg, ctrlruntimeclient.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to create direct client")
+	}
+
+	if err := projector.New(directClient, operatorCfg.Namespace).EnsureConfigMap(ctx); err != nil {
 		log.Fatal().Err(err).Msg("unable to ensure topology schema ConfigMap")
+	}
+
+	// install velero upon operator startup
+	if err := velero.NewInstaller(directClient).Ensure(ctx); err != nil {
+		log.Fatal().Err(err).Msg("unable to ensure Velero installation")
 	}
 
 	if err := controller.NewPlatformBackupReconciler(mgr).SetupWithManager(mgr); err != nil {

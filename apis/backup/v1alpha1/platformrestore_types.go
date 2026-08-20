@@ -20,17 +20,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +kubebuilder:validation:Enum=ValidatingTopology;RestoringEtcd;RestoringCNPG;RestoringVelero;Repairing;Succeeded;Failed
+// +kubebuilder:validation:Enum=ValidatingTopology;QuiescingPlatform;RestoringCredentials;RestoringEtcd;RestoringCNPG;RestoringVelero;RestartingControlPlane;ValidatingIdentity;Repairing;Succeeded;Failed
 type RestorePhase string
 
 const (
-	RestorePhaseValidatingTopology RestorePhase = "ValidatingTopology"
-	RestorePhaseRestoringEtcd      RestorePhase = "RestoringEtcd"
-	RestorePhaseRestoringCNPG      RestorePhase = "RestoringCNPG"
-	RestorePhaseRestoringVelero    RestorePhase = "RestoringVelero"
-	RestorePhaseRepairing          RestorePhase = "Repairing"
-	RestorePhaseSucceeded          RestorePhase = "Succeeded"
-	RestorePhaseFailed             RestorePhase = "Failed"
+	RestorePhaseValidatingTopology     RestorePhase = "ValidatingTopology"
+	RestorePhaseQuiescingPlatform      RestorePhase = "QuiescingPlatform"
+	RestorePhaseRestoringCredentials   RestorePhase = "RestoringCredentials"
+	RestorePhaseRestoringEtcd          RestorePhase = "RestoringEtcd"
+	RestorePhaseRestoringCNPG          RestorePhase = "RestoringCNPG"
+	RestorePhaseRestoringVelero        RestorePhase = "RestoringVelero"
+	RestorePhaseRestartingControlPlane RestorePhase = "RestartingControlPlane"
+	RestorePhaseValidatingIdentity     RestorePhase = "ValidatingIdentity"
+	RestorePhaseRepairing              RestorePhase = "Repairing"
+	RestorePhaseSucceeded              RestorePhase = "Succeeded"
+	RestorePhaseFailed                 RestorePhase = "Failed"
 )
 
 // +kubebuilder:validation:Enum=Strict

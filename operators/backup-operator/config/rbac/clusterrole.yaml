@@ -1,0 +1,229 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backup-operator-manager-role
+rules:
+  - apiGroups:
+      - postgresql.cnpg.io
+    resources:
+      - backups
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+  - apiGroups:
+      - postgresql.cnpg.io
+    resources:
+      - clusters
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - watch
+
+  - apiGroups:
+      - backup.platform-mesh.io
+    resources:
+      - platformbackups
+      - platformrestores
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+  - apiGroups:
+      - backup.platform-mesh.io
+    resources:
+      - platformbackups/status
+      - platformrestores/status
+    verbs:
+      - get
+      - patch
+      - update
+
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - list
+      - update
+      - watch
+
+  - apiGroups:
+      - druid.gardener.cloud
+    resources:
+      - etcdopstasks
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - watch
+
+  - apiGroups:
+      - druid.gardener.cloud
+    resources:
+      - etcdopstasks/status
+    verbs:
+      - get
+
+  - apiGroups:
+      - druid.gardener.cloud
+    resources:
+      - etcds
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+  - apiGroups:
+      - velero.io
+    resources:
+      - backupstoragelocations
+      - backups
+      - restores
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - delete
+      - get
+      - list
+      - watch
+
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - delete
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods/exec
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "create"
+      - "patch"
+      - "update"
+  - apiGroups:
+      - "apps"
+    resources:
+      - deployments
+      - statefulsets
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "patch"
+      - "update"
+  - apiGroups:
+      - operator.kcp.io
+    resources:
+      - rootshards
+      - shards
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - update
+  - apiGroups:
+      - "velero.io"
+    resources:
+      - backups
+      - restores
+      - backupstoragelocations
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "create"
+      - "patch"
+      - "update"

@@ -32,6 +32,10 @@ COPY golang-commons/ golang-commons/
 COPY subroutines/ subroutines/
 COPY operators/backup-operator/ operators/backup-operator/
 
+# Keep the copied workspace compatible with this module without changing the
+# monorepo's root go.work file.
+RUN go work edit -go=1.26.4
+
 # Drop every workspace module except the ones copied above, so the workspace
 # resolves with only the modules copied above — regardless of what else go.work lists
 # (other operators, cmd/* tools, ...). This is a textual edit of go.work, so the

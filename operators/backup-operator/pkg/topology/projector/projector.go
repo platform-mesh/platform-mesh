@@ -22,7 +22,9 @@ import (
 
 	"go.platform-mesh.io/backup-operator/pkg/topology"
 
-	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -47,13 +49,22 @@ func (p *Projector) EnsureConfigMap(ctx context.Context) error {
 		return fmt.Errorf("reading topology schema: %w", err)
 	}
 
-	cm := corev1apply.ConfigMap(configMapName, p.namespace).
-		WithData(map[string]string{
-			"v1alpha1.json": string(schemaData),
-		})
-
-	if err := p.client.Apply(ctx, cm, ctrlruntimeclient.FieldOwner("backup-operator"), ctrlruntimeclient.ForceOwnership); err != nil {
-		return fmt.Errorf("applying topology schema ConfigMap: %w", err)
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMapName,
+			Namespace: p.namespace,
+		},
 	}
+
+	_, err = ctrl.CreateOrUpdate(ctx, p.client, cm, func() error {
+		cm.Data = map[string]string{
+			"v1alpha1.json": string(schemaData),
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("ensuring topology schema ConfigMap: %w", err)
+	}
+
 	return nil
 }

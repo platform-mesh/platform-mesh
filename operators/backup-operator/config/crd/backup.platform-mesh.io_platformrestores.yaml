@@ -184,9 +184,13 @@ spec:
               phase:
                 enum:
                 - ValidatingTopology
+                - QuiescingPlatform
+                - RestoringCredentials
                 - RestoringEtcd
                 - RestoringCNPG
                 - RestoringVelero
+                - RestartingControlPlane
+                - ValidatingIdentity
                 - Repairing
                 - Succeeded
                 - Failed
