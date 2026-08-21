@@ -151,7 +151,7 @@ func TestMarketplace_NoExportsVisible(t *testing.T) {
 
 	bindings := fake.NewClientBuilder().WithScheme(s).Build()
 
-	list := listMarketplace(t, lister, bindings, cfg, DenyAllExports)
+	list := listMarketplace(t, lister, bindings, cfg, denyAllExports)
 
 	assert.Empty(t, list.Items, "an export must stay hidden until a visibility source names it")
 }
@@ -354,4 +354,9 @@ func TestMarketplace_ExportsWithoutMatchingProvider(t *testing.T) {
 		allowExports(orphanedExport))
 
 	assert.Empty(t, list.Items, "should skip unknown providers")
+}
+
+// denyAllExports is a placeholder for the VisibleExportsFunc.
+func denyAllExports(context.Context, string) (map[string]sets.Set[string], error) {
+	return nil, nil
 }

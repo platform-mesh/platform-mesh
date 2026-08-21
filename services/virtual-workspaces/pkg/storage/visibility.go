@@ -18,15 +18,12 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-// DenyAllExports is a placeholder for the VisibleExportsFunc.
-func DenyAllExports(context.Context, string) (map[string]sets.Set[string], error) {
-	return nil, nil
-}
-
 func CanonicalHome(
 	clusterByPath func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error),
 	homePattern string,
 ) VisibleExportsFunc {
+	homePattern = strings.Trim(homePattern, ":")
+
 	return func(ctx context.Context, logicalClusterID string) (map[string]sets.Set[string], error) {
 		path, got := ClusterPathFrom(ctx)
 		if !got {
@@ -35,21 +32,11 @@ func CanonicalHome(
 
 		result := make(map[string]sets.Set[string])
 
-		if !strings.HasPrefix(path.String(), homePattern) {
+		homePath, found := workspaceHome(path, homePattern)
+		if !found {
 			return result, nil
 		}
 
-		tenantPath := strings.TrimPrefix(path.String(), homePattern+":")
-
-		pathSegments := strings.Split(tenantPath, ":")
-		if len(pathSegments) <= 1 {
-			return result, nil
-		}
-
-		grantsHomeSegment := pathSegments[1]
-		home := fmt.Sprintf("%s:%s", homePattern, grantsHomeSegment)
-
-		homePath := logicalcluster.NewPath(home)
 		homeClient, err := clusterByPath(ctx, homePath)
 		if err != nil {
 			if errors.Is(err, multicluster.ErrClusterNotFound) {
@@ -77,6 +64,19 @@ func CanonicalHome(
 
 		return result, nil
 	}
+}
+
+func workspaceHome(path logicalcluster.Path, homePattern string) (logicalcluster.Path, bool) {
+	remainder, found := strings.CutPrefix(path.String(), homePattern+":")
+	if !found {
+		return logicalcluster.Path{}, false
+	}
+
+	home, _, _ := strings.Cut(remainder, ":")
+	if home == "" {
+		return logicalcluster.Path{}, false
+	}
+	return logicalcluster.NewPath(homePattern + ":" + home), true
 }
 
 func VisibleExportsFromGrants(

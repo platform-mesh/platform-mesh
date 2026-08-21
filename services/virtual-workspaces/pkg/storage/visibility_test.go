@@ -69,35 +69,73 @@ func makeClusterFn(clusters ...*kcpcorev1alpha1.LogicalCluster) func(ctx context
 	}
 }
 
-func TestCanonicalHome_FooDbg(t *testing.T) {
+func TestCanonicalHome(t *testing.T) {
 	scheme := marketplaceTestScheme(t)
+	t.Run("grant in home workspace", func(t *testing.T) {
+		homeID := "org-foo-id"
 
-	homeID := "org-foo-id"
+		grant := makeGrant(t, homeID, pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: "baz-provider-id",
+			APIExports:        []string{"buckets.baz"},
+		})
+		orgClusterClient := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&grant).Build()
 
-	grant := makeGrant(t, homeID, pmmarketplacev1alpha1.ProviderExports{
-		ProviderClusterID: "baz-provider-id",
-		APIExports:        []string{"buckets.baz"},
+		// todo: clean up: not unnecessary, just for showcase purposes:
+		targetClusterClient := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects().Build()
+		seed := map[string]ctrlruntimeclient.Client{
+			"root:orgs:foo-corp":                   orgClusterClient,
+			"root:orgs:foo-corp:engineering:team1": targetClusterClient,
+		}
+
+		ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp:engineering:team1"))
+		sut := CanonicalHome(clustersByPath(seed), "root:orgs")
+
+		result, err := sut(ctx, "team-cluster-id")
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+
+		assert.True(t, result["baz-provider-id"].Has("buckets.baz"))
 	})
-	orgClusterClient := fake.NewClientBuilder().WithScheme(scheme).
-		WithObjects(&grant).Build()
+	t.Run("request from home", func(t *testing.T) {
+		grant := makeGrant(t, "org-foo-id", pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: "baz-provider-id",
+			APIExports:        []string{"buckets.baz"},
+		})
+		homeClient := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&grant).Build()
 
-	// todo: clean up: not unnecessary, just for showcase purposes:
-	targetClusterClient := fake.NewClientBuilder().WithScheme(scheme).
-		WithObjects().Build()
-	seed := map[string]ctrlruntimeclient.Client{
-		"root:orgs:foo-corp":                   orgClusterClient,
-		"root:orgs:foo-corp:engineering:team1": targetClusterClient,
-	}
+		sut := CanonicalHome(clustersByPath(map[string]ctrlruntimeclient.Client{
+			"root:orgs:foo-corp": homeClient,
+		}), "root:orgs")
 
-	ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp:engineering:team1"))
-	sut := CanonicalHome(clustersByPath(seed), "root:orgs")
+		ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp"))
 
-	result, err := sut(ctx, "team-cluster-id")
-	require.NoError(t, err)
-	require.Len(t, result, 1)
+		result, err := sut(ctx, "org-foo-id")
+		require.NoError(t, err)
+		require.Len(t, result, 1, "the org's own grants apply to the org workspace itself")
+		assert.True(t, result["baz-provider-id"].Has("buckets.baz"))
+	})
+	t.Run("home pattern with leading colon", func(t *testing.T) {
+		grant := makeGrant(t, "org-foo-id", pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: "baz-provider-id",
+			APIExports:        []string{"buckets.baz"},
+		})
+		homeClient := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&grant).Build()
 
-	assert.True(t, result["baz-provider-id"].Has("buckets.baz"))
+		sut := CanonicalHome(clustersByPath(map[string]ctrlruntimeclient.Client{
+			"root:orgs:foo-corp": homeClient,
+		}), ":root:orgs")
 
+		ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp:team1"))
+
+		result, err := sut(ctx, "team1-id")
+		require.NoError(t, err)
+		require.Len(t, result, 1, "the kubectl-ws display form (:root:orgs) must not cause a silent deny")
+		assert.True(t, result["baz-provider-id"].Has("buckets.baz"))
+	})
 }
 
 func clustersByPath(

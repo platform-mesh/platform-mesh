@@ -28,7 +28,6 @@ import (
 	"go.platform-mesh.io/virtual-workspaces/pkg/proxy"
 	"go.platform-mesh.io/virtual-workspaces/pkg/storage"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -42,7 +41,6 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcpclientset "github.com/kcp-dev/sdk/client/clientset/versioned/cluster"
 	"github.com/kcp-dev/virtual-workspace-framework/framework"
 	virtualworkspacesdynamic "github.com/kcp-dev/virtual-workspace-framework/pkg/dynamic"
@@ -99,13 +97,15 @@ func BuildVirtualWorkspace(
 						return cl.GetClient(), nil
 					},
 					cfg,
-					storage.VisibleExportsFromGrants(
-						grantsProvider.Lister(),
-						func(ctx context.Context, clusterID string) (*kcpcorev1alpha1.LogicalCluster, error) {
-							return kcpClusterClient.CoreV1alpha1().LogicalClusters().
-								Cluster(logicalcluster.Name(clusterID).Path()).
-								Get(ctx, kcpcorev1alpha1.LogicalClusterName, v1.GetOptions{})
+					storage.CanonicalHome(
+						func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error) {
+							cl, err := grantsProvider.Get(ctx, multicluster.ClusterName(path.String()))
+							if err != nil {
+								return nil, err
+							}
+							return cl.GetClient(), nil
 						},
+						cfg.VisibilityHomePattern,
 					),
 				)
 
