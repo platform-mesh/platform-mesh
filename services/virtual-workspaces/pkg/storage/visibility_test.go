@@ -141,7 +141,6 @@ func TestCanonicalHome(t *testing.T) {
 func clustersByPath(
 	clusterClients map[string]ctrlruntimeclient.Client,
 ) func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error) {
-
 	return func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error) {
 		cc, got := clusterClients[path.String()]
 		if !got {

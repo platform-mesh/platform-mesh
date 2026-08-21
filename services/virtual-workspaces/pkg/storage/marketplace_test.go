@@ -194,7 +194,7 @@ func TestMarketplace_AllExportsVisible(t *testing.T) {
 
 	require.Len(t, list.Items, 2, "every export the source names must be listed")
 
-	var names []string
+	names := make([]string, 0, len(list.Items))
 	for _, entry := range list.Items {
 		names = append(names, entry.GetName())
 	}
