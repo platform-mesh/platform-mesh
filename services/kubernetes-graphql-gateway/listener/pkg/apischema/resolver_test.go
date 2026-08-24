@@ -22,7 +22,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
+	pmgateway "go.platform-mesh.io/apis/gateway"
+	gatewayapischema "go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 	listenerapischema "go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema"
 	apischemaMocks "go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema/mocks"
 
@@ -88,5 +91,41 @@ func TestResolveSchema(t *testing.T) {
 			assert.NoError(t, err, "unexpected error")
 			assert.NotEmpty(t, got, "expected non-empty schema")
 		})
+	}
+}
+
+func TestResolveSchemaWithResourceSelectors(t *testing.T) {
+	openAPIClient := apischemaMocks.NewMockClient(t)
+	mockGV := apischemaMocks.NewMockGroupVersion(t)
+
+	response := spec3.OpenAPI{Components: &spec3.Components{Schemas: map[string]*spec.Schema{
+		"core.v1.Pod":        schemaWithGVK("", "v1", "Pod"),
+		"apps.v1.Deployment": schemaWithGVK("apps", "v1", "Deployment"),
+	}}}
+	responseJSON, err := json.Marshal(&response)
+	require.NoError(t, err)
+
+	openAPIClient.EXPECT().Paths().Return(map[string]openapi.GroupVersion{"/v1": mockGV}, nil)
+	mockGV.EXPECT().Schema(mock.Anything).Return(responseJSON, nil)
+
+	got, err := listenerapischema.NewResolver().
+		WithResourceSelectors([]gatewayapischema.ResourceSelector{{Group: "", Kind: "Pod"}}).
+		Resolve(t.Context(), openAPIClient)
+	require.NoError(t, err)
+
+	var resolved spec3.OpenAPI
+	require.NoError(t, json.Unmarshal(got, &resolved))
+	require.NotNil(t, resolved.Components)
+	assert.Contains(t, resolved.Components.Schemas, "core.v1.Pod")
+	assert.NotContains(t, resolved.Components.Schemas, "apps.v1.Deployment")
+}
+
+func schemaWithGVK(group, version, kind string) *spec.Schema {
+	return &spec.Schema{
+		VendorExtensible: spec.VendorExtensible{Extensions: map[string]any{
+			pmgateway.GVKExtensionKey: []map[string]any{{
+				"group": group, "version": version, "kind": kind,
+			}},
+		}},
 	}
 }

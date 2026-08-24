@@ -28,8 +28,18 @@ import (
 
 // Resolver orchestrates schema loading and enrichment.
 type Resolver struct {
-	loader    *SchemaLoader
-	enrichers []Enricher
+	loader            *SchemaLoader
+	enrichers         []Enricher
+	resourceSelectors []apischema.ResourceSelector
+	resourceFilterSet bool
+}
+
+// WithResourceSelectors configures the resolver to retain only matching
+// resource roots and their referenced support definitions.
+func (r *Resolver) WithResourceSelectors(selectors []apischema.ResourceSelector) *Resolver {
+	r.resourceSelectors = append([]apischema.ResourceSelector(nil), selectors...)
+	r.resourceFilterSet = true
+	return r
 }
 
 // Enricher modifies schemas in place to add metadata or extensions.
@@ -62,7 +72,18 @@ func (r *Resolver) Resolve(ctx context.Context, oc openapi.Client) ([]byte, erro
 		return nil, err
 	}
 
-	logger.Info("loaded schemas", "count", schemas.Size())
+	discoveredCount := schemas.Size()
+	logger.Info("loaded schemas", "count", discoveredCount)
+
+	if r.resourceFilterSet {
+		schemas, err = schemas.SelectResources(r.resourceSelectors)
+		if err != nil {
+			return nil, fmt.Errorf("select resource schemas: %w", err)
+		}
+		logger.Info("selected resource schemas",
+			"discoveredCount", discoveredCount,
+			"selectedCount", schemas.Size())
+	}
 
 	// 2. Run enrichers
 	for _, e := range r.enrichers {

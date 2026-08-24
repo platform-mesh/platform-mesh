@@ -25,6 +25,7 @@ import (
 	"time"
 
 	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
+	gatewayapischema "go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/reconciler"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema/enricher"
@@ -181,6 +182,17 @@ func (r *ClusterAccessReconciler) reconcileClusterAccess(
 		enricher.NewScope(targetRM),
 		enricher.NewCategories(apiResources),
 	)
+	if ca.Spec.SchemaFilter != nil {
+		selectors := make([]gatewayapischema.ResourceSelector, 0, len(ca.Spec.SchemaFilter.Include))
+		for _, selector := range ca.Spec.SchemaFilter.Include {
+			selectors = append(selectors, gatewayapischema.ResourceSelector{
+				Group:   selector.Group,
+				Version: selector.Version,
+				Kind:    selector.Kind,
+			})
+		}
+		resolver.WithResourceSelectors(selectors)
+	}
 
 	// Resolve schema from target cluster
 	schemaJSON, err := resolver.Resolve(ctx, targetDiscovery.OpenAPIV3())

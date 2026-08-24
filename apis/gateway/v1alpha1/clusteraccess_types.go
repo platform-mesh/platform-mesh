@@ -63,6 +63,32 @@ type ClusterAccessSpec struct {
 	// Auth configuration for the cluster
 	// +optional
 	Auth *AuthConfig `json:"auth,omitempty"`
+
+	// SchemaFilter restricts which Kubernetes resource types are exposed as typed GraphQL operations.
+	// If unset, all discovered resource types are exposed.
+	// +optional
+	SchemaFilter *SchemaFilter `json:"schemaFilter,omitempty"`
+}
+
+// SchemaFilter selects the Kubernetes resource types exposed as typed GraphQL operations.
+type SchemaFilter struct {
+	// Include contains selectors that are ORed together.
+	// +kubebuilder:validation:MinItems=1
+	Include []ResourceSelector `json:"include"`
+}
+
+// ResourceSelector matches Kubernetes resources by exact group and, optionally, version and kind.
+type ResourceSelector struct {
+	// Group is the Kubernetes API group. Use an empty string for the core API group.
+	Group string `json:"group"`
+
+	// Version is the optional Kubernetes API version to match.
+	// +optional
+	Version string `json:"version,omitempty"`
+
+	// Kind is the optional Kubernetes resource kind to match.
+	// +optional
+	Kind string `json:"kind,omitempty"`
 }
 
 // CAConfig defines CA configuration options

@@ -115,6 +115,38 @@ go run main.go gateway --schema-handler grpc --enable-playground
 
 The helper script [`hack/create-clusteraccess.sh`](hack/create-clusteraccess.md) can automate ClusterAccess resource creation.
 
+#### Restrict typed resource operations
+
+By default, a `ClusterAccess` exposes typed GraphQL operations for every
+resource discovered on the target cluster. Use `schemaFilter` to expose only
+selected Kubernetes API groups, versions, and kinds:
+
+```yaml
+apiVersion: gateway.platform-mesh.io/v1alpha1
+kind: ClusterAccess
+metadata:
+  name: my-cluster
+spec:
+  host: https://<cluster-api-server>
+  schemaFilter:
+    include:
+      # The empty group selects the Kubernetes core API group.
+      - group: ""
+        version: v1
+        kind: Pod
+      # Omitting version selects all versions of Deployment in this group.
+      - group: apps
+        kind: Deployment
+```
+
+The include selectors are ORed and matched exactly, including case. `group` is
+required; `version` and `kind` are optional. Omitting `schemaFilter` preserves
+the default behavior of exposing every discovered resource type.
+
+The filter controls generated typed GraphQL operations and introspection. It is
+not an authorization boundary: Kubernetes RBAC remains authoritative, and
+generic operations such as `applyYaml` are not restricted by `schemaFilter`.
+
 ## GraphQL API
 
 For every Kubernetes resource discovered on a cluster, the gateway generates typed GraphQL operations:
