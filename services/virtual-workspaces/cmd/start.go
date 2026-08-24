@@ -37,6 +37,7 @@ import (
 
 	"github.com/kcp-dev/client-go/dynamic"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
@@ -119,7 +120,7 @@ var startCmd = &cobra.Command{
 			}
 		}()
 
-		grantsProvider, err := apiexport.New(providerCfg, cfg.GrantsAPIExportEndpointSliceName, apiexport.Options{
+		grantsProvider, err := pathaware.New(providerCfg, cfg.GrantsAPIExportEndpointSliceName, apiexport.Options{
 			Scheme: scheme,
 		})
 		if err != nil {

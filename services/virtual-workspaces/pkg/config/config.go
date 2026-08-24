@@ -32,6 +32,7 @@ type ServiceConfig struct {
 	ResourceAPIExportEndpointSliceName string
 
 	GrantsAPIExportEndpointSliceName string
+	VisibilityHomePattern            string
 }
 
 func NewServiceConfig() ServiceConfig {
@@ -42,7 +43,8 @@ func NewServiceConfig() ServiceConfig {
 		AccountEntityName:                "core_platform-mesh_io_account",
 		ResourceSchemaName:               "v250704-6d57f16.contentconfigurations.ui.platform-mesh.io",
 		ResourceSchemaWorkspace:          "root:openmfp-system",
-		GrantsAPIExportEndpointSliceName: "marketplace.platform-mesh.io",
+		GrantsAPIExportEndpointSliceName: "visibility.platform-mesh.io",
+		VisibilityHomePattern:            "root:orgs",
 	}
 }
 
@@ -62,4 +64,5 @@ func (c *ServiceConfig) AddFlags(fs *pflag.FlagSet) {
 		"Set the resource APIExport EndpointSlice name",
 	)
 	fs.StringVar(&c.GrantsAPIExportEndpointSliceName, "grants-apiexport-endpointslice-name", c.GrantsAPIExportEndpointSliceName, "Set the VisibilityGrant APIExport EndpointSlice name")
+	fs.StringVar(&c.VisibilityHomePattern, "visibility-home-pattern", c.VisibilityHomePattern, "Canonical home prefix for VisibilityGrant resolution:")
 }

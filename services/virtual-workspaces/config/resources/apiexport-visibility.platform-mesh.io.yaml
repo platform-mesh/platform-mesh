@@ -15,12 +15,13 @@
 apiVersion: apis.kcp.io/v1alpha2
 kind: APIExport
 metadata:
-  name: marketplace.platform-mesh.io
+  name: visibility.platform-mesh.io
 spec:
+  maximalPermissionPolicy:
+    local: {}
   resources:
   - group: marketplace.platform-mesh.io
-    name: marketplaceentries
-    schema: v260623-482e10b2.marketplaceentries.marketplace.platform-mesh.io
+    name: visibilitygrants
+    schema: v260815-d5e6f5f8.visibilitygrants.marketplace.platform-mesh.io
     storage:
       crd: {}
-status: {}

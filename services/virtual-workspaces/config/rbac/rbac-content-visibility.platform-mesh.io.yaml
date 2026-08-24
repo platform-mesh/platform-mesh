@@ -1,0 +1,67 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: visibility-content-admin
+rules:
+  - apiGroups: ["apis.kcp.io"]
+    resources: ["apiexports/content"]
+    resourceNames: ["visibility.platform-mesh.io"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: visibility-endpointslice-read
+rules:
+  - apiGroups: ["apis.kcp.io"]
+    resources: ["apiexportendpointslices"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: visibility-endpointslice-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: visibility-endpointslice-read
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: pm:platform-admins
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: kcp-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: visibility-content-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: visibility-content-admin
+subjects:
+  # TODO: platform-admin group is deployment config, template in the chart
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: pm:platform-admins
+  # explicit for local-setup demo parity; system:kcp:admin passes the SAR
+  # via privilege anyway
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: kcp-admin

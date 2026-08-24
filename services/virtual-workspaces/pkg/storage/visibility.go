@@ -1,12 +1,32 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	pmmarketplacev1alpha1 "go.platform-mesh.io/apis/marketplace/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/util/sets"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	mcpcache "github.com/kcp-dev/multicluster-provider/pkg/cache"
@@ -14,9 +34,65 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-// DenyAllExports is a placeholder for the VisibleExportsFunc.
-func DenyAllExports(context.Context, string) (map[string]sets.Set[string], error) {
-	return nil, nil
+func CanonicalHome(
+	clusterByPath func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error),
+	homePattern string,
+) VisibleExportsFunc {
+	homePattern = strings.Trim(homePattern, ":")
+
+	return func(ctx context.Context, logicalClusterID string) (map[string]sets.Set[string], error) {
+		path, got := ClusterPathFrom(ctx)
+		if !got {
+			return nil, errors.New("get canonical home: no cluster path in context")
+		}
+
+		result := make(map[string]sets.Set[string])
+
+		homePath, found := workspaceHome(path, homePattern)
+		if !found {
+			return result, nil
+		}
+
+		homeClient, err := clusterByPath(ctx, homePath)
+		if err != nil {
+			if errors.Is(err, multicluster.ErrClusterNotFound) {
+				return result, nil
+			}
+			return nil, err
+		}
+
+		var grants pmmarketplacev1alpha1.VisibilityGrantList
+		err = homeClient.List(ctx, &grants)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, grantObj := range grants.Items {
+			for _, provider := range grantObj.Spec.Providers {
+				entries, got := result[provider.ProviderClusterID]
+				if !got {
+					entries = make(sets.Set[string])
+				}
+				entries.Insert(provider.APIExports...)
+				result[provider.ProviderClusterID] = entries
+			}
+		}
+
+		return result, nil
+	}
+}
+
+func workspaceHome(path logicalcluster.Path, homePattern string) (logicalcluster.Path, bool) {
+	remainder, found := strings.CutPrefix(path.String(), homePattern+":")
+	if !found {
+		return logicalcluster.Path{}, false
+	}
+
+	home, _, _ := strings.Cut(remainder, ":")
+	if home == "" {
+		return logicalcluster.Path{}, false
+	}
+	return logicalcluster.NewPath(homePattern + ":" + home), true
 }
 
 func VisibleExportsFromGrants(
@@ -26,7 +102,6 @@ func VisibleExportsFromGrants(
 	return func(ctx context.Context, logicalClusterID string) (map[string]sets.Set[string], error) {
 		// ancestors:
 		clusterIDs := make(sets.Set[string])
-
 		clusterID := logicalClusterID
 		for !clusterIDs.Has(clusterID) {
 			if clusterID == core.RootCluster.String() {

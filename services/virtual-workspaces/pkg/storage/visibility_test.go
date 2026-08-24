@@ -1,8 +1,25 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package storage
 
 import (
 	"context"
 	"fmt"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +29,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/sdk/apis/core"
@@ -63,6 +82,89 @@ func makeClusterFn(clusters ...*kcpcorev1alpha1.LogicalCluster) func(ctx context
 		}
 
 		return lc, nil
+	}
+}
+
+func TestCanonicalHome(t *testing.T) {
+	scheme := marketplaceTestScheme(t)
+	t.Run("grant in home workspace", func(t *testing.T) {
+		homeID := "org-foo-id"
+
+		grant := makeGrant(t, homeID, pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: "baz-provider-id",
+			APIExports:        []string{"buckets.baz"},
+		})
+		orgClusterClient := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&grant).Build()
+
+		// todo: clean up: not unnecessary, just for showcase purposes:
+		targetClusterClient := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects().Build()
+		seed := map[string]ctrlruntimeclient.Client{
+			"root:orgs:foo-corp":                   orgClusterClient,
+			"root:orgs:foo-corp:engineering:team1": targetClusterClient,
+		}
+
+		ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp:engineering:team1"))
+		sut := CanonicalHome(clustersByPath(seed), "root:orgs")
+
+		result, err := sut(ctx, "team-cluster-id")
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+
+		assert.True(t, result["baz-provider-id"].Has("buckets.baz"))
+	})
+	t.Run("request from home", func(t *testing.T) {
+		grant := makeGrant(t, "org-foo-id", pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: "baz-provider-id",
+			APIExports:        []string{"buckets.baz"},
+		})
+		homeClient := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&grant).Build()
+
+		sut := CanonicalHome(clustersByPath(map[string]ctrlruntimeclient.Client{
+			"root:orgs:foo-corp": homeClient,
+		}), "root:orgs")
+
+		ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp"))
+
+		result, err := sut(ctx, "org-foo-id")
+		require.NoError(t, err)
+		require.Len(t, result, 1, "the org's own grants apply to the org workspace itself")
+		assert.True(t, result["baz-provider-id"].Has("buckets.baz"))
+	})
+	t.Run("home pattern with leading colon", func(t *testing.T) {
+		grant := makeGrant(t, "org-foo-id", pmmarketplacev1alpha1.ProviderExports{
+			ProviderClusterID: "baz-provider-id",
+			APIExports:        []string{"buckets.baz"},
+		})
+		homeClient := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&grant).Build()
+
+		sut := CanonicalHome(clustersByPath(map[string]ctrlruntimeclient.Client{
+			"root:orgs:foo-corp": homeClient,
+		}), ":root:orgs")
+
+		ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp:team1"))
+
+		result, err := sut(ctx, "team1-id")
+		require.NoError(t, err)
+		require.Len(t, result, 1, "the kubectl-ws display form (:root:orgs) must not cause a silent deny")
+		assert.True(t, result["baz-provider-id"].Has("buckets.baz"))
+	})
+}
+
+func clustersByPath(
+	clusterClients map[string]ctrlruntimeclient.Client,
+) func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error) {
+	return func(ctx context.Context, path logicalcluster.Path) (ctrlruntimeclient.Client, error) {
+		cc, got := clusterClients[path.String()]
+		if !got {
+			// make sure the sentinel error is as expected:
+			return nil, fmt.Errorf("cluster by path %q not found: %w",
+				path.String(), multicluster.ErrClusterNotFound)
+		}
+		return cc, nil
 	}
 }
 
@@ -277,4 +379,64 @@ func makeClusterMap(clusters ...*kcpcorev1alpha1.LogicalCluster) map[string]*kcp
 		result[logicalcluster.From(v).String()] = v
 	}
 	return result
+}
+
+func TestCanonicalHome_InvalidLocations(t *testing.T) {
+	scheme := marketplaceTestScheme(t)
+
+	grant := makeGrant(t, "org-foo-id", pmmarketplacev1alpha1.ProviderExports{
+		ProviderClusterID: "baz-provider-id",
+		APIExports:        []string{"buckets.baz"},
+	})
+	homeClient := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects(&grant).Build()
+
+	sut := CanonicalHome(clustersByPath(map[string]ctrlruntimeclient.Client{
+		"root:orgs:foo-corp": homeClient,
+	}), "root:orgs")
+
+	tests := []struct {
+		name        string
+		requestPath string
+	}{
+		{"request from root", "root"},
+		{"request from the home pattern level", "root:orgs"},
+		{"unrelated workspace tree", "root:compute:foo-corp"},
+		{"pattern partial match", "root:orgs2:foo-corp:team1"},
+		{"sibling org without the binding", "root:orgs:unrelated-org:team1"},
+		{"empty request path", ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := WithClusterPath(t.Context(), logicalcluster.NewPath(tc.requestPath))
+
+			result, err := sut(ctx, "some-cluster-id")
+			require.NoError(t, err, "denied locations should result in empty response and not an err")
+			assert.Empty(t, result, "grants of root:orgs:foo-corp must not return for %q", tc.requestPath)
+		})
+	}
+}
+
+func TestCanonicalHome_Errors(t *testing.T) {
+	t.Run("missing cluster path in context", func(t *testing.T) {
+		sut := CanonicalHome(clustersByPath(nil), "root:orgs")
+
+		result, err := sut(t.Context(), "some-cluster-id")
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("unexpected resolution errors propagate", func(t *testing.T) {
+		connErr := syscall.ECONNREFUSED
+		sut := CanonicalHome(func(context.Context, logicalcluster.Path) (ctrlruntimeclient.Client, error) {
+			return nil, connErr
+		}, "root:orgs")
+
+		ctx := WithClusterPath(t.Context(), logicalcluster.NewPath("root:orgs:foo-corp:team1"))
+
+		result, err := sut(ctx, "some-cluster-id")
+		require.ErrorIs(t, err, connErr)
+		assert.Nil(t, result)
+	})
 }

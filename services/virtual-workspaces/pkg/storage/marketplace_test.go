@@ -41,6 +41,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 )
 
@@ -58,6 +59,7 @@ func marketplaceTestScheme(t *testing.T) *runtime.Scheme {
 	utilruntime.Must(pmuiv1alpha1.AddToScheme(s))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(s))
 	utilruntime.Must(pmmarketplacev1alpha1.AddToScheme(s))
+	utilruntime.Must(kcpcorev1alpha1.AddToScheme(s))
 	return s
 }
 
@@ -149,7 +151,7 @@ func TestMarketplace_NoExportsVisible(t *testing.T) {
 
 	bindings := fake.NewClientBuilder().WithScheme(s).Build()
 
-	list := listMarketplace(t, lister, bindings, cfg, DenyAllExports)
+	list := listMarketplace(t, lister, bindings, cfg, denyAllExports)
 
 	assert.Empty(t, list.Items, "an export must stay hidden until a visibility source names it")
 }
@@ -192,7 +194,7 @@ func TestMarketplace_AllExportsVisible(t *testing.T) {
 
 	require.Len(t, list.Items, 2, "every export the source names must be listed")
 
-	var names []string
+	names := make([]string, 0, len(list.Items))
 	for _, entry := range list.Items {
 		names = append(names, entry.GetName())
 	}
@@ -352,4 +354,9 @@ func TestMarketplace_ExportsWithoutMatchingProvider(t *testing.T) {
 		allowExports(orphanedExport))
 
 	assert.Empty(t, list.Items, "should skip unknown providers")
+}
+
+// denyAllExports is a placeholder for the VisibleExportsFunc.
+func denyAllExports(context.Context, string) (map[string]sets.Set[string], error) {
+	return nil, nil
 }
