@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260817-a47fd3e4.marketplaceentries.marketplace.platform-mesh.io
+  name: v260825-f6a06120.marketplaceentries.marketplace.platform-mesh.io
 spec:
   group: marketplace.platform-mesh.io
   names:
@@ -55,23 +55,13 @@ spec:
                 Empty means not installed.
               type: string
             apiExport:
-              description: PermissionClaims are the permission claims associated with
-                the marketplace entry.
+              description: |-
+                APIExport is the v1alpha1-compatible export associated with the marketplace entry.
+                It is retained for existing Marketplace clients.
               properties:
                 apiVersion:
-                  description: |-
-                    APIVersion defines the versioned schema of this representation of an object.
-                    Servers should convert recognized schemas to the latest internal value, and
-                    may reject unrecognized values.
-                    More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
                   type: string
                 kind:
-                  description: |-
-                    Kind is a string value representing the REST resource this object represents.
-                    Servers may infer this from the endpoint the client submits requests to.
-                    Cannot be updated.
-                    In CamelCase.
-                    More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
                   type: string
                 metadata:
                   type: object
@@ -79,23 +69,8 @@ spec:
                   description: Spec holds the desired state.
                   properties:
                     identity:
-                      description: |-
-                        identity points to a secret that contains the API identity in the 'key' file.
-                        The API identity determines an unique etcd prefix for objects stored via this
-                        APIExport.
-
-                        Different APIExport in a workspace can share a common identity, or have different
-                        ones. The identity (the secret) can also be transferred to another workspace
-                        when the APIExport is moved.
-
-                        The identity is a secret of the API provider. The APIBindings referencing this APIExport
-                        will store a derived, non-sensitive value of this identity.
-
-                        The identity of an APIExport cannot be changed. A derived, non-sensitive value of
-                        the identity key is stored in the APIExport status and this value is immutable.
-
-                        The identity is defaulted. A secret with the name of the APIExport is automatically
-                        created.
+                      description: Identity points to the Secret containing the API
+                        identity.
                       properties:
                         secretRef:
                           description: secretRef is a reference to a secret that contains
@@ -113,42 +88,15 @@ spec:
                           x-kubernetes-map-type: atomic
                       type: object
                     latestResourceSchemas:
-                      description: |-
-                        latestResourceSchemas records the latest APIResourceSchemas that are exposed
-                        with this APIExport.
-
-                        The schemas can be changed in the life-cycle of the APIExport. These changes
-                        have no effect on existing APIBindings, but only on newly bound ones.
-
-                        For updating existing APIBindings, use an APIDeployment keeping bound
-                        workspaces up-to-date.
+                      description: LatestResourceSchemas records the latest APIResourceSchemas
+                        exposed by the APIExport.
                       items:
                         type: string
                       type: array
                       x-kubernetes-list-type: set
                     maximalPermissionPolicy:
-                      description: |-
-                        maximalPermissionPolicy will allow for a service provider to set an upper bound on what is allowed
-                        for a consumer of this API. If the policy is not set, no upper bound is applied,
-                        i.e the consuming users can do whatever the user workspace allows the user to do.
-
-                        The policy consists of RBAC (Cluster)Roles and (Cluster)Bindings. A request of a user in
-                        a workspace that binds to this APIExport via an APIBinding is additionally checked against
-                        these rules, with the user name and the groups prefixed with `apis.kcp.io:binding:`.
-
-                        For example: assume a user `adam` with groups `system:authenticated` and `a-team` binds to
-                        this APIExport in another workspace root:org:ws. Then a request in that workspace
-                        against a resource of this APIExport is authorized as every other request in that workspace,
-                        but in addition the RBAC policy here in the APIExport workspace has to grant access to the
-                        user `apis.kcp.io:binding:adam` with the groups `apis.kcp.io:binding:system:authenticated`
-                        and `apis.kcp.io:binding:a-team`.
-
-                        If an APIExport with a maximalPermissionPolicy is deleted, these additional checks will no longer
-                        be applied to resources of this APIExport.
-
-                        For example: Assume an APIExport with a maximalPermissionPolicy that only allows creation and
-                        deletion of resources, but not updates - if the APIExport is deleted users will be able to update
-                        the resources of the APIExport again (given the constraints of their workspace's RBAC policies).
+                      description: MaximalPermissionPolicy sets the APIExport's upper
+                        authorization bound.
                       properties:
                         local:
                           description: local is the policy that is defined in same
@@ -156,51 +104,33 @@ spec:
                           type: object
                       type: object
                     permissionClaims:
-                      description: |-
-                        permissionClaims make resources available in APIExport's virtual workspace that are not part
-                        of the actual APIExport resources.
-
-                        PermissionClaims are optional and should be the least access necessary to complete the functions
-                        that the service provider needs. Access is asked for on a GroupResource + identity basis.
-
-                        PermissionClaims must be accepted by the user's explicit acknowledgement. Hence, when claims
-                        change, the respecting objects are not visible immediately.
-
-                        PermissionClaims overlapping with the APIExport resources are ignored.
+                      description: PermissionClaims are the legacy v1alpha1 claims
+                        retained for existing clients.
                       items:
-                        description: |-
-                          PermissionClaim identifies an object by GR and identity hash.
-                          Its purpose is to determine the added permissions that a service provider may
-                          request and that a consumer may accept and allow the service provider access to.
+                        description: LegacyPermissionClaim is the JSON-compatible
+                          v1alpha1 permission claim.
                         properties:
                           all:
-                            description: |-
-                              all claims all resources for the given group/resource.
-                              This is mutually exclusive with resourceSelector.
+                            description: All claims all resources for the group/resource.
                             type: boolean
                           group:
-                            description: |-
-                              group is the name of an API group.
-                              For core groups this is the empty string '""'.
+                            default: ""
+                            description: Group is the name of an API group. The empty
+                              string represents the core group.
                             pattern: ^(|[a-z0-9]([-a-z0-9]*[a-z0-9](\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)?)$
                             type: string
                           identityHash:
-                            description: |-
-                              This is the identity for a given APIExport that the APIResourceSchema belongs to.
-                              The hash can be found on APIExport and APIResourceSchema's status.
-                              It will be empty for core types.
-                              Note that one must look this up for a particular kcp instance.
+                            default: ""
+                            description: IdentityHash identifies the API identity
+                              for non-core resources.
                             type: string
                           resource:
-                            description: |-
-                              resource is the name of the resource.
-                              Note: it is worth noting that you can not ask for permissions for resource provided by a CRD
-                              not provided by an api export.
+                            description: Resource is the name of the resource.
                             pattern: ^[a-z][-a-z0-9]*[a-z0-9]$
                             type: string
                           resourceSelector:
-                            description: resourceSelector is a list of claimed resource
-                              selectors.
+                            description: ResourceSelector is the list of specifically
+                              claimed resources.
                             items:
                               properties:
                                 name:
@@ -308,6 +238,113 @@ spec:
                       type: array
                   type: object
               type: object
+            apiExportPermissionClaims:
+              description: |-
+                APIExportPermissionClaims contains v1alpha2 permission claims associated with
+                the APIExport, including verbs and default selectors. Claims originating from
+                v1alpha1 resourceSelector are omitted because they cannot be translated to a
+                v1alpha2 label selector without broadening their scope.
+              items:
+                description: |-
+                  PermissionClaim identifies an object by GR and identity hash.
+                  Its purpose is to determine the added permissions that a service provider may
+                  request and that a consumer may accept and allow the service provider access to.
+                properties:
+                  defaultSelector:
+                    description: |-
+                      defaultSelector is the default selector to use when creating APIBindings
+                      via WorkspaceType's defaultAPIBindings. If not set, the APIBinding will
+                      default to matchAll: true.
+
+                      This allows API providers to suggest a default scope for permission claims
+                      that will be used when workspaces are automatically created with default
+                      APIBindings. Users can always override the default selector by accepting the
+                      claim with a different selector or by manually creating APIBindings with a custom selector.
+                    properties:
+                      matchAll:
+                        description: matchAll grants access to all objects of the
+                          claimed resource.
+                        type: boolean
+                      matchExpressions:
+                        description: matchExpressions is a list of label selector
+                          requirements. The requirements are ANDed.
+                        items:
+                          description: |-
+                            A label selector requirement is a selector that contains values, a key, and an operator that
+                            relates the key and values.
+                          properties:
+                            key:
+                              description: key is the label key that the selector
+                                applies to.
+                              type: string
+                            operator:
+                              description: |-
+                                operator represents a key's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists and DoesNotExist.
+                              type: string
+                            values:
+                              description: |-
+                                values is an array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty. This array is replaced during a strategic
+                                merge patch.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          required:
+                          - key
+                          - operator
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: atomic
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                          map is equivalent to an element of matchExpressions, whose key field is "key", the
+                          operator is "In", and the values array contains only "value". The requirements are ANDed.
+                        type: object
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  group:
+                    default: ""
+                    description: |-
+                      group is the name of an API group.
+                      For core groups this is the empty string '""'.
+                    pattern: ^(|[a-z0-9]([-a-z0-9]*[a-z0-9](\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)?)$
+                    type: string
+                  identityHash:
+                    default: ""
+                    description: |-
+                      This is the identity for a given APIExport that the APIResourceSchema belongs to.
+                      The hash can be found on APIExport and APIResourceSchema's status.
+                      It will be empty for core types.
+                      Note that one must look this up for a particular kcp instance.
+                    type: string
+                  resource:
+                    description: |-
+                      resource is the name of the resource.
+                      Note: it is worth noting that you can not ask for permissions for resource provided by a CRD
+                      not provided by an api export.
+                    pattern: ^[a-z][-a-z0-9]*[a-z0-9]$
+                    type: string
+                  verbs:
+                    description: |-
+                      verbs is a list of supported API operation types (this includes
+                      but is not limited to get, list, watch, create, update, patch,
+                      delete, deletecollection, and proxy).
+                    items:
+                      type: string
+                    minItems: 1
+                    type: array
+                    x-kubernetes-list-type: set
+                required:
+                - resource
+                - verbs
+                type: object
+              type: array
             providerMetadata:
               description: ProviderMetadata contains metadata about the provider of
                 the marketplace entry.

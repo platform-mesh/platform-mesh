@@ -18,6 +18,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -41,6 +42,7 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 	mcpcache "github.com/kcp-dev/multicluster-provider/pkg/cache"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/forwardingregistry"
 )
 
@@ -226,7 +228,7 @@ func Marketplace(
 
 			// For each provider, find matching APIExports across all shards
 			for _, provider := range providerList.Items {
-				exportList := &kcpapisv1alpha1.APIExportList{}
+				exportList := &kcpapisv1alpha2.APIExportList{}
 
 				if err := lister.List(ctx, exportList, &ctrlruntimeclient.ListOptions{
 					LabelSelector: labels.SelectorFromValidatedSet(map[string]string{
@@ -241,7 +243,16 @@ func Marketplace(
 					if logicalcluster.From(&export) != providerClusterID {
 						continue
 					}
-					if len(export.Spec.LatestResourceSchemas) == 0 {
+
+					legacyExport := &kcpapisv1alpha1.APIExport{}
+					if err := kcpapisv1alpha2.Convert_v1alpha2_APIExport_To_v1alpha1_APIExport(&export, legacyExport, nil); err != nil {
+						return nil, fmt.Errorf("failed to convert APIExport %s to v1alpha1: %w", export.Name, err)
+					}
+					legacyOrigins, err := legacyPermissionClaimOrigins(&export)
+					if err != nil {
+						return nil, fmt.Errorf("failed to decode original v1alpha1 permission claims for APIExport %s: %w", export.Name, err)
+					}
+					if len(legacyExport.Spec.LatestResourceSchemas) == 0 {
 						continue
 					}
 
@@ -256,16 +267,19 @@ func Marketplace(
 					}
 
 					provider.ManagedFields = nil // clear managed fields to declutter the output
-					export.ManagedFields = nil
+					legacyExport.ManagedFields = nil
+					legacyClaims, permissionClaims := projectPermissionClaims(export.Spec.PermissionClaims, legacyOrigins)
+					legacyAPIExport := projectLegacyAPIExport(legacyExport, legacyClaims)
 
 					unstructuredEntry, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&pmmarketplacev1alpha1.MarketplaceEntry{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: fmt.Sprintf("%s-%s", export.Name, provider.Name), // TODO: we might need to fix the name length to not exceed the kubernetes limit
 						},
 						Spec: pmmarketplacev1alpha1.MarketplaceEntrySpec{
-							ProviderMetadata: *provider.DeepCopy(),
-							APIExport:        *export.DeepCopy(),
-							APIBindingName:   apiBindingName,
+							ProviderMetadata:          *provider.DeepCopy(),
+							APIExport:                 legacyAPIExport,
+							APIExportPermissionClaims: permissionClaims,
+							APIBindingName:            apiBindingName,
 						},
 					})
 					if err != nil {
@@ -280,4 +294,128 @@ func Marketplace(
 			return &results, nil
 		}
 	})
+}
+
+func projectLegacyAPIExport(
+	export *kcpapisv1alpha1.APIExport,
+	permissionClaims []pmmarketplacev1alpha1.LegacyPermissionClaim,
+) pmmarketplacev1alpha1.LegacyAPIExport {
+	return pmmarketplacev1alpha1.LegacyAPIExport{
+		APIVersion: kcpapisv1alpha1.SchemeGroupVersion.String(),
+		Kind:       "APIExport",
+		Metadata:   *export.ObjectMeta.DeepCopy(),
+		Spec: pmmarketplacev1alpha1.LegacyAPIExportSpec{
+			LatestResourceSchemas:   append([]string(nil), export.Spec.LatestResourceSchemas...),
+			Identity:                export.Spec.Identity.DeepCopy(),
+			MaximalPermissionPolicy: export.Spec.MaximalPermissionPolicy.DeepCopy(),
+			PermissionClaims:        permissionClaims,
+		},
+		Status: *export.Status.DeepCopy(),
+	}
+}
+
+type permissionClaimKey struct {
+	group        string
+	resource     string
+	identityHash string
+}
+
+type legacyPermissionClaimOrigin struct {
+	claim kcpapisv1alpha1.PermissionClaim
+	count int
+}
+
+func legacyPermissionClaimOrigins(export *kcpapisv1alpha2.APIExport) (map[permissionClaimKey]legacyPermissionClaimOrigin, error) {
+	encoded, ok := export.Annotations[kcpapisv1alpha2.PermissionClaimsV1Alpha1Annotation]
+	if !ok {
+		return nil, nil
+	}
+
+	var claims []kcpapisv1alpha1.PermissionClaim
+	if err := json.Unmarshal([]byte(encoded), &claims); err != nil {
+		return nil, err
+	}
+
+	origins := make(map[permissionClaimKey]legacyPermissionClaimOrigin, len(claims))
+	for i := range claims {
+		key := permissionClaimKey{
+			group:        claims[i].Group,
+			resource:     claims[i].Resource,
+			identityHash: claims[i].IdentityHash,
+		}
+		origin := origins[key]
+		origin.claim = *claims[i].DeepCopy()
+		origin.count++
+		origins[key] = origin
+	}
+
+	return origins, nil
+}
+
+func projectPermissionClaims(
+	authoritativeClaims []kcpapisv1alpha2.PermissionClaim,
+	legacyOrigins map[permissionClaimKey]legacyPermissionClaimOrigin,
+) ([]pmmarketplacev1alpha1.LegacyPermissionClaim, []kcpapisv1alpha2.PermissionClaim) {
+	claimCounts := make(map[permissionClaimKey]int, len(authoritativeClaims))
+	for _, claim := range authoritativeClaims {
+		claimCounts[permissionClaimKey{
+			group:        claim.Group,
+			resource:     claim.Resource,
+			identityHash: claim.IdentityHash,
+		}]++
+	}
+
+	legacyClaims := make([]pmmarketplacev1alpha1.LegacyPermissionClaim, 0, len(authoritativeClaims))
+	exactClaims := make([]kcpapisv1alpha2.PermissionClaim, 0, len(authoritativeClaims))
+	for i := range authoritativeClaims {
+		claim := &authoritativeClaims[i]
+		key := permissionClaimKey{
+			group:        claim.Group,
+			resource:     claim.Resource,
+			identityHash: claim.IdentityHash,
+		}
+		if claimCounts[key] != 1 {
+			continue
+		}
+
+		origin, hasLegacyOrigin := legacyOrigins[key]
+		if hasLegacyOrigin {
+			// A v1alpha1 resourceSelector is name/namespace based and cannot be
+			// translated to a v1alpha2 label selector. Neither current Marketplace
+			// surface can carry it without an old or new client broadening it to
+			// matchAll, so omit ambiguous or selector-only legacy claims entirely.
+			if origin.count != 1 || !origin.claim.All || len(origin.claim.ResourceSelector) != 0 {
+				continue
+			}
+		}
+
+		claimCopy := kcpapisv1alpha2.PermissionClaim{}
+		claim.DeepCopyInto(&claimCopy)
+		exactClaims = append(exactClaims, claimCopy)
+
+		if !isLegacyRepresentable(*claim) {
+			continue
+		}
+		legacyClaims = append(legacyClaims, pmmarketplacev1alpha1.LegacyPermissionClaim{
+			Group:        claim.Group,
+			Resource:     claim.Resource,
+			All:          true,
+			IdentityHash: claim.IdentityHash,
+		})
+	}
+
+	return legacyClaims, exactClaims
+}
+
+func isLegacyRepresentable(claim kcpapisv1alpha2.PermissionClaim) bool {
+	if len(claim.Verbs) != 1 || claim.Verbs[0] != "*" {
+		return false
+	}
+	if claim.DefaultSelector == nil {
+		return true
+	}
+
+	return claim.DefaultSelector.MatchAll &&
+		len(claim.DefaultSelector.MatchLabels) == 0 &&
+		len(claim.DefaultSelector.MatchExpressions) == 0
 }

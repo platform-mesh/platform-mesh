@@ -59,7 +59,12 @@ var marketplaceEntrySeeds = []struct {
 						 "resourceSelector": [{"name": "one", "namespace": "two"}]}
 					]
 				}
-			}
+			},
+			"apiExportPermissionClaims": [
+				{"group": "", "resource": "secrets", "verbs": ["get"], "identityHash": "abc123",
+				 "defaultSelector": {"matchLabels": {"example.com/credential": "true"}}},
+				{"group": "apps", "resource": "deployments", "verbs": ["get", "list"]}
+			]
 		}
 	}`},
 	{"emptyObj", `{}`},
