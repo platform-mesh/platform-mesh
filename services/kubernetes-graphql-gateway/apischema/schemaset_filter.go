@@ -25,6 +25,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kube-openapi/pkg/schemamutation"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 )
@@ -115,13 +116,13 @@ func matchesAny(selectors []ResourceSelector, mapper meta.RESTMapper, gvk schema
 	return false, nil
 }
 
-func schemaReferences(schema *spec.Schema) map[string]struct{} {
-	references := make(map[string]struct{})
+func schemaReferences(schema *spec.Schema) sets.Set[string] {
+	references := sets.New[string]()
 	walker := schemamutation.Walker{
 		SchemaCallback: schemamutation.SchemaCallBackNoop,
 		RefCallback: func(ref *spec.Ref) *spec.Ref {
 			if key := ref.String(); key != "" {
-				references[key] = struct{}{}
+				references.Insert(key)
 			}
 			return ref
 		},
