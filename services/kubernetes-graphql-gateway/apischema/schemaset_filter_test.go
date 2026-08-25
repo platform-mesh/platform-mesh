@@ -25,6 +25,7 @@ import (
 	pmgateway "go.platform-mesh.io/apis/gateway"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 )
@@ -33,62 +34,68 @@ func TestResourceSelectorMatches(t *testing.T) {
 	tests := []struct {
 		name     string
 		selector apischema.ResourceSelector
-		gvk      schema.GroupVersionKind
+		gvr      schema.GroupVersionResource
 		want     bool
 	}{
 		{
 			name:     "group only",
 			selector: apischema.ResourceSelector{Group: "apps"},
-			gvk:      schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			gvr:      schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 			want:     true,
 		},
 		{
 			name:     "group and version",
 			selector: apischema.ResourceSelector{Group: "apps", Version: "v1"},
-			gvk:      schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			gvr:      schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 			want:     true,
 		},
 		{
-			name:     "group and kind",
-			selector: apischema.ResourceSelector{Group: "apps", Kind: "Deployment"},
-			gvk:      schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			name:     "group and resource",
+			selector: apischema.ResourceSelector{Group: "apps", Resource: "deployments"},
+			gvr:      schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 			want:     true,
 		},
 		{
-			name:     "exact GVK",
-			selector: apischema.ResourceSelector{Group: "apps", Version: "v1", Kind: "Deployment"},
-			gvk:      schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			name:     "exact GVR",
+			selector: apischema.ResourceSelector{Group: "apps", Version: "v1", Resource: "deployments"},
+			gvr:      schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 			want:     true,
 		},
 		{
 			name:     "core group",
-			selector: apischema.ResourceSelector{Group: "", Version: "v1", Kind: "Pod"},
-			gvk:      schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"},
+			selector: apischema.ResourceSelector{Group: "", Version: "v1", Resource: "pods"},
+			gvr:      schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+			want:     true,
+		},
+		{
+			name:     "resource name is not derived from kind",
+			selector: apischema.ResourceSelector{Group: "example.io", Resource: "people"},
+			gvr:      schema.GroupVersionResource{Group: "example.io", Version: "v1", Resource: "people"},
 			want:     true,
 		},
 		{
 			name:     "group mismatch",
 			selector: apischema.ResourceSelector{Group: "batch"},
-			gvk:      schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			gvr:      schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 			want:     false,
 		},
 		{
 			name:     "version mismatch",
 			selector: apischema.ResourceSelector{Group: "apps", Version: "v1beta1"},
-			gvk:      schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			gvr:      schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 			want:     false,
 		},
 		{
-			name:     "kind is case sensitive",
-			selector: apischema.ResourceSelector{Group: "apps", Kind: "deployment"},
-			gvk:      schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			name:     "resource mismatch",
+			selector: apischema.ResourceSelector{Group: "apps", Resource: "statefulsets"},
+			gvr:      schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 			want:     false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.selector.Matches(tt.gvk))
+			assert.Equal(t, tt.want, tt.selector.Matches(tt.gvr))
 		})
 	}
 }
@@ -110,10 +117,13 @@ func TestSchemaSetSelectResources(t *testing.T) {
 		"support.unreferenced": unreferenced,
 	})
 
-	selected, err := original.SelectResources([]apischema.ResourceSelector{
-		{Group: "", Version: "v1", Kind: "Pod"},
-		{Group: "", Version: "v1", Kind: "Pod"},
+	mapper := newRESTMapper(map[schema.GroupVersionKind]schema.GroupVersionResource{
+		{Group: "", Version: "v1", Kind: "Pod"}: {Group: "", Version: "v1", Resource: "pods"},
 	})
+	selected, err := original.SelectResources([]apischema.ResourceSelector{
+		{Group: "", Version: "v1", Resource: "pods"},
+		{Group: "", Version: "v1", Resource: "pods"},
+	}, mapper)
 	require.NoError(t, err)
 
 	assert.Equal(t, 6, original.Size(), "source set must not be changed")
@@ -144,14 +154,35 @@ func TestSchemaSetSelectResourcesMultipleSelectors(t *testing.T) {
 		"batch.v1.Job":       resourceSchema("batch", "v1", "Job"),
 	})
 
-	selected, err := schemas.SelectResources([]apischema.ResourceSelector{
-		{Group: "", Kind: "Pod"},
-		{Group: "apps"},
+	mapper := newRESTMapper(map[schema.GroupVersionKind]schema.GroupVersionResource{
+		{Group: "", Version: "v1", Kind: "Pod"}:            {Group: "", Version: "v1", Resource: "pods"},
+		{Group: "apps", Version: "v1", Kind: "Deployment"}: {Group: "apps", Version: "v1", Resource: "deployments"},
 	})
+	selected, err := schemas.SelectResources([]apischema.ResourceSelector{
+		{Group: "", Resource: "pods"},
+		{Group: "apps"},
+	}, mapper)
 	require.NoError(t, err)
 	assert.Equal(t, 2, selected.Size())
 	assert.Contains(t, selected.All(), "core.v1.Pod")
 	assert.Contains(t, selected.All(), "apps.v1.Deployment")
+}
+
+func TestSchemaSetSelectResourcesUsesRESTMapping(t *testing.T) {
+	personGVK := schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "Person"}
+	schemas := apischema.NewSchemaSetFromMap(map[string]*spec.Schema{
+		"example.v1.Person": resourceSchema(personGVK.Group, personGVK.Version, personGVK.Kind),
+	})
+	mapper := newRESTMapper(map[schema.GroupVersionKind]schema.GroupVersionResource{
+		personGVK: {Group: "example.io", Version: "v1", Resource: "people"},
+	})
+
+	selected, err := schemas.SelectResources(
+		[]apischema.ResourceSelector{{Group: "example.io", Resource: "people"}},
+		mapper,
+	)
+	require.NoError(t, err)
+	assert.Contains(t, selected.All(), "example.v1.Person")
 }
 
 func TestSchemaSetSelectResourcesMissingReference(t *testing.T) {
@@ -159,10 +190,29 @@ func TestSchemaSetSelectResourcesMissingReference(t *testing.T) {
 		"core.v1.Pod": resourceSchema("", "v1", "Pod", "missing.definition"),
 	})
 
-	selected, err := schemas.SelectResources([]apischema.ResourceSelector{{Group: "", Kind: "Pod"}})
+	mapper := newRESTMapper(map[schema.GroupVersionKind]schema.GroupVersionResource{
+		{Group: "", Version: "v1", Kind: "Pod"}: {Group: "", Version: "v1", Resource: "pods"},
+	})
+	selected, err := schemas.SelectResources(
+		[]apischema.ResourceSelector{{Group: "", Resource: "pods"}},
+		mapper,
+	)
 	assert.Nil(t, selected)
 	assert.ErrorIs(t, err, apischema.ErrSchemaReferenceNotFound)
 	assert.Contains(t, err.Error(), "missing.definition")
+}
+
+func newRESTMapper(mappings map[schema.GroupVersionKind]schema.GroupVersionResource) meta.RESTMapper {
+	groupVersions := make([]schema.GroupVersion, 0, len(mappings))
+	for gvk := range mappings {
+		groupVersions = append(groupVersions, gvk.GroupVersion())
+	}
+
+	mapper := meta.NewDefaultRESTMapper(groupVersions)
+	for gvk, gvr := range mappings {
+		mapper.AddSpecific(gvk, gvr, gvr, meta.RESTScopeNamespace)
+	}
+	return mapper
 }
 
 func resourceSchema(group, version, kind string, refs ...string) *spec.Schema {

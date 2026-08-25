@@ -29,6 +29,8 @@ import (
 	listenerapischema "go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema"
 	apischemaMocks "go.platform-mesh.io/kubernetes-graphql-gateway/listener/pkg/apischema/mocks"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/openapi"
 	"k8s.io/kube-openapi/pkg/spec3"
 	"k8s.io/kube-openapi/pkg/validation/spec"
@@ -108,8 +110,16 @@ func TestResolveSchemaWithResourceSelectors(t *testing.T) {
 	openAPIClient.EXPECT().Paths().Return(map[string]openapi.GroupVersion{"/v1": mockGV}, nil)
 	mockGV.EXPECT().Schema(mock.Anything).Return(responseJSON, nil)
 
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Version: "v1"}})
+	mapper.AddSpecific(
+		schema.GroupVersionKind{Version: "v1", Kind: "Pod"},
+		schema.GroupVersionResource{Version: "v1", Resource: "pods"},
+		schema.GroupVersionResource{Version: "v1", Resource: "pod"},
+		meta.RESTScopeNamespace,
+	)
+
 	got, err := listenerapischema.NewResolver().
-		WithResourceSelectors([]gatewayapischema.ResourceSelector{{Group: "", Kind: "Pod"}}).
+		WithResourceSelectors([]gatewayapischema.ResourceSelector{{Group: "", Resource: "pods"}}, mapper).
 		Resolve(t.Context(), openAPIClient)
 	require.NoError(t, err)
 

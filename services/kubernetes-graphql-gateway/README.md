@@ -119,7 +119,7 @@ The helper script [`hack/create-clusteraccess.sh`](hack/create-clusteraccess.md)
 
 By default, a `ClusterAccess` exposes typed GraphQL operations for every
 resource discovered on the target cluster. Use `schemaFilter` to expose only
-selected Kubernetes API groups, versions, and kinds:
+selected Kubernetes API groups, versions, and resources:
 
 ```yaml
 apiVersion: gateway.platform-mesh.io/v1alpha1
@@ -133,15 +133,17 @@ spec:
       # The empty group selects the Kubernetes core API group.
       - group: ""
         version: v1
-        kind: Pod
-      # Omitting version selects all versions of Deployment in this group.
+        resource: pods
+      # Omitting version selects all versions of the deployments resource.
       - group: apps
-        kind: Deployment
+        resource: deployments
 ```
 
 The include selectors are ORed and matched exactly, including case. `group` is
-required; `version` and `kind` are optional. Omitting `schemaFilter` preserves
-the default behavior of exposing every discovered resource type.
+required; `version` and `resource` are optional. Resource names use the
+lowercase, plural names reported by Kubernetes API discovery. Omitting
+`schemaFilter` preserves the default behavior of exposing every discovered
+resource type.
 
 The filter controls generated typed GraphQL operations and introspection. It is
 not an authorization boundary: Kubernetes RBAC remains authoritative, and

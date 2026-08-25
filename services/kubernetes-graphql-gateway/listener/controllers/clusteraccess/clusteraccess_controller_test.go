@@ -376,7 +376,7 @@ func (suite *ClusterAccessControllerTestSuite) TestSchemaFilter() {
 
 	filtered := newClusterAccess("schema-filtered-test", &pmgatewayv1alpha1.SchemaFilter{
 		Include: []pmgatewayv1alpha1.ResourceSelector{{
-			Group: "", Version: "v1", Kind: "Namespace",
+			Group: "", Version: "v1", Resource: "namespaces",
 		}},
 	})
 	err = suite.client.Create(context.Background(), filtered)

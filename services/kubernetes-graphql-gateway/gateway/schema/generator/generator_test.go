@@ -33,6 +33,7 @@ import (
 	"go.platform-mesh.io/kubernetes-graphql-gateway/internal/testfakes"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kube-openapi/pkg/validation/spec"
@@ -175,7 +176,17 @@ func TestGenerateSelectedResourceSurface(t *testing.T) {
 			apiextensionsv1.NamespaceScoped,
 		),
 	})
-	selected, err := schemas.SelectResources([]apischema.ResourceSelector{{Group: "", Kind: "Pod"}})
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Version: "v1"}})
+	mapper.AddSpecific(
+		schema.GroupVersionKind{Version: "v1", Kind: "Pod"},
+		schema.GroupVersionResource{Version: "v1", Resource: "pods"},
+		schema.GroupVersionResource{Version: "v1", Resource: "pod"},
+		meta.RESTScopeNamespace,
+	)
+	selected, err := schemas.SelectResources(
+		[]apischema.ResourceSelector{{Group: "", Resource: "pods"}},
+		mapper,
+	)
 	require.NoError(t, err)
 
 	definitions := make(map[string]*spec.Schema, selected.Size())

@@ -186,12 +186,12 @@ func (r *ClusterAccessReconciler) reconcileClusterAccess(
 		selectors := make([]gatewayapischema.ResourceSelector, 0, len(ca.Spec.SchemaFilter.Include))
 		for _, selector := range ca.Spec.SchemaFilter.Include {
 			selectors = append(selectors, gatewayapischema.ResourceSelector{
-				Group:   selector.Group,
-				Version: selector.Version,
-				Kind:    selector.Kind,
+				Group:    selector.Group,
+				Version:  selector.Version,
+				Resource: selector.Resource,
 			})
 		}
-		resolver.WithResourceSelectors(selectors)
+		resolver.WithResourceSelectors(selectors, targetRM)
 	}
 
 	// Resolve schema from target cluster

@@ -77,7 +77,7 @@ type SchemaFilter struct {
 	Include []ResourceSelector `json:"include"`
 }
 
-// ResourceSelector matches Kubernetes resources by exact group and, optionally, version and kind.
+// ResourceSelector matches Kubernetes resources by exact group and, optionally, version and resource name.
 type ResourceSelector struct {
 	// Group is the Kubernetes API group. Use an empty string for the core API group.
 	Group string `json:"group"`
@@ -86,9 +86,9 @@ type ResourceSelector struct {
 	// +optional
 	Version string `json:"version,omitempty"`
 
-	// Kind is the optional Kubernetes resource kind to match.
+	// Resource is the optional lowercase, plural Kubernetes resource name to match.
 	// +optional
-	Kind string `json:"kind,omitempty"`
+	Resource string `json:"resource,omitempty"`
 }
 
 // CAConfig defines CA configuration options

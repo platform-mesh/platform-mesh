@@ -23,6 +23,7 @@ import (
 
 	pmgateway "go.platform-mesh.io/apis/gateway"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kube-openapi/pkg/schemamutation"
 	"k8s.io/kube-openapi/pkg/validation/spec"
@@ -33,28 +34,36 @@ import (
 var ErrSchemaReferenceNotFound = errors.New("schema reference not found")
 
 // ResourceSelector matches a Kubernetes resource by exact group and optional
-// exact version and kind.
+// exact version and resource name.
 type ResourceSelector struct {
-	Group   string
-	Version string
-	Kind    string
+	Group    string
+	Version  string
+	Resource string
 }
 
-// Matches reports whether the selector matches the supplied GVK.
-func (s ResourceSelector) Matches(gvk schema.GroupVersionKind) bool {
-	return s.Group == gvk.Group &&
-		(s.Version == "" || s.Version == gvk.Version) &&
-		(s.Kind == "" || s.Kind == gvk.Kind)
+// Matches reports whether the selector matches the supplied GVR.
+func (s ResourceSelector) Matches(gvr schema.GroupVersionResource) bool {
+	return s.Group == gvr.Group &&
+		(s.Version == "" || s.Version == gvr.Version) &&
+		(s.Resource == "" || s.Resource == gvr.Resource)
 }
 
 // SelectResources returns a new SchemaSet containing matched resource roots
 // and the transitive closure of definitions they reference.
-func (s *SchemaSet) SelectResources(selectors []ResourceSelector) (*SchemaSet, error) {
+func (s *SchemaSet) SelectResources(selectors []ResourceSelector, mapper meta.RESTMapper) (*SchemaSet, error) {
 	selected := make(map[string]*SchemaEntry)
 	queue := make([]string, 0)
 
 	for key, entry := range s.entries {
-		if entry.GVK == nil || !matchesAny(selectors, *entry.GVK) {
+		if entry.GVK == nil {
+			continue
+		}
+
+		matches, err := matchesAny(selectors, mapper, *entry.GVK)
+		if err != nil {
+			return nil, err
+		}
+		if !matches {
 			continue
 		}
 
@@ -76,7 +85,7 @@ func (s *SchemaSet) SelectResources(selectors []ResourceSelector) (*SchemaSet, e
 				return nil, fmt.Errorf("%w: %q referenced by %q", ErrSchemaReferenceNotFound, refKey, key)
 			}
 
-			if referenced.GVK != nil && !matchesAny(selectors, *referenced.GVK) {
+			if referenced.GVK != nil {
 				referenced = asSupportDefinition(referenced)
 			}
 
@@ -88,14 +97,22 @@ func (s *SchemaSet) SelectResources(selectors []ResourceSelector) (*SchemaSet, e
 	return NewSchemaSet(selected), nil
 }
 
-func matchesAny(selectors []ResourceSelector, gvk schema.GroupVersionKind) bool {
+func matchesAny(selectors []ResourceSelector, mapper meta.RESTMapper, gvk schema.GroupVersionKind) (bool, error) {
+	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if meta.IsNoMatchError(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("resolve resource for %s: %w", gvk, err)
+	}
+
 	for _, selector := range selectors {
-		if selector.Matches(gvk) {
-			return true
+		if selector.Matches(mapping.Resource) {
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 func schemaReferences(schema *spec.Schema) map[string]struct{} {
