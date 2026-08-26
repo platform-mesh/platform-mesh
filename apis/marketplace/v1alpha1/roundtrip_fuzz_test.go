@@ -50,13 +50,14 @@ var marketplaceEntrySeeds = []struct {
 			"apiExport": {
 				"metadata": {"name": "test-api-export", "annotations": {"kcp.io/path": "root:providers:foo"}},
 				"spec": {
-					"latestResourceSchemas": ["v260623-482e10b2.widgets.foo.io"],
+					"resources": [{"group": "foo.io", "name": "widgets",
+					 "schema": "v260623-482e10b2.widgets.foo.io", "storage": {"crd": {}}}],
 					"identity": {"secretRef": {"name": "widgets-identity", "namespace": "kcp-system"}},
 					"maximalPermissionPolicy": {"local": {}},
 					"permissionClaims": [
-						{"group": "", "resource": "secrets", "all": true, "identityHash": "abc123"},
-						{"group": "apps", "resource": "deployments",
-						 "resourceSelector": [{"name": "one", "namespace": "two"}]}
+						{"group": "", "resource": "secrets", "verbs": ["*"], "identityHash": "abc123"},
+						{"group": "apps", "resource": "deployments", "verbs": ["get", "list"],
+						 "defaultSelector": {"matchAll": true}}
 					]
 				}
 			}
