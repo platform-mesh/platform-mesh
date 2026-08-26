@@ -58,10 +58,11 @@ seedUpstreamIdentityProviders:
 	assert.Equal(t, "keycloak-broker", provider.OIDC.ClientID)
 	assert.Equal(t, "client_secret_post", provider.OIDC.ClientAuthentication)
 
-	upstream := provider.ToUpstreamIdentityProvider("default")
-	assert.Equal(t, "upstream-idp-client-secret-default-dex", upstream.OIDC.ClientSecretRef.Name)
-	assert.Equal(t, "default", upstream.OIDC.ClientSecretRef.Namespace)
-	assert.Equal(t, pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC, upstream.Type)
+	reg, err := provider.ToIdPRegistration()
+	require.NoError(t, err)
+	assert.Equal(t, "dex", reg.Name)
+	assert.Equal(t, "dex-upstream-client-secret", reg.Spec.OIDC.ClientSecretRef.Name)
+	assert.Equal(t, pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC, reg.Spec.Type)
 }
 
 func TestAllowsSeedingForRealmEmptyRealmsAllowsNone(t *testing.T) {

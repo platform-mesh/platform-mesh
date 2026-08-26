@@ -30,7 +30,6 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/security-operator/internal/config"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -110,28 +109,10 @@ func TestIdentityProviderConfigurationValidator_ValidateCreate(t *testing.T) {
 
 func TestIdentityProviderConfigurationValidator_ValidateUpdate(t *testing.T) {
 	v := &identityProviderConfigurationValidator{keycloakClient: fakeRealmChecker{exists: true}}
-
-	validOIDC := pmcorev1alpha1.UpstreamIdentityProvider{
-		Alias: "dex",
-		Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
-		OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
-			DiscoveryURL: "https://dex.example/.well-known/openid-configuration",
-			ClientID:     "broker",
-			ClientSecretRef: corev1.SecretReference{
-				Name: "dex-secret",
-			},
-			ClientAuthentication: "client_secret_post",
-		},
-	}
-
-	tests := []struct {
-		name    string
-		spec    pmcorev1alpha1.IdentityProviderConfigurationSpec
-		wantErr bool
-	}{
-		{
-			name: "empty upstream list allowed",
-			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+	_, err := v.ValidateUpdate(t.Context(),
+		&pmcorev1alpha1.IdentityProviderConfiguration{},
+		&pmcorev1alpha1.IdentityProviderConfiguration{
+			Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
 				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
 					ClientName:   "portal",
 					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
@@ -139,209 +120,8 @@ func TestIdentityProviderConfigurationValidator_ValidateUpdate(t *testing.T) {
 				}},
 			},
 		},
-		{
-			name: "valid discovery config",
-			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
-					ClientName:   "portal",
-					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
-					RedirectURIs: []string{"https://example.com/*"},
-				}},
-				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{validOIDC},
-			},
-		},
-		{
-			name: "duplicate alias denied",
-			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
-					ClientName:   "portal",
-					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
-					RedirectURIs: []string{"https://example.com/*"},
-				}},
-				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{
-					validOIDC,
-					validOIDC,
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "discovery and manual mutually exclusive",
-			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
-					ClientName:   "portal",
-					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
-					RedirectURIs: []string{"https://example.com/*"},
-				}},
-				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{{
-					Alias: "dex",
-					Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
-					OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
-						DiscoveryURL:     "https://dex.example/.well-known/openid-configuration",
-						Issuer:           "https://dex.example",
-						AuthorizationURL: "https://dex.example/auth",
-						TokenURL:         "https://dex.example/token",
-						ClientID:         "broker",
-						ClientSecretRef:  corev1.SecretReference{Name: "dex-secret"},
-					},
-				}},
-			},
-			wantErr: true,
-		},
-		{
-			name: "missing client secret for secret auth",
-			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
-					ClientName:   "portal",
-					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
-					RedirectURIs: []string{"https://example.com/*"},
-				}},
-				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{{
-					Alias: "dex",
-					Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
-					OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
-						DiscoveryURL:         "https://dex.example/.well-known/openid-configuration",
-						ClientID:             "broker",
-						ClientAuthentication: "client_secret_post",
-					},
-				}},
-			},
-			wantErr: true,
-		},
-		{
-			name: "email domain routing requires domains",
-			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
-					ClientName:   "portal",
-					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
-					RedirectURIs: []string{"https://example.com/*"},
-				}},
-				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{{
-					Alias: "dex",
-					Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
-					EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
-						AutoRedirect: func() *bool {
-							v := true
-							return &v
-						}(),
-					},
-					OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
-						DiscoveryURL:    "https://dex.example/.well-known/openid-configuration",
-						ClientID:        "broker",
-						ClientSecretRef: corev1.SecretReference{Name: "dex-secret"},
-					},
-				}},
-			},
-			wantErr: true,
-		},
-		{
-			name: "duplicate email domain denied",
-			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
-					ClientName:   "portal",
-					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
-					RedirectURIs: []string{"https://example.com/*"},
-				}},
-				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{
-					{
-						Alias: "dex",
-						Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
-						EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
-							Domains: []string{"corp.example.com"},
-							AutoRedirect: func() *bool {
-								v := true
-								return &v
-							}(),
-						},
-						OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
-							DiscoveryURL:    "https://dex.example/.well-known/openid-configuration",
-							ClientID:        "broker",
-							ClientSecretRef: corev1.SecretReference{Name: "dex-secret"},
-						},
-					},
-					{
-						Alias: "okta",
-						Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
-						EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
-							Domains: []string{"corp.example.com"},
-							AutoRedirect: func() *bool {
-								v := true
-								return &v
-							}(),
-						},
-						OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
-							DiscoveryURL:    "https://okta.example/.well-known/openid-configuration",
-							ClientID:        "broker",
-							ClientSecretRef: corev1.SecretReference{Name: "okta-secret"},
-						},
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "email domains without autoRedirect allowed",
-			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
-					ClientName:   "portal",
-					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
-					RedirectURIs: []string{"https://example.com/*"},
-				}},
-				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{{
-					Alias: "dex",
-					Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
-					EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
-						Domains: []string{"corp.example.com"},
-					},
-					OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
-						DiscoveryURL:    "https://dex.example/.well-known/openid-configuration",
-						ClientID:        "broker",
-						ClientSecretRef: corev1.SecretReference{Name: "dex-secret"},
-					},
-				}},
-			},
-		},
-		{
-			name: "valid email domain redirect config",
-			spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
-					ClientName:   "portal",
-					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
-					RedirectURIs: []string{"https://example.com/*"},
-				}},
-				UpstreamIdentityProviders: []pmcorev1alpha1.UpstreamIdentityProvider{{
-					Alias: "dex",
-					Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
-					EmailDomainRouting: &pmcorev1alpha1.EmailDomainRouting{
-						Domains: []string{"portal.localhost"},
-						AutoRedirect: func() *bool {
-							v := true
-							return &v
-						}(),
-					},
-					OIDC: &pmcorev1alpha1.OIDCUpstreamConfig{
-						DiscoveryURL:    "https://dex.example/.well-known/openid-configuration",
-						ClientID:        "broker",
-						ClientSecretRef: corev1.SecretReference{Name: "dex-secret"},
-					},
-				}},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := v.ValidateUpdate(t.Context(),
-				&pmcorev1alpha1.IdentityProviderConfiguration{},
-				&pmcorev1alpha1.IdentityProviderConfiguration{Spec: tt.spec},
-			)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-		})
-	}
+	)
+	require.NoError(t, err)
 }
 
 func TestIdentityProviderConfigurationValidator_ValidateDelete(t *testing.T) {

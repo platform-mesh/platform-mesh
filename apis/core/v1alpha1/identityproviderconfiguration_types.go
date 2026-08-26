@@ -126,9 +126,8 @@ type OIDCUpstreamConfig struct {
 
 // IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration
 type IdentityProviderConfigurationSpec struct {
-	RegistrationAllowed       bool                           `json:"registrationAllowed,omitempty"`
-	Clients                   []IdentityProviderClientConfig `json:"clients"`
-	UpstreamIdentityProviders []UpstreamIdentityProvider     `json:"upstreamIdentityProviders,omitempty"`
+	RegistrationAllowed bool                           `json:"registrationAllowed,omitempty"`
+	Clients             []IdentityProviderClientConfig `json:"clients"`
 }
 
 // ManagedClient tracks a client that is managed by the operator.
@@ -138,22 +137,10 @@ type ManagedClient struct {
 	SecretRef             corev1.SecretReference `json:"secretRef"`
 }
 
-// UpstreamIdentityProviderStatus tracks reconciliation of an upstream
-// identity provider in Keycloak.
-type UpstreamIdentityProviderStatus struct {
-	Alias              string      `json:"alias"`
-	Ready              bool        `json:"ready"`
-	Message            string      `json:"message,omitempty"`
-	OrganizationID     string      `json:"organizationId,omitempty"`
-	LinkedEmailDomains []string    `json:"linkedEmailDomains,omitempty"`
-	LastSyncTime       metav1.Time `json:"lastSyncTime,omitempty"`
-}
-
 // IdentityProviderConfigurationStatus defines the observed state of IdentityProviderConfiguration.
 type IdentityProviderConfigurationStatus struct {
-	Conditions                       []metav1.Condition                        `json:"conditions,omitempty"`
-	ManagedClients                   map[string]ManagedClient                  `json:"managedClients,omitempty"`
-	ManagedUpstreamIdentityProviders map[string]UpstreamIdentityProviderStatus `json:"managedUpstreamIdentityProviders,omitempty"`
+	Conditions     []metav1.Condition   `json:"conditions,omitempty"`
+	ManagedClients map[string]ManagedClient `json:"managedClients,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -23,7 +23,7 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 
-	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -77,20 +77,50 @@ func (c *SeedUpstreamConfig) AllowsSeedingForRealm(realm string) bool {
 	return false
 }
 
-func UpstreamIdentityProviderClientSecretName(realm, alias string) string {
-	return fmt.Sprintf("upstream-idp-client-secret-%s-%s", realm, alias)
+// SeedClientSecretName returns the org-local secret name for a seeded upstream IdP.
+func SeedClientSecretName(alias string) string {
+	return fmt.Sprintf("%s-upstream-client-secret", strings.TrimSpace(alias))
 }
 
-func (p SeedUpstreamIdentityProvider) ToUpstreamIdentityProvider(realm string) pmcorev1alpha1.UpstreamIdentityProvider {
-	// Deep copy so per-realm mutations below never touch the shared seed config,
-	// which is read concurrently across reconciles (MaxConcurrentReconciles > 1).
-	upstream := *p.DeepCopy()
-	if upstream.OIDC == nil {
-		upstream.OIDC = &pmcorev1alpha1.OIDCUpstreamConfig{}
+// ToIdPRegistration maps seed data to an IdPRegistration in the org workspace.
+func (p SeedUpstreamIdentityProvider) ToIdPRegistration() (pmcorev1alpha1.IdPRegistration, error) {
+	alias := strings.TrimSpace(p.Alias)
+	if alias == "" {
+		return pmcorev1alpha1.IdPRegistration{}, fmt.Errorf("upstream provider alias is required")
 	}
-	upstream.OIDC.ClientSecretRef = corev1.SecretReference{
-		Name:      UpstreamIdentityProviderClientSecretName(realm, strings.TrimSpace(upstream.Alias)),
-		Namespace: "default",
+	if p.OIDC == nil {
+		return pmcorev1alpha1.IdPRegistration{}, fmt.Errorf("upstream provider %q: oidc config is required", alias)
 	}
-	return upstream
+	if strings.TrimSpace(p.OIDC.ClientID) == "" {
+		return pmcorev1alpha1.IdPRegistration{}, fmt.Errorf("upstream provider %q: clientId is required", alias)
+	}
+
+	providerType := p.Type
+	if providerType == "" {
+		providerType = pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC
+	}
+
+	reg := pmcorev1alpha1.IdPRegistration{
+		ObjectMeta: metav1.ObjectMeta{Name: alias},
+		Spec: pmcorev1alpha1.IdPRegistrationSpec{
+			Alias:              alias,
+			DisplayName:        p.DisplayName,
+			Enabled:            p.Enabled,
+			HideOnLoginPage:    p.HideOnLoginPage,
+			EmailDomainRouting: p.EmailDomainRouting,
+			Type:               providerType,
+			OIDC: &pmcorev1alpha1.IdPRegistrationOIDCConfig{
+				ClientID:         p.OIDC.ClientID,
+				DiscoveryURL:     p.OIDC.DiscoveryURL,
+				Issuer:           p.OIDC.Issuer,
+				AuthorizationURL: p.OIDC.AuthorizationURL,
+				TokenURL:         p.OIDC.TokenURL,
+				JWKSURL:          p.OIDC.JWKSURL,
+				ClientSecretRef: pmcorev1alpha1.IdPRegistrationSecretRef{
+					Name: SeedClientSecretName(alias),
+				},
+			},
+		},
+	}
+	return reg, nil
 }

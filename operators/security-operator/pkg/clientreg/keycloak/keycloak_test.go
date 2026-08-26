@@ -316,7 +316,7 @@ func TestAdminClient_CreateOrUpdateRealm(t *testing.T) {
 		},
 		{
 			name:   "realm updated on conflict",
-			config: RealmConfig{Realm: "existing-realm", Enabled: true, OrganizationsEnabled: false},
+			config: RealmConfig{Realm: "existing-realm", Enabled: true, OrganizationsEnabled: func() *bool { v := false; return &v }()},
 			setupServer: func(t *testing.T) *httptest.Server {
 				call := 0
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -331,6 +331,25 @@ func TestAdminClient_CreateOrUpdateRealm(t *testing.T) {
 					body, err := io.ReadAll(r.Body)
 					require.NoError(t, err)
 					assert.Contains(t, string(body), `"organizationsEnabled":false`)
+					w.WriteHeader(http.StatusNoContent)
+				}))
+			},
+			wantCreated: false,
+		},
+		{
+			name:   "realm updated without touching organizations when omitted",
+			config: RealmConfig{Realm: "existing-realm", Enabled: true},
+			setupServer: func(t *testing.T) *httptest.Server {
+				call := 0
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					call++
+					if call == 1 {
+						w.WriteHeader(http.StatusConflict)
+						return
+					}
+					body, err := io.ReadAll(r.Body)
+					require.NoError(t, err)
+					assert.NotContains(t, string(body), "organizationsEnabled")
 					w.WriteHeader(http.StatusNoContent)
 				}))
 			},

@@ -134,6 +134,49 @@ func (c *AdminClient) RealmExists(ctx context.Context, realmName string) (bool, 
 	return false, readErrorResponse(resp, "get realm")
 }
 
+func (c *AdminClient) GetRealm(ctx context.Context, realmName string) (*RealmConfig, error) {
+	url := fmt.Sprintf("%s/admin/realms/%s", c.baseURL, realmName)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create get realm request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get realm %q: %w", realmName, err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp, "get realm")
+	}
+
+	var realm RealmConfig
+	if err := json.NewDecoder(resp.Body).Decode(&realm); err != nil {
+		return nil, fmt.Errorf("failed to decode realm: %w", err)
+	}
+	return &realm, nil
+}
+
+func (c *AdminClient) EnsureOrganizationsEnabled(ctx context.Context, realmName string) error {
+	realm, err := c.GetRealm(ctx, realmName)
+	if err != nil {
+		return fmt.Errorf("getting realm: %w", err)
+	}
+	if realm.OrganizationsEnabled != nil && *realm.OrganizationsEnabled {
+		return nil
+	}
+
+	enabled := true
+	realm.OrganizationsEnabled = &enabled
+	body, err := json.Marshal(realm)
+	if err != nil {
+		return fmt.Errorf("failed to marshal realm config: %w", err)
+	}
+	return c.updateRealm(ctx, realmName, body)
+}
+
 func (c *AdminClient) CreateOrUpdateRealm(ctx context.Context, config RealmConfig) (created bool, err error) {
 	body, err := json.Marshal(config)
 	if err != nil {
@@ -276,7 +319,7 @@ type RealmConfig struct {
 	RegistrationAllowed         bool        `json:"registrationAllowed,omitempty"`
 	SSOSessionIdleTimeout       int         `json:"ssoSessionIdleTimeout,omitempty"`
 	AccessTokenLifespan         int         `json:"accessTokenLifespan,omitempty"`
-	OrganizationsEnabled        bool        `json:"organizationsEnabled"`
+	OrganizationsEnabled        *bool       `json:"organizationsEnabled,omitempty"`
 	SMTPServer                  *SMTPConfig `json:"smtpServer,omitempty"`
 }
 

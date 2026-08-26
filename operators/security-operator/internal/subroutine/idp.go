@@ -154,10 +154,8 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Obj
 	}
 
 	if i.seedConfig != nil && i.seedConfig.AllowsSeedingForRealm(workspaceName) {
-		for _, seedProvider := range i.seedConfig.SeedUpstreamIdentityProviders.Providers {
-			if err := i.createOrUpdateSeedUpstreamClientSecret(ctx, orgsClient, workspaceName, seedProvider); err != nil {
-				return subroutines.OK(), fmt.Errorf("failed to create or update seed upstream client secret for %q: %w", seedProvider.Alias, err)
-			}
+		if err := i.seedIdPRegistrations(ctx, cl.GetClient(), workspaceName); err != nil {
+			return subroutines.OK(), fmt.Errorf("seeding IdPRegistrations: %w", err)
 		}
 	}
 
@@ -166,8 +164,6 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Obj
 		idp.Spec.RegistrationAllowed = i.registrationAllowed
 
 		idp.Spec.Clients = mergeManagedClients(idp.Spec.Clients, clients)
-
-		idp.Spec.UpstreamIdentityProviders = i.mergeSeedUpstreamProviders(workspaceName, idp.Spec.UpstreamIdentityProviders)
 
 		return nil
 	})
@@ -294,39 +290,23 @@ func mergeManagedClients(
 	return existing
 }
 
-// mergeSeedUpstreamProviders returns the upstream identity providers for the
-// workspace: the seed configuration's providers merged into whatever is already
-// present in the spec. Seeded providers are matched by alias (replacing an
-// existing entry in place, otherwise appended); providers not part of the seed
-// config are left untouched. Returns existing unchanged when seeding is disabled
-// or the workspace is not covered by the seed config.
-func (i *IDPSubroutine) mergeSeedUpstreamProviders(
+func (i *IDPSubroutine) seedIdPRegistrations(
+	ctx context.Context,
+	orgClient ctrlruntimeclient.Client,
 	workspaceName string,
-	existing []pmcorev1alpha1.UpstreamIdentityProvider,
-) []pmcorev1alpha1.UpstreamIdentityProvider {
-	if i.seedConfig == nil || !i.seedConfig.AllowsSeedingForRealm(workspaceName) {
-		return existing
-	}
-
+) error {
 	for _, seedProvider := range i.seedConfig.SeedUpstreamIdentityProviders.Providers {
-		desired := seedProvider.ToUpstreamIdentityProvider(workspaceName)
-		idx := slices.IndexFunc(existing, func(p pmcorev1alpha1.UpstreamIdentityProvider) bool {
-			return p.Alias == desired.Alias
-		})
-		if idx != -1 {
-			existing[idx] = desired
-			continue
+		if err := i.createOrUpdateSeedIdPRegistration(ctx, orgClient, seedProvider); err != nil {
+			return fmt.Errorf("seed provider %q: %w", seedProvider.Alias, err)
 		}
-		existing = append(existing, desired)
 	}
-
-	return existing
+	log.Info().Str("workspace", workspaceName).Msg("seeded IdPRegistrations in org workspace")
+	return nil
 }
 
-func (i *IDPSubroutine) createOrUpdateSeedUpstreamClientSecret(
+func (i *IDPSubroutine) createOrUpdateSeedIdPRegistration(
 	ctx context.Context,
-	orgsClient ctrlruntimeclient.Client,
-	realm string,
+	orgClient ctrlruntimeclient.Client,
 	seedProvider config.SeedUpstreamIdentityProvider,
 ) error {
 	alias := strings.TrimSpace(seedProvider.Alias)
@@ -337,26 +317,43 @@ func (i *IDPSubroutine) createOrUpdateSeedUpstreamClientSecret(
 		return fmt.Errorf("upstream provider %q clientSecret is required", alias)
 	}
 
+	reg, err := seedProvider.ToIdPRegistration()
+	if err != nil {
+		return err
+	}
+
+	secretName := config.SeedClientSecretName(alias)
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      config.UpstreamIdentityProviderClientSecretName(realm, alias),
+			Name:      secretName,
 			Namespace: secretNamespace,
 			Labels: map[string]string{
-				"core.platform-mesh.io/idp-name":           realm,
 				"core.platform-mesh.io/upstream-idp-alias": alias,
 			},
 		},
 	}
-
-	_, err := controllerutil.CreateOrUpdate(ctx, orgsClient, secret, func() error {
+	if _, err := controllerutil.CreateOrUpdate(ctx, orgClient, secret, func() error {
 		if secret.Data == nil {
 			secret.Data = make(map[string][]byte)
 		}
 		secret.Data["client_secret"] = []byte(seedProvider.ClientSecret)
 		secret.Type = corev1.SecretTypeOpaque
 		return nil
+	}); err != nil {
+		return fmt.Errorf("creating seed client secret: %w", err)
+	}
+
+	desired := &pmcorev1alpha1.IdPRegistration{
+		ObjectMeta: metav1.ObjectMeta{Name: alias},
+	}
+	_, err = controllerutil.CreateOrPatch(ctx, orgClient, desired, func() error {
+		desired.Spec = reg.Spec
+		return nil
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("creating IdPRegistration: %w", err)
+	}
+	return nil
 }
 
 func getWorkspaceName(lc *kcpcorev1alpha1.LogicalCluster) string {
