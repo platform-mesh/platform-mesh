@@ -57,7 +57,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -83,7 +83,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						assert.Equal(t, "https://test.domain/keycloak/realms/test-workspace", wac.Spec.JWT[0].Issuer.URL)
 						assert.Equal(t, kcptenancyv1alpha1.AudienceMatchPolicyMatchAny, wac.Spec.JWT[0].Issuer.AudienceMatchPolicy)
 						assert.Equal(t, "groups", wac.Spec.JWT[0].ClaimMappings.Groups.Claim)
-						assert.Equal(t, "email", wac.Spec.JWT[0].ClaimMappings.Username.Claim)
+						assert.Equal(t, "sub", wac.Spec.JWT[0].ClaimMappings.Username.Claim)
 						return nil
 					}).Once()
 
@@ -115,7 +115,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "example.com", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "example.com", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -181,7 +181,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					Annotations: map[string]string{},
 				},
 			},
-			cfg:            config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg:            config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks:     func(m *mocks.MockClient, mgrClient *mocks.MockClient) {},
 			expectError:    true,
 			expectedResult: subroutines.OK(),
@@ -195,7 +195,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg:            config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg:            config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks:     func(m *mocks.MockClient, mgrClient *mocks.MockClient) {},
 			expectError:    true,
 			expectedResult: subroutines.OK(),
@@ -209,7 +209,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -243,7 +243,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -281,7 +281,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -313,7 +313,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -437,7 +437,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -473,7 +473,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -607,7 +607,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					Return(errors.New("accountinfo not found")).Once()
@@ -624,7 +624,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -649,7 +649,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -676,7 +676,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "sub"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {

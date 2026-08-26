@@ -133,7 +133,7 @@ func NewConfig() Config {
 		},
 		BaseDomain:               "portal.dev.local:8443",
 		GroupClaim:               "groups",
-		UserClaim:                "email",
+		UserClaim:                "sub",
 		WorkspacePath:            "root",
 		WorkspaceTypeName:        "security",
 		HttpClientTimeoutSeconds: 30,
