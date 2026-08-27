@@ -34,7 +34,7 @@ type MarketplaceEntrySpec struct {
 	// ProviderMetadata contains metadata about the provider of the marketplace entry.
 	ProviderMetadata pmuiv1alpha1.ProviderMetadata `json:"providerMetadata"`
 
-	// PermissionClaims are the permission claims associated with the marketplace entry.
+	// APIExport associated with the marketplace entry.
 	APIExport kcpapisv1alpha2.APIExport `json:"apiExport"`
 }
 

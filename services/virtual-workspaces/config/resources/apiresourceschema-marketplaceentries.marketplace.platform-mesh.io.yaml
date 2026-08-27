@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260817-34f4400b.marketplaceentries.marketplace.platform-mesh.io
+  name: v260827-27c8d645.marketplaceentries.marketplace.platform-mesh.io
 spec:
   group: marketplace.platform-mesh.io
   names:
@@ -55,8 +55,7 @@ spec:
                 Empty means not installed.
               type: string
             apiExport:
-              description: PermissionClaims are the permission claims associated with
-                the marketplace entry.
+              description: APIExport associated with the marketplace entry.
               properties:
                 apiVersion:
                   description: |-

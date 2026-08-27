@@ -58,8 +58,7 @@ spec:
                   Empty means not installed.
                 type: string
               apiExport:
-                description: PermissionClaims are the permission claims associated
-                  with the marketplace entry.
+                description: APIExport associated with the marketplace entry.
                 properties:
                   apiVersion:
                     description: |-
