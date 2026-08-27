@@ -18,18 +18,13 @@ package subroutine
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 
-	"github.com/coreos/go-oidc"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/oauth2/clientcredentials"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/subroutines"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -45,39 +40,17 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-func NewInviteSubroutine(ctx context.Context, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) (*inviteSubroutine, error) {
+func NewInviteSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter) (*inviteSubroutine, error) {
 	lim, err := ratelimiter.NewStaticThenExponentialRateLimiter[*kcpcorev1alpha1.LogicalCluster](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
-
-	sub := &inviteSubroutine{
+	return &inviteSubroutine{
 		mgr:             mgr,
 		kcpClientGetter: kcpClientGetter,
 		limiter:         lim,
-		userClaim:       cfg.UserClaim,
-	}
-
-	if cfg.UserClaim != "email" {
-		issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
-		provider, err := oidc.NewProvider(ctx, issuer)
-		if err != nil {
-			return nil, fmt.Errorf("creating OIDC provider for invite email resolution: %w", err)
-		}
-
-		cCfg := clientcredentials.Config{
-			ClientID:     cfg.Keycloak.ClientID,
-			ClientSecret: cfg.Keycloak.ClientSecret,
-			TokenURL:     provider.Endpoint().TokenURL,
-		}
-
-		sub.keycloak = cCfg.Client(ctx)
-		sub.keycloakBaseURL = cfg.Keycloak.BaseURL
-		sub.creatorRealm = cfg.CreatorRealm
-	}
-
-	return sub, nil
+	}, nil
 }
 
 var (
@@ -89,10 +62,6 @@ type inviteSubroutine struct {
 	mgr             mcmanager.Manager
 	kcpClientGetter iclient.KCPClientGetter
 	limiter         workqueue.TypedRateLimiter[*kcpcorev1alpha1.LogicalCluster]
-	userClaim       string
-	keycloak        *http.Client
-	keycloakBaseURL string
-	creatorRealm    string
 }
 
 func (w *inviteSubroutine) GetName() string { return "InviteInitializationSubroutine" }
@@ -140,19 +109,10 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.
 		return subroutines.OK(), nil
 	}
 
-	creatorEmail := *account.Spec.Creator
-	if w.userClaim != "email" {
-		resolved, err := w.resolveCreatorEmail(ctx, *account.Spec.Creator)
-		if err != nil {
-			return subroutines.OK(), fmt.Errorf("resolving creator email from user ID %q: %w", *account.Spec.Creator, err)
-		}
-		creatorEmail = resolved
-	}
-
 	// the Invite resource is created in :root:orgs:<new org> workspace
 	invite := &pmcorev1alpha1.Invite{ObjectMeta: metav1.ObjectMeta{Name: wsName}}
 	_, err = controllerutil.CreateOrUpdate(ctx, client, invite, func() error {
-		invite.Spec.Email = creatorEmail
+		invite.Spec.Email = *account.Spec.Creator
 
 		return nil
 	})
@@ -180,39 +140,4 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.
 	log.Info().Str("workspace", wsName).Msg("invite resource is ready")
 	w.limiter.Forget(lc)
 	return subroutines.OK(), nil
-}
-
-type keycloakUserResponse struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-}
-
-func (w *inviteSubroutine) resolveCreatorEmail(ctx context.Context, userID string) (string, error) {
-	url := fmt.Sprintf("%s/admin/realms/%s/users/%s", w.keycloakBaseURL, w.creatorRealm, userID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", fmt.Errorf("creating request: %w", err)
-	}
-
-	res, err := w.keycloak.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("querying Keycloak user: %w", err)
-	}
-	defer res.Body.Close() //nolint:errcheck
-
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Keycloak returned status %s for user %s in realm %s", res.Status, userID, w.creatorRealm)
-	}
-
-	var user keycloakUserResponse
-	if err := json.NewDecoder(res.Body).Decode(&user); err != nil {
-		return "", fmt.Errorf("decoding Keycloak response: %w", err)
-	}
-
-	if user.Email == "" {
-		return "", fmt.Errorf("Keycloak user %s in realm %s has no email", userID, w.creatorRealm)
-	}
-
-	log.Info().Str("userID", userID).Str("email", user.Email).Msg("resolved creator email from Keycloak")
-	return user.Email, nil
 }

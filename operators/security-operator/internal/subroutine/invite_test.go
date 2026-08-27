@@ -18,10 +18,6 @@ package subroutine
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -31,7 +27,6 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
-	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/subroutines"
 
@@ -48,8 +43,7 @@ func TestNewInviteSubroutine(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	kcpHelper := mocks.NewMockKCPClientGetter(t)
 
-	cfg := config.Config{UserClaim: "email"}
-	subroutine, err := NewInviteSubroutine(context.Background(), mgr, kcpHelper, cfg)
+	subroutine, err := NewInviteSubroutine(mgr, kcpHelper)
 	require.NoError(t, err)
 	assert.NotNil(t, subroutine)
 	assert.Equal(t, kcpHelper, subroutine.kcpClientGetter)
@@ -59,8 +53,7 @@ func TestNewInviteSubroutine(t *testing.T) {
 func TestInviteSubroutine_GetName(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	kcpHelper := mocks.NewMockKCPClientGetter(t)
-	cfg := config.Config{UserClaim: "email"}
-	subroutine, err := NewInviteSubroutine(context.Background(), mgr, kcpHelper, cfg)
+	subroutine, err := NewInviteSubroutine(mgr, kcpHelper)
 	require.NoError(t, err)
 
 	name := subroutine.GetName()
@@ -233,8 +226,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 			orgsClient := mocks.NewMockClient(t)
 			mgr := mocks.NewMockManager(t)
 			kcpHelper := mocks.NewMockKCPClientGetter(t)
-			cfg := config.Config{UserClaim: "email"}
-			subroutine, err := NewInviteSubroutine(context.Background(), mgr, kcpHelper, cfg)
+			subroutine, err := NewInviteSubroutine(mgr, kcpHelper)
 			require.NoError(t, err)
 
 			tt.setupMocks(wsClient, orgsClient, mgr, kcpHelper)
@@ -317,144 +309,4 @@ func TestGetWorkspaceName(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
-}
-
-func TestResolveCreatorEmail(t *testing.T) {
-	const (
-		testUserID = "62915c7d-1234-5678-9abc-def012345678"
-		testEmail  = "owner@acme.io"
-		testRealm  = "default"
-	)
-
-	tests := []struct {
-		name        string
-		handler     http.HandlerFunc
-		expectedErr string
-		expected    string
-	}{
-		{
-			name: "successful email resolution",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, fmt.Sprintf("/admin/realms/%s/users/%s", testRealm, testUserID), r.URL.Path)
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(keycloakUserResponse{ID: testUserID, Email: testEmail})
-			},
-			expected: testEmail,
-		},
-		{
-			name: "user not found",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusNotFound)
-			},
-			expectedErr: "Keycloak returned status 404",
-		},
-		{
-			name: "user has no email",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(keycloakUserResponse{ID: testUserID, Email: ""})
-			},
-			expectedErr: "has no email",
-		},
-		{
-			name: "server error",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusInternalServerError)
-			},
-			expectedErr: "Keycloak returned status 500",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(tt.handler)
-			defer server.Close()
-
-			sub := &inviteSubroutine{
-				keycloak:        server.Client(),
-				keycloakBaseURL: server.URL,
-				creatorRealm:    testRealm,
-			}
-
-			email, err := sub.resolveCreatorEmail(context.Background(), testUserID)
-			if tt.expectedErr != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedErr)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.expected, email)
-			}
-		})
-	}
-}
-
-func TestInviteSubroutine_Initialize_WithUserIDCreator(t *testing.T) {
-	const (
-		testUserID = "62915c7d-1234-5678-9abc-def012345678"
-		testEmail  = "creator@org.io"
-		testRealm  = "sap"
-	)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, fmt.Sprintf("/admin/realms/%s/users/%s", testRealm, testUserID), r.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(keycloakUserResponse{ID: testUserID, Email: testEmail})
-	}))
-	defer server.Close()
-
-	wsClient := mocks.NewMockClient(t)
-	orgsClient := mocks.NewMockClient(t)
-	mgr := mocks.NewMockManager(t)
-	kcpHelper := mocks.NewMockKCPClientGetter(t)
-
-	kcpHelper.EXPECT().NewClientFromContext(mock.Anything).Return(wsClient, nil).Once()
-	kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
-	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myorg"}, mock.AnythingOfType("*v1alpha1.Account")).
-		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			acc := obj.(*pmcorev1alpha1.Account)
-			acc.Spec.Type = pmcorev1alpha1.AccountTypeOrg
-			uid := testUserID
-			acc.Spec.Creator = &uid
-			return nil
-		}).Once()
-	wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myorg"}, mock.AnythingOfType("*v1alpha1.Invite")).
-		Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "myorg")).Once()
-	wsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
-		RunAndReturn(func(_ context.Context, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
-			inv := obj.(*pmcorev1alpha1.Invite)
-			assert.Equal(t, testEmail, inv.Spec.Email, "invite email should be the resolved email, not the user ID")
-			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
-			return nil
-		}).Once()
-	wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myorg"}, mock.AnythingOfType("*v1alpha1.Invite")).
-		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			inv := obj.(*pmcorev1alpha1.Invite)
-			inv.Spec.Email = testEmail
-			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
-			return nil
-		}).Maybe()
-
-	cfg := config.Config{UserClaim: "email"}
-	sub, err := NewInviteSubroutine(context.Background(), mgr, kcpHelper, cfg)
-	require.NoError(t, err)
-
-	sub.userClaim = "sub"
-	sub.keycloak = server.Client()
-	sub.keycloakBaseURL = server.URL
-	sub.creatorRealm = testRealm
-
-	l := testlogger.New()
-	ctx := l.WithContext(context.Background())
-
-	lc := &kcpcorev1alpha1.LogicalCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				"kcp.io/path": "root:orgs:myorg",
-			},
-		},
-	}
-
-	result, err := sub.Initialize(ctx, lc)
-	assert.NoError(t, err)
-	assert.Equal(t, subroutines.OK(), result)
 }

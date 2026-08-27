@@ -126,7 +126,7 @@ var initializerCmd = &cobra.Command{
 		)
 
 		kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
-		orgReconciler, err := controller.NewOrgLogicalClusterController(cmd.Context(), log, kcpClientGetter, initializerCfg, runtimeClient, mgr, fgaClient, storeIDGetter, controller.ControllerOptions{
+		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, initializerCfg, runtimeClient, mgr, fgaClient, storeIDGetter, controller.ControllerOptions{
 			Name:            "OrgLogicalClusterInitializer",
 			InitializerName: initializerCfg.InitializerName(),
 		})

@@ -99,7 +99,6 @@ type Config struct {
 	BaseDomain                       string
 	GroupClaim                       string
 	UserClaim                        string
-	CreatorRealm                     string
 	DevelopmentAllowUnverifiedEmails bool
 	WorkspacePath                    string
 	WorkspaceTypeName                string
@@ -135,7 +134,6 @@ func NewConfig() Config {
 		BaseDomain:               "portal.dev.local:8443",
 		GroupClaim:               "groups",
 		UserClaim:                "email",
-		CreatorRealm:             "default",
 		WorkspacePath:            "root",
 		WorkspaceTypeName:        "security",
 		HttpClientTimeoutSeconds: 30,
@@ -174,7 +172,6 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.BaseDomain, "base-domain", c.BaseDomain, "Set the base domain used to construct issuer URLs")
 	fs.StringVar(&c.GroupClaim, "group-claim", c.GroupClaim, "Set the ID token group claim")
 	fs.StringVar(&c.UserClaim, "user-claim", c.UserClaim, "Set the ID token user claim")
-	fs.StringVar(&c.CreatorRealm, "creator-realm", c.CreatorRealm, "Set the Keycloak realm used to resolve creator user details when user-claim is not email")
 	fs.BoolVar(&c.DevelopmentAllowUnverifiedEmails, "development-allow-unverified-emails", c.DevelopmentAllowUnverifiedEmails, "Allow unverified emails in development mode")
 	fs.StringVar(&c.WorkspacePath, "workspace-path", c.WorkspacePath, "Set the parent workspace path for created workspaces")
 	fs.StringVar(&c.WorkspaceTypeName, "workspace-type-name", c.WorkspaceTypeName, "Set the workspace type name")
