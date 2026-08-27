@@ -192,7 +192,7 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}
-		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetterWithConfig, operatorCfg, runtimeClient, mgr, fga, storeIDGetter, controller.ControllerOptions{
+		orgReconciler, err := controller.NewOrgLogicalClusterController(ctx, log, kcpClientGetterWithConfig, operatorCfg, runtimeClient, mgr, fga, storeIDGetter, controller.ControllerOptions{
 			Name: "OrgLogicalClusterReconciler",
 		})
 		if err != nil {

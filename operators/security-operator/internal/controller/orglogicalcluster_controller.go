@@ -61,7 +61,7 @@ type OrgLogicalClusterController struct {
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.KCPClientGetter, cfg config.Config, inClusterClient ctrlruntimeclient.Client, mgr mcmanager.Manager, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, opts ControllerOptions) (*OrgLogicalClusterController, error) {
+func NewOrgLogicalClusterController(ctx context.Context, log *logger.Logger, kcpClientGetter iclient.KCPClientGetter, cfg config.Config, inClusterClient ctrlruntimeclient.Client, mgr mcmanager.Manager, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, opts ControllerOptions) (*OrgLogicalClusterController, error) {
 	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
@@ -80,7 +80,7 @@ func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.
 		subs = append(subs, idpSub)
 	}
 	if cfg.Initializer.InviteEnabled {
-		inviteSub, err := subroutine.NewInviteSubroutine(mgr, kcpClientGetter)
+		inviteSub, err := subroutine.NewInviteSubroutine(ctx, mgr, kcpClientGetter, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("creating Invite subroutine: %w", err)
 		}

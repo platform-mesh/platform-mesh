@@ -104,7 +104,7 @@ var terminatorCmd = &cobra.Command{
 		)
 		kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
 
-		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, terminatorCfg, nil, mgr, fgaClient, storeIDGetter, controller.ControllerOptions{
+		orgReconciler, err := controller.NewOrgLogicalClusterController(cmd.Context(), log, kcpClientGetter, terminatorCfg, nil, mgr, fgaClient, storeIDGetter, controller.ControllerOptions{
 			Name:           "OrgLogicalClusterTerminator",
 			TerminatorName: terminatorCfg.TerminatorName(),
 		})
