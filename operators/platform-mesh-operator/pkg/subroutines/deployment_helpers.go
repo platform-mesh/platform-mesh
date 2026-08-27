@@ -489,6 +489,19 @@ func (r *DeploymentSubroutine) infraManifestPostProcess(ctx context.Context, log
 		}
 		if obj.GetKind() == "HelmRelease" && obj.GetAPIVersion() == "helm.toolkit.fluxcd.io/v2" {
 			r.mergeImageVersionsIntoHelmReleaseValues(obj, obj.GetName(), obj.GetNamespace(), log)
+
+			// Diagnostic logging for suspended HelmReleases waiting on image injection
+			suspended, found, _ := unstructured.NestedBool(obj.Object, "spec", "suspend")
+			if found && suspended && r.imageVersionStore != nil {
+				// Check if this HelmRelease has been unsuspended by ResourceSubroutine
+				if !r.imageVersionStore.IsUnsuspended(obj.GetNamespace(), obj.GetName()) {
+					// HelmRelease is suspended and has not been unsuspended yet - likely waiting for image injection
+					log.Warn().
+						Str("helmRelease", obj.GetName()).
+						Str("namespace", obj.GetNamespace()).
+						Msg("HelmRelease created in suspended state. It will remain suspended until ResourceSubroutine processes OCM imageResources and sets suspend=false. If this HelmRelease never starts, verify that its imageResources configuration includes an entry with 'unsuspend: \"true\"' annotation.")
+				}
+			}
 		}
 		return nil
 	}

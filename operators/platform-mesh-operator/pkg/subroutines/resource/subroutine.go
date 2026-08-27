@@ -334,6 +334,12 @@ func (r *ResourceSubroutine) updateHelmReleaseImage(ctx context.Context, inst *u
 	}
 	if getMetadataValue(inst, "unsuspend") == "true" {
 		r.storeUnsuspended(namespace, name)
+		log.Info().
+			Str("helmRelease", name).
+			Str("namespace", namespace).
+			Str("resource", inst.GetName()).
+			Str("version", version).
+			Msg("Image injection complete - HelmRelease unsuspended and ready for reconciliation")
 	}
 	return subroutineslib.OK(), nil
 }
