@@ -490,6 +490,29 @@ spec:
 {{ end -}}
 ```
 
+### Using External Cert-Manager
+
+If cert-manager is already installed in your cluster (via ArgoCD, manual installation, or another operator), you can disable the platform-mesh-operator's cert-manager deployment by setting `certManager.enabled: false` in your profile:
+
+```yaml
+# profile.yaml
+infra:
+  certManager:
+    enabled: false
+```
+
+**Requirements:**
+- Cert-manager CRDs must be installed: `issuers.cert-manager.io`, `certificates.cert-manager.io`
+- Cert-manager controller must be running and processing Certificate resources
+- The deployment name and namespace don't matter — the operator only validates CRDs exist
+
+**How it works:**
+The operator will:
+- Skip creating HelmRelease/Application for cert-manager
+- Validate that cert-manager CRDs are established
+- Create its own Issuer and Certificate resources in `platform-mesh-system` for authorization webhooks
+- Requeue if CRDs are not yet available
+
 ## Remote Deployment
 
 The operator supports multi-cluster deployment where the operator process runs in a **local** cluster but manages resources on separate **runtime** and **infra** clusters.
