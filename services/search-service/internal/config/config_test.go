@@ -24,8 +24,8 @@ import (
 
 func TestUserClaimConfiguration(t *testing.T) {
 	cfg := NewServiceConfig()
-	if cfg.UserClaim != "email" {
-		t.Fatalf("expected default user claim email, got %q", cfg.UserClaim)
+	if cfg.UserClaim != "sub" {
+		t.Fatalf("expected default user claim sub, got %q", cfg.UserClaim)
 	}
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)

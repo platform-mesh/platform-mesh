@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const defaultUserClaim = "email"
+const defaultUserClaim = "sub"
 
 type OpenSearchConfig struct {
 	URL      string
