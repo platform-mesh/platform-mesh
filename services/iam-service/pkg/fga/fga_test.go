@@ -38,6 +38,16 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+type countingRolesRetriever struct {
+	delegate roles.RolesRetriever
+	calls    int
+}
+
+func (r *countingRolesRetriever) GetRoleDefinitions(resourceContext graph.ResourceContext) ([]roles.RoleDefinition, error) {
+	r.calls++
+	return r.delegate.GetRoleDefinitions(resourceContext)
+}
+
 // createTestConfig creates a test configuration
 func createTestConfig() *config.ServiceConfig {
 	testRolesFile := filepath.Join("testdata", "roles.yaml")
@@ -215,6 +225,79 @@ func TestService_ListUsers_Success(t *testing.T) {
 	}
 
 	assert.Equal(t, expected, resultMap)
+}
+
+func TestService_ListUsersWithRoleCounts_ReusesRoleLookups(t *testing.T) {
+	service, client := createTestService(t)
+	rolesRetriever := &countingRolesRetriever{delegate: service.rolesRetriever}
+	service.rolesRetriever = rolesRetriever
+
+	ctx := appcontext.SetKCPContext(context.Background(), appcontext.KCPContext{
+		IDMTenant:        "test-tenant",
+		OrganizationName: "test-org",
+	})
+	ctx = appcontext.SetClusterId(ctx, "cluster-123")
+
+	rCtx := graph.ResourceContext{
+		Group: "core.platform-mesh.io",
+		Kind:  "Account",
+		Resource: &graph.Resource{
+			Name:      "test-account",
+			Namespace: ptr.To("default"),
+		},
+		AccountPath: "test-account",
+	}
+
+	client.EXPECT().ListStores(mock.Anything, mock.Anything).Return(&openfgav1.ListStoresResponse{
+		Stores: []*openfgav1.Store{{
+			Id:   "store-123",
+			Name: "test-org",
+		}},
+	}, nil).Once()
+
+	client.EXPECT().ListUsers(mock.Anything, mock.MatchedBy(func(req *openfgav1.ListUsersRequest) bool {
+		return req.StoreId == "store-123" &&
+			req.Object.Type == "role" &&
+			req.Object.Id == "core_platform-mesh_io_account/cluster-123/test-account/owner" &&
+			req.Relation == "assignee"
+	})).Return(&openfgav1.ListUsersResponse{
+		Users: []*openfgav1.User{
+			{User: &openfgav1.User_Object{Object: &openfgav1.Object{Type: "user", Id: "user1"}}},
+			{User: &openfgav1.User_Object{Object: &openfgav1.Object{Type: "user", Id: "user2"}}},
+		},
+	}, nil).Once()
+
+	client.EXPECT().ListUsers(mock.Anything, mock.MatchedBy(func(req *openfgav1.ListUsersRequest) bool {
+		return req.StoreId == "store-123" &&
+			req.Object.Type == "role" &&
+			req.Object.Id == "core_platform-mesh_io_account/cluster-123/test-account/member" &&
+			req.Relation == "assignee"
+	})).Return(&openfgav1.ListUsersResponse{
+		Users: []*openfgav1.User{
+			{User: &openfgav1.User_Object{Object: &openfgav1.Object{Type: "user", Id: "user2"}}},
+			{User: &openfgav1.User_Object{Object: &openfgav1.Object{Type: "user", Id: "user3"}}},
+		},
+	}, nil).Once()
+
+	users, roleCounts, err := service.ListUsersWithRoleCounts(
+		ctx,
+		rCtx,
+		[]string{"member"},
+		[]string{"owner", "member", "owner", "invalid-role"},
+	)
+
+	assert.NoError(t, err)
+	assert.Len(t, users, 2)
+	for _, user := range users {
+		assert.NotEqual(t, "user1", user.User.Email)
+		assert.Len(t, user.Roles, 1)
+		assert.Equal(t, "member", user.Roles[0].ID)
+	}
+	assert.Equal(t, []*graph.RoleCount{
+		{RoleID: "owner", Count: 2},
+		{RoleID: "member", Count: 2},
+	}, roleCounts)
+	assert.Equal(t, 1, rolesRetriever.calls)
 }
 
 func TestService_ListUsers_NoKCPContext(t *testing.T) {
