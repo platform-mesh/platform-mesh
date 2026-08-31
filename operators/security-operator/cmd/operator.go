@@ -236,6 +236,10 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("webhook", "IdPRegistration").Msg("unable to create webhook")
 			return err
 		}
+		if err := internalwebhook.SetupIdPRegistrationMutatingWebhookWithManager(mgr.GetLocalManager(), kcpClientGetterWithConfig); err != nil {
+			log.Error().Err(err).Str("webhook", "IdPRegistrationMutating").Msg("unable to create webhook")
+			return err
+		}
 		}
 		// +kubebuilder:scaffold:builder
 

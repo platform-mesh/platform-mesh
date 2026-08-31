@@ -6,24 +6,75 @@ type role
   relations
     define assignee: [user,user:*]
 
-type account
+type core_platform-mesh_io_account
   relations
+    define parent: [core_platform-mesh_io_account]
 
-    define parent: [account]
-    define owner: [role#assignee]
+    define owner: [role#assignee] or owner from parent
     define member: [role#assignee] or owner
 
-    define get: member or get from parent
-    define update: member or update from parent
-    define delete: owner or delete from parent
+    define get: member
+    define update: member
+    define patch: member
+    define delete: owner
 
     define create_core_platform-mesh_io_accounts: member
     define list_core_platform-mesh_io_accounts: member
     define watch_core_platform-mesh_io_accounts: member
 
     # org and account specific
-    define watch: member or watch from parent
+    define watch: member
 
-    # org specific
-    define create: member or create from parent
-    define list: member or list from parent
+    define create_core_platform-mesh_io_accountinfos: member
+    define list_core_platform-mesh_io_accountinfos: member
+    define watch_core_platform-mesh_io_accountinfos: member
+
+    define list_core_kcp_io_logicalclusters: member
+    define watch_core_kcp_io_logicalclusters: member
+
+    # IAM specific
+    define manage_iam_roles: owner
+    define get_iam_roles: member
+    define get_iam_users: member
+
+    # APIExport binding control
+    define bind_inherited: [apis_kcp_io_apiexport] or bind_inherited from parent
+    define bind: [apis_kcp_io_apiexport] or bind_inherited
+
+    define create_core_platform-mesh_io_idpregistrations: owner
+    define list_core_platform-mesh_io_idpregistrations: owner
+    define watch_core_platform-mesh_io_idpregistrations: owner
+
+type core_platform-mesh_io_idpregistration
+  relations
+    define parent: [core_platform-mesh_io_account]
+    define owner: owner from parent
+
+    define get: owner
+    define update: owner
+    define patch: owner
+    define delete: owner
+
+type core_platform-mesh_io_accountinfo
+  relations
+    define parent: [core_platform-mesh_io_account]
+
+    define member: member from parent
+    define owner: owner from parent
+
+    define get: member
+    define watch: member
+
+    # IAM specific
+    define manage_iam_roles: owner
+    define get_iam_roles: member
+    define get_iam_users: member
+
+type core_kcp_io_logicalcluster
+  relations
+    define parent: [core_platform-mesh_io_account]
+
+    define member: member from parent
+
+    define get: member
+    define watch: member
