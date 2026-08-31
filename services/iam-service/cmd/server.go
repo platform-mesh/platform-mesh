@@ -105,10 +105,9 @@ func setupRouter(ctx context.Context, mgr mcmanager.Manager, fgaClient openfgav1
 	}
 	wsClient := workspace.NewClusterClientFactory(mcClusterClient)
 	ad := directive.NewAuthorizedDirective(
-		fgaClient,
 		accountInfoRetriever,
-		serviceCfg.OpenFGA.StoreCacheTTL,
 		wsClient,
+		restcfg,
 		log,
 	)
 	dr := graph.DirectiveRoot{
