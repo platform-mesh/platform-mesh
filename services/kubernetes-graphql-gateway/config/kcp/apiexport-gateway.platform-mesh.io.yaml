@@ -24,7 +24,7 @@ spec:
   resources:
   - group: gateway.platform-mesh.io
     name: clusteraccesses
-    schema: v260419-1b8ee42.clusteraccesses.gateway.platform-mesh.io
+    schema: v260825-3f81766f.clusteraccesses.gateway.platform-mesh.io
     storage:
       crd: {}
 status: {}
