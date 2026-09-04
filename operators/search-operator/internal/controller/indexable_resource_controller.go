@@ -41,13 +41,13 @@ type IndexableResourceReconciler struct {
 	log         *logger.Logger
 	mclifecycle *multicluster.LifecycleManager
 	allClient   ctrlruntimeclient.Client
-	cfg         config.Config
+	cfg         config.OperatorConfig
 	resource    unstructured.Unstructured
 }
 
 // NewIndexableResourceReconciler creates a new IndexableResource reconciler
 // If osClient is nil, only the IndexableResourceWatcher subroutine is used (no indexing)
-func NewIndexableResource(log *logger.Logger, cfg config.Config, mcMgr mcmanager.Manager, osClient *opensearch.Client, apiExportName string, resources *unstructured.Unstructured) (*IndexableResourceReconciler, error) {
+func NewIndexableResource(log *logger.Logger, cfg config.OperatorConfig, mcMgr mcmanager.Manager, osClient *opensearch.Client, apiExportName string, resources *unstructured.Unstructured) (*IndexableResourceReconciler, error) {
 	localMgr := mcMgr.GetLocalManager()
 
 	// Create a wildcard client for cross-workspace queries
@@ -63,7 +63,7 @@ func NewIndexableResource(log *logger.Logger, cfg config.Config, mcMgr mcmanager
 	}
 
 	// Build subroutines list
-	watcherSubroutine, err := subroutine.NewIndexableResourceWatcherSubroutine(mcMgr, allClient, orgsClient, osClient, apiExportName, cfg.OpenSearch.IndexNamePrefix, localMgr.GetConfig())
+	watcherSubroutine, err := subroutine.NewIndexableResourceWatcherSubroutine(mcMgr, allClient, orgsClient, osClient, apiExportName, cfg.OpenSearchIndexNamePrefix, localMgr.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("create IndexableResourceWatcherSubroutine: %w", err)
 	}

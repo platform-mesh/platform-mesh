@@ -46,20 +46,27 @@ import (
 
 // The apiBindingWatcherSubroutine only watches bindings of the Search export
 type apiBindingWatcherSubroutine struct {
-	mgr         mcmanager.Manager
-	orgsClient  ctrlruntimeclient.Client
-	rootCfg     *rest.Config
-	indexPrefix string
+	mgr             mcmanager.Manager
+	orgsClient      ctrlruntimeclient.Client
+	rootCfg         *rest.Config
+	cfg             config.OperatorConfig
+	indexPrefix     string
+	providerByGroup map[string]string
 }
 
 // NewAPIBindingWatcherSubroutine creates a new APIBinding watcher subroutine.
 // orgsClient must be scoped to the root:orgs workspace.
 // searchConfigClient must be scoped to the provider workspace.
 // localCfg must be the admin kcp REST config.
-func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient ctrlruntimeclient.Client, localCfg *rest.Config, indexPrefix string, cfg config.Config) (lifecyclesubroutine.Subroutine, error) {
+func NewAPIBindingWatcherSubroutine(mgr mcmanager.Manager, orgsClient ctrlruntimeclient.Client, localCfg *rest.Config, indexPrefix string, cfg config.OperatorConfig) (lifecyclesubroutine.Subroutine, error) {
 	rootCfg, err := stripPathFromConfig(localCfg)
 	if err != nil {
 		return nil, err
+	}
+
+	providerByGroup := make(map[string]string, len(cfg.SearchableResources))
+	for _, rss := range cfg.SearchableResources {
+		providerByGroup[rss.Group] = rss.Provider
 	}
 
 	return &apiBindingWatcherSubroutine{

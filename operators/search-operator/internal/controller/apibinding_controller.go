@@ -45,12 +45,12 @@ import (
 // APIBindingReconciler watches APIBinding resources across all workspaces
 type APIBindingReconciler struct {
 	log         *logger.Logger
-	cfg         *config.Config
+	cfg         config.OperatorConfig
 	mclifecycle *multicluster.LifecycleManager
 }
 
 // NewAPIBindingReconciler creates a new APIBinding reconciler.
-func NewAPIBindingReconciler(log *logger.Logger, mcMgr mcmanager.Manager, cfg *config.Config) (*APIBindingReconciler, error) {
+func NewAPIBindingReconciler(log *logger.Logger, mcMgr mcmanager.Manager, cfg config.OperatorConfig) (*APIBindingReconciler, error) {
 	localMgr := mcMgr.GetLocalManager()
 
 	orgsClient, err := subroutine.GetScopedClient(localMgr.GetConfig(), localMgr.GetScheme(), "root:orgs")
@@ -58,7 +58,7 @@ func NewAPIBindingReconciler(log *logger.Logger, mcMgr mcmanager.Manager, cfg *c
 		return nil, fmt.Errorf("create root:orgs scoped client: %w", err)
 	}
 
-	watcherSubroutine, err := subroutine.NewAPIBindingWatcherSubroutine(mcMgr, orgsClient, localMgr.GetConfig(), cfg.OpenSearch.IndexNamePrefix, *cfg)
+	watcherSubroutine, err := subroutine.NewAPIBindingWatcherSubroutine(mcMgr, orgsClient, localMgr.GetConfig(), cfg.OpenSearchIndexNamePrefix, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create APIBindingWatcherSubroutine: %w", err)
 	}
