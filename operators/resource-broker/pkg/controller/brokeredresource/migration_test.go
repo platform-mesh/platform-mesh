@@ -62,7 +62,18 @@ func testMigrationOptions(t *testing.T, clients *migrationTestClients, refs []Ac
 		StagingTreeRoot:    testTreeRoot,
 		CoordinationClient: clients.coordination,
 		RequeueInterval:    DefaultRequeueInterval,
-		WorkspaceClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
+		StagingClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
+			switch path {
+			case testTreeRoot + ":" + testStagingName:
+				return clients.staging, nil
+			case testTreeRoot + ":" + testTargetStagingName:
+				return clients.target, nil
+			default:
+				t.Fatalf("unexpected staging client path %q", path)
+				return nil, nil
+			}
+		},
+		ProviderClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
 			switch path {
 			case testProviderCluster:
 				return clients.provider, nil
@@ -70,14 +81,10 @@ func testMigrationOptions(t *testing.T, clients *migrationTestClients, refs []Ac
 				if clients.otherProvider != nil {
 					return clients.otherProvider, nil
 				}
-				t.Fatalf("unexpected workspace client path %q", path)
+				t.Fatalf("unexpected provider client path %q", path)
 				return nil, nil
-			case testTreeRoot + ":" + testStagingName:
-				return clients.staging, nil
-			case testTreeRoot + ":" + testTargetStagingName:
-				return clients.target, nil
 			default:
-				t.Fatalf("unexpected workspace client path %q", path)
+				t.Fatalf("unexpected provider client path %q", path)
 				return nil, nil
 			}
 		},

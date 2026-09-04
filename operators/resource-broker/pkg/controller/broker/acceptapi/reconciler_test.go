@@ -53,21 +53,21 @@ func TestNewReconcilerValidation(t *testing.T) {
 	}{
 		{
 			name:    "missing tree root",
-			opts:    Options{WorkspaceClientFunc: clientFunc},
+			opts:    Options{VerificationClientFunc: clientFunc},
 			wantErr: "VerificationTreeRoot is required",
 		},
 		{
-			name: "missing workspace client func",
+			name: "missing verification client func",
 			opts: Options{
 				VerificationTreeRoot: "root:platform",
 			},
-			wantErr: "WorkspaceClientFunc is required",
+			wantErr: "VerificationClientFunc is required",
 		},
 		{
-			name: "tree root and workspace client func",
+			name: "tree root and verification client func",
 			opts: Options{
-				VerificationTreeRoot: "root:platform",
-				WorkspaceClientFunc:  clientFunc,
+				VerificationTreeRoot:   "root:platform",
+				VerificationClientFunc: clientFunc,
 			},
 		},
 	}

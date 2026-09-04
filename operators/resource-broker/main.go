@@ -47,6 +47,21 @@ var (
 		"",
 		"Kubeconfig for the compute cluster. If not set, the local config is used.",
 	)
+	fCoordKubeconfig = flag.String(
+		"coord-kubeconfig",
+		"",
+		"Kubeconfig for the coordination workspace. Falls back to kcp-kubeconfig if not set.",
+	)
+	fVerificationKubeconfig = flag.String(
+		"verification-kubeconfig",
+		"",
+		"Kubeconfig for the verification tree root. Falls back to kcp-kubeconfig if not set.",
+	)
+	fStagingKubeconfig = flag.String(
+		"staging-kubeconfig",
+		"",
+		"Kubeconfig for the staging tree root. Falls back to kcp-kubeconfig if not set.",
+	)
 
 	fAcceptAPI = flag.String(
 		"acceptapi",
@@ -127,12 +142,33 @@ func main() {
 		os.Exit(1)
 	}
 
+	coordConfig, err := loadKubeconfig(*fCoordKubeconfig, kcpConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to load coord kubeconfig", "path", *fCoordKubeconfig)
+		os.Exit(1)
+	}
+
+	verificationConfig, err := loadKubeconfig(*fVerificationKubeconfig, kcpConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to load verification kubeconfig", "path", *fVerificationKubeconfig)
+		os.Exit(1)
+	}
+
+	stagingConfig, err := loadKubeconfig(*fStagingKubeconfig, kcpConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to load staging kubeconfig", "path", *fStagingKubeconfig)
+		os.Exit(1)
+	}
+
 	brk, err := broker.New(broker.Options{
 		Log: setupLog.WithName("broker"),
 
-		LocalConfig:   local,
-		KcpConfig:     kcpConfig,
-		ComputeConfig: computeConfig,
+		LocalConfig:        local,
+		KcpConfig:          kcpConfig,
+		ComputeConfig:      computeConfig,
+		CoordConfig:        coordConfig,
+		VerificationConfig: verificationConfig,
+		StagingConfig:      stagingConfig,
 
 		AcceptAPIName: *fAcceptAPI,
 
