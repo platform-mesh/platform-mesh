@@ -31,15 +31,11 @@ spec:
 {{ toYaml .gatewayApi.ignoreDifferences | nindent 4 }}
   {{- end }}
   source:
+    chart: {{ .gatewayApi.name }}
     {{- if and .gatewayApi.repoURL (ne .gatewayApi.repoURL "") }}
     repoURL: {{ .gatewayApi.repoURL }}
     {{- else }}
     repoURL: PLACEHOLDER_TO_BE_SET_BY_RESOURCE_SUBROUTINE
-    {{- end }}
-    {{- if and .gatewayApi.kustomization .gatewayApi.kustomization.path }}
-    path: {{ .gatewayApi.kustomization.path }}
-    {{- else }}
-    path: PLACEHOLDER_TO_BE_SET_BY_RESOURCE_SUBROUTINE
     {{- end }}
     {{- if and .gatewayApi.targetRevision (ne .gatewayApi.targetRevision "") }}
     targetRevision: {{ .gatewayApi.targetRevision }}
