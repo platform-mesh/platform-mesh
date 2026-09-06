@@ -109,7 +109,18 @@ func TestIdentityProviderConfigurationValidator_ValidateCreate(t *testing.T) {
 
 func TestIdentityProviderConfigurationValidator_ValidateUpdate(t *testing.T) {
 	v := &identityProviderConfigurationValidator{keycloakClient: fakeRealmChecker{exists: true}}
-	_, err := v.ValidateUpdate(t.Context(), &pmcorev1alpha1.IdentityProviderConfiguration{}, &pmcorev1alpha1.IdentityProviderConfiguration{})
+	_, err := v.ValidateUpdate(t.Context(),
+		&pmcorev1alpha1.IdentityProviderConfiguration{},
+		&pmcorev1alpha1.IdentityProviderConfiguration{
+			Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+				Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+					ClientName:   "portal",
+					ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+					RedirectURIs: []string{"https://example.com/*"},
+				}},
+			},
+		},
+	)
 	require.NoError(t, err)
 }
 

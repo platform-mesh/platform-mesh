@@ -39,6 +39,91 @@ type IdentityProviderClientConfig struct {
 	SecretRef              corev1.SecretReference     `json:"secretRef,omitempty"`
 }
 
+type UpstreamIdentityProviderType string
+
+const (
+	UpstreamIdentityProviderTypeOIDC UpstreamIdentityProviderType = "oidc"
+)
+
+// UpstreamIdentityProvider holds fields independent from a provider's type
+// and references provider-specific information under OIDC.
+type UpstreamIdentityProvider struct {
+	Alias           string `json:"alias"`
+	DisplayName     string `json:"displayName,omitempty"`
+	Enabled         *bool  `json:"enabled,omitempty"`
+	HideOnLoginPage *bool  `json:"hideOnLoginPage,omitempty"`
+	// EmailDomainRouting configures email-domain based identity-first login for
+	// this upstream IdP. It is provider-agnostic; the operator translates it to
+	// the backend's routing mechanism (for Keycloak, Organizations).
+	EmailDomainRouting   *EmailDomainRouting `json:"emailDomainRouting,omitempty"`
+	AccountLinkingOnly   *bool               `json:"accountLinkingOnly,omitempty"`
+	StoreTokens          *bool               `json:"storeTokens,omitempty"`
+	StoredTokensReadable *bool               `json:"storedTokensReadable,omitempty"`
+	TrustEmail           *bool               `json:"trustEmail,omitempty"`
+	GUIOrder             *int                `json:"guiOrder,omitempty"`
+	VerifyEssentialClaim *bool               `json:"verifyEssentialClaim,omitempty"`
+	EssentialClaim       string              `json:"essentialClaim,omitempty"`
+	EssentialClaimValue  string              `json:"essentialClaimValue,omitempty"`
+	FirstLoginFlow       string              `json:"firstLoginFlow,omitempty"`
+	PostLoginFlow        string              `json:"postLoginFlow,omitempty"`
+	// +kubebuilder:validation:Enum=legacy;import;force
+	SyncMode              string `json:"syncMode,omitempty"`
+	CaseSensitiveUsername *bool  `json:"caseSensitiveUsername,omitempty"`
+	// +kubebuilder:validation:Enum=Always;WhenLinked;Never
+	ShowInAccountConsole string `json:"showInAccountConsole,omitempty"`
+	// +kubebuilder:validation:Enum=oidc
+	Type UpstreamIdentityProviderType `json:"type"`
+	OIDC *OIDCUpstreamConfig          `json:"oidc,omitempty"`
+}
+
+// EmailDomainRouting configures email-domain based identity-first login for an
+// upstream identity provider: users are routed to the provider based on their
+// email domain. It is intentionally provider-agnostic — the security-operator
+// maps it onto the concrete backend (for Keycloak: Organizations and the
+// kc.org.* broker settings).
+type EmailDomainRouting struct {
+	// Domains lists the email domains routed to this upstream IdP.
+	// +kubebuilder:validation:MinItems=1
+	Domains []string `json:"domains"`
+	// AutoRedirect immediately sends users whose email domain matches straight to
+	// this upstream IdP instead of showing the provider-selection screen.
+	AutoRedirect *bool `json:"autoRedirect,omitempty"`
+	// HideUntilDomainMatch hides this upstream IdP on the login page until a
+	// matching email domain routes a user to it.
+	HideUntilDomainMatch *bool `json:"hideUntilDomainMatch,omitempty"`
+}
+
+// OIDCUpstreamConfig holds OIDC-specific upstream identity provider
+// configuration.
+type OIDCUpstreamConfig struct {
+	// Either DiscoveryURL or the manual endpoint fields need to be set.
+	DiscoveryURL                          string                 `json:"discoveryUrl,omitempty"`
+	Issuer                                string                 `json:"issuer,omitempty"`
+	AuthorizationURL                      string                 `json:"authorizationUrl,omitempty"`
+	TokenURL                              string                 `json:"tokenUrl,omitempty"`
+	LogoutURL                             string                 `json:"logoutUrl,omitempty"`
+	BackchannelLogout                     *bool                  `json:"backchannelLogout,omitempty"`
+	UserInfoURL                           string                 `json:"userInfoUrl,omitempty"`
+	ClientAuthentication                  string                 `json:"clientAuthentication,omitempty"`
+	ClientID                              string                 `json:"clientId,omitempty"`
+	ClientSecretRef                       corev1.SecretReference `json:"clientSecretRef,omitempty"`
+	ClientAssertionSignatureAlgorithm     string                 `json:"clientAssertionSignatureAlgorithm,omitempty"`
+	ClientAssertionAudience               string                 `json:"clientAssertionAudience,omitempty"`
+	DefaultScopes                         string                 `json:"defaultScopes,omitempty"`
+	Prompt                                string                 `json:"prompt,omitempty"`
+	AcceptsPromptNoneForwardFromClient    *bool                  `json:"acceptsPromptNoneForwardFromClient,omitempty"`
+	RequiresShortStateParameter           *bool                  `json:"requiresShortStateParameter,omitempty"`
+	ValidateSignatures                    *bool                  `json:"validateSignatures,omitempty"`
+	UseJWKSURL                            *bool                  `json:"useJwksUrl,omitempty"`
+	JWKSURL                               string                 `json:"jwksUrl,omitempty"`
+	ValidatingPublicKey                   string                 `json:"validatingPublicKey,omitempty"`
+	ValidatingPublicKeyID                 string                 `json:"validatingPublicKeyId,omitempty"`
+	ForwardedQueryParameters              string                 `json:"forwardedQueryParameters,omitempty"`
+	SupportsClientAssertions              *bool                  `json:"supportsClientAssertions,omitempty"`
+	AllowsClientAssertionsReused          *bool                  `json:"allowsClientAssertionsReused,omitempty"`
+	AllowsClientIDAsAudienceForAssertions *bool                  `json:"allowsClientIdAsAudienceForAssertions,omitempty"`
+}
+
 // IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration
 type IdentityProviderConfigurationSpec struct {
 	RegistrationAllowed bool                           `json:"registrationAllowed,omitempty"`
@@ -54,7 +139,7 @@ type ManagedClient struct {
 
 // IdentityProviderConfigurationStatus defines the observed state of IdentityProviderConfiguration.
 type IdentityProviderConfigurationStatus struct {
-	Conditions     []metav1.Condition       `json:"conditions,omitempty"`
+	Conditions     []metav1.Condition   `json:"conditions,omitempty"`
 	ManagedClients map[string]ManagedClient `json:"managedClients,omitempty"`
 }
 

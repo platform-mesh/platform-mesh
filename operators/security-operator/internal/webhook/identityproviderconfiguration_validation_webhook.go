@@ -85,12 +85,11 @@ func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Cont
 	return nil, nil
 }
 
-func (v *identityProviderConfigurationValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *pmcorev1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
-	// Intentionally allow updates to prevent deadlocks when reconcilers add status/finalizers.
+func (v *identityProviderConfigurationValidator) ValidateUpdate(_ context.Context, _, _ *pmcorev1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
 	return nil, nil
 }
 
-func (v *identityProviderConfigurationValidator) ValidateDelete(ctx context.Context, obj *pmcorev1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
+func (v *identityProviderConfigurationValidator) ValidateDelete(_ context.Context, _ *pmcorev1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
 	return nil, nil
 }
 

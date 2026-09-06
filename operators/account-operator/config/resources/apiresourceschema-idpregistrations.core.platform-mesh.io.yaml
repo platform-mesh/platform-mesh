@@ -15,20 +15,20 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260826-dac476ab.identityproviderconfigurations.core.platform-mesh.io
+  name: v260831-ad84fd42.idpregistrations.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
-    kind: IdentityProviderConfiguration
-    listKind: IdentityProviderConfigurationList
-    plural: identityproviderconfigurations
-    singular: identityproviderconfiguration
+    kind: IdPRegistration
+    listKind: IdPRegistrationList
+    plural: idpregistrations
+    singular: idpregistration
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
-      description: IdentityProviderConfiguration is the Schema for the identityproviderconfigurations
-        API
+      description: IdPRegistration expresses an org owner's intent to configure an
+        upstream OIDC IdP.
       properties:
         apiVersion:
           description: |-
@@ -48,54 +48,97 @@ spec:
         metadata:
           type: object
         spec:
-          description: spec defines the desired state of IdentityProviderConfiguration
+          description: IdPRegistrationSpec defines the desired state of IdPRegistration.
           properties:
-            clients:
-              items:
-                properties:
-                  clientName:
+            alias:
+              minLength: 1
+              type: string
+            displayName:
+              type: string
+            emailDomainRouting:
+              description: |-
+                EmailDomainRouting configures email-domain based identity-first login for an
+                upstream identity provider: users are routed to the provider based on their
+                email domain. It is intentionally provider-agnostic — the security-operator
+                maps it onto the concrete backend (for Keycloak: Organizations and the
+                kc.org.* broker settings).
+              properties:
+                autoRedirect:
+                  description: |-
+                    AutoRedirect immediately sends users whose email domain matches straight to
+                    this upstream IdP instead of showing the provider-selection screen.
+                  type: boolean
+                domains:
+                  description: Domains lists the email domains routed to this upstream
+                    IdP.
+                  items:
                     type: string
-                  clientType:
-                    enum:
-                    - confidential
-                    - public
-                    type: string
-                  postLogoutRedirectUris:
-                    items:
-                      type: string
-                    type: array
-                  redirectUris:
-                    items:
-                      type: string
-                    type: array
-                  secretRef:
-                    description: |-
-                      SecretReference represents a Secret Reference. It has enough information to retrieve secret
-                      in any namespace
-                    properties:
-                      name:
-                        description: name is unique within a namespace to reference
-                          a secret resource.
-                        type: string
-                      namespace:
-                        description: namespace defines the space within which the
-                          secret name must be unique.
-                        type: string
-                    type: object
-                    x-kubernetes-map-type: atomic
-                required:
-                - clientName
-                - clientType
-                - redirectUris
-                type: object
-              type: array
-            registrationAllowed:
+                  minItems: 1
+                  type: array
+                hideUntilDomainMatch:
+                  description: |-
+                    HideUntilDomainMatch hides this upstream IdP on the login page until a
+                    matching email domain routes a user to it.
+                  type: boolean
+              required:
+              - domains
+              type: object
+            enabled:
               type: boolean
+            hideOnLoginPage:
+              type: boolean
+            oidc:
+              description: IdPRegistrationOIDCConfig holds tenant-supplied OIDC settings
+                for an upstream IdP.
+              properties:
+                authorizationUrl:
+                  type: string
+                clientId:
+                  type: string
+                clientSecret:
+                  description: |-
+                    ClientSecret is a write-only convenience field accepted on create/update.
+                    Admission stores the value in a Secret and sets clientSecretRef.name; it is
+                    not persisted on the IdPRegistration.
+                  type: string
+                clientSecretRef:
+                  description: |-
+                    IdPRegistrationSecretRef references a Secret in the same logical cluster as the
+                    IdPRegistration. Only the name is accepted — no namespace field to traverse.
+                  properties:
+                    name:
+                      minLength: 1
+                      type: string
+                  required:
+                  - name
+                  type: object
+                discoveryUrl:
+                  description: |-
+                    DiscoveryURL or manual endpoint fields (issuer, authorizationUrl, tokenUrl) are
+                    mutually exclusive. Discovery is preferred when set.
+                  type: string
+                issuer:
+                  type: string
+                jwksUrl:
+                  type: string
+                tokenUrl:
+                  type: string
+              required:
+              - clientId
+              - clientSecretRef
+              type: object
+            type:
+              default: oidc
+              enum:
+              - oidc
+              type: string
           required:
-          - clients
+          - alias
+          - oidc
+          - type
           type: object
         status:
-          description: status defines the observed state of IdentityProviderConfiguration
+          description: IdPRegistrationStatus defines the observed state of IdPRegistration.
           properties:
             conditions:
               items:
@@ -153,36 +196,20 @@ spec:
                 - type
                 type: object
               type: array
-            managedClients:
-              additionalProperties:
-                description: ManagedClient tracks a client that is managed by the
-                  operator.
-                properties:
-                  clientId:
-                    type: string
-                  registrationClientUri:
-                    type: string
-                  secretRef:
-                    description: |-
-                      SecretReference represents a Secret Reference. It has enough information to retrieve secret
-                      in any namespace
-                    properties:
-                      name:
-                        description: name is unique within a namespace to reference
-                          a secret resource.
-                        type: string
-                      namespace:
-                        description: namespace defines the space within which the
-                          secret name must be unique.
-                        type: string
-                    type: object
-                    x-kubernetes-map-type: atomic
-                required:
-                - clientId
-                - registrationClientUri
-                - secretRef
-                type: object
-              type: object
+            linkedEmailDomains:
+              items:
+                type: string
+              type: array
+            message:
+              type: string
+            organizationId:
+              type: string
+            ready:
+              type: boolean
+            redirectUri:
+              description: RedirectURI is the OAuth redirect URI tenants must allow
+                at the upstream IdP.
+              type: string
           type: object
       required:
       - spec

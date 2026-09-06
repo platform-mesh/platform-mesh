@@ -53,6 +53,15 @@ func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGe
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
+
+	var seedConfig *config.SeedUpstreamConfig
+	if cfg.IDP.SeedConfigFile != "" {
+		seedConfig, err = config.LoadSeedUpstreamConfig(cfg.IDP.SeedConfigFile)
+		if err != nil {
+			return nil, fmt.Errorf("loading IDP seed config: %w", err)
+		}
+	}
+
 	return &IDPSubroutine{
 		mgr:                       mgr,
 		kcpClientGetter:           kcpClientGetter,
@@ -60,6 +69,7 @@ func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGe
 		kubectlClientRedirectURLs: cfg.IDP.KubectlClientRedirectURLs,
 		baseDomain:                cfg.BaseDomain,
 		registrationAllowed:       cfg.IDP.RegistrationAllowed,
+		seedConfig:                seedConfig,
 		limiter:                   limiter,
 	}, nil
 }
@@ -77,6 +87,7 @@ type IDPSubroutine struct {
 	kubectlClientRedirectURLs []string
 	baseDomain                string
 	registrationAllowed       bool
+	seedConfig                *config.SeedUpstreamConfig
 	limiter                   workqueue.TypedRateLimiter[*pmcorev1alpha1.IdentityProviderConfiguration]
 }
 
@@ -142,13 +153,18 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Obj
 		},
 	}
 
+	if i.seedConfig != nil && i.seedConfig.AllowsSeedingForRealm(workspaceName) {
+		if err := i.seedIdPRegistrations(ctx, cl.GetClient(), workspaceName); err != nil {
+			return subroutines.OK(), fmt.Errorf("seeding IdPRegistrations: %w", err)
+		}
+	}
+
 	idp := &pmcorev1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 	_, err = controllerutil.CreateOrPatch(ctx, orgsClient, idp, func() error {
 		idp.Spec.RegistrationAllowed = i.registrationAllowed
 
-		for _, desired := range clients {
-			idp.Spec.Clients = ensureClient(idp.Spec.Clients, desired)
-		}
+		idp.Spec.Clients = mergeManagedClients(idp.Spec.Clients, clients)
+
 		return nil
 	})
 	if err != nil {
@@ -249,21 +265,95 @@ func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl ctrlruntimeclie
 	return nil
 }
 
-// ensureClient updates only clients managed by this subroutine
-func ensureClient(existing []pmcorev1alpha1.IdentityProviderClientConfig, desired pmcorev1alpha1.IdentityProviderClientConfig) []pmcorev1alpha1.IdentityProviderClientConfig {
-	idx := slices.IndexFunc(existing, func(c pmcorev1alpha1.IdentityProviderClientConfig) bool {
-		return c.ClientName == desired.ClientName
-	})
-
-	if idx != -1 {
-		existing[idx].ClientType = desired.ClientType
-		existing[idx].RedirectURIs = desired.RedirectURIs
-		existing[idx].PostLogoutRedirectURIs = desired.PostLogoutRedirectURIs
-		existing[idx].SecretRef = desired.SecretRef
-		return existing
+// mergeManagedClients merges the clients managed by this subroutine into the
+// existing spec clients: entries are matched by client name (updating the
+// managed fields in place, otherwise appended). Clients not managed by this
+// subroutine are left untouched.
+func mergeManagedClients(
+	existing []pmcorev1alpha1.IdentityProviderClientConfig,
+	managed []pmcorev1alpha1.IdentityProviderClientConfig,
+) []pmcorev1alpha1.IdentityProviderClientConfig {
+	for _, desired := range managed {
+		idx := slices.IndexFunc(existing, func(c pmcorev1alpha1.IdentityProviderClientConfig) bool {
+			return c.ClientName == desired.ClientName
+		})
+		if idx != -1 {
+			existing[idx].ClientType = desired.ClientType
+			existing[idx].RedirectURIs = desired.RedirectURIs
+			existing[idx].PostLogoutRedirectURIs = desired.PostLogoutRedirectURIs
+			existing[idx].SecretRef = desired.SecretRef
+			continue
+		}
+		existing = append(existing, desired)
 	}
 
-	return append(existing, desired)
+	return existing
+}
+
+func (i *IDPSubroutine) seedIdPRegistrations(
+	ctx context.Context,
+	orgClient ctrlruntimeclient.Client,
+	workspaceName string,
+) error {
+	for _, seedProvider := range i.seedConfig.SeedUpstreamIdentityProviders.Providers {
+		if err := i.createOrUpdateSeedIdPRegistration(ctx, orgClient, seedProvider); err != nil {
+			return fmt.Errorf("seed provider %q: %w", seedProvider.Alias, err)
+		}
+	}
+	log.Info().Str("workspace", workspaceName).Msg("seeded IdPRegistrations in org workspace")
+	return nil
+}
+
+func (i *IDPSubroutine) createOrUpdateSeedIdPRegistration(
+	ctx context.Context,
+	orgClient ctrlruntimeclient.Client,
+	seedProvider config.SeedUpstreamIdentityProvider,
+) error {
+	alias := strings.TrimSpace(seedProvider.Alias)
+	if alias == "" {
+		return fmt.Errorf("upstream provider alias is required")
+	}
+	if seedProvider.ClientSecret == "" {
+		return fmt.Errorf("upstream provider %q clientSecret is required", alias)
+	}
+
+	reg, err := seedProvider.ToIdPRegistration()
+	if err != nil {
+		return err
+	}
+
+	secretName := config.SeedClientSecretName(alias)
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: secretNamespace,
+			Labels: map[string]string{
+				"core.platform-mesh.io/upstream-idp-alias": alias,
+			},
+		},
+	}
+	if _, err := controllerutil.CreateOrUpdate(ctx, orgClient, secret, func() error {
+		if secret.Data == nil {
+			secret.Data = make(map[string][]byte)
+		}
+		secret.Data["client_secret"] = []byte(seedProvider.ClientSecret)
+		secret.Type = corev1.SecretTypeOpaque
+		return nil
+	}); err != nil {
+		return fmt.Errorf("creating seed client secret: %w", err)
+	}
+
+	desired := &pmcorev1alpha1.IdPRegistration{
+		ObjectMeta: metav1.ObjectMeta{Name: alias},
+	}
+	_, err = controllerutil.CreateOrPatch(ctx, orgClient, desired, func() error {
+		desired.Spec = reg.Spec
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("creating IdPRegistration: %w", err)
+	}
+	return nil
 }
 
 func getWorkspaceName(lc *kcpcorev1alpha1.LogicalCluster) string {

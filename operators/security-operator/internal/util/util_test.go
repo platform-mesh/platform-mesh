@@ -56,3 +56,11 @@ func TestCapGroupToRelationLength(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeEmailDomains(t *testing.T) {
+	assert.Equal(t, []string{"corp.example.com", "other.example.com"},
+		NormalizeEmailDomains([]string{" corp.example.com ", "other.example.com", "corp.example.com", ""}))
+	assert.Equal(t, []string{"corp.example.com"},
+		NormalizeEmailDomains([]string{"Corp.Example.com", "CORP.EXAMPLE.COM"}))
+	assert.Empty(t, NormalizeEmailDomains(nil))
+}

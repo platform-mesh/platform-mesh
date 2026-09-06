@@ -203,7 +203,13 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 	realmName := idpConfig.Name
 	oidcClient, adminClient := s.newOIDCClient(realmName)
 
-	if err := s.ensureRealm(ctx, adminClient, realmName, idpConfig.Spec.RegistrationAllowed, log); err != nil {
+	if err := s.ensureRealm(
+		ctx,
+		adminClient,
+		realmName,
+		idpConfig.Spec.RegistrationAllowed,
+		log,
+	); err != nil {
 		return subroutines.OK(), err
 	}
 
@@ -241,7 +247,13 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 	return subroutines.OK(), nil
 }
 
-func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.AdminClient, realmName string, registrationAllowed bool, log *logger.Logger) error {
+func (s *subroutine) ensureRealm(
+	ctx context.Context,
+	adminClient *keycloak.AdminClient,
+	realmName string,
+	registrationAllowed bool,
+	log *logger.Logger,
+) error {
 	realmConfig := keycloak.RealmConfig{
 		Realm:                       realmName,
 		DisplayName:                 realmName,

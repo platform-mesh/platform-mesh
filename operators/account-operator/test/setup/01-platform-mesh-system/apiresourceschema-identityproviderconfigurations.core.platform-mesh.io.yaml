@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260622-69fb9437.identityproviderconfigurations.core.platform-mesh.io
+  name: v260826-dac476ab.identityproviderconfigurations.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
