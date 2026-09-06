@@ -20,10 +20,11 @@ import (
 	"context"
 	"testing"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,8 +39,8 @@ func TestValidateIdPRegistrationSpec_requiresSecretSource(t *testing.T) {
 		Alias: "corp",
 		Type:  pmcorev1alpha1.UpstreamIdentityProviderTypeOIDC,
 		OIDC: &pmcorev1alpha1.IdPRegistrationOIDCConfig{
-			ClientID:      "client",
-			DiscoveryURL:  "https://idp.example.com/.well-known/openid-configuration",
+			ClientID:     "client",
+			DiscoveryURL: "https://idp.example.com/.well-known/openid-configuration",
 		},
 	})
 	assert.Error(t, err)

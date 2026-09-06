@@ -25,11 +25,11 @@ import (
 
 // IdentityProviderMapperRepresentation mirrors Keycloak's identity-provider mapper API object.
 type IdentityProviderMapperRepresentation struct {
-	ID                    string            `json:"id,omitempty"`
-	Name                  string            `json:"name,omitempty"`
-	IdentityProviderAlias string            `json:"identityProviderAlias,omitempty"`
-	IdentityProviderMapper string           `json:"identityProviderMapper,omitempty"`
-	Config                map[string]string `json:"config,omitempty"`
+	ID                     string            `json:"id,omitempty"`
+	Name                   string            `json:"name,omitempty"`
+	IdentityProviderAlias  string            `json:"identityProviderAlias,omitempty"`
+	IdentityProviderMapper string            `json:"identityProviderMapper,omitempty"`
+	Config                 map[string]string `json:"config,omitempty"`
 }
 
 func (c *AdminClient) ListIdentityProviderMappers(ctx context.Context, alias string) ([]IdentityProviderMapperRepresentation, error) {

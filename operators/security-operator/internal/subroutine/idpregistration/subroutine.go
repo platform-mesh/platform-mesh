@@ -39,15 +39,15 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 const (
-	finalizerName                  = "system.platform-mesh.io/idpregistration-finalizer"
-	clusterNotReadyRequeue         = 5 * time.Second
-	idpRegistrationSuccessMessage  = "Configured in Keycloak"
+	finalizerName                 = "system.platform-mesh.io/idpregistration-finalizer"
+	clusterNotReadyRequeue        = 5 * time.Second
+	idpRegistrationSuccessMessage = "Configured in Keycloak"
 )
 
 type subroutine struct {

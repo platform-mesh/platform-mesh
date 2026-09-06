@@ -28,10 +28,10 @@ import (
 
 // OIDCDiscovery holds endpoints resolved from an OIDC discovery document.
 type OIDCDiscovery struct {
-	Issuer            string
-	AuthorizationURL  string
-	TokenURL          string
-	JWKSURL           string
+	Issuer           string
+	AuthorizationURL string
+	TokenURL         string
+	JWKSURL          string
 }
 
 // FetchOIDCDiscovery retrieves and validates an OIDC discovery document.

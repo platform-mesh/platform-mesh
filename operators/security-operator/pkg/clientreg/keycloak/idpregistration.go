@@ -25,11 +25,11 @@ import (
 )
 
 const (
-	platformTrustEmail           = false
-	platformSyncMode             = "IMPORT"
-	platformValidateSignatures   = true
-	platformUseJWKSURL           = true
-	platformClientAuthMethod     = "client_secret_post"
+	platformTrustEmail         = false
+	platformSyncMode           = "IMPORT"
+	platformValidateSignatures = true
+	platformUseJWKSURL         = true
+	platformClientAuthMethod   = "client_secret_post"
 )
 
 // ToKeycloakIdentityProviderFromRegistration maps a tenant IdPRegistration to a

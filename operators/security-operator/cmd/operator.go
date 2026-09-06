@@ -228,18 +228,18 @@ var operatorCmd = &cobra.Command{
 
 		if operatorCfg.Webhooks.Enabled {
 			log.Info().Msg("validating webhooks are enabled")
-		if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, mgr.GetLocalManager(), &operatorCfg); err != nil {
-			log.Error().Err(err).Str("webhook", "IdentityProviderConfiguration").Msg("unable to create webhook")
-			return err
-		}
-		if err := internalwebhook.SetupIdPRegistrationValidatingWebhookWithManager(mgr.GetLocalManager()); err != nil {
-			log.Error().Err(err).Str("webhook", "IdPRegistration").Msg("unable to create webhook")
-			return err
-		}
-		if err := internalwebhook.SetupIdPRegistrationMutatingWebhookWithManager(mgr.GetLocalManager(), kcpClientGetterWithConfig); err != nil {
-			log.Error().Err(err).Str("webhook", "IdPRegistrationMutating").Msg("unable to create webhook")
-			return err
-		}
+			if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, mgr.GetLocalManager(), &operatorCfg); err != nil {
+				log.Error().Err(err).Str("webhook", "IdentityProviderConfiguration").Msg("unable to create webhook")
+				return err
+			}
+			if err := internalwebhook.SetupIdPRegistrationValidatingWebhookWithManager(mgr.GetLocalManager()); err != nil {
+				log.Error().Err(err).Str("webhook", "IdPRegistration").Msg("unable to create webhook")
+				return err
+			}
+			if err := internalwebhook.SetupIdPRegistrationMutatingWebhookWithManager(mgr.GetLocalManager(), kcpClientGetterWithConfig); err != nil {
+				log.Error().Err(err).Str("webhook", "IdPRegistrationMutating").Msg("unable to create webhook")
+				return err
+			}
 		}
 		// +kubebuilder:scaffold:builder
 

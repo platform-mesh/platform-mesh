@@ -19,11 +19,12 @@ package keycloak
 import (
 	"testing"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"k8s.io/utils/ptr"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+
+	"k8s.io/utils/ptr"
 )
 
 func TestToKeycloakIdentityProviderFromRegistration_Discovery(t *testing.T) {

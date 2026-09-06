@@ -19,7 +19,6 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,8 +28,8 @@ import (
 
 const (
 	idpRegistrationSecretNamespace = "default"
-	idpRegistrationSecretDataKey     = "client_secret"
-	idpRegistrationSecretLabel       = "core.platform-mesh.io/idpregistration"
+	idpRegistrationSecretDataKey   = "client_secret"
+	idpRegistrationSecretLabel     = "core.platform-mesh.io/idpregistration"
 )
 
 func clientSecretNameForRegistration(registrationName string) string {
@@ -76,21 +75,4 @@ func upsertClientSecret(
 	}
 	existing.Labels[idpRegistrationSecretLabel] = registrationName
 	return cl.Update(ctx, existing)
-}
-
-func deleteClientSecret(ctx context.Context, cl ctrlruntimeclient.Client, secretName string) error {
-	if strings.TrimSpace(secretName) == "" {
-		return nil
-	}
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: idpRegistrationSecretNamespace,
-		},
-	}
-	err := cl.Delete(ctx, secret)
-	if apierrors.IsNotFound(err) {
-		return nil
-	}
-	return err
 }

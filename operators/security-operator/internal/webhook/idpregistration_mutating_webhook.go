@@ -24,11 +24,12 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	mcruntime "sigs.k8s.io/multicluster-runtime"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 type clusterClientResolver interface {

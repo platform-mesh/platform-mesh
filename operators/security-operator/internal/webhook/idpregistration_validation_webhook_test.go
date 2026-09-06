@@ -19,10 +19,10 @@ package webhook
 import (
 	"testing"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 )
 
 func TestValidateIdPRegistrationSpec(t *testing.T) {
