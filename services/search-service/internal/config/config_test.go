@@ -51,3 +51,11 @@ func TestNewServiceConfigOpenFGADefaults(t *testing.T) {
 		t.Errorf("OpenFGA.DefaultRole = %q, want %q", cfg.OpenFGA.DefaultRole, "member")
 	}
 }
+
+func TestNewServiceConfigSearchIndexDefaults(t *testing.T) {
+	cfg := NewServiceConfig()
+
+	if cfg.SearchIndex.Resource != "searchindices" {
+		t.Errorf("SearchIndex.Resource = %q, want %q", cfg.SearchIndex.Resource, "searchindices")
+	}
+}

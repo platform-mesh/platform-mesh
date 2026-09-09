@@ -18,6 +18,7 @@ package search
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -102,6 +103,7 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 	}
 	resource := strings.TrimSpace(req.Resource)
 	filters := normalizeFilters(req.Filters)
+	fgaRole := strings.TrimSpace(req.FGARole)
 	if resource == "" && len(filters) > 0 {
 		return SearchResponse{}, fmt.Errorf("%w: filters require a resource", ErrInvalidRequest)
 	}
@@ -142,7 +144,7 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 	}
 
 	qHash := queryHash(query)
-	fHash := filtersHash(filters)
+	fHash := cursorFiltersHash(filters, fgaRole)
 	var searchAfter []any
 	if req.Cursor != "" {
 		decoded, err := DecodeCursor(req.Cursor)
@@ -156,9 +158,16 @@ func (s *Service) Search(ctx context.Context, req SearchRequest) (SearchResponse
 		searchAfter = decoded.SearchAfter
 	}
 
-	accountFGAObjects, err := s.authorizer.ListAccessibleAccounts(ctx, org, user)
+	accountFGAObjects, err := s.authorizer.ListAccessibleAccounts(ctx, org, user, fgaRole)
 	s.metrics.AddOpenFGACalls(1)
 	if err != nil {
+		if fgaRole != "" && errors.Is(err, ErrFGARelationNotFound) {
+			return SearchResponse{}, fmt.Errorf(
+				"%w: relation %q is not defined in the OpenFGA account schema",
+				ErrInvalidRequest,
+				fgaRole,
+			)
+		}
 		log.Error().
 			Err(err).
 			Str("searchmode", mode).
@@ -416,7 +425,7 @@ func (s *Service) FilterValues(ctx context.Context, req FilterValuesRequest) (Fi
 
 	query := strings.TrimSpace(req.Query)
 	searchFields := searchableFields(indexRef.DefaultFields)
-	accountFGAObjects, err := s.authorizer.ListAccessibleAccounts(ctx, org, user)
+	accountFGAObjects, err := s.authorizer.ListAccessibleAccounts(ctx, org, user, "")
 	s.metrics.AddOpenFGACalls(1)
 	if err != nil {
 		return FilterValuesResponse{}, fmt.Errorf("%w: list accessible accounts: %v", ErrBackend, err)

@@ -18,11 +18,14 @@ package fga
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/search-service/internal/config"
@@ -32,6 +35,7 @@ import (
 type fakeClient struct {
 	listObjectsRequest *openfgav1.ListObjectsRequest
 	listObjectsResult  *openfgav1.ListObjectsResponse
+	listObjectsErr     error
 }
 
 func (f *fakeClient) BatchCheck(context.Context, *openfgav1.BatchCheckRequest, ...grpc.CallOption) (*openfgav1.BatchCheckResponse, error) {
@@ -40,7 +44,7 @@ func (f *fakeClient) BatchCheck(context.Context, *openfgav1.BatchCheckRequest, .
 
 func (f *fakeClient) ListObjects(_ context.Context, req *openfgav1.ListObjectsRequest, _ ...grpc.CallOption) (*openfgav1.ListObjectsResponse, error) {
 	f.listObjectsRequest = req
-	return f.listObjectsResult, nil
+	return f.listObjectsResult, f.listObjectsErr
 }
 
 func (f *fakeClient) ListStores(context.Context, *openfgav1.ListStoresRequest, ...grpc.CallOption) (*openfgav1.ListStoresResponse, error) {
@@ -58,7 +62,7 @@ func TestAuthorizerListAccessibleAccounts(t *testing.T) {
 	cfg.OpenFGA.ObjectType = "custom_account"
 	cfg.OpenFGA.DefaultRole = "viewer"
 
-	accounts, err := NewAuthorizer(client, *cfg).ListAccessibleAccounts(context.Background(), "acme", "john.doe@example.com")
+	accounts, err := NewAuthorizer(client, *cfg).ListAccessibleAccounts(context.Background(), "acme", "john.doe@example.com", "")
 	if err != nil {
 		t.Fatalf("ListAccessibleAccounts returned error: %v", err)
 	}
@@ -70,6 +74,61 @@ func TestAuthorizerListAccessibleAccounts(t *testing.T) {
 	}
 	if got := client.listObjectsRequest; got.GetStoreId() != "store-acme" || got.GetType() != "custom_account" || got.GetRelation() != "viewer" || got.GetUser() != "user:john.doe@example.com" {
 		t.Fatalf("unexpected ListObjects request: %+v", got)
+	}
+}
+
+func TestAuthorizerListAccessibleAccountsUsesRequestedRelation(t *testing.T) {
+	client := &fakeClient{listObjectsResult: &openfgav1.ListObjectsResponse{}}
+	cfg := config.NewServiceConfig()
+	cfg.OpenFGA.DefaultRole = "member"
+
+	_, err := NewAuthorizer(client, *cfg).ListAccessibleAccounts(context.Background(), "acme", "john.doe@example.com", " owner ")
+	if err != nil {
+		t.Fatalf("ListAccessibleAccounts returned error: %v", err)
+	}
+	if got := client.listObjectsRequest.GetRelation(); got != "owner" {
+		t.Fatalf("expected requested relation owner, got %q", got)
+	}
+}
+
+func TestAuthorizerListAccessibleAccountsClassifiesMissingRelation(t *testing.T) {
+	client := &fakeClient{listObjectsErr: status.Error(
+		codes.Code(openfgav1.ErrorCode_relation_not_found),
+		"relation 'account:owner' not found",
+	)}
+	cfg := config.NewServiceConfig()
+
+	_, err := NewAuthorizer(client, *cfg).ListAccessibleAccounts(context.Background(), "acme", "john.doe@example.com", "owner")
+	if !errors.Is(err, search.ErrFGARelationNotFound) {
+		t.Fatalf("expected ErrFGARelationNotFound, got %v", err)
+	}
+}
+
+func TestIsRelationNotFoundOnlyMatchesRelationError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "relation not found",
+			err:  status.Error(codes.Code(openfgav1.ErrorCode_relation_not_found), "relation not found"),
+			want: true,
+		},
+		{
+			name: "other OpenFGA validation error",
+			err:  status.Error(codes.Code(openfgav1.ErrorCode_type_not_found), "type not found"),
+		},
+		{name: "ordinary invalid argument", err: status.Error(codes.InvalidArgument, "invalid")},
+		{name: "plain error", err: errors.New("failed")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isRelationNotFound(tt.err); got != tt.want {
+				t.Fatalf("isRelationNotFound() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 

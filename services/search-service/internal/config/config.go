@@ -88,7 +88,7 @@ func NewServiceConfig() *ServiceConfig {
 			OrgWorkspacePath: "root:orgs",
 			Group:            "search.platform-mesh.io",
 			Version:          "v1alpha1",
-			Resource:         "searchindexes",
+			Resource:         "searchindices",
 		},
 		Search: SearchConfig{
 			DefaultLimit:   20,

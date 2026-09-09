@@ -24,6 +24,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/search-service/internal/config"
@@ -45,19 +46,27 @@ func NewAuthorizer(client client, cfg config.ServiceConfig) *Authorizer {
 	return &Authorizer{client: client, cfg: cfg}
 }
 
-func (a *Authorizer) ListAccessibleAccounts(ctx context.Context, organization, user string) ([]string, error) {
+func (a *Authorizer) ListAccessibleAccounts(ctx context.Context, organization, user, relation string) ([]string, error) {
 	storeID, err := a.resolveStoreID(ctx, organization)
 	if err != nil {
 		return nil, fmt.Errorf("resolve store ID: %w", err)
 	}
 
+	relation = strings.TrimSpace(relation)
+	if relation == "" {
+		relation = a.cfg.OpenFGA.DefaultRole
+	}
+
 	res, err := a.client.ListObjects(ctx, &openfgav1.ListObjectsRequest{
 		StoreId:  storeID,
 		Type:     a.cfg.OpenFGA.ObjectType,
-		Relation: a.cfg.OpenFGA.DefaultRole,
+		Relation: relation,
 		User:     fmt.Sprintf("user:%s", formatUser(user)),
 	})
 	if err != nil {
+		if isRelationNotFound(err) {
+			return nil, fmt.Errorf("%w: %v", search.ErrFGARelationNotFound, err)
+		}
 		return nil, fmt.Errorf("list accessible accounts: %w", err)
 	}
 
@@ -76,6 +85,11 @@ func (a *Authorizer) ListAccessibleAccounts(ctx context.Context, organization, u
 	}
 
 	return accounts, nil
+}
+
+func isRelationNotFound(err error) bool {
+	grpcStatus, ok := status.FromError(err)
+	return ok && int32(grpcStatus.Code()) == int32(openfgav1.ErrorCode_relation_not_found)
 }
 
 func (a *Authorizer) FilterAuthorized(ctx context.Context, req search.AuthorizationRequest) (search.AuthorizationResult, error) {

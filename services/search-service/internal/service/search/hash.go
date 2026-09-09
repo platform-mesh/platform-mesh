@@ -62,3 +62,18 @@ func filtersHash(filters map[string][]string) string {
 	h := sha256.Sum256([]byte(b.String()))
 	return hex.EncodeToString(h[:])
 }
+
+func cursorFiltersHash(filters map[string][]string, fgaRole string) string {
+	fgaRole = strings.TrimSpace(fgaRole)
+	if fgaRole == "" {
+		return filtersHash(filters)
+	}
+
+	filtersWithRole := maps.Clone(filters)
+	if filtersWithRole == nil {
+		filtersWithRole = make(map[string][]string, 1)
+	}
+	filtersWithRole["fga_role"] = []string{fgaRole}
+
+	return filtersHash(filtersWithRole)
+}

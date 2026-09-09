@@ -75,7 +75,7 @@ func TestCreateRouterSearchSuccess(t *testing.T) {
 
 	req := httptest.NewRequest(
 		http.MethodGet,
-		"/rest/v1/search?q=hello&mode=semantic&limit=15&page=3&cursor=abc&resource=accounts&filter.status=Ready",
+		"/rest/v1/search?q=hello&mode=semantic&limit=15&page=3&cursor=abc&resource=accounts&filter.status=Ready&filter.fga_role=owner",
 		nil,
 	)
 	rr := httptest.NewRecorder()
@@ -98,6 +98,12 @@ func TestCreateRouterSearchSuccess(t *testing.T) {
 	}
 	if len(svc.lastReq.Filters["status"]) != 1 || svc.lastReq.Filters["status"][0] != "Ready" {
 		t.Fatalf("unexpected filters: %+v", svc.lastReq.Filters)
+	}
+	if svc.lastReq.FGARole != "owner" {
+		t.Fatalf("unexpected FGA role: %q", svc.lastReq.FGARole)
+	}
+	if _, ok := svc.lastReq.Filters["fga_role"]; ok {
+		t.Fatalf("FGA role must not be forwarded as a document filter: %+v", svc.lastReq.Filters)
 	}
 
 	var payload search.SearchResponse
@@ -258,6 +264,78 @@ func TestCreateRouterInvalidPage(t *testing.T) {
 
 			if rr.Code != http.StatusBadRequest {
 				t.Fatalf("expected 400, got %d", rr.Code)
+			}
+		})
+	}
+}
+
+func TestCreateRouterSearchRejectsFGARoleAcrossAllResources(t *testing.T) {
+	svc := &fakeSearchService{}
+	r := CreateRouter(svc, []func(http.Handler) http.Handler{
+		withRequestContext(appcontext.RequestContext{Organization: "acme", User: "alice@example.com"}),
+	})
+	req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=hello&filter.fga_role=owner", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rr.Code, strings.TrimSpace(rr.Body.String()))
+	}
+	if len(svc.reqs) != 0 {
+		t.Fatalf("service must not be called for an all-resource role filter: %+v", svc.reqs)
+	}
+}
+
+func TestCreateRouterSearchAcceptsFGARoleForExplicitResources(t *testing.T) {
+	svc := &fakeSearchService{}
+	r := CreateRouter(svc, []func(http.Handler) http.Handler{
+		withRequestContext(appcontext.RequestContext{Organization: "acme", User: "alice@example.com"}),
+	})
+	req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=hello&resources=accounts,components&filter.fga_role=owner", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, strings.TrimSpace(rr.Body.String()))
+	}
+	if len(svc.reqs) != 2 {
+		t.Fatalf("expected two explicitly targeted searches, got %+v", svc.reqs)
+	}
+	for _, got := range svc.reqs {
+		if got.FGARole != "owner" {
+			t.Fatalf("expected FGA role to be propagated, got %+v", got)
+		}
+	}
+}
+
+func TestCreateRouterSearchRejectsInvalidFGARole(t *testing.T) {
+	tests := []struct {
+		name  string
+		query string
+	}{
+		{name: "empty", query: "filter.fga_role="},
+		{name: "blank", query: "filter.fga_role=+"},
+		{name: "multiple", query: "filter.fga_role=owner&filter.fga_role=member"},
+		{name: "forbidden character", query: "filter.fga_role=account%3Aowner"},
+		{name: "internal whitespace", query: "filter.fga_role=account+owner"},
+		{name: "too long", query: "filter.fga_role=" + strings.Repeat("a", 51)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &fakeSearchService{}
+			r := CreateRouter(svc, []func(http.Handler) http.Handler{
+				withRequestContext(appcontext.RequestContext{Organization: "acme", User: "alice@example.com"}),
+			})
+			req := httptest.NewRequest(http.MethodGet, "/rest/v1/search?q=hello&"+tt.query, nil)
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d body=%s", rr.Code, strings.TrimSpace(rr.Body.String()))
+			}
+			if len(svc.reqs) != 0 {
+				t.Fatalf("service must not be called for invalid FGA role: %+v", svc.reqs)
 			}
 		})
 	}

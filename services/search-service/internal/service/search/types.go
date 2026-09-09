@@ -25,6 +25,7 @@ type SearchRequest struct {
 	Mode         string
 	Resource     string
 	Filters      map[string][]string
+	FGARole      string
 	Limit        int
 	Page         int
 	Cursor       string
@@ -146,7 +147,7 @@ type OpenSearchSearcher interface {
 }
 
 type FGAAuthorizer interface {
-	ListAccessibleAccounts(ctx context.Context, organization, user string) ([]string, error)
+	ListAccessibleAccounts(ctx context.Context, organization, user, relation string) ([]string, error)
 	FilterAuthorized(ctx context.Context, req AuthorizationRequest) (AuthorizationResult, error)
 }
 

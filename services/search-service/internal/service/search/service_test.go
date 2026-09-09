@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -65,12 +66,12 @@ type fakeAuthorizer struct {
 	accessible      []string
 	accessibleErr   error
 	accessibleCalls int
-	accessibleReqs  []struct{ organization, user string }
+	accessibleReqs  []struct{ organization, user, relation string }
 }
 
-func (f *fakeAuthorizer) ListAccessibleAccounts(ctx context.Context, organization, user string) ([]string, error) {
+func (f *fakeAuthorizer) ListAccessibleAccounts(ctx context.Context, organization, user, relation string) ([]string, error) {
 	f.accessibleCalls++
-	f.accessibleReqs = append(f.accessibleReqs, struct{ organization, user string }{organization, user})
+	f.accessibleReqs = append(f.accessibleReqs, struct{ organization, user, relation string }{organization, user, relation})
 	if f.accessibleErr != nil {
 		return nil, f.accessibleErr
 	}
@@ -215,6 +216,80 @@ func TestSearchReturnsEmptyResultWithoutQueryingOpenSearchWhenNoAccountsAreAcces
 	}
 	if searcher.calls != 0 {
 		t.Fatalf("expected no OpenSearch calls, got %d", searcher.calls)
+	}
+}
+
+func TestSearchUsesRequestedFGARoleForAccountPrefilter(t *testing.T) {
+	searcher := &fakeSearcher{pages: []OpenSearchPage{{}}}
+	authorizer := &fakeAuthorizer{accessible: []string{"core_platform-mesh_io_account:cluster/owned"}}
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+		searcher,
+		authorizer,
+		nil,
+		ServiceConfig{},
+	)
+
+	_, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		FGARole:      " owner ",
+	})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(authorizer.accessibleReqs) != 1 || authorizer.accessibleReqs[0].relation != "owner" {
+		t.Fatalf("expected owner account relation, got %+v", authorizer.accessibleReqs)
+	}
+	if len(searcher.reqs) != 1 || len(searcher.reqs[0].AccountFGAObjects) != 1 || searcher.reqs[0].AccountFGAObjects[0] != "core_platform-mesh_io_account:cluster/owned" {
+		t.Fatalf("expected owned account pre-filter, got %+v", searcher.reqs)
+	}
+}
+
+func TestSearchRejectsFGARoleMissingFromSchema(t *testing.T) {
+	searcher := &fakeSearcher{}
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+		searcher,
+		&fakeAuthorizer{accessibleErr: ErrFGARelationNotFound},
+		nil,
+		ServiceConfig{},
+	)
+
+	_, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		FGARole:      "owner",
+	})
+	if !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest, got %v", err)
+	}
+	if !strings.Contains(err.Error(), `relation "owner" is not defined in the OpenFGA account schema`) {
+		t.Fatalf("expected a clear missing-relation error, got %v", err)
+	}
+	if searcher.calls != 0 {
+		t.Fatalf("expected no OpenSearch calls, got %d", searcher.calls)
+	}
+}
+
+func TestSearchTreatsMissingDefaultFGARelationAsBackendFailure(t *testing.T) {
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx-acme"}},
+		&fakeSearcher{},
+		&fakeAuthorizer{accessibleErr: ErrFGARelationNotFound},
+		nil,
+		ServiceConfig{},
+	)
+
+	_, err := svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+	})
+	if !errors.Is(err, ErrBackend) {
+		t.Fatalf("expected ErrBackend, got %v", err)
 	}
 }
 
@@ -490,6 +565,43 @@ func TestSearchInvalidCursor(t *testing.T) {
 	})
 	if !errors.Is(err, ErrInvalidCursor) {
 		t.Fatalf("expected ErrInvalidCursor, got %v", err)
+	}
+}
+
+func TestSearchRejectsCursorFromDifferentFGARole(t *testing.T) {
+	cursor, err := EncodeCursor(CursorState{
+		Org:         "acme",
+		QueryHash:   queryHash("foo"),
+		Mode:        SearchModeLexical,
+		FiltersHash: cursorFiltersHash(nil, "owner"),
+		Limit:       20,
+		SearchAfter: []any{1.0, "x"},
+	})
+	if err != nil {
+		t.Fatalf("EncodeCursor returned error: %v", err)
+	}
+
+	authorizer := &fakeAuthorizer{}
+	svc := NewService(
+		fakeResolver{index: SearchIndexRef{IndexName: "idx"}},
+		&fakeSearcher{},
+		authorizer,
+		nil,
+		ServiceConfig{},
+	)
+
+	_, err = svc.Search(context.Background(), SearchRequest{
+		Organization: "acme",
+		User:         "alice@example.com",
+		Query:        "foo",
+		FGARole:      "member",
+		Cursor:       cursor,
+	})
+	if !errors.Is(err, ErrInvalidCursor) {
+		t.Fatalf("expected ErrInvalidCursor, got %v", err)
+	}
+	if authorizer.accessibleCalls != 0 {
+		t.Fatalf("authorizer must not be called for a mismatched cursor")
 	}
 }
 

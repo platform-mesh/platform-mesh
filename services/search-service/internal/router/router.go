@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -31,6 +32,8 @@ import (
 	appcontext "go.platform-mesh.io/search-service/internal/context"
 	"go.platform-mesh.io/search-service/internal/service/search"
 )
+
+var fgaRelationPattern = regexp.MustCompile(`^[^:#@\s]{1,50}$`)
 
 type SearchService interface {
 	Search(ctx context.Context, req search.SearchRequest) (search.SearchResponse, error)
@@ -69,13 +72,17 @@ func CreateRouter(svc SearchService, mws []func(http.Handler) http.Handler) *chi
 
 		resource := strings.TrimSpace(r.URL.Query().Get("resource"))
 
-		filters, err := parseFilters(r.URL.Query())
+		filters, fgaRole, err := parseSearchFilters(r.URL.Query())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		resources := resolveResources(resource, r.URL.Query().Get("resources"), filters)
+		resources := resolveResources(
+			resource,
+			r.URL.Query().Get("resources"),
+			len(filters) != 0 || fgaRole != "",
+		)
 		if resources == nil {
 			http.Error(w, "Filtering is not supported for searching across all resources.", http.StatusBadRequest)
 			return
@@ -90,6 +97,7 @@ func CreateRouter(svc SearchService, mws []func(http.Handler) http.Handler) *chi
 				Mode:         strings.TrimSpace(r.URL.Query().Get("mode")),
 				Resource:     res,
 				Filters:      filters,
+				FGARole:      fgaRole,
 				Limit:        limit,
 				Page:         page,
 				Cursor:       strings.TrimSpace(r.URL.Query().Get("cursor")),
@@ -180,7 +188,7 @@ func CreateRouter(svc SearchService, mws []func(http.Handler) http.Handler) *chi
 //   - a single "resource" param wins,
 //   - otherwise a comma-separated "resources" param selects a subset,
 //   - otherwise a single empty resource lets the service search everything.
-func resolveResources(resource, resourcesParam string, filters map[string][]string) []string {
+func resolveResources(resource, resourcesParam string, hasFilters bool) []string {
 	if resource != "" {
 		return []string{resource}
 	}
@@ -189,7 +197,7 @@ func resolveResources(resource, resourcesParam string, filters map[string][]stri
 		return resources
 	}
 
-	if len(filters) != 0 {
+	if hasFilters {
 		return nil
 	}
 
@@ -252,6 +260,36 @@ func parseFilters(values map[string][]string) (map[string][]string, error) {
 		return nil, nil
 	}
 	return filters, nil
+}
+
+func parseSearchFilters(values map[string][]string) (map[string][]string, string, error) {
+	filters, err := parseFilters(values)
+	if err != nil {
+		return nil, "", err
+	}
+
+	entries, ok := values["filter.fga_role"]
+	if !ok {
+		return filters, "", nil
+	}
+	if len(entries) != 1 {
+		return nil, "", fmt.Errorf("filter.fga_role must have exactly one value")
+	}
+
+	fgaRole := strings.TrimSpace(entries[0])
+	if fgaRole == "" {
+		return nil, "", fmt.Errorf("filter.fga_role must not be empty")
+	}
+	if !fgaRelationPattern.MatchString(fgaRole) {
+		return nil, "", fmt.Errorf("filter.fga_role has an invalid format")
+	}
+
+	delete(filters, "fga_role")
+	if len(filters) == 0 {
+		filters = nil
+	}
+
+	return filters, fgaRole, nil
 }
 
 func handleError(w http.ResponseWriter, r *http.Request, rc appcontext.RequestContext, err error) {
