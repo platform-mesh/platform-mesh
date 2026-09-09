@@ -36,15 +36,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
 type AuthorizationModelReconciler struct {
 	log       *logger.Logger
 	lifecycle *lifecycle.Lifecycle
+	ctx       context.Context
+	provider  multicluster.Provider
 }
 
-func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *AuthorizationModelReconciler {
+func NewAuthorizationModelReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, provider multicluster.Provider) *AuthorizationModelReconciler {
 	lc := lifecycle.New(mcMgr, "AuthorizationModelReconciler", func() ctrlruntimeclient.Object {
 		return &pmcorev1alpha1.AuthorizationModel{}
 	}, subroutine.NewTupleSubroutine(fga, mcMgr))
@@ -52,6 +55,8 @@ func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGASe
 	return &AuthorizationModelReconciler{
 		log:       log,
 		lifecycle: lc,
+		ctx:       ctx,
+		provider:  provider,
 	}
 }
 
@@ -74,7 +79,7 @@ func (r *AuthorizationModelReconciler) SetupWithManager(mgr mcmanager.Manager, c
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("authorizationmodel").
-		For(&pmcorev1alpha1.AuthorizationModel{}).
+		For(&pmcorev1alpha1.AuthorizationModel{}, mcbuilder.WithClustersFromProvider(r.ctx, r.provider)).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

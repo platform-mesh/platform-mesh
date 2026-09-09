@@ -51,7 +51,9 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
@@ -281,7 +283,7 @@ func (s *KindTestSuite) createCerts() ([]byte, error) {
 	// mkcert
 	_, err := runCommand("mkdir", "-p", "certs")
 	s.Require().NoError(err, "Error creating certs directory")
-	if _, err = runCommand(mkcertBinary(), "-cert-file=certs/cert.crt", "-key-file=certs/cert.key", "portal.localhost", "*.portal.localhost", "localhost"); err != nil {
+	if _, err = runCommand(mkcertBinary(), "-cert-file=certs/cert.crt", "-key-file=certs/cert.key", "portal.localhost", "*.portal.localhost", "localhost", "kcp.localhost", "*.kcp.localhost"); err != nil {
 		return nil, err
 	}
 	dirRootPath, err := runCommand(mkcertBinary(), "-CAROOT")
@@ -548,6 +550,54 @@ func (s *KindTestSuite) SetupSuite() {
 	// Run the PlatformMesh operator
 	s.logger.Info().Msg("starting PlatformMesh operator...")
 	s.runPlatformMeshOperator(ctx)
+
+	if err = s.addFrontProxyCertificateSAN(ctx, "root.kcp.localhost"); err != nil {
+		s.logger.Error().Err(err).Msg("Failed to add front-proxy certificate SAN")
+		s.T().FailNow()
+	}
+}
+
+// addFrontProxyCertificateSAN adds an extra DNS name to the FrontProxy's
+// server certificate. The "infra" chart's kcp.certificateTemplates value
+// doesn't actually reach FrontProxy.spec, so this patches it directly.
+func (s *KindTestSuite) addFrontProxyCertificateSAN(ctx context.Context, dnsName string) error {
+	fpGVK := "operator.kcp.io/v1alpha1"
+	frontProxy := &unstructured.Unstructured{}
+	frontProxy.SetAPIVersion(fpGVK)
+	frontProxy.SetKind("FrontProxy")
+
+	err := wait.PollUntilContextTimeout(ctx, 5*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
+		getErr := s.client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "frontproxy", Namespace: "platform-mesh-system"}, frontProxy)
+		return getErr == nil, nil
+	})
+	if err != nil {
+		return fmt.Errorf("waiting for FrontProxy resource: %w", err)
+	}
+
+	patch := ctrlruntimeclient.RawPatch(types.MergePatchType, []byte(fmt.Sprintf(
+		`{"spec":{"certificateTemplates":{"server":{"spec":{"dnsNames":[%q]}}}}}`, dnsName)))
+	if err := s.client.Patch(ctx, frontProxy, patch); err != nil {
+		return fmt.Errorf("patching FrontProxy certificateTemplates: %w", err)
+	}
+
+	cert := &certmanager.Certificate{}
+	err = wait.PollUntilContextTimeout(ctx, 5*time.Second, 2*time.Minute, true, func(ctx context.Context) (bool, error) {
+		if getErr := s.client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "root-frontproxy-server", Namespace: "platform-mesh-system"}, cert); getErr != nil {
+			return false, nil
+		}
+		for _, name := range cert.Spec.DNSNames {
+			if name == dnsName {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("waiting for front-proxy certificate to pick up %s: %w", dnsName, err)
+	}
+
+	s.logger.Info().Str("dnsName", dnsName).Msg("front-proxy certificate now covers extra hostname")
+	return nil
 }
 
 func (s *KindTestSuite) waitForCRDEstablished(ctx context.Context, crdName string, timeout time.Duration) error {

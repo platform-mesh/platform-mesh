@@ -47,6 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	mcmultiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
@@ -134,13 +135,35 @@ var operatorCmd = &cobra.Command{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
-			setupLog.Error(err, "unable to construct cluster provider")
+			setupLog.Error(err, "unable to construct core cluster provider")
 			return err
 		}
 
-		mgr, err := mcmanager.New(restCfg, provider, mgrOpts)
+		// Store and AuthorizationModel now live under orgs.core.platform-mesh.io,
+		// not core.platform-mesh.io. Second named provider lets those
+		// controllers engage only with clusters visible through that export.
+		orgsProvider, err := pathaware.New(restCfg, operatorCfg.APIExportEndpointSlices.OrgsCorePlatformMeshIO, apiexport.Options{
+			Scheme: mgrOpts.Scheme,
+		})
+		if err != nil {
+			setupLog.Error(err, "unable to construct orgs cluster provider")
+			return err
+		}
+
+		multiProvider := mcmultiprovider.New(mcmultiprovider.Options{})
+
+		mgr, err := mcmanager.New(restCfg, multiProvider, mgrOpts)
 		if err != nil {
 			setupLog.Error(err, "Failed to create manager")
+			return err
+		}
+
+		if err := multiProvider.AddProvider("core-platform-mesh-io", provider); err != nil {
+			setupLog.Error(err, "unable to add core cluster provider")
+			return err
+		}
+		if err := multiProvider.AddProvider("orgs-core-platform-mesh-io", orgsProvider); err != nil {
+			setupLog.Error(err, "unable to add orgs cluster provider")
 			return err
 		}
 
@@ -166,15 +189,15 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("Failed to create in cluster client")
 			return err
 		}
-		providerLister := iclient.NewProviderLister(provider.Provider.Provider)
+		providerLister := iclient.NewProviderLister(orgsProvider.Provider.Provider)
 
-		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg, providerLister).
+		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg, providerLister, orgsProvider).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
 		}
 		if err = controller.
-			NewAuthorizationModelReconciler(log, fga, mgr).
+			NewAuthorizationModelReconciler(ctx, log, fga, mgr, orgsProvider).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err

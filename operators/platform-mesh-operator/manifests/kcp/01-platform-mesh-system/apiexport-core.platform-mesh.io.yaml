@@ -29,26 +29,6 @@ spec:
     schema: v260109-82344be.accounts.core.platform-mesh.io
     storage:
       crd: {}
-  - group: ui.platform-mesh.io
-    name: contentconfigurations
-    schema: v250704-6d57f16.contentconfigurations.ui.platform-mesh.io
-    storage:
-      crd: {}
-  - group: ui.platform-mesh.io
-    name: providermetadatas
-    schema: v260817-a47fd3e4.providermetadatas.ui.platform-mesh.io
-    storage:
-      crd: {}
-  - group: core.platform-mesh.io
-    name: authorizationmodels
-    schema: v260112-5925c7e.authorizationmodels.core.platform-mesh.io
-    storage:
-      crd: {}
-  - group: core.platform-mesh.io
-    name: stores
-    schema: v250718-a64f278.stores.core.platform-mesh.io
-    storage:
-      crd: {}
   - group: core.platform-mesh.io
     name: invites
     schema: v260213-fbdf981.invites.core.platform-mesh.io

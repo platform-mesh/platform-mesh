@@ -55,9 +55,11 @@ type StoreReconciler struct {
 	fga       openfgav1.OpenFGAServiceClient
 	log       *logger.Logger
 	lifecycle *lifecycle.Lifecycle
+	ctx       context.Context
+	provider  multicluster.Provider
 }
 
-func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, lister iclient.Lister) *StoreReconciler {
+func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, lister iclient.Lister, provider multicluster.Provider) *StoreReconciler {
 	lc := lifecycle.New(mcMgr, "StoreReconciler", func() ctrlruntimeclient.Object {
 		return &pmcorev1alpha1.Store{}
 	},
@@ -72,6 +74,8 @@ func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.O
 		fga:       fga,
 		log:       log,
 		lifecycle: lc,
+		ctx:       ctx,
+		provider:  provider,
 	}
 }
 
@@ -92,7 +96,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	b := mcbuilder.ControllerManagedBy(mgr).
 		Named("store").
-		For(&pmcorev1alpha1.Store{}).
+		For(&pmcorev1alpha1.Store{}, mcbuilder.WithClustersFromProvider(r.ctx, r.provider)).
 		WithOptions(controller.TypedOptions[mcreconcile.Request]{MaxConcurrentReconciles: cfg.MaxConcurrentReconciles}).
 		WithEventFilter(predicate.And(predicates...))
 
@@ -119,5 +123,6 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 				})
 			},
 			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
+			mcbuilder.WithClustersFromProvider(r.ctx, r.provider),
 		).Complete(r)
 }
