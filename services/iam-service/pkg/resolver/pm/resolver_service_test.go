@@ -22,10 +22,13 @@ import (
 	"testing"
 	"time"
 
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/stretchr/testify/assert"
+	testifymock "github.com/stretchr/testify/mock"
 
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/iam-service/pkg/config"
+	appcontext "go.platform-mesh.io/iam-service/pkg/context"
 	"go.platform-mesh.io/iam-service/pkg/fga"
 	"go.platform-mesh.io/iam-service/pkg/fga/mocks"
 	"go.platform-mesh.io/iam-service/pkg/graph"
@@ -321,6 +324,80 @@ func TestNewResolverService(t *testing.T) {
 	assert.NotNil(t, service.pager)
 	// mgr is nil in tests that don't require it
 	assert.NotNil(t, mockFGA) // Verify we got the mock back
+}
+
+func TestService_Users_ReturnsRequestedRoleCountsAndLegacyOwnerCount(t *testing.T) {
+	service, mockFGA := createTestResolverService(t)
+
+	ctx := appcontext.SetKCPContext(context.Background(), appcontext.KCPContext{
+		IDMTenant:        "test-tenant",
+		OrganizationName: "test-org",
+	})
+	ctx = appcontext.SetClusterId(ctx, "cluster-123")
+
+	rCtx := graph.ResourceContext{
+		Group: "core.platform-mesh.io",
+		Kind:  "Account",
+		Resource: &graph.Resource{
+			Name:      "test-account",
+			Namespace: ptr.To("default"),
+		},
+		AccountPath: "test-account",
+	}
+
+	mockFGA.EXPECT().ListStores(testifymock.Anything, testifymock.Anything).Return(&openfgav1.ListStoresResponse{
+		Stores: []*openfgav1.Store{{
+			Id:   "store-123",
+			Name: "test-org",
+		}},
+	}, nil).Once()
+
+	for _, roleID := range []string{"owner", "member"} {
+		mockFGA.EXPECT().ListUsers(testifymock.Anything, testifymock.MatchedBy(func(req *openfgav1.ListUsersRequest) bool {
+			return req.StoreId == "store-123" &&
+				req.Object.Type == "role" &&
+				req.Object.Id == "core_platform-mesh_io_account/cluster-123/test-account/"+roleID &&
+				req.Relation == "assignee"
+		})).Return(&openfgav1.ListUsersResponse{}, nil).Once()
+	}
+
+	result, err := service.Users(ctx, rCtx, []string{"member"}, []string{"member"}, nil, nil)
+
+	assert.NoError(t, err)
+	assert.Empty(t, result.Users)
+	assert.Equal(t, 0, result.OwnersCount)
+	assert.Equal(t, []*graph.RoleCount{{RoleID: "member", Count: 0}}, result.RoleCounts)
+}
+
+func TestService_Users_EmptyCountFilterPreservesLegacyOwnerCount(t *testing.T) {
+	service, mockFGA := createTestResolverService(t)
+
+	ctx := appcontext.SetKCPContext(context.Background(), appcontext.KCPContext{
+		IDMTenant:        "test-tenant",
+		OrganizationName: "test-org",
+	})
+	ctx = appcontext.SetClusterId(ctx, "cluster-123")
+
+	rCtx := graph.ResourceContext{
+		Group: "core.platform-mesh.io",
+		Kind:  "Account",
+		Resource: &graph.Resource{
+			Name:      "test-account",
+			Namespace: ptr.To("default"),
+		},
+		AccountPath: "test-account",
+	}
+
+	mockFGA.EXPECT().ListStores(testifymock.Anything, testifymock.Anything).Return(&openfgav1.ListStoresResponse{
+		Stores: []*openfgav1.Store{{Id: "store-123", Name: "test-org"}},
+	}, nil).Once()
+	mockFGA.EXPECT().ListUsers(testifymock.Anything, testifymock.Anything).Return(&openfgav1.ListUsersResponse{}, nil).Once()
+
+	result, err := service.Users(ctx, rCtx, []string{"owner"}, nil, nil, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, result.OwnersCount)
+	assert.Empty(t, result.RoleCounts)
 }
 
 // Removed trivial GraphQL resolver delegation tests - they're auto-generated and don't add value

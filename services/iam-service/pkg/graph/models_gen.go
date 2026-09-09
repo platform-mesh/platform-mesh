@@ -70,6 +70,12 @@ type RoleAssignmentResult struct {
 	AssignedCount int      `json:"assignedCount"`
 }
 
+// Total number of users assigned to a role
+type RoleCount struct {
+	RoleID string `json:"roleId"`
+	Count  int    `json:"count"`
+}
+
 // Result of role removal operation
 type RoleRemovalResult struct {
 	Success     bool    `json:"success"`
@@ -97,6 +103,8 @@ type UserConnection struct {
 	PageInfo *PageInfo `json:"pageInfo"`
 	//  number of users in the result set that have the owner role
 	OwnersCount int `json:"ownersCount"`
+	//  total user counts for the roles requested through countRoleFilters
+	RoleCounts []*RoleCount `json:"roleCounts"`
 }
 
 // Holds information about a specific user and a list of roles that should be assigned to the user
