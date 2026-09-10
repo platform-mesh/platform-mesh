@@ -52,6 +52,8 @@ spec:
           spec:
             description: ProviderMetadataSpec defines the desired state of ProviderMetadata.
             properties:
+              category:
+                type: string
               contacts:
                 items:
                   properties:
@@ -126,6 +128,38 @@ spec:
                 - dark
                 - light
                 type: object
+              labels:
+                items:
+                  description: Label is a colored chip rendered in the provider card
+                    header.
+                  properties:
+                    color:
+                      description: Color is the Fundamental info-label color category
+                        (1-10).
+                      enum:
+                      - "1"
+                      - "2"
+                      - "3"
+                      - "4"
+                      - "5"
+                      - "6"
+                      - "7"
+                      - "8"
+                      - "9"
+                      - "10"
+                      type: string
+                    glyph:
+                      description: Glyph is an optional SAP-icons glyph name shown
+                        on the chip.
+                      type: string
+                    title:
+                      description: Title is the chip text.
+                      type: string
+                  required:
+                  - color
+                  - title
+                  type: object
+                type: array
               links:
                 items:
                   properties:
@@ -135,6 +169,13 @@ spec:
                       type: string
                   type: object
                 type: array
+              mainLink:
+                properties:
+                  displayName:
+                    type: string
+                  url:
+                    type: string
+                type: object
               preferredSupportChannels:
                 items:
                   properties:
@@ -144,10 +185,52 @@ spec:
                       type: string
                   type: object
                 type: array
+              serviceLevel:
+                description: |-
+                  ServiceLevel describes the support coverage offered by a provider, rendered
+                  in the "Service Level" row of the provider details view.
+                enum:
+                - veryHigh24x7
+                - high24x5
+                - mediumOne16x5
+                - mediumTwo12x5
+                - low8x5
+                type: string
               tags:
                 items:
                   type: string
                 type: array
+              type:
+                type: string
+              verification:
+                description: |-
+                  Verification describes the trust level of a provider, rendered as a badge in
+                  the marketplace UI.
+                properties:
+                  hint:
+                    description: Hint is an optional tooltip shown on the badge.
+                    type: string
+                  icon:
+                    description: |-
+                      Icon is an optional SAP-icons glyph name; the UI defaults to a verified
+                      glyph when it is absent.
+                    type: string
+                  label:
+                    description: Label is the text shown on the verification badge.
+                    type: string
+                  status:
+                    description: Status is the badge color, mapped to a Fundamental
+                      ObjectStatus.
+                    enum:
+                    - positive
+                    - critical
+                    - negative
+                    - informative
+                    - neutral
+                    type: string
+                required:
+                - label
+                type: object
             required:
             - displayName
             type: object
