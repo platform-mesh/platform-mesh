@@ -53,12 +53,28 @@ type DetailViewExtension struct {
 	URL string `json:"url"`
 }
 
+// Verification describes the trust level of a provider, rendered as a badge in
+// the marketplace UI.
+type Verification struct {
+	// Label is the text shown on the verification badge.
+	Label string `json:"label"`
+	// Status is the badge color, mapped to a Fundamental ObjectStatus.
+	// +kubebuilder:validation:Enum=positive;critical;negative;informative;neutral
+	Status string `json:"status,omitempty"`
+	// Icon is an optional SAP-icons glyph name; the UI defaults to a verified
+	// glyph when it is absent.
+	Icon string `json:"icon,omitempty"`
+	// Hint is an optional tooltip shown on the badge.
+	Hint string `json:"hint,omitempty"`
+}
+
 // ProviderMetadataSpec defines the desired state of ProviderMetadata.
 type ProviderMetadataSpec struct {
 	Tags []string `json:"tags,omitempty"`
 
 	DisplayName string `json:"displayName"`
 	Description string `json:"description,omitempty"`
+	Type        string `json:"type,omitempty"`
 
 	// Additional information that should be stored with the provider metadata.
 	Data          *apiextensionsv1.JSON `json:"data,omitempty"`
@@ -70,6 +86,7 @@ type ProviderMetadataSpec struct {
 	PreferredSupportChannels []Link                `json:"preferredSupportChannels,omitempty"`
 	HelpCenterData           []Link                `json:"helpCenterData,omitempty"`
 	DetailViewExtensions     []DetailViewExtension `json:"detailViewExtensions,omitempty"`
+	Verification             *Verification         `json:"verification,omitempty"`
 }
 
 // ProviderMetadataStatus defines the observed state of ProviderMetadata.

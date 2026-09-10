@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260817-a47fd3e4.providermetadatas.ui.platform-mesh.io
+  name: v260910-2dbd9aa0.providermetadatas.ui.platform-mesh.io
 spec:
   group: ui.platform-mesh.io
   names:
@@ -145,6 +145,37 @@ spec:
               items:
                 type: string
               type: array
+            type:
+              type: string
+            verification:
+              description: |-
+                Verification describes the trust level of a provider, rendered as a badge in
+                the marketplace UI.
+              properties:
+                hint:
+                  description: Hint is an optional tooltip shown on the badge.
+                  type: string
+                icon:
+                  description: |-
+                    Icon is an optional SAP-icons glyph name; the UI defaults to a verified
+                    glyph when it is absent.
+                  type: string
+                label:
+                  description: Label is the text shown on the verification badge.
+                  type: string
+                status:
+                  description: Status is the badge color, mapped to a Fundamental
+                    ObjectStatus.
+                  enum:
+                  - positive
+                  - critical
+                  - negative
+                  - informative
+                  - neutral
+                  type: string
+              required:
+              - label
+              type: object
           required:
           - displayName
           type: object
