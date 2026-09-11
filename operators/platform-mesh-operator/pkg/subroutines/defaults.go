@@ -36,6 +36,8 @@ var AccountOperatorValidatingWebhookName = "organization-validator.webhooks.core
 
 var SecurityOperatorWebhookCASecretName = "security-operator-ca-secret"
 var IdentityProviderValidatingWebhookName = "identityproviderconfiguration-validator.webhooks.core.platform-mesh.io"
+var IdPRegistrationValidatingWebhookName = "idpregistration-validator.webhooks.core.platform-mesh.io"
+var IdPRegistrationMutatingWebhookName = "idpregistration-mutator.webhooks.core.platform-mesh.io"
 var AccountOperatorWorkspace = "root:platform-mesh-system"
 
 const FeatureDisableIDPWebhook = "feature-disable-idp-webhook"
