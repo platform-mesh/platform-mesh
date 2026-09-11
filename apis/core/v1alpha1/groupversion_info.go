@@ -51,6 +51,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&AuthorizationModelList{},
 		&IdentityProviderConfiguration{},
 		&IdentityProviderConfigurationList{},
+		&IdPRegistration{},
+		&IdPRegistrationList{},
 		&Invite{},
 		&InviteList{},
 		&PlatformMesh{},

@@ -65,7 +65,8 @@ type KCPConfig struct {
 }
 
 type IDPConfig struct {
-	RealmDenyList []string
+	RealmDenyList                  []string
+	IdPRegistrationSecretNamespace string
 
 	SMTPServer  string
 	SMTPPort    int
@@ -138,8 +139,9 @@ func NewConfig() Config {
 		WorkspaceTypeName:        "security",
 		HttpClientTimeoutSeconds: 30,
 		IDP: IDPConfig{
-			KubectlClientRedirectURLs: []string{"http://localhost:8000", "http://localhost:18000"},
-			AccessTokenLifespan:       28800,
+			IdPRegistrationSecretNamespace: "default",
+			KubectlClientRedirectURLs:      []string{"http://localhost:8000", "http://localhost:18000"},
+			AccessTokenLifespan:            28800,
 		},
 		Keycloak: KeycloakConfig{
 			ClientID:     "security-operator",
@@ -182,6 +184,7 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&c.AllowMemberTuplesEnabled, "allow-member-tuples-enabled", c.AllowMemberTuplesEnabled, "Enable allow-member tuples management")
 	fs.BoolVar(&c.RekeyOrphanedTuplesEnabled, "rekey-orphaned-tuples-enabled", c.RekeyOrphanedTuplesEnabled, "Enable re-keying of org tuples orphaned by a workspace re-creation (cluster-id change)")
 	fs.StringSliceVar(&c.IDP.RealmDenyList, "idp-realm-deny-list", c.IDP.RealmDenyList, "Comma-separated list of Keycloak realms to ignore")
+	fs.StringVar(&c.IDP.IdPRegistrationSecretNamespace, "idp-registration-secret-namespace", c.IDP.IdPRegistrationSecretNamespace, "Namespace for IdPRegistration client secrets")
 	fs.StringVar(&c.IDP.SMTPServer, "idp-smtp-server", c.IDP.SMTPServer, "Set Keycloak SMTP server host")
 	fs.IntVar(&c.IDP.SMTPPort, "idp-smtp-port", c.IDP.SMTPPort, "Set Keycloak SMTP server port")
 	fs.StringVar(&c.IDP.FromAddress, "idp-from-address", c.IDP.FromAddress, "Set SMTP from address")
