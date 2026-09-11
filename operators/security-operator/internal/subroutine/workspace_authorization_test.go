@@ -83,6 +83,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						assert.Equal(t, "https://test.domain/keycloak/realms/test-workspace", wac.Spec.JWT[0].Issuer.URL)
 						assert.Equal(t, kcptenancyv1alpha1.AudienceMatchPolicyMatchAny, wac.Spec.JWT[0].Issuer.AudienceMatchPolicy)
 						assert.Equal(t, "groups", wac.Spec.JWT[0].ClaimMappings.Groups.Claim)
+						assert.Equal(t, "oidc:", *wac.Spec.JWT[0].ClaimMappings.Groups.Prefix)
 						assert.Equal(t, "email", wac.Spec.JWT[0].ClaimMappings.Username.Claim)
 						return nil
 					}).Once()
@@ -571,6 +572,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 						assert.Equal(t, "https://dev.domain/keycloak/realms/dev-workspace", wac.Spec.JWT[0].Issuer.URL)
 						assert.Equal(t, kcptenancyv1alpha1.AudienceMatchPolicyMatchAny, wac.Spec.JWT[0].Issuer.AudienceMatchPolicy)
 						assert.Equal(t, "groups", wac.Spec.JWT[0].ClaimMappings.Groups.Claim)
+						assert.Equal(t, "oidc:", *wac.Spec.JWT[0].ClaimMappings.Groups.Prefix)
 						assert.Equal(t, "claims.email", wac.Spec.JWT[0].ClaimMappings.Username.Expression)
 						assert.Equal(t, "", wac.Spec.JWT[0].ClaimMappings.Username.Claim)
 						assert.Len(t, wac.Spec.JWT[0].ClaimValidationRules, 1)

@@ -1,0 +1,109 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package controller
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	platformeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/controller/filter"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
+	"go.platform-mesh.io/golang-commons/logger"
+	iclient "go.platform-mesh.io/security-operator/internal/client"
+	"go.platform-mesh.io/security-operator/internal/config"
+	"go.platform-mesh.io/security-operator/internal/metrics"
+	"go.platform-mesh.io/security-operator/internal/subroutine/idpregistration"
+	"go.platform-mesh.io/subroutines/conditions"
+	"go.platform-mesh.io/subroutines/lifecycle"
+
+	"k8s.io/client-go/util/workqueue"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
+)
+
+type IdPRegistrationReconciler struct {
+	log         *logger.Logger
+	lifecycle   *lifecycle.Lifecycle
+	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
+}
+
+func NewIdPRegistrationReconciler(
+	ctx context.Context,
+	mgr mcmanager.Manager,
+	kcpClientGetter iclient.KCPClientGetter,
+	cfg *config.Config,
+	log *logger.Logger,
+) (*IdPRegistrationReconciler, error) {
+	sub, err := idpregistration.New(ctx, cfg, mgr, kcpClientGetter)
+	if err != nil {
+		return nil, fmt.Errorf("creating IdPRegistration subroutine: %w", err)
+	}
+
+	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
+	}
+
+	lc := lifecycle.New(mgr, "IdPRegistrationReconciler", func() ctrlruntimeclient.Object {
+		return &pmcorev1alpha1.IdPRegistration{}
+	}, sub).WithConditions(conditions.NewManager())
+
+	return &IdPRegistrationReconciler{
+		log:         log,
+		lifecycle:   lc,
+		rateLimiter: rl,
+	}, nil
+}
+
+func (r *IdPRegistrationReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+	start := time.Now()
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	labelResult := "success"
+	if err != nil {
+		labelResult = "error"
+	}
+	metrics.ReconcileTotal.WithLabelValues("idpregistration", labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues("idpregistration").Observe(time.Since(start).Seconds())
+	return result, err
+}
+
+func (r *IdPRegistrationReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger, evp ...predicate.Predicate) error {
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
+		RateLimiter:             r.rateLimiter,
+	}
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named("idpregistration").
+		For(&pmcorev1alpha1.IdPRegistration{}, mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
+			return strings.HasPrefix(string(clusterName), config.CoreProviderName)
+		})).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
+		Complete(r)
+}
