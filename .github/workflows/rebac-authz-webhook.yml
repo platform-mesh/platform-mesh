@@ -42,6 +42,7 @@ on:
     paths:
       - 'services/rebac-authz-webhook/**'
       - 'apis/**'
+      - 'golang-commons/**'
       - 'go.work'
       - 'go.work.sum'
       - '.github/workflows/rebac-authz-webhook.yml'

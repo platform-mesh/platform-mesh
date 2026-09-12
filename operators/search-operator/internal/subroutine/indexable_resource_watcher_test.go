@@ -122,6 +122,14 @@ func TestBuildFGAObjectName(t *testing.T) {
 			namespace: "",
 			want:      "core_namespace:cluster1/ns1",
 		},
+		{
+			name:      "resource name with OpenFGA-forbidden characters",
+			group:     "rbac.authorization.k8s.io",
+			kind:      "ClusterRole",
+			clusterID: "cluster1",
+			resource:  "system:controller#with space",
+			want:      "rbac_authorization_k8s_io_clusterrole:cluster1/system%3Acontroller%23with%20space",
+		},
 	}
 
 	for _, tt := range tests {

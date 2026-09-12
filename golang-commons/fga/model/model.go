@@ -37,8 +37,9 @@ func BuildObjectName(group, singular, clusterID, name string, namespace *string)
 }
 
 // BuildObjectNameFromType renders the canonical OpenFGA object name from a
-// fully normalized OpenFGA object type.
+// fully normalized OpenFGA object type and a raw, unencoded resource name.
 func BuildObjectNameFromType(objectType, clusterID, name string, namespace *string) string {
+	name = util.EncodeObjectIDPart(name)
 	if namespace != nil && *namespace != "" {
 		return fmt.Sprintf("%s:%s/%s/%s", objectType, clusterID, *namespace, name)
 	}

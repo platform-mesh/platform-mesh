@@ -18,6 +18,7 @@ package util
 
 import (
 	"testing"
+	"unicode"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -28,6 +29,8 @@ import (
 // a grant on one resource authorize access to the other.
 func FuzzEncodeNameIsInjective(f *testing.F) {
 	f.Add("system:controller:foo", "system.controller.foo")
+	f.Add("name#fragment", "name%23fragment")
+	f.Add("name with space", "name%20with%20space")
 	f.Add("a%b:c", "a%25b%3Ac")
 	f.Add("", ":")
 	f.Add("cluster-admin", "cluster-admin")
@@ -40,8 +43,9 @@ func FuzzEncodeNameIsInjective(f *testing.F) {
 			assert.NotEqualf(t, encA, encB, "distinct names %q and %q collided", a, b)
 		}
 
-		// The encoded form must never carry a raw colon, which OpenFGA
-		// reserves as the separator between object type and identifier.
-		assert.NotContainsf(t, encA, ":", "EncodeName(%q) = %q still contains a raw colon", a, encA)
+		for _, r := range encA {
+			assert.Falsef(t, r == ':' || r == '#' || r == ' ' || unicode.IsControl(r),
+				"EncodeName(%q) = %q contains OpenFGA-forbidden rune %q", a, encA, r)
+		}
 	})
 }

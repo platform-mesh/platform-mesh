@@ -77,6 +77,14 @@ func TestBuildObjectName(t *testing.T) {
 			resource:  "acc1",
 			want:      "core_platform-mesh_io_account:cluster1/acc1",
 		},
+		{
+			name:      "resource with OpenFGA-forbidden characters",
+			group:     "rbac.authorization.k8s.io",
+			singular:  "clusterrole",
+			clusterID: "cluster1",
+			resource:  "system:controller#with space",
+			want:      "rbac_authorization_k8s_io_clusterrole:cluster1/system%3Acontroller%23with%20space",
+		},
 	}
 
 	for _, tt := range tests {

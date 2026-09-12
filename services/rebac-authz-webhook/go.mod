@@ -14,6 +14,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
+	go.platform-mesh.io/golang-commons v0.19.0
 	google.golang.org/grpc v1.83.2
 	k8s.io/api v0.36.3
 	k8s.io/apimachinery v0.36.3

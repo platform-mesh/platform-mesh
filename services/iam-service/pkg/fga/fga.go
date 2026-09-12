@@ -136,11 +136,7 @@ func (s *Service) listUsersParallel(ctx context.Context, rctx graph.ResourceCont
 				StoreId: storeID,
 				Object: &openfgav1.Object{
 					Type: "role",
-					Id: fmt.Sprintf("%s/%s/%s/%s",
-						fgaTypeName,
-						clusterId,
-						rctx.Resource.Name,
-						role),
+					Id:   buildRoleObjectID(fgaTypeName, clusterId, rctx.Resource.Name, role),
 				},
 				Relation:    "assignee",
 				UserFilters: userFilter,
@@ -403,11 +399,7 @@ func (s *Service) RemoveRole(ctx context.Context, rctx graph.ResourceContext, in
 	readTuple := &openfgav1.ReadRequestTupleKey{
 		User:     fmt.Sprintf("user:%s", input.UserID),
 		Relation: "assignee",
-		Object: fmt.Sprintf("role:%s/%s/%s/%s",
-			fgaTypeName,
-			clusterId,
-			rctx.Resource.Name,
-			input.Role),
+		Object:   buildRoleObject(fgaTypeName, clusterId, rctx.Resource.Name, input.Role),
 	}
 
 	readReq := &openfgav1.ReadRequest{
@@ -441,11 +433,7 @@ func (s *Service) RemoveRole(ctx context.Context, rctx graph.ResourceContext, in
 	deleteTuple := &openfgav1.TupleKeyWithoutCondition{
 		User:     fmt.Sprintf("user:%s", input.UserID),
 		Relation: "assignee",
-		Object: fmt.Sprintf("role:%s/%s/%s/%s",
-			fgaTypeName,
-			clusterId,
-			rctx.Resource.Name,
-			input.Role),
+		Object:   buildRoleObject(fgaTypeName, clusterId, rctx.Resource.Name, input.Role),
 	}
 
 	deleteReq := &openfgav1.WriteRequest{

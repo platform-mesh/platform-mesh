@@ -653,7 +653,7 @@ func TestTestIfAllowed(t *testing.T) {
 					return req.StoreId == "store-123" &&
 						req.TupleKey.Relation == "read" &&
 						req.TupleKey.User == "user:test@example.com" &&
-						req.TupleKey.Object == "rbac_authorization_k8s_io_clusterrole:generated-cluster-456/cluster-admin"
+						req.TupleKey.Object == "rbac_authorization_k8s_io_clusterrole:generated-cluster-456/system%3Acontroller%23with%20space"
 				})).Return(&openfgav1.CheckResponse{Allowed: true}, nil)
 			},
 			accountInfo: createTestAccountInfo(),
@@ -662,7 +662,7 @@ func TestTestIfAllowed(t *testing.T) {
 				Kind:        "ClusterRole",
 				AccountPath: "root:orgs:test",
 				Resource: &graph.Resource{
-					Name:      "cluster-admin",
+					Name:      "system:controller#with space",
 					Namespace: nil,
 				},
 			},

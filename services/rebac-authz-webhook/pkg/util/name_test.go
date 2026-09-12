@@ -34,6 +34,16 @@ func TestEncodeName(t *testing.T) {
 			want: "system%3Acontroller%3Afoo",
 		},
 		{
+			name: "encodes a hash",
+			in:   "name#fragment",
+			want: "name%23fragment",
+		},
+		{
+			name: "encodes spaces and controls",
+			in:   "name with\tcontrol",
+			want: "name%20with%09control",
+		},
+		{
 			name: "leaves a plain name untouched",
 			in:   "test-sample",
 			want: "test-sample",

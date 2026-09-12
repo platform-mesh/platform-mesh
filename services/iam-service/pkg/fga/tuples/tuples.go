@@ -23,6 +23,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	fgamodel "go.platform-mesh.io/golang-commons/fga/model"
 	"go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/iam-service/pkg/graph"
 )
@@ -49,12 +50,7 @@ func GenerateContextualTuples(rctx *graph.ResourceContext, ai *pmcorev1alpha1.Ac
 
 	if !managedTuple(rctx.Group, rctx.Kind) {
 		resFGATypeName := util.ConvertToTypeName(rctx.Group, rctx.Kind)
-		var resObject string
-		if rctx.Resource.Namespace != nil {
-			resObject = fmt.Sprintf("%s:%s/%s/%s", resFGATypeName, ai.Spec.Account.GeneratedClusterId, *rctx.Resource.Namespace, rctx.Resource.Name)
-		} else {
-			resObject = fmt.Sprintf("%s:%s/%s", resFGATypeName, ai.Spec.Account.GeneratedClusterId, rctx.Resource.Name)
-		}
+		resObject := fgamodel.BuildObjectNameFromType(resFGATypeName, ai.Spec.Account.GeneratedClusterId, rctx.Resource.Name, rctx.Resource.Namespace)
 
 		resTuple := &openfgav1.TupleKey{
 			Object:   resObject,
