@@ -195,7 +195,7 @@ func storageVersion(resourceSchema *kcpapisv1alpha1.APIResourceSchema) string {
 
 // registerBrokeredResource returns a func creating and registering a brokered
 // resource controller with the manager.
-func registerBrokeredResource(mgr mcmanager.Manager, opts Options, wcf workspaceClientFn, coordinationClient ctrlruntimeclient.Client, acceptAPIProvider *apiexport.Provider) func(slice string, info resourceInfo) error {
+func registerBrokeredResource(mgr mcmanager.Manager, opts Options, stagingWcf, providerWcf workspaceClientFn, coordinationClient ctrlruntimeclient.Client, acceptAPIProvider *apiexport.Provider) func(slice string, info resourceInfo) error {
 	return func(slice string, info resourceInfo) error {
 		name := brokeredresource.ControllerNamePrefix + slice + "-" + info.GVR.Resource
 		if info.GVR.Group != "" {
@@ -203,15 +203,16 @@ func registerBrokeredResource(mgr mcmanager.Manager, opts Options, wcf workspace
 		}
 
 		reconciler, err := brokeredresource.NewReconciler(mgr, brokeredresource.Options{
-			GVK:                 info.GVK,
-			GVR:                 info.GVR,
-			StagingTreeRoot:     opts.StagingTreeRoot,
-			WorkspaceClientFunc: wcf,
-			CoordinationClient:  coordinationClient,
-			ListAcceptAPIs:      listAcceptAPIs(acceptAPIProvider.Lister()),
-			ControllerName:      name,
-			ClusterFilter:       providerClusters(slice),
-			RequeueInterval:     opts.RequeueInterval,
+			GVK:                info.GVK,
+			GVR:                info.GVR,
+			StagingTreeRoot:    opts.StagingTreeRoot,
+			StagingClientFunc:  stagingWcf,
+			ProviderClientFunc: providerWcf,
+			CoordinationClient: coordinationClient,
+			ListAcceptAPIs:     listAcceptAPIs(acceptAPIProvider.Lister()),
+			ControllerName:     name,
+			ClusterFilter:      providerClusters(slice),
+			RequeueInterval:    opts.RequeueInterval,
 		})
 		if err != nil {
 			return fmt.Errorf("creating reconciler: %w", err)

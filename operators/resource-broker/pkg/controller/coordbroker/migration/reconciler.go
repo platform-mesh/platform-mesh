@@ -54,9 +54,10 @@ type Options struct {
 	// Required.
 	ComputeClient ctrlruntimeclient.Client
 
-	// WorkspaceClientFunc returns a client scoped to the workspace with the given path.
+	// StagingClientFunc returns a client scoped to the workspace with the given path
+	// within the staging tree.
 	// Required.
-	WorkspaceClientFunc func(path string) (ctrlruntimeclient.Client, error)
+	StagingClientFunc func(path string) (ctrlruntimeclient.Client, error)
 
 	// StagingTreeRoot is the workspace path staging workspaces are
 	// created under.
@@ -89,8 +90,8 @@ func NewReconciler(mgr mcmanager.Manager, opts Options) (*Reconciler, error) {
 	if opts.ComputeClient == nil {
 		return nil, errors.New("options: ComputeClient is required")
 	}
-	if opts.WorkspaceClientFunc == nil {
-		return nil, errors.New("options: WorkspaceClientFunc is required")
+	if opts.StagingClientFunc == nil {
+		return nil, errors.New("options: StagingClientFunc is required")
 	}
 	if opts.StagingTreeRoot == "" {
 		return nil, errors.New("options: StagingTreeRoot is required")
