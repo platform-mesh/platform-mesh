@@ -89,4 +89,33 @@ func TestSentryError(t *testing.T) {
 
 		assert.False(t, IsSentryError(err))
 	})
+
+	t.Run("WithUserMessage sets user message and code", func(t *testing.T) {
+		newSentryError := SentryError(err)
+		sErr, ok := AsSentryError(newSentryError)
+		assert.True(t, ok)
+
+		sErr.WithUserMessage("something went wrong", "FORBIDDEN")
+
+		assert.Equal(t, "something went wrong", sErr.GetUserMessage())
+		assert.Equal(t, "FORBIDDEN", sErr.GetCode())
+	})
+
+	t.Run("WithUserMessage does not change the underlying technical error", func(t *testing.T) {
+		technical := errors.New("user with id abc has no access to resource XYZ")
+		sErr, ok := AsSentryError(SentryError(technical))
+		assert.True(t, ok)
+
+		sErr.WithUserMessage("you don't have access to this resource", "FORBIDDEN")
+
+		assert.Equal(t, "user with id abc has no access to resource XYZ", sErr.GetReason().Error())
+	})
+
+	t.Run("WithUserMessage without user message returns empty strings", func(t *testing.T) {
+		sErr, ok := AsSentryError(SentryError(err))
+		assert.True(t, ok)
+
+		assert.Empty(t, sErr.GetUserMessage())
+		assert.Empty(t, sErr.GetCode())
+	})
 }
