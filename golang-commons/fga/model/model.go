@@ -32,18 +32,63 @@ func BuildObjectType(group, singular string) string {
 
 // BuildObjectName renders the canonical OpenFGA object name using the API group
 // and singular resource name.
+//
+// Deprecated: the name and namespace are embedded verbatim. A segment holding a
+// character OpenFGA forbids (':', '#', ' ', a control character) yields an
+// object the server rejects, and one holding '/' yields a key that collides
+// with a different resource. Use BuildEncodedObjectName.
 func BuildObjectName(group, singular, clusterID, name string, namespace *string) string {
-	return BuildObjectNameFromType(BuildObjectType(group, singular), clusterID, name, namespace)
+	return legacyObjectName(BuildObjectType(group, singular), clusterID, name, namespace)
 }
 
 // BuildObjectNameFromType renders the canonical OpenFGA object name from a
 // fully normalized OpenFGA object type.
+//
+// Deprecated: see BuildObjectName. Use BuildEncodedObjectNameFromType.
 func BuildObjectNameFromType(objectType, clusterID, name string, namespace *string) string {
+	return legacyObjectName(objectType, clusterID, name, namespace)
+}
+
+// BuildEncodedObjectName renders the canonical OpenFGA object name from an API
+// group and singular resource name, percent-encoding the raw segments.
+func BuildEncodedObjectName(group, singular, clusterID, name string, namespace *string) string {
+	return encodedObjectName(BuildObjectType(group, singular), clusterID, name, namespace)
+}
+
+// BuildEncodedObjectNameFromType renders the canonical OpenFGA object name from
+// a fully normalized OpenFGA object type and raw, unencoded name and namespace
+// segments. Both are percent-encoded with util.EncodeObjectIDPart, so callers
+// must pass raw values; an already-encoded value is encoded a second time.
+//
+// This is a separate symbol rather than a behavior change to
+// BuildObjectNameFromType on purpose. golang-commons is released independently
+// of its consumers, so a consumer that has not bumped its pin must fail to
+// compile rather than silently keep writing unencoded keys while another
+// component reads encoded ones.
+func BuildEncodedObjectNameFromType(objectType, clusterID, name string, namespace *string) string {
+	return encodedObjectName(objectType, clusterID, name, namespace)
+}
+
+// legacyObjectName is the pre-encoding join, kept byte-for-byte so the
+// deprecated builders above do not change shape for existing callers.
+func legacyObjectName(objectType, clusterID, name string, namespace *string) string {
 	if namespace != nil && *namespace != "" {
 		return fmt.Sprintf("%s:%s/%s/%s", objectType, clusterID, *namespace, name)
 	}
 
 	return fmt.Sprintf("%s:%s/%s", objectType, clusterID, name)
+}
+
+// encodedObjectName percent-encodes each raw segment before joining. A non-nil
+// namespace always selects the three-segment namespaced shape, including when
+// it is empty, so the key never silently changes shape for a caller that
+// distinguishes "cluster-scoped" from "namespace is the empty string".
+func encodedObjectName(objectType, clusterID, name string, namespace *string) string {
+	if namespace != nil {
+		return fmt.Sprintf("%s:%s/%s/%s", objectType, clusterID, util.EncodeObjectIDPart(*namespace), util.EncodeObjectIDPart(name))
+	}
+
+	return fmt.Sprintf("%s:%s/%s", objectType, clusterID, util.EncodeObjectIDPart(name))
 }
 
 type ResourceContext struct {
@@ -80,11 +125,11 @@ func BuildContextualTuples(accountObject string, res ResourceContext) ([]*openfg
 	if res.Namespace != "" {
 		ns = &res.Namespace
 	}
-	resourceObject := BuildObjectNameFromType(BuildObjectType(res.Group, res.Kind), res.ClusterID, res.Name, ns)
+	resourceObject := BuildEncodedObjectNameFromType(BuildObjectType(res.Group, res.Kind), res.ClusterID, res.Name, ns)
 
 	var namespaceObject *string
 	if res.Namespace != "" {
-		nsObj := BuildObjectNameFromType(BuildObjectType("", "namespace"), res.ClusterID, res.Namespace, nil)
+		nsObj := BuildEncodedObjectNameFromType(BuildObjectType("", "namespace"), res.ClusterID, res.Namespace, nil)
 		namespaceObject = &nsObj
 	}
 
