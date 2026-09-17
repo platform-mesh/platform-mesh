@@ -32,10 +32,12 @@ import (
 	"go.platform-mesh.io/subroutines"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -127,11 +129,23 @@ func (r *KcpsetupSubroutine) Process(ctx context.Context, runtimeObj ctrlruntime
 		return subroutines.OK(), gcerrors.Wrap(err, "Failed to build kubeconfig")
 	}
 
-	// Create kcp workspaces recursively
+	// Must run before the legacy-binding migrations below: they rebind onto exports this step creates.
 	err = r.createKcpResources(ctx, cfg, r.kcpDirectory, inst)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create kcp workspaces")
 		return subroutines.OK(), gcerrors.Wrap(err, "Failed to create kcp workspaces")
+	}
+
+	// Migrate root:orgs off the pre-split core.platform-mesh.io binding.
+	if err = r.migrateLegacyOrgsBinding(ctx, cfg); err != nil {
+		log.Error().Err(err).Msg("Failed to migrate legacy root:orgs core.platform-mesh.io binding")
+		return subroutines.OK(), gcerrors.Wrap(err, "Failed to migrate legacy root:orgs core.platform-mesh.io binding")
+	}
+
+	// Same migration for existing provider workspaces still on the old binding.
+	if err = r.migrateLegacyProviderBindings(ctx, cfg, inst); err != nil {
+		log.Error().Err(err).Msg("Failed to migrate legacy provider workspace bindings")
+		return subroutines.OK(), gcerrors.Wrap(err, "Failed to migrate legacy provider workspace bindings")
 	}
 
 	// apply extra workspaces
@@ -374,6 +388,224 @@ func (r *KcpsetupSubroutine) getAPIExportHashInventory(ctx context.Context, conf
 	inventory["apiExportRootTopologyKcpIoIdentityHash"] = apiExport.Status.IdentityHash
 
 	return inventory, nil
+}
+
+const corePlatformMeshIOExport = "core.platform-mesh.io"
+
+// findLegacyBinding returns the APIBinding, if any, that still references the pre-split
+// core.platform-mesh.io export and has resourceMarker among its locked boundResources.
+func findLegacyBinding(bindings *unstructured.UnstructuredList, resourceMarker string) *unstructured.Unstructured {
+	for i := range bindings.Items {
+		b := &bindings.Items[i]
+		exportName, _, _ := unstructured.NestedString(b.Object, "spec", "reference", "export", "name")
+		if exportName != corePlatformMeshIOExport {
+			continue
+		}
+		boundResources, _, _ := unstructured.NestedSlice(b.Object, "status", "boundResources")
+		for _, br := range boundResources {
+			if resource, ok := br.(map[string]any); ok && resource["resource"] == resourceMarker {
+				return b
+			}
+		}
+	}
+	return nil
+}
+
+// deleteWithSuccessorWait sets deletionPolicy=WaitForSuccessor and deletes binding; kcp (>=v0.33.0)
+// holds the finalizer until a same-identity successor adopts its instances. Apply a successor first, then call waitForBindingGone.
+func deleteWithSuccessorWait(ctx context.Context, client ctrlruntimeclient.Client, binding *unstructured.Unstructured) error {
+	policyPatch := ctrlruntimeclient.RawPatch(types.MergePatchType, []byte(`{"spec":{"deletionPolicy":"WaitForSuccessor"}}`))
+	if err := client.Patch(ctx, binding, policyPatch); err != nil {
+		return gcerrors.Wrap(err, "Failed to set deletionPolicy=WaitForSuccessor on binding %s", binding.GetName())
+	}
+	if err := client.Delete(ctx, binding); err != nil && !apierrors.IsNotFound(err) {
+		return gcerrors.Wrap(err, "Failed to delete binding %s", binding.GetName())
+	}
+	return nil
+}
+
+// waitForBindingGone waits for a deleted binding to actually disappear, i.e. for kcp to find and
+// apply a successor for every one of its bound resources.
+func waitForBindingGone(ctx context.Context, client ctrlruntimeclient.Client, bindingName string) error {
+	err := wait.PollUntilContextTimeout(ctx, time.Second, 60*time.Second, true, func(ctx context.Context) (bool, error) {
+		check := &unstructured.Unstructured{}
+		check.SetGroupVersionKind(schema.GroupVersionKind{Group: "apis.kcp.io", Version: "v1alpha2", Kind: "APIBinding"})
+		getErr := client.Get(ctx, types.NamespacedName{Name: bindingName}, check)
+		return apierrors.IsNotFound(getErr), nil
+	})
+	if err != nil {
+		return gcerrors.Wrap(err, "Timed out waiting for binding %s to be adopted and removed", bindingName)
+	}
+	return nil
+}
+
+// applyBinding creates or updates an APIBinding named name, referencing export at path.
+func applyBinding(ctx context.Context, client ctrlruntimeclient.Client, name, export, path string) error {
+	fresh := &unstructured.Unstructured{}
+	fresh.SetGroupVersionKind(schema.GroupVersionKind{Group: "apis.kcp.io", Version: "v1alpha2", Kind: "APIBinding"})
+	fresh.SetName(name)
+	if err := unstructured.SetNestedMap(fresh.Object, map[string]any{
+		"export": map[string]any{"name": export, "path": path},
+	}, "spec", "reference"); err != nil {
+		return gcerrors.Wrap(err, "Failed to build %s binding", name)
+	}
+	return client.Apply(ctx, ctrlruntimeclient.ApplyConfigurationFromUnstructured(fresh),
+		ctrlruntimeclient.FieldOwner(fieldManagerKcpSetup), ctrlruntimeclient.ForceOwnership)
+}
+
+// migrateLegacyOrgsBinding swaps root:orgs off the pre-split core.platform-mesh.io binding.
+// orgs.core.platform-mesh.io shares its identity, so kcp adopts the Store/AuthorizationModel instances automatically.
+func (r *KcpsetupSubroutine) migrateLegacyOrgsBinding(ctx context.Context, config *rest.Config) error {
+	log := logger.LoadLoggerFromContext(ctx).ChildLogger("subroutine", r.GetName())
+
+	orgsClient, err := r.kcpHelper.NewKcpClient(config, "root:orgs")
+	if err != nil {
+		return gcerrors.Wrap(err, "Failed to create kcp client for root:orgs workspace")
+	}
+
+	bindings := &unstructured.UnstructuredList{}
+	bindings.SetGroupVersionKind(schema.GroupVersionKind{Group: "apis.kcp.io", Version: "v1alpha2", Kind: "APIBindingList"})
+	if err := orgsClient.List(ctx, bindings); err != nil {
+		// root:orgs may not exist yet on a fresh install; nothing to migrate.
+		return nil //nolint:nilerr
+	}
+
+	legacyBinding := findLegacyBinding(bindings, "stores")
+	if legacyBinding == nil {
+		return nil
+	}
+
+	log.Info().Str("binding", legacyBinding.GetName()).
+		Msg("root:orgs still on pre-split core.platform-mesh.io binding, migrating to orgs.core.platform-mesh.io")
+
+	// createKcpResources already applied the fresh successor bindings, so they're in place by now.
+	if err := deleteWithSuccessorWait(ctx, orgsClient, legacyBinding); err != nil {
+		return gcerrors.Wrap(err, "Failed to migrate legacy core.platform-mesh.io binding in root:orgs")
+	}
+	if err := waitForBindingGone(ctx, orgsClient, legacyBinding.GetName()); err != nil {
+		return gcerrors.Wrap(err, "Failed to migrate legacy core.platform-mesh.io binding in root:orgs")
+	}
+
+	log.Info().Msg("legacy core.platform-mesh.io binding removed from root:orgs, resources adopted by orgs.core.platform-mesh.io")
+	return nil
+}
+
+// providerWorkspaceTypePath is the provider WorkspaceType's own path, as checked against PlatformMesh.spec.kcp.extraDefaultAPIBindings.
+const providerWorkspaceTypePath = "root:provider"
+
+// uiExportPath returns the extraDefaultAPIBindings path for ui.platform-mesh.io on provider workspaces, and whether the deployer opted in at all.
+func uiExportPath(inst *pmcorev1alpha1.PlatformMesh) (string, bool) {
+	for _, b := range inst.Spec.Kcp.ExtraDefaultAPIBindings {
+		if b.WorkspaceTypePath == providerWorkspaceTypePath && b.Export == "ui.platform-mesh.io" {
+			return b.Path, true
+		}
+	}
+	return "", false
+}
+
+// migrateLegacyProviderBindings does for existing provider workspaces what migrateLegacyOrgsBinding does for root:orgs.
+func (r *KcpsetupSubroutine) migrateLegacyProviderBindings(ctx context.Context, config *rest.Config, inst *pmcorev1alpha1.PlatformMesh) error {
+	providersClient, err := r.kcpHelper.NewKcpClient(config, "root:providers")
+	if err != nil {
+		return gcerrors.Wrap(err, "Failed to create kcp client for root:providers workspace")
+	}
+
+	var workspaces kcptenancyv1alpha.WorkspaceList
+	if err := providersClient.List(ctx, &workspaces); err != nil {
+		// root:providers may not exist yet on a fresh install; nothing to migrate.
+		return nil //nolint:nilerr
+	}
+
+	uiPath, uiOptedIn := uiExportPath(inst)
+
+	for _, ws := range workspaces.Items {
+		if ws.Name == "system" {
+			continue
+		}
+		if err := r.migrateLegacyProviderBinding(ctx, config, ws.Name, uiPath, uiOptedIn); err != nil {
+			return gcerrors.Wrap(err, "Failed to migrate legacy provider binding for %s", ws.Name)
+		}
+	}
+	return nil
+}
+
+// migrateLegacyProviderBinding swaps a provider workspace off the old, pre-split core.platform-mesh.io
+// binding. If opted into ui.platform-mesh.io, it shares identity and kcp adopts the instances automatically; otherwise they're deleted as before.
+func (r *KcpsetupSubroutine) migrateLegacyProviderBinding(
+	ctx context.Context, config *rest.Config, providerName, uiPath string, uiOptedIn bool,
+) error {
+	log := logger.LoadLoggerFromContext(ctx).ChildLogger("subroutine", r.GetName())
+
+	providerClient, err := r.kcpHelper.NewKcpClient(config, "root:providers:"+providerName)
+	if err != nil {
+		return gcerrors.Wrap(err, "Failed to create kcp client for provider workspace %s", providerName)
+	}
+
+	bindings := &unstructured.UnstructuredList{}
+	bindings.SetGroupVersionKind(schema.GroupVersionKind{Group: "apis.kcp.io", Version: "v1alpha2", Kind: "APIBindingList"})
+	if err := providerClient.List(ctx, bindings); err != nil {
+		return nil //nolint:nilerr
+	}
+
+	legacyBinding := findLegacyBinding(bindings, "contentconfigurations")
+	if legacyBinding == nil {
+		return nil
+	}
+
+	log.Info().Str("provider", providerName).Str("binding", legacyBinding.GetName()).
+		Msg("provider workspace still on pre-split core.platform-mesh.io binding, migrating")
+
+	if !uiOptedIn {
+		// No successor will ever exist here, so WaitForSuccessor would hold forever; delete outright.
+		for _, kind := range []string{"ContentConfiguration", "ProviderMetadata"} {
+			list := &unstructured.UnstructuredList{}
+			list.SetGroupVersionKind(schema.GroupVersionKind{Group: "ui.platform-mesh.io", Version: "v1alpha1", Kind: kind + "List"})
+			if err := providerClient.List(ctx, list); err != nil {
+				return gcerrors.Wrap(err, "Failed to list %ss in provider workspace %s", kind, providerName)
+			}
+			for i := range list.Items {
+				obj := &list.Items[i]
+				if len(obj.GetFinalizers()) == 0 {
+					continue
+				}
+				patch := ctrlruntimeclient.RawPatch(types.JSONPatchType, []byte(`[{"op":"remove","path":"/metadata/finalizers"}]`))
+				if err := providerClient.Patch(ctx, obj, patch); err != nil {
+					return gcerrors.Wrap(err, "Failed to clear finalizers on %s in provider workspace %s", kind, providerName)
+				}
+			}
+			if len(list.Items) > 0 {
+				log.Warn().Str("provider", providerName).Str("kind", kind).Int("count", len(list.Items)).
+					Msg("provider workspace not opted into ui.platform-mesh.io, existing data is now unreachable and will be deleted")
+			}
+		}
+		if err := providerClient.Delete(ctx, legacyBinding); err != nil && !apierrors.IsNotFound(err) {
+			return gcerrors.Wrap(err, "Failed to delete legacy core.platform-mesh.io binding in provider workspace %s", providerName)
+		}
+		if err := applyBinding(ctx, providerClient, "core.platform-mesh.io", corePlatformMeshIOExport, "root:platform-mesh-system"); err != nil {
+			return gcerrors.Wrap(err, "Failed to apply core.platform-mesh.io binding for provider workspace %s", providerName)
+		}
+		log.Info().Str("provider", providerName).Msg("legacy core.platform-mesh.io binding removed, fresh core.platform-mesh.io binding applied")
+		return nil
+	}
+
+	// Apply the fresh bindings before deleting the legacy one, or the CRD has a zero-binding
+	// window where it can get garbage collected regardless of kcp's adoption bookkeeping.
+	if err := applyBinding(ctx, providerClient, "core.platform-mesh.io", corePlatformMeshIOExport, "root:platform-mesh-system"); err != nil {
+		return gcerrors.Wrap(err, "Failed to apply core.platform-mesh.io binding for provider workspace %s", providerName)
+	}
+	if err := applyBinding(ctx, providerClient, "ui.platform-mesh.io", "ui.platform-mesh.io", uiPath); err != nil {
+		return gcerrors.Wrap(err, "Failed to apply ui.platform-mesh.io binding for provider workspace %s", providerName)
+	}
+	if err := deleteWithSuccessorWait(ctx, providerClient, legacyBinding); err != nil {
+		return gcerrors.Wrap(err, "Failed to migrate legacy core.platform-mesh.io binding in provider workspace %s", providerName)
+	}
+	if err := waitForBindingGone(ctx, providerClient, legacyBinding.GetName()); err != nil {
+		return gcerrors.Wrap(err, "Failed to migrate legacy core.platform-mesh.io binding in provider workspace %s", providerName)
+	}
+
+	log.Info().Str("provider", providerName).
+		Msg("legacy core.platform-mesh.io binding removed, fresh bindings applied, content adopted by ui.platform-mesh.io")
+	return nil
 }
 
 func (r *KcpsetupSubroutine) applyExtraWorkspaces(ctx context.Context, config *rest.Config, inst *pmcorev1alpha1.PlatformMesh) error {

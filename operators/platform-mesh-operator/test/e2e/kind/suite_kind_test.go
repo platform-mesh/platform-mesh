@@ -51,7 +51,9 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
@@ -63,9 +65,12 @@ import (
 	mcmultiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 
 	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	mcapiexportprovider "github.com/kcp-dev/multicluster-provider/apiexport"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
+
+const testWaitForKcpAdminKubeconfigPeriod = time.Second * 15
 
 type KindTestSuite struct {
 	suite.Suite
@@ -219,7 +224,7 @@ func (s *KindTestSuite) createKindCluster() error {
 		}
 
 		s.logger.Info().Msg("Creating Kind cluster...")
-		if _, err = runCommand(kindBinary(), "create", "cluster", "--config", "../../../kind-config.yaml", "--name", clusterName, "--image=kindest/node:v1.30.2"); err != nil {
+		if _, err = runCommand(kindBinary(), "create", "cluster", "--config", "../../../kind-config.yaml", "--name", clusterName, "--image=kindest/node:v1.34.11"); err != nil {
 			return err
 		}
 	}
@@ -281,7 +286,7 @@ func (s *KindTestSuite) createCerts() ([]byte, error) {
 	// mkcert
 	_, err := runCommand("mkdir", "-p", "certs")
 	s.Require().NoError(err, "Error creating certs directory")
-	if _, err = runCommand(mkcertBinary(), "-cert-file=certs/cert.crt", "-key-file=certs/cert.key", "portal.localhost", "*.portal.localhost", "localhost"); err != nil {
+	if _, err = runCommand(mkcertBinary(), "-cert-file=certs/cert.crt", "-key-file=certs/cert.key", "portal.localhost", "*.portal.localhost", "localhost", "kcp.localhost", "*.kcp.localhost"); err != nil {
 		return nil, err
 	}
 	dirRootPath, err := runCommand(mkcertBinary(), "-CAROOT")
@@ -548,6 +553,54 @@ func (s *KindTestSuite) SetupSuite() {
 	// Run the PlatformMesh operator
 	s.logger.Info().Msg("starting PlatformMesh operator...")
 	s.runPlatformMeshOperator(ctx)
+
+	if err = s.addFrontProxyCertificateSAN(ctx, "root.kcp.localhost"); err != nil {
+		s.logger.Error().Err(err).Msg("Failed to add front-proxy certificate SAN")
+		s.T().FailNow()
+	}
+}
+
+// addFrontProxyCertificateSAN adds an extra DNS name to the FrontProxy's
+// server certificate. The "infra" chart's kcp.certificateTemplates value
+// doesn't actually reach FrontProxy.spec, so this patches it directly.
+func (s *KindTestSuite) addFrontProxyCertificateSAN(ctx context.Context, dnsName string) error {
+	fpGVK := "operator.kcp.io/v1alpha1"
+	frontProxy := &unstructured.Unstructured{}
+	frontProxy.SetAPIVersion(fpGVK)
+	frontProxy.SetKind("FrontProxy")
+
+	err := wait.PollUntilContextTimeout(ctx, 5*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
+		getErr := s.client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "frontproxy", Namespace: "platform-mesh-system"}, frontProxy)
+		return getErr == nil, nil
+	})
+	if err != nil {
+		return fmt.Errorf("waiting for FrontProxy resource: %w", err)
+	}
+
+	patch := ctrlruntimeclient.RawPatch(types.MergePatchType, []byte(fmt.Sprintf(
+		`{"spec":{"certificateTemplates":{"server":{"spec":{"dnsNames":[%q]}}}}}`, dnsName)))
+	if err := s.client.Patch(ctx, frontProxy, patch); err != nil {
+		return fmt.Errorf("patching FrontProxy certificateTemplates: %w", err)
+	}
+
+	cert := &certmanager.Certificate{}
+	err = wait.PollUntilContextTimeout(ctx, 5*time.Second, 2*time.Minute, true, func(ctx context.Context) (bool, error) {
+		if getErr := s.client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "root-frontproxy-server", Namespace: "platform-mesh-system"}, cert); getErr != nil {
+			return false, nil
+		}
+		for _, name := range cert.Spec.DNSNames {
+			if name == dnsName {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("waiting for front-proxy certificate to pick up %s: %w", dnsName, err)
+	}
+
+	s.logger.Info().Str("dnsName", dnsName).Msg("front-proxy certificate now covers extra hostname")
+	return nil
 }
 
 func (s *KindTestSuite) waitForCRDEstablished(ctx context.Context, crdName string, timeout time.Duration) error {
@@ -704,5 +757,70 @@ func (s *KindTestSuite) runPlatformMeshOperator(ctx context.Context) {
 	}()
 	s.logger.Info().Msg("PlatformMesh operator started")
 
+	go s.startProvidersOperator(ctx, mgr, &appConfig, commonConfig, mgr.GetLocalManager().GetClient())
+
 	s.mgr = mgr
+}
+
+// startProvidersOperator mirrors cmd/operator.go: wires ProviderReconciler against the
+// providers.platform-mesh.io export, without which WaitProviderSubroutine hangs forever.
+func (s *KindTestSuite) startProvidersOperator(
+	ctx context.Context, mgr mcmanager.Manager, appConfig *config.OperatorConfig,
+	commonConfig *pmconfig.CommonServiceConfig, localClient ctrlruntimeclient.Client,
+) {
+	multiProvider, ok := mgr.GetProvider().(*mcmultiprovider.Provider)
+	if !ok {
+		s.logger.Error().Msg("manager provider is not a multi-provider, cannot register apiexport-providers-platform-mesh provider")
+		return
+	}
+
+	kcpUrl := appConfig.KCP.Url
+	if kcpUrl == "" {
+		kcpUrl = fmt.Sprintf("https://%s-front-proxy.%s:%s", appConfig.KCP.FrontProxyName, appConfig.KCP.Namespace, appConfig.KCP.FrontProxyPort)
+	}
+	kcpUrl += fmt.Sprintf("/clusters/%s", appConfig.Providers.ProvidersAPIExportEndpointSliceWorkspace)
+
+	var kcpCfg *rest.Config
+	err := wait.PollUntilContextCancel(ctx, testWaitForKcpAdminKubeconfigPeriod, true, func(ctx context.Context) (bool, error) {
+		var buildErr error
+		kcpCfg, buildErr = subroutines.BuildKubeconfigFromConfig(localClient, &appConfig.KCP, kcpUrl)
+		if buildErr != nil {
+			s.logger.Warn().Err(buildErr).Msg("trying to retrieve kcp admin kubeconfig for providers operator")
+		}
+		return buildErr == nil, nil
+	})
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to retrieve kcp admin config for providers operator")
+		return
+	}
+
+	var apiexportProvider *mcapiexportprovider.Provider
+	err = wait.PollUntilContextCancel(ctx, testWaitForKcpAdminKubeconfigPeriod, true, func(ctx context.Context) (bool, error) {
+		var provErr error
+		apiexportProvider, provErr = mcapiexportprovider.New(kcpCfg, appConfig.Providers.ProvidersAPIExportEndpointSliceName, mcapiexportprovider.Options{Scheme: s.scheme})
+		if provErr != nil {
+			s.logger.Warn().Err(provErr).Msg("failed to create APIExport provider")
+		}
+		return provErr == nil, nil
+	})
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to create apiexport-providers-platform-mesh provider")
+		return
+	}
+
+	providersReconciler, err := providerscontroller.NewProviderReconciler(mgr, appConfig, commonConfig, localClient)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to create Providers reconciler")
+		return
+	}
+	if err := providersReconciler.SetupWithManager(mgr, commonConfig); err != nil {
+		s.logger.Error().Err(err).Msg("unable to setup ProviderReconciler with manager")
+		return
+	}
+
+	if err := multiProvider.AddProvider("apiexport-providers-platform-mesh", apiexportProvider); err != nil {
+		s.logger.Error().Err(err).Msg("failed to add apiexport-providers-platform-mesh provider")
+		return
+	}
+	s.logger.Info().Msg("apiexport-providers-platform-mesh provider started, ProviderReconciler registered")
 }

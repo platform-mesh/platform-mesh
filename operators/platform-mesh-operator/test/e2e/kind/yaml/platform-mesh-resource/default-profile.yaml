@@ -42,13 +42,10 @@ data:
         - ServerSideApply=true
         - SkipCRDs=false
         enabled: true
-        kustomization:
-          install:
-            crds: Skip
-          interval: 1m
-          path: ./config/crd/experimental
-        name: gateway-api
-        ocmResourceName: crds
+        interval: 1m
+        name: gateway-api-crds
+        ocmResourceName: chart
+        targetNamespace: default
       traefik:
         skipCrds: true
         syncOptions:
@@ -178,6 +175,7 @@ data:
               enabled: true
             kcp:
               enabled: true
+              apiExportEndpointSliceName: "ui.platform-mesh.io"
               kubeconfigSecret: extension-manager-operator-kubeconfig
             tracing:
               collector:
@@ -263,9 +261,11 @@ data:
                 hostnames:
                 - "localhost"
                 - "portal.localhost"
+                - "kcp.api.{{ .baseDomain }}"
+              - ip: "{{ .kcpFrontProxyClusterIP }}"
+                hostnames:
                 - "kcp.localhost"
                 - "root.kcp.localhost"
-                - "kcp.api.{{ .baseDomain }}"
                 - "nereus.kcp.localhost"
                 - "triton.kcp.localhost"
             keycloak:
@@ -301,7 +301,7 @@ data:
                 clusterIP: "{{ .kcpFrontProxyClusterIP }}"
                 port: 8443
               image:
-                tag: v0.32.0
+                tag: v0.33.0
               rootShard:
                 extraArgs:
                 - --feature-gates=WorkspaceAuthentication=true
@@ -583,9 +583,11 @@ data:
                 hostnames:
                 - "localhost"
                 - "portal.localhost"
+                - "kcp.api.{{ .baseDomain }}"
+              - ip: "{{ .kcpFrontProxyClusterIP }}"
+                hostnames:
                 - "kcp.localhost"
                 - "root.kcp.localhost"
-                - "kcp.api.{{ .baseDomain }}"
                 - "nereus.kcp.localhost"
                 - "triton.kcp.localhost"
             http:
