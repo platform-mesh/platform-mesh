@@ -121,3 +121,36 @@ func TestGraphQLErrorPresenterWithSkipTenants(t *testing.T) {
 	assert.Len(t, messages, 1)
 	assert.Equal(t, "Error not sent to Sentry for skipped tenant", messages[0].Message)
 }
+
+func TestGraphQLErrorPresenterWithUserMessage(t *testing.T) {
+	//Given
+	presenter := GraphQLErrorPresenter()
+	technical := errors.New("user with id abc has no access to resource XYZ")
+	sentryErr, ok := AsSentryError(SentryError(technical))
+	assert.True(t, ok)
+	sentryErr.WithUserMessage("you don't have access to this resource", "FORBIDDEN")
+
+	ctx := pmcontext.AddTenantToContext(context.Background(), "test")
+
+	//When
+	result := presenter(ctx, sentryErr)
+
+	//Then
+	assert.Equal(t, "you don't have access to this resource", result.Message)
+	assert.Equal(t, "FORBIDDEN", result.Extensions["code"])
+}
+
+func TestGraphQLErrorPresenterWithoutUserMessageKeepsTechnicalMessage(t *testing.T) {
+	//Given
+	presenter := GraphQLErrorPresenter()
+	technical := errors.New("some internal error")
+	testError := SentryError(technical)
+	ctx := pmcontext.AddTenantToContext(context.Background(), "test")
+
+	//When
+	result := presenter(ctx, testError)
+
+	//Then
+	assert.Equal(t, "some internal error", result.Message)
+	assert.Empty(t, result.Extensions)
+}

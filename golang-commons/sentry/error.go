@@ -28,13 +28,18 @@ type SentryErrors interface {
 	GetTags() Tags
 	GetExtras() Extras
 	Unwrap() error
+	GetUserMessage() string
+	GetCode() string
+	WithUserMessage(msg, code string) SentryErrors
 }
 
 // Error wraps the stdlib error to make it possible to check if an error should be sent to Sentry
 type Error struct {
 	error
-	tags   Tags
-	extras Extras
+	tags        Tags
+	extras      Extras
+	userMessage string
+	code        string
 }
 
 // SentryError creates a new Error from an original error
@@ -70,6 +75,22 @@ func (e *Error) AddExtra(key string, value any) {
 
 func (e Error) GetExtras() Extras {
 	return e.extras
+}
+
+// WithUserMessage sets a user-readable message and an optional error code to be presented
+// to the client instead of the raw technical error. The technical error is still sent to Sentry.
+func (e *Error) WithUserMessage(msg, code string) SentryErrors {
+	e.userMessage = msg
+	e.code = code
+	return e
+}
+
+func (e Error) GetUserMessage() string {
+	return e.userMessage
+}
+
+func (e Error) GetCode() string {
+	return e.code
 }
 
 func (e *Error) Unwrap() error {
