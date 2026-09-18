@@ -93,6 +93,8 @@ spec:
                   properties:
                     displayName:
                       type: string
+                    main:
+                      type: boolean
                     url:
                       type: string
                   type: object
@@ -102,6 +104,8 @@ spec:
                   properties:
                     displayName:
                       type: string
+                    main:
+                      type: boolean
                     url:
                       type: string
                   type: object
@@ -127,23 +131,36 @@ spec:
                 - light
                 type: object
               links:
+                description: |-
+                  Links are provider-owned links. At most one link may be marked as the
+                  main link via `main: true`.
                 items:
                   properties:
                     displayName:
                       type: string
+                    main:
+                      type: boolean
                     url:
                       type: string
                   type: object
+                maxItems: 20
                 type: array
+                x-kubernetes-validations:
+                - message: only one link may be marked as main
+                  rule: self.filter(l, has(l.main) && l.main).size() <= 1
               preferredSupportChannels:
                 items:
                   properties:
                     displayName:
                       type: string
+                    main:
+                      type: boolean
                     url:
                       type: string
                   type: object
                 type: array
+              serviceLevel:
+                type: string
               tags:
                 items:
                   type: string
