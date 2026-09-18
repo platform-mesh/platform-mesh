@@ -44,6 +44,11 @@ spec:
     storage:
       crd: {}
   - group: core.platform-mesh.io
+    name: idpregistrations
+    schema: v260907-08269bea.idpregistrations.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
     name: invites
     schema: v260213-fbdf981.invites.core.platform-mesh.io
     storage:

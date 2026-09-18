@@ -1,0 +1,40 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{ if not .featureDisableIDPWebhook }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: idpregistration-mutator.webhooks.core.platform-mesh.io
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      caBundle: {{ index . "idpregistration-mutator.webhooks.core.platform-mesh.io.ca-bundle" }}
+      url: https://security-operator-webhook.platform-mesh-system.svc.cluster.local:9443/mutate-core-platform-mesh-io-v1alpha1-idpregistration
+    failurePolicy: Fail
+    name: midpregistration.kb.io
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - idpregistrations
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+{{ end }}

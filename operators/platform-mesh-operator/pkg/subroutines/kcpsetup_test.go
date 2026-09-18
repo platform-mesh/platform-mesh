@@ -227,6 +227,14 @@ func (s *KcpsetupTestSuite) Test_getCABundleInventory() {
 	s.Assert().Contains(inventory, ipdValidatingKey)
 	s.Assert().Equal(expectedB64, inventory[ipdValidatingKey])
 
+	idpRegValidatingKey := IdPRegistrationValidatingWebhookName + ".ca-bundle"
+	s.Assert().Contains(inventory, idpRegValidatingKey)
+	s.Assert().Equal(expectedB64, inventory[idpRegValidatingKey])
+
+	idpRegMutatingKey := IdPRegistrationMutatingWebhookName + ".ca-bundle"
+	s.Assert().Contains(inventory, idpRegMutatingKey)
+	s.Assert().Equal(expectedB64, inventory[idpRegMutatingKey])
+
 	// Second call should use cache (no additional mock calls expected)
 	inventory2, err2 := s.testObj.GetCABundleInventory(ctx, &pmcorev1alpha1.PlatformMesh{})
 	s.Assert().NoError(err2)
@@ -234,9 +242,13 @@ func (s *KcpsetupTestSuite) Test_getCABundleInventory() {
 	s.Assert().Contains(inventory2, mutatingKey)
 	s.Assert().Contains(inventory2, validatingKey)
 	s.Assert().Contains(inventory2, ipdValidatingKey)
+	s.Assert().Contains(inventory2, idpRegValidatingKey)
+	s.Assert().Contains(inventory2, idpRegMutatingKey)
 	s.Assert().Equal(expectedB64, inventory2[mutatingKey])
 	s.Assert().Equal(expectedB64, inventory2[validatingKey])
 	s.Assert().Equal(expectedB64, inventory2[ipdValidatingKey])
+	s.Assert().Equal(expectedB64, inventory2[idpRegValidatingKey])
+	s.Assert().Equal(expectedB64, inventory2[idpRegMutatingKey])
 
 	s.clientMock.AssertExpectations(s.T())
 
