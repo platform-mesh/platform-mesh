@@ -252,14 +252,14 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 		expectedTupleWrites []pmcorev1alpha1.Tuple
 	}{
 		{
-			name: "should write correct FGA tuple for single org expression",
+			name: "should encode APIExport name when writing FGA tuple",
 			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
 				Spec: pmcorev1alpha1.APIExportPolicySpec{
 					APIExportRef: pmcorev1alpha1.APIExportRef{
-						Name:        "my-export",
+						Name:        "system:export#with space",
 						ClusterPath: "root:providers:my-provider",
 					},
 					AllowPathExpressions: []string{"root:orgs:acme"},
@@ -319,7 +319,7 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 					tuple := req.Writes.TupleKeys[0]
 					return tuple.Object == "core_platform-mesh_io_account:acme-cluster-id/acme-account" &&
 						tuple.Relation == "bind" &&
-						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/system%3Aexport%23with%20space"
 				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
 
 				kcpClientGetter.EXPECT().NewClientFromContext(mock.Anything).Return(clusterClient, nil)
@@ -531,14 +531,14 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name: "should delete FGA tuple for single org expression",
+			name: "should encode APIExport name when deleting FGA tuple",
 			policy: &pmcorev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
 				Spec: pmcorev1alpha1.APIExportPolicySpec{
 					APIExportRef: pmcorev1alpha1.APIExportRef{
-						Name:        "my-export",
+						Name:        "system:export#with space",
 						ClusterPath: "root:providers:my-provider",
 					},
 					AllowPathExpressions: []string{"root:orgs:acme"},
@@ -587,7 +587,7 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 					tuple := req.Deletes.TupleKeys[0]
 					return tuple.Object == "core_platform-mesh_io_account:acme-cluster-id/acme-account" &&
 						tuple.Relation == "bind" &&
-						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/system%3Aexport%23with%20space"
 				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
 			},
 			cfg:         &config.Config{},

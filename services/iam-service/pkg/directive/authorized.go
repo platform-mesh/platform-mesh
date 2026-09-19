@@ -29,6 +29,7 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/errors"
+	fgamodel "go.platform-mesh.io/golang-commons/fga/model"
 	"go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/golang-commons/jwt"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -165,10 +166,7 @@ func (a AuthorizedDirective) testIfAllowed(ctx context.Context, ai *pmcorev1alph
 		clusterId = ai.Spec.Account.OriginClusterId
 	}
 
-	object := fmt.Sprintf("%s:%s/%s", fgaTypeName, clusterId, rctx.Resource.Name)
-	if rctx.Resource.Namespace != nil {
-		object = fmt.Sprintf("%s:%s/%s/%s", fgaTypeName, clusterId, *rctx.Resource.Namespace, rctx.Resource.Name)
-	}
+	object := fgamodel.BuildObjectNameFromType(fgaTypeName, clusterId, rctx.Resource.Name, rctx.Resource.Namespace)
 
 	user := fmt.Sprintf("user:%s", token.Mail) // TODO: what happens if mail is not uid?
 	storeID, err := a.helper.GetStoreID(ctx, a.fga, ai.Spec.Organization.Name)

@@ -206,3 +206,89 @@ func TestBuildContextualTuples(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildObjectNameEncoding(t *testing.T) {
+	namespace := "ns1"
+	forbiddenNamespace := "ns:1#a b"
+	emptyNamespace := ""
+
+	tests := []struct {
+		name      string
+		group     string
+		singular  string
+		clusterID string
+		resource  string
+		namespace *string
+		want      string
+	}{
+		{
+			name:      "namespaced resource",
+			group:     "core.platform-mesh.io",
+			singular:  "component",
+			clusterID: "cluster1",
+			resource:  "comp1",
+			namespace: &namespace,
+			want:      "core_platform-mesh_io_component:cluster1/ns1/comp1",
+		},
+		{
+			name:      "cluster scoped resource",
+			group:     "core.platform-mesh.io",
+			singular:  "account",
+			clusterID: "cluster1",
+			resource:  "acc1",
+			want:      "core_platform-mesh_io_account:cluster1/acc1",
+		},
+		{
+			name:      "resource with OpenFGA-forbidden characters",
+			group:     "rbac.authorization.k8s.io",
+			singular:  "clusterrole",
+			clusterID: "cluster1",
+			resource:  "system:controller#with space",
+			want:      "rbac_authorization_k8s_io_clusterrole:cluster1/system%3Acontroller%23with%20space",
+		},
+		{
+			name:      "namespace with OpenFGA-forbidden characters",
+			group:     "batch",
+			singular:  "job",
+			clusterID: "cluster1",
+			resource:  "job1",
+			namespace: &forbiddenNamespace,
+			want:      "batch_job:cluster1/ns%3A1%23a%20b/job1",
+		},
+		{
+			name:      "empty but present namespace keeps its shape",
+			group:     "batch",
+			singular:  "job",
+			clusterID: "cluster1",
+			resource:  "job1",
+			namespace: &emptyNamespace,
+			want:      "batch_job:cluster1//job1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := BuildObjectName(tt.group, tt.singular, tt.clusterID, tt.resource, tt.namespace); got != tt.want {
+				t.Fatalf("BuildObjectName() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// Two distinct resource identities must never render the same OpenFGA object.
+func TestBuildObjectNameSegmentsAreUnambiguous(t *testing.T) {
+	namespace := "ns1"
+
+	slashInName := BuildObjectName("batch", "job", "cluster1", "ns1/job1", nil)
+	realNamespace := BuildObjectName("batch", "job", "cluster1", "job1", &namespace)
+
+	if slashInName == realNamespace {
+		t.Fatalf("distinct resources collided on %q", slashInName)
+	}
+	if want := "batch_job:cluster1/ns1%2Fjob1"; slashInName != want {
+		t.Fatalf("slash in name = %q, want %q", slashInName, want)
+	}
+	if want := "batch_job:cluster1/ns1/job1"; realNamespace != want {
+		t.Fatalf("namespaced = %q, want %q", realNamespace, want)
+	}
+}

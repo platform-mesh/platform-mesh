@@ -16,31 +16,13 @@ limitations under the License.
 
 package util
 
-import "strings"
-
-// nameEncoder is a strings.Replacer that percent-encodes the characters that
-// OpenFGA forbids in the identifier portion of an object key.
-var nameEncoder = strings.NewReplacer(
-	"%", "%25",
-	":", "%3A",
-)
+import fgautil "go.platform-mesh.io/golang-commons/fga/util"
 
 // EncodeName percent-encodes the characters that OpenFGA forbids in the
 // identifier portion of an object key.
 //
-// OpenFGA requires an object to contain exactly one colon, the separator
-// between type and identifier, so a Kubernetes resource name that itself
-// contains a colon (e.g. the ClusterRole "system:controller:foo") produces an
-// object that the server rejects outright.
-//
-// Percent-encoding is used rather than a plain substitution because it is
-// injective: "system:controller:foo" and "system.controller.foo" are distinct,
-// both-legal resource names and must not map onto the same key. '%' is encoded
-// as well so the transformation stays injective for callers outside Kubernetes;
-// a Kubernetes name can never contain '%' itself.
-//
-// Names that contain neither character are returned unchanged, so keys that
-// OpenFGA already accepts today keep their current form.
+// The implementation delegates to the shared FGA utility so every component
+// uses the same encoding contract.
 func EncodeName(name string) string {
-	return nameEncoder.Replace(name)
+	return fgautil.EncodeObjectIDPart(name)
 }

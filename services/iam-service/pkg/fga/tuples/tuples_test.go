@@ -296,13 +296,14 @@ func TestGenerateContextualTuples_ComplexGroupName(t *testing.T) {
 }
 
 func TestGenerateContextualTuples_SpecialCharactersInNames(t *testing.T) {
-	// Test case: Special characters in resource names
+	// Namespace names are DNS constrained, while RBAC resource names use the
+	// less restrictive path-segment validation.
 	namespace := "test-namespace-with-hyphens"
 	rctx := &graph.ResourceContext{
 		Group: "batch",
 		Kind:  "Job",
 		Resource: &graph.Resource{
-			Name:      "test-job-with-hyphens",
+			Name:      "test:job#with space",
 			Namespace: &namespace,
 		},
 	}
@@ -332,7 +333,7 @@ func TestGenerateContextualTuples_SpecialCharactersInNames(t *testing.T) {
 
 	// Verify resource tuple
 	resourceTuple := result.TupleKeys[1]
-	assert.Equal(t, "batch_job:generated-cluster-with-hyphens/test-namespace-with-hyphens/test-job-with-hyphens", resourceTuple.Object)
+	assert.Equal(t, "batch_job:generated-cluster-with-hyphens/test-namespace-with-hyphens/test%3Ajob%23with%20space", resourceTuple.Object)
 	assert.Equal(t, "parent", resourceTuple.Relation)
 	assert.Equal(t, "core_namespace:generated-cluster-with-hyphens/test-namespace-with-hyphens", resourceTuple.User)
 }
