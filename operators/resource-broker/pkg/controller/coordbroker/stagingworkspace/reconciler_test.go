@@ -78,15 +78,14 @@ func testOptions(t *testing.T, treeObjs, stagingObjs, providerObjs []ctrlruntime
 	opts := Options{
 		StagingTreeRoot: testTreeRoot,
 		RequeueInterval: time.Second,
-		WorkspaceClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
-			switch path {
-			case testTreeRoot:
+		StagingClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
+			if path == testTreeRoot {
 				return clients.tree, nil
-			case testProviderCluster:
-				return clients.provider, nil
-			default:
-				return clients.staging, nil
 			}
+			return clients.staging, nil
+		},
+		ProviderClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
+			return clients.provider, nil
 		},
 	}
 	return opts, clients
@@ -102,17 +101,22 @@ func TestNewReconcilerValidation(t *testing.T) {
 	}{
 		{
 			name:    "missing staging tree root",
-			opts:    Options{WorkspaceClientFunc: clientFunc},
+			opts:    Options{StagingClientFunc: clientFunc, ProviderClientFunc: clientFunc},
 			wantErr: true,
 		},
 		{
-			name:    "missing workspace client func",
-			opts:    Options{StagingTreeRoot: testTreeRoot},
+			name:    "missing staging client func",
+			opts:    Options{StagingTreeRoot: testTreeRoot, ProviderClientFunc: clientFunc},
+			wantErr: true,
+		},
+		{
+			name:    "missing provider client func",
+			opts:    Options{StagingTreeRoot: testTreeRoot, StagingClientFunc: clientFunc},
 			wantErr: true,
 		},
 		{
 			name: "valid options",
-			opts: Options{StagingTreeRoot: testTreeRoot, WorkspaceClientFunc: clientFunc},
+			opts: Options{StagingTreeRoot: testTreeRoot, StagingClientFunc: clientFunc, ProviderClientFunc: clientFunc},
 		},
 	}
 

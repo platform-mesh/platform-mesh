@@ -45,16 +45,17 @@ const (
 )
 
 // Options configures the AcceptAPI reconciler. Client construction is
-// the operator's concern: the reconciler only asks WorkspaceClientFunc
+// the operator's concern: the reconciler only asks VerificationClientFunc
 // for clients by workspace path.
 type Options struct {
 	// VerificationTreeRoot is the kcp workspace path under which the broker creates its verification workspaces.
 	// Required.
 	VerificationTreeRoot string
 
-	// WorkspaceClientFunc returns a client scoped to the workspace with the given path.
+	// VerificationClientFunc returns a client scoped to the workspace with the given path
+	// within the verification tree.
 	// Required.
-	WorkspaceClientFunc func(path string) (ctrlruntimeclient.Client, error)
+	VerificationClientFunc func(path string) (ctrlruntimeclient.Client, error)
 
 	// ClusterFilter restricts which provider clusters the controller engages.
 	// Optional, defaults to engaging all clusters.
@@ -76,8 +77,8 @@ func NewReconciler(mgr mcmanager.Manager, opts Options) (*Reconciler, error) {
 	if opts.VerificationTreeRoot == "" {
 		return nil, errors.New("options: VerificationTreeRoot is required")
 	}
-	if opts.WorkspaceClientFunc == nil {
-		return nil, errors.New("options: WorkspaceClientFunc is required")
+	if opts.VerificationClientFunc == nil {
+		return nil, errors.New("options: VerificationClientFunc is required")
 	}
 	if opts.RequeueInterval <= 0 {
 		opts.RequeueInterval = DefaultRequeueInterval

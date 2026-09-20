@@ -129,7 +129,7 @@ func (s *bindingVerifiedSubroutine) Finalize(ctx context.Context, obj ctrlruntim
 }
 
 func (s *bindingVerifiedSubroutine) treeRootClient() (ctrlruntimeclient.Client, error) {
-	cl, err := s.opts.WorkspaceClientFunc(s.opts.VerificationTreeRoot)
+	cl, err := s.opts.VerificationClientFunc(s.opts.VerificationTreeRoot)
 	if err != nil {
 		return nil, fmt.Errorf("building client for tree root %q: %w", s.opts.VerificationTreeRoot, err)
 	}
@@ -194,7 +194,7 @@ func (s *bindingVerifiedSubroutine) ensureWorkspace(ctx context.Context, acceptA
 // ensureBinding ensures an APIBinding for the APIExport in the AcceptaPI exists in the vrification workspace and is bound successfully.
 func (s *bindingVerifiedSubroutine) ensureBinding(ctx context.Context, acceptAPI *pmbrokerv1alpha1.AcceptAPI, wsName, providerCluster string) (subroutines.Result, error) {
 	wsPath := s.opts.VerificationTreeRoot + ":" + wsName
-	wsClient, err := s.opts.WorkspaceClientFunc(wsPath)
+	wsClient, err := s.opts.VerificationClientFunc(wsPath)
 	if err != nil {
 		return subroutines.Result{}, fmt.Errorf("building client for workspace %q: %w", wsPath, err)
 	}
