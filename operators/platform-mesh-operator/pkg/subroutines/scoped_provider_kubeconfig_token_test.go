@@ -54,11 +54,13 @@ func TestWriteScopedKubeconfigToSecretTokenHandling(t *testing.T) {
 	staleToken := fakeServiceAccountToken(t, now.Add(-48*time.Hour), now.Add(time.Hour), saUID)
 
 	tests := []struct {
-		name        string
-		storedToken string
-		wantToken   string
+		name           string
+		storedToken    string
+		kubeconfigOnly bool
+		wantToken      string
 	}{
 		{name: "no secret yet", storedToken: "", wantToken: "fake-token"},
+		{name: "secret without token key is migrated", kubeconfigOnly: true, wantToken: "fake-token"},
 		{name: "valid token is kept", storedToken: validToken, wantToken: validToken},
 		{name: "token past half-life is replaced", storedToken: staleToken, wantToken: "fake-token"},
 	}
@@ -70,7 +72,13 @@ func TestWriteScopedKubeconfigToSecretTokenHandling(t *testing.T) {
 			require.NoError(t, kcpapiv1alpha2.AddToScheme(scheme))
 
 			k8sBuilder := fake.NewClientBuilder().WithScheme(scheme)
-			if tt.storedToken != "" {
+			switch {
+			case tt.kubeconfigOnly:
+				k8sBuilder = k8sBuilder.WithObjects(&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+					Data:       map[string][]byte{scopedKubeconfigSecretKey: []byte("old-kubeconfig")},
+				})
+			case tt.storedToken != "":
 				k8sBuilder = k8sBuilder.WithObjects(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
 					Data:       map[string][]byte{scopedTokenSecretKey: []byte(tt.storedToken)},

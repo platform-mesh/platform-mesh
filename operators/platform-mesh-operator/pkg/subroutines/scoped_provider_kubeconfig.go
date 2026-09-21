@@ -314,6 +314,14 @@ func createTokenForSA(ctx context.Context, kcpWorkspaceClient ctrlruntimeclient.
 	if tr.Status.Token == "" {
 		return "", fmt.Errorf("empty token in TokenRequest status for ServiceAccount %s/%s", namespace, saName)
 	}
+	// A server-side cap can grant less than requested, and renewal only keeps up while the lifetime spans several checks.
+	if granted := time.Until(tr.Status.ExpirationTimestamp.Time); !tr.Status.ExpirationTimestamp.IsZero() && granted < 2*scopedTokenRenewalCheckInterval {
+		logger.LoadLoggerFromContext(ctx).Warn().
+			Str("serviceAccount", saName).
+			Dur("grantedLifetime", granted).
+			Dur("checkInterval", scopedTokenRenewalCheckInterval).
+			Msg("Scoped token lifetime is shorter than two renewal checks")
+	}
 	return tr.Status.Token, nil
 }
 
