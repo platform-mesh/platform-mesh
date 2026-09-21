@@ -22,18 +22,26 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"math/big"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
 
 	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
@@ -718,4 +726,66 @@ func TestMergeRootCAPEMIfMissing(t *testing.T) {
 			t.Fatalf("expected idempotent merge, got outcome %v len %d vs %d", o2, len(again), len(merged))
 		}
 	})
+}
+
+func fakeServiceAccountToken(t *testing.T, iat, exp time.Time, saUID string) string {
+	t.Helper()
+	payload, err := json.Marshal(map[string]any{
+		"iat": iat.Unix(),
+		"exp": exp.Unix(),
+		"kubernetes.io": map[string]any{
+			"serviceaccount": map[string]any{"uid": saUID},
+		},
+	})
+	require.NoError(t, err)
+	enc := base64.RawURLEncoding.EncodeToString
+	return enc([]byte(`{"alg":"RS256"}`)) + "." + enc(payload) + "." + enc([]byte("sig"))
+}
+
+func TestScopedTokenNeedsRenewal(t *testing.T) {
+	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	week := 7 * 24 * time.Hour
+
+	tests := []struct {
+		name  string
+		token string
+		want  bool
+	}{
+		{name: "empty", token: "", want: true},
+		{name: "not a JWT", token: "abc", want: true},
+		{name: "payload is not base64", token: "a.%%%.c", want: true},
+		{name: "payload is not JSON", token: "a." + base64.RawURLEncoding.EncodeToString([]byte("x")) + ".c", want: true},
+		{name: "fresh", token: fakeServiceAccountToken(t, now.Add(-time.Hour), now.Add(week-time.Hour), "uid-1"), want: false},
+		{name: "just before half-life", token: fakeServiceAccountToken(t, now.Add(-week/2+time.Minute), now.Add(week/2+time.Minute), "uid-1"), want: false},
+		{name: "at half-life", token: fakeServiceAccountToken(t, now.Add(-week/2), now.Add(week/2), "uid-1"), want: true},
+		{name: "expired", token: fakeServiceAccountToken(t, now.Add(-2*week), now.Add(-week), "uid-1"), want: true},
+		{name: "no lifetime", token: fakeServiceAccountToken(t, now, now, "uid-1"), want: true},
+		{name: "ServiceAccount was recreated", token: fakeServiceAccountToken(t, now.Add(-time.Hour), now.Add(week), "uid-old"), want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, scopedTokenNeedsRenewal(tt.token, "uid-1", now))
+		})
+	}
+}
+
+func TestBuildScopedKubeconfigReloadsTokenFromFile(t *testing.T) {
+	kubeconfigBytes, err := clientcmd.Write(*buildScopedKubeconfig("https://kcp.example/clusters/root", "inline-token", nil))
+	require.NoError(t, err)
+
+	// Same layout as the mounted secret: both keys in one directory.
+	dir := t.TempDir()
+	kubeconfigPath := filepath.Join(dir, scopedKubeconfigSecretKey)
+	require.NoError(t, os.WriteFile(kubeconfigPath, kubeconfigBytes, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, scopedTokenSecretKey), []byte("file-token"), 0o600))
+
+	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	require.NoError(t, err)
+	assert.Equal(t, "inline-token", cfg.BearerToken)
+	assert.Equal(t, filepath.Join(dir, scopedTokenSecretKey), cfg.BearerTokenFile)
+
+	// Consumers that only get the kubeconfig bytes keep working with the inline token.
+	cfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	require.NoError(t, err)
+	assert.Equal(t, "inline-token", cfg.BearerToken)
 }

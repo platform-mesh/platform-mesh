@@ -18,9 +18,12 @@ package subroutines
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmconfig "go.platform-mesh.io/golang-commons/config"
@@ -52,6 +55,11 @@ const (
 	scopedSAPrefix                 = "platform-mesh-provider-"
 	scopedWorkspaceAccessCRBPrefix = "platform-mesh-workspace-access-"
 	kcpWorkspaceAccessRoleName     = "system:kcp:workspace:access"
+
+	scopedKubeconfigSecretKey = "kubeconfig"
+	scopedTokenSecretKey      = "token"
+	// scopedTokenRenewalCheckInterval is how often the operator re-checks scoped tokens for renewal.
+	scopedTokenRenewalCheckInterval = 6 * time.Hour
 )
 
 func resolveAPIExport(ctx context.Context, kcpHelper KcpHelper, cfg *rest.Config, apiExportName, apiExportPath string) (*kcpapiv1alpha2.APIExport, error) {
@@ -559,9 +567,25 @@ func writeScopedKubeconfigToSecret(
 		}
 	}
 
-	token, err := createTokenForSA(ctx, kcpWorkspaceClient, defaultScopedSANamespace, saName, defaultTokenExpirationSeconds)
-	if err != nil {
-		return errors.Wrap(err, "create token for ServiceAccount")
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: pc.Secret, Namespace: ptr.Deref(pc.Namespace, operatorCfg.KCP.Namespace)},
+	}
+	if err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(secret), secret); err != nil && !apierrors.IsNotFound(err) {
+		return errors.Wrap(err, "get provider secret")
+	}
+	sa := &corev1.ServiceAccount{}
+	if err := kcpWorkspaceClient.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: defaultScopedSANamespace, Name: saName}, sa); err != nil {
+		return errors.Wrap(err, "get ServiceAccount")
+	}
+
+	// Keep the stored token until half of its lifetime has passed, so the secret is not rewritten on every reconcile.
+	token := string(secret.Data[scopedTokenSecretKey])
+	if scopedTokenNeedsRenewal(token, string(sa.UID), time.Now()) {
+		token, err = createTokenForSA(ctx, kcpWorkspaceClient, defaultScopedSANamespace, saName, defaultTokenExpirationSeconds)
+		if err != nil {
+			return errors.Wrap(err, "create token for ServiceAccount")
+		}
+		log.Info().Str("secret", pc.Secret).Msg("Issued new scoped kubeconfig token")
 	}
 	kubeconfig := buildScopedKubeconfig(hostURL, token, caData)
 	kubeconfigBytes, err := clientcmd.Write(*kubeconfig)
@@ -569,11 +593,11 @@ func writeScopedKubeconfigToSecret(
 		return errors.Wrap(err, "write kubeconfig")
 	}
 
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: pc.Secret, Namespace: ptr.Deref(pc.Namespace, operatorCfg.KCP.Namespace)},
-	}
 	_, err = controllerutil.CreateOrUpdate(ctx, k8sClient, secret, func() error {
-		secret.Data = map[string][]byte{"kubeconfig": kubeconfigBytes}
+		secret.Data = map[string][]byte{
+			scopedKubeconfigSecretKey: kubeconfigBytes,
+			scopedTokenSecretKey:      []byte(token),
+		}
 		return nil
 	})
 	if err != nil {
@@ -582,6 +606,36 @@ func writeScopedKubeconfigToSecret(
 	return nil
 }
 
+// scopedTokenNeedsRenewal reports whether the token is unreadable, bound to another ServiceAccount UID, or past half of its lifetime.
+func scopedTokenNeedsRenewal(token, saUID string, now time.Time) bool {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return true
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return true
+	}
+	var claims struct {
+		IssuedAt   int64 `json:"iat"`
+		Expiry     int64 `json:"exp"`
+		Kubernetes struct {
+			ServiceAccount struct {
+				UID string `json:"uid"`
+			} `json:"serviceaccount"`
+		} `json:"kubernetes.io"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return true
+	}
+	if claims.Expiry <= claims.IssuedAt || claims.Kubernetes.ServiceAccount.UID != saUID {
+		return true
+	}
+	halfLife := claims.IssuedAt + (claims.Expiry-claims.IssuedAt)/2
+	return now.Unix() >= halfLife
+}
+
+// buildScopedKubeconfig references the token file next to the kubeconfig so client-go reloads a renewed token; the inline token is the fallback.
 func buildScopedKubeconfig(hostURL string, token string, caData []byte) *clientcmdapi.Config {
 	return &clientcmdapi.Config{
 		Clusters: map[string]*clientcmdapi.Cluster{
@@ -592,7 +646,8 @@ func buildScopedKubeconfig(hostURL string, token string, caData []byte) *clientc
 		},
 		AuthInfos: map[string]*clientcmdapi.AuthInfo{
 			"default-auth": {
-				Token: token,
+				Token:     token,
+				TokenFile: scopedTokenSecretKey,
 			},
 		},
 		Contexts: map[string]*clientcmdapi.Context{
