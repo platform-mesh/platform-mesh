@@ -171,11 +171,17 @@ func (r *ProvidersecretSubroutine) Process(
 		log.Error().Err(err).Msg("Failed to build kubeconfig")
 		return subroutines.OK(), gcerrors.Wrap(err, "Failed to build kubeconfig")
 	}
+	hasScoped := false
 	for _, pc := range providers {
 		if _, connErr := r.HandleProviderConnection(ctx, instance, pc, cfg); connErr != nil {
 			log.Error().Err(connErr).Msg("Failed to handle provider connection")
 			return subroutines.OK(), connErr
 		}
+		hasScoped = hasScoped || !ptr.Deref(pc.AdminAuth, false)
+	}
+	if hasScoped {
+		// Scoped tokens expire, come back to renew them in time.
+		return subroutines.OKWithRequeue(scopedTokenRenewalCheckInterval), nil
 	}
 	return subroutines.OK(), nil
 }
