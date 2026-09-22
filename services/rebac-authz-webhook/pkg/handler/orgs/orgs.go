@@ -89,14 +89,14 @@ func (o *orgsAuthorizer) Handle(ctx context.Context, req authorization.Request) 
 
 	attrs := req.Spec.ResourceAttributes
 
-	group := util.CapGroupToRelationLength(schema.GroupVersionResource{Group: attrs.Group, Version: attrs.Version, Resource: attrs.Resource}, 50)
-	group = strings.ReplaceAll(group, ".", "_")
+	relationResource := util.ResourceRelationName(schema.GroupVersionResource{Group: attrs.Group, Version: attrs.Version, Resource: attrs.Resource}, 50)
+	relationResource = strings.ReplaceAll(relationResource, ".", "_")
 
 	res, err := o.fga.Check(ctx, &openfgav1.CheckRequest{
 		StoreId: o.orgsStoreID,
 		TupleKey: &openfgav1.CheckRequestTupleKey{
 			Object:   rootOrgName,
-			Relation: fmt.Sprintf("%s_%s_%s", attrs.Verb, group, attrs.Resource),
+			Relation: fmt.Sprintf("%s_%s", attrs.Verb, relationResource),
 			User:     fmt.Sprintf("user:%s", req.Spec.User),
 		},
 	})

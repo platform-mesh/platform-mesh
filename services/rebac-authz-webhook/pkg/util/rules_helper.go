@@ -44,3 +44,23 @@ func CapGroupToRelationLength(gvr schema.GroupVersionResource, maxLength int) st
 
 	return group
 }
+
+// ResourceRelationName returns the group/resource part of a create, list, or
+// watch relation. It reserves space for the longest prefix ("create_") and
+// keeps a stable suffix when the Kubernetes names do not fit OpenFGA's limit.
+func ResourceRelationName(gvr schema.GroupVersionResource, maxLength int) string {
+	group := gvr.Group
+	if group == "" {
+		group = "core"
+	}
+
+	identifier := fmt.Sprintf("%s_%s", group, gvr.Resource)
+	available := maxLength - len("create_")
+	if available <= 0 {
+		return ""
+	}
+	if len(identifier) > available {
+		return identifier[len(identifier)-available:]
+	}
+	return identifier
+}
