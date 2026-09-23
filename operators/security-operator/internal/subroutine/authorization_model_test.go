@@ -538,3 +538,73 @@ type core_namespace
 		})
 	}
 }
+
+// TestAuthorizationModelSelfSubjectReviewCreateOverride verifies that the
+// core-generation override grants members create on selfsubject reviews while
+// leaving other cluster-scoped resources at the default owner-only.
+func TestAuthorizationModelSelfSubjectReviewCreateOverride(t *testing.T) {
+	store := &pmcorev1alpha1.Store{
+		ObjectMeta: metav1.ObjectMeta{Name: "store"},
+		Spec:       pmcorev1alpha1.StoreSpec{CoreModule: coreModule},
+		Status:     pmcorev1alpha1.StoreStatus{StoreID: "id"},
+	}
+
+	fga := mocks.NewMockOpenFGAServiceClient(t)
+	var dsl string
+	fga.EXPECT().WriteAuthorizationModel(mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, wamr *openfgav1.WriteAuthorizationModelRequest, co ...grpc.CallOption) (*openfgav1.WriteAuthorizationModelResponse, error) {
+			m := openfgav1.AuthorizationModel{
+				SchemaVersion:   wamr.SchemaVersion,
+				TypeDefinitions: wamr.TypeDefinitions,
+				Conditions:      wamr.Conditions,
+				Id:              "id",
+			}
+			raw, err := protojson.Marshal(&m)
+			assert.NoError(t, err)
+			out, err := language.TransformJSONStringToDSL(string(raw))
+			assert.NoError(t, err)
+			dsl = *out
+			return &openfgav1.WriteAuthorizationModelResponse{AuthorizationModelId: "id"}, nil
+		},
+	)
+
+	kcpHelper := mocks.NewMockLister(t)
+	kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(nil).Once()
+
+	discoveryMock := mocks.NewMockDiscoveryInterface(t)
+	discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).RunAndReturn(
+		func(gv string) (*metav1.APIResourceList, error) {
+			switch gv {
+			case "authorization.k8s.io/v1":
+				return &metav1.APIResourceList{
+					GroupVersion: "authorization.k8s.io/v1",
+					APIResources: []metav1.APIResource{
+						{Name: "selfsubjectaccessreviews", SingularName: "selfsubjectaccessreview", Namespaced: false},
+						{Name: "selfsubjectrulesreviews", SingularName: "selfsubjectrulesreview", Namespaced: false},
+						// cluster-scoped, not overridden -> must stay owner
+						{Name: "subjectaccessreviews", SingularName: "subjectaccessreview", Namespaced: false},
+					},
+				}, nil
+			default:
+				return &metav1.APIResourceList{}, nil
+			}
+		},
+	)
+
+	manager := mocks.NewMockManager(t)
+	ctrlManager := mocks.NewMockCTRLManager(t)
+	manager.EXPECT().GetLocalManager().Return(ctrlManager).Maybe()
+	ctrlManager.EXPECT().GetConfig().Return(&rest.Config{}).Maybe()
+
+	logger := testlogger.New()
+	sub := subroutine.NewAuthorizationModelSubroutine(fga, manager, kcpHelper, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
+	ctx := mccontext.WithCluster(context.Background(), multicluster.ClusterName(logicalcluster.Name("path").String()))
+
+	_, err := sub.Process(ctx, store)
+	assert.NoError(t, err)
+
+	assert.Contains(t, dsl, "define create_thorization_k8s_io_selfsubjectaccessreviews: member")
+	assert.Contains(t, dsl, "define create_uthorization_k8s_io_selfsubjectrulesreviews: member")
+	// non-overridden cluster-scoped resource keeps the owner-only default
+	assert.Contains(t, dsl, "define create_authorization_k8s_io_subjectaccessreviews: owner")
+}
