@@ -40,18 +40,22 @@ import (
 )
 
 type AuthorizationModelReconciler struct {
-	log       *logger.Logger
-	lifecycle *lifecycle.Lifecycle
+	log        *logger.Logger
+	lifecycle  *lifecycle.Lifecycle
+	ctx        context.Context
+	engageOpts mcbuilder.EngageOptions
 }
 
-func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *AuthorizationModelReconciler {
+func NewAuthorizationModelReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, engageOpts mcbuilder.EngageOptions) *AuthorizationModelReconciler {
 	lc := lifecycle.New(mcMgr, "AuthorizationModelReconciler", func() ctrlruntimeclient.Object {
 		return &pmcorev1alpha1.AuthorizationModel{}
 	}, subroutine.NewTupleSubroutine(fga, mcMgr))
 
 	return &AuthorizationModelReconciler{
-		log:       log,
-		lifecycle: lc,
+		log:        log,
+		lifecycle:  lc,
+		ctx:        ctx,
+		engageOpts: engageOpts,
 	}
 }
 
@@ -74,7 +78,7 @@ func (r *AuthorizationModelReconciler) SetupWithManager(mgr mcmanager.Manager, c
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("authorizationmodel").
-		For(&pmcorev1alpha1.AuthorizationModel{}).
+		For(&pmcorev1alpha1.AuthorizationModel{}, r.engageOpts).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)
