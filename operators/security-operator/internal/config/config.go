@@ -28,6 +28,7 @@ import (
 const (
 	CoreProviderName      = "core"
 	SystemProviderName    = "system"
+	OrgIdpProviderName    = "org-idp"
 	ProvidersProviderName = "providers"
 	providerSeparator     = "#"
 	OrgsClusterPath       = "root:orgs"
@@ -35,6 +36,7 @@ const (
 
 type KeycloakConfig struct {
 	BaseURL      string
+	PathPrefix   string
 	ClientID     string
 	ClientSecret string
 }
@@ -65,7 +67,8 @@ type KCPConfig struct {
 }
 
 type IDPConfig struct {
-	RealmDenyList []string
+	RealmDenyList                  []string
+	IdPRegistrationSecretNamespace string
 
 	SMTPServer  string
 	SMTPPort    int
@@ -87,6 +90,7 @@ type IDPConfig struct {
 type APIExportEndpointSlices struct {
 	CorePlatformMeshIO      string
 	SystemPlatformMeshIO    string
+	OrgIdpPlatformMeshIO    string
 	ProvidersPlatformMeshIO string
 }
 
@@ -129,6 +133,7 @@ func NewConfig() Config {
 		APIExportEndpointSlices: APIExportEndpointSlices{
 			CorePlatformMeshIO:      "core.platform-mesh.io",
 			SystemPlatformMeshIO:    "system.platform-mesh.io",
+			OrgIdpPlatformMeshIO:    "org-idp.platform-mesh.io",
 			ProvidersPlatformMeshIO: "providers.platform-mesh.io",
 		},
 		BaseDomain:               "portal.dev.local:8443",
@@ -138,10 +143,12 @@ func NewConfig() Config {
 		WorkspaceTypeName:        "security",
 		HttpClientTimeoutSeconds: 30,
 		IDP: IDPConfig{
-			KubectlClientRedirectURLs: []string{"http://localhost:8000", "http://localhost:18000"},
-			AccessTokenLifespan:       28800,
+			IdPRegistrationSecretNamespace: "default",
+			KubectlClientRedirectURLs:      []string{"http://localhost:8000", "http://localhost:18000"},
+			AccessTokenLifespan:            28800,
 		},
 		Keycloak: KeycloakConfig{
+			PathPrefix:   "/keycloak",
 			ClientID:     "security-operator",
 			ClientSecret: os.Getenv("KEYCLOAK_CLIENT_SECRET"),
 		},
@@ -167,6 +174,7 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.KCP.Kubeconfig, "kcp-kubeconfig", c.KCP.Kubeconfig, "Set the kcp kubeconfig path")
 	fs.StringVar(&c.APIExportEndpointSlices.CorePlatformMeshIO, "api-export-endpoint-slice-name", c.APIExportEndpointSlices.CorePlatformMeshIO, "Set the core.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.APIExportEndpointSlices.SystemPlatformMeshIO, "system-api-export-endpoint-slice-name", c.APIExportEndpointSlices.SystemPlatformMeshIO, "Set the system.platform-mesh.io APIExportEndpointSlice name")
+	fs.StringVar(&c.APIExportEndpointSlices.OrgIdpPlatformMeshIO, "org-idp-api-export-endpoint-slice-name", c.APIExportEndpointSlices.OrgIdpPlatformMeshIO, "Set the org-idp.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.APIExportEndpointSlices.ProvidersPlatformMeshIO, "providers-api-export-endpoint-slice-name", c.APIExportEndpointSlices.ProvidersPlatformMeshIO, "Set the providers.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.CoreModulePath, "core-module-path", c.CoreModulePath, "Set the path to the core module FGA model file")
 	fs.StringVar(&c.BaseDomain, "base-domain", c.BaseDomain, "Set the base domain used to construct issuer URLs")
@@ -182,6 +190,7 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&c.AllowMemberTuplesEnabled, "allow-member-tuples-enabled", c.AllowMemberTuplesEnabled, "Enable allow-member tuples management")
 	fs.BoolVar(&c.RekeyOrphanedTuplesEnabled, "rekey-orphaned-tuples-enabled", c.RekeyOrphanedTuplesEnabled, "Enable re-keying of org tuples orphaned by a workspace re-creation (cluster-id change)")
 	fs.StringSliceVar(&c.IDP.RealmDenyList, "idp-realm-deny-list", c.IDP.RealmDenyList, "Comma-separated list of Keycloak realms to ignore")
+	fs.StringVar(&c.IDP.IdPRegistrationSecretNamespace, "idp-registration-secret-namespace", c.IDP.IdPRegistrationSecretNamespace, "Namespace for IdPRegistration client secrets")
 	fs.StringVar(&c.IDP.SMTPServer, "idp-smtp-server", c.IDP.SMTPServer, "Set Keycloak SMTP server host")
 	fs.IntVar(&c.IDP.SMTPPort, "idp-smtp-port", c.IDP.SMTPPort, "Set Keycloak SMTP server port")
 	fs.StringVar(&c.IDP.FromAddress, "idp-from-address", c.IDP.FromAddress, "Set SMTP from address")
@@ -194,6 +203,7 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&c.IDP.AccessTokenLifespan, "idp-access-token-lifespan", c.IDP.AccessTokenLifespan, "Keycloak access token lifespan in seconds")
 	fs.BoolVar(&c.IDP.RegistrationAllowed, "idp-registration-allowed", c.IDP.RegistrationAllowed, "Enable Keycloak self-registration")
 	fs.StringVar(&c.Keycloak.BaseURL, "keycloak-base-url", c.Keycloak.BaseURL, "Set Keycloak base URL")
+	fs.StringVar(&c.Keycloak.PathPrefix, "keycloak-path-prefix", c.Keycloak.PathPrefix, "HTTP path prefix for Keycloak broker redirect URIs")
 	fs.StringVar(&c.Keycloak.ClientID, "keycloak-client-id", c.Keycloak.ClientID, "Set Keycloak client ID")
 	fs.BoolVar(&c.Initializer.WorkspaceInitializerEnabled, "initializer-workspace-enabled", c.Initializer.WorkspaceInitializerEnabled, "Enable workspace initialization")
 	fs.BoolVar(&c.Initializer.IDPEnabled, "initializer-idp-enabled", c.Initializer.IDPEnabled, "Enable IDP initialization")
