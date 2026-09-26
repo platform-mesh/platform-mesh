@@ -28,6 +28,7 @@ import (
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/fga"
+	"go.platform-mesh.io/security-operator/internal/util"
 	"go.platform-mesh.io/subroutines"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -92,6 +93,10 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj ctrlruntimecli
 	cluster, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context: %w", err)
+	}
+
+	if err := util.EnsureNamespace(ctx, cluster.GetClient(), w.secretNamespace()); err != nil {
+		return subroutines.OK(), err
 	}
 
 	var ai pmcorev1alpha1.AccountInfo
@@ -208,3 +213,11 @@ func generateStoreName(lc *kcpcorev1alpha1.LogicalCluster) string {
 	}
 	return ""
 }
+
+func (w *workspaceInitializer) secretNamespace() string {
+	if ns := strings.TrimSpace(w.cfg.IDP.IdPRegistrationSecretNamespace); ns != "" {
+		return ns
+	}
+	return "default"
+}
+
