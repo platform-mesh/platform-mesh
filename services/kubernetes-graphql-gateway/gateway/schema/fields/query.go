@@ -35,7 +35,7 @@ func (g *QueryGenerator) Generate(rc *ResourceContext, target *graphql.Object) {
 	itemArgs := resolver.ItemArgs(rc.Scope)
 
 	listWrapperType := graphql.NewObject(graphql.ObjectConfig{
-		Name:   rc.UniqueTypeName + "List",
+		Name:   rc.ListTypeName,
 		Fields: resolver.ListResultFields(rc.ResourceType),
 	})
 
