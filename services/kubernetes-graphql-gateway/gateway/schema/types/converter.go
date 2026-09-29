@@ -17,6 +17,10 @@ limitations under the License.
 package types
 
 import (
+	"maps"
+	"slices"
+	"strings"
+
 	"github.com/graphql-go/graphql"
 
 	"k8s.io/kube-openapi/pkg/validation/spec"
@@ -40,7 +44,8 @@ func (c *Converter) convertFields(resourceScheme *spec.Schema, definitions map[s
 	fields := graphql.Fields{}
 	inputFields := graphql.InputObjectConfigFieldMap{}
 
-	for fieldName, fieldSpec := range resourceScheme.Properties {
+	for _, fieldName := range slices.Sorted(maps.Keys(resourceScheme.Properties)) {
+		fieldSpec := resourceScheme.Properties[fieldName]
 		sanitizedFieldName := SanitizeFieldName(fieldName)
 		currentFieldPath := append(fieldPath, fieldName)
 
@@ -154,40 +159,41 @@ func (c *Converter) handleObjectType(fieldSpec spec.Schema, definitions map[stri
 }
 
 func (c *Converter) handleNestedObject(fieldSpec spec.Schema, definitions map[string]*spec.Schema, typePrefix string, fieldPath []string) (graphql.Output, graphql.Input, error) {
-	typeName := GenerateTypeName(typePrefix, fieldPath)
+	key := typePrefix + "\x00" + strings.Join(fieldPath, "\x00")
 
-	if output, input := c.registry.Get(typeName); output != nil {
+	if output, input := c.registry.Get(key); output != nil {
 		return output, input, nil
 	}
 
-	if c.registry.IsProcessing(typeName) {
+	if c.registry.IsProcessing(key) {
 		// Circular reference detected - return JSONStringScalar as a fallback to break
 		// recursion. This loses the actual type structure. A proper fix would use
 		// graphql.FieldsThunk for lazy type resolution, allowing self-referential types.
 		return JSONStringScalar, JSONStringScalar, nil
 	}
 
-	c.registry.MarkProcessing(typeName)
+	c.registry.MarkProcessing(key)
+	typeName := c.registry.TypeName(typePrefix, GenerateTypeName("", fieldPath))
 
 	nestedFields, nestedInputFields, err := c.convertFields(&fieldSpec, definitions, typeName, []string{})
 	if err != nil {
-		c.registry.UnmarkProcessing(typeName)
+		c.registry.UnmarkProcessing(key)
 		return nil, nil, err
 	}
 
 	newType := graphql.NewObject(graphql.ObjectConfig{
-		Name:        SanitizeFieldName(typeName),
+		Name:        typeName,
 		Description: fieldSpec.Description,
 		Fields:      nestedFields,
 	})
 
 	newInputType := graphql.NewInputObject(graphql.InputObjectConfig{
-		Name:        SanitizeFieldName(typeName) + "_Input",
+		Name:        typeName + "_Input",
 		Description: fieldSpec.Description,
 		Fields:      nestedInputFields,
 	})
 
-	c.registry.Register(typeName, newType, newInputType)
+	c.registry.Register(key, newType, newInputType)
 
 	return newType, newInputType, nil
 }

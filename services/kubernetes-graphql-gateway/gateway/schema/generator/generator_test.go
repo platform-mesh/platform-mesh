@@ -190,6 +190,139 @@ func setup(
 	)
 }
 
+func TestGenerate_typeNameCollisions(t *testing.T) {
+	const group, version = "probe.example.com", "v1alpha1"
+	ns := apiextensionsv1.NamespaceScoped
+	resource := func(kind string) *spec.Schema {
+		return withSpec(schemaWithCategory(group, version, kind, ns))
+	}
+
+	tests := []struct {
+		name      string
+		schemas   []*spec.Schema
+		wantTypes map[string]string // type name -> expected kind of type ("resource" or "helper")
+	}{
+		{
+			name:    "Kind named Query",
+			schemas: []*spec.Schema{resource("Query")},
+			wantTypes: map[string]string{
+				"ProbeExampleComV1alpha1Query":  "resource",
+				"ProbeExampleComV1alpha1_Query": "helper",
+			},
+		},
+		{
+			name:    "Kind named Mutation",
+			schemas: []*spec.Schema{resource("Mutation")},
+			wantTypes: map[string]string{
+				"ProbeExampleComV1alpha1Mutation":  "resource",
+				"ProbeExampleComV1alpha1_Mutation": "helper",
+			},
+		},
+		{
+			name:    "Kind matching a nested type",
+			schemas: []*spec.Schema{resource("Foo"), resource("FooSpec")},
+			wantTypes: map[string]string{
+				"ProbeExampleComV1alpha1Foo":      "resource",
+				"ProbeExampleComV1alpha1FooSpec":  "resource",
+				"ProbeExampleComV1alpha1Foo_Spec": "helper",
+			},
+		},
+		{
+			name:    "Kind matching an event type",
+			schemas: []*spec.Schema{resource("Foo"), resource("FooEvent")},
+			wantTypes: map[string]string{
+				"ProbeExampleComV1alpha1FooEvent":  "resource",
+				"ProbeExampleComV1alpha1Foo_Event": "helper",
+			},
+		},
+		{
+			name:    "Kind ending in List without its item Kind",
+			schemas: []*spec.Schema{resource("AccessList")},
+			wantTypes: map[string]string{
+				"ProbeExampleComV1alpha1AccessList":     "resource",
+				"ProbeExampleComV1alpha1AccessListList": "helper",
+			},
+		},
+		{
+			name:    "hyphenated Kind",
+			schemas: []*spec.Schema{resource("Mutation-Foo")},
+			wantTypes: map[string]string{
+				"ProbeExampleComV1alpha1Mutation_Foo": "resource",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := setup(nil, tt.schemas...).Generate(t.Context())
+			require.NoError(t, err)
+
+			for name, kind := range tt.wantTypes {
+				typ := got.Type(name)
+				require.NotNil(t, typ, "type %s", name)
+				obj, ok := typ.(*graphql.Object)
+				require.True(t, ok, "type %s is not an object", name)
+				_, hasMetadata := obj.Fields()["metadata"]
+				assert.Equal(t, kind == "resource", hasMetadata, "type %s", name)
+			}
+		})
+	}
+}
+
+func TestGenerate_nestedTypeIsNotAliasedToResource(t *testing.T) {
+	ns := apiextensionsv1.NamespaceScoped
+	got, err := setup(nil,
+		withSpec(schemaWithCategory("probe.example.com", "v1alpha1", "FooSpec", ns)),
+		withSpec(schemaWithCategory("probe.example.com", "v1alpha1", "Foo", ns)),
+	).Generate(t.Context())
+	require.NoError(t, err)
+
+	foo := got.Type("ProbeExampleComV1alpha1Foo").(*graphql.Object)
+	assert.Equal(t, "ProbeExampleComV1alpha1Foo_Spec", foo.Fields()["spec"].Type.Name())
+}
+
+func TestGenerate_typeNamesAreStable(t *testing.T) {
+	ns := apiextensionsv1.NamespaceScoped
+	schemas := []*spec.Schema{
+		withSpec(schemaWithCategory("probe.example.com", "v1alpha1", "Foo", ns)),
+		withSpec(schemaWithCategory("probe.example.com", "v1alpha1", "FooSpec", ns)),
+		withSpec(schemaWithCategory("probe.example.com", "v1alpha1", "FooSpecX", ns)),
+	}
+
+	first, err := setup(nil, schemas...).Generate(t.Context())
+	require.NoError(t, err)
+
+	reversed := slices.Clone(schemas)
+	slices.Reverse(reversed)
+	for range 20 {
+		got, err := setup(nil, reversed...).Generate(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, typeNames(first), typeNames(got))
+	}
+}
+
+func typeNames(s *graphql.Schema) []string {
+	names := make([]string, 0, len(s.TypeMap()))
+	for name := range s.TypeMap() {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// withSpec adds an object-typed spec property to a resource schema.
+func withSpec(s *spec.Schema) *spec.Schema {
+	s.Properties["spec"] = spec.Schema{
+		SchemaProps: spec.SchemaProps{
+			Type: spec.StringOrArray{"object"},
+			Properties: map[string]spec.Schema{
+				"x": {SchemaProps: spec.SchemaProps{Type: spec.StringOrArray{"string"}}},
+			},
+		},
+	}
+	return s
+}
+
 func TestGroupByAPIGroup(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -277,7 +410,8 @@ func TestCreateGroupType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := createGroupType(tt.group, tt.suffix)
+			g := &SchemaGenerator{typeRegistry: types.NewRegistry()}
+			got := g.createGroupType(tt.group, tt.suffix)
 
 			assert.Equal(t, tt.wantName, got.Name())
 			assert.Empty(t, got.Fields())
@@ -318,7 +452,8 @@ func TestCreateVersionType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := createVersionType(tt.group, tt.version, tt.suffix)
+			g := &SchemaGenerator{typeRegistry: types.NewRegistry()}
+			got := g.createVersionType(tt.group, tt.version, tt.suffix)
 
 			assert.Equal(t, tt.wantName, got.Name())
 			assert.Empty(t, got.Fields())
@@ -361,11 +496,47 @@ func TestParseResources(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "List kinds are skipped",
+			name: "list type of an existing Kind is skipped",
 			definitions: map[string]*spec.Schema{
+				"io.k8s.api.core.v1.Pod":     schemaWithGVKAndScope("", "v1", "Pod", apiextensionsv1.NamespaceScoped),
 				"io.k8s.api.core.v1.PodList": schemaWithGVKAndScope("", "v1", "PodList", apiextensionsv1.NamespaceScoped),
 			},
-			want: nil,
+			want: []expectedResource{{
+				key:            "io.k8s.api.core.v1.Pod",
+				gvk:            schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"},
+				scope:          apiextensionsv1.NamespaceScoped,
+				singularName:   "Pod",
+				pluralName:     "Pods",
+				sanitizedGroup: "",
+			}},
+		},
+		{
+			name: "Kind ending in List is kept",
+			definitions: map[string]*spec.Schema{
+				"com.example.v1.AccessList": schemaWithGVKAndScope("example.com", "v1", "AccessList", apiextensionsv1.NamespaceScoped),
+			},
+			want: []expectedResource{{
+				key:            "com.example.v1.AccessList",
+				gvk:            schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "AccessList"},
+				scope:          apiextensionsv1.NamespaceScoped,
+				singularName:   "AccessList",
+				pluralName:     "AccessLists",
+				sanitizedGroup: "example_com",
+			}},
+		},
+		{
+			name: "hyphenated Kind is sanitized",
+			definitions: map[string]*spec.Schema{
+				"com.example.v1.Mutation-Foo": schemaWithGVKAndScope("example.com", "v1", "Mutation-Foo", apiextensionsv1.NamespaceScoped),
+			},
+			want: []expectedResource{{
+				key:            "com.example.v1.Mutation-Foo",
+				gvk:            schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Mutation-Foo"},
+				scope:          apiextensionsv1.NamespaceScoped,
+				singularName:   "Mutation_Foo",
+				pluralName:     "Mutation_Foos",
+				sanitizedGroup: "example_com",
+			}},
 		},
 		{
 			name: "core API resource (empty group)",
