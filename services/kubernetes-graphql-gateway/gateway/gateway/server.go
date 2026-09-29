@@ -105,6 +105,10 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Get endpoint for cluster
 	endpoint, exists := s.registry.GetEndpoint(clusterName)
+	if !exists && s.registry.SchemaFailed(clusterName) {
+		http.Error(w, "GraphQL schema for this cluster could not be built", http.StatusServiceUnavailable)
+		return
+	}
 	if !exists {
 		logger.Error(fmt.Errorf("endpoint not found"), "Target endpoint not found",
 			"cluster", clusterName,
