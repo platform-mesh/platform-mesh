@@ -131,6 +131,11 @@ func TestRegistry_GetUniqueTypeName(t *testing.T) {
 			gvk:      schema.GroupVersionKind{Group: "custom.io", Version: "v1", Kind: "Component"},
 			expected: "CustomIoV1Component",
 		},
+		{
+			name:     "hyphenated Kind is sanitized",
+			gvk:      schema.GroupVersionKind{Group: "custom.io", Version: "v1", Kind: "Mutation-Foo"},
+			expected: "CustomIoV1Mutation_Foo",
+		},
 	}
 
 	for _, tt := range tests {
@@ -169,4 +174,21 @@ func TestRegistry_IsProcessing_AfterMark(t *testing.T) {
 
 	registry.MarkProcessing("test-key")
 	assert.True(t, registry.IsProcessing("test-key"))
+}
+
+func TestRegistry_TypeName(t *testing.T) {
+	registry := types.NewRegistry()
+	assert.Equal(t, "AppsV1Foo", registry.ResourceTypeName(&schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Foo"}))
+
+	assert.Equal(t, "AppsV1_Foo", registry.TypeName("AppsV1", "Foo"))
+	assert.Equal(t, "AppsV1_Foo_2", registry.TypeName("AppsV1", "Foo"))
+	assert.Equal(t, "AppsV1Bar", registry.TypeName("AppsV1", "Bar"))
+	assert.Equal(t, "AppsV1_Bar", registry.TypeName("AppsV1", "Bar"))
+}
+
+func TestRegistry_ResourceTypeName_InputCollision(t *testing.T) {
+	registry := types.NewRegistry()
+
+	assert.Equal(t, "AppsV1Foo", registry.ResourceTypeName(&schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Foo"}))
+	assert.Equal(t, "AppsV1_Foo_Input", registry.ResourceTypeName(&schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Foo-Input"}))
 }

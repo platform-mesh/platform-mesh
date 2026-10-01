@@ -17,7 +17,9 @@ limitations under the License.
 package generator
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"sort"
 	"strings"
 
@@ -32,6 +34,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -45,6 +48,7 @@ type Resource struct {
 	SingularName   string
 	PluralName     string
 	SanitizedGroup string
+	TypeName       string
 }
 
 // SchemaGenerator transforms Kubernetes OpenAPI definitions into a GraphQL schema.
@@ -105,6 +109,9 @@ func (g *SchemaGenerator) Generate(ctx context.Context) (*graphql.Schema, error)
 	rootSubscription := graphql.NewObject(graphql.ObjectConfig{Name: "Subscription", Fields: graphql.Fields{}})
 
 	resources := g.parseResources()
+	for _, r := range resources {
+		r.TypeName = g.typeRegistry.ResourceTypeName(&r.GVK)
+	}
 	groups := groupByAPIGroup(resources)
 
 	sortedGroups := make([]string, 0, len(groups))
@@ -161,10 +168,6 @@ func (g *SchemaGenerator) parseResources() []*Resource {
 			continue
 		}
 
-		if strings.HasSuffix(gvk.Kind, "List") {
-			continue
-		}
-
 		sanitizedGroup := ""
 		if gvk.Group != "" {
 			sanitizedGroup = types.SanitizeGroupName(gvk.Group)
@@ -175,11 +178,30 @@ func (g *SchemaGenerator) parseResources() []*Resource {
 			Schema:         def,
 			GVK:            *gvk,
 			Scope:          scope,
-			SingularName:   gvk.Kind,
-			PluralName:     flect.Pluralize(gvk.Kind),
+			SingularName:   types.SanitizeFieldName(gvk.Kind),
+			PluralName:     types.SanitizeFieldName(flect.Pluralize(gvk.Kind)),
 			SanitizedGroup: sanitizedGroup,
 		})
 	}
+
+	kinds := sets.New[schema.GroupVersionKind]()
+	for _, r := range resources {
+		kinds.Insert(r.GVK)
+	}
+	// XList is the list type of X when X exists in the same group and version.
+	resources = slices.DeleteFunc(resources, func(r *Resource) bool {
+		item, isList := strings.CutSuffix(r.GVK.Kind, "List")
+		return isList && kinds.Has(r.GVK.GroupVersion().WithKind(item))
+	})
+
+	slices.SortFunc(resources, func(a, b *Resource) int {
+		return cmp.Or(
+			cmp.Compare(a.SanitizedGroup, b.SanitizedGroup),
+			cmp.Compare(a.GVK.Version, b.GVK.Version),
+			cmp.Compare(a.GVK.Kind, b.GVK.Kind),
+			cmp.Compare(a.Key, b.Key),
+		)
+	})
 
 	return resources
 }
@@ -213,8 +235,8 @@ func (g *SchemaGenerator) processGroup(
 
 	var queryGroupType, mutationGroupType *graphql.Object
 	if !isRoot {
-		queryGroupType = createGroupType(group, "Query")
-		mutationGroupType = createGroupType(group, "Mutation")
+		queryGroupType = g.createGroupType(group, "Query")
+		mutationGroupType = g.createGroupType(group, "Mutation")
 	}
 
 	sortedVersions := make([]string, 0, len(versions))
@@ -225,8 +247,8 @@ func (g *SchemaGenerator) processGroup(
 
 	for _, version := range sortedVersions {
 		resources := versions[version]
-		queryVersionType := createVersionType(group, version, "Query")
-		mutationVersionType := createVersionType(group, version, "Mutation")
+		queryVersionType := g.createVersionType(group, version, "Query")
+		mutationVersionType := g.createVersionType(group, version, "Mutation")
 
 		for _, resource := range resources {
 			g.processResource(ctx, resource, queryVersionType, mutationVersionType, rootSubscription)
@@ -292,7 +314,9 @@ func (g *SchemaGenerator) processResource(
 		logger.V(4).Info("Resource has no categories", "resource", r.Key, "reason", err.Error())
 	}
 
-	uniqueTypeName := g.typeRegistry.GetUniqueTypeName(&r.GVK)
+	uniqueTypeName := r.TypeName
+	listTypeName := g.typeRegistry.TypeName(uniqueTypeName, "List")
+	eventTypeName := g.typeRegistry.TypeName(uniqueTypeName, "Event")
 
 	gqlFields, inputFields, err := g.typeConverter.ConvertFields(r.Schema, g.definitions, uniqueTypeName)
 	if err != nil {
@@ -314,12 +338,14 @@ func (g *SchemaGenerator) processResource(
 		Name:   uniqueTypeName + "_Input",
 		Fields: inputFields,
 	})
-	g.typeRegistry.Register(uniqueTypeName, resourceType, inputType)
+	g.typeRegistry.RegisterResource(r.GVK, resourceType)
 
 	rc := &fields.ResourceContext{
 		GVK:            r.GVK,
 		Scope:          r.Scope,
 		UniqueTypeName: uniqueTypeName,
+		ListTypeName:   listTypeName,
+		EventTypeName:  eventTypeName,
 		ResourceType:   resourceType,
 		InputType:      inputType,
 		SingularName:   r.SingularName,
@@ -340,16 +366,16 @@ func (g *SchemaGenerator) addApplyYamlMutation(rootMutation *graphql.Object) {
 	})
 }
 
-func createGroupType(group, suffix string) *graphql.Object {
+func (g *SchemaGenerator) createGroupType(group, suffix string) *graphql.Object {
 	return graphql.NewObject(graphql.ObjectConfig{
-		Name:   flect.Pascalize(group) + suffix,
+		Name:   g.typeRegistry.TypeName(flect.Pascalize(group), suffix),
 		Fields: graphql.Fields{},
 	})
 }
 
-func createVersionType(group, version, suffix string) *graphql.Object {
+func (g *SchemaGenerator) createVersionType(group, version, suffix string) *graphql.Object {
 	return graphql.NewObject(graphql.ObjectConfig{
-		Name:   flect.Pascalize(group+"_"+version) + suffix,
+		Name:   g.typeRegistry.TypeName(flect.Pascalize(group+"_"+version), suffix),
 		Fields: graphql.Fields{},
 	})
 }
