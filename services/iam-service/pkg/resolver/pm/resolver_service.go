@@ -18,6 +18,7 @@ package pm
 
 import (
 	"context"
+	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
@@ -75,15 +76,26 @@ func (s *Service) User(ctx context.Context, userID string) (*graph.User, error) 
 	return s.transformer.Transform(user), nil
 }
 
-func (s *Service) Users(ctx context.Context, rctx graph.ResourceContext, roleFilters []string, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
-	ownersCount, err := s.fgaService.CountUsersForRole(ctx, rctx, ownerRoleID)
+func (s *Service) Users(ctx context.Context, rctx graph.ResourceContext, roleFilters, countRoleFilters []string, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
+	rolesToCount := append([]string{}, countRoleFilters...)
+	if !slices.Contains(rolesToCount, ownerRoleID) {
+		rolesToCount = append(rolesToCount, ownerRoleID)
+	}
+
+	allUserRoles, allRoleCounts, err := s.fgaService.ListUsersWithRoleCounts(ctx, rctx, roleFilters, rolesToCount)
 	if err != nil {
 		return nil, err
 	}
 
-	allUserRoles, err := s.fgaService.ListUsers(ctx, rctx, roleFilters)
-	if err != nil {
-		return nil, err
+	ownersCount := 0
+	roleCounts := make([]*graph.RoleCount, 0, len(countRoleFilters))
+	for _, roleCount := range allRoleCounts {
+		if roleCount.RoleID == ownerRoleID {
+			ownersCount = roleCount.Count
+		}
+		if slices.Contains(countRoleFilters, roleCount.RoleID) {
+			roleCounts = append(roleCounts, roleCount)
+		}
 	}
 
 	err = s.keycloakService.EnrichUserRoles(ctx, allUserRoles)
@@ -104,6 +116,7 @@ func (s *Service) Users(ctx context.Context, rctx graph.ResourceContext, roleFil
 		Users:       paginatedUserRoles,
 		PageInfo:    pageInfo,
 		OwnersCount: ownersCount,
+		RoleCounts:  roleCounts,
 	}, nil
 }
 
@@ -135,6 +148,7 @@ func (s *Service) KnownUsers(ctx context.Context, sortBy *graph.SortByInput, pag
 		Users:       userRoles,
 		PageInfo:    pageInfo,
 		OwnersCount: 0,
+		RoleCounts:  []*graph.RoleCount{},
 	}, nil
 }
 
