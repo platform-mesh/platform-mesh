@@ -169,6 +169,11 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			mockSetup: nil,
 		},
 		{
+			name:      "skip org-idp exports in Process (early return, no mocks)",
+			binding:   newApiBinding("org-idp.platform-mesh.io", "root"),
+			mockSetup: nil,
+		},
+		{
 			name:      "skip kcp.io exports in Process (early return, no mocks)",
 			binding:   newApiBinding("tenancy.kcp.io", "root"),
 			mockSetup: nil,

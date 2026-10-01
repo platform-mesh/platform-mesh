@@ -269,7 +269,7 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	binding := obj.(*kcpapisv1alpha2.APIBinding)
 
-	internalAPIBindings := []string{"core.platform-mesh.io", "system.platform-mesh.io", "providers.platform-mesh.io"}
+	internalAPIBindings := []string{"core.platform-mesh.io", "system.platform-mesh.io", "providers.platform-mesh.io", "org-idp.platform-mesh.io"}
 
 	if slices.Contains(internalAPIBindings, binding.Spec.Reference.Export.Name) || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
 		return subroutines.OK(), nil
