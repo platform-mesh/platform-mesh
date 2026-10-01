@@ -173,7 +173,7 @@ func (c *Converter) handleNestedObject(fieldSpec spec.Schema, definitions map[st
 	}
 
 	c.registry.MarkProcessing(key)
-	typeName := c.registry.TypeName(typePrefix, GenerateTypeName("", fieldPath))
+	typeName := c.registry.TypeName(typePrefix, GenerateTypeName(fieldPath))
 
 	nestedFields, nestedInputFields, err := c.convertFields(&fieldSpec, definitions, typeName, []string{})
 	if err != nil {

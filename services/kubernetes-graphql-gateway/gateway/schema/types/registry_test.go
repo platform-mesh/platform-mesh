@@ -178,7 +178,7 @@ func TestRegistry_IsProcessing_AfterMark(t *testing.T) {
 
 func TestRegistry_TypeName(t *testing.T) {
 	registry := types.NewRegistry()
-	registry.ReserveTypeName("AppsV1Foo")
+	assert.Equal(t, "AppsV1Foo", registry.ResourceTypeName(&schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Foo"}))
 
 	assert.Equal(t, "AppsV1_Foo", registry.TypeName("AppsV1", "Foo"))
 	assert.Equal(t, "AppsV1_Foo_2", registry.TypeName("AppsV1", "Foo"))
@@ -186,9 +186,9 @@ func TestRegistry_TypeName(t *testing.T) {
 	assert.Equal(t, "AppsV1_Bar", registry.TypeName("AppsV1", "Bar"))
 }
 
-func TestRegistry_TypeName_ReservesInputName(t *testing.T) {
+func TestRegistry_ResourceTypeName_InputCollision(t *testing.T) {
 	registry := types.NewRegistry()
-	registry.ReserveTypeName("AppsV1Foo")
 
-	assert.NotEqual(t, "AppsV1Foo_Input", registry.TypeName("AppsV1Foo", "_Input"))
+	assert.Equal(t, "AppsV1Foo", registry.ResourceTypeName(&schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Foo"}))
+	assert.Equal(t, "AppsV1_Foo_Input", registry.ResourceTypeName(&schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Foo-Input"}))
 }
