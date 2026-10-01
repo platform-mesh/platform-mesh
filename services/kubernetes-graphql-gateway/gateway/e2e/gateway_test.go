@@ -1038,12 +1038,19 @@ func (suite *GatewayE2ETestSuite) TestSchemaBuildFailure() {
 	suite.generateSchema(clusterName, metadata)
 	suite.waitForSchemaLoaded(clusterName)
 
+	// Without resource definitions the GraphQL schema has an empty Subscription type and fails validation.
 	schemaPath := filepath.Join(suite.schemasDir, clusterName)
-	err := os.WriteFile(schemaPath, []byte("not a schema"), 0o644)
+	original, err := os.ReadFile(schemaPath)
 	suite.Require().NoError(err)
+	var schemaDoc map[string]any
+	suite.Require().NoError(json.Unmarshal(original, &schemaDoc))
+	schemaDoc["components"] = map[string]any{"schemas": map[string]any{}}
+	broken, err := json.Marshal(schemaDoc)
+	suite.Require().NoError(err)
+	suite.Require().NoError(os.WriteFile(schemaPath, broken, 0o644))
 
 	suite.Eventually(func() bool {
-		return suite.gatewayService.Registry().SchemaFailed(clusterName)
+		return suite.gatewayService.Registry().LoadFailed(clusterName)
 	}, 10*time.Second, 500*time.Millisecond)
 
 	url := fmt.Sprintf("%s/api/clusters/%s", suite.testServer.URL, clusterName)
@@ -1057,7 +1064,7 @@ func (suite *GatewayE2ETestSuite) TestSchemaBuildFailure() {
 
 	suite.Equal(http.StatusServiceUnavailable, resp.StatusCode)
 
-	suite.generateSchema(clusterName, metadata)
+	suite.Require().NoError(os.WriteFile(schemaPath, original, 0o644))
 	suite.waitForSchemaLoaded(clusterName)
-	suite.False(suite.gatewayService.Registry().SchemaFailed(clusterName))
+	suite.False(suite.gatewayService.Registry().LoadFailed(clusterName))
 }

@@ -120,8 +120,8 @@ func (r *Registry) GetEndpoint(name string) (*endpoint.Endpoint, bool) {
 	return ep, exists
 }
 
-// SchemaFailed reports whether the last schema received for a cluster could not be loaded.
-func (r *Registry) SchemaFailed(name string) bool {
+// LoadFailed reports whether the last schema received for a cluster could not be loaded.
+func (r *Registry) LoadFailed(name string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.failed.Has(name)
