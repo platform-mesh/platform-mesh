@@ -244,6 +244,14 @@ func TestGenerate_typeNameCollisions(t *testing.T) {
 			},
 		},
 		{
+			name:    "hyphenated Kind matching an input type",
+			schemas: []*spec.Schema{resource("Foo"), resource("Foo-Input")},
+			wantTypes: map[string]string{
+				"ProbeExampleComV1alpha1Foo":        "resource",
+				"ProbeExampleComV1alpha1_Foo_Input": "resource",
+			},
+		},
+		{
 			name:    "hyphenated Kind",
 			schemas: []*spec.Schema{resource("Mutation-Foo")},
 			wantTypes: map[string]string{
@@ -267,6 +275,43 @@ func TestGenerate_typeNameCollisions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerate_helperFieldsUseFallbackNames(t *testing.T) {
+	ns := apiextensionsv1.NamespaceScoped
+	got, err := setup(nil,
+		withSpec(schemaWithCategory("probe.example.com", "v1alpha1", "Foo", ns)),
+		withSpec(schemaWithCategory("probe.example.com", "v1alpha1", "FooEvent", ns)),
+	).Generate(t.Context())
+	require.NoError(t, err)
+
+	group := got.QueryType().Fields()["probe_example_com"].Type.(*graphql.Object)
+	version := group.Fields()["v1alpha1"].Type.(*graphql.Object)
+	assert.Equal(t, "ProbeExampleComV1alpha1FooList", version.Fields()["Foos"].Type.(*graphql.NonNull).OfType.Name())
+
+	subscriptions := got.SubscriptionType().Fields()
+	assert.Equal(t, "ProbeExampleComV1alpha1Foo_Event", subscriptions["probe_example_com_v1alpha1_foo"].Type.Name())
+	assert.Equal(t, "ProbeExampleComV1alpha1FooEventEvent", subscriptions["probe_example_com_v1alpha1_fooevent"].Type.Name())
+}
+
+func TestGenerate_nestedFieldNameCollisions(t *testing.T) {
+	object := func(props map[string]spec.Schema) spec.Schema {
+		return spec.Schema{SchemaProps: spec.SchemaProps{Type: spec.StringOrArray{"object"}, Properties: props}}
+	}
+	str := spec.Schema{SchemaProps: spec.SchemaProps{Type: spec.StringOrArray{"string"}}}
+
+	foo := schemaWithCategory("probe.example.com", "v1alpha1", "Foo", apiextensionsv1.NamespaceScoped)
+	foo.Properties["spec"] = object(map[string]spec.Schema{"template": object(map[string]spec.Schema{"a": str})})
+	foo.Properties["specTemplate"] = object(map[string]spec.Schema{"b": str})
+
+	got, err := setup(nil, foo).Generate(t.Context())
+	require.NoError(t, err)
+
+	fields := got.Type("ProbeExampleComV1alpha1Foo").(*graphql.Object).Fields()
+	nested := fields["spec"].Type.(*graphql.Object).Fields()["template"].Type
+	flat := fields["specTemplate"].Type
+	assert.Equal(t, "ProbeExampleComV1alpha1FooSpecTemplate", nested.Name())
+	assert.Equal(t, "ProbeExampleComV1alpha1Foo_SpecTemplate", flat.Name())
 }
 
 func TestGenerate_nestedTypeIsNotAliasedToResource(t *testing.T) {

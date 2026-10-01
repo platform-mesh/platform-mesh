@@ -48,6 +48,7 @@ type Resource struct {
 	SingularName   string
 	PluralName     string
 	SanitizedGroup string
+	TypeName       string
 }
 
 // SchemaGenerator transforms Kubernetes OpenAPI definitions into a GraphQL schema.
@@ -109,7 +110,7 @@ func (g *SchemaGenerator) Generate(ctx context.Context) (*graphql.Schema, error)
 
 	resources := g.parseResources()
 	for _, r := range resources {
-		g.typeRegistry.ReserveTypeName(g.typeRegistry.GetUniqueTypeName(&r.GVK))
+		r.TypeName = g.typeRegistry.ResourceTypeName(&r.GVK)
 	}
 	groups := groupByAPIGroup(resources)
 
@@ -313,7 +314,7 @@ func (g *SchemaGenerator) processResource(
 		logger.V(4).Info("Resource has no categories", "resource", r.Key, "reason", err.Error())
 	}
 
-	uniqueTypeName := g.typeRegistry.GetUniqueTypeName(&r.GVK)
+	uniqueTypeName := r.TypeName
 	listTypeName := g.typeRegistry.TypeName(uniqueTypeName, "List")
 	eventTypeName := g.typeRegistry.TypeName(uniqueTypeName, "Event")
 
