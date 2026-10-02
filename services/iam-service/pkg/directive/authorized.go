@@ -20,67 +20,79 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
-	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/errors"
-	"go.platform-mesh.io/golang-commons/fga/util"
-	"go.platform-mesh.io/golang-commons/jwt"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/iam-service/pkg/accountinfo"
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
-	"go.platform-mesh.io/iam-service/pkg/fga/store"
-	"go.platform-mesh.io/iam-service/pkg/fga/tuples"
 	"go.platform-mesh.io/iam-service/pkg/graph"
 	"go.platform-mesh.io/iam-service/pkg/metrics"
 	"go.platform-mesh.io/iam-service/pkg/workspace"
 
+	authorizationv1 "k8s.io/api/authorization/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	authorizationv1client "k8s.io/client-go/kubernetes/typed/authorization/v1"
+	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
+// selfSubjectAccessReviewer issues a SelfSubjectAccessReview against a kcp
+// workspace using the end user's identity. It is abstracted so tests can inject
+// a fake without a live apiserver.
+type selfSubjectAccessReviewer func(ctx context.Context, workspacePath, authHeader string, attrs *authorizationv1.ResourceAttributes) (bool, error)
+
 type AuthorizedDirective struct {
-	fga      openfgav1.OpenFGAServiceClient
-	helper   store.StoreHelper
 	air      accountinfo.Retriever
 	wcClient workspace.ClientFactory
+	ssar     selfSubjectAccessReviewer
 	log      *logger.Logger
 }
 
-func NewAuthorizedDirective(oc openfgav1.OpenFGAServiceClient, air accountinfo.Retriever, storeTTL time.Duration, cf workspace.ClientFactory, log *logger.Logger) *AuthorizedDirective {
-	return &AuthorizedDirective{
-		fga:      oc,
-		helper:   store.NewFGAStoreHelper(storeTTL),
+// NewAuthorizedDirective creates the directive that authorizes GraphQL fields by
+// issuing a native SelfSubjectAccessReview (SSAR) against the user's workspace.
+// The check flows kcp -> rebac-authz-webhook -> OpenFGA, so OpenFGA stays an
+// implementation detail rather than a direct dependency of iam-service.
+func NewAuthorizedDirective(air accountinfo.Retriever, cf workspace.ClientFactory, restCfg *rest.Config, log *logger.Logger) *AuthorizedDirective {
+	d := &AuthorizedDirective{
 		air:      air,
 		wcClient: cf,
 		log:      log,
 	}
+	d.ssar = newRESTSelfSubjectAccessReviewer(restCfg)
+	return d
 }
 
-// NewAuthorizedDirectiveWithFactory creates a new AuthorizedDirective with a custom ClientFactory.
-// This constructor is primarily intended for testing with mock implementations.
-func NewAuthorizedDirectiveWithFactory(oc openfgav1.OpenFGAServiceClient, air accountinfo.Retriever, storeTTL time.Duration, clientFactory workspace.ClientFactory) *AuthorizedDirective {
+// NewAuthorizedDirectiveWithReviewer creates a directive with a custom SSAR
+// implementation. Intended for testing with a fake reviewer.
+func NewAuthorizedDirectiveWithReviewer(air accountinfo.Retriever, cf workspace.ClientFactory, ssar selfSubjectAccessReviewer, log *logger.Logger) *AuthorizedDirective {
 	return &AuthorizedDirective{
-		fga:      oc,
-		helper:   store.NewFGAStoreHelper(storeTTL),
 		air:      air,
-		wcClient: clientFactory,
+		wcClient: cf,
+		ssar:     ssar,
+		log:      log,
 	}
 }
 
 func (a AuthorizedDirective) Authorized(ctx context.Context, _ any, next graphql.Resolver, permission string) (any, error) {
 	a.log.Debug().Msg("Authorized directive called with permission: " + permission)
 
-	token, err := pmcontext.GetWebTokenFromContext(ctx)
-	if err != nil {
+	if _, err := pmcontext.GetWebTokenFromContext(ctx); err != nil {
 		return nil, errors.Wrap(err, "failed to get web token from context")
+	}
+
+	authHeader, err := pmcontext.GetAuthHeaderFromContext(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get auth header from context")
 	}
 
 	kctx, err := appcontext.GetKCPContext(ctx)
@@ -139,7 +151,11 @@ func (a AuthorizedDirective) Authorized(ctx context.Context, _ any, next graphql
 		return nil, gqlerror.Errorf("resource does not exist")
 	}
 
-	allowed, err := a.testIfAllowed(ctx, ai, rctx, permission, token)
+	// Authorize via a native SelfSubjectAccessReview against the account's own
+	// workspace. kcp routes this through the rebac-authz-webhook, which derives
+	// the OpenFGA account object from that workspace's LogicalCluster, so no
+	// special-casing of the Account resource's cluster is required here.
+	allowed, err := a.testIfAllowed(ctx, rctx, permission, path, authHeader, wsClient)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to test if action is allowed")
 	}
@@ -150,55 +166,135 @@ func (a AuthorizedDirective) Authorized(ctx context.Context, _ any, next graphql
 	return next(ctx)
 }
 
-func (a AuthorizedDirective) testIfAllowed(ctx context.Context, ai *pmcorev1alpha1.AccountInfo, rctx *graph.ResourceContext, permission string, token jwt.WebToken) (bool, error) {
+// testIfAllowed issues a SelfSubjectAccessReview to the given workspace using the
+// caller's identity (authHeader), with the permission carried verbatim as the
+// SAR verb. The webhook resolves the same OpenFGA relation as the permission
+// string, matching the previous direct-Check semantics.
+func (a AuthorizedDirective) testIfAllowed(ctx context.Context, rctx *graph.ResourceContext, permission, workspacePath, authHeader string, wsClient ctrlruntimeclient.Client) (bool, error) {
 	start := time.Now()
 	defer func() {
 		metrics.AuthorizationDuration.WithLabelValues(permission).Observe(time.Since(start).Seconds())
 	}()
 
-	ct := tuples.GenerateContextualTuples(rctx, ai)
-
-	fgaTypeName := util.ConvertToTypeName(rctx.Group, rctx.Kind)
-
-	clusterId := ai.Spec.Account.GeneratedClusterId
-	if rctx.Group == "core.platform-mesh.io" && rctx.Kind == "Account" {
-		clusterId = ai.Spec.Account.OriginClusterId
-	}
-
-	object := fmt.Sprintf("%s:%s/%s", fgaTypeName, clusterId, rctx.Resource.Name)
-	if rctx.Resource.Namespace != nil {
-		object = fmt.Sprintf("%s:%s/%s/%s", fgaTypeName, clusterId, *rctx.Resource.Namespace, rctx.Resource.Name)
-	}
-
-	user := fmt.Sprintf("user:%s", token.Mail) // TODO: what happens if mail is not uid?
-	storeID, err := a.helper.GetStoreID(ctx, a.fga, ai.Spec.Organization.Name)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to get store ID for organization %s", ai.Spec.Organization.Name)
-	}
-
-	req := openfgav1.CheckRequest{
-		ContextualTuples: ct,
-		StoreId:          storeID,
-		TupleKey: &openfgav1.CheckRequestTupleKey{
-			Object:   object,
-			Relation: permission,
-			User:     user,
-		},
-	}
-
-	res, err := a.fga.Check(ctx, &req)
+	attrs, err := resourceAttributes(rctx, permission, wsClient)
 	if err != nil {
 		metrics.AuthorizationChecks.WithLabelValues("error").Inc()
-		return false, errors.Wrap(err, "failed to check permission with openfga")
+		return false, err
 	}
 
-	if res.Allowed {
+	allowed, err := a.ssar(ctx, workspacePath, authHeader, attrs)
+	if err != nil {
+		metrics.AuthorizationChecks.WithLabelValues("error").Inc()
+		return false, errors.Wrap(err, "failed to perform self subject access review")
+	}
+
+	if allowed {
 		metrics.AuthorizationChecks.WithLabelValues("allowed").Inc()
 	} else {
 		metrics.AuthorizationChecks.WithLabelValues("denied").Inc()
 	}
 
-	return res.Allowed, nil
+	return allowed, nil
+}
+
+// resourceAttributes maps a GraphQL ResourceContext to SAR ResourceAttributes.
+// The resource's plural name and version are resolved from the workspace's
+// RESTMapper (Kind -> GVR). Non-KRM targets (no RESTMapping) are rejected so the
+// review fails closed rather than sending ambiguous attributes to the apiserver.
+func resourceAttributes(rctx *graph.ResourceContext, permission string, wsClient ctrlruntimeclient.Client) (*authorizationv1.ResourceAttributes, error) {
+	mapping, err := wsClient.RESTMapper().RESTMapping(schema.GroupKind{Group: rctx.Group, Kind: rctx.Kind})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve REST mapping for %s/%s", rctx.Group, rctx.Kind)
+	}
+
+	attrs := &authorizationv1.ResourceAttributes{
+		Verb:     permission,
+		Group:    mapping.Resource.Group,
+		Version:  mapping.Resource.Version,
+		Resource: mapping.Resource.Resource,
+		Name:     rctx.Resource.Name,
+	}
+	if rctx.Resource.Namespace != nil {
+		attrs.Namespace = *rctx.Resource.Namespace
+	}
+
+	return attrs, nil
+}
+
+// newRESTSelfSubjectAccessReviewer returns a reviewer that POSTs a
+// SelfSubjectAccessReview to the given kcp workspace using the caller's
+// Authorization header. The apiserver fills in the user identity (and the
+// cluster-name Extra the webhook relies on); iam-service never impersonates.
+func newRESTSelfSubjectAccessReviewer(baseCfg *rest.Config) selfSubjectAccessReviewer {
+	return func(ctx context.Context, workspacePath, authHeader string, attrs *authorizationv1.ResourceAttributes) (bool, error) {
+		cfg, err := workspaceConfig(baseCfg, workspacePath, authHeader)
+		if err != nil {
+			return false, err
+		}
+
+		client, err := authorizationv1client.NewForConfig(cfg)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to create authorization client")
+		}
+
+		review := &authorizationv1.SelfSubjectAccessReview{
+			Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+				ResourceAttributes: attrs,
+			},
+		}
+
+		res, err := client.SelfSubjectAccessReviews().Create(ctx, review, metav1.CreateOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		return res.Status.Allowed, nil
+	}
+}
+
+// workspaceConfig derives a per-request rest.Config pointing at the kcp
+// workspace path and carrying the caller's Authorization header verbatim. Any
+// service-account credentials from the base config are stripped so the request
+// is authenticated solely as the end user.
+func workspaceConfig(baseCfg *rest.Config, workspacePath, authHeader string) (*rest.Config, error) {
+	if baseCfg == nil {
+		return nil, errors.New("nil rest config")
+	}
+
+	cfg := rest.CopyConfig(baseCfg)
+	cfg.BearerToken = ""
+	cfg.BearerTokenFile = ""
+	cfg.CertData = nil
+	cfg.CertFile = ""
+	cfg.KeyData = nil
+	cfg.KeyFile = ""
+	cfg.Username = ""
+	cfg.Password = ""
+
+	host, err := url.Parse(cfg.Host)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse host from rest config")
+	}
+	cfg.Host = fmt.Sprintf("%s://%s/clusters/%s", host.Scheme, host.Host, workspacePath)
+
+	cfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
+		return &authHeaderRoundTripper{header: authHeader, next: rt}
+	})
+
+	return cfg, nil
+}
+
+// authHeaderRoundTripper injects the caller's Authorization header on every
+// request so the workspace apiserver authenticates as the end user.
+type authHeaderRoundTripper struct {
+	header string
+	next   http.RoundTripper
+}
+
+func (t *authHeaderRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
+	req.Header.Set("Authorization", t.header)
+	return t.next.RoundTrip(req)
 }
 
 func (a AuthorizedDirective) testIfResourceExists(ctx context.Context, rctx *graph.ResourceContext, wsClient ctrlruntimeclient.Client) (bool, error) {
