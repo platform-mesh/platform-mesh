@@ -88,6 +88,7 @@ type APIExportEndpointSlices struct {
 	CorePlatformMeshIO      string
 	SystemPlatformMeshIO    string
 	ProvidersPlatformMeshIO string
+	OrgsCorePlatformMeshIO  string
 }
 
 // Config struct to hold the app config
@@ -130,6 +131,7 @@ func NewConfig() Config {
 			CorePlatformMeshIO:      "core.platform-mesh.io",
 			SystemPlatformMeshIO:    "system.platform-mesh.io",
 			ProvidersPlatformMeshIO: "providers.platform-mesh.io",
+			OrgsCorePlatformMeshIO:  "orgs.core.platform-mesh.io",
 		},
 		BaseDomain:               "portal.dev.local:8443",
 		GroupClaim:               "groups",
@@ -168,6 +170,7 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.APIExportEndpointSlices.CorePlatformMeshIO, "api-export-endpoint-slice-name", c.APIExportEndpointSlices.CorePlatformMeshIO, "Set the core.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.APIExportEndpointSlices.SystemPlatformMeshIO, "system-api-export-endpoint-slice-name", c.APIExportEndpointSlices.SystemPlatformMeshIO, "Set the system.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.APIExportEndpointSlices.ProvidersPlatformMeshIO, "providers-api-export-endpoint-slice-name", c.APIExportEndpointSlices.ProvidersPlatformMeshIO, "Set the providers.platform-mesh.io APIExportEndpointSlice name")
+	fs.StringVar(&c.APIExportEndpointSlices.OrgsCorePlatformMeshIO, "orgs-api-export-endpoint-slice-name", c.APIExportEndpointSlices.OrgsCorePlatformMeshIO, "Set the orgs.core.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.CoreModulePath, "core-module-path", c.CoreModulePath, "Set the path to the core module FGA model file")
 	fs.StringVar(&c.BaseDomain, "base-domain", c.BaseDomain, "Set the base domain used to construct issuer URLs")
 	fs.StringVar(&c.GroupClaim, "group-claim", c.GroupClaim, "Set the ID token group claim")

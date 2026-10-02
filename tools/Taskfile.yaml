@@ -41,7 +41,7 @@ vars:
   # bumping golangci-lint, run `UGET_UPDATE=true task lint`.
 
   # the same version is re-used for all kcp components
-  KCP_VERSION: 0.32.3
+  KCP_VERSION: 0.33.0
   APIGEN: '{{.BIN}}/apigen-v{{.KCP_VERSION}}'
 
   CONTROLLER_GEN_VERSION: v0.21.0
