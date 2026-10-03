@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	pmgatewayv1alpha1 "go.platform-mesh.io/apis/gateway/v1alpha1"
+	gatewayapischema "go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/clusteraccess"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/listener/controllers/reconciler"
@@ -44,6 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
+	"k8s.io/kube-openapi/pkg/spec3"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -400,6 +402,75 @@ func (suite *ClusterAccessControllerTestSuite) TestKubeconfigAuthWithoutHost() {
 
 	// Verify schema metadata — host should have been derived from kubeconfig
 	suite.verifySchemaMetadata(raw, pmgatewayv1alpha1.AuthTypeKubeconfig)
+}
+
+func (suite *ClusterAccessControllerTestSuite) TestSchemaFilter() {
+	kubeconfigSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "schema-filter-kubeconfig-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"kubeconfig": suite.envtestKubeconfig,
+		},
+	}
+	err := suite.client.Create(context.Background(), kubeconfigSecret)
+	suite.Require().NoError(err, "failed to create kubeconfig secret")
+
+	newClusterAccess := func(name string, schemaFilter *pmgatewayv1alpha1.SchemaFilter) *pmgatewayv1alpha1.ClusterAccess {
+		return &pmgatewayv1alpha1.ClusterAccess{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Spec: pmgatewayv1alpha1.ClusterAccessSpec{
+				Host: suite.envtestHost,
+				Auth: &pmgatewayv1alpha1.AuthConfig{
+					KubeconfigSecretRef: &pmgatewayv1alpha1.SecretKeyRef{
+						SecretReference: corev1.SecretReference{
+							Name:      kubeconfigSecret.Name,
+							Namespace: kubeconfigSecret.Namespace,
+						},
+						Key: "kubeconfig",
+					},
+				},
+				SchemaFilter: schemaFilter,
+			},
+		}
+	}
+
+	unfiltered := newClusterAccess("schema-unfiltered-test", nil)
+	err = suite.client.Create(context.Background(), unfiltered)
+	suite.Require().NoError(err, "failed to create unfiltered ClusterAccess")
+
+	filtered := newClusterAccess("schema-filtered-test", &pmgatewayv1alpha1.SchemaFilter{
+		Include: []pmgatewayv1alpha1.ResourceSelector{{
+			Group: "", Version: "v1", Resource: "namespaces",
+		}},
+	})
+	err = suite.client.Create(context.Background(), filtered)
+	suite.Require().NoError(err, "failed to create filtered ClusterAccess")
+
+	unfilteredRoots := suite.resourceRoots(suite.waitForSchemaFile("single-schema-unfiltered-test"))
+	filteredRoots := suite.resourceRoots(suite.waitForSchemaFile("single-schema-filtered-test"))
+
+	suite.Contains(filteredRoots, "/v1, Kind=Namespace")
+	suite.NotContains(filteredRoots, "/v1, Kind=Pod")
+	suite.Greater(len(unfilteredRoots), len(filteredRoots))
+}
+
+func (suite *ClusterAccessControllerTestSuite) resourceRoots(raw []byte) []string {
+	var schemaJSON spec3.OpenAPI
+	err := json.Unmarshal(raw, &schemaJSON)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(schemaJSON.Components)
+
+	var roots []string
+	for _, definition := range schemaJSON.Components.Schemas {
+		gvk, err := gatewayapischema.ExtractGVK(definition)
+		suite.Require().NoError(err)
+		if gvk != nil {
+			roots = append(roots, gvk.String())
+		}
+	}
+	return roots
 }
 
 // TestTokenAuth tests ClusterAccess with token authentication
