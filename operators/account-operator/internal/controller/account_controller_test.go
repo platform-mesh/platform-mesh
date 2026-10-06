@@ -215,7 +215,7 @@ func (s *AccountTestSuite) TestWorkspaceFinalizerRemovesWorkspace() {
 
 	s.Require().NoError(s.rootOrgsDefaultClient.Create(s.ctx, account))
 
-	s.Assert().Eventually(func() bool {
+	s.Require().Eventually(func() bool {
 		createdWorkspace := kcptenancyv1alpha1.Workspace{}
 		if err := s.rootOrgsDefaultClient.Get(s.ctx, types.NamespacedName{Name: accountName}, &createdWorkspace); err != nil && !apierrors.IsNotFound(err) {
 			s.logger.Err(err).Msg("Waiting for Workspace to be created")
@@ -226,21 +226,27 @@ func (s *AccountTestSuite) TestWorkspaceFinalizerRemovesWorkspace() {
 		}
 
 		return true
-	}, defaultTestTimeout, defaultTickInterval)
+	}, defaultTestTimeout*2, defaultTickInterval)
 
-	s.Assert().Eventually(func() bool {
+	// Ready waits on ManageAccountInfo, which requeues with exponential backoff
+	// while the Workspace is still Scheduling. 15s is too tight in CI.
+	s.Require().Eventually(func() bool {
 		createdAccount := pmcorev1alpha1.Account{}
 		if err := s.rootOrgsDefaultClient.Get(s.ctx, types.NamespacedName{Name: accountName}, &createdAccount); err != nil {
 			s.logger.Err(err).Msg("Waiting for Account to be ready")
 			return false
 		}
 
-		return meta.IsStatusConditionPresentAndEqual(createdAccount.GetConditions(), "Ready", metav1.ConditionTrue)
-	}, defaultTestTimeout, defaultTickInterval)
+		if meta.IsStatusConditionPresentAndEqual(createdAccount.GetConditions(), "Ready", metav1.ConditionTrue) {
+			return true
+		}
+		s.logger.Info().Interface("conditions", createdAccount.GetConditions()).Msg("Waiting for Account to be ready")
+		return false
+	}, defaultTestTimeout*3, defaultTickInterval)
 
 	s.Require().NoError(s.rootOrgsDefaultClient.Delete(s.ctx, account))
 
-	s.Assert().Eventually(func() bool {
+	s.Require().Eventually(func() bool {
 		if err := s.rootOrgsDefaultClient.Get(s.ctx, types.NamespacedName{Name: accountName}, &kcptenancyv1alpha1.Workspace{}); err != nil && !apierrors.IsNotFound(err) {
 			s.logger.Err(err).Msg("Waiting for Workspace to be deleted")
 			return false
@@ -250,7 +256,7 @@ func (s *AccountTestSuite) TestWorkspaceFinalizerRemovesWorkspace() {
 		}
 
 		return true
-	}, defaultTestTimeout, defaultTickInterval)
+	}, defaultTestTimeout*2, defaultTickInterval)
 }
 
 func (s *AccountTestSuite) verifyWorkspace(ctx context.Context, orgName, accountName string) {

@@ -14,17 +14,17 @@
 
 {{ if ne .featureDisableIDPWebhook "true" }}
 apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
+kind: MutatingWebhookConfiguration
 metadata:
-  name: identityproviderconfiguration-validator.webhooks.core.platform-mesh.io
+  name: idpregistration-mutator.webhooks.core.platform-mesh.io
 webhooks:
   - admissionReviewVersions:
       - v1
     clientConfig:
-      caBundle: {{ index . "identityproviderconfiguration-validator.webhooks.core.platform-mesh.io.ca-bundle" }}
-      url: https://security-operator-webhook.platform-mesh-system.svc.cluster.local:9443/validate-core-platform-mesh-io-v1alpha1-identityproviderconfiguration
+      caBundle: {{ index . "idpregistration-mutator.webhooks.core.platform-mesh.io.ca-bundle" }}
+      url: https://security-operator-webhook.platform-mesh-system.svc.cluster.local:9443/mutate-core-platform-mesh-io-v1alpha1-idpregistration
     failurePolicy: Fail
-    name: identityproviderconfiguration.validation.platform-mesh.io
+    name: midpregistration.kb.io
     rules:
       - apiGroups:
           - core.platform-mesh.io
@@ -34,7 +34,7 @@ webhooks:
           - CREATE
           - UPDATE
         resources:
-          - identityproviderconfigurations
-    sideEffects: None
+          - idpregistrations
+    sideEffects: NoneOnDryRun
     timeoutSeconds: 30
 {{ end }}

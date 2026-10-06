@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/pem"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -35,8 +36,12 @@ import (
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	kcpapiv1alpha "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 )
 
 type permissionClaimsManifest struct {
@@ -48,6 +53,7 @@ type permissionClaimsManifest struct {
 
 type permissionClaim struct {
 	Resource        string   `yaml:"resource"`
+	IdentityHash    string   `yaml:"identityHash"`
 	Verbs           []string `yaml:"verbs"`
 	All             bool     `yaml:"all"`
 	Selector        selector `yaml:"selector"`
@@ -116,7 +122,8 @@ func TestIDPSecretPermissionClaims(t *testing.T) {
 		raw, err := os.ReadFile(path)
 		require.NoError(t, err)
 		rendered, err := ReplaceTemplate(map[string]any{
-			"apiExportRootTenancyKcpIoIdentityHash": "test-hash",
+			"apiExportRootTenancyKcpIoIdentityHash":   "test-hash",
+			"apiExportCorePlatformMeshIoIdentityHash": "core-hash",
 		}, raw)
 		require.NoError(t, err)
 
@@ -149,6 +156,26 @@ func TestIDPSecretPermissionClaims(t *testing.T) {
 	require.NotNil(t, coreExportSecret)
 	require.ElementsMatch(t, []string{"get", "create", "update", "delete"}, coreExportSecret.Verbs)
 	assertIDPSelector(t, coreExportSecret.DefaultSelector)
+
+	orgIdpExport := readManifest(t, "../../manifests/kcp/01-platform-mesh-system/apiexport-org-idp.platform-mesh.io.yaml")
+	require.Equal(t, "apis.kcp.io/v1alpha2", orgIdpExport.APIVersion)
+	orgIdpExportSecret := findSecretClaim(orgIdpExport)
+	require.NotNil(t, orgIdpExportSecret)
+	require.ElementsMatch(t, []string{"get", "create", "update", "delete"}, orgIdpExportSecret.Verbs)
+	require.False(t, orgIdpExportSecret.DefaultSelector.MatchAll)
+	require.ElementsMatch(t, []matchExpression{
+		{Key: "core.platform-mesh.io/idpregistration", Operator: "Exists"},
+	}, orgIdpExportSecret.DefaultSelector.MatchExpressions)
+
+	var orgIdpAccountInfo *permissionClaim
+	for i := range orgIdpExport.Spec.PermissionClaims {
+		if orgIdpExport.Spec.PermissionClaims[i].Resource == "accountinfos" {
+			orgIdpAccountInfo = &orgIdpExport.Spec.PermissionClaims[i]
+			break
+		}
+	}
+	require.NotNil(t, orgIdpAccountInfo)
+	require.Equal(t, "core-hash", orgIdpAccountInfo.IdentityHash)
 
 	coreBinding := readManifest(t, "../../manifests/kcp/01-platform-mesh-system/apibinding-core.platform-mesh.io.yaml")
 	coreBindingSecret := findSecretClaim(coreBinding)
@@ -226,11 +253,12 @@ func (s *HelperTestSuite) TestListFiles() {
 			expected = append(expected, entry.Name())
 		}
 	}
+	sort.Strings(expected)
 
 	// Call ListFiles
 	result, err := ListFiles(dir)
 	s.Require().NoError(err)
-	s.ElementsMatch(expected, result)
+	s.Equal(expected, result)
 }
 
 func (s *HelperTestSuite) TestListFiles_DirectoryNotExist() {
@@ -454,4 +482,115 @@ func (s *HelperTestSuite) TestApplyManifestFromFile() {
 	ctx := context.WithValue(s.T().Context(), keys.ConfigCtxKey, operatorCfg)
 	err = ApplyManifestFromFile(ctx, "../../manifests/kcp/04-platform-mesh-system/mutatingwebhookconfiguration-admissionregistration.k8s.io.yaml", cl, templateData, "root:platform-mesh-system", &pmcorev1alpha1.PlatformMesh{})
 	s.Assert().Nil(err)
+}
+
+func TestOrgIdpExportTemplate_withoutCoreHashIsPlaceholder(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../manifests/kcp/01-platform-mesh-system/apiexport-org-idp.platform-mesh.io.yaml")
+	require.NoError(t, err)
+	rendered, err := ReplaceTemplate(map[string]any{}, raw)
+	require.NoError(t, err)
+	require.Contains(t, string(rendered), "<no value>")
+}
+
+func TestIdPRegistrationWebhookTemplate_rendersWhenToggleIsFalseString(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../manifests/kcp/04-platform-mesh-system/idpregistration-mutatingwebhookconfiguration-admissionregistration.k8s.io.yaml")
+	require.NoError(t, err)
+
+	rendered, err := ReplaceTemplate(map[string]any{
+		"featureDisableIDPWebhook": "false",
+		"idpregistration-mutator.webhooks.core.platform-mesh.io.ca-bundle": "QQ==",
+	}, raw)
+	require.NoError(t, err)
+	require.Contains(t, string(rendered), "kind: MutatingWebhookConfiguration")
+	require.Contains(t, string(rendered), "idpregistrations")
+
+	skipped, err := ReplaceTemplate(map[string]any{
+		"featureDisableIDPWebhook": "true",
+		"idpregistration-mutator.webhooks.core.platform-mesh.io.ca-bundle": "QQ==",
+	}, raw)
+	require.NoError(t, err)
+	require.NotContains(t, string(skipped), "kind: MutatingWebhookConfiguration")
+}
+
+func (s *HelperTestSuite) TestApplyManifestFromFile_orgIdpExportRetriesWhenCoreHashMissing() {
+	cl := new(mocks.Client)
+	cl.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+		func(_ context.Context, _ types.NamespacedName, o ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+			*o.(*kcpapiv1alpha.APIExport) = kcpapiv1alpha.APIExport{}
+			return nil
+		},
+	).Once()
+
+	err := ApplyManifestFromFile(
+		s.T().Context(),
+		"../../manifests/kcp/01-platform-mesh-system/apiexport-org-idp.platform-mesh.io.yaml",
+		cl,
+		map[string]any{},
+		"root:platform-mesh-system",
+		&pmcorev1alpha1.PlatformMesh{},
+	)
+	s.Assert().Error(err)
+	s.Assert().Contains(err.Error(), "IdentityHash is not set yet")
+}
+
+func (s *HelperTestSuite) TestApplyManifestFromFile_orgIdpExportAppliesCoreHash() {
+	cl := new(mocks.Client)
+	cl.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+		func(_ context.Context, _ types.NamespacedName, o ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+			*o.(*kcpapiv1alpha.APIExport) = kcpapiv1alpha.APIExport{
+				Status: kcpapiv1alpha.APIExportStatus{IdentityHash: "core-hash-from-status"},
+			}
+			return nil
+		},
+	).Once()
+	cl.EXPECT().Apply(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	err := ApplyManifestFromFile(
+		s.T().Context(),
+		"../../manifests/kcp/01-platform-mesh-system/apiexport-org-idp.platform-mesh.io.yaml",
+		cl,
+		map[string]any{},
+		"root:platform-mesh-system",
+		&pmcorev1alpha1.PlatformMesh{},
+	)
+	s.Assert().NoError(err)
+}
+
+func (s *HelperTestSuite) TestApplyManifestFromFile_idpRegistrationMutatingWebhookAppliesWhenToggleFalse() {
+	cl := new(mocks.Client)
+	cl.EXPECT().Apply(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	err := ApplyManifestFromFile(
+		s.T().Context(),
+		"../../manifests/kcp/04-platform-mesh-system/idpregistration-mutatingwebhookconfiguration-admissionregistration.k8s.io.yaml",
+		cl,
+		map[string]any{
+			"featureDisableIDPWebhook": "false",
+			"idpregistration-mutator.webhooks.core.platform-mesh.io.ca-bundle": "QQ==",
+		},
+		"root:platform-mesh-system",
+		&pmcorev1alpha1.PlatformMesh{},
+	)
+	s.Assert().NoError(err)
+}
+
+func (s *HelperTestSuite) TestApplyManifestFromFile_idpRegistrationMutatingWebhookSkippedWhenToggleTrue() {
+	cl := new(mocks.Client)
+
+	err := ApplyManifestFromFile(
+		s.T().Context(),
+		"../../manifests/kcp/04-platform-mesh-system/idpregistration-mutatingwebhookconfiguration-admissionregistration.k8s.io.yaml",
+		cl,
+		map[string]any{
+			"featureDisableIDPWebhook": "true",
+			"idpregistration-mutator.webhooks.core.platform-mesh.io.ca-bundle": "QQ==",
+		},
+		"root:platform-mesh-system",
+		&pmcorev1alpha1.PlatformMesh{},
+	)
+	s.Assert().NoError(err)
 }
