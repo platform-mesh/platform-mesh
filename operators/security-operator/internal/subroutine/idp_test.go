@@ -473,7 +473,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 			expectedResult: subroutines.OK(),
 		},
 		{
-			name: "ensureClient updates existing client in IDP spec",
+			name: "mergeManagedClients updates existing client in IDP spec",
 			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()

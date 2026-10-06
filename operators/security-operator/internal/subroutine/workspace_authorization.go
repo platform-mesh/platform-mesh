@@ -123,7 +123,7 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj ctrlruntime
 		ClaimMappings: kcptenancyv1alpha1.ClaimMappings{
 			Groups: kcptenancyv1alpha1.PrefixedClaimOrExpression{
 				Claim:  r.cfg.GroupClaim,
-				Prefix: ptr.To(""),
+				Prefix: ptr.To("oidc:"),
 			},
 			Username: kcptenancyv1alpha1.PrefixedClaimOrExpression{}, // to be set based on environment
 		},

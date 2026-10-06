@@ -98,11 +98,22 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
+		orgIdpProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.OrgIdpPlatformMeshIO, apiexport.Options{
+			Scheme: scheme,
+		})
+		if err != nil {
+			setupLog.Error(err, "unable to create org-idp apiexport provider")
+			return err
+		}
+
 		multiProv := multiprovider.New(multiprovider.Options{})
 		if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
 			return err
 		}
 		if err := multiProv.AddProvider(config.CoreProviderName, coreProvider); err != nil {
+			return err
+		}
+		if err := multiProv.AddProvider(config.OrgIdpProviderName, orgIdpProvider); err != nil {
 			return err
 		}
 
@@ -136,6 +147,16 @@ var systemCmd = &cobra.Command{
 		}
 		if err := idpReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
+			return err
+		}
+
+		idpRegReconciler, err := controller.NewIdPRegistrationReconciler(ctx, mgr, kcpClientGetter, &systemCfg, log)
+		if err != nil {
+			log.Error().Err(err).Str("controller", "idpregistration").Msg("unable to create reconciler")
+			return err
+		}
+		if err := idpRegReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
+			log.Error().Err(err).Str("controller", "idpregistration").Msg("unable to create controller")
 			return err
 		}
 

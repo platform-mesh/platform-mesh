@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -366,6 +367,7 @@ func ListFiles(dir string) ([]string, error) {
 		}
 		files = append(files, d.Name())
 	}
+	sort.Strings(files)
 	return files, nil
 }
 
@@ -660,6 +662,14 @@ func ApplyManifestFromFile(
 		templateData["apiExportSystemPlatformMeshIoIdentityHash"] = apiExport.Status.IdentityHash
 	}
 
+	if obj.GetKind() == "APIExport" && obj.GetName() == "org-idp.platform-mesh.io" {
+		rerendered, fillErr := fillOrgIdpCoreIdentityHash(ctx, k8sClient, path, templateData, log)
+		if fillErr != nil {
+			return fillErr
+		}
+		obj = rerendered
+	}
+
 	err = k8sClient.Apply(ctx, ctrlruntimeclient.ApplyConfigurationFromUnstructured(&obj),
 		ctrlruntimeclient.FieldOwner("platform-mesh-operator"), ctrlruntimeclient.ForceOwnership)
 	if err != nil {
@@ -756,6 +766,76 @@ func matchesConditionWithStatus(resource *unstructured.Unstructured, conditionTy
 	}
 
 	return false
+}
+
+const (
+	orgIdpAPIExportName                        = "org-idp.platform-mesh.io"
+	coreAPIExportName                          = "core.platform-mesh.io"
+	apiExportCorePlatformMeshIoIdentityHashKey = "apiExportCorePlatformMeshIoIdentityHash"
+)
+
+func isPlaceholderIdentityHash(v string) bool {
+	switch strings.TrimSpace(v) {
+	case "", "<no value>":
+		return true
+	default:
+		return false
+	}
+}
+
+func accountInfoClaimIdentityHash(obj unstructured.Unstructured) (string, bool) {
+	claims, found, err := unstructured.NestedSlice(obj.Object, "spec", "permissionClaims")
+	if err != nil || !found {
+		return "", false
+	}
+	for _, claim := range claims {
+		m, ok := claim.(map[string]any)
+		if !ok {
+			continue
+		}
+		if m["resource"] != "accountinfos" {
+			continue
+		}
+		hash, _ := m["identityHash"].(string)
+		return hash, true
+	}
+	return "", false
+}
+
+func fillOrgIdpCoreIdentityHash(
+	ctx context.Context,
+	k8sClient ctrlruntimeclient.Client,
+	path string,
+	templateData map[string]any,
+	log *logger.Logger,
+) (unstructured.Unstructured, error) {
+	apiExport := kcpapiv1alpha.APIExport{}
+	err := k8sClient.Get(ctx, types.NamespacedName{Name: coreAPIExportName}, &apiExport)
+	if err != nil {
+		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to get APIExport %s", coreAPIExportName)
+	}
+
+	hash := strings.TrimSpace(apiExport.Status.IdentityHash)
+	if isPlaceholderIdentityHash(hash) {
+		return unstructured.Unstructured{}, errors.New("APIExport %s IdentityHash is not set yet", coreAPIExportName)
+	}
+
+	if templateData == nil {
+		templateData = map[string]any{}
+	}
+	templateData[apiExportCorePlatformMeshIoIdentityHashKey] = hash
+
+	obj, err := unstructuredFromFile(path, templateData, log)
+	if err != nil {
+		return unstructured.Unstructured{}, err
+	}
+
+	appliedHash, found := accountInfoClaimIdentityHash(obj)
+	if !found || isPlaceholderIdentityHash(appliedHash) {
+		return unstructured.Unstructured{}, errors.New("refusing to apply %s with unset AccountInfo identityHash", orgIdpAPIExportName)
+	}
+
+	return obj, nil
 }
 
 func unstructuredFromFile(path string, templateData map[string]any, log *logger.Logger) (unstructured.Unstructured, error) {

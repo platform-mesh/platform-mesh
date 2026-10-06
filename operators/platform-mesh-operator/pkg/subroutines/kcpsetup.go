@@ -281,6 +281,9 @@ func (r *KcpsetupSubroutine) getCABundleInventory(
 		}
 		ipdKey := fmt.Sprintf("%s.ca-bundle", ipdValidatingWebhookConfig.WebhookRef.Name)
 		caBundles[ipdKey] = base64.StdEncoding.EncodeToString(ipdCaData)
+		// IdPRegistration webhooks use the same security-operator CA.
+		caBundles[fmt.Sprintf("%s.ca-bundle", IdPRegistrationValidatingWebhookName)] = caBundles[ipdKey]
+		caBundles[fmt.Sprintf("%s.ca-bundle", IdPRegistrationMutatingWebhookName)] = caBundles[ipdKey]
 	}
 
 	// Get validating webhook CA bundle
