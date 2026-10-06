@@ -149,3 +149,34 @@ func TestBuildCheckInput_ColonInResourceName(t *testing.T) {
 			in.Object)
 	})
 }
+
+func TestBuildCheckInputMatchesModelObjectType(t *testing.T) {
+	tests := []struct{ group, plural, singular, objectType string }{
+		{"generators.external-secrets.io", "beyondtrustworkloadcredentialsdynamicsecrets", "beyondtrustworkloadcredentialsdynamicsecret", "_beyondtrustworkloadcredentialsdynamicsecret"},
+		{"rbac.authorization.k8s.io", "policies", "policy", "rbac_authorization_k8s_io_policy"},
+		{"", "pods", "pod", "core_pod"},
+	}
+	for _, test := range tests {
+		t.Run(test.plural, func(t *testing.T) {
+			gv := schema.GroupVersion{Group: test.group, Version: "v1"}
+			mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{gv})
+			mapper.AddSpecific(gv.WithKind("Example"), gv.WithResource(test.plural), gv.WithResource(test.singular), meta.RESTScopeRoot)
+			_, objectType := contextual.BuildObjectType(gv.WithResource(test.plural), test.singular)
+			require.Equal(t, test.objectType, objectType)
+			for _, verb := range []string{"get", "update", "delete", "patch", "bind"} {
+				attrs := &authorizationv1.ResourceAttributes{Group: test.group, Version: "v1", Resource: test.plural, Verb: verb, Name: "example"}
+				input, err := contextual.BuildCheckInput(attrs, "alice", "tenant", testClusterInfo(mapper))
+				require.NoError(t, err)
+				require.Equal(t, test.objectType+":tenant/example", input.Object)
+				require.Equal(t, verb, input.Relation)
+				require.Equal(t, input.Object, input.ContextualTuples[0].Object)
+			}
+			for _, verb := range []string{"create", "list", "watch"} {
+				attrs := &authorizationv1.ResourceAttributes{Group: test.group, Version: "v1", Resource: test.plural, Verb: verb}
+				input, err := contextual.BuildCheckInput(attrs, "alice", "tenant", testClusterInfo(mapper))
+				require.NoError(t, err)
+				require.LessOrEqual(t, len(input.Relation), 50)
+			}
+		})
+	}
+}

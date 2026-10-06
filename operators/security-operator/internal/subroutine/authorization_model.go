@@ -57,17 +57,17 @@ var (
 {{ if eq .Scope "Cluster" }}
 extend type core_platform-mesh_io_account
 	relations
-		define create_{{ .Group }}_{{ .Name }}: owner
-		define list_{{ .Group }}_{{ .Name }}: member
-		define watch_{{ .Group }}_{{ .Name }}: member
+		define create_{{ .Relation }}: owner
+		define list_{{ .Relation }}: member
+		define watch_{{ .Relation }}: member
 {{ end }}
 
 {{ if eq .Scope "Namespaced" }}
 extend type core_namespace
 	relations
-		define create_{{ .Group }}_{{ .Name }}: owner
-		define list_{{ .Group }}_{{ .Name }}: member
-		define watch_{{ .Group }}_{{ .Name }}: member
+		define create_{{ .Relation }}: owner
+		define list_{{ .Relation }}: member
+		define watch_{{ .Relation }}: member
 {{ end }}
 
 type {{ .Group }}_{{ .Singular }}
@@ -124,10 +124,19 @@ func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, s
 	}
 
 	var extendingModules pmcorev1alpha1.AuthorizationModelList
+	seenModules := map[string]struct{}{}
 	for _, model := range allAuthorizationModels.Items {
 		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != string(storeClusterKey) {
 			continue
 		}
+		// A wildcard KCP list can expose the same authorization module through
+		// more than one registered cluster. The module set is semantic, so keep
+		// identical contents once while preserving conflicting definitions for
+		// the transformer to reject.
+		if _, seen := seenModules[model.Spec.Model]; seen {
+			continue
+		}
+		seenModules[model.Spec.Model] = struct{}{}
 
 		extendingModules.Items = append(extendingModules.Items, model)
 	}
@@ -253,6 +262,7 @@ func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Temp
 	err := tpl.Execute(&buffer, modelInput{
 		Name:     resource.Name,
 		Group:    strings.ReplaceAll(group, ".", "_"), // TODO: group name length capping
+		Relation: strings.ReplaceAll(util.ResourceRelationName(schema.GroupVersionResource{Group: resource.Group, Resource: resource.Name}, 50), ".", "_"),
 		Singular: resource.SingularName,
 		Scope:    string(scope),
 	})

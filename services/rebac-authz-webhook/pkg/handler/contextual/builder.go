@@ -75,7 +75,7 @@ func BuildCheckInput(
 		return nil, fmt.Errorf("failed to singularize resource %q: %w", attrs.Resource, err)
 	}
 
-	group, objectType := BuildObjectType(gvr, singular)
+	_, objectType := BuildObjectType(gvr, singular)
 
 	object := renderObject(objectType, clusterName, attrs.Name)
 	relation := attrs.Verb
@@ -85,7 +85,7 @@ func BuildCheckInput(
 	accountObject := fmt.Sprintf("core_platform-mesh_io_account:%s/%s", clusterInfo.ParentClusterID, clusterInfo.AccountName)
 
 	if hasParent {
-		relation = fmt.Sprintf("%s_%s_%s", relation, group, gvr.Resource)
+		relation = fmt.Sprintf("%s_%s", relation, strings.ReplaceAll(util.ResourceRelationName(gvr, maxRelationLength), ".", "_"))
 		object = accountObject
 	}
 
@@ -144,10 +144,8 @@ func BuildObjectType(gvr schema.GroupVersionResource, singular string) (string, 
 	group = strings.ReplaceAll(group, ".", "_")
 
 	objectType := fmt.Sprintf("%s_%s", group, singular)
-	longestObjectType := fmt.Sprintf("create_%ss", objectType)
-	if len(longestObjectType) > maxRelationLength {
-		objectType = objectType[len(longestObjectType)-maxRelationLength:]
-	}
+	// The model uses the capped group and the complete singular name.
+	// The 50-character limit applies to relations, not object types.
 
 	return group, objectType
 }

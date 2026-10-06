@@ -46,6 +46,21 @@ func FuzzCapGroupToRelationLength(f *testing.F) {
 	})
 }
 
+func TestResourceRelationName(t *testing.T) {
+	gvr := schema.GroupVersionResource{
+		Group:    "generators.external-secrets.io",
+		Resource: "beyondtrustworkloadcredentialsdynamicsecrets",
+	}
+
+	got := ResourceRelationName(gvr, 50)
+	if want := "eyondtrustworkloadcredentialsdynamicsecrets"; got != want {
+		t.Fatalf("ResourceRelationName() = %q, want %q", got, want)
+	}
+	if len("create_"+got) > 50 {
+		t.Fatalf("relation exceeds OpenFGA limit: %q", "create_"+got)
+	}
+}
+
 func FuzzResolveOnParent(f *testing.F) {
 	f.Add("create")
 	f.Add("list")

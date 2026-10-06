@@ -49,10 +49,40 @@ func TestCapGroupToRelationLength(t *testing.T) {
 			maxLength: 20,
 			want:      "name",
 		},
+		{
+			name:      "resource name leaves no room for the group without panicking",
+			gvr:       schema.GroupVersionResource{Group: "generators.external-secrets.io", Version: "v1alpha1", Resource: "beyondtrustworkloadcredentialsdynamicsecrets"},
+			maxLength: 50,
+			want:      "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, CapGroupToRelationLength(tt.gvr, tt.maxLength))
+		})
+	}
+}
+
+func TestResourceRelationName(t *testing.T) {
+	tests := []struct {
+		name string
+		gvr  schema.GroupVersionResource
+		want string
+	}{
+		{name: "group and resource fit", gvr: schema.GroupVersionResource{Group: "mygroup", Resource: "things"}, want: "mygroup_things"},
+		{name: "core group", gvr: schema.GroupVersionResource{Resource: "pods"}, want: "core_pods"},
+		{
+			name: "long resource leaves room for relation prefix",
+			gvr:  schema.GroupVersionResource{Group: "generators.external-secrets.io", Resource: "beyondtrustworkloadcredentialsdynamicsecrets"},
+			want: "eyondtrustworkloadcredentialsdynamicsecrets",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResourceRelationName(tt.gvr, 50)
+			assert.Equal(t, tt.want, got)
+			assert.LessOrEqual(t, len("create_"+got), 50)
 		})
 	}
 }
