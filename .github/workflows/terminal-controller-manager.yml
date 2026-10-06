@@ -189,6 +189,7 @@ jobs:
       contents: read # Needed for actions/checkout
       packages: write # Needed to push the :latest image to GHCR
       id-token: write # Needed for keyless (OIDC) cosign signing
+      attestations: write # Needed to push build provenance attestations
     outputs:
       # Full image reference (name@digest) for downstream jobs. The env context
       # is not available in a reusable-workflow `with:` block, so we assemble the
@@ -226,6 +227,12 @@ jobs:
         run: cosign sign --yes ${IMAGE_REF}
         env:
           IMAGE_REF: ${{ steps.build.outputs.imageRef }}
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   trivy-image:
     if: github.ref == 'refs/heads/main'
@@ -295,6 +302,7 @@ jobs:
       contents: write # Needed to create the GitHub release for the tag
       packages: write # Needed to push the versioned image to GHCR
       id-token: write # Needed for keyless (OIDC) cosign signing
+      attestations: write # Needed to push build provenance attestations
     steps:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -327,6 +335,12 @@ jobs:
         run: cosign sign --yes ${IMAGE_NAME}@${DIGEST}
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
       # Generate SBOMs from the pushed image (by digest) and attach them to the
       # image as signed cosign attestations — verifiable with
       # `cosign verify-attestation`. The SBOMs are also kept as workflow artifacts.
