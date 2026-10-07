@@ -27,11 +27,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pmgateway "go.platform-mesh.io/apis/gateway"
+	"go.platform-mesh.io/kubernetes-graphql-gateway/apischema"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/resolver"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/internal/testfakes"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kube-openapi/pkg/validation/spec"
@@ -162,6 +164,56 @@ func TestGenerate_resourcesByCategory(t *testing.T) {
 		schemaType := sch.Type(workloadType)
 		require.NotNil(t, schemaType, "resource with no category should be in the schema")
 	})
+}
+
+func TestGenerateSelectedResourceSurface(t *testing.T) {
+	schemas := apischema.NewSchemaSetFromMap(map[string]*spec.Schema{
+		"core.v1.Pod": schemaWithCategory("", "v1", "Pod", apiextensionsv1.NamespaceScoped),
+		"apps.v1.Deployment": schemaWithCategory(
+			"apps",
+			"v1",
+			"Deployment",
+			apiextensionsv1.NamespaceScoped,
+		),
+	})
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Version: "v1"}})
+	mapper.AddSpecific(
+		schema.GroupVersionKind{Version: "v1", Kind: "Pod"},
+		schema.GroupVersionResource{Version: "v1", Resource: "pods"},
+		schema.GroupVersionResource{Version: "v1", Resource: "pod"},
+		meta.RESTScopeNamespace,
+	)
+	selected, err := schemas.SelectResources(
+		[]apischema.ResourceSelector{{Group: "", Resource: "pods"}},
+		mapper,
+	)
+	require.NoError(t, err)
+
+	definitions := make(map[string]*spec.Schema, selected.Size())
+	for key, entry := range selected.All() {
+		definitions[key] = entry.Schema
+	}
+
+	client := testfakes.NewClient(testfakes.ListItems(), nil)
+	sut := New(definitions, resolver.New(client, nil), nil, false)
+	generated, err := sut.Generate(t.Context())
+	require.NoError(t, err)
+
+	queryType, ok := generated.Type("V1Query").(*graphql.Object)
+	require.True(t, ok)
+	assert.Contains(t, queryType.Fields(), "Pod")
+	assert.Contains(t, queryType.Fields(), "Pods")
+	assert.Nil(t, generated.Type("AppsV1Query"))
+
+	mutationType, ok := generated.Type("V1Mutation").(*graphql.Object)
+	require.True(t, ok)
+	assert.Contains(t, mutationType.Fields(), "createPod")
+	assert.Nil(t, generated.Type("AppsV1Mutation"))
+	assert.Contains(t, generated.MutationType().Fields(), "applyYaml")
+
+	assert.Contains(t, generated.SubscriptionType().Fields(), "v1_pod")
+	assert.Contains(t, generated.SubscriptionType().Fields(), "v1_pods")
+	assert.NotContains(t, generated.SubscriptionType().Fields(), "apps_v1_deployment")
 }
 
 // setup initializes the Generator with schemas and a fake client
