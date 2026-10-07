@@ -183,25 +183,14 @@ func (s *Service) assignRoleToUser(ctx context.Context, userEmail, role string, 
 	roleTuple := &openfgav1.TupleKey{
 		User:     fmt.Sprintf("user:%s", userEmail),
 		Relation: "assignee",
-		Object: fmt.Sprintf("role:%s/%s/%s/%s",
-			fgaTypeName,
-			clusterId,
-			rctx.Resource.Name,
-			role),
+		Object:   buildRoleObject(fgaTypeName, clusterId, rctx.Resource.Name, role),
 	}
 
 	// Create the permission tuple (role -> resource)
 	targetFGATypeName := util.ConvertToTypeName(rctx.Group, rctx.Kind)
-	targetObject := fmt.Sprintf("%s:%s/%s", targetFGATypeName, clusterId, rctx.Resource.Name)
-	if rctx.Resource.Namespace != nil {
-		targetObject = fmt.Sprintf("%s:%s/%s/%s", targetFGATypeName, clusterId, *rctx.Resource.Namespace, rctx.Resource.Name)
-	}
+	targetObject := buildResourceObject(targetFGATypeName, clusterId, rctx.Resource.Name, rctx.Resource.Namespace)
 	assignRoleTuple := &openfgav1.TupleKey{
-		User: fmt.Sprintf("role:%s/%s/%s/%s#assignee",
-			fgaTypeName,
-			clusterId,
-			rctx.Resource.Name,
-			role),
+		User:     buildRoleUserset(fgaTypeName, clusterId, rctx.Resource.Name, role),
 		Relation: role,
 		Object:   targetObject,
 	}

@@ -103,7 +103,7 @@ func TestService_ListUsers_Success(t *testing.T) {
 		Group: "core.platform-mesh.io",
 		Kind:  "Account",
 		Resource: &graph.Resource{
-			Name:      "test-account",
+			Name:      "test:account#name",
 			Namespace: ptr.To("default"),
 		},
 		AccountPath: "test-account",
@@ -178,14 +178,14 @@ func TestService_ListUsers_Success(t *testing.T) {
 	client.EXPECT().ListUsers(mock.Anything, mock.MatchedBy(func(req *openfgav1.ListUsersRequest) bool {
 		return req.StoreId == storeID &&
 			req.Object.Type == "role" &&
-			req.Object.Id == "core_platform-mesh_io_account/cluster-123/test-account/owner" &&
+			req.Object.Id == "core_platform-mesh_io_account/cluster-123/test%3Aaccount%23name/owner" &&
 			req.Relation == "assignee"
 	})).Return(ownerUsersResponse, nil)
 
 	client.EXPECT().ListUsers(mock.Anything, mock.MatchedBy(func(req *openfgav1.ListUsersRequest) bool {
 		return req.StoreId == storeID &&
 			req.Object.Type == "role" &&
-			req.Object.Id == "core_platform-mesh_io_account/cluster-123/test-account/member" &&
+			req.Object.Id == "core_platform-mesh_io_account/cluster-123/test%3Aaccount%23name/member" &&
 			req.Relation == "assignee"
 	})).Return(memberUsersResponse, nil)
 
@@ -442,7 +442,7 @@ func TestService_AssignRolesToUsers_InvalidRole(t *testing.T) {
 		Group: "core.platform-mesh.io",
 		Kind:  "Account",
 		Resource: &graph.Resource{
-			Name:      "test-account",
+			Name:      "test:account#name",
 			Namespace: ptr.To("default"),
 		},
 		AccountPath: "test-account",
@@ -482,13 +482,15 @@ func TestService_AssignRolesToUsers_InvalidRole(t *testing.T) {
 		return req.StoreId == storeID &&
 			len(req.Writes.TupleKeys) == 1 &&
 			req.Writes.TupleKeys[0].User == "user:user1@example.com" &&
-			req.Writes.TupleKeys[0].Object == "role:core_platform-mesh_io_account/cluster-123/test-account/owner" &&
+			req.Writes.TupleKeys[0].Object == "role:core_platform-mesh_io_account/cluster-123/test%3Aaccount%23name/owner" &&
 			req.Writes.TupleKeys[0].Relation == "assignee"
 	})).Return(&openfgav1.WriteResponse{}, nil).Once()
 	// Second call: role tuple
 	client.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
 		return req.StoreId == storeID &&
 			len(req.Writes.TupleKeys) == 1 &&
+			req.Writes.TupleKeys[0].User == "role:core_platform-mesh_io_account/cluster-123/test%3Aaccount%23name/owner#assignee" &&
+			req.Writes.TupleKeys[0].Object == "core_platform-mesh_io_account:cluster-123/default/test%3Aaccount%23name" &&
 			req.Writes.TupleKeys[0].Relation == "owner"
 	})).Return(&openfgav1.WriteResponse{}, nil).Once()
 
@@ -520,7 +522,7 @@ func TestService_RemoveRole_Success(t *testing.T) {
 		Group: "core.platform-mesh.io",
 		Kind:  "Account",
 		Resource: &graph.Resource{
-			Name:      "test-account",
+			Name:      "test:account#name",
 			Namespace: ptr.To("default"),
 		},
 		AccountPath: "test-account",
@@ -559,7 +561,7 @@ func TestService_RemoveRole_Success(t *testing.T) {
 				Key: &openfgav1.TupleKey{
 					User:     "user:user1@example.com",
 					Relation: "assignee",
-					Object:   "role:core_platform-mesh_io_account/cluster-123/test-account/owner",
+					Object:   "role:core_platform-mesh_io_account/cluster-123/test%3Aaccount%23name/owner",
 				},
 			},
 		},
@@ -567,7 +569,7 @@ func TestService_RemoveRole_Success(t *testing.T) {
 	client.EXPECT().Read(mock.Anything, mock.MatchedBy(func(req *openfgav1.ReadRequest) bool {
 		return req.StoreId == storeID &&
 			req.TupleKey.User == "user:user1@example.com" &&
-			req.TupleKey.Object == "role:core_platform-mesh_io_account/cluster-123/test-account/owner" &&
+			req.TupleKey.Object == "role:core_platform-mesh_io_account/cluster-123/test%3Aaccount%23name/owner" &&
 			req.TupleKey.Relation == "assignee"
 	})).Return(readResponse, nil).Once()
 
@@ -577,7 +579,7 @@ func TestService_RemoveRole_Success(t *testing.T) {
 			req.Deletes != nil &&
 			len(req.Deletes.TupleKeys) == 1 &&
 			req.Deletes.TupleKeys[0].User == "user:user1@example.com" &&
-			req.Deletes.TupleKeys[0].Object == "role:core_platform-mesh_io_account/cluster-123/test-account/owner" &&
+			req.Deletes.TupleKeys[0].Object == "role:core_platform-mesh_io_account/cluster-123/test%3Aaccount%23name/owner" &&
 			req.Deletes.TupleKeys[0].Relation == "assignee"
 	})).Return(&openfgav1.WriteResponse{}, nil).Once()
 

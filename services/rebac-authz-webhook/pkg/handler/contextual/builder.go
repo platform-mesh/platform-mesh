@@ -82,7 +82,7 @@ func BuildCheckInput(
 
 	hasParent := util.ResolveOnParent(attrs.Verb)
 
-	accountObject := fmt.Sprintf("core_platform-mesh_io_account:%s/%s", clusterInfo.ParentClusterID, clusterInfo.AccountName)
+	accountObject := fmt.Sprintf("core_platform-mesh_io_account:%s/%s", clusterInfo.ParentClusterID, util.EncodeName(clusterInfo.AccountName))
 
 	if hasParent {
 		relation = fmt.Sprintf("%s_%s_%s", relation, group, gvr.Resource)
@@ -91,7 +91,7 @@ func BuildCheckInput(
 
 	var contextualTuples []*openfgav1.TupleKey
 	if isNamespaced {
-		namespaceObject := fmt.Sprintf("core_namespace:%s/%s", clusterName, attrs.Namespace)
+		namespaceObject := fmt.Sprintf("core_namespace:%s/%s", clusterName, util.EncodeName(attrs.Namespace))
 
 		// parent the namespace to the account
 		contextualTuples = append(contextualTuples, &openfgav1.TupleKey{

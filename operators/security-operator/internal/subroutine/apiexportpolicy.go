@@ -25,6 +25,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	fgamodel "go.platform-mesh.io/golang-commons/fga/model"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
@@ -41,6 +42,10 @@ const (
 	bindRelation          = "bind"
 	bindInheritedRelation = "bind_inherited"
 )
+
+func buildAPIExportObject(clusterID, name string) string {
+	return fgamodel.BuildObjectNameFromType("apis_kcp_io_apiexport", clusterID, name, nil)
+}
 
 type APIExportPolicySubroutine struct {
 	fga             openfgav1.OpenFGAServiceClient
@@ -111,7 +116,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj ctrlruntime
 				tuple := pmcorev1alpha1.Tuple{
 					Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 					Relation: relation,
-					User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, policy.Spec.APIExportRef.Name),
+					User:     buildAPIExportObject(providerClusterID, policy.Spec.APIExportRef.Name),
 				}
 
 				tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
@@ -143,7 +148,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj ctrlruntime
 		tuple := pmcorev1alpha1.Tuple{
 			Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 			Relation: relation,
-			User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, policy.Spec.APIExportRef.Name),
+			User:     buildAPIExportObject(providerClusterID, policy.Spec.APIExportRef.Name),
 		}
 
 		tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
@@ -273,7 +278,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 			tupleToDelete := pmcorev1alpha1.Tuple{
 				Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 				Relation: relation,
-				User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, apiExportName),
+				User:     buildAPIExportObject(providerClusterID, apiExportName),
 			}
 
 			tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
@@ -302,7 +307,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 	tupleToDelete := pmcorev1alpha1.Tuple{
 		Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 		Relation: relation,
-		User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, apiExportName),
+		User:     buildAPIExportObject(providerClusterID, apiExportName),
 	}
 
 	tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)

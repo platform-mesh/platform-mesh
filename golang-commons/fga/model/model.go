@@ -37,13 +37,14 @@ func BuildObjectName(group, singular, clusterID, name string, namespace *string)
 }
 
 // BuildObjectNameFromType renders the canonical OpenFGA object name from a
-// fully normalized OpenFGA object type.
+// fully normalized OpenFGA object type and raw, unencoded name and namespace
+// segments.
 func BuildObjectNameFromType(objectType, clusterID, name string, namespace *string) string {
-	if namespace != nil && *namespace != "" {
-		return fmt.Sprintf("%s:%s/%s/%s", objectType, clusterID, *namespace, name)
+	if namespace != nil {
+		return fmt.Sprintf("%s:%s/%s/%s", objectType, clusterID, util.EncodeObjectIDPart(*namespace), util.EncodeObjectIDPart(name))
 	}
 
-	return fmt.Sprintf("%s:%s/%s", objectType, clusterID, name)
+	return fmt.Sprintf("%s:%s/%s", objectType, clusterID, util.EncodeObjectIDPart(name))
 }
 
 type ResourceContext struct {
