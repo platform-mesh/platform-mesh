@@ -48,7 +48,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	kcpapiv1alpha "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 var secretKubeconfigData, _ = os.ReadFile("test/kubeconfig.yaml")
@@ -131,7 +131,7 @@ func (s *ProvidersecretTestSuite) SetupTest() {
 	s.scheme = runtime.NewScheme()
 	_ = corev1.AddToScheme(s.scheme)
 	_ = pmcorev1alpha1.AddToScheme(s.scheme)
-	_ = kcpapiv1alpha.AddToScheme(s.scheme)
+	_ = kcpapisv1alpha1.AddToScheme(s.scheme)
 
 	s.clientMock.EXPECT().Scheme().Return(s.scheme).Maybe()
 
@@ -278,9 +278,9 @@ func (s *ProvidersecretTestSuite) TestProcess() {
 	s.Require().NoError(err)
 	s.clientMock.EXPECT().Scheme().Return(scheme).Once()
 
-	slice := &kcpapiv1alpha.APIExportEndpointSlice{
-		Status: kcpapiv1alpha.APIExportEndpointSliceStatus{
-			APIExportEndpoints: []kcpapiv1alpha.APIExportEndpoint{
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{
+		Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+			APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 				{URL: "http://example.com"},
 			},
 		},
@@ -289,7 +289,7 @@ func (s *ProvidersecretTestSuite) TestProcess() {
 	mockKcpClient := new(mocks.Client)
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			*obj.(*kcpapiv1alpha.APIExportEndpointSlice) = *slice
+			*obj.(*kcpapisv1alpha1.APIExportEndpointSlice) = *slice
 			return nil
 		}).Once()
 
@@ -362,9 +362,9 @@ func (s *ProvidersecretTestSuite) TestWrongScheme() {
 	// return nil scheme
 	mockK8sClient.EXPECT().Scheme().Return(nil).Maybe()
 
-	slice := &kcpapiv1alpha.APIExportEndpointSlice{
-		Status: kcpapiv1alpha.APIExportEndpointSliceStatus{
-			APIExportEndpoints: []kcpapiv1alpha.APIExportEndpoint{
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{
+		Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+			APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 				{
 					URL: "http://url",
 				},
@@ -375,7 +375,7 @@ func (s *ProvidersecretTestSuite) TestWrongScheme() {
 	mockK8sClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 			switch obj := o.(type) {
-			case *kcpapiv1alpha.APIExportEndpointSlice:
+			case *kcpapisv1alpha1.APIExportEndpointSlice:
 				*obj = *slice
 				return nil
 			case *unstructured.Unstructured:
@@ -459,9 +459,9 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingSecret() {
 		},
 	}
 
-	slice := &kcpapiv1alpha.APIExportEndpointSlice{
-		Status: kcpapiv1alpha.APIExportEndpointSliceStatus{
-			APIExportEndpoints: []kcpapiv1alpha.APIExportEndpoint{
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{
+		Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+			APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 				{URL: "http://url"},
 			},
 		},
@@ -539,11 +539,11 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingSecret() {
 	mockedKcpClient := new(mocks.Client)
 	mockedKcpClient.EXPECT().
 		Get(mock.Anything, mock.Anything, mock.MatchedBy(func(obj ctrlruntimeclient.Object) bool {
-			_, ok := obj.(*kcpapiv1alpha.APIExportEndpointSlice)
+			_, ok := obj.(*kcpapisv1alpha1.APIExportEndpointSlice)
 			return ok
 		})).
 		RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			*obj.(*kcpapiv1alpha.APIExportEndpointSlice) = *slice
+			*obj.(*kcpapisv1alpha1.APIExportEndpointSlice) = *slice
 			return nil
 		}).
 		Once()
@@ -643,9 +643,9 @@ func (s *ProvidersecretTestSuite) TestFailedBuilidingKubeconfig() {
 		Twice()
 
 	// mocks
-	slice := &kcpapiv1alpha.APIExportEndpointSlice{
-		Status: kcpapiv1alpha.APIExportEndpointSliceStatus{
-			APIExportEndpoints: []kcpapiv1alpha.APIExportEndpoint{
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{
+		Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+			APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 				{
 					URL: "http://url",
 				},
@@ -656,7 +656,7 @@ func (s *ProvidersecretTestSuite) TestFailedBuilidingKubeconfig() {
 	mockKcpClient := new(mocks.Client)
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			*obj.(*kcpapiv1alpha.APIExportEndpointSlice) = *slice
+			*obj.(*kcpapisv1alpha1.APIExportEndpointSlice) = *slice
 			return nil
 		}).Once()
 
@@ -1245,16 +1245,16 @@ func (s *ProvidersecretTestSuite) TestEmptyAPIExportEndpoints() {
 
 	s.clientMock.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*unstructured.Unstructured")).Return(nil)
 
-	slice := &kcpapiv1alpha.APIExportEndpointSlice{
-		Status: kcpapiv1alpha.APIExportEndpointSliceStatus{
-			APIExportEndpoints: []kcpapiv1alpha.APIExportEndpoint{},
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{
+		Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+			APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{},
 		},
 	}
 
 	mockedKcpClient := new(mocks.Client)
 	mockedKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			*obj.(*kcpapiv1alpha.APIExportEndpointSlice) = *slice
+			*obj.(*kcpapisv1alpha1.APIExportEndpointSlice) = *slice
 			return nil
 		}).Once()
 
@@ -1350,9 +1350,9 @@ func (s *ProvidersecretTestSuite) TestInvalidEndpointURL() {
 
 	s.clientMock.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*unstructured.Unstructured")).Return(nil)
 
-	slice := &kcpapiv1alpha.APIExportEndpointSlice{
-		Status: kcpapiv1alpha.APIExportEndpointSliceStatus{
-			APIExportEndpoints: []kcpapiv1alpha.APIExportEndpoint{
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{
+		Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+			APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 				{URL: "://invalid-url"},
 			},
 		},
@@ -1361,7 +1361,7 @@ func (s *ProvidersecretTestSuite) TestInvalidEndpointURL() {
 	mockedKcpClient := new(mocks.Client)
 	mockedKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			*obj.(*kcpapiv1alpha.APIExportEndpointSlice) = *slice
+			*obj.(*kcpapisv1alpha1.APIExportEndpointSlice) = *slice
 			return nil
 		}).Once()
 
@@ -1471,9 +1471,9 @@ func (s *ProvidersecretTestSuite) TestContextNotFoundInKubeconfig() {
 			return nil
 		})
 
-	slice := &kcpapiv1alpha.APIExportEndpointSlice{
-		Status: kcpapiv1alpha.APIExportEndpointSliceStatus{
-			APIExportEndpoints: []kcpapiv1alpha.APIExportEndpoint{
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{
+		Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+			APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 				{URL: "http://example.com"},
 			},
 		},
@@ -1482,7 +1482,7 @@ func (s *ProvidersecretTestSuite) TestContextNotFoundInKubeconfig() {
 	mockedKcpClient := new(mocks.Client)
 	mockedKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			*obj.(*kcpapiv1alpha.APIExportEndpointSlice) = *slice
+			*obj.(*kcpapisv1alpha1.APIExportEndpointSlice) = *slice
 			return nil
 		}).Once()
 
@@ -1611,9 +1611,9 @@ func (s *ProvidersecretTestSuite) TestClusterNotFoundInKubeconfig() {
 			return nil
 		})
 
-	slice := &kcpapiv1alpha.APIExportEndpointSlice{
-		Status: kcpapiv1alpha.APIExportEndpointSliceStatus{
-			APIExportEndpoints: []kcpapiv1alpha.APIExportEndpoint{
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{
+		Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+			APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 				{URL: "http://example.com"},
 			},
 		},
@@ -1622,7 +1622,7 @@ func (s *ProvidersecretTestSuite) TestClusterNotFoundInKubeconfig() {
 	mockedKcpClient := new(mocks.Client)
 	mockedKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			*obj.(*kcpapiv1alpha.APIExportEndpointSlice) = *slice
+			*obj.(*kcpapisv1alpha1.APIExportEndpointSlice) = *slice
 			return nil
 		}).Once()
 
@@ -1777,9 +1777,9 @@ func (s *ProvidersecretTestSuite) TestHandleProviderConnections() {
 
 	// Setup mock KCP client
 	mockedKcpClient := new(mocks.Client)
-	slice := &kcpapiv1alpha.APIExportEndpointSlice{
-		Status: kcpapiv1alpha.APIExportEndpointSliceStatus{
-			APIExportEndpoints: []kcpapiv1alpha.APIExportEndpoint{
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{
+		Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+			APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 				{URL: "http://example.com"},
 			},
 		},
@@ -1788,7 +1788,7 @@ func (s *ProvidersecretTestSuite) TestHandleProviderConnections() {
 		EXPECT().
 		Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			*obj.(*kcpapiv1alpha.APIExportEndpointSlice) = *slice
+			*obj.(*kcpapisv1alpha1.APIExportEndpointSlice) = *slice
 			return nil
 		}).
 		Times(len(DefaultProviderConnections))

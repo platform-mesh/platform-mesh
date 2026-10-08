@@ -40,8 +40,8 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	kcpapiv1alpha2 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha2"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
 const (
@@ -54,7 +54,7 @@ const (
 	kcpWorkspaceAccessRoleName     = "system:kcp:workspace:access"
 )
 
-func resolveAPIExport(ctx context.Context, kcpHelper KcpHelper, cfg *rest.Config, apiExportName, apiExportPath string) (*kcpapiv1alpha2.APIExport, error) {
+func resolveAPIExport(ctx context.Context, kcpHelper KcpHelper, cfg *rest.Config, apiExportName, apiExportPath string) (*kcpapisv1alpha2.APIExport, error) {
 	if apiExportName == "" {
 		return nil, fmt.Errorf("cannot resolve APIExport: APIExportName is required")
 	}
@@ -67,14 +67,14 @@ func resolveAPIExport(ctx context.Context, kcpHelper KcpHelper, cfg *rest.Config
 		return nil, err
 	}
 
-	var export kcpapiv1alpha2.APIExport
+	var export kcpapisv1alpha2.APIExport
 	if err := kcpClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: apiExportName}, &export); err != nil {
 		return nil, fmt.Errorf("get APIExport %s in workspace %s: %w", apiExportName, apiExportPath, err)
 	}
 	return &export, nil
 }
 
-func getPolicyRulesFromAPIExport(export *kcpapiv1alpha2.APIExport) ([]rbacv1.PolicyRule, error) {
+func getPolicyRulesFromAPIExport(export *kcpapisv1alpha2.APIExport) ([]rbacv1.PolicyRule, error) {
 	var rules []rbacv1.PolicyRule
 
 	for _, res := range export.Spec.Resources {
@@ -310,7 +310,7 @@ func createTokenForSA(ctx context.Context, kcpWorkspaceClient ctrlruntimeclient.
 }
 
 // virtualWorkspaceServerURLFromSlice returns status.apiExportEndpoints[0].url as the kubeconfig cluster server (kcp’s published VirtualWorkspace URL).
-func virtualWorkspaceServerURLFromSlice(slice *kcpapiv1alpha1.APIExportEndpointSlice) (string, error) {
+func virtualWorkspaceServerURLFromSlice(slice *kcpapisv1alpha1.APIExportEndpointSlice) (string, error) {
 	if slice == nil {
 		return "", fmt.Errorf("nil APIExportEndpointSlice")
 	}
@@ -335,7 +335,7 @@ func virtualWorkspaceServerURLFromSlice(slice *kcpapiv1alpha1.APIExportEndpointS
 }
 
 // virtualWorkspacePathFromSlice returns only the URL path from status (for joining to a different base host, e.g. admin kubeconfig front-proxy).
-func virtualWorkspacePathFromSlice(slice *kcpapiv1alpha1.APIExportEndpointSlice) (string, error) {
+func virtualWorkspacePathFromSlice(slice *kcpapisv1alpha1.APIExportEndpointSlice) (string, error) {
 	if slice == nil {
 		return "", fmt.Errorf("nil APIExportEndpointSlice")
 	}
@@ -351,7 +351,7 @@ func virtualWorkspacePathFromSlice(slice *kcpapiv1alpha1.APIExportEndpointSlice)
 }
 
 // apiExportLocationFromEndpointSlice returns spec.export name and path from the slice object (no trimming).
-func apiExportLocationFromEndpointSlice(slice *kcpapiv1alpha1.APIExportEndpointSlice) (apiExportName, exportWorkspacePath string, err error) {
+func apiExportLocationFromEndpointSlice(slice *kcpapisv1alpha1.APIExportEndpointSlice) (apiExportName, exportWorkspacePath string, err error) {
 	if slice == nil {
 		return "", "", fmt.Errorf("nil APIExportEndpointSlice")
 	}
@@ -378,7 +378,7 @@ func resolveAPIExportVirtualWorkspaceRawPath(ctx context.Context, kcpHelper KcpH
 	if err != nil {
 		return "", fmt.Errorf("kcp client for APIExportEndpointSlice workspace: %w", err)
 	}
-	var endpointSlice kcpapiv1alpha1.APIExportEndpointSlice
+	var endpointSlice kcpapisv1alpha1.APIExportEndpointSlice
 	if err := sliceClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name}, &endpointSlice); err != nil {
 		return "", fmt.Errorf("get APIExportEndpointSlice %q in %s: %w", name, sliceWorkspacePath, err)
 	}
@@ -477,7 +477,7 @@ func writeScopedKubeconfigToSecret(
 	caData = AppendRootShardCAPEMIfMissing(ctx, k8sClient, &operatorCfg, caData)
 
 	if endpointSliceName != "" {
-		var endpointSlice kcpapiv1alpha1.APIExportEndpointSlice
+		var endpointSlice kcpapisv1alpha1.APIExportEndpointSlice
 		if err := kcpWorkspaceClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: endpointSliceName}, &endpointSlice); err != nil {
 			return fmt.Errorf("get APIExportEndpointSlice %q in %s: %w", endpointSliceName, pcPath, err)
 		}

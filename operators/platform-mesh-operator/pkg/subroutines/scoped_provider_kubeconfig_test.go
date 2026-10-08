@@ -36,23 +36,23 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 
-	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 func TestVirtualWorkspacePathFromSlice(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
-		slice   *kcpapiv1alpha1.APIExportEndpointSlice
+		slice   *kcpapisv1alpha1.APIExportEndpointSlice
 		want    string
 		wantErr bool
 	}{
 		{
 			name: "kind local-setup (root.kcp.localhost) — path segment is workspace logical cluster id, varies per cluster",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://root.kcp.localhost:8443/services/apiexport/158ffh0myu3e6xhu/core.platform-mesh.io"},
 					},
 				},
@@ -61,10 +61,10 @@ func TestVirtualWorkspacePathFromSlice(t *testing.T) {
 		},
 		{
 			name: "in-cluster front-proxy host from working-state reference",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://frontproxy-front-proxy.platform-mesh-system:8443/services/apiexport/2n6dxtatafypkpsg/core.platform-mesh.io"},
 					},
 				},
@@ -73,10 +73,10 @@ func TestVirtualWorkspacePathFromSlice(t *testing.T) {
 		},
 		{
 			name: "path with wildcard clusters suffix from kcp",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://shard.internal:8443/services/apiexport/abc123/core.platform-mesh.io/clusters/%2A"},
 					},
 				},
@@ -86,10 +86,10 @@ func TestVirtualWorkspacePathFromSlice(t *testing.T) {
 		},
 		{
 			name: "trailing slash on URL path trimmed",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "x"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://h:8443/services/apiexport/id/export-name/"},
 					},
 				},
@@ -98,10 +98,10 @@ func TestVirtualWorkspacePathFromSlice(t *testing.T) {
 		},
 		{
 			name: "first endpoint wins",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "multi"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://a:1/services/apiexport/first/export"},
 						{URL: "https://b:2/services/apiexport/second/export"},
 					},
@@ -116,17 +116,17 @@ func TestVirtualWorkspacePathFromSlice(t *testing.T) {
 		},
 		{
 			name: "no endpoints",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "empty"},
 			},
 			wantErr: true,
 		},
 		{
 			name: "invalid URL",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "bad"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "://nohost"},
 					},
 				},
@@ -135,10 +135,10 @@ func TestVirtualWorkspacePathFromSlice(t *testing.T) {
 		},
 		{
 			name: "URL with only host no path",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "nopath"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://only.host:8443"},
 					},
 				},
@@ -170,16 +170,16 @@ func TestVirtualWorkspaceServerURLFromSlice(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
-		slice   *kcpapiv1alpha1.APIExportEndpointSlice
+		slice   *kcpapisv1alpha1.APIExportEndpointSlice
 		want    string
 		wantErr bool
 	}{
 		{
 			name: "status URL used 1:1 as kubeconfig server (kind / local)",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://root.kcp.localhost:8443/services/apiexport/158ffh0myu3e6xhu/core.platform-mesh.io"},
 					},
 				},
@@ -188,10 +188,10 @@ func TestVirtualWorkspaceServerURLFromSlice(t *testing.T) {
 		},
 		{
 			name: "real cluster provider1 URL from APIExportEndpointSlice status (docs: use URL as published)",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "kind-e2e-scoped-provider.platform-mesh.io"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://localhost:8443/services/apiexport/2yrxttxw0pyrhs0z/kind-e2e-scoped-provider.platform-mesh.io"},
 					},
 				},
@@ -200,10 +200,10 @@ func TestVirtualWorkspaceServerURLFromSlice(t *testing.T) {
 		},
 		{
 			name: "real cluster provider2 URL from APIExportEndpointSlice status (docs: use URL as published)",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "kind-e2e-scoped-provider.platform-mesh.io"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://localhost:8443/services/apiexport/7mjkv2qzlbt8rig7/kind-e2e-scoped-provider.platform-mesh.io"},
 					},
 				},
@@ -212,10 +212,10 @@ func TestVirtualWorkspaceServerURLFromSlice(t *testing.T) {
 		},
 		{
 			name: "in-cluster front-proxy host from slice status",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://frontproxy-front-proxy.platform-mesh-system:8443/services/apiexport/2n6dxtatafypkpsg/core.platform-mesh.io"},
 					},
 				},
@@ -224,10 +224,10 @@ func TestVirtualWorkspaceServerURLFromSlice(t *testing.T) {
 		},
 		{
 			name: "trailing slash on URL trimmed",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "x"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://h:8443/services/apiexport/id/export-name/"},
 					},
 				},
@@ -236,10 +236,10 @@ func TestVirtualWorkspaceServerURLFromSlice(t *testing.T) {
 		},
 		{
 			name: "first endpoint wins",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "multi"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://a:1/services/apiexport/first/export"},
 						{URL: "https://b:2/services/apiexport/second/export"},
 					},
@@ -254,17 +254,17 @@ func TestVirtualWorkspaceServerURLFromSlice(t *testing.T) {
 		},
 		{
 			name: "no endpoints",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "empty"},
 			},
 			wantErr: true,
 		},
 		{
 			name: "invalid URL",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "bad"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "://nohost"},
 					},
 				},
@@ -273,10 +273,10 @@ func TestVirtualWorkspaceServerURLFromSlice(t *testing.T) {
 		},
 		{
 			name: "URL with only host no path",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "nopath"},
-				Status: kcpapiv1alpha1.APIExportEndpointSliceStatus{
-					APIExportEndpoints: []kcpapiv1alpha1.APIExportEndpoint{
+				Status: kcpapisv1alpha1.APIExportEndpointSliceStatus{
+					APIExportEndpoints: []kcpapisv1alpha1.APIExportEndpoint{
 						{URL: "https://only.host:8443"},
 					},
 				},
@@ -308,7 +308,7 @@ func TestAPIExportLocationFromEndpointSlice(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name         string
-		slice        *kcpapiv1alpha1.APIExportEndpointSlice
+		slice        *kcpapisv1alpha1.APIExportEndpointSlice
 		wantName     string
 		wantPath     string
 		wantErr      bool
@@ -316,10 +316,10 @@ func TestAPIExportLocationFromEndpointSlice(t *testing.T) {
 	}{
 		{
 			name: "local cluster core slice (spec from kubectl get … -o yaml)",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"},
-				Spec: kcpapiv1alpha1.APIExportEndpointSliceSpec{
-					APIExport: kcpapiv1alpha1.ExportBindingReference{
+				Spec: kcpapisv1alpha1.APIExportEndpointSliceSpec{
+					APIExport: kcpapisv1alpha1.ExportBindingReference{
 						Name: "core.platform-mesh.io",
 						Path: "root:platform-mesh-system",
 					},
@@ -332,10 +332,10 @@ func TestAPIExportLocationFromEndpointSlice(t *testing.T) {
 			name:         "empty spec.export.path",
 			wantErr:      true,
 			errSubstring: "empty spec.export.path",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"},
-				Spec: kcpapiv1alpha1.APIExportEndpointSliceSpec{
-					APIExport: kcpapiv1alpha1.ExportBindingReference{
+				Spec: kcpapisv1alpha1.APIExportEndpointSliceSpec{
+					APIExport: kcpapisv1alpha1.ExportBindingReference{
 						Name: "core.platform-mesh.io",
 					},
 				},
@@ -345,10 +345,10 @@ func TestAPIExportLocationFromEndpointSlice(t *testing.T) {
 			name:     "spec values returned as stored (no trim)",
 			wantName: "  my-export  ",
 			wantPath: "  root:custom  ",
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "slice"},
-				Spec: kcpapiv1alpha1.APIExportEndpointSliceSpec{
-					APIExport: kcpapiv1alpha1.ExportBindingReference{
+				Spec: kcpapisv1alpha1.APIExportEndpointSliceSpec{
+					APIExport: kcpapisv1alpha1.ExportBindingReference{
 						Name: "  my-export  ",
 						Path: "  root:custom  ",
 					},
@@ -359,10 +359,10 @@ func TestAPIExportLocationFromEndpointSlice(t *testing.T) {
 			name:         "empty spec.export.name",
 			wantErr:      true,
 			errSubstring: `empty spec.export.name`,
-			slice: &kcpapiv1alpha1.APIExportEndpointSlice{
+			slice: &kcpapisv1alpha1.APIExportEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{Name: "named-slice"},
-				Spec: kcpapiv1alpha1.APIExportEndpointSliceSpec{
-					APIExport: kcpapiv1alpha1.ExportBindingReference{},
+				Spec: kcpapisv1alpha1.APIExportEndpointSliceSpec{
+					APIExport: kcpapisv1alpha1.ExportBindingReference{},
 				},
 			},
 		},

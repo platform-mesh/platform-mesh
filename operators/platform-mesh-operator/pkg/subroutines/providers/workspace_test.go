@@ -38,7 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 type WorkspaceTestSuite struct {
@@ -199,7 +199,7 @@ func (s *WorkspaceTestSuite) TestProcess() {
 				s.kcpClientMock.EXPECT().
 					Get(mock.Anything, types.NamespacedName{Name: wsName}, mock.AnythingOfType("*v1alpha1.Workspace")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-						ws := obj.(*kcptenancyv1alpha.Workspace)
+						ws := obj.(*kcptenancyv1alpha1.Workspace)
 						ws.Status.Phase = ""
 						return nil
 					})
@@ -224,7 +224,7 @@ func (s *WorkspaceTestSuite) TestProcess() {
 				s.kcpClientMock.EXPECT().
 					Get(mock.Anything, types.NamespacedName{Name: wsName}, mock.AnythingOfType("*v1alpha1.Workspace")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-						ws := obj.(*kcptenancyv1alpha.Workspace)
+						ws := obj.(*kcptenancyv1alpha1.Workspace)
 						ws.Status.Phase = "Ready"
 						return nil
 					})

@@ -44,8 +44,8 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	kcpapiv1alpha "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 // HelmGetter is an interface for getting Helm releases
@@ -211,7 +211,7 @@ func (r *ProvidersecretSubroutine) HandleProviderConnection(
 			return subroutines.OK(), err
 		}
 
-		var slice kcpapiv1alpha.APIExportEndpointSlice
+		var slice kcpapisv1alpha1.APIExportEndpointSlice
 		err = kcpClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: *pc.EndpointSliceName}, &slice)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to get APIExportEndpointSlice")
@@ -288,7 +288,7 @@ func (r *ProvidersecretSubroutine) HandleInitializerConnection(
 		return subroutines.OK(), err
 	}
 
-	wt := &kcptenancyv1alpha.WorkspaceType{}
+	wt := &kcptenancyv1alpha1.WorkspaceType{}
 	if err := kcpClient.Get(ctx, types.NamespacedName{Name: ic.WorkspaceTypeName}, wt); err != nil {
 		log.Error().Err(err).Msg("getting WorkspaceType")
 		return subroutines.OK(), err

@@ -37,7 +37,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 const (
@@ -122,7 +122,7 @@ func (r *ScopedKubeconfigSubroutine) Process(ctx context.Context, obj ctrlruntim
 	}
 
 	// Fetch the provider workspace to get its status.
-	ws := &kcptenancyv1alpha.Workspace{}
+	ws := &kcptenancyv1alpha1.Workspace{}
 	if err := providersClient.Get(ctx, types.NamespacedName{Name: wsName}, ws); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info().Str("workspace", wsPath).Msg("Provider workspace not found yet, requeuing")

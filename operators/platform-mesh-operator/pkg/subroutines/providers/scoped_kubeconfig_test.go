@@ -40,7 +40,7 @@ import (
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 type ScopedKubeconfigTestSuite struct {
@@ -139,7 +139,7 @@ func (s *ScopedKubeconfigTestSuite) mockWorkspaceReady() {
 	s.kcpClientMock.EXPECT().
 		Get(mock.Anything, types.NamespacedName{Name: "wildwest-abc123"}, mock.AnythingOfType("*v1alpha1.Workspace")).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			ws := obj.(*kcptenancyv1alpha.Workspace)
+			ws := obj.(*kcptenancyv1alpha1.Workspace)
 			ws.Status.Phase = "Ready"
 			return nil
 		})
@@ -217,7 +217,7 @@ func (s *ScopedKubeconfigTestSuite) TestProcess_WorkspaceNotReady_Requeue() {
 	s.kcpClientMock.EXPECT().
 		Get(mock.Anything, types.NamespacedName{Name: "wildwest-abc123"}, mock.AnythingOfType("*v1alpha1.Workspace")).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			ws := obj.(*kcptenancyv1alpha.Workspace)
+			ws := obj.(*kcptenancyv1alpha1.Workspace)
 			ws.Status.Phase = "Initializing"
 			return nil
 		})
