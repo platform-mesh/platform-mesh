@@ -26,8 +26,8 @@ func (r *queryResolver) Roles(ctx context.Context, context graph.ResourceContext
 }
 
 // Users is the resolver for the users field.
-func (r *queryResolver) Users(ctx context.Context, context graph.ResourceContext, roleFilters []string, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
-	return r.svc.Users(ctx, context, roleFilters, sortBy, page)
+func (r *queryResolver) Users(ctx context.Context, context graph.ResourceContext, roleFilters []string, countRoleFilters []string, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
+	return r.svc.Users(ctx, context, roleFilters, countRoleFilters, sortBy, page)
 }
 
 // KnownUsers is the resolver for the knownUsers field.
