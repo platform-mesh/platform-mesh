@@ -80,6 +80,7 @@ func testFakeClient(t *testing.T, objs ...ctrlruntimeclient.Object) ctrlruntimec
 type testClients struct {
 	coordination ctrlruntimeclient.Client
 	staging      ctrlruntimeclient.Client
+	provider     ctrlruntimeclient.Client
 }
 
 func testOptions(t *testing.T, clients testClients, refs []AcceptAPIRef) Options {
@@ -89,9 +90,12 @@ func testOptions(t *testing.T, clients testClients, refs []AcceptAPIRef) Options
 		GVR:                testGVR,
 		StagingTreeRoot:    testTreeRoot,
 		CoordinationClient: clients.coordination,
-		WorkspaceClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
+		StagingClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
 			assert.Equal(t, testTreeRoot+":"+testStagingName, path)
 			return clients.staging, nil
+		},
+		ProviderClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
+			return clients.provider, nil
 		},
 		ListAcceptAPIs: func(_ context.Context) ([]AcceptAPIRef, error) {
 			return refs, nil
@@ -166,6 +170,7 @@ func TestNewReconcilerValidation(t *testing.T) {
 		return testOptions(t, testClients{
 			coordination: testFakeClient(t),
 			staging:      testFakeClient(t),
+			provider:     testFakeClient(t),
 		}, nil)
 	}
 
@@ -190,9 +195,14 @@ func TestNewReconcilerValidation(t *testing.T) {
 			wantErr: "StagingTreeRoot is required",
 		},
 		{
-			name:    "missing workspace client func",
-			mutate:  func(o *Options) { o.WorkspaceClientFunc = nil },
-			wantErr: "WorkspaceClientFunc is required",
+			name:    "missing staging client func",
+			mutate:  func(o *Options) { o.StagingClientFunc = nil },
+			wantErr: "StagingClientFunc is required",
+		},
+		{
+			name:    "missing provider client func",
+			mutate:  func(o *Options) { o.ProviderClientFunc = nil },
+			wantErr: "ProviderClientFunc is required",
 		},
 		{
 			name:    "missing coordination client",
@@ -262,6 +272,7 @@ func TestControllerNameOverride(t *testing.T) {
 	clients := testClients{
 		coordination: testFakeClient(t),
 		staging:      testFakeClient(t),
+		provider:     testFakeClient(t),
 	}
 
 	opts := testOptions(t, clients, nil)

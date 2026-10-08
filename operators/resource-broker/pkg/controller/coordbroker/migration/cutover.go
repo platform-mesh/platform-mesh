@@ -56,7 +56,7 @@ func (s *cutoverSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.O
 		return subroutines.Pending(s.opts.RequeueInterval, "waiting for stages to complete"), nil
 	}
 
-	stagingClient, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot + ":" + migration.Spec.StagingWorkspace)
+	stagingClient, err := s.opts.StagingClientFunc(s.opts.StagingTreeRoot + ":" + migration.Spec.StagingWorkspace)
 	if err != nil {
 		return subroutines.Result{}, fmt.Errorf("building client for staging workspace %q: %w", migration.Spec.StagingWorkspace, err)
 	}

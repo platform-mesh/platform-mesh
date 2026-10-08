@@ -63,7 +63,7 @@ func testSubroutine(t *testing.T, treeObjs, wsObjs []ctrlruntimeclient.Object) (
 	s := &bindingVerifiedSubroutine{opts: Options{
 		VerificationTreeRoot: testTreeRoot,
 		RequeueInterval:      time.Second,
-		WorkspaceClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
+		VerificationClientFunc: func(path string) (ctrlruntimeclient.Client, error) {
 			if path == testTreeRoot {
 				return treeClient, nil
 			}

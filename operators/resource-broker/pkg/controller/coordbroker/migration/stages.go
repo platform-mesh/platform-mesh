@@ -227,7 +227,7 @@ func (s *stagesSubroutine) copyRelatedResources(ctx context.Context, wsName stri
 		return subroutines.OK(), nil
 	}
 
-	stagingClient, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot + ":" + wsName)
+	stagingClient, err := s.opts.StagingClientFunc(s.opts.StagingTreeRoot + ":" + wsName)
 	if err != nil {
 		return subroutines.Result{}, fmt.Errorf("building client for staging workspace %q: %w", wsName, err)
 	}
@@ -341,7 +341,7 @@ func (s *stagesSubroutine) stagingCopies(ctx context.Context, migration *pmcoord
 			continue
 		}
 
-		stagingClient, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot + ":" + ref.workspace)
+		stagingClient, err := s.opts.StagingClientFunc(s.opts.StagingTreeRoot + ":" + ref.workspace)
 		if err != nil {
 			return nil, fmt.Errorf("building client for staging workspace %q: %w", ref.workspace, err)
 		}

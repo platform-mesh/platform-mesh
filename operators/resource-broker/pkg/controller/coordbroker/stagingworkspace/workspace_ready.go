@@ -143,7 +143,7 @@ func (s *workspaceReadySubroutine) Finalize(ctx context.Context, obj ctrlruntime
 }
 
 func (s *workspaceReadySubroutine) treeRootClient() (ctrlruntimeclient.Client, error) {
-	cl, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot)
+	cl, err := s.opts.StagingClientFunc(s.opts.StagingTreeRoot)
 	if err != nil {
 		return nil, fmt.Errorf("building client for tree root %q: %w", s.opts.StagingTreeRoot, err)
 	}

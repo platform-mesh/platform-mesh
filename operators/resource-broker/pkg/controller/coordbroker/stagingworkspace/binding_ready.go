@@ -53,7 +53,7 @@ func (s *bindingReadySubroutine) Process(ctx context.Context, obj ctrlruntimecli
 	}
 
 	wsPath := s.opts.StagingTreeRoot + ":" + sw.Name
-	wsClient, err := s.opts.WorkspaceClientFunc(wsPath)
+	wsClient, err := s.opts.StagingClientFunc(wsPath)
 	if err != nil {
 		return subroutines.Result{}, fmt.Errorf("building client for workspace %q: %w", wsPath, err)
 	}
@@ -92,7 +92,7 @@ func (s *bindingReadySubroutine) Process(ctx context.Context, obj ctrlruntimecli
 
 // providerPermissionClaims mirrors the provider APIExport's permission claims as accepted claims.
 func (s *bindingReadySubroutine) providerPermissionClaims(ctx context.Context, sw *pmcoordbrokerv1alpha1.StagingWorkspace) ([]kcpapisv1alpha2.AcceptablePermissionClaim, error) {
-	providerClient, err := s.opts.WorkspaceClientFunc(sw.Spec.ProviderCluster)
+	providerClient, err := s.opts.ProviderClientFunc(sw.Spec.ProviderCluster)
 	if err != nil {
 		return nil, fmt.Errorf("building client for provider cluster %q: %w", sw.Spec.ProviderCluster, err)
 	}
