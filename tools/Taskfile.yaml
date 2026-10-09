@@ -60,11 +60,13 @@ vars:
   GO_TEST_COVERAGE_VERSION: v2.18.9
   GO_TEST_COVERAGE: '{{.BIN}}/go-test-coverage-{{.GO_TEST_COVERAGE_VERSION}}'
 
-  # kcp release used by the operators' envtest suites (see component test-e2e).
-  CACHE_SERVER: '{{.BIN}}/cache-server-{{.KCP_VERSION}}'
-  KCP: '{{.BIN}}/kcp-{{.KCP_VERSION}}'
-  KCP_FRONT_PROXY: '{{.BIN}}/kcp-front-proxy-{{.KCP_VERSION}}'
-  SHARDED_TEST_SERVER: '{{.BIN}}/sharded-test-server-{{.KCP_VERSION}}'
+  # TEMPORARY: unreleased kcp-dev/kcp commit with kcp-dev/kcp#4384, used by the operators'
+  # envtest suites (see component test-e2e). Go back to the KCP_VERSION release once it has the fix.
+  KCP_COMMIT: 4ac7658dd9ffef4045f413a1bacda09c5cf0927a
+  CACHE_SERVER: '{{.BIN}}/cache-server-{{.KCP_COMMIT}}'
+  KCP: '{{.BIN}}/kcp-{{.KCP_COMMIT}}'
+  KCP_FRONT_PROXY: '{{.BIN}}/kcp-front-proxy-{{.KCP_COMMIT}}'
+  SHARDED_TEST_SERVER: '{{.BIN}}/sharded-test-server-{{.KCP_COMMIT}}'
 
   KIND_VERSION: v0.29.0
   KIND: '{{.BIN}}/kind-{{.KIND_VERSION}}'
@@ -147,14 +149,7 @@ tasks:
     desc: Install kcp into the root bin (shared by the operators' envtest suites).
     internal: true
     cmds:
-      - task: uget
-        vars: { tool: cache-server, source: 'https://github.com/kcp-dev/kcp/releases/download/v{VERSION}/cache-server_{VERSION}_{GOOS}_{GOARCH}.tar.gz', version: '{{ .KCP_VERSION }}' }
-      - task: uget
-        vars: { tool: kcp, source: 'https://github.com/kcp-dev/kcp/releases/download/v{VERSION}/kcp_{VERSION}_{GOOS}_{GOARCH}.tar.gz', version: '{{ .KCP_VERSION }}' }
-      - task: uget
-        vars: { tool: kcp-front-proxy, source: 'https://github.com/kcp-dev/kcp/releases/download/v{VERSION}/kcp-front-proxy_{VERSION}_{GOOS}_{GOARCH}.tar.gz', version: '{{ .KCP_VERSION }}' }
-      - task: uget
-        vars: { tool: sharded-test-server, source: 'https://github.com/kcp-dev/kcp/releases/download/v{VERSION}/sharded-test-server_{VERSION}_{GOOS}_{GOARCH}.tar.gz', version: '{{ .KCP_VERSION }}' }
+      - '{{.HACK}}/build-kcp.sh {{.KCP_COMMIT}} {{.BIN}}'
 
       # kcp's sharded envtest needs binaries without any suffixes
       - 'ln -sf {{.CACHE_SERVER}} {{.BIN}}/cache-server'
