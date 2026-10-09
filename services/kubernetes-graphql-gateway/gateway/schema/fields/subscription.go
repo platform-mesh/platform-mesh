@@ -44,7 +44,7 @@ func NewSubscriptionGenerator(resolver *resolver.Service) *SubscriptionGenerator
 
 func (g *SubscriptionGenerator) Generate(rc *ResourceContext, target *graphql.Object) {
 	eventType := graphql.NewObject(graphql.ObjectConfig{
-		Name: rc.EventTypeName,
+		Name: rc.UniqueTypeName + "Event",
 		Fields: graphql.Fields{
 			"type":   &graphql.Field{Type: graphql.NewNonNull(WatchEventTypeEnum)},
 			"object": &graphql.Field{Type: rc.ResourceType},

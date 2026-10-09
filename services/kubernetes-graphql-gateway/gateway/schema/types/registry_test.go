@@ -21,6 +21,7 @@ import (
 
 	"github.com/graphql-go/graphql"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 
@@ -176,19 +177,14 @@ func TestRegistry_IsProcessing_AfterMark(t *testing.T) {
 	assert.True(t, registry.IsProcessing("test-key"))
 }
 
-func TestRegistry_TypeName(t *testing.T) {
-	registry := types.NewRegistry()
-	assert.Equal(t, "AppsV1Foo", registry.ResourceTypeName(&schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Foo"}))
-
-	assert.Equal(t, "AppsV1_Foo", registry.TypeName("AppsV1", "Foo"))
-	assert.Equal(t, "AppsV1_Foo_2", registry.TypeName("AppsV1", "Foo"))
-	assert.Equal(t, "AppsV1Bar", registry.TypeName("AppsV1", "Bar"))
-	assert.Equal(t, "AppsV1_Bar", registry.TypeName("AppsV1", "Bar"))
-}
-
-func TestRegistry_ResourceTypeName_InputCollision(t *testing.T) {
+func TestRegistry_Reserve(t *testing.T) {
 	registry := types.NewRegistry()
 
-	assert.Equal(t, "AppsV1Foo", registry.ResourceTypeName(&schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Foo"}))
-	assert.Equal(t, "AppsV1_Foo_Input", registry.ResourceTypeName(&schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Foo-Input"}))
+	require.NoError(t, registry.Reserve("AppsV1Foo", "AppsV1FooList"))
+	assert.Error(t, registry.Reserve("AppsV1Foo"))
+	assert.Error(t, registry.Reserve("AppsV1Foo_Input"))
+
+	// A failed reservation claims none of its names.
+	assert.Error(t, registry.Reserve("AppsV1Bar", "AppsV1FooList"))
+	assert.NoError(t, registry.Reserve("AppsV1Bar"))
 }
