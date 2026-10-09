@@ -42,10 +42,12 @@ func SanitizeFieldName(name string) string {
 	return name
 }
 
-// GenerateTypeName creates a type name suffix from a field path.
-// Each path element is capitalized for readability (e.g., "SpecContainers").
-func GenerateTypeName(fieldPath []string) string {
+// GenerateTypeName creates a type name from a prefix and field path.
+// This is used to generate unique names for nested types.
+// Each path element is capitalized for readability (e.g., "PodSpecContainers").
+func GenerateTypeName(typePrefix string, fieldPath []string) string {
 	var b strings.Builder
+	b.WriteString(typePrefix)
 	for _, field := range fieldPath {
 		b.WriteString(capitalize(field))
 	}

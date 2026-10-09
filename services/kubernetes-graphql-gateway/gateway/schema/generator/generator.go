@@ -48,7 +48,6 @@ type Resource struct {
 	SingularName   string
 	PluralName     string
 	SanitizedGroup string
-	TypeName       string
 }
 
 // SchemaGenerator transforms Kubernetes OpenAPI definitions into a GraphQL schema.
@@ -109,9 +108,6 @@ func (g *SchemaGenerator) Generate(ctx context.Context) (*graphql.Schema, error)
 	rootSubscription := graphql.NewObject(graphql.ObjectConfig{Name: "Subscription", Fields: graphql.Fields{}})
 
 	resources := g.parseResources()
-	for _, r := range resources {
-		r.TypeName = g.typeRegistry.ResourceTypeName(&r.GVK)
-	}
 	groups := groupByAPIGroup(resources)
 
 	sortedGroups := make([]string, 0, len(groups))
@@ -235,8 +231,12 @@ func (g *SchemaGenerator) processGroup(
 
 	var queryGroupType, mutationGroupType *graphql.Object
 	if !isRoot {
-		queryGroupType = g.createGroupType(group, "Query")
-		mutationGroupType = g.createGroupType(group, "Mutation")
+		var err error
+		queryGroupType, mutationGroupType, err = g.createWrapperTypes(flect.Pascalize(group))
+		if err != nil {
+			logger.Error(err, "Skipping API group with conflicting GraphQL type name", "group", group)
+			return
+		}
 	}
 
 	sortedVersions := make([]string, 0, len(versions))
@@ -247,8 +247,11 @@ func (g *SchemaGenerator) processGroup(
 
 	for _, version := range sortedVersions {
 		resources := versions[version]
-		queryVersionType := g.createVersionType(group, version, "Query")
-		mutationVersionType := g.createVersionType(group, version, "Mutation")
+		queryVersionType, mutationVersionType, err := g.createWrapperTypes(flect.Pascalize(group + "_" + version))
+		if err != nil {
+			logger.Error(err, "Skipping API version with conflicting GraphQL type name", "group", group, "version", version)
+			continue
+		}
 
 		for _, resource := range resources {
 			g.processResource(ctx, resource, queryVersionType, mutationVersionType, rootSubscription)
@@ -314,13 +317,17 @@ func (g *SchemaGenerator) processResource(
 		logger.V(4).Info("Resource has no categories", "resource", r.Key, "reason", err.Error())
 	}
 
-	uniqueTypeName := r.TypeName
-	listTypeName := g.typeRegistry.TypeName(uniqueTypeName, "List")
-	eventTypeName := g.typeRegistry.TypeName(uniqueTypeName, "Event")
+	// Resources are processed in sorted order, so a Kind whose name is already
+	// used by a type generated for another resource (FooSpec next to Foo) is skipped.
+	uniqueTypeName := g.typeRegistry.GetUniqueTypeName(&r.GVK)
+	if err := g.typeRegistry.Reserve(uniqueTypeName, uniqueTypeName+"List", uniqueTypeName+"Event"); err != nil {
+		logger.Error(err, "Skipping resource with conflicting GraphQL type name", "gvk", r.GVK.String())
+		return
+	}
 
 	gqlFields, inputFields, err := g.typeConverter.ConvertFields(r.Schema, g.definitions, uniqueTypeName)
 	if err != nil {
-		logger.Error(err, "Error generating fields", "resource", r.SingularName)
+		logger.Error(err, "Skipping resource, error generating fields", "gvk", r.GVK.String())
 		return
 	}
 
@@ -344,8 +351,6 @@ func (g *SchemaGenerator) processResource(
 		GVK:            r.GVK,
 		Scope:          r.Scope,
 		UniqueTypeName: uniqueTypeName,
-		ListTypeName:   listTypeName,
-		EventTypeName:  eventTypeName,
 		ResourceType:   resourceType,
 		InputType:      inputType,
 		SingularName:   r.SingularName,
@@ -366,16 +371,14 @@ func (g *SchemaGenerator) addApplyYamlMutation(rootMutation *graphql.Object) {
 	})
 }
 
-func (g *SchemaGenerator) createGroupType(group, suffix string) *graphql.Object {
-	return graphql.NewObject(graphql.ObjectConfig{
-		Name:   g.typeRegistry.TypeName(flect.Pascalize(group), suffix),
-		Fields: graphql.Fields{},
-	})
-}
-
-func (g *SchemaGenerator) createVersionType(group, version, suffix string) *graphql.Object {
-	return graphql.NewObject(graphql.ObjectConfig{
-		Name:   g.typeRegistry.TypeName(flect.Pascalize(group+"_"+version), suffix),
-		Fields: graphql.Fields{},
-	})
+// createWrapperTypes creates the Query and Mutation types that group the
+// fields of an API group or version.
+func (g *SchemaGenerator) createWrapperTypes(prefix string) (*graphql.Object, *graphql.Object, error) {
+	queryName, mutationName := prefix+"Query", prefix+"Mutation"
+	if err := g.typeRegistry.Reserve(queryName, mutationName); err != nil {
+		return nil, nil, err
+	}
+	query := graphql.NewObject(graphql.ObjectConfig{Name: queryName, Fields: graphql.Fields{}})
+	mutation := graphql.NewObject(graphql.ObjectConfig{Name: mutationName, Fields: graphql.Fields{}})
+	return query, mutation, nil
 }

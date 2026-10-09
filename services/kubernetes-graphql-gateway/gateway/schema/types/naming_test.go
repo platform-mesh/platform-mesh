@@ -77,35 +77,40 @@ func TestSanitizeFieldName(t *testing.T) {
 
 func TestGenerateTypeName(t *testing.T) {
 	tests := []struct {
-		name      string
-		fieldPath []string
-		expected  string
+		name       string
+		typePrefix string
+		fieldPath  []string
+		expected   string
 	}{
 		{
-			name:      "simple_case",
-			fieldPath: []string{"spec", "containers"},
-			expected:  "SpecContainers",
+			name:       "simple_case",
+			typePrefix: "Pod",
+			fieldPath:  []string{"spec", "containers"},
+			expected:   "PodSpecContainers",
 		},
 		{
-			name:      "empty_field_path",
-			fieldPath: []string{},
-			expected:  "",
+			name:       "empty_field_path",
+			typePrefix: "Service",
+			fieldPath:  []string{},
+			expected:   "Service",
 		},
 		{
-			name:      "single_field",
-			fieldPath: []string{"data"},
-			expected:  "Data",
+			name:       "single_field",
+			typePrefix: "ConfigMap",
+			fieldPath:  []string{"data"},
+			expected:   "ConfigMapData",
 		},
 		{
-			name:      "nested_path",
-			fieldPath: []string{"spec", "template", "spec", "containers"},
-			expected:  "SpecTemplateSpecContainers",
+			name:       "nested_path",
+			typePrefix: "Deployment",
+			fieldPath:  []string{"spec", "template", "spec", "containers"},
+			expected:   "DeploymentSpecTemplateSpecContainers",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := types.GenerateTypeName(tt.fieldPath)
+			got := types.GenerateTypeName(tt.typePrefix, tt.fieldPath)
 			if got != tt.expected {
 				t.Errorf("GenerateTypeName() = %q, want %q", got, tt.expected)
 			}

@@ -172,8 +172,11 @@ func (c *Converter) handleNestedObject(fieldSpec spec.Schema, definitions map[st
 		return JSONStringScalar, JSONStringScalar, nil
 	}
 
+	typeName := SanitizeFieldName(GenerateTypeName(typePrefix, fieldPath))
+	if err := c.registry.Reserve(typeName); err != nil {
+		return nil, nil, err
+	}
 	c.registry.MarkProcessing(key)
-	typeName := c.registry.TypeName(typePrefix, GenerateTypeName(fieldPath))
 
 	nestedFields, nestedInputFields, err := c.convertFields(&fieldSpec, definitions, typeName, []string{})
 	if err != nil {

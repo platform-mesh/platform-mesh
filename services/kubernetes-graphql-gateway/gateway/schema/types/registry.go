@@ -78,30 +78,21 @@ func (r *Registry) GetResource(gvk schema.GroupVersionKind) *graphql.Object {
 	return r.resources[gvk]
 }
 
-// ResourceTypeName reserves and returns the type name of a resource, which is
-// GetUniqueTypeName unless another resource already took that name.
-func (r *Registry) ResourceTypeName(gvk *schema.GroupVersionKind) string {
-	return r.TypeName(typeNamePrefix(gvk), SanitizeFieldName(gvk.Kind))
-}
-
-// TypeName reserves and returns a type name for base+suffix. If that name is
-// taken, it falls back to base_suffix, then to base_suffix_N. Names are unique
-// per registry, so each schema generation needs its own registry.
-func (r *Registry) TypeName(base, suffix string) string {
+// Reserve claims the given type names and their _Input variants. If any of
+// them is already taken, it claims none and returns an error.
+func (r *Registry) Reserve(names ...string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	taken := func(name string) bool { return r.names.HasAny(name, name+"_Input") }
-
-	name := SanitizeFieldName(base + suffix)
-	if taken(name) {
-		name = SanitizeFieldName(base + "_" + suffix)
+	for _, name := range names {
+		if r.names.HasAny(name, name+"_Input") {
+			return fmt.Errorf("GraphQL type name %q is already taken", name)
+		}
 	}
-	for i := 2; taken(name); i++ {
-		name = SanitizeFieldName(fmt.Sprintf("%s_%s_%d", base, suffix, i))
+	for _, name := range names {
+		r.names.Insert(name, name+"_Input")
 	}
-	r.names.Insert(name, name+"_Input")
-	return name
+	return nil
 }
 
 func (r *Registry) Register(key string, output *graphql.Object, input *graphql.InputObject) {
@@ -156,15 +147,11 @@ func (r *Registry) UnmarkProcessing(key string) {
 // when the same Kind exists in different API groups.
 // TODO: refactor to always qualify all versions when multi-version resources exist (symmetric naming, no first-wins).
 func (r *Registry) GetUniqueTypeName(gvk *schema.GroupVersionKind) string {
-	return typeNamePrefix(gvk) + SanitizeFieldName(gvk.Kind)
-}
-
-func typeNamePrefix(gvk *schema.GroupVersionKind) string {
 	sanitizedGroup := ""
 	if gvk.Group != "" {
 		sanitizedGroup = SanitizeGroupName(gvk.Group)
 	}
-	return flect.Pascalize(sanitizedGroup + "_" + gvk.Version)
+	return flect.Pascalize(sanitizedGroup+"_"+gvk.Version) + SanitizeFieldName(gvk.Kind)
 }
 
 // SanitizeGroupName converts a Kubernetes API group name to a valid GraphQL identifier.

@@ -27,8 +27,6 @@ type ResourceContext struct {
 	GVK            schema.GroupVersionKind
 	Scope          apiextensionsv1.ResourceScope
 	UniqueTypeName string
-	ListTypeName   string
-	EventTypeName  string
 	ResourceType   *graphql.Object
 	InputType      *graphql.InputObject
 	SingularName   string
