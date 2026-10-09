@@ -21,6 +21,7 @@ import (
 
 	"github.com/graphql-go/graphql"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/schema/types"
 
@@ -131,6 +132,11 @@ func TestRegistry_GetUniqueTypeName(t *testing.T) {
 			gvk:      schema.GroupVersionKind{Group: "custom.io", Version: "v1", Kind: "Component"},
 			expected: "CustomIoV1Component",
 		},
+		{
+			name:     "hyphenated Kind is sanitized",
+			gvk:      schema.GroupVersionKind{Group: "custom.io", Version: "v1", Kind: "Mutation-Foo"},
+			expected: "CustomIoV1Mutation_Foo",
+		},
 	}
 
 	for _, tt := range tests {
@@ -169,4 +175,16 @@ func TestRegistry_IsProcessing_AfterMark(t *testing.T) {
 
 	registry.MarkProcessing("test-key")
 	assert.True(t, registry.IsProcessing("test-key"))
+}
+
+func TestRegistry_Reserve(t *testing.T) {
+	registry := types.NewRegistry()
+
+	require.NoError(t, registry.Reserve("AppsV1Foo", "AppsV1FooList"))
+	assert.Error(t, registry.Reserve("AppsV1Foo"))
+	assert.Error(t, registry.Reserve("AppsV1Foo_Input"))
+
+	// A failed reservation claims none of its names.
+	assert.Error(t, registry.Reserve("AppsV1Bar", "AppsV1FooList"))
+	assert.NoError(t, registry.Reserve("AppsV1Bar"))
 }

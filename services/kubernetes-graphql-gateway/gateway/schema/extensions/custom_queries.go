@@ -143,7 +143,7 @@ func BuildCategoryResourceUnion(cm *CategoryManager, reg *types.Registry) *graph
 				Version: t.Version,
 				Kind:    t.Kind,
 			}
-			gObj, _ := reg.Get(reg.GetUniqueTypeName(&gvk))
+			gObj := reg.GetResource(gvk)
 			if gObj == nil {
 				continue
 			}
