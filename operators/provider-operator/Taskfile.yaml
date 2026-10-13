@@ -1,0 +1,70 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: '3'
+
+includes:
+  # Shared go-installable tooling (golangci-lint, ...) installed into the root bin/.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
+
+tasks:
+  build:
+    desc: Build the module
+    cmds:
+      - go build ./...
+
+  fmt:
+    desc: Run go fmt
+    cmds:
+      - go fmt ./...
+
+  generate:
+    cmds: []
+
+  lint:
+    desc: Run linter
+    cmds:
+      - task: fmt
+      - task: tools:lint
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test ./...
+
+  test-e2e:
+    desc: No e2e suite yet
+    cmds: []
+
+  cover:
+    desc: Run unit tests with coverage
+    cmds:
+      - go test -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./... ./...
+
+  docker-build:
+    desc: Build the Docker image (build context is the repo root)
+    vars:
+      IMG: '{{.IMG | default "localhost/provider-operator:dev"}}'
+    cmds:
+      - docker build -t {{.IMG}} -f Dockerfile ../../
+
+  kind-load:
+    desc: Load the Docker image into a kind cluster
+    vars:
+      IMG: '{{.IMG | default "localhost/provider-operator:dev"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "kind"}}'
+    cmds:
+      - kind load docker-image --name {{.KIND_CLUSTER}} {{.IMG}}
