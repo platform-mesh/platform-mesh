@@ -15,6 +15,7 @@ use (
 	./operators/kro-composition-operator
 	./operators/platform-mesh-deployer
 	./operators/platform-mesh-operator
+	./operators/provider-operator
 	./operators/resource-broker
 	./operators/security-operator
 	./operators/terminal-controller-manager
