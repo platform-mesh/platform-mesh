@@ -202,7 +202,7 @@ func (s *assignmentSubroutine) ensureBound(ctx context.Context, assignment *pmco
 }
 
 func (s *assignmentSubroutine) validate(ctx context.Context, consumerCluster string, assignment *pmcoordbrokerv1alpha1.Assignment, u *unstructured.Unstructured) (subroutines.Result, error) {
-	providerClient, err := s.opts.WorkspaceClientFunc(assignment.Status.ProviderCluster)
+	providerClient, err := s.opts.ProviderClientFunc(assignment.Status.ProviderCluster)
 	if err != nil {
 		return subroutines.Result{}, fmt.Errorf("building client for provider cluster %q: %w", assignment.Status.ProviderCluster, err)
 	}
@@ -330,7 +330,7 @@ func (s *assignmentSubroutine) finishMigration(ctx context.Context, assignment *
 
 	from := migration.Spec.FromStagingWorkspace
 	if from != "" && from != migration.Spec.StagingWorkspace {
-		fromClient, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot + ":" + from)
+		fromClient, err := s.opts.StagingClientFunc(s.opts.StagingTreeRoot + ":" + from)
 		if err != nil {
 			return subroutines.Result{}, fmt.Errorf("building client for staging workspace %q: %w", from, err)
 		}
@@ -466,7 +466,7 @@ func (s *assignmentSubroutine) createAssignment(ctx context.Context, name, consu
 
 // resolveAPIExportName reads the APIExport name from the AcceptAPI in the provider workspace.
 func (s *assignmentSubroutine) resolveAPIExportName(ctx context.Context, providerCluster, acceptAPIName string) (string, error) {
-	providerClient, err := s.opts.WorkspaceClientFunc(providerCluster)
+	providerClient, err := s.opts.ProviderClientFunc(providerCluster)
 	if err != nil {
 		return "", fmt.Errorf("building client for provider cluster %q: %w", providerCluster, err)
 	}

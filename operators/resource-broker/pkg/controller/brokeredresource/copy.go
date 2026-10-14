@@ -183,7 +183,7 @@ func stagingClient(ctx context.Context, opts Options, consumerCluster string, u 
 		return nil, subroutines.Pending(opts.RequeueInterval, "waiting for assignment to be bound"), nil
 	}
 
-	cl, err := opts.WorkspaceClientFunc(opts.StagingTreeRoot + ":" + assignment.Status.StagingWorkspace)
+	cl, err := opts.StagingClientFunc(opts.StagingTreeRoot + ":" + assignment.Status.StagingWorkspace)
 	if err != nil {
 		return nil, subroutines.Result{}, fmt.Errorf("building client for staging workspace %q: %w", assignment.Status.StagingWorkspace, err)
 	}
@@ -244,7 +244,7 @@ func (s *copySubroutine) copyToMigrationTarget(ctx context.Context, migration *p
 		return subroutines.Pending(s.opts.RequeueInterval, "waiting for migration target staging workspace"), nil
 	}
 
-	targetClient, err := s.opts.WorkspaceClientFunc(s.opts.StagingTreeRoot + ":" + migration.Spec.StagingWorkspace)
+	targetClient, err := s.opts.StagingClientFunc(s.opts.StagingTreeRoot + ":" + migration.Spec.StagingWorkspace)
 	if err != nil {
 		return subroutines.Result{}, fmt.Errorf("building client for staging workspace %q: %w", migration.Spec.StagingWorkspace, err)
 	}
