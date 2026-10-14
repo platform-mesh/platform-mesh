@@ -29,11 +29,13 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
+	"go.platform-mesh.io/security-operator/internal/util"
 	"go.platform-mesh.io/subroutines"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -81,17 +83,17 @@ var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
 {{ if eq .Scope "Cluster" }}
 extend type core_platform-mesh_io_account
 	relations
-		define create_{{ .Group }}_{{ .Name }}: owner
-		define list_{{ .Group }}_{{ .Name }}: member
-		define watch_{{ .Group }}_{{ .Name }}: member
+		define create_{{ .Relation }}: owner
+		define list_{{ .Relation }}: member
+		define watch_{{ .Relation }}: member
 {{ end }}
 
 {{ if eq .Scope "Namespaced" }}
 extend type core_namespace
 	relations
-		define create_{{ .Group }}_{{ .Name }}: owner
-		define list_{{ .Group }}_{{ .Name }}: member
-		define watch_{{ .Group }}_{{ .Name }}: member
+		define create_{{ .Relation }}: owner
+		define list_{{ .Relation }}: member
+		define watch_{{ .Relation }}: member
 {{ end }}
 
 type {{ .Group }}_{{ .Singular }}
@@ -120,6 +122,7 @@ type {{ .Group }}_{{ .Singular }}
 type modelInput struct {
 	Name     string
 	Group    string
+	Relation string
 	Singular string
 	Scope    string
 
@@ -329,19 +332,17 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 			return subroutines.OK(), fmt.Errorf("getting APIResourceSchema: %w", err)
 		}
 
-		longestRelationName := fmt.Sprintf("create_%s_%s", resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural)
-
-		group := resourceSchema.Spec.Group
-
-		if len(longestRelationName) > 50 {
-			group = resourceSchema.Spec.Group[len(longestRelationName)-50:]
-		}
+		group := util.CapGroupToRelationLength(schema.GroupVersionResource{
+			Group:    resourceSchema.Spec.Group,
+			Resource: resourceSchema.Spec.Names.Plural,
+		}, 50)
 
 		permissionKey := resourceToPermissionKey(resourceSchema.Spec.Names.Singular, resourceSchema.Spec.Group)
 
 		input := modelInput{
 			Name:     resourceSchema.Spec.Names.Plural,
 			Group:    strings.ReplaceAll(group, ".", "_"),
+			Relation: strings.ReplaceAll(util.ResourceRelationName(schema.GroupVersionResource{Group: resourceSchema.Spec.Group, Resource: resourceSchema.Spec.Names.Plural}, 50), ".", "_"),
 			Singular: resourceSchema.Spec.Names.Singular,
 			Scope:    string(resourceSchema.Spec.Scope),
 		}

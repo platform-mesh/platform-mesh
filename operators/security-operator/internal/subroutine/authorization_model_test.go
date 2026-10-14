@@ -141,6 +141,15 @@ func TestAuthorizationModelProcess(t *testing.T) {
 									},
 								},
 							},
+							{
+								Spec: pmcorev1alpha1.AuthorizationModelSpec{
+									Model: extensionModel,
+									StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+										Name:    "store",
+										Cluster: "path",
+									},
+								},
+							},
 						}
 						return nil
 					},
