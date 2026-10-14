@@ -1029,3 +1029,42 @@ func (suite *GatewayE2ETestSuite) TestSchemaDelete() {
 
 	suite.Equal(404, resp.StatusCode)
 }
+
+// TestSchemaBuildFailure tests that a schema that cannot be built replaces the previous endpoint with a 503
+func (suite *GatewayE2ETestSuite) TestSchemaBuildFailure() {
+	clusterName := "broken-schema-cluster"
+
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
+	suite.generateSchema(clusterName, metadata)
+	suite.waitForSchemaLoaded(clusterName)
+
+	// Without resource definitions the GraphQL schema has an empty Subscription type and fails validation.
+	schemaPath := filepath.Join(suite.schemasDir, clusterName)
+	original, err := os.ReadFile(schemaPath)
+	suite.Require().NoError(err)
+	var schemaDoc map[string]any
+	suite.Require().NoError(json.Unmarshal(original, &schemaDoc))
+	schemaDoc["components"] = map[string]any{"schemas": map[string]any{}}
+	broken, err := json.Marshal(schemaDoc)
+	suite.Require().NoError(err)
+	suite.Require().NoError(os.WriteFile(schemaPath, broken, 0o644))
+
+	suite.Eventually(func() bool {
+		return suite.gatewayService.Registry().LoadFailed(clusterName)
+	}, 10*time.Second, 500*time.Millisecond)
+
+	url := fmt.Sprintf("%s/api/clusters/%s", suite.testServer.URL, clusterName)
+	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewReader([]byte(`{"query": "{}"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+suite.testToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	suite.Require().NoError(err)
+	defer resp.Body.Close() //nolint:errcheck
+
+	suite.Equal(http.StatusServiceUnavailable, resp.StatusCode)
+
+	suite.Require().NoError(os.WriteFile(schemaPath, original, 0o644))
+	suite.waitForSchemaLoaded(clusterName)
+	suite.False(suite.gatewayService.Registry().LoadFailed(clusterName))
+}
