@@ -51,13 +51,21 @@ type UserRoles {
     roles: [Role!]!
 }
 
+""" Total number of users assigned to a role """
+type RoleCount {
+    roleId: String!
+    count: Int!
+}
+
 """ Is a list of the users and their roles """
 type UserConnection {
     users: [UserRoles!]!
     """ number of granted users in the list """
     pageInfo: PageInfo!
     """ number of users in the result set that have the owner role """
-    ownersCount: Int!
+    ownersCount: Int! @deprecated(reason: "Use roleCounts instead")
+    """ total user counts for the roles requested through countRoleFilters """
+    roleCounts: [RoleCount!]!
 }
 
 """ Result of role assignment operation """
@@ -121,7 +129,7 @@ type Query {
     """ roles returns the list of assignable roles for a particular groupResource/resource e.g. What roles can be assigned for a specific core_platform-mesh_io_account"""
     roles(context: ResourceContext!): [Role]! @authorized(permission: "get_iam_roles")
     """ returns all users that have roles assigned for a particular groupResource/resource."""
-    users(context: ResourceContext!, roleFilters: [String!], sortBy: SortByInput, page: PageInput): UserConnection! @authorized(permission: "get_iam_users")
+    users(context: ResourceContext!, roleFilters: [String!], countRoleFilters: [String!], sortBy: SortByInput, page: PageInput): UserConnection! @authorized(permission: "get_iam_users")
     """ returns all users known to the system, regardless of whether they have roles assigned."""
     knownUsers(sortBy: SortByInput, page: PageInput): UserConnection!
     """ returns a specific user by userId"""
