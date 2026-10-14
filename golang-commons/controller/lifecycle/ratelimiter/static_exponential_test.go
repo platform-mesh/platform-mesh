@@ -28,21 +28,21 @@ import (
 )
 
 func TestStaticThenExponentialRateLimiter_Forget(t *testing.T) {
-	cfg := Config{
-		StaticRequeueDelay:        1 * time.Second,
-		StaticWindow:              5 * time.Second,
-		ExponentialInitialBackoff: 2 * time.Second,
-		ExponentialMaxBackoff:     1 * time.Minute,
-	}
+	fakeClock := clocktesting.NewFakeClock(time.Now())
+	cfg := NewConfig(
+		WithRequeueDelay(1*time.Second),
+		WithStaticWindow(5*time.Second),
+		WithExponentialInitialBackoff(2*time.Second),
+		WithExponentialMaxBackoff(1*time.Minute),
+		WithClock(fakeClock),
+	)
 	limiter, err := NewStaticThenExponentialRateLimiter[reconcile.Request](cfg)
 	require.NoError(t, err)
-	fakeClock := clocktesting.NewFakeClock(time.Now())
-	limiter.clock = fakeClock
 
 	item := reconcile.Request{NamespacedName: types.NamespacedName{Name: "name", Namespace: "namespace"}}
 	require.Equal(t, cfg.StaticRequeueDelay, limiter.When(item))
 	fakeClock.Step(10 * time.Second)
-	_ = limiter.When(item)
+	require.Equal(t, cfg.ExponentialInitialBackoff, limiter.When(item), "past the static window")
 
 	limiter.Forget(item)
 	require.Equal(t, 0, limiter.NumRequeues(item))

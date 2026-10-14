@@ -19,6 +19,8 @@ package ratelimiter
 import (
 	"fmt"
 	"time"
+
+	"k8s.io/utils/clock"
 )
 
 type Config struct {
@@ -26,6 +28,8 @@ type Config struct {
 	StaticWindow              time.Duration
 	ExponentialInitialBackoff time.Duration
 	ExponentialMaxBackoff     time.Duration
+
+	clock clock.PassiveClock
 }
 
 var defaultConfig = Config{
@@ -74,6 +78,12 @@ func WithExponentialInitialBackoff(d time.Duration) Option {
 func WithExponentialMaxBackoff(d time.Duration) Option {
 	return func(c *Config) {
 		c.ExponentialMaxBackoff = d
+	}
+}
+
+func WithClock(c clock.PassiveClock) Option {
+	return func(cfg *Config) {
+		cfg.clock = c
 	}
 }
 

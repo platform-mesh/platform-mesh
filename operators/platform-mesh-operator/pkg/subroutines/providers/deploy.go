@@ -133,7 +133,7 @@ type DeploySubroutine struct {
 }
 
 func NewDeploySubroutine(cl ctrlruntimeclient.Client) (*DeploySubroutine, error) {
-	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmprovidersv1alpha1.ManagedProvider](
+	rl, err := ratelimiter.NewObjectRateLimiter[*pmprovidersv1alpha1.ManagedProvider](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %v", err)

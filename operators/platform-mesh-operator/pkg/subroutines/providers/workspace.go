@@ -67,7 +67,7 @@ type ProviderWorkspaceSubroutine struct {
 }
 
 func NewProviderWorkspaceSubroutine(localClient ctrlruntimeclient.Client, kcpHelper pmsubs.KcpHelper, kcpCfg config.KCPConfig, kcpUrl string) (*ProviderWorkspaceSubroutine, error) {
-	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*kcptenancyv1alpha.Workspace](
+	rl, err := ratelimiter.NewObjectRateLimiter[*kcptenancyv1alpha.Workspace](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %v", err)
