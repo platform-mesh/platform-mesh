@@ -20,10 +20,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/99designs/gqlgen/graphql"
-	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -34,9 +32,9 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	accountinfomocks "go.platform-mesh.io/iam-service/pkg/accountinfo/mocks"
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
-	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
 	"go.platform-mesh.io/iam-service/pkg/graph"
 
+	authorizationv1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,12 +45,34 @@ import (
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
+const testAuthHeader = "Bearer test-token"
+
 type mockWSClient struct {
 	client ctrlruntimeclient.Client
 }
 
 func (m *mockWSClient) New(_ context.Context, _ multicluster.ClusterName) (ctrlruntimeclient.Client, error) {
 	return m.client, nil
+}
+
+// recordingReviewer is a fake selfSubjectAccessReviewer that records the
+// arguments it was called with and returns a canned decision/error.
+type recordingReviewer struct {
+	allowed bool
+	err     error
+
+	calls         int
+	gotWorkspace  string
+	gotAuthHeader string
+	gotAttrs      *authorizationv1.ResourceAttributes
+}
+
+func (r *recordingReviewer) review(_ context.Context, workspacePath, authHeader string, attrs *authorizationv1.ResourceAttributes) (bool, error) {
+	r.calls++
+	r.gotWorkspace = workspacePath
+	r.gotAuthHeader = authHeader
+	r.gotAttrs = attrs
+	return r.allowed, r.err
 }
 
 func createTestWebToken() jwt.WebToken {
@@ -80,11 +100,11 @@ func createTestAccountInfo() *pmcorev1alpha1.AccountInfo {
 
 func createTestResourceContext() *graph.ResourceContext {
 	return &graph.ResourceContext{
-		Group:       "apps",
-		Kind:        "Deployment",
+		Group:       pmcorev1alpha1.GroupName,
+		Kind:        "AccountInfo",
 		AccountPath: "root:orgs:test",
 		Resource: &graph.Resource{
-			Name:      "test-deployment",
+			Name:      "account",
 			Namespace: ptr.To("test-namespace"),
 		},
 	}
@@ -95,6 +115,13 @@ func setupTestContext() (context.Context, *logger.Logger) {
 	log, _ := logger.New(logger.DefaultConfig())
 	ctx = logger.SetLoggerInContext(ctx, log)
 	return ctx, log
+}
+
+// withAuth adds the web token and auth header that the directive requires.
+func withAuth(ctx context.Context) context.Context {
+	ctx = context.WithValue(ctx, keys.WebTokenCtxKey, createTestWebToken())
+	ctx = context.WithValue(ctx, keys.AuthHeaderCtxKey, testAuthHeader)
+	return ctx
 }
 
 func setupFakeClient(t *testing.T, objects ...ctrlruntimeclient.Object) ctrlruntimeclient.Client {
@@ -118,25 +145,7 @@ func setupFakeClient(t *testing.T, objects ...ctrlruntimeclient.Object) ctrlrunt
 func TestAuthorized_HappyPath(t *testing.T) {
 	ctx, log := setupTestContext()
 
-	// Setup mocks
-	fgaClient := fgamocks.NewOpenFGAServiceClient(t)
 	accountInfoRetriever := accountinfomocks.NewRetriever(t)
-
-	// Setup expectations
-	listStoresResponse := &openfgav1.ListStoresResponse{
-		Stores: []*openfgav1.Store{
-			{
-				Id:   "store-123",
-				Name: "test-org",
-			},
-		},
-	}
-	fgaClient.EXPECT().ListStores(mock.Anything, mock.Anything).Return(listStoresResponse, nil)
-
-	checkResponse := &openfgav1.CheckResponse{
-		Allowed: true,
-	}
-	fgaClient.EXPECT().Check(mock.Anything, mock.Anything).Return(checkResponse, nil)
 
 	ai := createTestAccountInfo()
 	accountInfoRetriever.EXPECT().Get(mock.Anything, multicluster.ClusterName("root:orgs:test")).Return(ai, nil)
@@ -145,12 +154,13 @@ func TestAuthorized_HappyPath(t *testing.T) {
 	fakeClient := setupFakeClient(t, ai)
 	wsClient := &mockWSClient{client: fakeClient}
 
-	// Create directive
-	directive := NewAuthorizedDirective(fgaClient, accountInfoRetriever, 5*time.Minute, wsClient, log)
+	reviewer := &recordingReviewer{allowed: true}
 
-	// Setup context with WebToken
-	token := createTestWebToken()
-	ctx = context.WithValue(ctx, keys.WebTokenCtxKey, token)
+	// Create directive
+	directive := NewAuthorizedDirectiveWithReviewer(accountInfoRetriever, wsClient, reviewer.review, log)
+
+	// Setup context with WebToken + auth header
+	ctx = withAuth(ctx)
 
 	// Setup kcp context
 	kcpCtx := appcontext.KCPContext{
@@ -186,19 +196,30 @@ func TestAuthorized_HappyPath(t *testing.T) {
 	}
 
 	// Execute test
-	result, err := directive.Authorized(ctx, nil, next, "read")
+	result, err := directive.Authorized(ctx, nil, next, "get_iam_roles")
 
 	// Verify results
 	assert.NoError(t, err)
 	assert.Equal(t, "success", result)
 	assert.True(t, nextCalled)
+
+	// Verify the SSAR was issued against the account's own workspace with the
+	// caller's auth header and the permission carried as the verb.
+	assert.Equal(t, 1, reviewer.calls)
+	assert.Equal(t, "root:orgs:test", reviewer.gotWorkspace)
+	assert.Equal(t, testAuthHeader, reviewer.gotAuthHeader)
+	require.NotNil(t, reviewer.gotAttrs)
+	assert.Equal(t, "get_iam_roles", reviewer.gotAttrs.Verb)
+	assert.Equal(t, pmcorev1alpha1.GroupName, reviewer.gotAttrs.Group)
+	assert.Equal(t, "accountinfos", reviewer.gotAttrs.Resource)
+	assert.Equal(t, "account", reviewer.gotAttrs.Name)
 }
 
 func TestAuthorized_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name          string
 		setupContext  func() context.Context
-		setupMocks    func(*fgamocks.OpenFGAServiceClient, *accountinfomocks.Retriever)
+		setupMocks    func(*accountinfomocks.Retriever)
 		expectedError string
 	}{
 		{
@@ -207,26 +228,33 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 				ctx, _ := setupTestContext()
 				return ctx
 			},
-			setupMocks:    func(*fgamocks.OpenFGAServiceClient, *accountinfomocks.Retriever) {},
+			setupMocks:    func(*accountinfomocks.Retriever) {},
 			expectedError: "failed to get web token from context",
+		},
+		{
+			name: "missing auth header",
+			setupContext: func() context.Context {
+				ctx, _ := setupTestContext()
+				ctx = context.WithValue(ctx, keys.WebTokenCtxKey, createTestWebToken())
+				return ctx
+			},
+			setupMocks:    func(*accountinfomocks.Retriever) {},
+			expectedError: "failed to get auth header from context",
 		},
 		{
 			name: "missing kcp context",
 			setupContext: func() context.Context {
 				ctx, _ := setupTestContext()
-				token := createTestWebToken()
-				ctx = context.WithValue(ctx, keys.WebTokenCtxKey, token)
-				return ctx
+				return withAuth(ctx)
 			},
-			setupMocks:    func(*fgamocks.OpenFGAServiceClient, *accountinfomocks.Retriever) {},
+			setupMocks:    func(*accountinfomocks.Retriever) {},
 			expectedError: "failed to get kcp user context",
 		},
 		{
 			name: "invalid GraphQL field context",
 			setupContext: func() context.Context {
 				ctx, _ := setupTestContext()
-				token := createTestWebToken()
-				ctx = context.WithValue(ctx, keys.WebTokenCtxKey, token)
+				ctx = withAuth(ctx)
 
 				kcpCtx := appcontext.KCPContext{
 					IDMTenant:        "test-tenant",
@@ -242,15 +270,14 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 				ctx = graphql.WithFieldContext(ctx, fieldCtx)
 				return ctx
 			},
-			setupMocks:    func(*fgamocks.OpenFGAServiceClient, *accountinfomocks.Retriever) {},
+			setupMocks:    func(*accountinfomocks.Retriever) {},
 			expectedError: "unable to extract param from request",
 		},
 		{
 			name: "account info retrieval error",
 			setupContext: func() context.Context {
 				ctx, _ := setupTestContext()
-				token := createTestWebToken()
-				ctx = context.WithValue(ctx, keys.WebTokenCtxKey, token)
+				ctx = withAuth(ctx)
 
 				kcpCtx := appcontext.KCPContext{
 					IDMTenant:        "test-tenant",
@@ -261,11 +288,11 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 				fieldCtx := &graphql.FieldContext{
 					Args: map[string]any{
 						"context": map[string]any{
-							"group":       "apps",
-							"kind":        "Deployment",
+							"group":       "core.platform-mesh.io",
+							"kind":        "AccountInfo",
 							"accountPath": "root:orgs:test",
 							"resource": map[string]any{
-								"name":      "test-deployment",
+								"name":      "account",
 								"namespace": "test-namespace",
 							},
 						},
@@ -274,7 +301,7 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 				ctx = graphql.WithFieldContext(ctx, fieldCtx)
 				return ctx
 			},
-			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient, air *accountinfomocks.Retriever) {
+			setupMocks: func(air *accountinfomocks.Retriever) {
 				air.EXPECT().Get(mock.Anything, multicluster.ClusterName("root:orgs:test")).Return(nil, fmt.Errorf("account not found"))
 			},
 			expectedError: "failed to get account info from kcp context",
@@ -283,8 +310,7 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 			name: "organization mismatch",
 			setupContext: func() context.Context {
 				ctx, _ := setupTestContext()
-				token := createTestWebToken()
-				ctx = context.WithValue(ctx, keys.WebTokenCtxKey, token)
+				ctx = withAuth(ctx)
 
 				kcpCtx := appcontext.KCPContext{
 					IDMTenant:        "test-tenant",
@@ -295,11 +321,11 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 				fieldCtx := &graphql.FieldContext{
 					Args: map[string]any{
 						"context": map[string]any{
-							"group":       "apps",
-							"kind":        "Deployment",
+							"group":       "core.platform-mesh.io",
+							"kind":        "AccountInfo",
 							"accountPath": "root:orgs:test",
 							"resource": map[string]any{
-								"name":      "test-deployment",
+								"name":      "account",
 								"namespace": "test-namespace",
 							},
 						},
@@ -308,7 +334,7 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 				ctx = graphql.WithFieldContext(ctx, fieldCtx)
 				return ctx
 			},
-			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient, air *accountinfomocks.Retriever) {
+			setupMocks: func(air *accountinfomocks.Retriever) {
 				ai := createTestAccountInfo()
 				air.EXPECT().Get(mock.Anything, multicluster.ClusterName("root:orgs:test")).Return(ai, nil)
 			},
@@ -320,17 +346,17 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, log := setupTestContext()
 
-			// Setup mocks
-			fgaClient := fgamocks.NewOpenFGAServiceClient(t)
 			accountInfoRetriever := accountinfomocks.NewRetriever(t)
-			tt.setupMocks(fgaClient, accountInfoRetriever)
+			tt.setupMocks(accountInfoRetriever)
 
 			// Setup workspace client
 			fakeClient := setupFakeClient(t)
 			wsClient := &mockWSClient{client: fakeClient}
 
+			reviewer := &recordingReviewer{allowed: true}
+
 			// Create directive
-			directive := NewAuthorizedDirective(fgaClient, accountInfoRetriever, 5*time.Minute, wsClient, log)
+			directive := NewAuthorizedDirectiveWithReviewer(accountInfoRetriever, wsClient, reviewer.review, log)
 
 			// Setup context
 			ctx := tt.setupContext()
@@ -341,7 +367,7 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 			}
 
 			// Execute test
-			result, err := directive.Authorized(ctx, nil, next, "read")
+			result, err := directive.Authorized(ctx, nil, next, "get_iam_roles")
 
 			// Verify results
 			assert.Error(t, err)
@@ -354,8 +380,6 @@ func TestAuthorized_ErrorCases(t *testing.T) {
 func TestAuthorized_ResourceNotExists(t *testing.T) {
 	ctx, log := setupTestContext()
 
-	// Setup mocks
-	fgaClient := fgamocks.NewOpenFGAServiceClient(t)
 	accountInfoRetriever := accountinfomocks.NewRetriever(t)
 
 	ai := createTestAccountInfo()
@@ -365,12 +389,13 @@ func TestAuthorized_ResourceNotExists(t *testing.T) {
 	fakeClient := setupFakeClient(t) // Empty client, resource doesn't exist
 	wsClient := &mockWSClient{client: fakeClient}
 
+	reviewer := &recordingReviewer{allowed: true}
+
 	// Create directive
-	directive := NewAuthorizedDirective(fgaClient, accountInfoRetriever, 5*time.Minute, wsClient, log)
+	directive := NewAuthorizedDirectiveWithReviewer(accountInfoRetriever, wsClient, reviewer.review, log)
 
 	// Setup context
-	token := createTestWebToken()
-	ctx = context.WithValue(ctx, keys.WebTokenCtxKey, token)
+	ctx = withAuth(ctx)
 
 	kcpCtx := appcontext.KCPContext{
 		IDMTenant:        "test-tenant",
@@ -397,36 +422,19 @@ func TestAuthorized_ResourceNotExists(t *testing.T) {
 	}
 
 	// Execute test
-	result, err := directive.Authorized(ctx, nil, next, "read")
+	result, err := directive.Authorized(ctx, nil, next, "get_iam_roles")
 
 	// Verify results
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "resource does not exist")
+	assert.Equal(t, 0, reviewer.calls)
 }
 
 func TestAuthorized_NotAllowed(t *testing.T) {
 	ctx, log := setupTestContext()
 
-	// Setup mocks
-	fgaClient := fgamocks.NewOpenFGAServiceClient(t)
 	accountInfoRetriever := accountinfomocks.NewRetriever(t)
-
-	// Setup expectations
-	listStoresResponse := &openfgav1.ListStoresResponse{
-		Stores: []*openfgav1.Store{
-			{
-				Id:   "store-123",
-				Name: "test-org",
-			},
-		},
-	}
-	fgaClient.EXPECT().ListStores(mock.Anything, mock.Anything).Return(listStoresResponse, nil)
-
-	checkResponse := &openfgav1.CheckResponse{
-		Allowed: false, // Not allowed
-	}
-	fgaClient.EXPECT().Check(mock.Anything, mock.Anything).Return(checkResponse, nil)
 
 	ai := createTestAccountInfo()
 	accountInfoRetriever.EXPECT().Get(mock.Anything, multicluster.ClusterName("root:orgs:test")).Return(ai, nil)
@@ -435,12 +443,14 @@ func TestAuthorized_NotAllowed(t *testing.T) {
 	fakeClient := setupFakeClient(t, ai)
 	wsClient := &mockWSClient{client: fakeClient}
 
+	// SSAR denies the request.
+	reviewer := &recordingReviewer{allowed: false}
+
 	// Create directive
-	directive := NewAuthorizedDirective(fgaClient, accountInfoRetriever, 5*time.Minute, wsClient, log)
+	directive := NewAuthorizedDirectiveWithReviewer(accountInfoRetriever, wsClient, reviewer.review, log)
 
 	// Setup context
-	token := createTestWebToken()
-	ctx = context.WithValue(ctx, keys.WebTokenCtxKey, token)
+	ctx = withAuth(ctx)
 
 	kcpCtx := appcontext.KCPContext{
 		IDMTenant:        "test-tenant",
@@ -467,12 +477,13 @@ func TestAuthorized_NotAllowed(t *testing.T) {
 	}
 
 	// Execute test
-	result, err := directive.Authorized(ctx, nil, next, "read")
+	result, err := directive.Authorized(ctx, nil, next, "get_iam_roles")
 
 	// Verify results
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unauthorized")
+	assert.Equal(t, 1, reviewer.calls)
 }
 
 func TestExtractResourceContextFromArguments(t *testing.T) {
@@ -601,161 +612,63 @@ func TestExtractResourceContextFromArguments(t *testing.T) {
 
 func TestTestIfAllowed(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupMocks     func(*fgamocks.OpenFGAServiceClient)
-		accountInfo    *pmcorev1alpha1.AccountInfo
-		resourceCtx    *graph.ResourceContext
-		permission     string
-		token          jwt.WebToken
-		expectedResult bool
-		expectedError  string
+		name          string
+		reviewer      *recordingReviewer
+		resourceCtx   *graph.ResourceContext
+		permission    string
+		workspacePath string
+
+		expectedResult    bool
+		expectedError     string
+		expectedResource  string
+		expectedNamespace string
+		expectedVerb      string
 	}{
 		{
-			name: "allowed with namespace",
-			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient) {
-				listStoresResponse := &openfgav1.ListStoresResponse{
-					Stores: []*openfgav1.Store{
-						{
-							Id:   "store-123",
-							Name: "test-org",
-						},
-					},
-				}
-				fgaClient.EXPECT().ListStores(mock.Anything, mock.Anything).Return(listStoresResponse, nil)
-
-				fgaClient.EXPECT().Check(mock.Anything, mock.MatchedBy(func(req *openfgav1.CheckRequest) bool {
-					return req.StoreId == "store-123" &&
-						req.TupleKey.Relation == "read" &&
-						req.TupleKey.User == "user:test@example.com" &&
-						req.TupleKey.Object == "apps_deployment:generated-cluster-456/test-namespace/test-deployment"
-				})).Return(&openfgav1.CheckResponse{Allowed: true}, nil)
-			},
-			accountInfo:    createTestAccountInfo(),
-			resourceCtx:    createTestResourceContext(),
-			permission:     "read",
-			token:          createTestWebToken(),
-			expectedResult: true,
+			name:              "allowed with namespace",
+			reviewer:          &recordingReviewer{allowed: true},
+			resourceCtx:       createTestResourceContext(),
+			permission:        "get_iam_roles",
+			workspacePath:     "root:orgs:test",
+			expectedResult:    true,
+			expectedResource:  "accountinfos",
+			expectedNamespace: "test-namespace",
+			expectedVerb:      "get_iam_roles",
 		},
 		{
-			name: "allowed without namespace (cluster-scoped)",
-			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient) {
-				listStoresResponse := &openfgav1.ListStoresResponse{
-					Stores: []*openfgav1.Store{
-						{
-							Id:   "store-123",
-							Name: "test-org",
-						},
-					},
-				}
-				fgaClient.EXPECT().ListStores(mock.Anything, mock.Anything).Return(listStoresResponse, nil)
-
-				fgaClient.EXPECT().Check(mock.Anything, mock.MatchedBy(func(req *openfgav1.CheckRequest) bool {
-					return req.StoreId == "store-123" &&
-						req.TupleKey.Relation == "read" &&
-						req.TupleKey.User == "user:test@example.com" &&
-						req.TupleKey.Object == "rbac_authorization_k8s_io_clusterrole:generated-cluster-456/cluster-admin"
-				})).Return(&openfgav1.CheckResponse{Allowed: true}, nil)
-			},
-			accountInfo: createTestAccountInfo(),
+			name:        "denied",
+			reviewer:    &recordingReviewer{allowed: false},
+			resourceCtx: createTestResourceContext(),
+			permission:  "manage_iam_roles",
+			// path chosen by caller (Authorized). Here we just assert passthrough.
+			workspacePath:     "root:orgs:test",
+			expectedResult:    false,
+			expectedResource:  "accountinfos",
+			expectedNamespace: "test-namespace",
+			expectedVerb:      "manage_iam_roles",
+		},
+		{
+			name:          "reviewer error",
+			reviewer:      &recordingReviewer{err: fmt.Errorf("ssar failed")},
+			resourceCtx:   createTestResourceContext(),
+			permission:    "get_iam_roles",
+			workspacePath: "root:orgs:test",
+			expectedError: "failed to perform self subject access review",
+		},
+		{
+			name:     "rest mapping fails for unknown kind",
+			reviewer: &recordingReviewer{allowed: true},
 			resourceCtx: &graph.ResourceContext{
-				Group:       "rbac.authorization.k8s.io",
-				Kind:        "ClusterRole",
+				Group:       "nonexistent.api.group",
+				Kind:        "InvalidResourceKind",
 				AccountPath: "root:orgs:test",
 				Resource: &graph.Resource{
-					Name:      "cluster-admin",
-					Namespace: nil,
+					Name: "test-resource",
 				},
 			},
-			permission:     "read",
-			token:          createTestWebToken(),
-			expectedResult: true,
-		},
-		{
-			name: "not allowed",
-			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient) {
-				listStoresResponse := &openfgav1.ListStoresResponse{
-					Stores: []*openfgav1.Store{
-						{
-							Id:   "store-123",
-							Name: "test-org",
-						},
-					},
-				}
-				fgaClient.EXPECT().ListStores(mock.Anything, mock.Anything).Return(listStoresResponse, nil)
-
-				fgaClient.EXPECT().Check(mock.Anything, mock.Anything).Return(&openfgav1.CheckResponse{Allowed: false}, nil)
-			},
-			accountInfo:    createTestAccountInfo(),
-			resourceCtx:    createTestResourceContext(),
-			permission:     "write",
-			token:          createTestWebToken(),
-			expectedResult: false,
-		},
-		{
-			name: "account resource uses origin cluster ID",
-			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient) {
-				listStoresResponse := &openfgav1.ListStoresResponse{
-					Stores: []*openfgav1.Store{
-						{
-							Id:   "store-123",
-							Name: "test-org",
-						},
-					},
-				}
-				fgaClient.EXPECT().ListStores(mock.Anything, mock.Anything).Return(listStoresResponse, nil)
-
-				fgaClient.EXPECT().Check(mock.Anything, mock.MatchedBy(func(req *openfgav1.CheckRequest) bool {
-					return req.StoreId == "store-123" &&
-						req.TupleKey.Relation == "read" &&
-						req.TupleKey.User == "user:test@example.com" &&
-						req.TupleKey.Object == "core_platform-mesh_io_account:origin-cluster-123/test-account"
-				})).Return(&openfgav1.CheckResponse{Allowed: true}, nil)
-			},
-			accountInfo: createTestAccountInfo(),
-			resourceCtx: &graph.ResourceContext{
-				Group:       "core.platform-mesh.io",
-				Kind:        "Account",
-				AccountPath: "root:orgs:test",
-				Resource: &graph.Resource{
-					Name:      "test-account",
-					Namespace: nil,
-				},
-			},
-			permission:     "read",
-			token:          createTestWebToken(),
-			expectedResult: true,
-		},
-		{
-			name: "store helper error",
-			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient) {
-				fgaClient.EXPECT().ListStores(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("store not found"))
-			},
-			accountInfo:   createTestAccountInfo(),
-			resourceCtx:   createTestResourceContext(),
-			permission:    "read",
-			token:         createTestWebToken(),
-			expectedError: "failed to get store ID",
-		},
-		{
-			name: "FGA check error",
-			setupMocks: func(fgaClient *fgamocks.OpenFGAServiceClient) {
-				listStoresResponse := &openfgav1.ListStoresResponse{
-					Stores: []*openfgav1.Store{
-						{
-							Id:   "store-123",
-							Name: "test-org",
-						},
-					},
-				}
-				fgaClient.EXPECT().ListStores(mock.Anything, mock.Anything).Return(listStoresResponse, nil)
-
-				fgaClient.EXPECT().Check(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("FGA check failed"))
-			},
-			accountInfo:   createTestAccountInfo(),
-			resourceCtx:   createTestResourceContext(),
-			permission:    "read",
-			token:         createTestWebToken(),
-			expectedError: "failed to check permission with openfga",
+			permission:    "get_iam_roles",
+			workspacePath: "root:orgs:test",
+			expectedError: "failed to resolve REST mapping",
 		},
 	}
 
@@ -763,30 +676,33 @@ func TestTestIfAllowed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, log := setupTestContext()
 
-			// Setup mocks
-			fgaClient := fgamocks.NewOpenFGAServiceClient(t)
 			accountInfoRetriever := accountinfomocks.NewRetriever(t)
-			tt.setupMocks(fgaClient)
 
-			// Setup workspace client (not used in testIfAllowed)
 			fakeClient := setupFakeClient(t)
 			wsClient := &mockWSClient{client: fakeClient}
 
-			// Create directive
-			directive := NewAuthorizedDirective(fgaClient, accountInfoRetriever, 5*time.Minute, wsClient, log)
+			directive := NewAuthorizedDirectiveWithReviewer(accountInfoRetriever, wsClient, tt.reviewer.review, log)
 
-			// Execute test
-			result, err := directive.testIfAllowed(ctx, tt.accountInfo, tt.resourceCtx, tt.permission, tt.token)
+			result, err := directive.testIfAllowed(ctx, tt.resourceCtx, tt.permission, tt.workspacePath, testAuthHeader, fakeClient)
 
-			// Verify results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.False(t, result)
 				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedResult, result)
+				return
 			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedResult, result)
+
+			require.Equal(t, 1, tt.reviewer.calls)
+			assert.Equal(t, tt.workspacePath, tt.reviewer.gotWorkspace)
+			assert.Equal(t, testAuthHeader, tt.reviewer.gotAuthHeader)
+			require.NotNil(t, tt.reviewer.gotAttrs)
+			assert.Equal(t, tt.expectedVerb, tt.reviewer.gotAttrs.Verb)
+			assert.Equal(t, tt.expectedResource, tt.reviewer.gotAttrs.Resource)
+			assert.Equal(t, tt.resourceCtx.Resource.Name, tt.reviewer.gotAttrs.Name)
+			assert.Equal(t, tt.expectedNamespace, tt.reviewer.gotAttrs.Namespace)
 		})
 	}
 }
@@ -909,13 +825,13 @@ func TestTestIfResourceExists(t *testing.T) {
 			// Setup client
 			fakeClient := tt.setupClient(t)
 
-			// Setup mocks (not used in testIfResourceExists)
-			fgaClient := fgamocks.NewOpenFGAServiceClient(t)
 			accountInfoRetriever := accountinfomocks.NewRetriever(t)
 			wsClient := &mockWSClient{client: fakeClient}
 
+			reviewer := &recordingReviewer{allowed: true}
+
 			// Create directive
-			directive := NewAuthorizedDirective(fgaClient, accountInfoRetriever, 5*time.Minute, wsClient, log)
+			directive := NewAuthorizedDirectiveWithReviewer(accountInfoRetriever, wsClient, reviewer.review, log)
 
 			// Execute test
 			result, err := directive.testIfResourceExists(ctx, tt.resourceCtx, fakeClient)
