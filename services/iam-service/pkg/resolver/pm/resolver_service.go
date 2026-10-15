@@ -34,6 +34,7 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/sorter"
 	"go.platform-mesh.io/iam-service/pkg/workspace"
 
+	"k8s.io/utils/ptr"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
@@ -107,9 +108,9 @@ func (s *Service) Users(ctx context.Context, rctx graph.ResourceContext, roleFil
 	}, nil
 }
 
-func (s *Service) KnownUsers(ctx context.Context, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
-	// Fetch all known users from Keycloak
-	users, err := s.keycloakService.GetUsers(ctx)
+func (s *Service) KnownUsers(ctx context.Context, _ graph.ResourceContext, search *string, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
+	// Fetch all known users from Keycloak, optionally filtered by search
+	users, err := s.keycloakService.GetUsers(ctx, ptr.Deref(search, ""))
 	if err != nil {
 		return nil, err
 	}
