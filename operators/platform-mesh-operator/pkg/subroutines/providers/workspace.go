@@ -35,7 +35,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 const (
@@ -63,11 +63,11 @@ type ProviderWorkspaceSubroutine struct {
 	kcpCfg      config.KCPConfig
 	kcpUrl      string
 
-	limiter workqueue.TypedRateLimiter[*kcptenancyv1alpha.Workspace]
+	limiter workqueue.TypedRateLimiter[*kcptenancyv1alpha1.Workspace]
 }
 
 func NewProviderWorkspaceSubroutine(localClient ctrlruntimeclient.Client, kcpHelper pmsubs.KcpHelper, kcpCfg config.KCPConfig, kcpUrl string) (*ProviderWorkspaceSubroutine, error) {
-	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*kcptenancyv1alpha.Workspace](
+	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*kcptenancyv1alpha1.Workspace](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %v", err)
@@ -109,13 +109,13 @@ func (r *ProviderWorkspaceSubroutine) Process(ctx context.Context, obj ctrlrunti
 	}
 
 	// Ensure the provider workspace with "root:providers" workspace type.
-	ws := kcptenancyv1alpha.Workspace{
+	ws := kcptenancyv1alpha1.Workspace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: providerWsName,
 		},
 	}
 	if _, err := controllerutil.CreateOrUpdate(ctx, scopedKcpClient, &ws, func() error {
-		ws.Spec.Type = &kcptenancyv1alpha.WorkspaceTypeReference{
+		ws.Spec.Type = &kcptenancyv1alpha1.WorkspaceTypeReference{
 			Name: providerWorkspaceTypeName,
 			Path: providerWorkspaceTypePath,
 		}
@@ -160,7 +160,7 @@ func (r *ProviderWorkspaceSubroutine) Finalize(ctx context.Context, obj ctrlrunt
 		return subroutines.OK(), gcerrors.Wrap(err, "failed to create kcp client for parent workspace %s", defaultWorkspaceParent)
 	}
 
-	ws := kcptenancyv1alpha.Workspace{
+	ws := kcptenancyv1alpha1.Workspace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: providerWsName,
 		},

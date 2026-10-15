@@ -106,11 +106,32 @@ var modelGeneratorCmd = &cobra.Command{
 			return err
 		}
 
+		fgaProvider, err := pathaware.New(restCfg, generatorCfg.APIExportEndpointSlices.FgaPlatformMeshIO, apiexport.Options{
+			Scheme: mgrOpts.Scheme,
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create apiexport provider")
+			return err
+		}
+		providerFgaProvider, err := pathaware.New(restCfg, generatorCfg.APIExportEndpointSlices.ProviderFgaPlatformMeshIO, apiexport.Options{
+			Scheme: mgrOpts.Scheme,
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create apiexport provider")
+			return err
+		}
+
 		multiProv := multiprovider.New(multiprovider.Options{})
 		if err := multiProv.AddProvider(config.ProvidersProviderName, providersProvider); err != nil {
 			return err
 		}
 		if err := multiProv.AddProvider(config.CoreProviderName, coreProvider); err != nil {
+			return err
+		}
+		if err := multiProv.AddProvider(config.FgaProviderName, fgaProvider); err != nil {
+			return err
+		}
+		if err := multiProv.AddProvider(config.ProviderFgaProviderName, providerFgaProvider); err != nil {
 			return err
 		}
 

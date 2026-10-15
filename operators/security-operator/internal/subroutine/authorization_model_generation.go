@@ -208,6 +208,11 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 	}
 	apiExportClient := apiExportCluster.GetClient()
 
+	modelCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.ProviderFgaProviderName, bindingToDelete.Status.APIExportClusterName))
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting AuthorizationModel cluster %q: %w", bindingToDelete.Status.APIExportClusterName, err)
+	}
+
 	var apiExport kcpapisv1alpha2.APIExport
 	err = apiExportClient.Get(ctx, types.NamespacedName{Name: bindingToDelete.Spec.Reference.Export.Name}, &apiExport)
 	if err != nil {
@@ -224,7 +229,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 		}
 
 		authModelName := toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, toDeleteAccountInfo.Spec.Organization.Name)
-		err = apiExportClient.Delete(ctx, &pmcorev1alpha1.AuthorizationModel{
+		err = modelCluster.GetClient().Delete(ctx, &pmcorev1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: authModelName,
 			},
@@ -234,7 +239,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 				// The model was never created, but a reservation finalizer may
 				// still be on the Store — release it.
 				if derr := deregisterAuthorizationModelFromStore(ctx, a.mgr,
-					config.MultiProviderName(config.CoreProviderName, toDeleteAccountInfo.Spec.Organization.OriginClusterId), toDeleteAccountInfo.Spec.Organization.Name,
+					config.StoreClusterName(toDeleteAccountInfo.Spec.Organization.OriginClusterId), toDeleteAccountInfo.Spec.Organization.Name,
 					bindingToDelete.Status.APIExportClusterName, authModelName,
 				); derr != nil {
 					return subroutines.OK(), fmt.Errorf("releasing authorization model reservation for %s: %w", authModelName, derr)
@@ -269,7 +274,10 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	binding := obj.(*kcpapisv1alpha2.APIBinding)
 
-	internalAPIBindings := []string{"core.platform-mesh.io", "system.platform-mesh.io", "providers.platform-mesh.io"}
+	internalAPIBindings := []string{
+		"core.platform-mesh.io", "system.platform-mesh.io", "providers.platform-mesh.io",
+		"ui.platform-mesh.io", "fga.platform-mesh.io", "provider-fga.platform-mesh.io",
+	}
 
 	if slices.Contains(internalAPIBindings, binding.Spec.Reference.Export.Name) || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
 		return subroutines.OK(), nil
@@ -289,6 +297,11 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 	apiExportCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, binding.Status.APIExportClusterName))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting APIExport cluster: %w", err)
+	}
+
+	modelCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.ProviderFgaProviderName, binding.Status.APIExportClusterName))
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting AuthorizationModel cluster: %w", err)
 	}
 
 	var apiExport kcpapisv1alpha2.APIExport
@@ -369,7 +382,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		// Reserve the model on its Store before creating it, so the bind fails
 		// atomically instead of racing an org deletion.
 		if err := registerAuthorizationModelWithStore(ctx, a.mgr,
-			config.MultiProviderName(config.CoreProviderName, accountInfo.Spec.Organization.OriginClusterId), accountInfo.Spec.Organization.Name,
+			config.StoreClusterName(accountInfo.Spec.Organization.OriginClusterId), accountInfo.Spec.Organization.Name,
 			binding.Status.APIExportClusterName, modelName,
 		); err != nil {
 			return subroutines.OK(), fmt.Errorf("registering authorization model %s with store: %w", modelName, err)
@@ -381,7 +394,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 			},
 		}
 
-		_, err = controllerutil.CreateOrUpdate(ctx, apiExportCluster.GetClient(), &model, func() error {
+		_, err = controllerutil.CreateOrUpdate(ctx, modelCluster.GetClient(), &model, func() error {
 			model.Spec = pmcorev1alpha1.AuthorizationModelSpec{
 				Model: buffer.String(),
 				StoreRef: pmcorev1alpha1.WorkspaceStoreRef{

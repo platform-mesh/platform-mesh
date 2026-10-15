@@ -55,6 +55,7 @@ type ControllerOptions struct {
 }
 
 type OrgLogicalClusterController struct {
+	engageOpts  mcbuilder.EngageOptions
 	log         *logger.Logger
 	name        string
 	lifecycle   *lifecycle.Lifecycle
@@ -123,6 +124,12 @@ func (r *OrgLogicalClusterController) Reconcile(ctx context.Context, req mcrecon
 	return result, err
 }
 
+// WithEngageOptions limits which clusters the controller engages with; by default it engages all.
+func (r *OrgLogicalClusterController) WithEngageOptions(opts mcbuilder.EngageOptions) *OrgLogicalClusterController {
+	r.engageOpts = opts
+	return r
+}
+
 func (r *OrgLogicalClusterController) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
 	opts := controller.TypedOptions[mcreconcile.Request]{
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
@@ -131,7 +138,7 @@ func (r *OrgLogicalClusterController) SetupWithManager(mgr mcmanager.Manager, cf
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(r.name).
-		For(&kcpcorev1alpha1.LogicalCluster{}).
+		For(&kcpcorev1alpha1.LogicalCluster{}, r.engageOpts).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)
