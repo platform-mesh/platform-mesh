@@ -17,6 +17,7 @@ limitations under the License.
 package types
 
 import (
+	"fmt"
 	"regexp"
 	"sync"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/graphql-go/graphql"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (
@@ -46,14 +48,51 @@ type TypeEntry struct {
 }
 
 type Registry struct {
-	mu    sync.RWMutex
-	types map[string]*TypeEntry
+	mu        sync.RWMutex
+	types     map[string]*TypeEntry
+	resources map[schema.GroupVersionKind]*graphql.Object
+	names     sets.Set[string]
 }
 
 func NewRegistry() *Registry {
 	return &Registry{
-		types: make(map[string]*TypeEntry),
+		types:     make(map[string]*TypeEntry),
+		resources: make(map[schema.GroupVersionKind]*graphql.Object),
+		names:     sets.New[string](),
 	}
+}
+
+// RegisterResource stores the output type of a Kubernetes resource by its GVK.
+func (r *Registry) RegisterResource(gvk schema.GroupVersionKind, output *graphql.Object) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.resources[gvk] = output
+}
+
+// GetResource returns the output type registered for a GVK, or nil.
+func (r *Registry) GetResource(gvk schema.GroupVersionKind) *graphql.Object {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.resources[gvk]
+}
+
+// Reserve claims the given type names and their _Input variants. If any of
+// them is already taken, it claims none and returns an error.
+func (r *Registry) Reserve(names ...string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, name := range names {
+		if r.names.HasAny(name, name+"_Input") {
+			return fmt.Errorf("GraphQL type name %q is already taken", name)
+		}
+	}
+	for _, name := range names {
+		r.names.Insert(name, name+"_Input")
+	}
+	return nil
 }
 
 func (r *Registry) Register(key string, output *graphql.Object, input *graphql.InputObject) {
@@ -112,7 +151,7 @@ func (r *Registry) GetUniqueTypeName(gvk *schema.GroupVersionKind) string {
 	if gvk.Group != "" {
 		sanitizedGroup = SanitizeGroupName(gvk.Group)
 	}
-	return flect.Pascalize(sanitizedGroup+"_"+gvk.Version) + gvk.Kind
+	return flect.Pascalize(sanitizedGroup+"_"+gvk.Version) + SanitizeFieldName(gvk.Kind)
 }
 
 // SanitizeGroupName converts a Kubernetes API group name to a valid GraphQL identifier.
