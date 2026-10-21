@@ -48,6 +48,43 @@ const (
 	schemaVersion = "1.2"
 )
 
+// coreVerbRelationOverrides overrides the OpenFGA relation that a generated
+// permission resolves to for platform-controlled (core-discovered) resources.
+//
+// Keyed by GVK.GroupKind() -> verb -> relation. Only the operator's own
+// generation consults this map; it is NOT reachable by tenant-authored
+// ProviderPermissions, so widening a relation here cannot be used for
+// privilege escalation across modules.
+//
+// Current use: allow authenticated members to create SelfSubjectAccessReview /
+// SelfSubjectRulesReview so iam-service (and any caller) can run a native SSAR
+// against its own workspace. kcp has no system:basic-user grant, and the
+// authorization webhook does not exclude authorization.k8s.io, so without this
+// the SSAR-create check itself resolves to the default create->owner and
+// members are denied. This is the platform analog of upstream Kubernetes baking
+// self-review access into system:basic-user.
+//
+// Roadmap (kept as data, not inline branches, so only the SOURCE changes later):
+//   - Phase 2: externalize this map to operator config / Helm values so admins
+//     can adjust it without a code release.
+//   - Phase 3: promote to an admin-owned, RBAC-gated, cluster-scoped CRD (e.g.
+//     AuthorizationDefaults) read alongside ProviderPermissions. It MUST NOT be
+//     APIExport-exported into tenant workspaces; the RBAC gate + non-tenant
+//     location is the safety story for verbatim injection.
+var coreVerbRelationOverrides = map[schema.GroupKind]map[string]string{
+	{Group: "authorization.k8s.io", Kind: "selfsubjectaccessreviews"}: {"create": "member"},
+	{Group: "authorization.k8s.io", Kind: "selfsubjectrulesreviews"}:  {"create": "member"},
+}
+
+// createRelationOverride returns the relation the create_<group>_<resource>
+// permission should resolve to, or "" to use the template default ("owner").
+func createRelationOverride(group, resource string) string {
+	if verbs, ok := coreVerbRelationOverrides[schema.GroupKind{Group: group, Kind: resource}]; ok {
+		return verbs["create"]
+	}
+	return ""
+}
+
 var (
 	privilegedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
 	groupVersions           = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1", "apis.kcp.io/v1alpha1", "ui.platform-mesh.io/v1alpha1"}
@@ -251,10 +288,11 @@ func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Temp
 
 	var buffer bytes.Buffer
 	err := tpl.Execute(&buffer, modelInput{
-		Name:     resource.Name,
-		Group:    strings.ReplaceAll(group, ".", "_"), // TODO: group name length capping
-		Singular: resource.SingularName,
-		Scope:    string(scope),
+		Name:           resource.Name,
+		Group:          strings.ReplaceAll(group, ".", "_"), // TODO: group name length capping
+		Singular:       resource.SingularName,
+		Scope:          string(scope),
+		CreateRelation: createRelationOverride(resource.Group, resource.Name),
 	})
 	if err != nil {
 		return buffer, err
