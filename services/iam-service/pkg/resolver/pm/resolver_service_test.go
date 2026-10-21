@@ -18,6 +18,7 @@ package pm
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -352,21 +353,86 @@ func TestService_Users_ReturnsRequestedRoleCountsAndLegacyOwnerCount(t *testing.
 		}},
 	}, nil).Once()
 
-	for _, roleID := range []string{"owner", "member"} {
+	owners := &openfgav1.ListUsersResponse{
+		Users: []*openfgav1.User{
+			{User: &openfgav1.User_Object{Object: &openfgav1.Object{Type: "user", Id: "user1"}}},
+			{User: &openfgav1.User_Object{Object: &openfgav1.Object{Type: "user", Id: "user2"}}},
+		},
+	}
+	for roleID, response := range map[string]*openfgav1.ListUsersResponse{"owner": owners, "member": {}} {
 		mockFGA.EXPECT().ListUsers(testifymock.Anything, testifymock.MatchedBy(func(req *openfgav1.ListUsersRequest) bool {
 			return req.StoreId == "store-123" &&
 				req.Object.Type == "role" &&
 				req.Object.Id == "core_platform-mesh_io_account/cluster-123/test-account/"+roleID &&
 				req.Relation == "assignee"
-		})).Return(&openfgav1.ListUsersResponse{}, nil).Once()
+		})).Return(response, nil).Once()
 	}
 
 	result, err := service.Users(ctx, rCtx, []string{"member"}, []string{"member"}, nil, nil)
 
 	assert.NoError(t, err)
 	assert.Empty(t, result.Users)
-	assert.Equal(t, 0, result.OwnersCount)
+	assert.Equal(t, 2, result.OwnersCount)
 	assert.Equal(t, []*graph.RoleCount{{RoleID: "member", Count: 0}}, result.RoleCounts)
+}
+
+func TestService_Users_ListsRoleOnceWhenFilteredAndCounted(t *testing.T) {
+	service, mockFGA := createTestResolverService(t)
+
+	ctx := appcontext.SetKCPContext(context.Background(), appcontext.KCPContext{
+		IDMTenant:        "test-tenant",
+		OrganizationName: "test-org",
+	})
+	ctx = appcontext.SetClusterId(ctx, "cluster-123")
+
+	rCtx := graph.ResourceContext{
+		Group:       "core.platform-mesh.io",
+		Kind:        "Account",
+		Resource:    &graph.Resource{Name: "test-account", Namespace: ptr.To("default")},
+		AccountPath: "test-account",
+	}
+
+	mockFGA.EXPECT().ListStores(testifymock.Anything, testifymock.Anything).Return(&openfgav1.ListStoresResponse{
+		Stores: []*openfgav1.Store{{Id: "store-123", Name: "test-org"}},
+	}, nil).Once()
+	mockFGA.EXPECT().ListUsers(testifymock.Anything, testifymock.Anything).Return(&openfgav1.ListUsersResponse{}, nil).Once()
+
+	result, err := service.Users(ctx, rCtx, []string{"owner"}, []string{"owner"}, nil, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []*graph.RoleCount{{RoleID: "owner", Count: 0}}, result.RoleCounts)
+}
+
+func TestService_Users_FailsWhenCountLookupFails(t *testing.T) {
+	service, mockFGA := createTestResolverService(t)
+
+	ctx := appcontext.SetKCPContext(context.Background(), appcontext.KCPContext{
+		IDMTenant:        "test-tenant",
+		OrganizationName: "test-org",
+	})
+	ctx = appcontext.SetClusterId(ctx, "cluster-123")
+
+	rCtx := graph.ResourceContext{
+		Group:       "core.platform-mesh.io",
+		Kind:        "Account",
+		Resource:    &graph.Resource{Name: "test-account", Namespace: ptr.To("default")},
+		AccountPath: "test-account",
+	}
+
+	mockFGA.EXPECT().ListStores(testifymock.Anything, testifymock.Anything).Return(&openfgav1.ListStoresResponse{
+		Stores: []*openfgav1.Store{{Id: "store-123", Name: "test-org"}},
+	}, nil).Once()
+	mockFGA.EXPECT().ListUsers(testifymock.Anything, testifymock.MatchedBy(func(req *openfgav1.ListUsersRequest) bool {
+		return req.Object.Id == "core_platform-mesh_io_account/cluster-123/test-account/owner"
+	})).Return(&openfgav1.ListUsersResponse{}, nil).Maybe()
+	mockFGA.EXPECT().ListUsers(testifymock.Anything, testifymock.MatchedBy(func(req *openfgav1.ListUsersRequest) bool {
+		return req.Object.Id == "core_platform-mesh_io_account/cluster-123/test-account/member"
+	})).Return(nil, errors.New("openfga unavailable")).Once()
+
+	result, err := service.Users(ctx, rCtx, []string{"owner"}, []string{"member"}, nil, nil)
+
+	assert.ErrorContains(t, err, "openfga unavailable")
+	assert.Nil(t, result)
 }
 
 func TestService_Users_EmptyCountFilterPreservesLegacyOwnerCount(t *testing.T) {
