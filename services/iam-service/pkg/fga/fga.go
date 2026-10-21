@@ -75,14 +75,9 @@ func New(client openfgav1.OpenFGAServiceClient, cfg *config.ServiceConfig, wsCli
 	}
 }
 
-func (s *Service) ListUsers(ctx context.Context, rctx graph.ResourceContext, roleFilters []string) ([]*graph.UserRoles, error) {
-	users, _, err := s.ListUsersWithRoleCounts(ctx, rctx, roleFilters, nil)
-	return users, err
-}
-
 func (s *Service) ListUsersWithRoleCounts(ctx context.Context, rctx graph.ResourceContext, roleFilters, countRoleFilters []string) ([]*graph.UserRoles, []*graph.RoleCount, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	ctx, span := otel.GetTracerProvider().Tracer("").Start(ctx, "fga.ListUsers")
+	ctx, span := otel.GetTracerProvider().Tracer("").Start(ctx, "fga.ListUsersWithRoleCounts")
 	defer span.End()
 
 	kctx, err := appcontext.GetKCPContext(ctx)
@@ -107,21 +102,13 @@ func (s *Service) ListUsersWithRoleCounts(ctx context.Context, rctx graph.Resour
 		appliedCountRoles = filterAvailableRoles(countRoleFilters, availableRoles, log)
 	}
 
-	rolesToList := append([]string{}, appliedRoles...)
-	roleSet := sets.New(appliedRoles...)
-	for _, role := range appliedCountRoles {
-		if roleSet.Has(role) {
-			continue
-		}
-		rolesToList = append(rolesToList, role)
-		roleSet.Insert(role)
-	}
-
+	userRoles := sets.New(appliedRoles...)
+	rolesToList := userRoles.Union(sets.New(appliedCountRoles...)).UnsortedList()
 	if len(rolesToList) == 0 {
 		return []*graph.UserRoles{}, []*graph.RoleCount{}, nil
 	}
 
-	users, counts, err := s.listUsersParallel(ctx, rctx, storeID, rolesToList, sets.New(appliedRoles...), roleDefinitions)
+	users, counts, err := s.listUsersParallel(ctx, rctx, storeID, rolesToList, userRoles, roleDefinitions)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -135,19 +122,6 @@ func (s *Service) ListUsersWithRoleCounts(ctx context.Context, rctx graph.Resour
 	}
 
 	return users, roleCounts, nil
-}
-
-func (s *Service) CountUsersForRole(ctx context.Context, rctx graph.ResourceContext, roleID string) (int, error) {
-	_, roleCounts, err := s.ListUsersWithRoleCounts(ctx, rctx, []string{roleID}, []string{roleID})
-	if err != nil {
-		return 0, err
-	}
-
-	if len(roleCounts) == 0 {
-		return 0, nil
-	}
-
-	return roleCounts[0].Count, nil
 }
 
 // listUsersParallel performs parallel ListUsers calls for multiple roles
@@ -286,15 +260,6 @@ func (s *Service) GetRoles(ctx context.Context, rctx graph.ResourceContext) ([]*
 
 	log.Debug().Int("roleCount", len(rArr)).Msg("Successfully retrieved rArr")
 	return rArr, nil
-}
-
-func (s *Service) applyRoleFilter(rctx graph.ResourceContext, roleFilters []string, log *logger.Logger) ([]string, error) {
-	roleDefinitions, err := s.rolesRetriever.GetRoleDefinitions(rctx)
-	if err != nil { // coverage-ignore
-		return nil, errors.Wrap(err, "failed to get role definitions for group resource %s/%s", rctx.Group, rctx.Kind)
-	}
-	availableRoles := roles.GetAvailableRoleIDs(roleDefinitions)
-	return filterAvailableRoles(roleFilters, availableRoles, log), nil
 }
 
 func filterAvailableRoles(roleFilters, availableRoles []string, log *logger.Logger) []string {
