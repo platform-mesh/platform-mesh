@@ -35,8 +35,8 @@ type KeycloakService interface {
 	// Updates the UserRoles slice in-place with FirstName, LastName, and UserID from Keycloak
 	EnrichUserRoles(ctx context.Context, userRoles []*graph.UserRoles) error
 
-	// GetUsers retrieves all users from Keycloak
-	GetUsers(ctx context.Context) ([]*graph.User, error)
+	// GetUsers retrieves all users from Keycloak, filtered by search when it is not empty
+	GetUsers(ctx context.Context, search string) ([]*graph.User, error)
 }
 
 // Ensure Service implements KeycloakService interface

@@ -749,7 +749,7 @@ func TestFetchAllUsers_SinglePage(t *testing.T) {
 	// fetchAllUsers will stop after the first page since len(users) < pageSize
 
 	// Execute
-	result, err := service.fetchAllUsers(ctx, "test-realm")
+	result, err := service.fetchAllUsers(ctx, "test-realm", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -835,7 +835,7 @@ func TestFetchAllUsers_MultiplePages(t *testing.T) {
 	// Page 2 has only 1 user, which is < pageSize (2), so pagination will stop
 
 	// Execute
-	result, err := service.fetchAllUsers(ctx, "test-realm")
+	result, err := service.fetchAllUsers(ctx, "test-realm", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -922,7 +922,7 @@ func TestFetchAllUsers_ErrorHandling(t *testing.T) {
 	).Return(page3Response, nil)
 
 	// Execute
-	result, err := service.fetchAllUsers(ctx, "test-realm")
+	result, err := service.fetchAllUsers(ctx, "test-realm", "")
 
 	// Assert - should continue despite errors and get users from pages 1 and 3
 	assert.NoError(t, err)
@@ -964,7 +964,7 @@ func TestFetchAllUsers_EmptyResult(t *testing.T) {
 	).Return(emptyResponse, nil)
 
 	// Execute
-	result, err := service.fetchAllUsers(ctx, "test-realm")
+	result, err := service.fetchAllUsers(ctx, "test-realm", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -1024,7 +1024,7 @@ func TestGetUsers_Success(t *testing.T) {
 	// Only 1 user returned, which is < pageSize (10), so pagination will stop
 
 	// Execute
-	result, err := service.GetUsers(ctx)
+	result, err := service.GetUsers(ctx, "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -1045,9 +1045,90 @@ func TestGetUsers_NoKCPContext(t *testing.T) {
 	ctx := context.Background()
 	service := &Service{}
 
-	result, err := service.GetUsers(ctx)
+	result, err := service.GetUsers(ctx, "")
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "kcp user context")
+}
+
+func TestFetchAllUsers_WithSearch(t *testing.T) {
+	ctx := context.Background()
+	mockClient := mocks.NewKeycloakClientInterface(t)
+	service := &Service{
+		keycloakClient: mockClient,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 10}},
+	}
+
+	userID := "user-1"
+	userEmail := "anna@example.com"
+	users := []keycloakClient.UserRepresentation{{Id: &userID, Email: &userEmail}}
+
+	mockClient.EXPECT().GetUsersWithResponse(
+		ctx,
+		"test-realm",
+		mock.MatchedBy(func(params *keycloakClient.GetUsersParams) bool {
+			return params.Search != nil && *params.Search == "*anna*"
+		}),
+		mock.Anything,
+	).Return(&keycloakClient.GetUsersResponse{
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
+		JSON200:      &users,
+	}, nil)
+
+	result, err := service.fetchAllUsers(ctx, "test-realm", " anna ")
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, userEmail, result[0].Email)
+}
+
+func TestFetchAllUsers_WithoutSearch(t *testing.T) {
+	ctx := context.Background()
+	mockClient := mocks.NewKeycloakClientInterface(t)
+	service := &Service{
+		keycloakClient: mockClient,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 10}},
+	}
+
+	users := []keycloakClient.UserRepresentation{}
+	mockClient.EXPECT().GetUsersWithResponse(
+		ctx,
+		"test-realm",
+		mock.MatchedBy(func(params *keycloakClient.GetUsersParams) bool {
+			return params.Search == nil
+		}),
+		mock.Anything,
+	).Return(&keycloakClient.GetUsersResponse{
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
+		JSON200:      &users,
+	}, nil)
+
+	result, err := service.fetchAllUsers(ctx, "test-realm", " * ")
+
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+func TestSearchQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		search string
+		want   string
+	}{
+		{name: "empty", search: "", want: ""},
+		{name: "whitespace only", search: "   ", want: ""},
+		{name: "single term", search: "anna", want: "*anna*"},
+		{name: "trimmed", search: "  anna  ", want: "*anna*"},
+		{name: "multiple terms", search: "anna  smith", want: "*anna* *smith*"},
+		{name: "email", search: "anna@example.com", want: "*anna@example.com*"},
+		{name: "wildcards removed", search: "*an*na*", want: "*an* *na*"},
+		{name: "exact quotes removed", search: `"anna"`, want: "*anna*"},
+		{name: "only special characters", search: `*"*`, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, searchQuery(tt.search))
+		})
+	}
 }
