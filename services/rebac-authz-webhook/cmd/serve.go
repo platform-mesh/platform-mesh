@@ -17,7 +17,9 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
@@ -37,8 +39,15 @@ import (
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/orgs"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/retry"
 
+	"go.platform-mesh.io/golang-commons/restmapper"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -97,7 +106,24 @@ func NewServeCmd() *cobra.Command {
 				klog.Exit(err, "unable to set up overall controller manager")
 			}
 
-			clusterCache, err := clustercache.New(mgr)
+			var clusterCacheOpts []clustercache.Option
+			if serverCfg.GVRMappingsConfigMap != "" {
+				inClusterCfg, err := rest.InClusterConfig()
+				if err != nil {
+					klog.Exit(err, "failed to get in-cluster config for GVR mappings ConfigMap")
+				}
+				gvrClient, err := ctrlruntimeclient.New(inClusterCfg, ctrlruntimeclient.Options{})
+				if err != nil {
+					klog.Exit(err, "failed to create client for GVR mappings ConfigMap")
+				}
+				gvrMappings, err := loadGVRMappings(ctx, gvrClient, serverCfg.GVRMappingsNamespace, serverCfg.GVRMappingsConfigMap)
+				if err != nil {
+					klog.Exit(err, "failed to load GVR mappings from ConfigMap")
+				}
+				clusterCacheOpts = append(clusterCacheOpts, clustercache.WithCustomMappings(gvrMappings))
+			}
+
+			clusterCache, err := clustercache.New(mgr, clusterCacheOpts...)
 			if err != nil {
 				klog.Exit(err, "failed to create cluster cache")
 			}
@@ -162,4 +188,12 @@ func NewServeCmd() *cobra.Command {
 	serverCfg = config.New()
 	serverCfg.AddFlags(cmd.Flags())
 	return cmd
+}
+
+func loadGVRMappings(ctx context.Context, c ctrlruntimeclient.Client, namespace, name string) (map[schema.GroupKind]restmapper.GVRMapping, error) {
+	var cm corev1.ConfigMap
+	if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &cm); err != nil {
+		return nil, fmt.Errorf("get GVR mappings ConfigMap %s/%s: %w", namespace, name, err)
+	}
+	return restmapper.ParseConfigMap(cm)
 }

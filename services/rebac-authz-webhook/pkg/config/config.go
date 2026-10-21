@@ -46,6 +46,9 @@ type Config struct {
 	Webhook WebhookConfig
 
 	APIExportEndpointSliceName string
+
+	GVRMappingsConfigMap string
+	GVRMappingsNamespace string
 }
 
 func New() *Config {
@@ -63,7 +66,7 @@ func New() *Config {
 			CacheMissCleanupInterval:   2 * time.Minute,
 			CacheMissRetryAfter:        1 * time.Second,
 		},
-
+		GVRMappingsNamespace: "default",
 		APIExportEndpointSliceName: "core.platform-mesh.io",
 	}
 }
@@ -81,4 +84,6 @@ func (cfg *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&cfg.Webhook.CacheMissCleanupInterval, "webhook-cache-miss-cleanup-interval", cfg.Webhook.CacheMissCleanupInterval, "Interval at which cache miss keys are checked for expiration")
 	fs.DurationVar(&cfg.Webhook.CacheMissRetryAfter, "webhook-cache-miss-retry-after", cfg.Webhook.CacheMissRetryAfter, "Delay before retrying on cache miss")
 	fs.StringVar(&cfg.APIExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", cfg.APIExportEndpointSliceName, "Set the kcp API export endpoint slice name")
+	fs.StringVar(&cfg.GVRMappingsConfigMap, "gvr-mappings-configmap", cfg.GVRMappingsConfigMap, "Name of the ConfigMap containing static GVR mappings for non-cluster resource kinds")
+	fs.StringVar(&cfg.GVRMappingsNamespace, "gvr-mappings-namespace", cfg.GVRMappingsNamespace, "Namespace of the GVR mappings ConfigMap (defaults to the default namespace)")
 }

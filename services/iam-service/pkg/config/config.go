@@ -65,14 +65,16 @@ type RolesConfig struct {
 }
 
 type ServiceConfig struct {
-	Port       int
-	OpenFGA    OpenFGAConfig
-	JWT        JWTConfig
-	IDM        IDMConfig
-	Keycloak   KeycloakConfig
-	Pagination PaginationConfig
-	Sorting    SortingConfig
-	Roles      RolesConfig
+	Port                 int
+	OpenFGA              OpenFGAConfig
+	JWT                  JWTConfig
+	IDM                  IDMConfig
+	Keycloak             KeycloakConfig
+	Pagination           PaginationConfig
+	Sorting              SortingConfig
+	Roles                RolesConfig
+	GVRMappingsConfigMap string
+	GVRMappingsNamespace string
 }
 
 func NewServiceConfig() *ServiceConfig {
@@ -109,6 +111,7 @@ func NewServiceConfig() *ServiceConfig {
 		Roles: RolesConfig{
 			FilePath: "input/roles.yaml",
 		},
+		GVRMappingsNamespace: "default",
 	}
 }
 
@@ -133,4 +136,6 @@ func (c *ServiceConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.Sorting.DefaultDirection, "sorting-default-direction", c.Sorting.DefaultDirection, "Set default sorting direction")
 	fs.StringVar(&c.Roles.FilePath, "roles-file-path", c.Roles.FilePath, "Set roles file path")
 	fs.BoolVar(&c.Roles.UseProviderPermissionsRetriever, "use-provider-permissions-retriever", c.Roles.UseProviderPermissionsRetriever, "Use ProviderPermissions resources for role retrieval instead of file-based roles")
+	fs.StringVar(&c.GVRMappingsConfigMap, "gvr-mappings-configmap", c.GVRMappingsConfigMap, "Name of the ConfigMap containing static GVR mappings for non-cluster resource kinds")
+	fs.StringVar(&c.GVRMappingsNamespace, "gvr-mappings-namespace", c.GVRMappingsNamespace, "Namespace of the GVR mappings ConfigMap (defaults to default namespace")
 }

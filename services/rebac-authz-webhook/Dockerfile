@@ -29,6 +29,7 @@ WORKDIR /workspace
 COPY go.work go.work
 COPY go.work.sum go.work.sum
 COPY apis/ apis/
+COPY golang-commons/ golang-commons/
 COPY services/rebac-authz-webhook/ services/rebac-authz-webhook/
 
 # Drop every workspace module except the ones copied above, so the workspace
@@ -37,7 +38,7 @@ COPY services/rebac-authz-webhook/ services/rebac-authz-webhook/
 # dropped modules don't need to exist in the build context.
 RUN for m in $(go work edit -json | sed -n 's/.*"DiskPath": "\(.*\)".*/\1/p'); do \
       case "$m" in \
-        ./apis|./services/rebac-authz-webhook) ;; \
+        ./apis|./golang-commons|./services/rebac-authz-webhook) ;; \
         *) go work edit -dropuse "$m" ;; \
       esac; \
     done

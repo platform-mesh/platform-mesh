@@ -37,6 +37,7 @@ import (
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
 	pmmws "go.platform-mesh.io/golang-commons/middleware"
+	"go.platform-mesh.io/golang-commons/restmapper"
 	"go.platform-mesh.io/iam-service/pkg/accountinfo"
 	"go.platform-mesh.io/iam-service/pkg/config"
 	"go.platform-mesh.io/iam-service/pkg/directive"
@@ -50,6 +51,9 @@ import (
 	iamRouter "go.platform-mesh.io/iam-service/pkg/router"
 	"go.platform-mesh.io/iam-service/pkg/workspace"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -104,12 +108,29 @@ func setupRouter(ctx context.Context, mgr mcmanager.Manager, fgaClient openfgav1
 		log.Fatal().Err(err).Msg("Failed to create multicluster client")
 	}
 	wsClient := workspace.NewClusterClientFactory(mcClusterClient)
+
+	gvrMappings := make(map[schema.GroupKind]restmapper.GVRMapping)
+	if serviceCfg.GVRMappingsConfigMap != "" {
+		inClusterCfg, err := rest.InClusterConfig()
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to get in-cluster config for GVR mappings ConfigMap")
+		}
+		gvrMappingsClient, err := ctrlruntimeclient.New(inClusterCfg, ctrlruntimeclient.Options{})
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to create client for GVR mappings ConfigMap")
+		}
+		gvrMappings, err = loadGVRMappings(ctx, gvrMappingsClient, serviceCfg.GVRMappingsNamespace, serviceCfg.GVRMappingsConfigMap)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to load GVR mappings from ConfigMap")
+		}
+	}
+
 	ad := directive.NewAuthorizedDirective(
-		fgaClient,
 		accountInfoRetriever,
-		serviceCfg.OpenFGA.StoreCacheTTL,
 		wsClient,
+		restcfg,
 		log,
+		gvrMappings,
 	)
 	dr := graph.DirectiveRoot{
 		Authorized: ad.Authorized,
@@ -263,4 +284,12 @@ func start(ctx context.Context, serviceCfg *config.ServiceConfig, router *chi.Mu
 	if err != nil {
 		log.Panic().Err(err).Msg("Graceful shutdown failed")
 	}
+}
+
+func loadGVRMappings(ctx context.Context, c ctrlruntimeclient.Client, namespace, name string) (map[schema.GroupKind]restmapper.GVRMapping, error) {
+	var cm corev1.ConfigMap
+	if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &cm); err != nil {
+		return nil, fmt.Errorf("get GVR mappings ConfigMap %s/%s: %w", namespace, name, err)
+	}
+	return restmapper.ParseConfigMap(cm)
 }

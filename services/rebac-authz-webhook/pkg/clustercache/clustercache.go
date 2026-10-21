@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
+	"go.platform-mesh.io/golang-commons/restmapper"
 )
 
 type ClusterInfo struct {
@@ -73,14 +74,20 @@ type clusterCache struct {
 	resolversLock sync.Mutex
 	resolvers     map[multicluster.ClusterName]*resolver
 
-	mgr     mcmanager.Manager
-	backoff wait.Backoff
+	mgr          mcmanager.Manager
+	backoff      wait.Backoff
+	customMapper meta.RESTMapper
 }
 
 type Option func(*clusterCache)
 
 func WithBackoff(b wait.Backoff) Option {
 	return func(c *clusterCache) { c.backoff = b }
+}
+
+// WithStaticMappings sets a custom REST mapper for kinds absent from live discovery on top of the default mapper.
+func WithCustomMappings(mappings map[schema.GroupKind]restmapper.GVRMapping) Option {
+	return func(c *clusterCache) { c.customMapper = restmapper.NewStatic(mappings) }
 }
 
 func New(mgr mcmanager.Manager, opts ...Option) (*clusterCache, error) {
@@ -249,6 +256,10 @@ func (c *clusterCache) tryResolve(ctx context.Context, name multicluster.Cluster
 	restMapper, err := apiutil.NewDynamicRESTMapper(cfg, httpClient)
 	if err != nil {
 		return false, err
+	}
+
+	if c.customMapper != nil {
+		restMapper = meta.MultiRESTMapper{restMapper, c.customMapper}
 	}
 
 	c.cacheLock.Lock()
