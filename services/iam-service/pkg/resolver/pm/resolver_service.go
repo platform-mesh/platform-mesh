@@ -82,18 +82,19 @@ func (s *Service) Users(ctx context.Context, rctx graph.ResourceContext, roleFil
 		rolesToCount = append(rolesToCount, ownerRoleID)
 	}
 
-	allUserRoles, allRoleCounts, err := s.fgaService.ListUsersWithRoleCounts(ctx, rctx, roleFilters, rolesToCount)
+	result, err := s.fgaService.ListUsersWithRoleCounts(ctx, rctx, roleFilters, rolesToCount)
 	if err != nil {
 		return nil, err
 	}
+	allUserRoles := result.Users
 
 	ownersCount := 0
 	roleCounts := make([]*graph.RoleCount, 0, len(countRoleFilters))
-	for _, roleCount := range allRoleCounts {
-		if roleCount.RoleID == ownerRoleID {
+	for _, roleCount := range result.RoleCounts {
+		if roleCount.Role.ID == ownerRoleID {
 			ownersCount = roleCount.Count
 		}
-		if slices.Contains(countRoleFilters, roleCount.RoleID) {
+		if slices.Contains(countRoleFilters, roleCount.Role.ID) {
 			roleCounts = append(roleCounts, roleCount)
 		}
 	}

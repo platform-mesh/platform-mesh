@@ -202,14 +202,14 @@ func TestService_ListUsers_Success(t *testing.T) {
 	// Set cluster ID in context since it's now retrieved from context instead of accountinfo
 	ctx = appcontext.SetClusterId(ctx, ai.Spec.Account.GeneratedClusterId)
 
-	result, _, err := service.ListUsersWithRoleCounts(ctx, rCtx, roleFilters, nil)
+	result, err := service.ListUsersWithRoleCounts(ctx, rCtx, roleFilters, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
 	// Verify the results - convert to map for easier testing
 	resultMap := make(map[string][]string)
-	for _, userRoles := range result {
+	for _, userRoles := range result.Users {
 		var roleNames []string
 		for _, role := range userRoles.Roles {
 			roleNames = append(roleNames, role.ID)
@@ -279,7 +279,7 @@ func TestService_ListUsersWithRoleCounts_ReusesRoleLookups(t *testing.T) {
 		},
 	}, nil).Once()
 
-	users, roleCounts, err := service.ListUsersWithRoleCounts(
+	result, err := service.ListUsersWithRoleCounts(
 		ctx,
 		rCtx,
 		[]string{"member"},
@@ -287,16 +287,30 @@ func TestService_ListUsersWithRoleCounts_ReusesRoleLookups(t *testing.T) {
 	)
 
 	assert.NoError(t, err)
-	assert.Len(t, users, 2)
-	for _, user := range users {
+	assert.Len(t, result.Users, 2)
+	for _, user := range result.Users {
 		assert.NotEqual(t, "user1", user.User.Email)
 		assert.Len(t, user.Roles, 1)
 		assert.Equal(t, "member", user.Roles[0].ID)
 	}
 	assert.Equal(t, []*graph.RoleCount{
-		{RoleID: "owner", Count: 2},
-		{RoleID: "member", Count: 2},
-	}, roleCounts)
+		{
+			Role: &graph.Role{
+				ID:          "owner",
+				DisplayName: "Owner",
+				Description: "Full access to all resources within the account.",
+			},
+			Count: 2,
+		},
+		{
+			Role: &graph.Role{
+				ID:          "member",
+				DisplayName: "Member",
+				Description: "Limited access to resources within the account. Can view and interact with resources but cannot administrate them.",
+			},
+			Count: 2,
+		},
+	}, result.RoleCounts)
 	assert.Equal(t, 1, rolesRetriever.calls)
 }
 
@@ -326,7 +340,7 @@ func TestService_ListUsers_NoKCPContext(t *testing.T) {
 	// Set cluster ID in context since it's now retrieved from context instead of accountinfo
 	ctx = appcontext.SetClusterId(ctx, ai.Spec.Account.GeneratedClusterId)
 
-	result, _, err := service.ListUsersWithRoleCounts(ctx, rCtx, []string{"owner"}, nil)
+	result, err := service.ListUsersWithRoleCounts(ctx, rCtx, []string{"owner"}, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
