@@ -62,10 +62,10 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	kcpapiv1alpha "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	kcpapiv1alpha2 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha2"
-	kcpcorev1alpha "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 type KcpHelper interface {
@@ -88,10 +88,10 @@ func (h *Helper) NewKcpClient(config *rest.Config, workspacePath string) (ctrlru
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(authenticationv1.AddToScheme(scheme))
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpapiv1alpha.AddToScheme(scheme))
-	utilruntime.Must(kcpapiv1alpha2.AddToScheme(scheme))
-	utilruntime.Must(kcptenancyv1alpha.AddToScheme(scheme))
-	utilruntime.Must(kcpcorev1alpha.AddToScheme(scheme))
+	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme))
+	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(rbacv1.AddToScheme(scheme))
 	utilruntime.Must(admissionregistrationv1.AddToScheme(scheme))
 	utilruntime.Must(pmprovidersv1alpha1.AddToScheme(scheme))
@@ -589,7 +589,7 @@ func WaitForWorkspace(
 	err = wait.PollUntilContextTimeout(
 		ctx, time.Second, time.Second*15, true,
 		func(ctx context.Context) (bool, error) {
-			ws := &kcptenancyv1alpha.Workspace{}
+			ws := &kcptenancyv1alpha1.Workspace{}
 			if err := client.Get(ctx, types.NamespacedName{Name: name}, ws); err != nil {
 				return false, nil //nolint:nilerr
 			}
@@ -640,7 +640,7 @@ func ApplyManifestFromFile(
 			currentDefAPiBindings = []any{}
 		}
 		for _, v := range extraDefaultApiBindings {
-			newExport := kcptenancyv1alpha.APIExportReference{Path: v.Path, Export: v.Export}
+			newExport := kcptenancyv1alpha1.APIExportReference{Path: v.Path, Export: v.Export}
 			var m map[string]any
 			b, marshalErr := yaml.Marshal(newExport)
 			if marshalErr != nil {
@@ -655,16 +655,6 @@ func ApplyManifestFromFile(
 		if err != nil {
 			return errors.Wrap(err, "Failed to set defaultAPIBindings")
 		}
-	}
-
-	if (obj.GetKind() == "APIExport" || obj.GetKind() == "APIBinding") && obj.GetName() == "core.platform-mesh.io" {
-		apiExport := kcpapiv1alpha.APIExport{}
-		err = k8sClient.Get(ctx, types.NamespacedName{Name: "system.platform-mesh.io"}, &apiExport)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get APIExport system.platform-mesh.io")
-		}
-
-		templateData["apiExportSystemPlatformMeshIoIdentityHash"] = apiExport.Status.IdentityHash
 	}
 
 	err = k8sClient.Apply(ctx, ctrlruntimeclient.ApplyConfigurationFromUnstructured(&obj),

@@ -45,7 +45,8 @@ type Config struct {
 
 	Webhook WebhookConfig
 
-	APIExportEndpointSliceName string
+	APIExportEndpointSliceName      string
+	StoreAPIExportEndpointSliceName string
 }
 
 func New() *Config {
@@ -64,7 +65,8 @@ func New() *Config {
 			CacheMissRetryAfter:        1 * time.Second,
 		},
 
-		APIExportEndpointSliceName: "core.platform-mesh.io",
+		APIExportEndpointSliceName:      "core.platform-mesh.io",
+		StoreAPIExportEndpointSliceName: "fga.platform-mesh.io",
 	}
 }
 
@@ -81,4 +83,5 @@ func (cfg *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&cfg.Webhook.CacheMissCleanupInterval, "webhook-cache-miss-cleanup-interval", cfg.Webhook.CacheMissCleanupInterval, "Interval at which cache miss keys are checked for expiration")
 	fs.DurationVar(&cfg.Webhook.CacheMissRetryAfter, "webhook-cache-miss-retry-after", cfg.Webhook.CacheMissRetryAfter, "Delay before retrying on cache miss")
 	fs.StringVar(&cfg.APIExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", cfg.APIExportEndpointSliceName, "Set the kcp API export endpoint slice name")
+	fs.StringVar(&cfg.StoreAPIExportEndpointSliceName, "kcp-store-api-export-endpoint-slice-name", cfg.StoreAPIExportEndpointSliceName, "Set the kcp API export endpoint slice name that serves Stores")
 }

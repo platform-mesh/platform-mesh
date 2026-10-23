@@ -29,6 +29,7 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 	"go.platform-mesh.io/platform-mesh-operator/internal/metrics"
+	"go.platform-mesh.io/platform-mesh-operator/pkg/migrations"
 	"go.platform-mesh.io/subroutines"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,8 +40,8 @@ import (
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	kcpapiv1alpha "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 type KcpsetupSubroutine struct {
@@ -52,6 +53,7 @@ type KcpsetupSubroutine struct {
 	caBundleCache map[string]string
 	cfg           *config.OperatorConfig
 	kcpUrl        string
+	migrator      *migrations.Runner
 }
 
 const (
@@ -69,6 +71,7 @@ func NewKcpsetupSubroutine(client ctrlruntimeclient.Client, helper KcpHelper, cf
 		caBundleCache: make(map[string]string),
 		cfg:           cfg,
 		kcpUrl:        kcpUrl,
+		migrator:      migrations.New(),
 	}
 }
 
@@ -127,11 +130,19 @@ func (r *KcpsetupSubroutine) Process(ctx context.Context, runtimeObj ctrlruntime
 		return subroutines.OK(), gcerrors.Wrap(err, "Failed to build kubeconfig")
 	}
 
-	// Create kcp workspaces recursively
+	// Must run before the legacy-binding migrations below: they rebind onto exports this step creates.
 	err = r.createKcpResources(ctx, cfg, r.kcpDirectory, inst)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create kcp workspaces")
 		return subroutines.OK(), gcerrors.Wrap(err, "Failed to create kcp workspaces")
+	}
+
+	// Relies on this reconciler only running on the leader (manager-level LeaderElection
+	// in cmd/operator.go), no separate guard needed here. See pkg/migrations for what
+	// each step does and when it's safe to remove.
+	if err = r.migrator.Run(ctx, migrations.Deps{KcpHelper: r.kcpHelper, Config: cfg, Instance: inst}); err != nil {
+		log.Error().Err(err).Msg("Failed to run kcp migrations")
+		return subroutines.OK(), gcerrors.Wrap(err, "Failed to run kcp migrations")
 	}
 
 	// apply extra workspaces
@@ -351,7 +362,7 @@ func (r *KcpsetupSubroutine) getAPIExportHashInventory(ctx context.Context, conf
 		return inventory, err
 	}
 
-	apiExport := kcpapiv1alpha.APIExport{}
+	apiExport := kcpapisv1alpha1.APIExport{}
 	err = cs.Get(ctx, types.NamespacedName{Name: "tenancy.kcp.io"}, &apiExport)
 	if err != nil {
 		log.Err(err).Msg("Failed to get APIExport for tenancy.kcp.io")
@@ -399,12 +410,12 @@ func (r *KcpsetupSubroutine) applyExtraWorkspaces(ctx context.Context, config *r
 			return gcerrors.Wrap(err, "Failed to create kcp client for parent workspace %s", parentPath)
 		}
 
-		ws := &kcptenancyv1alpha.Workspace{}
-		ws.APIVersion = kcptenancyv1alpha.SchemeGroupVersion.String()
+		ws := &kcptenancyv1alpha1.Workspace{}
+		ws.APIVersion = kcptenancyv1alpha1.SchemeGroupVersion.String()
 		ws.Kind = "Workspace"
 		ws.Name = workspaceName
-		ws.Spec.Type = &kcptenancyv1alpha.WorkspaceTypeReference{
-			Name: kcptenancyv1alpha.WorkspaceTypeName(wsDecl.Type.Name),
+		ws.Spec.Type = &kcptenancyv1alpha1.WorkspaceTypeReference{
+			Name: kcptenancyv1alpha1.WorkspaceTypeName(wsDecl.Type.Name),
 			Path: wsDecl.Type.Path,
 		}
 

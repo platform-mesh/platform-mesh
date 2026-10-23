@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 
@@ -33,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 func TestTupleGetName(t *testing.T) {
@@ -247,7 +247,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					store := o.(*pmcorev1alpha1.Store)
@@ -312,7 +312,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					store := o.(*pmcorev1alpha1.Store)
@@ -400,7 +400,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				// First Get is the tuple-cleanup lookup, second is
 				// deregisterAuthorizationModelFromStore's own fetch.
@@ -452,7 +452,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					store := o.(*pmcorev1alpha1.Store)
@@ -499,7 +499,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(
 					apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "stores"}, "store"),

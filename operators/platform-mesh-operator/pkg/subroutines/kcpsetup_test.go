@@ -38,8 +38,8 @@ import (
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	kcpapiv1alpha "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 var ManifestStructureTest = "../../manifests/kcp"
@@ -123,7 +123,7 @@ func (s *KcpsetupTestSuite) Test_applyDirStructure() {
 	// Mock workspace lookups for waitForWorkspace calls (multiple calls for polling)
 	kcpClientMock.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.Workspace")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			ws := obj.(*kcptenancyv1alpha.Workspace)
+			ws := obj.(*kcptenancyv1alpha1.Workspace)
 			ws.Status.Phase = "Ready"
 			return nil
 		})
@@ -131,7 +131,7 @@ func (s *KcpsetupTestSuite) Test_applyDirStructure() {
 	// Mock APIExport lookups
 	kcpClientMock.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.APIExport")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			export := obj.(*kcpapiv1alpha.APIExport)
+			export := obj.(*kcpapisv1alpha1.APIExport)
 			export.Status.IdentityHash = "test-hash"
 			return nil
 		})
@@ -540,6 +540,10 @@ users:
 
 	// Create mock KCP client for APIExport lookups
 	mockKcpClient := new(mocks.Client)
+	// The fga split migration lists APIBindings in root:orgs first; an
+	// empty list means nothing to migrate.
+	mockKcpClient.EXPECT().List(mock.Anything, mock.Anything).Return(nil).Maybe()
+
 	s.helperMock.EXPECT().
 		NewKcpClient(mock.Anything, "root").
 		Return(mockKcpClient, nil)
@@ -565,8 +569,8 @@ users:
 		Return(mockKcpClient, nil)
 
 	// Mock APIExport lookups
-	apiexport := &kcpapiv1alpha.APIExport{
-		Status: kcpapiv1alpha.APIExportStatus{
+	apiexport := &kcpapisv1alpha1.APIExport{
+		Status: kcpapisv1alpha1.APIExportStatus{
 			IdentityHash: "test-hash",
 		},
 	}
@@ -575,7 +579,7 @@ users:
 	mockKcpClient.EXPECT().
 		Get(mock.Anything, types.NamespacedName{Name: "tenancy.kcp.io"}, mock.AnythingOfType("*v1alpha1.APIExport")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			export := obj.(*kcpapiv1alpha.APIExport)
+			export := obj.(*kcpapisv1alpha1.APIExport)
 			export.Status = apiexport.Status
 			return nil
 		})
@@ -583,7 +587,7 @@ users:
 	mockKcpClient.EXPECT().
 		Get(mock.Anything, types.NamespacedName{Name: "shards.core.kcp.io"}, mock.AnythingOfType("*v1alpha1.APIExport")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			export := obj.(*kcpapiv1alpha.APIExport)
+			export := obj.(*kcpapisv1alpha1.APIExport)
 			export.Status = apiexport.Status
 			return nil
 		})
@@ -591,15 +595,7 @@ users:
 	mockKcpClient.EXPECT().
 		Get(mock.Anything, types.NamespacedName{Name: "topology.kcp.io"}, mock.AnythingOfType("*v1alpha1.APIExport")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			export := obj.(*kcpapiv1alpha.APIExport)
-			export.Status = apiexport.Status
-			return nil
-		})
-
-	mockKcpClient.EXPECT().
-		Get(mock.Anything, types.NamespacedName{Name: "system.platform-mesh.io"}, mock.AnythingOfType("*v1alpha1.APIExport")).
-		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			export := obj.(*kcpapiv1alpha.APIExport)
+			export := obj.(*kcpapisv1alpha1.APIExport)
 			export.Status = apiexport.Status
 			return nil
 		})
@@ -608,7 +604,7 @@ users:
 	mockKcpClient.EXPECT().
 		Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.Workspace")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			ws := obj.(*kcptenancyv1alpha.Workspace)
+			ws := obj.(*kcptenancyv1alpha1.Workspace)
 			ws.Status.Phase = "Ready"
 			return nil
 		})
@@ -616,7 +612,7 @@ users:
 	mockKcpClient.EXPECT().
 		Get(mock.Anything, types.NamespacedName{Name: "orgs"}, mock.AnythingOfType("*v1alpha1.Workspace")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			ws := obj.(*kcptenancyv1alpha.Workspace)
+			ws := obj.(*kcptenancyv1alpha1.Workspace)
 			ws.Status.Phase = "Ready"
 			return nil
 		})
@@ -659,8 +655,8 @@ func (s *KcpsetupTestSuite) Test_getAPIExportHashInventory() {
 	mockedKcpHelper.EXPECT().NewKcpClient(mock.Anything, mock.Anything).Return(mockKcpClient, nil).Times(3)
 	s.testObj = NewKcpsetupSubroutine(s.clientMock, mockedKcpHelper, defaultTestOperatorConfig(), ManifestStructureTest, "")
 
-	apiexport := &kcpapiv1alpha.APIExport{
-		Status: kcpapiv1alpha.APIExportStatus{
+	apiexport := &kcpapisv1alpha1.APIExport{
+		Status: kcpapisv1alpha1.APIExportStatus{
 			IdentityHash: "hash1",
 		},
 	}
@@ -668,13 +664,13 @@ func (s *KcpsetupTestSuite) Test_getAPIExportHashInventory() {
 		mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption,
 		) error {
-			*o.(*kcpapiv1alpha.APIExport) = *apiexport
+			*o.(*kcpapisv1alpha1.APIExport) = *apiexport
 			return nil
 		}).Times(2)
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption,
 		) error {
-			*o.(*kcpapiv1alpha.APIExport) = *apiexport
+			*o.(*kcpapisv1alpha1.APIExport) = *apiexport
 			return errors.New("error")
 		}).Once()
 
@@ -689,13 +685,13 @@ func (s *KcpsetupTestSuite) Test_getAPIExportHashInventory() {
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption,
 		) error {
-			*o.(*kcpapiv1alpha.APIExport) = *apiexport
+			*o.(*kcpapisv1alpha1.APIExport) = *apiexport
 			return nil
 		}).Once()
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption,
 		) error {
-			*o.(*kcpapiv1alpha.APIExport) = *apiexport
+			*o.(*kcpapisv1alpha1.APIExport) = *apiexport
 			return errors.New("error")
 		}).Once()
 
@@ -709,7 +705,7 @@ func (s *KcpsetupTestSuite) Test_getAPIExportHashInventory() {
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption,
 		) error {
-			*o.(*kcpapiv1alpha.APIExport) = *apiexport
+			*o.(*kcpapisv1alpha1.APIExport) = *apiexport
 			return errors.New("error")
 		}).Once()
 
@@ -820,27 +816,27 @@ func (s *KcpsetupTestSuite) TestCreateWorkspaces() {
 		Return(nil).
 		Once()
 
-	apiexport := &kcpapiv1alpha.APIExport{
-		Status: kcpapiv1alpha.APIExportStatus{
+	apiexport := &kcpapisv1alpha1.APIExport{
+		Status: kcpapisv1alpha1.APIExportStatus{
 			IdentityHash: "hash1",
 		},
 	}
-	workspace := &kcptenancyv1alpha.Workspace{
-		Status: kcptenancyv1alpha.WorkspaceStatus{
+	workspace := &kcptenancyv1alpha1.Workspace{
+		Status: kcptenancyv1alpha1.WorkspaceStatus{
 			Phase: "Ready",
 		},
 	}
 	// Mock APIExport lookups
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.APIExport")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			*o.(*kcpapiv1alpha.APIExport) = *apiexport
+			*o.(*kcpapisv1alpha1.APIExport) = *apiexport
 			return nil
 		})
 
 	// Mock workspace lookups (flexible count for polling)
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.Workspace")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			*o.(*kcptenancyv1alpha.Workspace) = *workspace
+			*o.(*kcptenancyv1alpha1.Workspace) = *workspace
 			return nil
 		}).Maybe()
 
@@ -927,14 +923,14 @@ func (s *KcpsetupTestSuite) TestCreateWorkspaces() {
 	// Mock APIExport lookups
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.APIExport")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			*o.(*kcpapiv1alpha.APIExport) = *apiexport
+			*o.(*kcpapisv1alpha1.APIExport) = *apiexport
 			return nil
 		})
 
 	// Mock workspace lookups (2 calls for platform-mesh-system and orgs workspaces)
 	mockKcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.Workspace")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-			*o.(*kcptenancyv1alpha.Workspace) = *workspace
+			*o.(*kcptenancyv1alpha1.Workspace) = *workspace
 			return nil
 		}).Times(2)
 

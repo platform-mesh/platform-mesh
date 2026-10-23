@@ -49,7 +49,7 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
 		Path:           "root:platform-mesh-system",
 		Secret:         "rebac-authz-webhook-kubeconfig",
-		APIExportNames: []string{"core.platform-mesh.io"},
+		APIExportNames: []string{"core.platform-mesh.io", "fga.platform-mesh.io"},
 		AdminAuth:      ptr.To(false),
 	},
 	{
@@ -70,7 +70,7 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
 		Path:           "root:platform-mesh-system",
 		Secret:         "extension-manager-operator-kubeconfig",
-		APIExportNames: []string{"core.platform-mesh.io"},
+		APIExportNames: []string{"core.platform-mesh.io", "ui.platform-mesh.io"},
 		AdminAuth:      ptr.To(false),
 	},
 	{

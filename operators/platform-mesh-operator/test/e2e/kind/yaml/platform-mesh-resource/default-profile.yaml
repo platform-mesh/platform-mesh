@@ -42,13 +42,10 @@ data:
         - ServerSideApply=true
         - SkipCRDs=false
         enabled: true
-        kustomization:
-          install:
-            crds: Skip
-          interval: 1m
-          path: ./config/crd/experimental
-        name: gateway-api
-        ocmResourceName: crds
+        interval: 1m
+        name: gateway-api-crds
+        ocmResourceName: chart
+        targetNamespace: default
       traefik:
         skipCrds: true
         syncOptions:
@@ -188,6 +185,7 @@ data:
               enabled: true
             kcp:
               enabled: true
+              apiExportEndpointSliceName: "ui.platform-mesh.io"
               kubeconfigSecret: extension-manager-operator-kubeconfig
             tracing:
               collector:
@@ -278,6 +276,12 @@ data:
               cluster:
                 # Chart default is 2 instances; one is enough for the e2e.
                 instances: 1
+              # same as helm-charts local-setup, keycloak must match keycloak.operator.db.password
+              roles:
+                keycloak:
+                  password: keycloak-password
+                openfga:
+                  password: openfga-password
             cors:
               enabled: true
             gatewayApi:
@@ -289,16 +293,22 @@ data:
                 hostnames:
                 - "localhost"
                 - "portal.localhost"
-                - "kcp.localhost"
-                - "root.kcp.localhost"
                 - "kcp.api.{{ .baseDomain }}"
+                - "root.kcp.localhost"
                 - "nereus.kcp.localhost"
                 - "triton.kcp.localhost"
+              # kcp.localhost is the front-proxy itself, the shard hostnames stay on traefik
+              - ip: "{{ .kcpFrontProxyClusterIP }}"
+                hostnames:
+                - "kcp.localhost"
             keycloak:
               enabled: true
               operator:
                 hostname: https://portal.localhost:8443/keycloak/
                 enabled: true
+                # same as helm-charts local-setup, the infra chart creates keycloak-db-credentials only when this is set
+                db:
+                  password: keycloak-password
                 # Chart default requests 750m / 1Gi; trimmed for the default CI runner.
                 resources:
                   requests:
@@ -335,7 +345,7 @@ data:
                 clusterIP: "{{ .kcpFrontProxyClusterIP }}"
                 port: 8443
               image:
-                tag: v0.32.0
+                tag: v0.33.1
               rootShard:
                 extraArgs:
                 - --feature-gates=WorkspaceAuthentication=true
@@ -652,11 +662,14 @@ data:
                 hostnames:
                 - "localhost"
                 - "portal.localhost"
-                - "kcp.localhost"
-                - "root.kcp.localhost"
                 - "kcp.api.{{ .baseDomain }}"
+                - "root.kcp.localhost"
                 - "nereus.kcp.localhost"
                 - "triton.kcp.localhost"
+              # kcp.localhost is the front-proxy itself, the shard hostnames stay on traefik
+              - ip: "{{ .kcpFrontProxyClusterIP }}"
+                hostnames:
+                - "kcp.localhost"
             http:
               protocol: https
             kcp:
@@ -689,14 +702,12 @@ data:
             openfga:
               url: openfga:8081
         security-operator:
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: security-operator
           syncWave: 4
           enabled: true
           values:
+            # built from this checkout and loaded into kind by the e2e suite
+            image:
+              tag: e2e-local
             deployment:
               resources:
                 requests:

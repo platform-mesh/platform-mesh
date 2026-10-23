@@ -31,6 +31,7 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
+	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/util"
 	"go.platform-mesh.io/subroutines"
 
@@ -125,7 +126,7 @@ func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, s
 
 	var extendingModules pmcorev1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
-		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != string(storeClusterKey) {
+		if model.Spec.StoreRef.Name != store.Name || config.StoreClusterName(model.Spec.StoreRef.Cluster) != storeClusterKey {
 			continue
 		}
 
