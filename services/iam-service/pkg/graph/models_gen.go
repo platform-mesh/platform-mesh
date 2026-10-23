@@ -72,8 +72,8 @@ type RoleAssignmentResult struct {
 
 // Total number of users assigned to a role
 type RoleCount struct {
-	RoleID string `json:"roleId"`
-	Count  int    `json:"count"`
+	Role  *Role `json:"role"`
+	Count int   `json:"count"`
 }
 
 // Result of role removal operation

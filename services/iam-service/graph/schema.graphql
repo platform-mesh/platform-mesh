@@ -53,7 +53,7 @@ type UserRoles {
 
 """ Total number of users assigned to a role """
 type RoleCount {
-    roleId: String!
+    role: Role!
     count: Int!
 }
 

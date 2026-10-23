@@ -373,7 +373,9 @@ func TestService_Users_ReturnsRequestedRoleCountsAndLegacyOwnerCount(t *testing.
 	assert.NoError(t, err)
 	assert.Empty(t, result.Users)
 	assert.Equal(t, 2, result.OwnersCount)
-	assert.Equal(t, []*graph.RoleCount{{RoleID: "member", Count: 0}}, result.RoleCounts)
+	assert.Len(t, result.RoleCounts, 1)
+	assert.Equal(t, "member", result.RoleCounts[0].Role.ID)
+	assert.Equal(t, 0, result.RoleCounts[0].Count)
 }
 
 func TestService_Users_ListsRoleOnceWhenFilteredAndCounted(t *testing.T) {
@@ -400,7 +402,9 @@ func TestService_Users_ListsRoleOnceWhenFilteredAndCounted(t *testing.T) {
 	result, err := service.Users(ctx, rCtx, []string{"owner"}, []string{"owner"}, nil, nil)
 
 	assert.NoError(t, err)
-	assert.Equal(t, []*graph.RoleCount{{RoleID: "owner", Count: 0}}, result.RoleCounts)
+	assert.Len(t, result.RoleCounts, 1)
+	assert.Equal(t, "owner", result.RoleCounts[0].Role.ID)
+	assert.Equal(t, 0, result.RoleCounts[0].Count)
 }
 
 func TestService_Users_FailsWhenCountLookupFails(t *testing.T) {

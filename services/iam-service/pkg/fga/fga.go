@@ -75,24 +75,30 @@ func New(client openfgav1.OpenFGAServiceClient, cfg *config.ServiceConfig, wsCli
 	}
 }
 
-func (s *Service) ListUsersWithRoleCounts(ctx context.Context, rctx graph.ResourceContext, roleFilters, countRoleFilters []string) ([]*graph.UserRoles, []*graph.RoleCount, error) {
+// UsersWithRoleCounts holds the users of a resource and the user totals of the counted roles.
+type UsersWithRoleCounts struct {
+	Users      []*graph.UserRoles
+	RoleCounts []*graph.RoleCount
+}
+
+func (s *Service) ListUsersWithRoleCounts(ctx context.Context, rctx graph.ResourceContext, roleFilters, countRoleFilters []string) (*UsersWithRoleCounts, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 	ctx, span := otel.GetTracerProvider().Tracer("").Start(ctx, "fga.ListUsersWithRoleCounts")
 	defer span.End()
 
 	kctx, err := appcontext.GetKCPContext(ctx)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get kcp user context")
+		return nil, errors.Wrap(err, "failed to get kcp user context")
 	}
 
 	storeID, err := s.helper.GetStoreID(ctx, s.client, kctx.OrganizationName)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get store ID for organization %s", kctx.OrganizationName)
+		return nil, errors.Wrap(err, "failed to get store ID for organization %s", kctx.OrganizationName)
 	}
 
 	roleDefinitions, err := s.rolesRetriever.GetRoleDefinitions(rctx)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get available roles for group resource %s/%s", rctx.Group, rctx.Kind)
+		return nil, errors.Wrap(err, "failed to get available roles for group resource %s/%s", rctx.Group, rctx.Kind)
 	}
 	availableRoles := roles.GetAvailableRoleIDs(roleDefinitions)
 	appliedRoles := filterAvailableRoles(roleFilters, availableRoles, log)
@@ -105,23 +111,31 @@ func (s *Service) ListUsersWithRoleCounts(ctx context.Context, rctx graph.Resour
 	userRoles := sets.New(appliedRoles...)
 	rolesToList := userRoles.Union(sets.New(appliedCountRoles...)).UnsortedList()
 	if len(rolesToList) == 0 {
-		return []*graph.UserRoles{}, []*graph.RoleCount{}, nil
+		return &UsersWithRoleCounts{Users: []*graph.UserRoles{}, RoleCounts: []*graph.RoleCount{}}, nil
 	}
 
 	users, counts, err := s.listUsersParallel(ctx, rctx, storeID, rolesToList, userRoles, roleDefinitions)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
+	countRoles := sets.New(appliedCountRoles...)
 	roleCounts := make([]*graph.RoleCount, 0, len(appliedCountRoles))
-	for _, role := range appliedCountRoles {
+	for _, roleDef := range roleDefinitions {
+		if !countRoles.Has(roleDef.ID) {
+			continue
+		}
 		roleCounts = append(roleCounts, &graph.RoleCount{
-			RoleID: role,
-			Count:  counts[role],
+			Role: &graph.Role{
+				ID:          roleDef.ID,
+				DisplayName: roleDef.DisplayName,
+				Description: roleDef.Description,
+			},
+			Count: counts[roleDef.ID],
 		})
 	}
 
-	return users, roleCounts, nil
+	return &UsersWithRoleCounts{Users: users, RoleCounts: roleCounts}, nil
 }
 
 // listUsersParallel performs parallel ListUsers calls for multiple roles
