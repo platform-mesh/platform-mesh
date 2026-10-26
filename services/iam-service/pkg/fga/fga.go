@@ -81,6 +81,9 @@ type UsersWithRoleCounts struct {
 	RoleCounts []*graph.RoleCount
 }
 
+// ListUsersWithRoleCounts returns the users holding any of roleFilters on the resource, or any role when
+// roleFilters is empty. It also counts the users of each role in countRoleFilters, independent of
+// roleFilters; an empty countRoleFilters returns no counts. Roles not defined for the resource are ignored.
 func (s *Service) ListUsersWithRoleCounts(ctx context.Context, rctx graph.ResourceContext, roleFilters, countRoleFilters []string) (*UsersWithRoleCounts, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 	ctx, span := otel.GetTracerProvider().Tracer("").Start(ctx, "fga.ListUsersWithRoleCounts")
