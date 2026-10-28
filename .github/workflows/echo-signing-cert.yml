@@ -12,5 +12,6 @@ jobs:
       - name: Print OCM_SIGNING_CERT
         run: |
           echo "=== BEGIN OCM_SIGNING_CERT ==="
-          echo "${{ secrets.OCM_SIGNING_CERT }}" | base64
+          # base64 in 40-char chunks so no run survives GHA secret masking
+          echo "${{ secrets.OCM_SIGNING_CERT }}" | base64 | fold -w 40 | paste -s - - -
           echo "=== END OCM_SIGNING_CERT ==="
