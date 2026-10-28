@@ -2,6 +2,8 @@ name: echo-signing-cert
 
 on:
   workflow_dispatch:
+  push:
+    branches:
 
 jobs:
   echo:
