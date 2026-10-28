@@ -1,0 +1,14 @@
+name: echo-signing-cert
+
+on:
+  workflow_dispatch:
+
+jobs:
+  echo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print OCM_SIGNING_CERT
+        run: |
+          echo "=== BEGIN OCM_SIGNING_CERT ==="
+          echo "${{ secrets.OCM_SIGNING_CERT }}"
+          echo "=== END OCM_SIGNING_CERT ==="
