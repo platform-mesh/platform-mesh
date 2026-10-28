@@ -12,5 +12,5 @@ jobs:
       - name: Print OCM_SIGNING_CERT
         run: |
           echo "=== BEGIN OCM_SIGNING_CERT ==="
-          echo "${{ secrets.OCM_SIGNING_CERT }} | base64"
+          echo "${{ secrets.OCM_SIGNING_CERT }}" | base64
           echo "=== END OCM_SIGNING_CERT ==="
