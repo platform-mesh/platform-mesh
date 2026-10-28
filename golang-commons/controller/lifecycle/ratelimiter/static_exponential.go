@@ -17,6 +17,8 @@ limitations under the License.
 package ratelimiter
 
 import (
+	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -36,11 +38,14 @@ type StaticThenExponentialRateLimiter[T comparable] struct {
 }
 
 // NewStaticThenExponentialRateLimiter returns a limiter that tracks backoff per key.
-// A pointer key only matches the same instance and should not be used in a controller.
+// Pointer keys are rejected as they should not be used in controller context.
 //
 // Use the reconcile request as the key, or NewObjectRateLimiter for API objects.
 func NewStaticThenExponentialRateLimiter[T comparable](cfg Config) (*StaticThenExponentialRateLimiter[T], error) {
 	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+	if err := validateKey[T](); err != nil {
 		return nil, err
 	}
 	clk := cfg.clock
@@ -90,4 +95,30 @@ func (r *StaticThenExponentialRateLimiter[T]) Forget(item T) {
 
 func (r *StaticThenExponentialRateLimiter[T]) NumRequeues(item T) int {
 	return r.exponential.NumRequeues(item)
+}
+
+func validateKey[T comparable]() error {
+	t := reflect.TypeFor[T]()
+	if !comparesByValue(t) {
+		return fmt.Errorf("key type %s compares by identity, use a value key such as the reconcile request or NewObjectRateLimiter", t)
+	}
+	return nil
+}
+
+// comparesByValue reports whether t compares by value and not by identity.
+// Interfaces fail the check as e.g. client.Object can hold a pointer.
+func comparesByValue(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Chan:
+		return false
+	case reflect.Array:
+		return comparesByValue(t.Elem())
+	case reflect.Struct:
+		for i := range t.NumField() {
+			if !comparesByValue(t.Field(i).Type) {
+				return false
+			}
+		}
+	}
+	return true
 }
