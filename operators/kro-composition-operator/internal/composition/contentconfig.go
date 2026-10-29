@@ -85,6 +85,12 @@ func BuildContentConfig(group, version, kind, plural string, namespaced bool, sp
 		scope = "Namespaced"
 	}
 
+	namespacePermissions := map[string]any{
+		"urlParameters": map[string]any{
+			"namespace": map[string]any{"read": true, "write": true},
+		},
+	}
+
 	listNode := map[string]any{
 		"pathSegment":             navSeg,
 		"navigationContext":       navSeg,
@@ -95,6 +101,7 @@ func BuildContentConfig(group, version, kind, plural string, namespaced bool, sp
 		"keepSelectedForChildren": true,
 		"url":                     "/assets/platform-mesh-portal-ui-wc.js#generic-list-view",
 		"webcomponent":            map[string]any{"selfRegistered": true, "type": "module"},
+		"clientPermissions":       namespacePermissions,
 		"context": map[string]any{
 			"resourceDefinition": map[string]any{
 				"apiGroup": ug,
@@ -138,6 +145,9 @@ func BuildContentConfig(group, version, kind, plural string, namespaced bool, sp
 		"webcomponent": map[string]any{"selfRegistered": true, "type": "module"},
 		"defineEntity": map[string]any{"id": "dashboard"},
 		"compound":     map[string]any{"children": []any{}},
+	}
+	if namespaced {
+		detailNode["clientPermissions"] = namespacePermissions
 	}
 
 	doc := map[string]any{

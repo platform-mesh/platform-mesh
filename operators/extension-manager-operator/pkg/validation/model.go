@@ -174,11 +174,7 @@ type ClientPermissions struct {
 	UrlParameters UrlParameters `json:"urlParameters,omitempty" yaml:"urlParameters,omitempty"`
 }
 
-type UrlParameters struct {
-	Url    Url `json:"url,omitempty" yaml:"url,omitempty"`
-	Q      Url `json:"q,omitempty" yaml:"q,omitempty"`
-	Author Url `json:"author,omitempty" yaml:"author,omitempty"`
-}
+type UrlParameters map[string]Url
 
 type Url struct {
 	Read  bool `json:"read,omitempty" yaml:"read,omitempty"`

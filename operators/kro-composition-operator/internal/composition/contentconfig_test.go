@@ -89,10 +89,15 @@ func TestBuildContentConfig_ScopeAndFields(t *testing.T) {
 	require.Contains(t, properties(ui.ListView.Fields), "metadata.namespace",
 		"listView should still show the namespace column")
 
-	// Cluster-scoped type: Cluster scope and no namespace anywhere.
+	require.Equal(t, 2, strings.Count(cc, `"namespace":{"read":true,"write":true}`),
+		"namespaced list and detail nodes must grant namespace access")
+
+	// Cluster-scoped type: Cluster scope and no namespace field.
 	ccCluster := BuildContentConfig("apps.example.com", "v1alpha1", "WebPage", "webpages", false, nil)
 	require.Contains(t, ccCluster, `"scope":"Cluster"`)
 	require.NotContains(t, ccCluster, "metadata.namespace", "cluster-scoped type must not reference a namespace")
+	require.Equal(t, 1, strings.Count(ccCluster, `"namespace":{"read":true,"write":true}`),
+		"only the list needs permission to clear a stale namespace")
 }
 
 func TestTitle(t *testing.T) {
