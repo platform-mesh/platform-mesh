@@ -19,7 +19,6 @@ package fga
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"go.opentelemetry.io/otel"
@@ -34,6 +33,8 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/graph"
 	"go.platform-mesh.io/iam-service/pkg/roles"
 	"go.platform-mesh.io/iam-service/pkg/workspace"
+
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (
@@ -74,9 +75,18 @@ func New(client openfgav1.OpenFGAServiceClient, cfg *config.ServiceConfig, wsCli
 	}
 }
 
-func (s *Service) ListUsers(ctx context.Context, rctx graph.ResourceContext, roleFilters []string) ([]*graph.UserRoles, error) {
+// UsersWithRoleCounts holds the users of a resource and the user totals of the counted roles.
+type UsersWithRoleCounts struct {
+	Users      []*graph.UserRoles
+	RoleCounts []*graph.RoleCount
+}
+
+// ListUsersWithRoleCounts returns the users holding any of roleFilters on the resource, or any role when
+// roleFilters is empty. It also counts the users of each role in countRoleFilters, independent of
+// roleFilters; an empty countRoleFilters returns no counts. Roles not defined for the resource are ignored.
+func (s *Service) ListUsersWithRoleCounts(ctx context.Context, rctx graph.ResourceContext, roleFilters, countRoleFilters []string) (*UsersWithRoleCounts, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	ctx, span := otel.GetTracerProvider().Tracer("").Start(ctx, "fga.ListUsers")
+	ctx, span := otel.GetTracerProvider().Tracer("").Start(ctx, "fga.ListUsersWithRoleCounts")
 	defer span.End()
 
 	kctx, err := appcontext.GetKCPContext(ctx)
@@ -89,31 +99,50 @@ func (s *Service) ListUsers(ctx context.Context, rctx graph.ResourceContext, rol
 		return nil, errors.Wrap(err, "failed to get store ID for organization %s", kctx.OrganizationName)
 	}
 
-	appliedRoles, err := s.applyRoleFilter(rctx, roleFilters, log)
+	roleDefinitions, err := s.rolesRetriever.GetRoleDefinitions(rctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get available roles for group resource %s/%s", rctx.Group, rctx.Kind)
 	}
+	availableRoles := roles.GetAvailableRoleIDs(roleDefinitions)
+	appliedRoles := filterAvailableRoles(roleFilters, availableRoles, log)
 
-	// If no roles to process, return empty result
-	if len(appliedRoles) == 0 {
-		return []*graph.UserRoles{}, nil
+	var appliedCountRoles []string
+	if len(countRoleFilters) > 0 {
+		appliedCountRoles = filterAvailableRoles(countRoleFilters, availableRoles, log)
 	}
 
-	// Use parallel processing for multiple roles
-	return s.listUsersParallel(ctx, rctx, storeID, appliedRoles)
-}
+	userRoles := sets.New(appliedRoles...)
+	rolesToList := userRoles.Union(sets.New(appliedCountRoles...)).UnsortedList()
+	if len(rolesToList) == 0 {
+		return &UsersWithRoleCounts{Users: []*graph.UserRoles{}, RoleCounts: []*graph.RoleCount{}}, nil
+	}
 
-func (s *Service) CountUsersForRole(ctx context.Context, rctx graph.ResourceContext, roleID string) (int, error) {
-	users, err := s.ListUsers(ctx, rctx, []string{roleID})
+	users, counts, err := s.listUsersParallel(ctx, rctx, storeID, rolesToList, userRoles, roleDefinitions)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return len(users), nil
+	countRoles := sets.New(appliedCountRoles...)
+	roleCounts := make([]*graph.RoleCount, 0, len(appliedCountRoles))
+	for _, roleDef := range roleDefinitions {
+		if !countRoles.Has(roleDef.ID) {
+			continue
+		}
+		roleCounts = append(roleCounts, &graph.RoleCount{
+			Role: &graph.Role{
+				ID:          roleDef.ID,
+				DisplayName: roleDef.DisplayName,
+				Description: roleDef.Description,
+			},
+			Count: counts[roleDef.ID],
+		})
+	}
+
+	return &UsersWithRoleCounts{Users: users, RoleCounts: roleCounts}, nil
 }
 
 // listUsersParallel performs parallel ListUsers calls for multiple roles
-func (s *Service) listUsersParallel(ctx context.Context, rctx graph.ResourceContext, storeID string, roles []string) ([]*graph.UserRoles, error) {
+func (s *Service) listUsersParallel(ctx context.Context, rctx graph.ResourceContext, storeID string, roles []string, rolesForUsers sets.Set[string], roleDefinitions []roles.RoleDefinition) ([]*graph.UserRoles, map[string]int, error) {
 	type roleResult struct {
 		role  string
 		users *openfgav1.ListUsersResponse
@@ -126,7 +155,7 @@ func (s *Service) listUsersParallel(ctx context.Context, rctx graph.ResourceCont
 
 	clusterId, err := appcontext.GetClusterId(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get cluster ID from context")
+		return nil, nil, errors.Wrap(err, "failed to get cluster ID from context")
 	}
 
 	// Launch goroutines for each role
@@ -157,39 +186,34 @@ func (s *Service) listUsersParallel(ctx context.Context, rctx graph.ResourceCont
 
 	// Collect results from all goroutines
 	allUserIDToRoles := UserIDToRoles{}
-	var mu sync.Mutex
+	roleCounts := make(map[string]int, len(roles))
 
 	for range roles {
 		result := <-resultChan
 
 		// Handle any errors
 		if result.err != nil {
-			return nil, errors.Wrap(result.err, "failed to list users for resource %s with role %s", rctx.Resource.Name, result.role)
+			return nil, nil, errors.Wrap(result.err, "failed to list users for resource %s with role %s", rctx.Resource.Name, result.role)
 		}
 
-		// Process users for this role with thread safety
-		mu.Lock()
+		roleUserIDs := sets.New[string]()
 		for _, tuple := range result.users.Users {
 			user := tuple.User.(*openfgav1.User_Object)
-			allUserIDToRoles[user.Object.Id] = append(allUserIDToRoles[user.Object.Id], result.role)
+			roleUserIDs.Insert(user.Object.Id)
+			if rolesForUsers.Has(result.role) {
+				allUserIDToRoles[user.Object.Id] = append(allUserIDToRoles[user.Object.Id], result.role)
+			}
 		}
-		mu.Unlock()
+		roleCounts[result.role] = roleUserIDs.Len()
 	}
 
 	// Convert UserIDToRoles to []*graph.UserRoles
-	return s.convertToGraphUserRoles(rctx, allUserIDToRoles), nil
+	return convertToGraphUserRoles(roleDefinitions, allUserIDToRoles), roleCounts, nil
 }
 
 // convertToGraphUserRoles converts UserIDToRoles map to []*graph.UserRoles
-func (s *Service) convertToGraphUserRoles(rctx graph.ResourceContext, userIDToRoles UserIDToRoles) []*graph.UserRoles {
+func convertToGraphUserRoles(roleDefinitions []roles.RoleDefinition, userIDToRoles UserIDToRoles) []*graph.UserRoles {
 	result := make([]*graph.UserRoles, 0, len(userIDToRoles))
-
-	// Get role definitions for this group resource
-	roleDefinitions, err := s.rolesRetriever.GetRoleDefinitions(rctx)
-	if err != nil {
-		// Fallback to basic roles if we can't get definitions
-		roleDefinitions = []roles.RoleDefinition{}
-	}
 
 	// Create a map for quick role definition lookup
 	roleDefMap := make(map[string]roles.RoleDefinition)
@@ -255,13 +279,7 @@ func (s *Service) GetRoles(ctx context.Context, rctx graph.ResourceContext) ([]*
 	return rArr, nil
 }
 
-func (s *Service) applyRoleFilter(rctx graph.ResourceContext, roleFilters []string, log *logger.Logger) ([]string, error) {
-	roleDefinitions, err := s.rolesRetriever.GetRoleDefinitions(rctx)
-	if err != nil { // coverage-ignore
-		return nil, errors.Wrap(err, "failed to get role definitions for group resource %s/%s", rctx.Group, rctx.Kind)
-	}
-	availableRoles := roles.GetAvailableRoleIDs(roleDefinitions)
-
+func filterAvailableRoles(roleFilters, availableRoles []string, log *logger.Logger) []string {
 	var appliedRoles []string
 	if len(roleFilters) > 0 {
 		log.Debug().Interface("roleFilters", roleFilters).Interface("availableRoles", availableRoles).Msg("Applying role filters")
@@ -273,7 +291,7 @@ func (s *Service) applyRoleFilter(rctx graph.ResourceContext, roleFilters []stri
 	} else {
 		appliedRoles = availableRoles
 	}
-	return appliedRoles, nil
+	return appliedRoles
 }
 
 // AssignRolesToUsers creates tuples in FGA for the given users and roles, and processes invites
