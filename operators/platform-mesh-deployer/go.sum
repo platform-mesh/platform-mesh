@@ -121,8 +121,8 @@ github.com/kcp-dev/kcp-operator/sdk v0.9.0 h1:CX6T/YQd+CuTTONvZKgYw1PsRN80ZK32ss
 github.com/kcp-dev/kcp-operator/sdk v0.9.0/go.mod h1:58muK/c6gOJv3cjtwhed9Mbscr6RbXZJjIj1RlLT6ng=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
-github.com/kcp-dev/sdk v0.32.3 h1:aJZYLduj+6Xcnjbw4MjYKCp/WfpX6XGFXCMalKMT0Ek=
-github.com/kcp-dev/sdk v0.32.3/go.mod h1:861Aee5vMdMs1gA6Xg8DPlLhy/pt5ReYzdIcsFVr/b4=
+github.com/kcp-dev/sdk v0.33.1 h1:VTPUc0X5b1q0J0Sp881cDSBH/fpW+H7EGNqrKPExDsM=
+github.com/kcp-dev/sdk v0.33.1/go.mod h1:zr3pC17BMpMBv2WWEYKlv6VJgM23EVidhS1PH/u1Jco=
 github.com/klauspost/compress v1.18.7 h1:aUyZsS4kH3QTKurYhAOwAHxllVPnOthb3vPfnF1Ehjw=
 github.com/klauspost/compress v1.18.7/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=

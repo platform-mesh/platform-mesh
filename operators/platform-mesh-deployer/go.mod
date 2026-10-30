@@ -8,7 +8,7 @@ require (
 	github.com/google/cel-go v0.30.0
 	github.com/kcp-dev/kcp-operator v0.9.0
 	github.com/kcp-dev/kcp-operator/sdk v0.9.0
-	github.com/kcp-dev/sdk v0.32.3
+	github.com/kcp-dev/sdk v0.33.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10

@@ -127,10 +127,10 @@ github.com/jonboulle/clockwork v0.5.0 h1:Hyh9A8u51kptdkR+cqRpT1EebBwTn1oK9YfGYbd
 github.com/jonboulle/clockwork v0.5.0/go.mod h1:3mZlmanh0g2NDKO5TWZVJAfofYk64M7XN3SzBPjZF60=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
-github.com/kcp-dev/apimachinery/v2 v2.32.3 h1:yOPnKrwlPOpM8FcjXZm7UJ5jD482vcdjGPyHyOUQayE=
-github.com/kcp-dev/apimachinery/v2 v2.32.3/go.mod h1:1Rkhiwoq345wlUYtq1/P+3chL2eE1rdoIgBPwb6Y9x8=
-github.com/kcp-dev/client-go v0.32.3 h1:N6CDBHM2tLige8IFzWNsLNyyT5M7wX50sm1VlTA1caY=
-github.com/kcp-dev/client-go v0.32.3/go.mod h1:dCaregBk0w5NhZywu/QRsGB7lfEch5dkBtSS45vNvuU=
+github.com/kcp-dev/apimachinery/v2 v2.33.1 h1:t+aiJAtpTJrK48vn8upYtBWTg1Z8uDWVz84adwHzd6w=
+github.com/kcp-dev/apimachinery/v2 v2.33.1/go.mod h1:1Rkhiwoq345wlUYtq1/P+3chL2eE1rdoIgBPwb6Y9x8=
+github.com/kcp-dev/client-go v0.33.1 h1:GEvN2u4DQ9TWXnbYMEQUgqCCphjWAnfQNVEGshrgWew=
+github.com/kcp-dev/client-go v0.33.1/go.mod h1:gWK5Y4BWkkY/yhQXaNmetAcaAxZ5lEZcXyjl5gvQHYo=
 github.com/kcp-dev/kcp v0.32.3 h1:S39vxIfqk6raBQSZtkbHIOrWoSO4F7LRHCsUa+imPEo=
 github.com/kcp-dev/kcp v0.32.3/go.mod h1:VVEYJp2CjYw+keGioZQeJbPlKsn4mmxWWYlI/ynoxZU=
 github.com/kcp-dev/kubernetes v0.0.0-20260602065202-e006560fc76a h1:jf7w9Kde83HpALUPzNj4GwbirdLr8oFTjguOfqDE52I=
@@ -193,8 +193,8 @@ github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
 github.com/kcp-dev/multicluster-provider v0.8.1-0.20260714141811-833f063357f8 h1:IGFbH0CwjWYGocSWYYfrog46OYolS0L2nA0Ti86lEzg=
 github.com/kcp-dev/multicluster-provider v0.8.1-0.20260714141811-833f063357f8/go.mod h1:7LkQot2Ljmsv1w5ZjfHpjVEbQwtFQiA6LAWHbiHCGUI=
-github.com/kcp-dev/sdk v0.32.3 h1:aJZYLduj+6Xcnjbw4MjYKCp/WfpX6XGFXCMalKMT0Ek=
-github.com/kcp-dev/sdk v0.32.3/go.mod h1:861Aee5vMdMs1gA6Xg8DPlLhy/pt5ReYzdIcsFVr/b4=
+github.com/kcp-dev/sdk v0.33.1 h1:VTPUc0X5b1q0J0Sp881cDSBH/fpW+H7EGNqrKPExDsM=
+github.com/kcp-dev/sdk v0.33.1/go.mod h1:zr3pC17BMpMBv2WWEYKlv6VJgM23EVidhS1PH/u1Jco=
 github.com/kcp-dev/virtual-workspace-framework v0.32.3 h1:ClVA2Y5c4Dh5jfR7EEwIo+G2YAugP7RhYmkc0uspbTw=
 github.com/kcp-dev/virtual-workspace-framework v0.32.3/go.mod h1:FLOnOcysbwElni3wjuLwew+j4LQpbITzYSiNmdC1Xck=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
