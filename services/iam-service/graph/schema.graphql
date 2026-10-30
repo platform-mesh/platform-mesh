@@ -122,8 +122,8 @@ type Query {
     roles(context: ResourceContext!): [Role]! @authorized(permission: "get_iam_roles")
     """ returns all users that have roles assigned for a particular groupResource/resource."""
     users(context: ResourceContext!, roleFilters: [String!], sortBy: SortByInput, page: PageInput): UserConnection! @authorized(permission: "get_iam_users")
-    """ returns all users known to the system, regardless of whether they have roles assigned."""
-    knownUsers(sortBy: SortByInput, page: PageInput): UserConnection!
+    """ returns all users known to the system, regardless of whether they have roles assigned. search matches username, email, first and last name."""
+    knownUsers(context: ResourceContext!, search: String, sortBy: SortByInput, page: PageInput): UserConnection! @authorized(permission: "manage_iam_roles")
     """ returns a specific user by userId"""
     user(userId: String!): User
     """ returns my user information"""

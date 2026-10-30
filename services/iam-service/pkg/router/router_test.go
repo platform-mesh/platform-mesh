@@ -23,9 +23,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -66,7 +68,7 @@ func (s *testResolverService) RemoveRole(ctx context.Context, resourceContext gr
 	return &graph.RoleRemovalResult{Success: true, WasAssigned: true}, nil
 }
 
-func (s *testResolverService) KnownUsers(ctx context.Context, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
+func (s *testResolverService) KnownUsers(ctx context.Context, resourceContext graph.ResourceContext, search *string, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
 	return &graph.UserConnection{
 		Users:    []*graph.UserRoles{},
 		PageInfo: &graph.PageInfo{Count: 0, TotalCount: 0, HasNextPage: false, HasPreviousPage: false},
@@ -387,4 +389,27 @@ func TestCreateRouter_GraphQLIntrospection(t *testing.T) {
 	// Should not return error (introspection should be enabled)
 	assert.NotEqual(t, http.StatusNotFound, rr.Code)
 	assert.NotEqual(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestCreateRouter_KnownUsersRequiresManageIamRoles(t *testing.T) {
+	log, err := logger.New(logger.Config{Level: "info"})
+	require.NoError(t, err)
+
+	var permissions []string
+	directives := graph.DirectiveRoot{
+		Authorized: func(ctx context.Context, obj any, next graphql.Resolver, permission string) (any, error) {
+			permissions = append(permissions, permission)
+			return nil, gqlerror.Errorf("unauthorized")
+		},
+	}
+	router := CreateRouter(&pmconfig.CommonServiceConfig{}, &config.ServiceConfig{}, createTestResolver(t), log, nil, directives)
+
+	query := `{"query": "{ knownUsers(context: {group: \"core.platform-mesh.io\", kind: \"Account\", resource: {name: \"a\"}, accountPath: \"root:orgs:o\"}, search: \"anna\") { pageInfo { totalCount } } }"}`
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(query))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, []string{"manage_iam_roles"}, permissions)
+	assert.Contains(t, w.Body.String(), "unauthorized")
 }
