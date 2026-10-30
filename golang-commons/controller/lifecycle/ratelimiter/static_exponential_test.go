@@ -19,12 +19,16 @@ package ratelimiter
 import (
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/stretchr/testify/require"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	clocktesting "k8s.io/utils/clock/testing"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
 func TestStaticThenExponentialRateLimiter_Forget(t *testing.T) {
@@ -98,4 +102,50 @@ func TestStaticThenExponentialRateLimiter_InvalidConfig(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "static window duration should be equal to or greater than the static requeue delay")
 	})
+}
+func TestStaticThenExponentialRateLimiter_KeyTypes(t *testing.T) {
+	t.Run("accepts", func(t *testing.T) {
+		tests := map[string]func() error{
+			"reconcile request":    newLimiterFor[reconcile.Request],
+			"multicluster request": newLimiterFor[mcreconcile.Request],
+			"object identity key":  newLimiterFor[objectKey],
+			"namespaced name":      newLimiterFor[types.NamespacedName],
+			"string":               newLimiterFor[string],
+		}
+		for name, construct := range tests {
+			t.Run(name, func(t *testing.T) {
+				err := construct()
+
+				require.NoError(t, err)
+			})
+		}
+	})
+
+	t.Run("rejects", func(t *testing.T) {
+		tests := map[string]func() error{
+			"pointer to an API object":       newLimiterFor[*corev1.ConfigMap],
+			"client.Object interface":        newLimiterFor[ctrlruntimeclient.Object],
+			"struct holding a pointer field": newLimiterFor[keyWithPointer],
+			"array of pointers":              newLimiterFor[[1]*corev1.ConfigMap],
+			"channel":                        newLimiterFor[chan struct{}],
+			"unsafe pointer":                 newLimiterFor[unsafe.Pointer],
+		}
+		for name, construct := range tests {
+			t.Run(name, func(t *testing.T) {
+				err := construct()
+
+				require.ErrorContains(t, err, "compares by identity")
+			})
+		}
+	})
+}
+
+func newLimiterFor[T comparable]() error {
+	_, err := NewStaticThenExponentialRateLimiter[T](NewConfig())
+	return err
+}
+
+type keyWithPointer struct {
+	Name string
+	Obj  *corev1.ConfigMap
 }
