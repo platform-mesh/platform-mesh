@@ -120,7 +120,7 @@ require (
 	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.36.3 // indirect
+	k8s.io/api v0.36.3
 	k8s.io/apiextensions-apiserver v0.36.3 // indirect
 	k8s.io/apimachinery v0.36.3
 	k8s.io/klog/v2 v2.140.0 // indirect
