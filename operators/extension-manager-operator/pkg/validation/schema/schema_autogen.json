@@ -602,9 +602,21 @@
       "type": "object"
     },
     "UrlParameters": {
-      "additionalProperties": {
-        "$ref": "#/$defs/Url"
+      "properties": {
+        "url": {
+          "$ref": "#/$defs/Url"
+        },
+        "q": {
+          "$ref": "#/$defs/Url"
+        },
+        "author": {
+          "$ref": "#/$defs/Url"
+        },
+        "namespace": {
+          "$ref": "#/$defs/Url"
+        }
       },
+      "additionalProperties": false,
       "type": "object"
     },
     "UrlTemplateParams": {
