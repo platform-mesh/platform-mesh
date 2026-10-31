@@ -122,6 +122,14 @@ data:
             autoGenerateCert:
               enabled: true
     components:
+      hostAliasesEntries: &hostAliasesEntries
+        - ip: "{{ .traefikClusterIP }}"
+          hostnames:
+            - "{{ .baseDomain }}"
+            - "kcp.api.{{ .baseDomain }}"
+            - "root.kcp.{{ .baseDomain }}"
+            - "nereus.kcp.{{ .baseDomain }}"
+            - "triton.kcp.{{ .baseDomain }}"
       deploymentTechnology: fluxcd
       ocm:
         component:
@@ -150,6 +158,7 @@ data:
                   memory: 64Mi
             hostAliases:
               enabled: true
+              entries: *hostAliasesEntries
             crds:
               enabled: false
             kcp:
@@ -183,6 +192,7 @@ data:
               enabled: false
             hostAliases:
               enabled: true
+              entries: *hostAliasesEntries
             kcp:
               enabled: true
               apiExportEndpointSliceName: "ui.platform-mesh.io"
@@ -193,6 +203,7 @@ data:
               enabled: false
         infra:
           enabled: true
+          syncWave: 1
           imageResources:
           - name: keycloak-image
             resource: keycloak-image
@@ -252,11 +263,7 @@ data:
               for: infra
               path: kcp.etcd.backup.image.tag
               image-ref: combined
-          dependsOn:
-          - name: keycloak-operator
-            namespace: platform-mesh-system
-          - name: cnpg-operator
-            namespace: platform-mesh-system
+          dependsOn: []
           # The infra chart has no knob for the kcp cache-server, and kcp-operator defaults
           # it to 2 replicas x 500m / 1Gi with an external etcd. One replica is plenty for
           # the e2e and keeps the stack schedulable on the default CI runner.
@@ -286,21 +293,41 @@ data:
               enabled: true
             gatewayApi:
               enabled: true
+              listeners:
+                - name: terminate
+                  hostname: "portal.localhost"
+                  port: 8443
+                  protocol: HTTPS
+                  tls:
+                    mode: Terminate
+                    certificateRefs:
+                      - kind: Secret
+                        name: domain-certificate
+                        namespace: platform-mesh-system
+                - name: terminate-wildstar
+                  hostname: "*.portal.localhost"
+                  port: 8443
+                  protocol: HTTPS
+                  tls:
+                    mode: Terminate
+                    certificateRefs:
+                      - kind: Secret
+                        name: domain-certificate
+                        namespace: platform-mesh-system
+                - name: passthrough
+                  port: 8443
+                  protocol: TLS
+                  tls:
+                    mode: Passthrough
+                  allowedRoutes:
+                    namespaces:
+                      from: All
+              listenersExtra: []
+              passthrough:
+                enabled: false
             hostAliases:
               enabled: true
-              entries:
-              - ip: "{{ .traefikClusterIP }}"
-                hostnames:
-                - "localhost"
-                - "portal.localhost"
-                - "kcp.api.{{ .baseDomain }}"
-                - "root.kcp.localhost"
-                - "nereus.kcp.localhost"
-                - "triton.kcp.localhost"
-              # kcp.localhost is the front-proxy itself, the shard hostnames stay on traefik
-              - ip: "{{ .kcpFrontProxyClusterIP }}"
-                hostnames:
-                - "kcp.localhost"
+              entries: *hostAliasesEntries
             keycloak:
               enabled: true
               operator:
@@ -335,6 +362,9 @@ data:
                 port: 8080
               keycloakConfig:
                 url: http://keycloak-service.platform-mesh-system.svc.cluster.local:8080/keycloak
+              gatewayApi:
+                hostnames:
+                - "{{ .baseDomain }}"
             kcp:
               external:
                 hostname: kcp.api.{{ .baseDomain }}
@@ -347,6 +377,8 @@ data:
               image:
                 tag: v0.33.1
               rootShard:
+                hostname: "root.kcp.{{ .baseDomain }}"
+                shardBaseURL: https://root.kcp.{{ .baseDomain }}:8443/
                 extraArgs:
                 - --feature-gates=WorkspaceAuthentication=true
                 # kcp-operator defaults to 1 CPU / 1Gi requests and a 2 CPU limit; the
@@ -379,6 +411,11 @@ data:
               repo: oci
               artifact: image
               for: iam-ui
+          values:
+            exposure:
+              hostnames:
+              - "{{ .baseDomain }}"
+              - "*.{{ .baseDomain }}"
         iam-service:
           imageResources:
           - annotations:
@@ -387,14 +424,16 @@ data:
               for: iam-service
           syncWave: 4
           enabled: true
+          dependsOn: []
           values:
-            caSecret: domain-certificate-ca
+            caSecret: domain-certificate
             extraArgs:
             - --no-json
-            cors:
-              enabled: true
+            keycloak:
+              baseUrl: "https://{{ .baseDomainPort }}/keycloak"
             hostAliases:
               enabled: true
+              entries: *hostAliasesEntries
         init-agent:
           absoluteReferencePath:
           - name: init-agent
@@ -407,7 +446,7 @@ data:
             absoluteReferencePath:
             - name: init-agent
           syncWave: 4
-          enabled: true
+          enabled: false
           values:
             configWorkspace: root:platform-mesh-system
             kcpKubeconfig: init-agent-kubeconfig
@@ -416,10 +455,9 @@ data:
               enabled: false
             hostAliases:
               enabled: true
-              values:
+              entries:
                 - ip: "{{ .traefikClusterIP }}"
                   hostnames:
-                    - "localhost"
                     - "kcp.api.{{ .baseDomain }}"
         kcp:
           external: true
@@ -437,6 +475,7 @@ data:
               # image.repository + image.tag, so fold the registry into it.
               image-ref: combined
           targetNamespace: kcp-operator
+          values: {}
         keycloak-operator:
           imageResources:
           - name: keycloak-operator-keycloak-image
@@ -463,6 +502,7 @@ data:
               path: image.tag
           enabled: true
           external: true
+          syncWave: 0
           absoluteReferencePath:
             - name: keycloak-operator
             - name: chart
@@ -483,9 +523,11 @@ data:
               image-ref: combined
           enabled: true
           external: true
+          syncWave: 0
           targetNamespace: platform-mesh-system
           absoluteReferencePath:
           - name: cnpg-operator
+          values: {}
         kubernetes-graphql-gateway:
           imageResources:
           - annotations:
@@ -499,6 +541,7 @@ data:
               enabled: true
             hostAliases:
               enabled: true
+              entries: *hostAliasesEntries
             istio:
               enabled: false
             kubeConfig:
@@ -655,21 +698,12 @@ data:
                 parentRefs:
                 - name: k8sapi-gateway
                   kind: Gateway
+                hostnames:
+                - "{{ .baseDomain }}"
+                - "*.{{ .baseDomain }}"
             hostAliases:
               enabled: true
-              entries:
-              - ip: "{{ .traefikClusterIP }}"
-                hostnames:
-                - "localhost"
-                - "portal.localhost"
-                - "kcp.api.{{ .baseDomain }}"
-                - "root.kcp.localhost"
-                - "nereus.kcp.localhost"
-                - "triton.kcp.localhost"
-              # kcp.localhost is the front-proxy itself, the shard hostnames stay on traefik
-              - ip: "{{ .kcpFrontProxyClusterIP }}"
-                hostnames:
-                - "kcp.localhost"
+              entries: *hostAliasesEntries
             http:
               protocol: https
             kcp:
@@ -690,6 +724,7 @@ data:
                   memory: 64Mi
             hostAliases:
               enabled: true
+              entries: *hostAliasesEntries
             certManager:
               createCA: true
               enabled: true
@@ -705,56 +740,33 @@ data:
           syncWave: 4
           enabled: true
           values:
-            # built from this checkout and loaded into kind by the e2e suite
-            image:
-              tag: e2e-local
-            deployment:
-              resources:
-                requests:
-                  cpu: 20m
-                  memory: 64Mi
             baseDomain: '{{ .baseDomainPort }}'
-            caSecret: domain-certificate-ca
+            caSecret: domain-certificate
             crds:
               enabled: false
-            fga:
-              extraArgs:
-                - --idp-smtp-server=mailpit.platform-mesh-system.svc.cluster.local
-                - --idp-smtp-port=1025
-                - --idp-from-address=keycloak@portal.localhost
-                - --set-default-password
-                - --idp-registration-allowed
-                - --domain-ca-lookup
-                - --development-allow-unverified-emails
-                - --idp-additional-redirect-urls=http://localhost:8000/callback*,http://localhost:4300/callback*,http://sub.localhost:4300/callback*
-              inviteKeycloakBaseUrl: 'https://{{ .baseDomainPort }}/keycloak'
-              target: openfga.platform-mesh-system.svc.cluster.local:8081
+            openfga:
+              endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
+            keycloak:
+              baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
+            idp:
+              smtp:
+                # REQUIRED: configure a production SMTP server
+                server: ""
+                port: ""
+                fromAddress: ""
+              # Production defaults: invite-only, require email verification
+              registrationAllowed: false
+              allowUnverifiedEmails: false
+              setDefaultPassword: false
             hostAliases:
               enabled: true
+              entries: *hostAliasesEntries
             initializer:
               kubeconfigSecret: security-initializer-kubeconfig
-              extraArgs:
-                - --domain-ca-lookup
-                - --idp-smtp-server=mailpit.platform-mesh-system.svc.cluster.local
-                - --idp-smtp-port=1025
-                - --idp-from-address=keycloak@portal.localhost
-                - --development-allow-unverified-emails
-                - --idp-additional-redirect-urls=http://localhost:8000/callback*,http://localhost:4300/callback*,http://sub.localhost:4300/callback*
-                - --idp-registration-allowed
             kubeconfigSecret: security-operator-kubeconfig
             log:
               level: debug
               noJson: true
-            operator:
-              maxConcurrentReconciles: 1
-              shutdownTimeout: 1m
-            system:
-              extraArgs:
-              - --idp-smtp-server=mailpit.platform-mesh-system.svc.cluster.local
-              - --idp-smtp-port=1025
-              - --idp-from-address=keycloak@portal.localhost
-              - --set-default-password
-              - --idp-registration-allowed
             terminator:
               kubeconfigSecret: security-terminator-kubeconfig
         terminal-controller-manager:
@@ -772,6 +784,7 @@ data:
             virtualWorkspaceSecretName: virtual-workspaces-cert
             hostAliases:
               enabled: true
+              entries: *hostAliasesEntries
             deployment:
               resources:
                 requests:
@@ -795,6 +808,15 @@ data:
                   memory: 64Mi
             gatewayApi:
               enabled: true
+            contentConfig:
+              baseDomain: '{{ .baseDomain }}'
+              protocol: https
+            exposure:
+              hostnames:
+              - "{{ .baseDomain }}"
+              - "*.{{ .baseDomain }}"
+            http:
+              protocol: https
             istio:
               enabled: false
         terminal-controller-manager:
@@ -853,11 +875,7 @@ data:
           syncWave: 4
           enabled: false
           targetNamespace: observability
-          dependsOn:
-          - name: prometheus-operator-crds
-            namespace: platform-mesh-system
-          - name: opentelemetry-operator
-            namespace: platform-mesh-system
+          dependsOn: []
           values:
             prometheus:
               server:

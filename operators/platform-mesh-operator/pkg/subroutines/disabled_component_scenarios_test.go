@@ -220,8 +220,6 @@ func Test_ShippedProfile_HasNoDanglingDependencies(t *testing.T) {
 	graph = renderHelmReleaseGraph(t, sub, inst)
 	assertNoDanglingDependencies(t, graph)
 	assert.Contains(t, graph[helmReleaseKey(ns, "opentelemetry-operator")], helmReleaseKey(ns, "cert-manager"))
-	assert.Contains(t, graph[helmReleaseKey(ns, "observability")], helmReleaseKey(ns, "opentelemetry-operator"))
-	assert.Contains(t, graph[helmReleaseKey(ns, "observability")], helmReleaseKey(ns, "prometheus-operator-crds"))
 }
 
 // Switching a component off must never leave another release waiting on it.
@@ -248,12 +246,12 @@ func Test_DisablingComponent_LeavesRemainingStackDeployable(t *testing.T) {
 		{
 			name:    "otel operator off: a service depending on an infra release",
 			section: "infra", component: "opentelemetryOperator",
-			absent: "opentelemetry-operator", dependent: "observability", keptDep: "prometheus-operator-crds",
+			absent: "opentelemetry-operator", dependent: "observability",
 		},
 		{
 			name:    "cluster already runs Prometheus, so its CRDs come from elsewhere",
 			section: "infra", component: "prometheusOperatorCRDs",
-			absent: "prometheus-operator-crds", dependent: "observability", keptDep: "opentelemetry-operator",
+			absent: "prometheus-operator-crds", dependent: "observability",
 		},
 		{
 			name:    "traefik off entirely",

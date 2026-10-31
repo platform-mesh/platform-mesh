@@ -86,7 +86,7 @@ type KindTestSuite struct {
 var clusterName = "platform-mesh"
 
 var defaultKcpOperatorConfig = config.KCPConfig{
-	Url:                    "https://root.kcp.localhost:8443",
+	Url:                    "https://kcp.api.portal.localhost:8443",
 	RootShardName:          "root",
 	Namespace:              "platform-mesh-system",
 	FrontProxyName:         "frontproxy",
@@ -618,11 +618,6 @@ func (s *KindTestSuite) SetupSuite() {
 	// Run the PlatformMesh operator
 	s.logger.Info().Msg("starting PlatformMesh operator...")
 	s.runPlatformMeshOperator(ctx)
-
-	if err = s.addFrontProxyCertificateSAN(ctx, "root.kcp.localhost"); err != nil {
-		s.logger.Error().Err(err).Msg("Failed to add front-proxy certificate SAN")
-		s.T().FailNow()
-	}
 
 	if err = <-imageLoaded; err != nil {
 		s.logger.Error().Err(err).Msg("Failed to build and load security-operator image")
