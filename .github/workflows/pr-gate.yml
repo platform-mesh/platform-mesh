@@ -53,10 +53,17 @@ jobs:
 
           sleep 30  # let workflows register their checks first
 
-          pending_checks() {
+          # checks on the PR
+          # ignores renovate/ checks to exclude e.g. stability-days
+          relevant_checks() {
             gh pr checks "$PR" \
-              --json bucket,workflow \
-              --jq '.[] | select(.workflow != env.SELF) | select(.bucket as $val | ["pass", "skipping", "fail"] | index($val) | not )'
+              --json bucket,name,workflow \
+              --jq '.[] | select(.workflow != env.SELF) | select(.name | startswith("renovate/") | not)'
+          }
+
+          pending_checks() {
+            relevant_checks \
+              | jq 'select(.bucket as $val | ["pass", "skipping", "fail"] | index($val) | not)'
           }
 
           are_checks_pending() {
@@ -64,7 +71,7 @@ jobs:
           }
 
           failed_checks() {
-            gh pr checks "$PR" --json bucket,workflow --jq '.[] | select(.bucket == "fail")'
+            relevant_checks | jq 'select(.bucket == "fail")'
           }
 
           are_any_failed() {
