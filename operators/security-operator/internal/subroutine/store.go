@@ -117,6 +117,16 @@ func (s *storeSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obj
 	}
 
 	fgaStore, err := s.fga.GetStore(ctx, &openfgav1.GetStoreRequest{StoreId: store.Status.StoreID})
+	if status.Code(err) == codes.Code(openfgav1.NotFoundErrorCode_store_id_not_found) {
+		log.Info().Msg("Store ID not found, recreating store")
+		res, err := s.fga.CreateStore(ctx, &openfgav1.CreateStoreRequest{Name: store.Name})
+		if err != nil {
+			return subroutines.OK(), err
+		}
+		store.Status.StoreID = res.GetId()
+		store.Status.AuthorizationModelID = ""
+		return subroutines.OK(), nil
+	}
 	if err != nil {
 		return subroutines.OK(), err
 	}

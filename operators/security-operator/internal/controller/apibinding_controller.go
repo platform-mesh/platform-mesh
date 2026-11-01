@@ -86,7 +86,11 @@ func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *plat
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("apibinding").
-		For(&kcpapisv1alpha2.APIBinding{}).
+		// The fga and provider-fga providers are only there to reach Stores and AuthorizationModels.
+		For(&kcpapisv1alpha2.APIBinding{}, mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
+			return !strings.HasPrefix(string(clusterName), string(config.MultiProviderName(config.FgaProviderName, ""))) &&
+				!strings.HasPrefix(string(clusterName), string(config.MultiProviderName(config.ProviderFgaProviderName, "")))
+		})).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(

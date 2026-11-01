@@ -11,7 +11,7 @@
 
 Platform Mesh is an open, multi-tenant developer platform built on [kcp](https://github.com/kcp-dev/kcp). It provides account-based tenancy, relationship-based authorization (ReBAC via [OpenFGA](https://openfga.dev/)), search, and UI extensibility on top of a Kubernetes-like control plane.
 
-This repository is the Platform Mesh **monorepo**: it consolidates the shared libraries, operators, services, and tooling that make up the platform. Each component is its own Go module, linked together through the repository-root [`go.work`](go.work) workspace, and released independently via component-scoped tags.
+This repository is the Platform Mesh **monorepo**: it consolidates the shared libraries, operators, services, and tooling that make up the platform. Each component is its own Go module, linked together through the repository-root [`go.work`](go.work) workspace. The Helm charts (`charts/`), the OCM component definitions (`ocm/`) and the installation guide (`installation/`) live here as well.
 
 ## Components
 
@@ -45,10 +45,6 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | [virtual-workspaces](services/virtual-workspaces) | Custom kcp-based virtual workspaces that expose tailored data to UIs. |
 | [rebac-authz-webhook](services/rebac-authz-webhook) | Kubernetes authorization webhook backed by OpenFGA (ReBAC). |
 | [kubernetes-graphql-gateway](services/kubernetes-graphql-gateway) | Exposes Kubernetes resources as a GraphQL API for UIs and tools. |
-
-### Tooling
-
-Repository tooling lives under [`cmd/`](cmd) — including [`release`](cmd/release), which cuts component-scoped release tags for the monorepo.
 
 ## Getting started
 
@@ -96,13 +92,9 @@ Profiles are independent feature layers, not an ordered ladder — each only eve
 | `auth` | the ReBAC authorization webhook secret on kcp (L3) |
 | `full` | shorthand for all of the above |
 
-### Working against local checkouts
+### Charts
 
-The Helm charts are fetched remotely by default. Point them at a local clone to work offline or to hack on them:
-
-```sh
-export HELM_CHARTS_DIR=$HOME/go/src/github.com/platform-mesh/helm-charts
-```
+The Helm charts live in [`charts/`](charts) and are rendered from there directly, so chart changes are picked up live. Set `TILT_CHARTS_FROM_OCI=1` to pull the pinned published versions instead, or `HELM_CHARTS_DIR` to use another checkout.
 
 kcp needs no such override: it is built in-cluster from a `PlatformMesh` rather than fetched, so there is nothing external to pin.
 
@@ -118,7 +110,7 @@ See [contrib/tilt/README.md](contrib/tilt/README.md) for the full environment: w
 
 ## Releasing
 
-Releases are component-scoped: tagging `<component>/vX.Y.Z` triggers that component's GitHub Actions workflow to build and sign its image, cut a GitHub release, bump its chart, and publish a signed OCM component. The [`release`](cmd/release) tool (`task release`) manages the tag registry and ordering.
+Platform Mesh has one version, `vYY.MM.P` (CalVer: `v26.10.0` is the October 2026 release). Tagging it builds every component image and chart from that commit, publishes the signed OCM component graph and creates a GitHub release; patch releases are tags on `release-YY.MM` branches, backports are plain cherry-picks. See [docs/release/process.md](docs/release/process.md) and [RFC 015](https://github.com/platform-mesh/architecture/blob/main/rfc/015-versioning.md).
 
 ## Requirements
 

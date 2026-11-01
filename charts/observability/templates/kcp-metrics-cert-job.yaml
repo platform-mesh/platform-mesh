@@ -1,0 +1,129 @@
+{{- if .Values.serviceMonitors.kcp.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kcp-metrics-cert-extractor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "2"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kcp-metrics-cert-extractor-source
+  namespace: {{ .Values.serviceMonitors.kcp.namespace }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "2"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["{{ .Values.serviceMonitors.kcp.kubeconfig.secretName }}"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kcp-metrics-cert-extractor-source
+  namespace: {{ .Values.serviceMonitors.kcp.namespace }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kcp-metrics-cert-extractor-source
+subjects:
+  - kind: ServiceAccount
+    name: kcp-metrics-cert-extractor
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kcp-metrics-cert-extractor-target
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "2"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "update", "patch", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kcp-metrics-cert-extractor-target
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kcp-metrics-cert-extractor-target
+subjects:
+  - kind: ServiceAccount
+    name: kcp-metrics-cert-extractor
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kcp-metrics-cert-extractor-{{ now | date "20060102150405" }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "3"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      serviceAccountName: kcp-metrics-cert-extractor
+      restartPolicy: OnFailure
+      containers:
+        - name: extractor
+          image: {{ include "common.image" (dict "Values" (dict "image" .Values.serviceMonitors.kcp.certExtractor.image) "Chart" .Chart) }}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+
+              echo "Waiting for kubeconfig secret to exist..."
+              until kubectl get secret {{ .Values.serviceMonitors.kcp.kubeconfig.secretName }} -n {{ .Values.serviceMonitors.kcp.namespace }} 2>/dev/null; do
+                echo "Secret not found yet, waiting..."
+                sleep 5
+              done
+
+              echo "Extracting client certificate and key from kubeconfig..."
+              KUBECONFIG_DATA=$(kubectl get secret {{ .Values.serviceMonitors.kcp.kubeconfig.secretName }} -n {{ .Values.serviceMonitors.kcp.namespace }} -o jsonpath='{.data.kubeconfig}' | base64 -d)
+
+              # Extract client-certificate-data and client-key-data from kubeconfig
+              CLIENT_CERT=$(echo "$KUBECONFIG_DATA" | grep 'client-certificate-data:' | awk '{print $2}' | base64 -d)
+              CLIENT_KEY=$(echo "$KUBECONFIG_DATA" | grep 'client-key-data:' | awk '{print $2}' | base64 -d)
+
+              echo "Creating TLS secret in {{ .Release.Namespace }} namespace..."
+              kubectl create secret tls {{ .Values.serviceMonitors.kcp.tlsSecretName }} \
+                --namespace {{ .Release.Namespace }} \
+                --cert=<(echo "$CLIENT_CERT") \
+                --key=<(echo "$CLIENT_KEY") \
+                --dry-run=client -o yaml | kubectl apply -f -
+
+              echo "Done!"
+{{- end }}

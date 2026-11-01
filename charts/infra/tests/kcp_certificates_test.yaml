@@ -1,0 +1,231 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: Test bring-your-own Issuer and CA for the kcp chain
+release:
+  name: infra
+  namespace: platform-mesh-system
+tests:
+
+- it: creates the self-signed Issuer when neither issuerRef nor caSecretRef is set
+  templates:
+    - kcp/issuer.yaml
+  asserts:
+    - hasDocuments:
+        count: 1
+    - equal:
+        path: metadata.name
+        value: selfsigned
+    - equal:
+        path: spec.selfSigned
+        value: {}
+
+- it: points the RootShard at the chart-created Issuer by default
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.certificates.issuerRef
+        value:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+    - notExists:
+        path: spec.certificates.caSecretRef
+
+- it: points the CacheServer at the chart-created Issuer by default
+  templates:
+    - kcp/cache-server.yaml
+  documentSelector:
+    path: kind
+    value: CacheServer
+  asserts:
+    - equal:
+        path: spec.certificates.issuerRef
+        value:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+    - notExists:
+        path: spec.certificates.caSecretRef
+
+- it: falls back to the self-signed Issuer when certificates is set but empty
+  set:
+    kcp:
+      certificates: {}
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.certificates.issuerRef.name
+        value: selfsigned
+
+- it: still creates the self-signed Issuer when certificates is set but empty
+  set:
+    kcp:
+      certificates: {}
+  templates:
+    - kcp/issuer.yaml
+  asserts:
+    - hasDocuments:
+        count: 1
+
+- it: does not create the self-signed Issuer when an issuerRef is supplied
+  set:
+    kcp:
+      certificates:
+        issuerRef:
+          kind: ClusterIssuer
+          name: corporate-ca
+  templates:
+    - kcp/issuer.yaml
+  asserts:
+    - hasDocuments:
+        count: 0
+
+- it: passes a supplied ClusterIssuer through to the RootShard
+  set:
+    kcp:
+      certificates:
+        issuerRef:
+          kind: ClusterIssuer
+          name: corporate-ca
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.certificates.issuerRef
+        value:
+          group: cert-manager.io
+          kind: ClusterIssuer
+          name: corporate-ca
+    - notExists:
+        path: spec.certificates.caSecretRef
+
+- it: passes a supplied ClusterIssuer through to the CacheServer
+  set:
+    kcp:
+      certificates:
+        issuerRef:
+          kind: ClusterIssuer
+          name: corporate-ca
+  templates:
+    - kcp/cache-server.yaml
+  documentSelector:
+    path: kind
+    value: CacheServer
+  asserts:
+    - equal:
+        path: spec.certificates.issuerRef
+        value:
+          group: cert-manager.io
+          kind: ClusterIssuer
+          name: corporate-ca
+
+- it: defaults issuerRef kind to Issuer and group to cert-manager.io
+  set:
+    kcp:
+      certificates:
+        issuerRef:
+          name: namespaced-ca
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.certificates.issuerRef
+        value:
+          group: cert-manager.io
+          kind: Issuer
+          name: namespaced-ca
+
+- it: does not create the self-signed Issuer when a caSecretRef is supplied
+  set:
+    kcp:
+      certificates:
+        caSecretRef:
+          name: corporate-ca-keypair
+  templates:
+    - kcp/issuer.yaml
+  asserts:
+    - hasDocuments:
+        count: 0
+
+- it: passes a supplied caSecretRef through to the RootShard and omits issuerRef
+  set:
+    kcp:
+      certificates:
+        caSecretRef:
+          name: corporate-ca-keypair
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.certificates.caSecretRef
+        value:
+          name: corporate-ca-keypair
+    - notExists:
+        path: spec.certificates.issuerRef
+
+- it: passes a supplied caSecretRef through to the CacheServer and omits issuerRef
+  set:
+    kcp:
+      certificates:
+        caSecretRef:
+          name: corporate-ca-keypair
+  templates:
+    - kcp/cache-server.yaml
+  documentSelector:
+    path: kind
+    value: CacheServer
+  asserts:
+    - equal:
+        path: spec.certificates.caSecretRef
+        value:
+          name: corporate-ca-keypair
+    - notExists:
+        path: spec.certificates.issuerRef
+
+- it: fails at template time when both issuerRef and caSecretRef are supplied
+  set:
+    kcp:
+      certificates:
+        issuerRef:
+          name: corporate-ca
+        caSecretRef:
+          name: corporate-ca-keypair
+  asserts:
+    - failedTemplate:
+        errorPattern: "mutually exclusive"
+
+- it: fails at template time when an issuerRef is supplied without a name
+  set:
+    kcp:
+      certificates:
+        issuerRef:
+          kind: ClusterIssuer
+  asserts:
+    - failedTemplate:
+        errorPattern: "name is required"
+
+- it: fails at template time when a caSecretRef is supplied without a name
+  set:
+    kcp:
+      certificates:
+        caSecretRef:
+          key: tls.crt
+  asserts:
+    - failedTemplate:
+        errorPattern: "name is required"

@@ -89,7 +89,7 @@ func New(ctx context.Context, cfg *config.Config, kcpClientGetter client.KCPClie
 
 	httpClient := cCfg.Client(ctx)
 
-	lim, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.Invite](
+	lim, err := ratelimiter.NewObjectRateLimiter[*pmcorev1alpha1.Invite](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)

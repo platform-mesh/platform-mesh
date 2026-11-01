@@ -1,0 +1,10 @@
+suite: snapshot tests
+chart:
+  appVersion: 0.0.0
+release:
+  name: terminal-controller-manager
+  namespace: platform-mesh-system
+tests:
+  - it: match the default snapshot
+    asserts:
+      - matchSnapshot: {}

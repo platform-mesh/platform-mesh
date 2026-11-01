@@ -1,0 +1,100 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: release
+
+# Releases Platform Mesh. Triggered by pushing a tag `vYY.MM.P` (final) or
+# `vYY.MM.P-rc.N` (release candidate), on main or on a release-YY.MM branch.
+# job-publish.yml builds and publishes every image, chart and OCM component at
+# that version, then a GitHub release with generated notes is created.
+#
+# There is nothing to prepare before tagging: charts carry no versions in git
+# (RFC 015), third-party versions come from ocm/versions.yaml.
+#
+# Builds of main between releases use prerelease.yml.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - name: Resolve version from the tag
+        id: v
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          prerelease=false
+          [[ "$version" == *-* ]] && prerelease=true
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "Releasing Platform Mesh $version (prerelease: $prerelease)" >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: version
+    uses: ./.github/workflows/job-publish.yml
+    permissions:
+      contents: read
+      packages: write # push images, charts and OCM components
+      id-token: write # keyless cosign signing
+      security-events: write # trivy SARIF reports
+    secrets:
+      OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
+      OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+  github-release:
+    needs: [version, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release
+    env:
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.version.outputs.version }}
+      PRERELEASE: ${{ needs.version.outputs.prerelease }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # release notes compare against the previous tag
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ocm-${{ needs.version.outputs.version }}
+      - name: Release notes
+        run: hack/release/release-notes.sh "$TAG" > release-notes.md
+      - name: Create GitHub release
+        run: |
+          set -euo pipefail
+          flags=(--title "Platform Mesh $VERSION" --notes-file release-notes.md --verify-tag)
+          [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
+          mv constructor.yaml component-constructor.yaml
+          gh release create "$TAG" "${flags[@]}" component-constructor.yaml

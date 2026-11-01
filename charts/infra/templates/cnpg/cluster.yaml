@@ -1,0 +1,30 @@
+{{- if .Values.cnpg.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.cnpg.cluster.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  imageName: {{ printf "%s:%s" (include "common.image.name" (dict "Values" (dict "image" .Values.cnpg.cluster.image) "Chart" .Chart)) (include "common.image.tag" (dict "Values" (dict "image" .Values.cnpg.cluster.image) "Chart" .Chart)) }}{{ with .Values.cnpg.cluster.image.digest }}@{{ . }}{{ end }}
+  instances: {{ .Values.cnpg.cluster.instances }}
+  storage:
+    size: {{ .Values.cnpg.cluster.storage.size }}
+  managed:
+    roles:
+      - name: {{ .Values.cnpg.roles.keycloak.username }}
+        ensure: present
+        login: true
+        createdb: false
+        passwordSecret:
+          name: cnpg-keycloak-user
+      - name: {{ .Values.cnpg.roles.openfga.username }}
+        ensure: present
+        login: true
+        createdb: false
+        passwordSecret:
+          name: cnpg-openfga-user
+  postgresql:
+    parameters:
+      max_connections: {{ .Values.cnpg.cluster.postgresql.maxConnections | quote }}
+      shared_buffers: {{ .Values.cnpg.cluster.postgresql.sharedBuffers | quote }}
+{{- end }}

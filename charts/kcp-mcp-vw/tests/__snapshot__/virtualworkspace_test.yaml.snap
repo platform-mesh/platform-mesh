@@ -1,0 +1,63 @@
+matches snapshot (defaults):
+  1: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      labels:
+        app: kcp-mcp-vw
+        app.kubernetes.io/instance: kcp-mcp-vw
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: kcp-mcp-vw
+        helm.sh/chart: kcp-mcp-vw-0.0.0
+      name: mcp-vw-server
+      namespace: platform-mesh-system
+    spec:
+      authorization:
+        clusterRoleBindings:
+          clusterRoles:
+            - mcp-virtual-workspace-impersonator
+      secretRef:
+        name: mcp-vw-server-kubeconfig
+      target:
+        frontProxyRef:
+          name: frontproxy
+      username: mcp-virtual-workspace
+      validity: 8766h
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: VirtualWorkspace
+    metadata:
+      labels:
+        app: kcp-mcp-vw
+        app.kubernetes.io/instance: kcp-mcp-vw
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: kcp-mcp-vw
+        helm.sh/chart: kcp-mcp-vw-0.0.0
+      name: mcp-vw
+      namespace: platform-mesh-system
+    spec:
+      command:
+        - /mcp-virtual-workspace
+        - serve
+      external:
+        hostname: kcp.example.com
+        port: 6443
+      extraArgs:
+        - --access-url=https://kcp.example.com:6443/services/access
+        - --access-ca-file=/etc/kcp/tls/ca/root/tls.crt
+        - --access-cache-ttl=30s
+      image:
+        repository: ghcr.io/kcp-dev/contrib-virtual-workspaces/mcp-vw
+        tag: 0.1.1
+      kubeconfigSecretRef:
+        name: mcp-vw-server-kubeconfig
+      replicas: 1
+      resources:
+        limits:
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      target:
+        rootShardRef:
+          name: root

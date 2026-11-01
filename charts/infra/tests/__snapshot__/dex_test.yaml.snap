@@ -1,0 +1,128 @@
+match snapshots with dex enabled:
+  1: |
+    apiVersion: v1
+    data:
+      config.yaml: |
+        issuer: ""
+        storage:
+          type: memory
+        web:
+          http: 0.0.0.0:5556
+        oauth2:
+          skipApprovalScreen: true
+        enablePasswordDB: true
+        staticPasswords:
+        - email: "dex@portal.localhost"
+          hash: "$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm"
+          username: "dex"
+          userID: "08a868f8-4b4b-42f3-9d23-5f46eda2c3a0"
+        staticClients:
+        - id: "keycloak-broker"
+          secret: "local-dev-broker-secret"
+          name: "Keycloak Broker"
+          redirectURIs:
+    kind: ConfigMap
+    metadata:
+      name: dex
+      namespace: platform-mesh-system
+  2: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/instance: infra
+        app.kubernetes.io/name: dex
+      name: dex
+      namespace: platform-mesh-system
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/instance: infra
+          app.kubernetes.io/name: dex
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/instance: infra
+            app.kubernetes.io/name: dex
+        spec:
+          containers:
+            - args:
+                - dex
+                - serve
+                - /etc/dex/config.yaml
+              image: ghcr.io/dexidp/dex@sha256:1b4a6eee8550240b0faedad04d984ca939513650e1d9bd423502c67355e3822f
+              livenessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /dex/healthz
+                  port: http
+                periodSeconds: 10
+              name: dex
+              ports:
+                - containerPort: 5556
+                  name: http
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /dex/healthz
+                  port: http
+                initialDelaySeconds: 0
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+              volumeMounts:
+                - mountPath: /etc/dex
+                  name: config
+          volumes:
+            - configMap:
+                items:
+                  - key: config.yaml
+                    path: config.yaml
+                name: dex
+              name: config
+  3: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: dex
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: dex
+              namespace: platform-mesh-system
+              port: 5556
+          matches:
+            - path:
+                type: PathPrefix
+                value: /dex
+  4: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/instance: infra
+        app.kubernetes.io/name: dex
+      name: dex
+      namespace: platform-mesh-system
+    spec:
+      ports:
+        - name: http
+          port: 5556
+          protocol: TCP
+          targetPort: http
+      selector:
+        app.kubernetes.io/instance: infra
+        app.kubernetes.io/name: dex
+      type: ClusterIP

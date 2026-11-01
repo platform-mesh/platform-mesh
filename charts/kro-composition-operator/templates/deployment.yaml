@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kro-composition-operator.name" . }}
+  labels:
+    {{- include "kro-composition-operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      {{- include "kro-composition-operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kro-composition-operator.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "kro-composition-operator.name" . }}
+      {{- if .Values.hostAliases.enabled }}
+      # kcp serves each shard's APIExport virtual-workspace under an external hostname
+      # (e.g. root.kcp.localhost:8443). In-cluster that resolves to 127.0.0.1, so the
+      # operator can't reach the VW URL returned in the endpointslice. Map the kcp
+      # hostnames to the in-cluster gateway IP, same as the api-syncagent.
+      hostAliases:
+        {{- toYaml .Values.hostAliases.values | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: manager
+          image: {{ include "common.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --kubeconfig=/kubeconfig/kubeconfig
+            - --provider-workspace={{ .Values.kcp.providerWorkspace }}
+            - --apiexport-endpointslice={{ .Values.kcp.apiExportEndpointSlice }}
+            - --health-probe-bind-address=:8081
+            {{- if .Values.leaderElect }}
+            - --leader-elect
+            {{- end }}
+            {{- with .Values.featureGates }}
+            - --feature-gates={{ . }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: kubeconfig
+              mountPath: /kubeconfig
+              readOnly: true
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: {{ .Values.kubeconfigSecret }}

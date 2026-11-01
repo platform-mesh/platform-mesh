@@ -21,8 +21,6 @@ spec:
   latestResourceSchemas:
   - v250715-5b899f6.accountinfos.core.platform-mesh.io
   - v250715-5b899f6.accounts.core.platform-mesh.io
-  - v260108-81fc9ff.authorizationmodels.core.platform-mesh.io
-  - v250718-a64f278.stores.core.platform-mesh.io
   - v260213-fbdf981.invites.core.platform-mesh.io
   permissionClaims:
     - resource: apibindings

@@ -1,0 +1,31 @@
+{{- if .Values.gatewayApi.httpRoute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  {{- with .Values.gatewayApi.httpRoute.hostnames }}
+  hostnames:
+  {{- range . }}
+  - {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  parentRefs:
+{{ toYaml .Values.gatewayApi.httpRoute.parentRefs | nindent 4 }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.gatewayApi.httpRoute.pathPrefix }}
+    {{- if .Values.gatewayApi.httpRoute.filters }}
+    filters:
+    {{- with .Values.gatewayApi.httpRoute.filters }}
+    {{ toYaml . | nindent 4 }}
+    {{- end }}
+    {{- end }}
+    backendRefs:
+    - name: {{ include "common.entity.name" . }}
+      namespace: {{ .Release.Namespace }}
+      port: {{ .Values.gateway.port }}
+{{- end }}

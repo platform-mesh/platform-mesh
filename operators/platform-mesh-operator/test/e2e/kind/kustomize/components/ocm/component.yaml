@@ -28,4 +28,4 @@ spec:
     namespace: platform-mesh-system
   repositoryRef:
     name: platform-mesh
-  semver: 0.5.1-build.15
+  semver: 0.5.1-build.91

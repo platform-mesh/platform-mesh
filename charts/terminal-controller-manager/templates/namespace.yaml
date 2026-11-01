@@ -1,0 +1,8 @@
+{{- if .Values.terminal.namespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.terminal.namespace }}
+  labels:
+    app.kubernetes.io/managed-by: {{ include "common.entity.name" . }}
+{{- end }}

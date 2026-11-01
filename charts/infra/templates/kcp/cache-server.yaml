@@ -1,0 +1,15 @@
+{{- $mergedEtcd := mustMergeOverwrite (mustDeepCopy .Values.kcp.etcd) (.Values.kcp.cacheServer.etcd | default dict) }}
+{{ include "kcp.etcd" (dict "name" .Values.kcp.cacheServer.etcd.name "namespace" (.Values.kcp.namespace | default "kcp-system") "etcd" $mergedEtcd) }}
+---
+apiVersion: operator.kcp.io/v1alpha1
+kind: CacheServer
+metadata:
+  name: {{ .Values.kcp.cacheServer.name }}
+  namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
+spec:
+  etcd:
+    endpoints:
+      - http://{{ .Values.kcp.cacheServer.etcd.service.name }}.{{ .Values.kcp.namespace | default "kcp-system" }}.svc.cluster.local:{{ .Values.kcp.cacheServer.etcd.service.port }}
+  certificates:
+{{- include "kcp.certificates" $ | nindent 4 }}
+  {{- with (include "kcp.image.block" .Values.kcp.image) }}{{ . | nindent 2 }}{{- end }}

@@ -54,6 +54,7 @@ func TestProcess(t *testing.T) {
 		store       *pmcorev1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		expectError bool
+		wantStatus  *pmcorev1alpha1.StoreStatus
 	}{
 		{
 			name: "should try and create the store if it does not exist",
@@ -139,19 +140,62 @@ func TestProcess(t *testing.T) {
 			expectError: true,
 		},
 		{
+			name: "should recreate a missing store and clear its authorization model ID",
+			store: &pmcorev1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{Name: "store"},
+				Status: pmcorev1alpha1.StoreStatus{
+					StoreID:              "old-id",
+					AuthorizationModelID: "old-model-id",
+				},
+			},
+			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
+				fga.EXPECT().GetStore(mock.Anything, &openfgav1.GetStoreRequest{StoreId: "old-id"}).
+					Return(nil, status.Error(codes.Code(openfgav1.NotFoundErrorCode_store_id_not_found), "Store ID not found"))
+				fga.EXPECT().CreateStore(mock.Anything, &openfgav1.CreateStoreRequest{Name: "store"}).
+					Return(&openfgav1.CreateStoreResponse{Id: "new-id"}, nil)
+			},
+			wantStatus: &pmcorev1alpha1.StoreStatus{StoreID: "new-id"},
+		},
+		{
+			name: "should preserve status if recreating a missing store fails",
+			store: &pmcorev1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{Name: "store"},
+				Status: pmcorev1alpha1.StoreStatus{
+					StoreID:              "old-id",
+					AuthorizationModelID: "old-model-id",
+				},
+			},
+			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
+				fga.EXPECT().GetStore(mock.Anything, &openfgav1.GetStoreRequest{StoreId: "old-id"}).
+					Return(nil, status.Error(codes.Code(openfgav1.NotFoundErrorCode_store_id_not_found), "Store ID not found"))
+				fga.EXPECT().CreateStore(mock.Anything, &openfgav1.CreateStoreRequest{Name: "store"}).
+					Return(nil, errors.New("create store failed"))
+			},
+			expectError: true,
+			wantStatus: &pmcorev1alpha1.StoreStatus{
+				StoreID:              "old-id",
+				AuthorizationModelID: "old-model-id",
+			},
+		},
+		{
 			name: "should fail if get store fails when verifying existing store",
 			store: &pmcorev1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
 				Status: pmcorev1alpha1.StoreStatus{
-					StoreID: "id",
+					StoreID:              "id",
+					AuthorizationModelID: "model-id",
 				},
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				fga.EXPECT().GetStore(mock.Anything, &openfgav1.GetStoreRequest{StoreId: "id"}).Return(nil, errors.New("get store failed"))
+				fga.EXPECT().GetStore(mock.Anything, &openfgav1.GetStoreRequest{StoreId: "id"}).Return(nil, status.Error(codes.Unavailable, "get store failed"))
 			},
 			expectError: true,
+			wantStatus: &pmcorev1alpha1.StoreStatus{
+				StoreID:              "id",
+				AuthorizationModelID: "model-id",
+			},
 		},
 		{
 			name: "should fail if update store fails when names differ",
@@ -186,6 +230,9 @@ func TestProcess(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
+			}
+			if test.wantStatus != nil {
+				assert.Equal(t, *test.wantStatus, test.store.Status)
 			}
 		})
 	}

@@ -1,0 +1,202 @@
+# -- Create the namespace if it doesn't exist (usually handled externally)
+createNamespace: false
+
+# ------------------------------------------------------------------------------
+# Prometheus
+# Metrics storage and query backend
+# https://github.com/prometheus-community/helm-charts/tree/main/charts/prometheus
+# ------------------------------------------------------------------------------
+prometheus:
+  # -- Enable Prometheus deployment
+  enabled: true
+  external:
+    # -- Prometheus-compatible remote-write endpoint. When set, the OTel Collector
+    # sends metrics here instead of to the bundled Prometheus. Set prometheus.enabled
+    # to false separately to disable the bundled deployment.
+    url: ""
+  server:
+    persistentVolume:
+      # -- Disable persistence for local development
+      enabled: false
+    extraFlags:
+      # -- Enable remote write receiver (required for OTel Collector to push metrics)
+      - web.enable-remote-write-receiver
+      # -- Enable lifecycle API (required for config reloader sidecar)
+      - web.enable-lifecycle
+    service:
+      type: ClusterIP
+  # -- Disable components not needed for this POC
+  alertmanager:
+    enabled: false
+  prometheus-node-exporter:
+    enabled: false
+  prometheus-pushgateway:
+    enabled: false
+  kube-state-metrics:
+    enabled: false
+
+# ------------------------------------------------------------------------------
+# OpenTelemetry Collector
+# Scrapes metrics from targets and forwards to Prometheus
+# ------------------------------------------------------------------------------
+otelCollector:
+  # -- Name of the OpenTelemetryCollector CR
+  name: otel-gateway
+  # -- Deployment mode (statefulset required for Target Allocator)
+  mode: statefulset
+  # -- Number of collector replicas
+  replicas: 1
+  # -- Collector image (use contrib for prometheusremotewrite exporter)
+  image:
+    # -- Collector image registry
+    registry: ghcr.io
+    # -- Collector image repository (without registry)
+    repository: open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib
+    # -- Collector image tag
+    tag: "0.153.0"
+    # -- Collector image digest (when set, appended to tag as repo:tag@digest)
+    digest: ""
+  config:
+    # -- Batch processor timeout before sending metrics
+    batchTimeout: 10s
+
+# ------------------------------------------------------------------------------
+# ServiceMonitors
+# Define which services to scrape metrics from
+# ------------------------------------------------------------------------------
+serviceMonitors:
+  # -- account-operator metrics scraping
+  accountOperator:
+    # -- Enable scraping account-operator
+    enabled: true
+    # -- Namespace where account-operator runs
+    namespace: platform-mesh-system
+    # -- Labels to select account-operator metrics service
+    labels:
+      app: account-operator
+    # -- Name of the port exposing metrics
+    port: metrics
+    # -- Path to metrics endpoint
+    path: /metrics
+
+  # -- security-operator metrics scraping
+  securityOperator:
+    # -- Enable scraping security-operator
+    enabled: true
+    # -- Namespace where security-operator runs
+    namespace: platform-mesh-system
+    # -- Labels to select security-operator metrics service
+    labels:
+      app: security-operator
+    # -- Name of the port exposing metrics
+    port: metrics
+    # -- Path to metrics endpoint
+    path: /metrics
+
+  # -- kcp (root shard) metrics scraping
+  # Requires client certificate authentication
+  kcp:
+    # -- Enable scraping kcp
+    enabled: true
+    # -- Namespace where kcp runs
+    namespace: platform-mesh-system
+    # -- Labels to select kcp service
+    labels:
+      app.kubernetes.io/component: rootshard
+      app.kubernetes.io/name: kcp
+    # -- Name of the port exposing metrics (same as API port)
+    port: https
+    # -- Path to metrics endpoint (as of kcp 0.32, /metrics and /clusters/root/metrics
+    # return the exact same data, but /clusters/root/metrics requires fewer permissions).
+    path: /clusters/root/metrics
+    # -- Use HTTPS scheme
+    scheme: https
+    # -- Skip TLS certificate verification; unless you know what you're doing,
+    # this should be left to true, since OTel Collector will connect to each
+    # Pod in the target Service using its IP, which is never part of the
+    # certificate's SANs.
+    tlsInsecureSkipVerify: true
+    # -- Name of the TLS secret containing client cert/key for authentication
+    # This secret is created by the kcp-metrics-cert-job from the kubeconfig
+    tlsSecretName: kcp-metrics-client-cert
+    # -- cert-extractor Job image (kubectl); localizable for air-gap
+    certExtractor:
+      image:
+        # -- cert-extractor job image registry
+        registry: docker.io
+        # -- cert-extractor job image repository (without registry)
+        repository: bitnami/kubectl
+        # -- cert-extractor job image tag (cosmetic; digest pins the image)
+        tag: "latest"
+        # -- cert-extractor job image digest (pins the mutable :latest tag)
+        digest: "sha256:a67b11e95e953f550f020a41970185ccc5f83d78b86b8c575d02c904aa0f9cd7"
+    # -- Kubeconfig configuration for kcp authentication
+    # The kcp-operator creates a kubeconfig with client certificates
+    kubeconfig:
+      # -- Name of the Kubeconfig CR to create
+      name: metrics-viewer
+      # -- Username embedded in the client certificate
+      username: metrics-viewer
+      # -- Groups embedded in the client certificate
+      # system:monitoring grants read access to /clusters/root/metrics endpoints
+      groups:
+        - system:monitoring
+      # -- Validity period of the client certificate
+      validity: 8766h
+      # -- Name of the secret where kcp-operator stores the kubeconfig
+      secretName: kubeconfig-metrics-viewer
+
+  # -- OpenFGA metrics scraping
+  openfga:
+    # -- Enable scraping OpenFGA
+    enabled: true
+    # -- Namespace where OpenFGA runs
+    namespace: platform-mesh-system
+    # -- Labels to select OpenFGA service
+    labels:
+      app.kubernetes.io/name: openfga
+    # -- Name of the port exposing metrics
+    port: metrics
+    # -- Path to metrics endpoint
+    path: /metrics
+
+# ------------------------------------------------------------------------------
+# HTTPRoutes
+# Expose observability endpoints via Gateway API
+# ------------------------------------------------------------------------------
+httproutes:
+  # -- Name of the Gateway to attach routes to
+  gatewayName: ""
+  # -- Namespace of the Gateway (optional, defaults to same namespace)
+  gatewayNamespace: ""
+
+  # -- Prometheus UI HTTPRoute
+  prometheus:
+    # -- Enable HTTPRoute for Prometheus
+    enabled: false
+    # -- Hostnames for the Prometheus UI
+    hostnames: []
+    # -- Path prefix for Prometheus UI
+    pathPrefix: /prometheus
+    # -- Optional filters (e.g., URLRewrite for path stripping)
+    filters: []
+    # Example filters for path rewriting:
+    # filters:
+    #   - type: URLRewrite
+    #     urlRewrite:
+    #       path:
+    #         type: ReplacePrefixMatch
+    #         replacePrefixMatch: /
+
+  # -- OpenTelemetry Collector HTTPRoute
+  otelCollector:
+    # -- Enable HTTPRoute for OTel Collector
+    enabled: false
+    # -- Hostnames for the OTel Collector
+    hostnames: []
+    # -- Path prefix for OTel Collector
+    pathPrefix: /otel
+    # -- Port to expose (metrics port 8888 or receiver ports like 4318 for OTLP HTTP)
+    port: 8888
+    # -- Optional filters
+    filters: []

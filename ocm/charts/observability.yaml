@@ -1,0 +1,44 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# OCM settings for charts/observability. See ocm/charts/README.md.
+
+# Third-party images deployed by this chart. Published as the OCM component
+# github.com/platform-mesh/images/observability:<chart version> so that air-gapped
+# installations can mirror them. Keep in sync with the chart's values.
+images:
+  - name: otel-collector-image
+    type: ociImage
+    version: "0.153.0"
+    access:
+      type: ociArtifact
+      imageReference: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.153.0"
+  - name: kubectl-image
+    type: ociImage
+    version: "1.0.0"
+    access:
+      type: ociArtifact
+      imageReference: "docker.io/bitnami/kubectl:latest@sha256:a67b11e95e953f550f020a41970185ccc5f83d78b86b8c575d02c904aa0f9cd7"
+  - name: prometheus-server-image
+    type: ociImage
+    version: "v3.11.3"
+    access:
+      type: ociArtifact
+      imageReference: "quay.io/prometheus/prometheus:v3.11.3@sha256:c0b857aead0d5793aa566adb8f49a9983d6f6031652098759d521a330cfa050f"
+  - name: prometheus-config-reloader-image
+    type: ociImage
+    version: "v0.91.0"
+    access:
+      type: ociArtifact
+      imageReference: "quay.io/prometheus-operator/prometheus-config-reloader:v0.91.0@sha256:7d9e4eea5f1139e602508871f422b0116c60e87c662f3dcd234d5ab60cd0d8c1"

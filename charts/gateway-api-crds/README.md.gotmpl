@@ -1,0 +1,43 @@
+## About
+
+This chart ships the Kubernetes [Gateway API](https://gateway-api.sigs.k8s.io/) Custom Resource Definitions from the **experimental** release channel. The CRDs are vendored verbatim under `templates/` so they can be published as an OCM Helm chart artifact and deployed via a `HelmRelease`.
+
+The CRDs are pinned to a specific upstream release and commit — they are not templated and take no values.
+
+| Field | Value                                                                                                                              |
+|-------|------------------------------------------------------------------------------------------------------------------------------------|
+| Upstream | [kubernetes-sigs/gateway-api](https://github.com/kubernetes-sigs/gateway-api)                                                      |
+| Version | `v1.5.1`                                                                                                                           |
+| Channel | experimental (`config/crd/experimental`)                                                                                           |
+| Pinned commit | [`477d172e`](https://github.com/kubernetes-sigs/gateway-api/tree/e7677b70ae75d14a4448fba94870e7deea6cf0ad/config/crd/experimental) |
+
+## Updating CRDs
+
+CRDs are vendored, not generated. To upgrade, replace the files in `templates/` with the manifests from the target upstream release, then update the pinned version and commit above and bump `version` in `Chart.yaml` to match the upstream release.
+
+```bash
+REF=e7677b70ae75d14a4448fba94870e7deea6cf0ad
+BASE="https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/${REF}/config/crd/experimental"
+for f in \
+  gateway.networking.k8s.io_backendtlspolicies.yaml \
+  gateway.networking.k8s.io_gatewayclasses.yaml \
+  gateway.networking.k8s.io_gateways.yaml \
+  gateway.networking.k8s.io_grpcroutes.yaml \
+  gateway.networking.k8s.io_httproutes.yaml \
+  gateway.networking.k8s.io_referencegrants.yaml \
+  gateway.networking.k8s.io_tcproutes.yaml \
+  gateway.networking.k8s.io_tlsroutes.yaml \
+  gateway.networking.k8s.io_udproutes.yaml \
+  gateway.networking.k8s.io_vap_safeupgrades.yaml \
+  gateway.networking.x-k8s.io_xbackendtrafficpolicies.yaml \
+  gateway.networking.k8s.io_listenersets.yaml \
+  gateway.networking.x-k8s.io_xmeshes.yaml; do
+  curl -fsSL "${BASE}/${f}" -o "charts/gateway-api-crds/templates/${f}"
+done
+```
+
+After updating, regenerate the snapshot tests:
+
+```bash
+helm unittest -u charts/gateway-api-crds
+```

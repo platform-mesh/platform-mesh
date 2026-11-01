@@ -1,0 +1,47 @@
+image:
+  # -- The image registry
+  registry: quay.io
+  # -- The image repository path (without registry)
+  repository: keycloak/keycloak-operator
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  # -- The image tag (defaults to appVersion)
+  tag: "26.8.1"
+
+keycloakImage:
+  # -- The Keycloak image registry
+  registry: ghcr.io
+  # -- The Keycloak image repository path (without registry).
+  repository: platform-mesh/custom-images/keycloak
+  # -- The Keycloak image tag (defaults to appVersion)
+  tag: "v26.8.1"
+  # -- The Keycloak image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+
+# -- Namespace to watch for Keycloak CRs. Defaults to the release namespace.
+watchNamespaces: ""
+
+deployment:
+  replicas: 1
+  specTemplate:
+    # -- Annotations for the pod template
+    annotations: {}
+    # -- Labels for the pod template
+    labels: {}
+  resources:
+    limits:
+      # -- Memory limit
+      memory: "450Mi"
+      # -- CPU limit
+      cpu: "700m"
+    requests:
+      # -- CPU request
+      cpu: "300m"
+      # -- Memory request
+      memory: "450Mi"
+
+clusterScopedName:
+  # -- Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one
+  prefix: ""
+  # -- Suffix for the names of cluster-scoped resources
+  suffix: ""

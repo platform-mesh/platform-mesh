@@ -25,6 +25,7 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/subroutines"
 
@@ -32,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 )
@@ -58,7 +58,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 	case *pmcorev1alpha1.AuthorizationModel:
 		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, multicluster.ClusterName(o.Spec.StoreRef.Cluster))
+		storeCluster, err := t.mgr.GetCluster(ctx, config.StoreClusterName(o.Spec.StoreRef.Cluster))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
 		}
@@ -90,7 +90,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 	if o, ok := obj.(*pmcorev1alpha1.AuthorizationModel); ok {
 		// Release the Store reservation before this object's own finalizer clears.
 		if err := deregisterAuthorizationModelFromStore(ctx, t.mgr,
-			multicluster.ClusterName(o.Spec.StoreRef.Cluster), o.Spec.StoreRef.Name,
+			config.StoreClusterName(o.Spec.StoreRef.Cluster), o.Spec.StoreRef.Name,
 			logicalcluster.From(o).String(), o.GetName(),
 		); err != nil {
 			return subroutines.OK(), fmt.Errorf("deregistering authorization model from store: %w", err)
@@ -135,7 +135,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obj
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, multicluster.ClusterName(o.Spec.StoreRef.Cluster))
+		storeCluster, err := t.mgr.GetCluster(ctx, config.StoreClusterName(o.Spec.StoreRef.Cluster))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
 		}

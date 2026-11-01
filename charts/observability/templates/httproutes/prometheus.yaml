@@ -1,0 +1,38 @@
+{{- if and .Values.prometheus.enabled .Values.httproutes.prometheus.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "observability.fullname" . }}-prometheus
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.httproutes.prometheus.hostnames }}
+  hostnames:
+  {{- range . }}
+  - {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: {{ .Values.httproutes.gatewayName }}
+    {{- if .Values.httproutes.gatewayNamespace }}
+    namespace: {{ .Values.httproutes.gatewayNamespace }}
+    {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.httproutes.prometheus.pathPrefix }}
+    {{- with .Values.httproutes.prometheus.filters }}
+    filters:
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    backendRefs:
+    - group: ""
+      kind: Service
+      name: {{ .Release.Name }}-prometheus-server
+      namespace: {{ .Release.Namespace }}
+      port: 80
+{{- end }}

@@ -1,0 +1,41 @@
+suite: clusterScopedName
+release:
+  name: account-operator
+set:
+  clusterScopedName:
+    prefix: pm-a
+    suffix: stg
+  webhooks:
+    enabled: true
+    register: true
+tests:
+  - it: prefixes the ClusterRole
+    template: templates/cluster-role.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: pm-a-account-operator-stg
+  - it: binds the prefixed ClusterRole to the unchanged ServiceAccount
+    template: templates/cluster-rolebinding.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: pm-a-account-operator-stg
+      - equal:
+          path: roleRef.name
+          value: pm-a-account-operator-stg
+      - equal:
+          path: subjects[0].name
+          value: account-operator
+  - it: keeps the suffix last in the mutating webhook configuration name
+    template: templates/webhook/mutation-webhook.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: pm-a-account-operator-mutating-webhook-configuration-stg
+  - it: keeps the suffix last in the validating webhook configuration name
+    template: templates/webhook/validating-webhook.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: pm-a-account-operator-validating-webhook-configuration-stg

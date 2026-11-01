@@ -169,7 +169,8 @@ func DeleteArgs(scope apiextensionsv1.ResourceScope) graphql.FieldConfigArgument
 // ApplyYamlArgs returns arguments for the applyYaml mutation
 func ApplyYamlArgs() graphql.FieldConfigArgument {
 	return graphql.FieldConfigArgument{
-		YamlArg: YamlArgConfig,
+		YamlArg:   YamlArgConfig,
+		DryRunArg: DryRunArgConfig,
 	}
 }
 

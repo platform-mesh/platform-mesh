@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}-terminator
+  namespace: {{ .Release.Namespace }}
+spec:
+  revisionHistoryLimit: {{ .Values.deployment.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      service: {{ include "common.entity.name" . }}-terminator
+  template:
+    metadata:
+      labels:
+        service: {{ include "common.entity.name" . }}-terminator
+        control-plane: controller-manager
+    spec:
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+      {{ include "common.hostAliases" $ | nindent 6 }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadyness" . | indent 8}}
+        ports:
+        {{- include "common.PortsMetricsHealth" . | nindent 10 }}
+        args:
+          - terminator
+          - --core-module-path=/data/coreModule.fga
+          {{- with .Values.baseDomain }}
+          - --base-domain={{ . }}
+          {{- end }}
+          {{- with .Values.openfga.storeIDCacheTTL }}
+          - --fga-store-id-cache-ttl={{ . }}
+          {{- end }}
+          - --fga-target={{ .Values.openfga.endpoint }}
+          {{- if .Values.terminator.kubeconfigSecret }}
+          - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+          {{- end }}
+          {{- with .Values.terminator.extraArgs }}
+          {{ toYaml . | nindent 10}}
+          {{- end }}
+          {{- include "common.commonOperatorArgs" . | indent 8 }}
+        env:
+        {{- include "common.basicEnvironment" . | nindent 10 }}
+        volumeMounts:
+          {{- include "common.extraVolumeMounts" . | nindent 10 }}
+          {{- if .Values.terminator.kubeconfigSecret }}
+          - name: external-api-server
+            mountPath: /api-kubeconfig
+          {{- end }}
+          - name: core-module
+            mountPath: /data
+      volumes:
+        {{- include "common.extraVolumes" . | nindent 8 }}
+        {{- if .Values.terminator.kubeconfigSecret }}
+        - name: external-api-server
+          secret:
+            secretName: {{ .Values.terminator.kubeconfigSecret }}
+        {{- end }}
+        - name: core-module
+          configMap:
+            name: {{ include "common.entity.name" . }}-core-module

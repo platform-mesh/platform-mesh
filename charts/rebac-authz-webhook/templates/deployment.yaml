@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "common.labelMatcher" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+       {{- include "common.labelMatcher" . | indent 8 }}
+    spec:
+      serviceAccountName: {{ include "common.entity.name" . }}
+      {{- include "common.imagePullSecret" . | indent 6 }}
+      {{ include "common.hostAliases" . | nindent 6 }}
+      volumes:
+      - name: certs
+        secret:
+          secretName: {{ include "common.entity.name" . }}-cert
+      {{- with .Values.kcp.kubeconfig.secret }}
+      - name: api-kubeconfig
+        secret:
+          secretName: {{ . }}
+      {{- end }}
+      {{- with .Values.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadyness" . | indent 8 }}
+        volumeMounts:
+          - name: certs
+            mountPath: /config
+          {{- with .Values.kcp.kubeconfig.secret }}
+          - name: api-kubeconfig
+            mountPath: /api-kubeconfig
+            readOnly: true
+          {{- end }}
+          {{- with .Values.extraVolumeMounts }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        args:
+          - "serve"
+          - "--openfga-addr={{ .Values.openfga.endpoint }}"
+          {{- if .Values.kcp.apiExportEndpointSliceName }}
+          - "--kcp-api-export-endpoint-slice-name={{ .Values.kcp.apiExportEndpointSliceName }}"
+          {{- end }}
+          {{- if .Values.healthProbeBindAddress }}
+          - "--health-probe-bind-address={{ .Values.healthProbeBindAddress }}"
+          {{- end }}
+          {{- if .Values.v }}
+          - "--v={{ .Values.v }}"
+          {{- end }}
+          - "--webhook-cache-miss-max-retries={{ .Values.webhook.cacheMissMaxRetries }}"
+          - "--webhook-cache-miss-ttl={{ .Values.webhook.cacheMissTTL }}"
+          - "--webhook-cache-miss-cleanup-interval={{ .Values.webhook.cacheMissCleanupInterval }}"
+          - "--webhook-cache-miss-retry-after={{ .Values.webhook.cacheMissRetryAfter }}"
+          {{- include "common.extraArgs" . | nindent 10 }}
+        env:
+          {{- with .Values.kcp.kubeconfig.secret }}
+          - name: KUBECONFIG
+            value: /api-kubeconfig/kubeconfig
+          {{- end }}
+          {{- with .Values.extraEnvs }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        ports:
+        - containerPort: 9443 # default port of the webhook server in controllerruntime
+        - containerPort: 8080

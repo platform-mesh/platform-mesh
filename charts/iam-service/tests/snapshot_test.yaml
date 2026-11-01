@@ -1,0 +1,19 @@
+suite: snapshot tests
+values:
+  - ../test-values.yaml
+release:
+  name: iam-service
+  namespace: platform-mesh-system
+chart:
+  appVersion: 1.0.0
+tests:
+  - it: match the snapshots
+    set:
+      gatewayApi:
+        enabled: true
+      extraArgs:
+        - --test=abc
+      hostAliases:
+        enabled: true
+    asserts:
+      - matchSnapshot: {}

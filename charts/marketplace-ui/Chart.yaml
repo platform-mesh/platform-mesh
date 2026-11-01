@@ -1,0 +1,9 @@
+apiVersion: v2
+appVersion: "v0.15.5"
+description: Helm Chart for the marketplace-ui
+name: marketplace-ui
+version: 0.0.0
+dependencies:
+  - name: common
+    version: 0.0.0
+    repository: file://../common

@@ -1,0 +1,7 @@
+suite: crds
+values:
+  - ../test-values.yaml
+tests:
+  - it: crds match the snapshot
+    asserts:
+      - matchSnapshot: {}

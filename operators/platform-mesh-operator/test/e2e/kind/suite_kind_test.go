@@ -54,6 +54,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
@@ -64,9 +65,9 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcmultiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 type KindTestSuite struct {
@@ -126,6 +127,42 @@ func runCommand(name string, args ...string) ([]byte, error) {
 	cmd.Env = env
 
 	return cmd.Output()
+}
+
+// securityOperatorImage must match security-operator values.image in the e2e profile.
+const securityOperatorImage = "ghcr.io/platform-mesh/platform-mesh/security-operator:e2e-local"
+
+// buildSecurityOperatorImage builds security-operator from this checkout, so the e2e
+// runs it from the same commit as the kcp manifests of this operator.
+func (s *KindTestSuite) buildSecurityOperatorImage() error {
+	s.logger.Info().Msg("Building security-operator image in the background...")
+	if _, err := runCommand(s.containerRuntime, "build", "-f", "../../../../../operators/security-operator/Dockerfile", "-t", securityOperatorImage, "../../../../.."); err != nil {
+		return fmt.Errorf("building %s: %w", securityOperatorImage, err)
+	}
+	return nil
+}
+
+// loadSecurityOperatorImage loads the image the same way the operator Taskfiles do.
+func (s *KindTestSuite) loadSecurityOperatorImage() error {
+	if s.containerRuntime == "podman" {
+		tarFile, err := os.CreateTemp("", "security-operator-*.tar")
+		if err != nil {
+			return err
+		}
+		_ = tarFile.Close()
+		defer os.Remove(tarFile.Name()) //nolint:errcheck
+
+		if _, err = runCommand(s.containerRuntime, "save", securityOperatorImage, "-o", tarFile.Name()); err != nil {
+			return fmt.Errorf("saving %s: %w", securityOperatorImage, err)
+		}
+		if _, err = runCommand(kindBinary(), "load", "image-archive", tarFile.Name(), "--name", clusterName); err != nil {
+			return fmt.Errorf("loading %s into kind: %w", securityOperatorImage, err)
+		}
+	} else if _, err := runCommand(kindBinary(), "load", "docker-image", securityOperatorImage, "--name", clusterName); err != nil {
+		return fmt.Errorf("loading %s into kind: %w", securityOperatorImage, err)
+	}
+	s.logger.Info().Msg("security-operator image loaded into kind")
+	return nil
 }
 
 // checkClusterExists checks if a Kind cluster with the given name exists.
@@ -221,7 +258,7 @@ func (s *KindTestSuite) createKindCluster() error {
 		}
 
 		s.logger.Info().Msg("Creating Kind cluster...")
-		if _, err = runCommand(kindBinary(), "create", "cluster", "--config", "../../../kind-config.yaml", "--name", clusterName, "--image=kindest/node:v1.30.2"); err != nil {
+		if _, err = runCommand(kindBinary(), "create", "cluster", "--config", "../../../kind-config.yaml", "--name", clusterName, "--image=kindest/node:v1.33.1"); err != nil {
 			return err
 		}
 	}
@@ -247,7 +284,7 @@ func (s *KindTestSuite) createKindCluster() error {
 	utilruntime.Must(pmprovidersv1alpha1.AddToScheme(s.scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(s.scheme))
 	utilruntime.Must(kcpapisv1alpha2.AddToScheme(s.scheme))
-	utilruntime.Must(kcptenancyv1alpha.AddToScheme(s.scheme))
+	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(s.scheme))
 
 	gvk := fluxcdv2.GroupVersion.WithKind("HelmRelease")
 	s.logger.Info().Msgf("Registering GVK: %s", gvk.String())
@@ -283,7 +320,7 @@ func (s *KindTestSuite) createCerts() ([]byte, error) {
 	// mkcert
 	_, err := runCommand("mkdir", "-p", "certs")
 	s.Require().NoError(err, "Error creating certs directory")
-	if _, err = runCommand(mkcertBinary(), "-cert-file=certs/cert.crt", "-key-file=certs/cert.key", "portal.localhost", "*.portal.localhost", "localhost"); err != nil {
+	if _, err = runCommand(mkcertBinary(), "-cert-file=certs/cert.crt", "-key-file=certs/cert.key", "portal.localhost", "*.portal.localhost", "localhost", "kcp.localhost", "*.kcp.localhost"); err != nil {
 		return nil, err
 	}
 	dirRootPath, err := runCommand(mkcertBinary(), "-CAROOT")
@@ -334,7 +371,9 @@ func (s *KindTestSuite) createSecrets(ctx context.Context, dirRootPath []byte) e
 			Namespace: "platform-mesh-system",
 		},
 		Data: map[string][]byte{
-			"secret": []byte("admin"),
+			"username": []byte("keycloak-admin"),
+			"password": []byte("admin"),
+			"secret":   []byte("admin"),
 		},
 		Type: corev1.SecretTypeOpaque,
 	}
@@ -482,10 +521,21 @@ func (s *KindTestSuite) SetupSuite() {
 		s.logger.Error().Err(err).Msg("Failed to detect container runtime")
 		s.T().FailNow()
 	}
+	// security-operator is installed late (syncWave 4), so build it while the rest of the setup runs.
+	imageBuilt := make(chan error, 1)
+	go func() { imageBuilt <- s.buildSecurityOperatorImage() }()
 	if err = s.createKindCluster(); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to create Kind cluster")
 		s.T().FailNow()
 	}
+	imageLoaded := make(chan error, 1)
+	go func() {
+		if buildErr := <-imageBuilt; buildErr != nil {
+			imageLoaded <- buildErr
+			return
+		}
+		imageLoaded <- s.loadSecurityOperatorImage()
+	}()
 	if err = s.InstallCRDs(ctx); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to install CRDs")
 		s.T().FailNow()
@@ -568,6 +618,60 @@ func (s *KindTestSuite) SetupSuite() {
 	// Run the PlatformMesh operator
 	s.logger.Info().Msg("starting PlatformMesh operator...")
 	s.runPlatformMeshOperator(ctx)
+
+	if err = s.addFrontProxyCertificateSAN(ctx, "root.kcp.localhost"); err != nil {
+		s.logger.Error().Err(err).Msg("Failed to add front-proxy certificate SAN")
+		s.T().FailNow()
+	}
+
+	if err = <-imageLoaded; err != nil {
+		s.logger.Error().Err(err).Msg("Failed to build and load security-operator image")
+		s.T().FailNow()
+	}
+}
+
+// addFrontProxyCertificateSAN adds an extra DNS name to the FrontProxy's
+// server certificate. The "infra" chart's kcp.certificateTemplates value
+// doesn't actually reach FrontProxy.spec, so this patches it directly.
+func (s *KindTestSuite) addFrontProxyCertificateSAN(ctx context.Context, dnsName string) error {
+	fpGVK := "operator.kcp.io/v1alpha1"
+	frontProxy := &unstructured.Unstructured{}
+	frontProxy.SetAPIVersion(fpGVK)
+	frontProxy.SetKind("FrontProxy")
+
+	// FrontProxy exists only after the infra HelmRelease and kcp-operator are up, same wait as TestPlatformMesh.
+	err := wait.PollUntilContextTimeout(ctx, 5*time.Second, 30*time.Minute, true, func(ctx context.Context) (bool, error) {
+		getErr := s.client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "frontproxy", Namespace: "platform-mesh-system"}, frontProxy)
+		return getErr == nil, nil
+	})
+	if err != nil {
+		return fmt.Errorf("waiting for FrontProxy resource: %w", err)
+	}
+
+	patch := ctrlruntimeclient.RawPatch(types.MergePatchType, []byte(fmt.Sprintf(
+		`{"spec":{"certificateTemplates":{"server":{"spec":{"dnsNames":[%q]}}}}}`, dnsName)))
+	if err := s.client.Patch(ctx, frontProxy, patch); err != nil {
+		return fmt.Errorf("patching FrontProxy certificateTemplates: %w", err)
+	}
+
+	cert := &certmanager.Certificate{}
+	err = wait.PollUntilContextTimeout(ctx, 5*time.Second, 2*time.Minute, true, func(ctx context.Context) (bool, error) {
+		if getErr := s.client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "root-frontproxy-server", Namespace: "platform-mesh-system"}, cert); getErr != nil {
+			return false, nil
+		}
+		for _, name := range cert.Spec.DNSNames {
+			if name == dnsName {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("waiting for front-proxy certificate to pick up %s: %w", dnsName, err)
+	}
+
+	s.logger.Info().Str("dnsName", dnsName).Msg("front-proxy certificate now covers extra hostname")
+	return nil
 }
 
 func (s *KindTestSuite) waitForOCMComponentReady(ctx context.Context, name, namespace string, timeout time.Duration) error {

@@ -1,0 +1,80 @@
+# VirtualWorkspace CR — kcp-operator renders the Deployment and Service
+# (named access-vw-virtual-workspace, port 6443), mounts the serving
+# certificate, client and requestheader CAs, and generates the standard
+# apiserver arguments. Only server-specific flags appear in extraArgs.
+apiVersion: operator.kcp.io/v1alpha1
+kind: VirtualWorkspace
+metadata:
+  name: access-vw
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kcp-access-vw.labels" . | nindent 4 }}
+spec:
+  # Singleton connected to the root shard so it can watch Shard objects.
+  target:
+    rootShardRef:
+      name: {{ .Values.kcp.rootShard }}
+
+  # Where clients reach this virtual workspace: the front-proxy's external
+  # hostname and port (routed via its additionalPathMappings).
+  external:
+    hostname: {{ .Values.external.hostname }}
+    port: {{ .Values.external.port }}
+
+  image:
+    repository: {{ include "common.image.name" . }}
+    tag: {{ include "common.image.tag" . | quote }}
+
+  command:
+    - /access-vw
+
+  # The graph is held in memory and rebuilt from watches; a single replica
+  # avoids each replica answering from its own copy.
+  replicas: {{ .Values.replicas }}
+
+  # The identity the server runs as, minted by the server Kubeconfig CR.
+  kubeconfigSecretRef:
+    name: access-vw-server-kubeconfig
+
+  # Bootstraps kcp before the server starts: creates the controllers
+  # workspace (any missing workspace along the path), installs the schema,
+  # APIExport, bind RBAC and endpoint slice, and grants the server's
+  # certificate identity the controller role. Idempotent on every pod start.
+  initContainers:
+    - name: init
+      kubeconfigSecretRef:
+        name: access-vw-bootstrap-kubeconfig
+      command:
+        - /access-vw-init
+      args:
+        - --kubeconfig=/etc/kcp/init-kubeconfig/kubeconfig
+        - --workspace-prefix={{ .Values.workspacePrefix }}
+        - --controllers-workspace={{ .Values.controllersWorkspace }}
+        # The server runs as this certificate identity, not the bootstrap
+        # ServiceAccount, so init must grant it the controller role and the
+        # workspace access verb.
+        - --server-user=access-vw
+
+  extraArgs:
+    # The endpoint slice init created; setting it puts the RBAC provider in
+    # multi-shard mode.
+    - --apiexport-endpointslice={{ .Values.server.apiExportEndpointSlice }}
+    # Prefix for per-cluster endpoints returned in SCAR responses: the
+    # external front-proxy URL clients use, not an in-cluster address.
+    - --endpoint-base={{ include "kcp-access-vw.endpointBase" . }}
+    # No --workspace-path: the minted kubeconfig already targets the
+    # controllers workspace.
+
+  resources:
+    {{- toYaml .Values.resources | nindent 4 }}
+
+  {{- with .Values.hostAliases }}
+  deploymentTemplate:
+    spec:
+      template:
+        spec:
+          # The kubeconfigs address the front-proxy by its external hostname,
+          # so it has to resolve from inside the pod.
+          hostAliases:
+            {{- toYaml . | nindent 12 }}
+  {{- end }}

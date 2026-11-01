@@ -1,0 +1,14 @@
+suite: Gateway API
+templates:
+  - httproute.yaml
+tests:
+  - it: matches the snapshot
+    values:
+      - test-values.yaml
+    set:
+      gatewayApi:
+        enabled: true
+      istio:
+        enabled: false
+    asserts:
+      - matchSnapshot: {}

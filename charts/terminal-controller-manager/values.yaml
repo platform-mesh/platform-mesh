@@ -1,0 +1,80 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/terminal-controller-manager
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  # Overwrite image.tag to use a different image tag then .chart.appVersion
+  #  tag: latest
+
+terminal:
+  image:
+    # -- The terminal pod image registry
+    registry: ghcr.io
+    # -- The terminal pod image repository path (without registry)
+    repository: platform-mesh/platform-mesh/terminal
+    # -- Override terminal image tag (defaults to appVersion)
+    tag: ""
+  # -- The namespace where terminal pods are created
+  namespace: terminal-sessions
+  # -- The terminal session lifetime (Go duration format)
+  lifetime: 2h
+  # -- Host alias IP for local development (optional)
+  hostAliasIP: ""
+  # -- Host alias names for local development (optional)
+  hostAliasNames: []
+
+# -- The kcp configuration
+kcp:
+  # -- kcp APIExportEndpointSliceName
+  apiExportEndpointSliceName: "terminal.platform-mesh.io"
+  # -- Secret containing kubeconfig for kcp connection
+  kubeconfigSecret: ""
+
+gateway:
+  # -- The gateway name for HTTPRoutes
+  name: k8sapi-gateway
+  # -- The gateway namespace
+  namespace: platform-mesh-system
+  # -- The hostnames for HTTPRoutes
+  hostnames: []
+
+subroutines:
+  lifetime:
+    # -- Enable lifetime subroutine
+    enabled: true
+  pod:
+    # -- Enable pod subroutine
+    enabled: true
+  service:
+    # -- Enable service subroutine
+    enabled: true
+  httproute:
+    # -- Enable httproute subroutine
+    enabled: true
+
+
+# -- Secret containing kubeconfig for runtime cluster (optional, defaults to in-cluster config)
+kubeconfigSecret: ""
+
+security:
+  # -- Mount the service account token
+  mountServiceAccountToken: true
+
+deployment:
+  specTemplate:
+    # -- The annotations for the deployment
+    annotations: {}
+    # -- The labels for the deployment
+    labels: {}
+  replicas: 1
+
+hostAliases:
+  enabled: false
+
+operator:
+  leaderElect: true
+
+istio:
+  enabled: false

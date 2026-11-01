@@ -1,0 +1,19 @@
+matches the snapshot:
+  1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: RELEASE-NAME-iam-ui
+      namespace: NAMESPACE
+    spec:
+      parentRefs:
+        - name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - name: RELEASE-NAME-iam-ui
+              namespace: NAMESPACE
+              port: 8080
+          matches:
+            - path:
+                type: PathPrefix
+                value: /ui/iam

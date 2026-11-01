@@ -1,0 +1,60 @@
+# The image configuration for the Extension Manager Operator
+## @param image.name The image repository
+## @param image.tag The image tag
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/extension-manager-operator
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  ## Overwrite this value to use a different image tag then the .chart.appVersion
+  # tag: v0.0.0
+
+## @param commonAnnotations Annotations to add to all deployed objects
+##
+commonAnnotations: {}
+
+validationServer:
+  # -- port for the validation server
+  port: 8088
+  # -- host for the validation VirtualService
+  host: "*"
+
+entityTypeValidation:
+  # -- enable entityType validation for ContentConfigurations
+  enabled: false
+
+istio:
+  # -- enable Istio VirtualService
+  enabled: false
+
+## @param kubeconfigSecret The secret containing the kubeconfig for the operator
+kubeconfigSecret: ""
+
+kcp:
+  kubeconfig:
+    secret: extension-manager-operator-kubeconfig
+  apiExportEndpointSliceName: "ui.platform-mesh.io"
+
+# -- Path prefix for routing rules in Gateway API and Istio VirtualService
+pathPrefix: /validate
+
+gatewayApi:
+  # -- Toggle to enable/disable Gateway API resources
+  enabled: false
+  # -- Name of the Gateway resource
+  name: k8sapi-gateway
+  # -- HTTPS Terminate configuration
+  main:
+    gateway:
+      port: 8443
+  httpRoute:
+    # -- list of HTTPRoute filters (default: none)
+    filters: []
+
+clusterScopedName:
+  # -- Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one
+  prefix: ""
+  # -- Suffix for the names of cluster-scoped resources
+  suffix: ""

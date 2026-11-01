@@ -1,0 +1,101 @@
+suite: clusterScopedName
+templates:
+  - clusterrole.yaml
+release:
+  name: test-chart
+tests:
+  - it: keeps the entity name by default
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.name
+          value: test-chart
+  - it: adds a prefix
+    set:
+      clusterScopedName:
+        prefix: org-a
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.name
+          value: org-a-test-chart
+  - it: adds a suffix
+    set:
+      clusterScopedName:
+        suffix: staging
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.name
+          value: test-chart-staging
+  - it: adds prefix and suffix
+    set:
+      clusterScopedName:
+        prefix: org-a
+        suffix: staging
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.name
+          value: org-a-test-chart-staging
+  - it: reads the global value
+    set:
+      global:
+        clusterScopedName:
+          prefix: org-b
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.name
+          value: org-b-test-chart
+  - it: keeps the prefix when the release name contains the chart name
+    release:
+      name: org-a-test-chart
+    set:
+      clusterScopedName:
+        prefix: org-a
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.name
+          value: org-a-test-chart
+  - it: prefers the global value over the chart value
+    set:
+      clusterScopedName:
+        prefix: org-a
+      global:
+        clusterScopedName:
+          prefix: org-b
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.name
+          value: org-b-test-chart
+  - it: prefers the override value over the global value
+    set:
+      clusterScopedName:
+        prefixOverride: org-c
+      global:
+        clusterScopedName:
+          prefix: org-b
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.name
+          value: org-c-test-chart
+  - it: keeps a fixed name by default
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: metadata.name
+          value: fixed-cluster-role
+  - it: adds prefix and suffix to a fixed name
+    documentIndex: 1
+    set:
+      clusterScopedName:
+        prefix: org-a
+        suffix: staging
+    asserts:
+      - equal:
+          path: metadata.name
+          value: org-a-fixed-cluster-role-staging

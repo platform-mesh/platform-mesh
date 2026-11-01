@@ -1,0 +1,19 @@
+{{- if .Values.istio.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  gateways:
+  - {{ .Release.Namespace }}/gateway
+  hosts: {{ .Values.istio.dnsNames | toYaml | nindent 4 }}
+  tls:
+    - match:
+      - sniHosts: {{ .Values.istio.dnsNames | toYaml | nindent 8 }}
+      route:
+      - destination:
+          host: {{ include "common.entity.name" . }}.{{ .Release.Namespace }}.svc.cluster.local
+          port:
+            number: {{ .Values.service.port }}
+{{- end }}

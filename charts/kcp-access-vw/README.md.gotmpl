@@ -1,0 +1,48 @@
+## Requirements
+
+| Repository | Name | Description | Sources |
+|------------|------|-------------|---------|
+| `file://../common` | `common` | The `common` chart is a library of common resources that are shared across all other charts in the repository. It has no templates, but provides helm template functions and [default values](https://github.com/platform-mesh/platform-mesh/blob/main/charts/common/values.yaml) that can be used by other charts. |[source](https://github.com/platform-mesh/platform-mesh/tree/main/charts/common)|
+
+## kcp prerequisites
+
+The chart renders [kcp-operator](https://github.com/kcp-dev/kcp-operator)
+`VirtualWorkspace` and `Kubeconfig` resources (operator v0.9.0 or newer) in
+the release namespace; it deploys no workloads itself. The referenced
+RootShard and FrontProxy must exist, and the front-proxy needs an
+`additionalPathMappings` entry routing `/services/access` to the virtual
+workspace service.
+
+An init container bootstraps kcp on every pod start (idempotent): it creates
+the workspace tree, installs the APIResourceSchema, APIExport, bind RBAC and
+APIExportEndpointSlice, and grants the server identity the controller role.
+
+## Installing on top of Platform Mesh
+
+The chart is not part of the Platform Mesh default profile; it is an optional
+add-on for a running installation:
+
+```sh
+helm install kcp-access-vw oci://ghcr.io/platform-mesh/helm-charts/kcp-access-vw \
+  -n platform-mesh-system \
+  --set external.hostname=kcp.api.portal.localhost \
+  --set external.port=8443
+```
+
+Route the endpoint through the front-proxy by extending the `infra` chart's
+`kcp.frontProxy.additionalPathMappings` (lists replace on override, so repeat
+the existing entries) with:
+
+```yaml
+- path: /services/access
+  backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+  backend_server_ca: /etc/kcp/tls/ca/tls.crt
+  proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+  proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+```
+
+For callers authenticating with bearer tokens, the front-proxy also needs
+OIDC enabled against the installation's Keycloak (`kcp.auth.oidc` in the
+`infra` chart). In the local-setup kind cluster, add a `hostAliases` entry
+pointing `kcp.api.portal.localhost` at the traefik ClusterIP so the minted
+kubeconfigs resolve from inside pods.

@@ -1,0 +1,24 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ include "common.entity.name" . }}-listener
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ include "common.entity.name" . }}-listener
+  ports:
+    - name: grpc
+      protocol: TCP
+      port: {{ .Values.listener.grpcPort }}
+      targetPort: {{ .Values.listener.grpcPort }}
+    - name: metrics
+      protocol: TCP
+      port: {{ .Values.listener.metricsPort }}
+      targetPort: {{ .Values.listener.metricsPort }}
+    {{- if .Values.listener.healthCheck.enabled }}
+    - name: health
+      protocol: TCP
+      port: {{ .Values.listener.healthCheck.port }}
+      targetPort: {{ .Values.listener.healthCheck.port }}
+    {{- end }}
+  type: ClusterIP

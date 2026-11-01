@@ -1,0 +1,10 @@
+suite: operator
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+release:
+  name: example-httpbin-operator
+tests:
+  - it: match snapshot
+    asserts:
+      - matchSnapshot: {}

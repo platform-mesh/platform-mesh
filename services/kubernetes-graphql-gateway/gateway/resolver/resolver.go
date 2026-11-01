@@ -36,6 +36,7 @@ import (
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/metrics"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -436,6 +437,15 @@ func (r *Service) ApplyYaml() graphql.FieldResolveFn {
 			return nil, err
 		}
 
+		dryRunBool, err := GetArg[bool](p.Args, DryRunArg, false)
+		if err != nil {
+			return nil, err
+		}
+		dryRun := []string{}
+		if dryRunBool {
+			dryRun = []string{"All"}
+		}
+
 		parsed, err := parseAndValidateYAML(yamlStr)
 		if err != nil {
 			return nil, err
@@ -462,7 +472,7 @@ func (r *Service) ApplyYaml() graphql.FieldResolveFn {
 		)
 
 		if name == "" {
-			if err := r.runtimeClient.Create(ctx, obj); err != nil {
+			if err := r.runtimeClient.Create(ctx, obj, &ctrlruntimeclient.CreateOptions{DryRun: dryRun}); err != nil {
 				logger.Error(err, "Failed to create object with generateName")
 				return nil, fmt.Errorf("failed to create resource %s: %w", gvk.Kind, err)
 			}
@@ -474,18 +484,45 @@ func (r *Service) ApplyYaml() graphql.FieldResolveFn {
 		target.SetName(name)
 		target.SetNamespace(namespace)
 
-		if _, err := controllerutil.CreateOrUpdate(ctx, r.runtimeClient, target, func() error {
-			rv := target.GetResourceVersion()
-			uid := target.GetUID()
-			target.Object = parsed
-			target.SetResourceVersion(rv)
-			target.SetUID(uid)
-			return nil
-		}); err != nil {
-			logger.Error(err, "Failed to apply YAML")
-			return nil, fmt.Errorf("failed to apply resource %s/%s: %w", gvk.Kind, name, err)
+		if !dryRunBool {
+			if _, err := controllerutil.CreateOrUpdate(ctx, r.runtimeClient, target, func() error {
+				rv := target.GetResourceVersion()
+				uid := target.GetUID()
+				target.Object = parsed
+				target.SetResourceVersion(rv)
+				target.SetUID(uid)
+				return nil
+			}); err != nil {
+				logger.Error(err, "Failed to apply YAML")
+				return nil, fmt.Errorf("failed to apply resource %s/%s: %w", gvk.Kind, name, err)
+			}
+			return target.Object, nil
 		}
 
+		// Dry-run: replicate create-or-update semantics with DryRun options.
+		// controllerutil.CreateOrUpdate does not accept dry-run options so we drive
+		// the Get → Create/Update sequence ourselves.
+		if err := r.runtimeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name, Namespace: namespace}, target); err != nil {
+			if !apierrors.IsNotFound(err) {
+				logger.Error(err, "Failed to get resource for dry-run")
+				return nil, fmt.Errorf("failed to apply resource %s/%s: %w", gvk.Kind, name, err)
+			}
+			target.Object = parsed
+			if err := r.runtimeClient.Create(ctx, target, &ctrlruntimeclient.CreateOptions{DryRun: dryRun}); err != nil {
+				logger.Error(err, "Failed to dry-run create YAML")
+				return nil, fmt.Errorf("failed to apply resource %s/%s: %w", gvk.Kind, name, err)
+			}
+			return target.Object, nil
+		}
+		rv := target.GetResourceVersion()
+		uid := target.GetUID()
+		target.Object = parsed
+		target.SetResourceVersion(rv)
+		target.SetUID(uid)
+		if err := r.runtimeClient.Update(ctx, target, &ctrlruntimeclient.UpdateOptions{DryRun: dryRun}); err != nil {
+			logger.Error(err, "Failed to dry-run update YAML")
+			return nil, fmt.Errorf("failed to apply resource %s/%s: %w", gvk.Kind, name, err)
+		}
 		return target.Object, nil
 	}
 }

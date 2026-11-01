@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260827-27c8d645.marketplaceentries.marketplace.platform-mesh.io
+  name: v261030-566cb8a8.marketplaceentries.marketplace.platform-mesh.io
 spec:
   group: marketplace.platform-mesh.io
   names:
@@ -294,10 +294,6 @@ spec:
                                   a projection of the referenced resource inside the workspaces that
                                   bind to the APIExport.
                                 properties:
-                                  identityHash:
-                                    description: IdentityHash is the identity of the
-                                      virtual resource.
-                                    type: string
                                   reference:
                                     description: |-
                                       Reference points to another object that has a URL to a virtual workspace
@@ -323,7 +319,6 @@ spec:
                                     type: object
                                     x-kubernetes-map-type: atomic
                                 required:
-                                - identityHash
                                 - reference
                                 type: object
                             type: object
@@ -481,6 +476,8 @@ spec:
                         properties:
                           displayName:
                             type: string
+                          main:
+                            type: boolean
                           url:
                             type: string
                         type: object
@@ -490,6 +487,8 @@ spec:
                         properties:
                           displayName:
                             type: string
+                          main:
+                            type: boolean
                           url:
                             type: string
                         type: object
@@ -515,23 +514,36 @@ spec:
                       - light
                       type: object
                     links:
+                      description: |-
+                        Links are provider-owned links. At most one link may be marked as the
+                        main link via `main: true`.
                       items:
                         properties:
                           displayName:
                             type: string
+                          main:
+                            type: boolean
                           url:
                             type: string
                         type: object
+                      maxItems: 20
                       type: array
+                      x-kubernetes-validations:
+                      - message: only one link may be marked as main
+                        rule: self.filter(l, has(l.main) && l.main).size() <= 1
                     preferredSupportChannels:
                       items:
                         properties:
                           displayName:
                             type: string
+                          main:
+                            type: boolean
                           url:
                             type: string
                         type: object
                       type: array
+                    serviceLevel:
+                      type: string
                     tags:
                       items:
                         type: string

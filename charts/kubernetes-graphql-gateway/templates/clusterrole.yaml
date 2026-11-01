@@ -1,0 +1,73 @@
+{{- if .Values.rbac.enabled }}
+{{- $provider := .Values.listener.provider | default "multi" }}
+{{- if or (not .Values.kcp.enabled) (eq $provider "single") (eq $provider "multi") }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "common.clusterScoped.name" . }}
+  namespace: {{ .Release.Namespace }}
+rules:
+  # gateway
+  {{ if .Values.gateway.shouldImpersonate }}
+  - apiGroups: [ "" ]
+    resources: [ "users", "serviceaccounts" ]
+    verbs: [ "impersonate" ]
+  # old default permissions:
+  - apiGroups: [ "*" ]
+    resources: [ "*" ]
+    verbs: [ "*" ]
+  {{ end }}
+
+  # listener
+  # I know that for gateway we are giving much wider permissions, but let's preserve the needed permissions for listener
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+      - list
+      - watch
+  {{- if .Values.crds.enabled }}
+  - apiGroups:
+      - gateway.platform-mesh.io
+    resources:
+      - clusteraccesses
+      - clusteraccesses/status
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  {{- end }}
+  {{- if and .Values.crds.enabled .Values.listener.enableClusterAccessController }}
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts/token
+    verbs:
+      - create
+  {{- end }}
+{{- end }}
+{{- end }}

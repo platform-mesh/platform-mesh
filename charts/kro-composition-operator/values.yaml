@@ -1,0 +1,53 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/kro-composition-operator
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  # -- Image tag; defaults to the chart appVersion when empty
+  tag: ""
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Number of operator replicas
+replicas: 1
+
+# -- Name of the Secret holding the operator's kcp kubeconfig (from the provider
+#    connection). Mounted at /kubeconfig/kubeconfig and passed via --kubeconfig.
+kubeconfigSecret: kcp-kubeconfig
+
+kcp:
+  # -- Workspace path holding the kro.run APIExport + endpointslice
+  providerWorkspace: "root:providers:kro-provider"
+  # -- APIExportEndpointSlice serving the kro.run RGD API
+  apiExportEndpointSlice: "kro.run"
+
+# -- Enable leader election
+leaderElect: true
+
+# -- kro feature gates, as a comma-separated key=value list. All default to off.
+featureGates: ""
+
+# hostAliases maps the kcp shard hostnames (from the APIExport VW URLs) to the
+# in-cluster gateway IP so the operator can reach the virtual workspaces. Required
+# for kind/local-setup where those hostnames otherwise resolve to 127.0.0.1. The IP
+# is the runtime gateway (traefik) ClusterIP; set it via the HelmRelease values.
+hostAliases:
+  enabled: false
+  values: []
+  # values:
+  #   - ip: "10.96.188.4"
+  #     hostnames:
+  #       - localhost
+  #       - portal.localhost
+  #       - kcp.localhost
+  #       - root.kcp.localhost
+  #       - triton.kcp.localhost
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi

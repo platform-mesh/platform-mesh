@@ -1,0 +1,122 @@
+suite: operator
+templates:
+  - deployment.yaml
+  - deployment-server.yaml
+  - service-account.yaml
+  - cluster-role.yaml
+  - cluster-rolebinding.yaml
+  - httproute.yaml
+  - virtual-service.yaml
+values:
+  - ../test-values.yaml
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+release:
+  name: extension-manager-operator
+tests:
+  - it: operator match the snapshot
+    asserts:
+      - matchSnapshot: {}
+    set:
+      istio:
+        enabledOverride: true
+      health:
+        portOverride: 8081
+        liveness:
+          pathOverride: /readyz
+      metrics:
+        port: 8080
+      deployment:
+        resources:
+          limits:
+            cpuOverride: 260m
+            memoryOverride: 512Mi
+          requests:
+            cpuOverride: 40m
+            memoryOverride: 50Mi
+  - it: operator match the snapshot with tracing
+    templates:
+      - deployment.yaml
+      - deployment-server.yaml
+    set:
+      tracing:
+        enabled: true
+        collector:
+          endpoint: test:1234
+      metrics:
+        port: 8080
+    asserts:
+      - matchSnapshot: {}
+  - it: deployment with external kubeconfig
+    template: deployment.yaml
+    set:
+      kcp:
+        enabled: true
+        kubeconfig:
+          secret: "test-kubeconfig"
+      extraVolumeMounts:
+        - name: test
+          mountPath: /test
+      extraVolumes:
+        - name: test
+          secret:
+            secretName: test
+    asserts:
+      - matchSnapshot: {}
+  - it: has all health checks
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /readyz
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /readyz
+  - it: enable Gateway API
+    set:
+      gatewayApi:
+        enabled: true
+      istio:
+        enabled: false
+      pathPrefix: /custom-validate
+    asserts:
+      - matchSnapshot: {}
+  - it: entity type validation enabled
+    templates:
+      - deployment.yaml
+      - deployment-server.yaml
+    set:
+      entityTypeValidation:
+        enabled: true
+      kcp:
+        enabled: true
+        kubeconfig:
+          secret: "test-kubeconfig"
+    asserts:
+      - matchSnapshot: {}
+  - it: custom certs
+    set:
+      extraVolumeMounts:
+        - mountPath: /etc/ssl/certs/domain-ca.crt
+          name: domain-ca
+          readOnly: true
+          subPath: tls.crt
+      extraVolumes:
+        - name: domain-ca
+          secret:
+            secretName: domain-certificate-ca
+      hostAliases:
+        enabled: true
+      kcp:
+        enabled: true
+        kubeconfigSecret: extension-manager-operator-kubeconfig
+      tracing:
+        collector:
+          host: observability-opentelemetry-collector.observability.svc.cluster.local:4317
+        enabled: false
+    asserts:
+      - matchSnapshot: {}

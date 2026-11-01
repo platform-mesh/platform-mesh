@@ -1,0 +1,74 @@
+kubeconfigSecretName: account-operator-kubeconfig
+authenticationKubeconfigSecretName: portal-kubeconfig
+clientCASecretName: frontproxy-merged-client-ca
+virtualWorkspaceSecretName: virtual-workspaces-cert
+requestHeaderClientCASecretName: root-requestheader-client-ca
+
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/virtual-workspaces
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  # Overwrite image.tag to use a different image tag then .chart.appVersion
+  #  tag: latest
+
+deployment:
+  entityLabel: ui.platform-mesh.io/entity
+  contentForLabel: ui.platform-mesh.io/content-for
+  # -- URL of the kcp front-proxy service. The port must match front-proxy service port.
+  serverUrl: https://frontproxy-front-proxy.platform-mesh-system:8443
+  resourceSchemaName: "v250704-6d57f16.contentconfigurations.ui.platform-mesh.io"
+  resourceSchemaWorkspace: root:platform-mesh-system
+  resourceSchemaExportName: ui.platform-mesh.io
+  mainEntityName: main
+  accountEntityName: core_platform-mesh_io_account
+
+hostAliases:
+  enabled: false
+
+clusterAccess:
+  marketplace:
+    enabled: true
+    # -- Path for gateway url
+    # path: ""
+    auth:
+      kubeconfigSecretRef:
+        name: "virtual-workspace-clusteraccess-kubeconfig"
+        key: "kubeconfig"
+
+service:
+  port: 8443
+
+cert:
+  # -- Secret name to store the certificate
+  secretName: virtual-workspaces-cert
+  # -- Extra DNS names for the certificate
+  extraDnsNames: [localhost]
+  # -- Certificate duration
+  duration: 2160h0m0s
+  # -- Certificate renew before
+  renewBefore: 168h0m0s
+  issuer:
+    # -- Issuer reference
+    kind: Issuer
+    # -- Issuer name
+    name: root-server-ca
+  key:
+    # -- Key algorithm (e.g. RSA or ECDSA)
+    algorithm: RSA
+    # -- Key size (e.g. 2048, 3072, 4096 for RSA or 256, 384, 521 for ECDSA)
+    size: 4096
+# Horizontal Pod Autoscaler configuration
+# hpa:
+#   enabled: true
+#   minReplicas: 1
+#   maxReplicas: 10
+#   metrics:
+#     - type: Resource
+#       resource:
+#         name: cpu
+#         target:
+#           type: Utilization
+#           averageUtilization: 80

@@ -1,0 +1,16 @@
+image:
+  registry: ghcr.io
+  repository: openmfp/kubernetes-graphql-gateway
+
+gateway:
+  healthCheck:
+    port: 3389
+  shouldImpersonate: true
+
+listener:
+  healthCheck:
+    enabled: true
+
+extraEnvs:
+- name: KEY1
+  value: "value1"

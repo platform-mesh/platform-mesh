@@ -1,0 +1,109 @@
+crds:
+  enabled: true
+
+# -- When enabled, installs the OCM Repository/Component CRs, the PlatformMesh CR, and the
+# profile ConfigMap alongside the operator. Disable to deploy only the operator binary and
+# supply PlatformMesh resources from a separate GitOps source.
+ocm:
+  enabled: false
+  # -- Installation profile. `production` assumes the infrastructure prerequisites already exist.
+  profile: production
+  # -- Platform Mesh OCM component version to reconcile.
+  version: "0.5.2"
+  # -- OCI registry (and optional path) the Platform Mesh OCM components are read from. Point this
+  # at a mirror, or at a fork's registry, to install from there.
+  repository: ghcr.io/platform-mesh
+  # -- Name of the OCM signature the components are verified against.
+  signatureName: platform-mesh.platform-mesh
+  # -- Set to false when the OCM component is signed by a different trusted key. Then provide a
+  # Secret `ocm-signing-public-cert` with the certificate in the release namespace yourself.
+  installSigningCertificate: true
+
+# -- Gateway/exposure configuration (used when ocm.enabled=true).
+gateway:
+  # -- Public DNS name used for Platform Mesh endpoints.
+  baseDomain: ""
+  # -- External HTTPS port exposed by the Gateway.
+  port: 8443
+  # -- Name of the GatewayClass the Platform Mesh Gateway attaches to. Defaults to `traefik` (the bundled controller). Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation.
+  className: traefik
+  # -- ClusterIP of the gateway controller Service. Required when ocm.profile=kind; production uses public DNS. Controller-agnostic replacement for gateway.traefikClusterIP.
+  clusterIP: ""
+  # -- Deprecated alias for gateway.clusterIP. Still the wire field consumed by the operator reconciler; prefer gateway.clusterIP.
+  traefikClusterIP: ""
+
+# -- KCP connectivity configuration (used when ocm.enabled=true).
+kcp:
+  # -- Internal port of the KCP front-proxy Service. Production Services expose 443; the kind profile uses 8443.
+  frontProxyPort: 443
+
+# -- TLS Secret containing tls.crt, tls.key, and ca.crt. Its ca.crt is trusted by the operator.
+certificateSecretName: domain-certificate
+
+# -- Certificate issuance configuration. Requires cert-manager when selfSigned.enabled=true.
+certificates:
+  # -- Create a private self-signed CA and use it to issue the gateway certificate. Keep disabled when the TLS Secret is managed externally.
+  selfSigned:
+    enabled: false
+    # -- Secret containing the generated private CA certificate and key.
+    caSecretName: domain-certificate-ca
+
+deployment:
+  replicas: 1
+
+log:
+  # -- log level. Permissible values: debug, info, warn, error
+  level: info
+
+operator:
+  leaderElect: true
+
+# JWT configuration
+jwt:
+  userIdClaim: "email"
+
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/platform-mesh-operator
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+
+tracing:
+  enabled: false
+  collector:
+    endpoint: observability-opentelemetry-collector.observability.svc.cluster.local:4317
+
+extraArgs:
+  - --subroutines-feature-toggles-enabled=true
+
+idp:
+  registrationAllowed: false
+
+istio:
+  enabled: false
+
+remoteInfra:
+  # -- Enables reconciliation of PlatformMesh resources on remote clusters
+  enabled: false
+  # -- Name of the secret containing the kubeconfig for remote cluster access where the PlatformMesh resources will be deployed
+  secretName: "platform-mesh-kubeconfig"
+  secretKey: "kubeconfig"
+
+remoteRuntime:
+  # -- Enables deployment to remote clusters. Set to true if the operator is not deployed on the same cluster where the Infra artefacts will be created.
+  enabled: false
+  # -- Name of the secret containing the kubeconfig for the cluster where the created Infra artefacts will be created. NOTE: target deployment will alway be same as the cluster where the Platform Mesh resource lives.
+  secretName: "platform-mesh-secret"
+  secretKey: "kubeconfig"
+  infra:
+    # -- Name of the secret containing Runtime cluster kubeconfig
+    secretName: "platform-mesh-secret"
+    secretKey: "kubeconfig"
+
+clusterScopedName:
+  # -- Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one
+  prefix: ""
+  # -- Suffix for the names of cluster-scoped resources
+  suffix: ""

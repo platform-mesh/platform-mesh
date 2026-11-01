@@ -1,0 +1,32 @@
+{{- if .Values.serviceMonitors.kcp.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kcp
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.serviceMonitors.kcp.namespace }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.serviceMonitors.kcp.labels | nindent 6 }}
+  endpoints:
+    - port: {{ .Values.serviceMonitors.kcp.port }}
+      path: {{ .Values.serviceMonitors.kcp.path }}
+      {{- if .Values.serviceMonitors.kcp.scheme }}
+      scheme: {{ .Values.serviceMonitors.kcp.scheme }}
+      {{- end }}
+      tlsConfig:
+        insecureSkipVerify: {{ .Values.serviceMonitors.kcp.tlsInsecureSkipVerify | default false }}
+        {{- if .Values.serviceMonitors.kcp.tlsSecretName }}
+        cert:
+          secret:
+            name: {{ .Values.serviceMonitors.kcp.tlsSecretName }}
+            key: tls.crt
+        keySecret:
+          name: {{ .Values.serviceMonitors.kcp.tlsSecretName }}
+          key: tls.key
+        {{- end }}
+{{- end }}

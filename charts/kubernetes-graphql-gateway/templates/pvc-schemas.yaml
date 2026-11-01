@@ -1,0 +1,18 @@
+{{- if eq .Values.schemaHandler.type "file" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "common.entity.name" . }}-schemas
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "common.entity.name" . }}
+spec:
+  accessModes:
+    - {{ .Values.schemaHandler.sharedVolume.accessMode }}
+  {{- if .Values.schemaHandler.sharedVolume.storageClassName }}
+  storageClassName: {{ .Values.schemaHandler.sharedVolume.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.schemaHandler.sharedVolume.size }}
+{{- end }}

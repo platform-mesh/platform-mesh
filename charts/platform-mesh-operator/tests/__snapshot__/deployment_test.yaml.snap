@@ -1,0 +1,957 @@
+configure extraVolumes and extraVolumeMounts:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: platform-mesh-operator
+      namespace: NAMESPACE
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: platform-mesh-operator
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: platform-mesh-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=info
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-feature-toggles-enabled=true
+                - --subroutines-deployment-enable-istio=false
+                - --user-claim=email
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: platform-mesh-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /mnt/extra
+                  name: extra-volume-mount
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: platform-mesh-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - emptyDir: {}
+              name: extra-volume
+configure hosAliases:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: platform-mesh-operator
+      namespace: NAMESPACE
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: platform-mesh-operator
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: platform-mesh-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=info
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-feature-toggles-enabled=true
+                - --subroutines-deployment-enable-istio=false
+                - --user-claim=email
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: platform-mesh-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts: null
+          hostAliases:
+            - hostnames:
+                - example.com
+                - test.example.com
+              ip: 10.0.0.1
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: platform-mesh-operator
+          terminationGracePeriodSeconds: 10
+deployment with tracing:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: platform-mesh-operator
+      namespace: NAMESPACE
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: platform-mesh-operator
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: platform-mesh-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=info
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --tracing-enabled=true
+                - --tracing-config-service-name=platform-mesh-operator.NAMESPACE
+                - --tracing-config-service-version=0.0.0
+                - --tracing-config-collector-endpoint=test:4317
+                - --subroutines-feature-toggles-enabled=true
+                - --subroutines-deployment-enable-istio=false
+                - --user-claim=email
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: platform-mesh-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts: null
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: platform-mesh-operator
+          terminationGracePeriodSeconds: 10
+disables istio sidecar injection:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: platform-mesh-operator
+      namespace: NAMESPACE
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: platform-mesh-operator
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: platform-mesh-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=info
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-feature-toggles-enabled=true
+                - --subroutines-deployment-enable-istio=false
+                - --user-claim=email
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: platform-mesh-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts: null
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: platform-mesh-operator
+          terminationGracePeriodSeconds: 10
+enable remote PlatformMesh and Infra:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: platform-mesh-operator
+      namespace: NAMESPACE
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: platform-mesh-operator
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: platform-mesh-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=info
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-feature-toggles-enabled=true
+                - --subroutines-deployment-enable-istio=false
+                - --user-claim=email
+                - --remote-runtime-kubeconfig=/etc/platformmesh/kubeconfig
+                - --remote-runtime-infra-secret-name=kubeconfig-platformmesh
+                - --remote-runtime-infra-secret-key=kubeconfig
+                - --remote-infra-kubeconfig=/etc/infra/kubeconfig
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: platform-mesh-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /etc/infra
+                  name: external-infra-deployment
+                  readOnly: true
+                - mountPath: /etc/platformmesh
+                  name: external-platformmesh-deployment
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: platform-mesh-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-infra-deployment
+              secret:
+                defaultMode: 420
+                items:
+                  - key: kubeconfig
+                    path: kubeconfig
+                secretName: kubeconfig-platformmesh
+            - name: external-platformmesh-deployment
+              secret:
+                defaultMode: 420
+                items:
+                  - key: kubeconfig
+                    path: kubeconfig
+                secretName: kubeconfig-deployment
+enables istio sidecar injection:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: platform-mesh-operator
+      namespace: NAMESPACE
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: platform-mesh-operator
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "true"
+          labels:
+            app: platform-mesh-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=info
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-feature-toggles-enabled=true
+                - --subroutines-deployment-enable-istio=true
+                - --user-claim=email
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: platform-mesh-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts: null
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: platform-mesh-operator
+          terminationGracePeriodSeconds: 10
+operator match the snapshot:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: platform-mesh-operator
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - events
+          - pods
+        verbs:
+          - create
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - platformmeshes
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - platformmeshes/finalizers
+        verbs:
+          - update
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - platformmeshes/status
+        verbs:
+          - get
+          - patch
+          - update
+      - apiGroups:
+          - ""
+        resources:
+          - secrets
+          - configmaps
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - delete
+          - update
+          - patch
+      - apiGroups:
+          - delivery.ocm.software
+        resources:
+          - '*'
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - delete
+          - update
+          - patch
+      - apiGroups:
+          - helm.toolkit.fluxcd.io
+        resources:
+          - helmreleases
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - delete
+          - update
+          - patch
+      - apiGroups:
+          - operator.kcp.io
+        resources:
+          - rootshards
+          - frontproxies
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - apiextensions.k8s.io
+        resources:
+          - customresourcedefinitions
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - cert-manager.io
+        resources:
+          - certificates
+          - issuers
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - delete
+          - update
+          - patch
+      - apiGroups:
+          - source.toolkit.fluxcd.io
+        resources:
+          - ocirepositories
+          - helmreleases
+          - helmrepositories
+          - gitrepositories
+        verbs:
+          - get
+          - list
+          - create
+          - update
+          - patch
+          - delete
+          - watch
+      - apiGroups:
+          - kustomize.toolkit.fluxcd.io
+        resources:
+          - kustomizations
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - providers.platform-mesh.io
+        resources:
+          - managedproviders
+          - providers
+        verbs:
+          - '*'
+      - apiGroups:
+          - providers.platform-mesh.io
+        resources:
+          - managedproviders/status
+        verbs:
+          - get
+          - patch
+          - update
+      - apiGroups:
+          - argoproj.io
+        resources:
+          - appprojects
+          - applications
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: platform-mesh-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: platform-mesh-operator
+    subjects:
+      - kind: ServiceAccount
+        name: platform-mesh-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: platform-mesh-operator
+      namespace: NAMESPACE
+    spec:
+      replicas: 0
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: platform-mesh-operator
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: platform-mesh-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=info
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-feature-toggles-enabled=true
+                - --subroutines-deployment-enable-istio=false
+                - --user-claim=email
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: platform-mesh-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts: null
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: platform-mesh-operator
+          terminationGracePeriodSeconds: 10
+  4: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: platform-mesh-operator
+    rules:
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - pods
+        verbs:
+          - list
+          - delete
+      - apiGroups:
+          - ""
+        resources:
+          - events
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - configmaps
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - platformmeshes
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - platformmeshes/finalizers
+        verbs:
+          - update
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - platformmeshes/status
+        verbs:
+          - get
+          - patch
+          - update
+      - apiGroups:
+          - providers.platform-mesh.io
+        resources:
+          - managedproviders
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - providers.platform-mesh.io
+        resources:
+          - managedproviders/finalizers
+        verbs:
+          - update
+      - apiGroups:
+          - providers.platform-mesh.io
+        resources:
+          - managedproviders/status
+        verbs:
+          - get
+          - patch
+          - update
+  5: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: platform-mesh-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: platform-mesh-operator
+    subjects:
+      - kind: ServiceAccount
+        name: platform-mesh-operator
+        namespace: NAMESPACE
+  6: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: platform-mesh-operator
+      namespace: NAMESPACE

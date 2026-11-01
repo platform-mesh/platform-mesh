@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: Test Dex manifests
+release:
+  name: infra
+  namespace: platform-mesh-system
+tests:
+- it: dex disabled by default
+  templates:
+    - dex/configmap.yaml
+    - dex/deployment.yaml
+    - dex/service.yaml
+    - dex/httproute.yaml
+  asserts:
+    - hasDocuments:
+        count: 0
+- it: match snapshots with dex enabled
+  set:
+    dex:
+      enabled: true
+    gatewayApi:
+      enabled: true
+  templates:
+    - dex/configmap.yaml
+    - dex/deployment.yaml
+    - dex/service.yaml
+    - dex/httproute.yaml
+  asserts:
+    - matchSnapshot: {}
+- it: dex httproute not rendered when gateway API disabled
+  set:
+    dex:
+      enabled: true
+    gatewayApi:
+      enabled: false
+  templates:
+    - dex/httproute.yaml
+  asserts:
+    - hasDocuments:
+        count: 0
+- it: dex deployment rendered when enabled
+  set:
+    dex:
+      enabled: true
+  templates:
+    - dex/deployment.yaml
+  asserts:
+    - hasDocuments:
+        count: 1
+- it: dex service rendered when enabled
+  set:
+    dex:
+      enabled: true
+  templates:
+    - dex/service.yaml
+  asserts:
+    - hasDocuments:
+        count: 1

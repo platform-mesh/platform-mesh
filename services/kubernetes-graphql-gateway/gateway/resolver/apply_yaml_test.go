@@ -17,11 +17,153 @@ limitations under the License.
 package resolver
 
 import (
+	"context"
 	"testing"
 
+	"github.com/graphql-go/graphql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// applyYamlFake is a minimal fake for ApplyYaml resolver tests.
+// It records Create and Update calls so tests can assert what DryRun options
+// were passed, without needing a full fake client.
+type applyYamlFake struct {
+	ctrlruntimeclient.WithWatch
+	existing    *unstructured.Unstructured
+	createCalls []ctrlruntimeclient.CreateOptions
+	updateCalls []ctrlruntimeclient.UpdateOptions
+}
+
+func (f *applyYamlFake) Get(_ context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+	if f.existing == nil {
+		return apierrors.NewNotFound(schema.GroupResource{}, key.Name)
+	}
+	u, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return nil
+	}
+	f.existing.DeepCopyInto(u)
+	return nil
+}
+
+func (f *applyYamlFake) Create(_ context.Context, _ ctrlruntimeclient.Object, opts ...ctrlruntimeclient.CreateOption) error {
+	o := &ctrlruntimeclient.CreateOptions{}
+	o.ApplyOptions(opts)
+	f.createCalls = append(f.createCalls, *o)
+	return nil
+}
+
+func (f *applyYamlFake) Update(_ context.Context, _ ctrlruntimeclient.Object, opts ...ctrlruntimeclient.UpdateOption) error {
+	o := &ctrlruntimeclient.UpdateOptions{}
+	o.ApplyOptions(opts)
+	f.updateCalls = append(f.updateCalls, *o)
+	return nil
+}
+
+func existingConfigMap() *unstructured.Unstructured {
+	u := &unstructured.Unstructured{}
+	u.SetAPIVersion("v1")
+	u.SetKind("ConfigMap")
+	u.SetName("test-cm")
+	u.SetNamespace("default")
+	u.SetResourceVersion("1")
+	_ = unstructured.SetNestedField(u.Object, map[string]any{"key": "original"}, "data")
+	return u
+}
+
+func TestApplyYamlResolver(t *testing.T) {
+	const namedYAML = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-cm
+  namespace: default
+data:
+  key: changed`
+
+	const generateNameYAML = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  generateName: test-cm-
+  namespace: default`
+
+	t.Run("named/create: no dryRun calls Create without DryRun", func(t *testing.T) {
+		fk := &applyYamlFake{}
+		result, err := New(fk, nil).ApplyYaml()(graphql.ResolveParams{
+			Context: t.Context(),
+			Args:    map[string]any{YamlArg: namedYAML},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Len(t, fk.createCalls, 1)
+		assert.Empty(t, fk.createCalls[0].DryRun)
+	})
+
+	t.Run("named/create: dryRun=true calls Create with DryRun All", func(t *testing.T) {
+		fk := &applyYamlFake{}
+		result, err := New(fk, nil).ApplyYaml()(graphql.ResolveParams{
+			Context: t.Context(),
+			Args:    map[string]any{YamlArg: namedYAML, DryRunArg: true},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Len(t, fk.createCalls, 1)
+		assert.Equal(t, []string{"All"}, fk.createCalls[0].DryRun)
+	})
+
+	t.Run("named/update: no dryRun calls Update without DryRun", func(t *testing.T) {
+		fk := &applyYamlFake{existing: existingConfigMap()}
+		result, err := New(fk, nil).ApplyYaml()(graphql.ResolveParams{
+			Context: t.Context(),
+			Args:    map[string]any{YamlArg: namedYAML},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Len(t, fk.updateCalls, 1)
+		assert.Empty(t, fk.updateCalls[0].DryRun)
+	})
+
+	t.Run("named/update: dryRun=true calls Update with DryRun All", func(t *testing.T) {
+		fk := &applyYamlFake{existing: existingConfigMap()}
+		result, err := New(fk, nil).ApplyYaml()(graphql.ResolveParams{
+			Context: t.Context(),
+			Args:    map[string]any{YamlArg: namedYAML, DryRunArg: true},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Len(t, fk.updateCalls, 1)
+		assert.Equal(t, []string{"All"}, fk.updateCalls[0].DryRun)
+	})
+
+	t.Run("generateName: no dryRun calls Create without DryRun", func(t *testing.T) {
+		fk := &applyYamlFake{}
+		result, err := New(fk, nil).ApplyYaml()(graphql.ResolveParams{
+			Context: t.Context(),
+			Args:    map[string]any{YamlArg: generateNameYAML},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Len(t, fk.createCalls, 1)
+		assert.Empty(t, fk.createCalls[0].DryRun)
+	})
+
+	t.Run("generateName: dryRun=true calls Create with DryRun All", func(t *testing.T) {
+		fk := &applyYamlFake{}
+		result, err := New(fk, nil).ApplyYaml()(graphql.ResolveParams{
+			Context: t.Context(),
+			Args:    map[string]any{YamlArg: generateNameYAML, DryRunArg: true},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Len(t, fk.createCalls, 1)
+		assert.Equal(t, []string{"All"}, fk.createCalls[0].DryRun)
+	})
+}
 
 func TestParseAndValidateYAML(t *testing.T) {
 	tests := []struct {

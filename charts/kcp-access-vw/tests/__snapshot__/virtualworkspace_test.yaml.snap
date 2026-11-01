@@ -1,0 +1,91 @@
+matches snapshot (defaults):
+  1: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      labels:
+        app: kcp-access-vw
+        app.kubernetes.io/instance: kcp-access-vw
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: kcp-access-vw
+        helm.sh/chart: kcp-access-vw-0.0.0
+      name: access-vw-bootstrap
+      namespace: platform-mesh-system
+    spec:
+      groups:
+        - system:kcp:admin
+      secretRef:
+        name: access-vw-bootstrap-kubeconfig
+      target:
+        frontProxyRef:
+          name: frontproxy
+      username: kcp-admin
+      validity: 8766h
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      labels:
+        app: kcp-access-vw
+        app.kubernetes.io/instance: kcp-access-vw
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: kcp-access-vw
+        helm.sh/chart: kcp-access-vw-0.0.0
+      name: access-vw-server
+      namespace: platform-mesh-system
+    spec:
+      secretRef:
+        name: access-vw-server-kubeconfig
+      target:
+        frontProxyRef:
+          name: frontproxy
+      targetWorkspace: root:access:controllers
+      username: access-vw
+      validity: 8766h
+  3: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: VirtualWorkspace
+    metadata:
+      labels:
+        app: kcp-access-vw
+        app.kubernetes.io/instance: kcp-access-vw
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: kcp-access-vw
+        helm.sh/chart: kcp-access-vw-0.0.0
+      name: access-vw
+      namespace: platform-mesh-system
+    spec:
+      command:
+        - /access-vw
+      external:
+        hostname: kcp.example.com
+        port: 6443
+      extraArgs:
+        - --apiexport-endpointslice=access.contrib.kcp.io
+        - --endpoint-base=https://kcp.example.com:6443/clusters/
+      image:
+        repository: ghcr.io/kcp-dev/contrib-virtual-workspaces/access-vw
+        tag: 0.1.1
+      initContainers:
+        - args:
+            - --kubeconfig=/etc/kcp/init-kubeconfig/kubeconfig
+            - --workspace-prefix=root:access
+            - --controllers-workspace=controllers
+            - --server-user=access-vw
+          command:
+            - /access-vw-init
+          kubeconfigSecretRef:
+            name: access-vw-bootstrap-kubeconfig
+          name: init
+      kubeconfigSecretRef:
+        name: access-vw-server-kubeconfig
+      replicas: 1
+      resources:
+        limits:
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      target:
+        rootShardRef:
+          name: root

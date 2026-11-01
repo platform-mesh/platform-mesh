@@ -1,0 +1,141 @@
+suite: Test the Template files
+values:
+- ../values.yaml
+- ../test_values.yaml
+release:
+  name: platform-mesh
+  namespace: platform-mesh-system
+chart:
+  appVersion: 1.0.0
+templates:
+  - deploy-gateway.yaml
+  - deploy-listener.yaml
+tests:
+  - it: matches the Snapshot
+    asserts:
+    - matchSnapshot: {}
+  - it: has all hostAliases configured
+    set:
+      hostAliases:
+        enabled: true
+        entries:
+          - ip: "10.0.0.1"
+            hostnames:
+              - "example.com"
+              - "test.example.com"
+    asserts:
+      - matchSnapshot: {}
+      - equal:
+          path: spec.template.spec.hostAliases[0].ip
+          value: 10.0.0.1
+  - it: renders listener with multi provider mode and all flags
+    templates:
+      - deploy-listener.yaml
+    set:
+      listener.provider: multi
+      listener.enableClusterAccessController: true
+      listener.clusterAccessControllerProviders: "single"
+      listener.resourceControllerProviders: "kcp,single"
+      kubeConfig.enabled: true
+      singleKubeConfig.enabled: true
+    asserts:
+      - matchSnapshot: {}
+  - it: renders listener with single provider mode
+    templates:
+      - deploy-listener.yaml
+    set:
+      listener.provider: single
+    asserts:
+      - matchSnapshot: {}
+  - it: renders listener with kcp provider mode
+    templates:
+      - deploy-listener.yaml
+    set:
+      listener.provider: kcp
+      kubeConfig.enabled: true
+    asserts:
+      - matchSnapshot: {}
+  - it: fails when kubernetes provider value is used
+    templates:
+      - deploy-listener.yaml
+    set:
+      listener.provider: kubernetes
+    asserts:
+      - failedTemplate:
+          errorMessage: "listener.provider value 'kubernetes' is no longer supported. Use 'single' instead."
+  - it: fails when clusterAccessControllerProviders set without enableClusterAccessController
+    templates:
+      - deploy-listener.yaml
+    set:
+      listener.provider: multi
+      listener.clusterAccessControllerProviders: "single"
+      listener.enableClusterAccessController: false
+    asserts:
+      - failedTemplate:
+          errorMessage: "listener.clusterAccessControllerProviders requires listener.enableClusterAccessController=true"
+  - it: renders default multi-mode with all features enabled
+    values:
+      - ../values.yaml
+    templates:
+      - deploy-listener.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: applies per-deployment override to gateway only
+    set:
+      gateway.deployment.replicas: 3
+      gateway.deployment.maxSurge: 1
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+        template: deploy-gateway.yaml
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 1
+        template: deploy-gateway.yaml
+      - equal:
+          path: spec.replicas
+          value: 1
+        template: deploy-listener.yaml
+  - it: applies per-deployment override to listener only
+    set:
+      listener.deployment.replicas: 2
+      listener.deployment.maxUnavailable: 1
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: deploy-listener.yaml
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 1
+        template: deploy-listener.yaml
+      - equal:
+          path: spec.replicas
+          value: 1
+        template: deploy-gateway.yaml
+  - it: honors zero values in per-deployment overrides
+    set:
+      gateway.deployment.replicas: 0
+      listener.deployment.revisionHistoryLimit: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+        template: deploy-gateway.yaml
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 0
+        template: deploy-listener.yaml
+  - it: falls back to top-level deployment defaults when override is unset
+    set:
+      deployment.replicas: 5
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5
+        template: deploy-gateway.yaml
+      - equal:
+          path: spec.replicas
+          value: 5
+        template: deploy-listener.yaml

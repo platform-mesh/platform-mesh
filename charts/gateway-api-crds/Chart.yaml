@@ -1,0 +1,6 @@
+apiVersion: v2
+name: gateway-api-crds
+description: Helm chart for Kubernetes Gateway API CRDs (experimental channel)
+type: application
+version: 0.0.0
+appVersion: "v1.5.1"

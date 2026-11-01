@@ -1,0 +1,98 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: "3"
+
+# Helm chart tasks. Included from the root Taskfile as `charts`, so run e.g.
+# `task charts:lint`. All paths are relative to the repository root.
+
+vars:
+  LOCAL_BIN: bin
+  CHARTS:
+    sh: "printf '%s' $(ls -d charts/*/ | paste -sd ',' -)"
+  CHANGED_CHARTS:
+    sh: "( git diff --name-only main..@ 2>/dev/null ; git diff --name-only ) | grep '^charts/' | cut -d/ -f1-2 | sort | uniq | paste -sd ',' - || true"
+
+tasks:
+  setup:kube-lint:
+    internal: true
+    cmds:
+      - mkdir -p $(pwd)/{{.LOCAL_BIN}}
+      - test -s {{.LOCAL_BIN}}/kube-linter || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install golang.stackrox.io/kube-linter/cmd/kube-linter@latest
+      - chmod +x $(pwd)/{{.LOCAL_BIN}}/kube-linter
+  setup:helm-docs:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/helm-docs || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.14.2
+
+  # Charts carry no version in git (0.0.0, injected at release time, RFC 015),
+  # hence no version-increment check.
+  lint:
+    deps: [deps]
+    cmds:
+      - "./hack/charts/lint-image-schema.sh"
+      - "ct lint --target-branch main --chart-dirs=charts --validate-maintainers=false --check-version-increment=false --chart-repos=bitnami=https://charts.bitnami.com/bitnami,openfga=https://openfga.github.io/helm-charts"
+  # Dependencies between charts in this directory are file:// references and
+  # not vendored; resolve them (dependencies first) before linting or testing.
+  deps:
+    desc: Resolve chart dependencies (helm dependency update, dependencies first).
+    cmds:
+      - "./hack/charts/resolve-dependencies.sh"
+  helmtest:
+    deps: [deps]
+    cmds:
+      - "for chart in $(echo {{.CHARTS}} | tr ',' ' '); do helm unittest $chart; done"
+  helmtest-update:
+    deps: [deps]
+    cmds:
+      - "for chart in $(echo {{.CHARTS}} | tr ',' ' '); do helm unittest -u $chart; done"
+  test:
+    deps:
+      - task: helmtest
+  update-changed:
+    deps:
+      - task: docs
+    cmds:
+      - "for chart in $(echo {{.CHANGED_CHARTS}} | tr ',' ' '); do helm dependency update $chart && helm unittest -u $chart; done"
+  update:
+    deps:
+      - task: docs
+    cmds:
+      - "for chart in $(echo {{.CHARTS}} | tr ',' ' '); do helm dependency update $chart; done"
+  validate:
+    cmds:
+      - task: test
+      - task: docs
+      - task: update
+      - task: lint
+      - task: oci
+  vulnerability:
+    deps:
+      - task: setup:kube-lint
+    cmds:
+      - "{{.LOCAL_BIN}}/kube-linter lint \"charts/\" --format \"plain\""
+  docs:
+    deps:
+      - task: setup:helm-docs
+    cmds:
+      - "for chart in $(echo {{.CHARTS}} | tr ',' ' '); do {{.LOCAL_BIN}}/helm-docs --log-level=debug --chart-search-root $chart --template-files=../.docs-templates/header.md.gotmpl,README.md.gotmpl,../.docs-templates/footer.md.gotmpl --skip-version-footer=false; done"
+  sync-crds:
+    desc: Copy the generated CRDs from the components' config/ into the *-crds charts.
+    cmds:
+      - "./hack/charts/sync-crds.sh"
+  oci:
+    desc: Package all charts into oci/
+    cmds:
+      - "rm -rf oci && mkdir -p oci"
+      - "for chart in $(echo {{.CHARTS}} | tr ',' ' '); do helm package $chart --dependency-update --destination oci/; done"

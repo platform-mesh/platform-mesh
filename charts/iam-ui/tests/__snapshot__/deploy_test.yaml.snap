@@ -1,0 +1,154 @@
+matches the snapshot:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: RELEASE-NAME-iam-ui
+      name: RELEASE-NAME-iam-ui
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-iam-ui
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-iam-ui
+        spec:
+          containers:
+            - image: ghcr.io/platform-mesh/iam-ui:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8080
+                periodSeconds: 10
+              name: RELEASE-NAME-iam-ui
+              ports:
+                - containerPort: 8080
+                  name: http
+              readinessProbe:
+                httpGet:
+                  path: /healthz
+                  port: 8080
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /healthz
+                  port: 8080
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /var/cache/nginx
+                  name: tmp-volume
+                  readOnly: false
+                - mountPath: /var/run
+                  name: run-volume
+                  readOnly: false
+          securityContext:
+            runAsGroup: 101
+            runAsNonRoot: true
+            runAsUser: 101
+          serviceAccountName: RELEASE-NAME-iam-ui
+          volumes:
+            - emptyDir: {}
+              name: tmp-volume
+            - emptyDir: {}
+              name: run-volume
+  2: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: RELEASE-NAME-iam-ui
+      namespace: NAMESPACE
+matches the snapshot with FRONTEND_PORT:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: RELEASE-NAME-iam-ui
+      name: RELEASE-NAME-iam-ui
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-iam-ui
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-iam-ui
+        spec:
+          containers:
+            - image: ghcr.io/platform-mesh/iam-ui:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8080
+                periodSeconds: 10
+              name: RELEASE-NAME-iam-ui
+              ports:
+                - containerPort: 8080
+                  name: http
+              readinessProbe:
+                httpGet:
+                  path: /healthz
+                  port: 8080
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /healthz
+                  port: 8080
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /var/cache/nginx
+                  name: tmp-volume
+                  readOnly: false
+                - mountPath: /var/run
+                  name: run-volume
+                  readOnly: false
+          securityContext:
+            runAsGroup: 101
+            runAsNonRoot: true
+            runAsUser: 101
+          serviceAccountName: RELEASE-NAME-iam-ui
+          volumes:
+            - emptyDir: {}
+              name: tmp-volume
+            - emptyDir: {}
+              name: run-volume

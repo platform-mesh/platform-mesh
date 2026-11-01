@@ -1,0 +1,13 @@
+type: application
+apiVersion: v2
+name: infra
+version: 0.0.0
+description: >-
+  Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cert-manager, etc.).
+  This chart is not intended to be installed directly — it is always managed by the platform-mesh-operator
+  via its profile system, which supplies all required values overrides.
+appVersion: "0.0.0"
+dependencies:
+  - name: common
+    version: 0.0.0
+    repository: file://../common

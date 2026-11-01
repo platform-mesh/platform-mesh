@@ -1,0 +1,1140 @@
+deployment with tracing:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        cert-manager.io/inject-ca-from: NAMESPACE/account-operator-serving-cert
+      name: account-operator
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: account-operator
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: account-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/account-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --tracing-enabled=true
+                - --tracing-config-service-name=account-operator.NAMESPACE
+                - --tracing-config-service-version=0.0.0
+                - --tracing-config-collector-endpoint=test:4317
+                - --subroutines-workspace-type-enabled=true
+                - --subroutines-workspace-enabled=true
+                - --subroutines-workspace-ready-enabled=true
+                - --subroutines-account-info-enabled=true
+                - --controllers-account-info-enabled=true
+                - --kcp-api-export-endpoint-slice-name=core.platform-mesh.io
+                - --webhooks-enabled
+                - --webhooks-cert-dir=/certs
+                - --webhooks-deny-list=admin,root,system,www
+                - --webhooks-additional-account-types=account
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/account-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: account-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 9443
+                  name: webhook-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /certs
+                  name: cert
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: account-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: account-operator-kubeconfig
+            - name: cert
+              secret:
+                defaultMode: 420
+                secretName: account-operator-webhook-server-cert
+disable istio:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: account-operator
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+          - accounts/status
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+          - events
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: account-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: account-operator
+    subjects:
+      - kind: ServiceAccount
+        name: account-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        cert-manager.io/inject-ca-from: NAMESPACE/account-operator-serving-cert
+      name: account-operator
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: account-operator
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: account-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/account-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-workspace-type-enabled=true
+                - --subroutines-workspace-enabled=true
+                - --subroutines-workspace-ready-enabled=true
+                - --subroutines-account-info-enabled=true
+                - --controllers-account-info-enabled=true
+                - --kcp-api-export-endpoint-slice-name=core.platform-mesh.io
+                - --webhooks-enabled
+                - --webhooks-cert-dir=/certs
+                - --webhooks-deny-list=admin,root,system,www
+                - --webhooks-additional-account-types=account
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/account-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: account-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 9443
+                  name: webhook-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /certs
+                  name: cert
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: account-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: account-operator-kubeconfig
+            - name: cert
+              secret:
+                defaultMode: 420
+                secretName: account-operator-webhook-server-cert
+  4: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: account-operator
+      name: account-operator-metrics
+    spec:
+      ports:
+        - name: metrics
+          port: 9090
+          protocol: TCP
+          targetPort: metrics
+      selector:
+        app: account-operator
+      type: ClusterIP
+  5: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: account-operator
+  6: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: account-operator-selfsigned-issuer
+    spec:
+      selfSigned: {}
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: account-operator-ca-cert
+    spec:
+      commonName: account-operator-ca
+      duration: 2160h
+      isCA: true
+      issuerRef:
+        kind: Issuer
+        name: account-operator-selfsigned-issuer
+      renewBefore: 720h
+      secretName: account-operator-ca-secret
+  8: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: account-operator-ca-issuer
+    spec:
+      ca:
+        secretName: account-operator-ca-secret
+  9: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: account-operator-serving-cert
+    spec:
+      dnsNames:
+        - account-operator-webhook.NAMESPACE.svc
+        - account-operator-webhook.NAMESPACE.svc.cluster.local
+      duration: 2160h
+      issuerRef:
+        kind: Issuer
+        name: account-operator-ca-issuer
+      renewBefore: 720h
+      secretName: account-operator-webhook-server-cert
+  10: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: account-operator-webhook
+    spec:
+      ports:
+        - port: 9443
+          protocol: TCP
+          targetPort: 9443
+      selector:
+        app: account-operator
+operator match the snapshot:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: account-operator
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+          - accounts/status
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+          - events
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: account-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: account-operator
+    subjects:
+      - kind: ServiceAccount
+        name: account-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        cert-manager.io/inject-ca-from: NAMESPACE/account-operator-serving-cert
+      name: account-operator
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: account-operator
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: account-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/account-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-workspace-type-enabled=true
+                - --subroutines-workspace-enabled=true
+                - --subroutines-workspace-ready-enabled=true
+                - --subroutines-account-info-enabled=true
+                - --controllers-account-info-enabled=true
+                - --kcp-api-export-endpoint-slice-name=core.platform-mesh.io
+                - --webhooks-enabled
+                - --webhooks-cert-dir=/certs
+                - --webhooks-deny-list=admin,root,system,www
+                - --webhooks-additional-account-types=my-type,my-other-type
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/account-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: account-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 9443
+                  name: webhook-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /certs
+                  name: cert
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: account-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: account-operator-kubeconfig
+            - name: cert
+              secret:
+                defaultMode: 420
+                secretName: account-operator-webhook-server-cert
+  4: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: account-operator
+      name: account-operator-metrics
+    spec:
+      ports:
+        - name: metrics
+          port: 9090
+          protocol: TCP
+          targetPort: metrics
+      selector:
+        app: account-operator
+      type: ClusterIP
+  5: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: account-operator
+  6: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: account-operator-selfsigned-issuer
+    spec:
+      selfSigned: {}
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: account-operator-ca-cert
+    spec:
+      commonName: account-operator-ca
+      duration: 2160h
+      isCA: true
+      issuerRef:
+        kind: Issuer
+        name: account-operator-selfsigned-issuer
+      renewBefore: 720h
+      secretName: account-operator-ca-secret
+  8: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: account-operator-ca-issuer
+    spec:
+      ca:
+        secretName: account-operator-ca-secret
+  9: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: account-operator-serving-cert
+    spec:
+      dnsNames:
+        - account-operator-webhook.NAMESPACE.svc
+        - account-operator-webhook.NAMESPACE.svc.cluster.local
+      duration: 2160h
+      issuerRef:
+        kind: Issuer
+        name: account-operator-ca-issuer
+      renewBefore: 720h
+      secretName: account-operator-webhook-server-cert
+  10: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: account-operator-webhook
+    spec:
+      ports:
+        - port: 9443
+          protocol: TCP
+          targetPort: 9443
+      selector:
+        app: account-operator
+operator match the snapshot (with kubeconfigSecret):
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: account-operator
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+          - accounts/status
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+          - events
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: account-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: account-operator
+    subjects:
+      - kind: ServiceAccount
+        name: account-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        cert-manager.io/inject-ca-from: NAMESPACE/account-operator-serving-cert
+      name: account-operator
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: account-operator
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: account-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/account-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-workspace-type-enabled=true
+                - --subroutines-workspace-enabled=true
+                - --subroutines-workspace-ready-enabled=true
+                - --subroutines-account-info-enabled=true
+                - --controllers-account-info-enabled=true
+                - --kcp-api-export-endpoint-slice-name=core.platform-mesh.io
+                - --webhooks-enabled
+                - --webhooks-cert-dir=/certs
+                - --webhooks-deny-list=admin,root,system,www
+                - --webhooks-additional-account-types=account
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/account-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: account-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 9443
+                  name: webhook-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /certs
+                  name: cert
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: account-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: kubeconfig
+            - name: cert
+              secret:
+                defaultMode: 420
+                secretName: account-operator-webhook-server-cert
+  4: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: account-operator
+      name: account-operator-metrics
+    spec:
+      ports:
+        - name: metrics
+          port: 9090
+          protocol: TCP
+          targetPort: metrics
+      selector:
+        app: account-operator
+      type: ClusterIP
+  5: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: account-operator
+  6: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: account-operator-selfsigned-issuer
+    spec:
+      selfSigned: {}
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: account-operator-ca-cert
+    spec:
+      commonName: account-operator-ca
+      duration: 2160h
+      isCA: true
+      issuerRef:
+        kind: Issuer
+        name: account-operator-selfsigned-issuer
+      renewBefore: 720h
+      secretName: account-operator-ca-secret
+  8: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: account-operator-ca-issuer
+    spec:
+      ca:
+        secretName: account-operator-ca-secret
+  9: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: account-operator-serving-cert
+    spec:
+      dnsNames:
+        - account-operator-webhook.NAMESPACE.svc
+        - account-operator-webhook.NAMESPACE.svc.cluster.local
+      duration: 2160h
+      issuerRef:
+        kind: Issuer
+        name: account-operator-ca-issuer
+      renewBefore: 720h
+      secretName: account-operator-webhook-server-cert
+  10: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: account-operator-webhook
+    spec:
+      ports:
+        - port: 9443
+          protocol: TCP
+          targetPort: 9443
+      selector:
+        app: account-operator
+operator match the snapshot with webhook enabled:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: account-operator
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+          - accounts/status
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+          - events
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: account-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: account-operator
+    subjects:
+      - kind: ServiceAccount
+        name: account-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        cert-manager.io/inject-ca-from: NAMESPACE/account-operator-serving-cert
+      name: account-operator
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: account-operator
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: account-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=0.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/account-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --subroutines-workspace-type-enabled=true
+                - --subroutines-workspace-enabled=true
+                - --subroutines-workspace-ready-enabled=true
+                - --subroutines-account-info-enabled=true
+                - --controllers-account-info-enabled=true
+                - --kcp-api-export-endpoint-slice-name=core.platform-mesh.io
+                - --webhooks-enabled
+                - --webhooks-cert-dir=/certs
+                - --webhooks-deny-list=admin,root,system,www
+                - --webhooks-additional-account-types=account
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/account-operator:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: account-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 9443
+                  name: webhook-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 45
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /certs
+                  name: cert
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: account-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: account-operator-kubeconfig
+            - name: cert
+              secret:
+                defaultMode: 420
+                secretName: account-operator-webhook-server-cert
+  4: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: account-operator
+      name: account-operator-metrics
+    spec:
+      ports:
+        - name: metrics
+          port: 9090
+          protocol: TCP
+          targetPort: metrics
+      selector:
+        app: account-operator
+      type: ClusterIP
+  5: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: account-operator
+  6: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: account-operator-selfsigned-issuer
+    spec:
+      selfSigned: {}
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: account-operator-ca-cert
+    spec:
+      commonName: account-operator-ca
+      duration: 2160h
+      isCA: true
+      issuerRef:
+        kind: Issuer
+        name: account-operator-selfsigned-issuer
+      renewBefore: 720h
+      secretName: account-operator-ca-secret
+  8: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: account-operator-ca-issuer
+    spec:
+      ca:
+        secretName: account-operator-ca-secret
+  9: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: account-operator-serving-cert
+    spec:
+      dnsNames:
+        - account-operator-webhook.NAMESPACE.svc
+        - account-operator-webhook.NAMESPACE.svc.cluster.local
+      duration: 2160h
+      issuerRef:
+        kind: Issuer
+        name: account-operator-ca-issuer
+      renewBefore: 720h
+      secretName: account-operator-webhook-server-cert
+  10: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: account-operator-webhook
+    spec:
+      ports:
+        - port: 9443
+          protocol: TCP
+          targetPort: 9443
+      selector:
+        app: account-operator

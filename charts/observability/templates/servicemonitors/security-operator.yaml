@@ -1,0 +1,18 @@
+{{- if .Values.serviceMonitors.securityOperator.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: security-operator
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.serviceMonitors.securityOperator.namespace }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.serviceMonitors.securityOperator.labels | nindent 6 }}
+  endpoints:
+    - port: {{ .Values.serviceMonitors.securityOperator.port }}
+      path: {{ .Values.serviceMonitors.securityOperator.path }}
+{{- end }}

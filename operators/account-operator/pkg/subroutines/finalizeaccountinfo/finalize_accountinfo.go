@@ -45,7 +45,7 @@ type FinalizeAccountInfoSubroutine struct {
 }
 
 func New(mgr mcmanager.Manager) (*FinalizeAccountInfoSubroutine, error) {
-	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.AccountInfo](
+	rl, err := ratelimiter.NewObjectRateLimiter[*pmcorev1alpha1.AccountInfo](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)

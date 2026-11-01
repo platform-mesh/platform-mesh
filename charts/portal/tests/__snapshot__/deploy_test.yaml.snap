@@ -1,0 +1,193 @@
+matches the snapshot:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: portal
+      name: portal
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: portal
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: portal
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - env:
+                - name: HTTP_PROTOCOL
+                  value: null
+                - name: DISCOVERY_ENDPOINT
+                  value: null
+                - name: OIDC_CLIENT_ID_DEFAULT
+                  value: null
+                - name: BASE_DOMAINS_DEFAULT
+                  value: null
+                - name: DEVELOPMENT_INSTANCE
+                  value: "false"
+                - name: FEATURE_TOGGLES
+                  value: enableSessionAutoRefresh=true
+                - name: UI_OPTIONS
+                  value: enableFeatureToggleSetting
+                - name: CONTENT_CONFIGURATION_VALIDATOR_API_URL
+                  value: http://extension-manager-operator-server.NAMESPACE.svc.cluster.local:8088/validate
+                - name: PORT
+                  value: "8080"
+                - name: REGION
+                  value: null
+                - name: IMAGE_TAG
+                  value: 1.0.0
+                - name: IMAGE_NAME
+                  value: ghcr.io/platform-mesh/portal
+                - name: FRONTEND_PORT
+                  value: "8000"
+                - name: VALID_WEBCOMPONENT_URLS
+                  value: .?
+                - name: TEST_TEST
+                  value: test test
+                - name: DEMO_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+                  value: https://${org-subdomain}portal.localhost:8443/api/kubernetes-graphql-gateway/root:orgs:${org-name}/graphql
+                - name: DEMO_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+                  value: https://portal.localhost:8443/iam/query
+                - name: DEMO_PORTAL_CONTEXT_IAM_ENTITY_CONFIG
+                  value: '{"account":{"contextProperty":"entityId"}}'
+                - name: KUBECONFIG
+                  value: /kubeconfig/kubeconfig
+                - name: KUBECONFIG_KCP
+                  value: /kcp-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/portal:12345
+              imagePullPolicy: IfNotPresent
+              name: portal
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts:
+                - mountPath: /kubeconfig
+                  name: kubeconfig
+                - mountPath: /kcp-kubeconfig
+                  name: kcp-kubeconfig
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: portal
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kubeconfig
+              secret:
+                secretName: my-kubeconfig-secret
+            - name: kcp-kubeconfig
+              secret:
+                secretName: my-kcp-kubeconfig-secret
+test hosAliases:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: portal
+      name: portal
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: portal
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: portal
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - env:
+                - name: HTTP_PROTOCOL
+                  value: null
+                - name: DISCOVERY_ENDPOINT
+                  value: null
+                - name: OIDC_CLIENT_ID_DEFAULT
+                  value: null
+                - name: BASE_DOMAINS_DEFAULT
+                  value: null
+                - name: DEVELOPMENT_INSTANCE
+                  value: "false"
+                - name: FEATURE_TOGGLES
+                  value: enableSessionAutoRefresh=true
+                - name: UI_OPTIONS
+                  value: enableFeatureToggleSetting
+                - name: CONTENT_CONFIGURATION_VALIDATOR_API_URL
+                  value: http://extension-manager-operator-server.NAMESPACE.svc.cluster.local:8088/validate
+                - name: PORT
+                  value: "8080"
+                - name: REGION
+                  value: null
+                - name: IMAGE_TAG
+                  value: 1.0.0
+                - name: IMAGE_NAME
+                  value: ghcr.io/platform-mesh/portal
+                - name: FRONTEND_PORT
+                  value: "8000"
+                - name: VALID_WEBCOMPONENT_URLS
+                  value: .?
+              image: ghcr.io/platform-mesh/portal:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: portal
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts: null
+          hostAliases:
+            - hostnames:
+                - example.com
+                - test.example.com
+              ip: 10.0.0.1
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: portal
+          terminationGracePeriodSeconds: 10
+          volumes: null

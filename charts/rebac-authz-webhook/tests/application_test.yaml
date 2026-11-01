@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: Test the application manifests
+values:
+  - ../test-values.yaml
+chart:
+  version: 0.0.0
+  appVersion: "0.0.0"
+release:
+  name: rebac-authz-webhook
+  namespace: platform-mesh-system
+tests:
+- it: it should render the application manifests
+  asserts:
+  - matchSnapshot: {}
+- it: it should render the application manifests with service monitor
+  set:
+    serviceMonitor:
+      enabled: true
+  asserts:
+  - matchSnapshot: {}
+- it: it should render the application manifests with service account
+  set:
+    serviceAccount:
+      create: true
+      name: "test"
+  asserts:
+  - matchSnapshot: {}
+- it: it should render the application manifests with useInClusterClient
+  set:
+    useInClusterClient: true
+  asserts:
+  - matchSnapshot: {}
+- it: it should render the cert-manager manifests with certManager enabled
+  set:
+    useInClusterClient: true
+    global:
+      istio:
+        enabled: true
+      certManager:
+        enabled: true
+    service:
+      clusterIP: "10.96.86.219"
+    istio:
+      enabled: true
+      dnsNames:
+      - webhook.portal.cc.showroom.apeirora.eu
+  asserts:
+  - matchSnapshot: {}
+- it: has all health checks
+  template: deployment.yaml
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+        value: /healthz
+    - equal:
+        path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+        value: /readyz
+    - equal:
+        path: spec.template.spec.containers[0].startupProbe.httpGet.path
+        value: /readyz
+

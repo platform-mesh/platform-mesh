@@ -1,0 +1,165 @@
+suite: Test service-mesh manifests
+templates:
+  - keycloak/httproute.yaml
+  - keycloak/db-secret.yaml
+  - keycloak/admin-secret.yaml
+  - keycloak/keycloak.yaml
+  - gatewayapi/gateway.yaml
+release:
+  name: infra
+  namespace: platform-mesh-system
+tests:
+- it: test HTTPRoutes
+  templates:
+  - keycloak/httproute.yaml
+  set:
+    gatewayApi:
+      enabled: true
+  asserts:
+  - matchSnapshot: {}
+- it: configure Gateway infrastructure
+  templates:
+  - gatewayapi/gateway.yaml
+  set:
+    gatewayApi:
+      enabled: true
+      infrastructure:
+        annotations:
+          dns.gardener.cloud/class: garden
+  asserts:
+  - equal:
+      path: spec.infrastructure.annotations
+      value:
+        dns.gardener.cloud/class: garden
+- it: terminates HTTPS on a single hostname-less listener by default
+  templates:
+  - gatewayapi/gateway.yaml
+  set:
+    gatewayApi:
+      enabled: true
+  asserts:
+  - equal:
+      path: spec.listeners[0].name
+      value: terminate
+  - notExists:
+      path: spec.listeners[0].hostname
+  - notContains:
+      path: spec.listeners
+      content:
+        name: terminate-wildstar
+      any: true
+- it: generates one passthrough listener per kcp hostname
+  templates:
+  - gatewayapi/gateway.yaml
+  set:
+    gatewayApi:
+      enabled: true
+    kcp:
+      external:
+        hostname: kcp.api.example.com
+      rootShard:
+        hostname: root.kcp.example.com
+      shards:
+      - name: nereus
+  asserts:
+  - contains:
+      path: spec.listeners
+      content:
+        name: passthrough
+        hostname: kcp.api.example.com
+      any: true
+  - contains:
+      path: spec.listeners
+      content:
+        name: passthrough-root
+        hostname: root.kcp.example.com
+      any: true
+  - contains:
+      path: spec.listeners
+      content:
+        name: passthrough-nereus
+        hostname: nereus.kcp.kcp.api.example.com
+      any: true
+- it: leaves passthrough listeners to the user when generation is disabled
+  templates:
+  - gatewayapi/gateway.yaml
+  set:
+    gatewayApi:
+      enabled: true
+      passthrough:
+        enabled: false
+  asserts:
+  - notContains:
+      path: spec.listeners
+      content:
+        protocol: TLS
+      any: true
+- it: fails when a user listener collides with a generated passthrough listener
+  templates:
+  - gatewayapi/gateway.yaml
+  set:
+    gatewayApi:
+      enabled: true
+      listenersExtra:
+      - name: passthrough
+        port: 8443
+        protocol: TLS
+  asserts:
+  - failedTemplate:
+      errorPattern: generated from the kcp hostnames
+- it: keycloak operator disabled by default
+  templates:
+  - keycloak/db-secret.yaml
+  - keycloak/admin-secret.yaml
+  - keycloak/keycloak.yaml
+  asserts:
+  - hasDocuments:
+      count: 0
+- it: keycloak operator enabled renders all resources
+  templates:
+  - keycloak/db-secret.yaml
+  - keycloak/admin-secret.yaml
+  - keycloak/keycloak.yaml
+  set:
+    keycloak:
+      operator:
+        enabled: true
+        image:
+          registry: ghcr.io
+          repository: platform-mesh/custom-images/keycloak
+          tag: "v26.8.1"
+          digest: ""
+  asserts:
+  - matchSnapshot: {}
+- it: keycloak pod gets hostAliases when enabled
+  templates:
+  - keycloak/keycloak.yaml
+  set:
+    keycloak:
+      operator:
+        enabled: true
+    hostAliases:
+      enabled: true
+      entries:
+      - ip: "10.96.188.4"
+        hostnames:
+        - "portal.localhost"
+  asserts:
+  - equal:
+      path: spec.unsupported.podTemplate.spec.hostAliases[0].ip
+      value: "10.96.188.4"
+  - contains:
+      path: spec.unsupported.podTemplate.spec.hostAliases[0].hostnames
+      content: portal.localhost
+- it: keycloak truststores configured when caSecret set
+  templates:
+  - keycloak/keycloak.yaml
+  set:
+    keycloak:
+      operator:
+        enabled: true
+        caSecret: domain-certificate-ca
+  asserts:
+  - equal:
+      path: spec.truststores.domain-ca.secret.name
+      value: domain-certificate-ca

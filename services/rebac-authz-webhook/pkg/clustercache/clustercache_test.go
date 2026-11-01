@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
@@ -58,12 +59,22 @@ type fixture struct {
 	cc clustercache.Provider
 }
 
+type storeClusters map[multicluster.ClusterName]cluster.Cluster
+
+func (s storeClusters) Get(_ context.Context, name multicluster.ClusterName) (cluster.Cluster, error) {
+	if cl, ok := s[name]; ok {
+		return cl, nil
+	}
+	return nil, multicluster.ErrClusterNotFound
+}
+
 // spec describes one resolution scenario for newFixture.
 type spec struct {
 	path       string       // kcp.io/path annotation on the LogicalCluster
 	owner      string       // spec.owner.cluster; "" => omitted
 	storeID    string       // Store status.storeId; "" => Store returns without storeId
 	withStore  bool         // wire the orgs Store lookup
+	storeVia   bool         // serve the orgs Store via WithStoreClusters instead of the manager
 	failFirstN int32        // fail the LogicalCluster Get this many times first
 	lcGetErr   error        // permanent LogicalCluster Get error (never resolves)
 	backoff    wait.Backoff // resolver cadence; zero value => fastBackoff
@@ -103,10 +114,15 @@ func newFixture(t *testing.T, s spec) fixture {
 			return nil
 		})
 
+	var opts []clustercache.Option
 	if s.withStore {
 		orgsCluster := mocks.NewCluster(t)
 		orgsClient := mocks.NewClient(t)
-		mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(orgsCluster, nil)
+		if s.storeVia {
+			opts = append(opts, clustercache.WithStoreClusters(storeClusters{"root:orgs": orgsCluster}))
+		} else {
+			mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(orgsCluster, nil)
+		}
 		orgsCluster.EXPECT().GetClient().Return(orgsClient)
 		orgsClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			RunAndReturn(func(_ context.Context, _ ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
@@ -123,7 +139,7 @@ func newFixture(t *testing.T, s spec) fixture {
 	if backoff == (wait.Backoff{}) {
 		backoff = fastBackoff
 	}
-	cc, err := clustercache.New(mgr, clustercache.WithBackoff(backoff))
+	cc, err := clustercache.New(mgr, append(opts, clustercache.WithBackoff(backoff))...)
 	assert.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -172,6 +188,11 @@ func TestClusterCache_Engage(t *testing.T) {
 		{
 			name:       "caches once LogicalCluster and Store resolve",
 			spec:       spec{path: "root:orgs:myorg:ws:child", owner: "parent-cluster-id", storeID: "myorg-store-id", withStore: true},
+			wantCached: true, wantAccot: "child", wantParent: "parent-cluster-id",
+		},
+		{
+			name:       "caches with the Store read via WithStoreClusters",
+			spec:       spec{path: "root:orgs:myorg:ws:child", owner: "parent-cluster-id", storeID: "myorg-store-id", withStore: true, storeVia: true},
 			wantCached: true, wantAccot: "child", wantParent: "parent-cluster-id",
 		},
 		{

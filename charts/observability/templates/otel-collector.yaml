@@ -1,0 +1,33 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: {{ .Values.otelCollector.name }}
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+spec:
+  image: {{ include "observability.image.tagAndDigest" (dict "Values" (dict "image" .Values.otelCollector.image) "Chart" .Chart) }}  # image-schema:allow wraps common.image.name/common.image.tag, see _helpers.tpl
+  mode: {{ .Values.otelCollector.mode }}
+  replicas: {{ .Values.otelCollector.replicas }}
+  targetAllocator:
+    enabled: true
+    prometheusCR:
+      enabled: true
+      podMonitorSelector: {}
+      serviceMonitorSelector: {}
+  config:
+    receivers:
+      prometheus:
+        config:
+          scrape_configs: []
+    processors:
+      batch:
+        timeout: {{ .Values.otelCollector.config.batchTimeout }}
+    exporters:
+      prometheusremotewrite:
+        endpoint: {{ include "observability.prometheusEndpoint" . | quote }}
+    service:
+      pipelines:
+        metrics:
+          receivers: [prometheus]
+          processors: [batch]
+          exporters: [prometheusremotewrite]

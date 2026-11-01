@@ -151,10 +151,24 @@ def has_ignored_header(pathname):
     return False
 
 
+def is_skipped(pathname):
+    """--skip entries match anywhere in the path; entries starting with '/'
+    match only from the root directory ('/charts/' skips charts/ but not
+    ocm/charts/)."""
+    relpath = os.path.relpath(pathname, ARGS.rootdir)
+    for x in ARGS.skip:
+        if x.startswith('/'):
+            if relpath.startswith(x[1:]):
+                return True
+        elif x in pathname:
+            return True
+    return False
+
+
 def normalize_files(files):
     newfiles = []
     for pathname in files:
-        if any(x in pathname for x in ARGS.skip):
+        if is_skipped(pathname):
             continue
         newfiles.append(pathname)
     for idx, pathname in enumerate(newfiles):

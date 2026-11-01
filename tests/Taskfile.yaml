@@ -1,0 +1,213 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Playwright end-to-end tests against a running Platform Mesh (tests/*.test.ts).
+# Included from the root Taskfile as `tests:`; the tasks keep the names they
+# had in the helm-charts repository minus the `test:` prefix, e.g.
+# `task tests:portal-e2e:remote`. The installation they run against is
+# described in installation/README.md; .github/workflows/install-kind.yml
+# runs them in CI.
+
+version: '3'
+
+tasks:
+  portal-e2e:run:
+    internal: true
+    vars:
+      ORG_NAME: '{{.ORG_NAME | default "default"}}'
+      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
+      HEADED: '{{.HEADED | default ""}}'
+    cmds:
+      - task: portal-e2e:marketplace-ui
+        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
+      - task: portal-e2e:httpbins
+        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
+      - task: portal-e2e:account-kubeconfig
+        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
+      - task: portal-e2e:authorization
+        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
+      - task: portal-e2e:deletion
+        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
+
+  portal-e2e:setup:
+    run: once
+    dir: tests
+    cmds:
+      - npm ci
+      - npx playwright install chromium ffmpeg
+
+  portal-e2e:httpbins:
+    desc: Run the portal HTTPBin provider end-to-end tests
+    vars:
+      ORG_NAME: '{{.ORG_NAME | default "default"}}'
+      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
+      HEADED: '{{.HEADED | default ""}}'
+    deps: [portal-e2e:setup]
+    dir: tests
+    cmds:
+      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-httpbins.test.ts {{if .HEADED}}--headed{{end}}
+
+  portal-e2e:marketplace:
+    desc: Run the portal marketplace end-to-end tests
+    vars:
+      ORG_NAME: '{{.ORG_NAME | default "default"}}'
+      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
+      HEADED: '{{.HEADED | default ""}}'
+    cmds:
+      - task: portal-e2e:marketplace-ui
+        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
+
+  portal-e2e:marketplace-ui:
+    desc: Run the marketplace availability and provider lifecycle UI tests
+    vars:
+      ORG_NAME: '{{.ORG_NAME | default "default"}}'
+      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
+      HEADED: '{{.HEADED | default ""}}'
+    deps: [portal-e2e:setup]
+    dir: tests
+    cmds:
+      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-marketplace-ui.test.ts {{if .HEADED}}--headed{{end}}
+
+  portal-e2e:account-kubeconfig:
+    desc: Run the account kubeconfig download and access tests
+    vars:
+      ORG_NAME: '{{.ORG_NAME | default "default"}}'
+      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
+      HEADED: '{{.HEADED | default ""}}'
+    deps: [portal-e2e:setup]
+    dir: tests
+    cmds:
+      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-account-kubeconfig.test.ts {{if .HEADED}}--headed{{end}}
+
+  portal-e2e:authorization:
+    desc: Run the portal authorization end-to-end tests
+    vars:
+      ORG_NAME: '{{.ORG_NAME | default "default"}}'
+      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
+      HEADED: '{{.HEADED | default ""}}'
+    deps: [portal-e2e:setup]
+    dir: tests
+    cmds:
+      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-authorization.test.ts {{if .HEADED}}--headed{{end}}
+
+  portal-e2e:headed:
+    desc: Run portal e2e tests with browser visible
+    vars:
+      ORG_NAME: '{{.ORG_NAME | default ""}}'
+      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
+    cmds:
+      - task: portal-e2e
+        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: 'true' }
+
+  portal-e2e:video:
+    desc: Run portal e2e tests with video recording (sharded, sequential)
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
+    deps: [portal-e2e:setup]
+    dir: tests
+    cmds:
+      - VIDEO=true SKIP_INVITE=true TEST_RUN_ID={{.TEST_RUN_ID}} SHARDING_ORG_SHARD=root npx playwright test test-register-and-navigate.test.ts
+      - VIDEO=true SKIP_INVITE=true TEST_RUN_ID={{.TEST_RUN_ID}} SHARDING_ORG_SHARD=triton npx playwright test test-register-and-navigate.test.ts
+      - VIDEO=true ORG_NAME=org-root-{{.TEST_RUN_ID}} TEST_ACCOUNT_NAME=acc-root-{{.TEST_RUN_ID}} npx playwright test portal-*.test.ts --workers=1
+      - VIDEO=true ORG_NAME=org-triton-{{.TEST_RUN_ID}} TEST_ACCOUNT_NAME=acc-triton-{{.TEST_RUN_ID}} npx playwright test portal-*.test.ts --workers=1
+
+  portal-e2e:deletion:
+    desc: Run the account deletion end-to-end tests
+    vars:
+      ORG_NAME: '{{.ORG_NAME | default "default"}}'
+      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
+      HEADED: '{{.HEADED | default ""}}'
+    deps: [portal-e2e:setup]
+    dir: tests
+    cmds:
+      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-account-deletion.test.ts {{if .HEADED}}--headed{{end}}
+
+
+  portal-e2e:
+    desc: Run portal e2e tests with workspaces on different shards (2 orgs in parallel, 2 accounts each)
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
+      HEADED: '{{.HEADED | default ""}}'
+    deps:
+      - task: portal-e2e:shard:root
+        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+      - task: portal-e2e:shard:triton
+        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+
+  portal-e2e:remote:
+    desc: Run portal e2e tests for remote setup (only root shard; tests requiring example-data providers are skipped)
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
+      HEADED: '{{.HEADED | default ""}}'
+    cmds:
+      - task: portal-e2e:sharding-setup
+        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', SHARDING_ORG_SHARD: 'root', SHARDING_ACCOUNT_SHARDS: 'root', SKIP_INVITE: 'true', HEADED: '{{.HEADED}}' }
+
+  portal-e2e:shard:root:
+    desc: Run portal e2e tests with org on root shard
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
+      HEADED: '{{.HEADED | default ""}}'
+    cmds:
+      - task: portal-e2e:sharding-setup
+        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', SHARDING_ORG_SHARD: 'root', SKIP_INVITE: 'true', HEADED: '{{.HEADED}}' }
+      - task: portal-e2e:shard:root:accounts
+        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+
+  portal-e2e:shard:root:accounts:
+    internal: true
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID}}'
+      HEADED: '{{.HEADED | default ""}}'
+    deps:
+      - task: portal-e2e:run
+        vars: { ORG_NAME: 'org-root-{{.TEST_RUN_ID}}', TEST_ACCOUNT_NAME: 'acc-triton-{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+      - task: portal-e2e:run
+        vars: { ORG_NAME: 'org-root-{{.TEST_RUN_ID}}', TEST_ACCOUNT_NAME: 'acc-root-{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+
+  portal-e2e:shard:triton:
+    desc: Run portal e2e tests with org on triton shard
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
+      HEADED: '{{.HEADED | default ""}}'
+    cmds:
+      - task: portal-e2e:sharding-setup
+        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', SHARDING_ORG_SHARD: 'triton', SKIP_INVITE: 'true', HEADED: '{{.HEADED}}' }
+      - task: portal-e2e:shard:triton:accounts
+        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+
+  portal-e2e:shard:triton:accounts:
+    internal: true
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID}}'
+      HEADED: '{{.HEADED | default ""}}'
+    deps:
+      - task: portal-e2e:run
+        vars: { ORG_NAME: 'org-triton-{{.TEST_RUN_ID}}', TEST_ACCOUNT_NAME: 'acc-triton-{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+      - task: portal-e2e:run
+        vars: { ORG_NAME: 'org-triton-{{.TEST_RUN_ID}}', TEST_ACCOUNT_NAME: 'acc-root-{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+
+  portal-e2e:sharding-setup:
+    desc: Setup sharded org and accounts for e2e tests
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
+      SHARDING_ORG_SHARD: '{{.SHARDING_ORG_SHARD | default "triton"}}'
+      SHARDING_ACCOUNT_SHARDS: '{{.SHARDING_ACCOUNT_SHARDS | default ""}}'
+      SKIP_INVITE: '{{.SKIP_INVITE | default ""}}'
+      HEADED: '{{.HEADED | default ""}}'
+    deps: [portal-e2e:setup]
+    dir: tests
+    cmds:
+      - TEST_RUN_ID={{.TEST_RUN_ID}} SHARDING_ORG_SHARD={{.SHARDING_ORG_SHARD}} {{if .SHARDING_ACCOUNT_SHARDS}}SHARDING_ACCOUNT_SHARDS={{.SHARDING_ACCOUNT_SHARDS}} {{end}}{{if .SKIP_INVITE}}SKIP_INVITE={{.SKIP_INVITE}} {{end}}npx playwright test test-register-and-navigate.test.ts {{if .HEADED}}--headed{{end}}
+

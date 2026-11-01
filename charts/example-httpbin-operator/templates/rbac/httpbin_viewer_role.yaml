@@ -1,0 +1,24 @@
+{{- if .Values.rbac.enable }}
+# permissions for end users to view httpbins.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: httpbin-viewer-role
+rules:
+- apiGroups:
+  - orchestrate.platform-mesh.io
+  resources:
+  - httpbins
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - orchestrate.platform-mesh.io
+  resources:
+  - httpbins/status
+  verbs:
+  - get
+{{- end -}}

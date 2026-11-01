@@ -39,8 +39,8 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmultiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 
-	kcptenancyv1alpha "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	mcapiexportprovider "github.com/kcp-dev/multicluster-provider/apiexport"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 func (s *KindTestSuite) TestManagedProvider01Bootstrap() {
@@ -58,7 +58,7 @@ func (s *KindTestSuite) TestManagedProvider02Lifecycle() {
 		// and a kubeconfig scoped to provider's workspace.
 
 		allProvidersScopedAdminClient := s.kcpClientForWorkspaceWithScheme(ctx, s.scheme, "root:providers")
-		var systemProviderWs kcptenancyv1alpha.Workspace
+		var systemProviderWs kcptenancyv1alpha1.Workspace
 		err := allProvidersScopedAdminClient.Get(ctx, types.NamespacedName{Name: "system"}, &systemProviderWs)
 		s.Require().NoError(err, "getting Workspace system in :root:providers should succeed")
 		s.Require().NotEmpty(systemProviderWs.Spec.Cluster, "cluster name for :root:providers:system workspace should not be empty")
@@ -113,7 +113,7 @@ func (s *KindTestSuite) TestManagedProvider02Lifecycle() {
 		s.Require().NoError(err, "deleting ManagedProvider should succeed")
 
 		s.logger.Info().Msgf("Waiting until workspace %s is deleted", providerWsPath)
-		var ws kcptenancyv1alpha.Workspace
+		var ws kcptenancyv1alpha1.Workspace
 		s.Require().Eventually(func() bool {
 			err = allProvidersScopedAdminClient.Get(ctx, types.NamespacedName{
 				Name: providerWsName,
@@ -227,7 +227,7 @@ func waitForManagedProviderAndValidate(ctx context.Context, s *KindTestSuite, pa
 
 	// We're expecting the Providers controller to build a workspace :root:providers:<ManagedProvider.Name>-<Provider's logical cluster name>.
 	// Let's build the name first.
-	var systemProviderWs kcptenancyv1alpha.Workspace
+	var systemProviderWs kcptenancyv1alpha1.Workspace
 	err = allProvidersScopedAdminClient.Get(ctx, types.NamespacedName{Name: "system"}, &systemProviderWs)
 	s.Require().NoError(err, "getting Workspace system in :root:providers should succeed")
 	s.Require().NotEmpty(systemProviderWs.Spec.Cluster, "cluster name for :root:providers:system workspace should not be empty")
@@ -249,7 +249,7 @@ func waitForManagedProviderAndValidate(ctx context.Context, s *KindTestSuite, pa
 	s.Require().Eventually(func() bool {
 		err = allProvidersScopedAdminClient.Get(ctx, types.NamespacedName{
 			Name: providerWsName,
-		}, &kcptenancyv1alpha.Workspace{})
+		}, &kcptenancyv1alpha1.Workspace{})
 		return err == nil
 	}, 240*time.Second, 5*time.Second, "waiting for provider's workspace %s to be created, but has err=%v", providerWsPath, err)
 

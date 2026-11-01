@@ -1,0 +1,35 @@
+{{- if .Values.apiSyncagent.rbac.enable }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: 'api-syncagent:httpbin-local-provider'
+rules:
+  - apiGroups:
+      - orchestrate.platform-mesh.io
+    resources:
+      - httpbins
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: api-syncagent:httpbin-local-provider
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: api-syncagent:httpbin-local-provider
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.apiSyncagent.serviceAccount.name }}
+    namespace: {{ .Values.apiSyncagent.serviceAccount.namespace }}
+{{- end -}}

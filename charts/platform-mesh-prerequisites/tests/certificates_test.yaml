@@ -1,0 +1,33 @@
+suite: Kind Gateway certificates
+templates:
+  - templates/certificates.yaml
+tests:
+  - it: creates the CA and wildcard Gateway certificate
+    set:
+      localCertificates:
+        enabled: true
+        dnsNames:
+          - portal.localhost
+          - '*.portal.localhost'
+    asserts:
+      - equal:
+          path: spec.isCA
+          value: true
+        documentIndex: 1
+      - equal:
+          path: spec.dnsNames
+          value:
+            - portal.localhost
+            - '*.portal.localhost'
+        documentIndex: 3
+      - equal:
+          path: spec.secretName
+          value: domain-certificate
+        documentIndex: 3
+  - it: requires DNS names
+    set:
+      localCertificates:
+        enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: dnsNames must contain the Platform Mesh base domain and wildcard subdomain

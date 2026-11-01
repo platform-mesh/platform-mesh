@@ -1,0 +1,7 @@
+{{- if .Values.ocm.enabled }}
+{{- $profile := .Files.Get (printf "files/%s-profile.yaml" .Values.ocm.profile) }}
+{{- $profile = required (printf "unknown ocm.profile %q: no files/%s-profile.yaml exists" .Values.ocm.profile .Values.ocm.profile) $profile }}
+{{- $profile = replace "__EXTERNAL_PORT__" (printf "%v" .Values.gateway.port) $profile }}
+{{- $profile = replace "__GATEWAY_CLASS_NAME__" (.Values.gateway.className | default "traefik") $profile }}
+{{ $profile }}
+{{- end }}

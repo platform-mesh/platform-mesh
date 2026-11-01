@@ -1,0 +1,52 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: kcp-dev/contrib-virtual-workspaces/access-vw
+  # -- The image tag (defaults to appVersion)
+  tag: ""
+
+# -- The graph is held in memory; keep a single replica.
+replicas: 1
+
+# kcp-operator objects the chart depends on, in the release namespace.
+kcp:
+  # -- RootShard the VirtualWorkspace connects to.
+  rootShard: root
+  # -- FrontProxy the Kubeconfig CRs target. Bootstrapping walks workspace
+  # paths, which only resolve through the front-proxy.
+  frontProxy: frontproxy
+
+# The front-proxy address clients use; the operator puts it in the
+# VirtualWorkspace status URL, and the chart derives endpoint-base from it.
+external:
+  # -- External hostname of the kcp front-proxy
+  hostname: kcp.example.com
+  # -- External port of the kcp front-proxy
+  port: 6443
+
+# -- Bootstrap (init container): workspace prefix for the access APIExport tree.
+workspacePrefix: root:access
+# -- Workspace under workspacePrefix holding the APIExport.
+controllersWorkspace: controllers
+
+server:
+  # -- Name of the APIExportEndpointSlice for the access VW's APIExport.
+  apiExportEndpointSlice: access.contrib.kcp.io
+  # -- Base URL for per-cluster endpoints returned in SCAR responses; defaults
+  # to https://<external.hostname>:<external.port>/clusters/.
+  endpointBase: ""
+
+resources:
+  requests:
+    # -- CPU request
+    cpu: 100m
+    # -- Memory request
+    memory: 128Mi
+  limits:
+    # -- Memory limit
+    memory: 512Mi
+
+# -- Extra /etc/hosts entries for the pod, e.g. when the front-proxy hostname
+# only resolves via cluster-external DNS.
+hostAliases: []

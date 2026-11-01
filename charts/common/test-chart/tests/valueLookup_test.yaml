@@ -1,0 +1,87 @@
+suite: valueLookup
+templates:
+  - valueLookup.yaml
+tests:
+  - it: unknown key not found neither in 'defaults' nor in 'Override' neither in 'global'
+    asserts:
+      - equal:
+          path: spec.certManager.enabled
+          value: null
+  - it: override - overwrite value is taken, without defaults
+    set:
+      testkey:
+        enabledOverride: true
+    asserts:
+      - equal:
+          path: spec.certManager.enabled
+          value: true
+  - it: override - overwrites all other defaults
+    set:
+      testkey:
+        enabledOverride: true
+        enabled: false
+      global:
+        testkey:
+          enabled: false
+      common:
+        defaults:
+          testkey:
+            enabled: false
+    asserts:
+      - equal:
+          path: spec.certManager.enabled
+          value: true
+  - it: global - value is taken, without defaults
+    set:
+      global:
+        testkey:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.certManager.enabled
+          value: true
+  - it: global - global precedence over locals and defaults
+    set:
+      testkey:
+        enabled: false
+      global:
+        testkey:
+          enabled: true
+      common:
+        defaults:
+          testkey:
+            enabled: false
+    asserts:
+      - equal:
+          path: spec.certManager.enabled
+          value: true
+  - it: local - value is taken, without defaults
+    set:
+      testkey:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.certManager.enabled
+          value: true
+  - it: local - precedence over defaults
+    set:
+      testkey:
+        enabled: true
+      common:
+        defaults:
+          testkey:
+            enabled: false
+    asserts:
+      - equal:
+          path: spec.certManager.enabled
+          value: true
+  - it: default - value is taken
+    set:
+      common:
+        defaults:
+          testkey:
+            enabled: true
+    asserts:
+      - equal:
+          path: spec.certManager.enabled
+          value: true

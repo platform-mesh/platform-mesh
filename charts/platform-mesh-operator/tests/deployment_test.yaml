@@ -1,0 +1,234 @@
+suite: operator
+templates:
+  - deployment.yaml
+  - service-account.yaml
+  - cluster-role.yaml
+  - cluster-rolebinding.yaml
+  - role.yaml
+  - rolebinding.yaml
+values:
+  - ../test-values.yaml
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+release:
+  name: platform-mesh-operator
+tests:
+- it: operator match the snapshot
+  set:
+    deployment:
+      replicas: 0
+  asserts:
+  - matchSnapshot: {}
+- it: deployment with tracing
+  template: deployment.yaml
+  set:
+    tracing:
+      enabled: true
+      collector:
+        endpoint: test:4317
+  asserts:
+    - matchSnapshot: {}
+- it: has all health checks
+  template: deployment.yaml
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+        value: /healthz
+    - equal:
+        path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+        value: /readyz
+    - equal:
+        path: spec.template.spec.containers[0].startupProbe.httpGet.path
+        value: /readyz
+
+- it: multi-pod leader election
+  template: deployment.yaml
+  set:
+    deployment:
+      replicas: 3
+    operator:
+      leaderElect: true
+  asserts:
+    - equal:
+        path: spec.replicas
+        value: 3
+    - equal:
+        path: spec.template.spec.containers[0].args[1]
+        value: "--leader-elect"
+
+- it: enables istio sidecar injection
+  template: deployment.yaml
+  set:
+    istio:
+      enabled: true
+  asserts:
+    - matchSnapshot: {}
+- it: disables istio sidecar injection
+  template: deployment.yaml
+  set:
+    istio:
+      enabled: false
+  asserts:
+    - matchSnapshot: {}
+- it: configure hosAliases
+  templates:
+    - deployment.yaml
+  set:
+    hostAliases:
+      enabled: true
+      entries:
+        - ip: "10.0.0.1"
+          hostnames:
+            - "example.com"
+            - "test.example.com"
+  asserts:
+    - matchSnapshot: {}
+    - equal:
+        path: spec.template.spec.hostAliases[0].ip
+        value: "10.0.0.1"
+    - equal:
+        path: spec.template.spec.hostAliases[0].hostnames[0]
+        value: "example.com"
+    - equal:
+        path: spec.template.spec.hostAliases[0].hostnames[1]
+        value: "test.example.com"
+- it: injects user-configured host aliases into the operator pod
+  template: deployment.yaml
+  set:
+    ocm:
+      enabled: true
+      profile: kind
+    gateway:
+      baseDomain: portal.localhost
+    kcp:
+      frontProxyPort: 8443
+    hostAliases:
+      enabled: true
+      entries:
+        - ip: "10.96.188.4"
+          hostnames:
+            - root.kcp.portal.localhost
+            - kcp.api.portal.localhost
+  asserts:
+    - equal:
+        path: spec.template.spec.hostAliases[0].ip
+        value: "10.96.188.4"
+    - contains:
+        path: spec.template.spec.hostAliases[0].hostnames
+        content: root.kcp.portal.localhost
+    - contains:
+        path: spec.template.spec.hostAliases[0].hostnames
+        content: kcp.api.portal.localhost
+    - equal:
+        path: spec.template.spec.containers[0].env[?(@.name=="SSL_CERT_FILE")].value
+        value: /etc/platform-mesh-ca/ca.crt
+    - equal:
+        path: spec.template.spec.volumes[?(@.name=="platform-mesh-ca")].secret.secretName
+        value: domain-certificate
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: "--kcp-url=https://frontproxy-front-proxy.NAMESPACE:8443"
+- it: uses the production front-proxy Service port when the Gateway exposes HTTPS on 443
+  template: deployment.yaml
+  set:
+    ocm:
+      enabled: true
+    gateway:
+      baseDomain: platform.example.com
+      port: 443
+    kcp:
+      frontProxyPort: 443
+  asserts:
+  - contains:
+      path: spec.template.spec.containers[0].args
+      content: "--kcp-url=https://frontproxy-front-proxy.NAMESPACE:443"
+- it: does not add local Service host aliases to a production installation
+  template: deployment.yaml
+  set:
+    ocm:
+      enabled: true
+      profile: production
+    gateway:
+      baseDomain: platform.example.com
+  asserts:
+  - isNull:
+      path: spec.template.spec.hostAliases
+- it: deploy with extraArgs
+  template: deployment.yaml
+  set:
+    extraArgs:
+      - --custom-arg=value
+      - --another-arg=anotherValue
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[0].args[?(@=="--custom-arg=value")]
+        value: "--custom-arg=value"
+    - equal:
+        path: spec.template.spec.containers[0].args[?(@=="--another-arg=anotherValue")]
+        value: "--another-arg=anotherValue"
+- it: enable remote PlatformMesh and Infra
+  template: deployment.yaml
+  set:
+    remoteInfra:
+      enabled: true
+      secretName: "kubeconfig-platformmesh"
+      secretKey: "kubeconfig"
+    remoteRuntime:
+      enabled: true
+      secretName: "kubeconfig-deployment"
+      infra:
+        secretName: "kubeconfig-platformmesh"
+        secretKey: "kubeconfig"
+  asserts:
+    - matchSnapshot: {}
+    - equal:
+        path: spec.template.spec.containers[0].args[?(@=="--remote-infra-kubeconfig=/etc/infra/kubeconfig")]
+        value: "--remote-infra-kubeconfig=/etc/infra/kubeconfig"
+    - equal:
+        path: spec.template.spec.containers[0].args[?(@=="--remote-runtime-kubeconfig=/etc/platformmesh/kubeconfig")]
+        value: "--remote-runtime-kubeconfig=/etc/platformmesh/kubeconfig"
+    - equal:
+        path: spec.template.spec.containers[0].args[?(@=="--remote-runtime-infra-secret-name=kubeconfig-platformmesh")]
+        value: "--remote-runtime-infra-secret-name=kubeconfig-platformmesh"
+    - equal:
+        path: spec.template.spec.containers[0].args[?(@=="--remote-runtime-infra-secret-key=kubeconfig")]
+        value: "--remote-runtime-infra-secret-key=kubeconfig"
+- it: enable remote PlatformMesh and local infra
+  template: deployment.yaml
+  set:
+    remoteInfra:
+      enabled: false
+    remoteRuntime:
+      enabled: true
+      secretName: "kubeconfig-deployment"
+      secretKey: "kubeconfig"
+      infra:
+        secretName: "kubeconfig-platformmesh"
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[0].args[?(@=="--remote-runtime-kubeconfig=/etc/platformmesh/kubeconfig")]
+        value: "--remote-runtime-kubeconfig=/etc/platformmesh/kubeconfig"
+    - equal:
+        path: spec.template.spec.containers[0].args[?(@=="--remote-runtime-infra-secret-name=kubeconfig-platformmesh")]
+        value: "--remote-runtime-infra-secret-name=kubeconfig-platformmesh"
+    - notFailedTemplate: {}
+- it: configure extraVolumes and extraVolumeMounts
+  template: deployment.yaml
+  set:
+    extraVolumes:
+      - name: extra-volume
+        emptyDir: {}
+    extraVolumeMounts:
+      - name: extra-volume-mount
+        mountPath: /mnt/extra
+  asserts:
+    - matchSnapshot: {}
+    - equal:
+        path: spec.template.spec.volumes[?(@.name=="extra-volume")]
+        value:
+          emptyDir: {}
+          name: extra-volume
+    - equal:
+        path: spec.template.spec.containers[0].volumeMounts[?(@.name=="extra-volume-mount")].mountPath
+        value: /mnt/extra

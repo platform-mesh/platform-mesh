@@ -1,0 +1,131 @@
+{{- $noJson := include "common.getKeyValue" (dict "Values" .Values "key" "log.noJson") }}
+{{- $deploy := default dict .Values.deployment }}
+{{- $override := default dict .Values.gateway.deployment }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "common.entity.name" . }}
+spec:
+  replicas: {{ if hasKey $override "replicas" }}{{ $override.replicas }}{{ else }}{{ $deploy.replicas }}{{ end }}
+  strategy:
+    rollingUpdate:
+      maxSurge: {{ if hasKey $override "maxSurge" }}{{ $override.maxSurge }}{{ else }}{{ $deploy.maxSurge }}{{ end }}
+      maxUnavailable: {{ if hasKey $override "maxUnavailable" }}{{ $override.maxUnavailable }}{{ else }}{{ $deploy.maxUnavailable }}{{ end }}
+  revisionHistoryLimit: {{ if hasKey $override "revisionHistoryLimit" }}{{ $override.revisionHistoryLimit }}{{ else }}{{ $deploy.revisionHistoryLimit }}{{ end }}
+  selector:
+    matchLabels:
+      app: {{ include "common.entity.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "common.entity.name" . }}
+        version: "{{ .Chart.AppVersion }}"
+        {{- if eq .Values.schemaHandler.type "file" }}
+        schema-handler-group: {{ include "common.entity.name" . }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "common.entity.name" . }}
+      {{- include "common.imagePullSecret" . | nindent 6 }}
+      {{- include "common.hostAliases" . | nindent 6 }}
+      {{- if eq .Values.schemaHandler.type "file" }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  schema-handler-group: {{ include "common.entity.name" . }}
+              topologyKey: kubernetes.io/hostname
+      {{- end }}
+      containers:
+      - name: gateway
+        image: {{ include "common.image" . }}
+        {{- include "common.imagePullPolicy" . | nindent 8 }}
+        {{- with .Values.gateway.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- include "common.container.securityContext" . | nindent 8 }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.health.liveness.path }}
+            port: {{ .Values.gateway.healthCheck.port }}
+          failureThreshold: {{ .Values.health.liveness.failureThreshold }}
+          periodSeconds: {{ .Values.health.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.health.readiness.path }}
+            port: {{ .Values.gateway.healthCheck.port }}
+          initialDelaySeconds: {{ .Values.health.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.health.readiness.periodSeconds }}
+        startupProbe:
+          httpGet:
+            path: {{ .Values.health.startup.path }}
+            port: {{ .Values.gateway.healthCheck.port }}
+          failureThreshold: {{ .Values.health.startup.failureThreshold }}
+          periodSeconds: {{ .Values.health.periodSeconds }}
+        args:
+        - gateway
+        - --schema-handler={{ .Values.schemaHandler.type }}
+        {{- if eq .Values.schemaHandler.type "grpc" }}
+        - --grpc-listener-address={{ include "common.entity.name" . }}-listener.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.listener.grpcPort }}
+        - --grpc-max-recv-msg-size={{ int .Values.gateway.grpcMaxRecvMsgSize }}
+        {{- else if eq .Values.schemaHandler.type "file" }}
+        - --schemas-dir={{ .Values.schemaHandler.schemasDir }}
+        {{- end }}
+        {{- include "common.collectorArgs" . | nindent 8 }}
+        {{- if .Values.gateway.playground }}
+        - --enable-playground
+        {{- end }}
+        {{- with .Values.gateway.extraArgs }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if eq $noJson "true" }}
+        - --no-json
+        {{- end }}
+        ports:
+        - name: metrics
+          containerPort: {{ .Values.gateway.metricsPort }}
+          protocol: TCP
+        {{- if ne (int .Values.gateway.healthCheck.port) (int .Values.gateway.port) }}
+        - name: health-port
+          containerPort: {{ .Values.gateway.healthCheck.port }}
+          protocol: TCP
+        {{- end }}
+        - name: service-port
+          containerPort: {{ .Values.gateway.port }}
+          protocol: TCP
+        env:
+        {{- if .Values.kubeConfig.enabled }}
+        - name: KUBECONFIG
+          value: {{ .Values.kubeConfig.path }}
+        {{- end }}
+        volumeMounts:
+          {{- if eq .Values.schemaHandler.type "file" }}
+          - name: schemas-volume
+            mountPath: {{ .Values.schemaHandler.schemasDir }}
+            readOnly: true
+          {{- end }}
+          {{- if .Values.kubeConfig.enabled }}
+          - name: kubeconfig-volume
+            mountPath: /app/kubeconfig
+          {{- end }}
+          {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 10 }}
+          {{- end }}
+      volumes:
+        {{- if eq .Values.schemaHandler.type "file" }}
+        - name: schemas-volume
+          persistentVolumeClaim:
+            claimName: {{ include "common.entity.name" . }}-schemas
+        {{- end }}
+        {{- if .Values.kubeConfig.enabled }}
+        - name: kubeconfig-volume
+          secret:
+            secretName: {{ .Values.kubeConfig.secretName }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

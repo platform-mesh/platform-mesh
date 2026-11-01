@@ -1,0 +1,45 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/marketplace-ui
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  pullPolicy: IfNotPresent
+
+deployment:
+  maxUnavailable: 0
+  maxSurge: 5
+
+port: 8080
+
+health:
+  port: 8080
+  startup:
+    path: /healthz
+  readiness:
+    path: /healthz
+
+
+contentConfig:
+  # -- base domain for the marketplace content API (e.g. example.com). Required.
+  baseDomain: ""
+  # -- protocol for the marketplace content API. Permissible values: http, https
+  protocol: ""
+
+http:
+  # -- protocol used by the frontend. Must be set. Permissible values: http, https
+  protocol: ""
+
+gatewayApi:
+  enabled: false
+  httpRoute:
+    pathPrefix: /ui/marketplace
+    parentRefs:
+    - name: k8sapi-gateway
+    # -- list of HTTPRoute filters (default: none)
+    filters: []
+
+exposure:
+  # -- hostnames to be used for exposure
+  hostnames: []

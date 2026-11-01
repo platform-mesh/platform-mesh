@@ -54,7 +54,7 @@ type WorkspaceReadySubroutine struct {
 
 // New returns a new WorkspaceReadySubroutine.
 func New(mgr mcmanager.Manager) (*WorkspaceReadySubroutine, error) {
-	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.Account](
+	limiter, err := ratelimiter.NewObjectRateLimiter[*pmcorev1alpha1.Account](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)

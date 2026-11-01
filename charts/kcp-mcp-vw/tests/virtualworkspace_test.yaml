@@ -1,0 +1,89 @@
+suite: kcp-mcp-vw
+chart:
+  appVersion: 0.1.1
+release:
+  name: kcp-mcp-vw
+  namespace: platform-mesh-system
+tests:
+  - it: matches snapshot (defaults)
+    asserts:
+      - matchSnapshot: {}
+
+  - it: virtualworkspace has correct image
+    template: templates/virtualworkspace.yaml
+    asserts:
+      - equal:
+          path: spec.image.repository
+          value: ghcr.io/kcp-dev/contrib-virtual-workspaces/mcp-vw
+      - equal:
+          path: spec.image.tag
+          value: "0.1.1"
+
+  - it: derives access URL from external address
+    template: templates/virtualworkspace.yaml
+    set:
+      external:
+        hostname: kcp.portal.localhost
+        port: 8443
+    asserts:
+      - contains:
+          path: spec.extraArgs
+          content: --access-url=https://kcp.portal.localhost:8443/services/access
+
+  - it: omits oidc and oauth flags by default
+    template: templates/virtualworkspace.yaml
+    asserts:
+      - notContains:
+          path: spec.extraArgs
+          content: --oidc-issuer-url=
+          any: true
+      - notExists:
+          path: spec.extraVolumes
+
+  - it: renders oidc flags and CA mount when configured
+    template: templates/virtualworkspace.yaml
+    set:
+      oidc:
+        issuerURL: https://keycloak.example.com/realms/welcome
+        clientID: kcp-mcp
+        usernameClaim: email
+        usernamePrefix: "oidc:"
+        caSecretName: mcp-oidc-issuer-ca
+    asserts:
+      - contains:
+          path: spec.extraArgs
+          content: --oidc-issuer-url=https://keycloak.example.com/realms/welcome
+      - contains:
+          path: spec.extraArgs
+          content: --oidc-ca-file=/etc/oidc-ca/ca.crt
+      - equal:
+          path: spec.extraVolumes[0].secret.secretName
+          value: mcp-oidc-issuer-ca
+
+  - it: renders oauth discovery flags when configured
+    template: templates/virtualworkspace.yaml
+    set:
+      oauth:
+        authorizationServers:
+          - https://keycloak.example.com/realms/welcome
+        resource: https://mcp.example.com/services/mcp
+        scopes: [openid, profile]
+    asserts:
+      - contains:
+          path: spec.extraArgs
+          content: --oauth-authorization-servers=https://keycloak.example.com/realms/welcome
+      - contains:
+          path: spec.extraArgs
+          content: --oauth-resource=https://mcp.example.com/services/mcp
+      - contains:
+          path: spec.extraArgs
+          content: --oauth-scopes=openid,profile
+
+  - it: renders toolsets flag
+    template: templates/virtualworkspace.yaml
+    set:
+      toolsets: [core, write]
+    asserts:
+      - contains:
+          path: spec.extraArgs
+          content: --toolsets=core,write

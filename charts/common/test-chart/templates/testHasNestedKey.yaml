@@ -1,0 +1,6 @@
+kind: Test
+apiVersion: v1
+metadata:
+  name: testKeyFunctions
+spec:
+  check: {{ include "common.hasNestedKey" (dict "Values" .Values "key" "testkey.enabled") }}

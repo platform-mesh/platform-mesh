@@ -1,0 +1,40 @@
+{{ if .Values.kcp.auth.adminCert.enabled }}
+apiVersion: operator.kcp.io/v1alpha1
+kind: Kubeconfig
+metadata:
+  name: kubeconfig-kcp-admin
+  namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
+spec:
+  username: kcp-admin
+  groups:
+    - system:kcp:admin
+  validity: 8766h
+  secretRef:
+    name: kubeconfig-kcp-admin
+  target:
+    frontProxyRef:
+      name: {{.Values.kcp.frontProxy.name }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kcp-cluster-admin-client-cert
+  namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
+spec:
+  commonName: cluster-admin
+  issuerRef:
+    {{- if .Values.kcp.auth.adminCert.issuerRef }}
+    name: {{ .Values.kcp.auth.adminCert.issuerRef }}
+    {{- else }}
+    name: root-client-ca
+    {{- end }}
+  privateKey:
+    algorithm: {{ .Values.kcp.auth.adminCert.privateKey.algorithm }}
+    size: {{ .Values.kcp.auth.adminCert.privateKey.size }}
+  secretName: kcp-cluster-admin-client-cert
+  subject:
+    organizations:
+      {{ .Values.kcp.auth.adminCert.subject.organizations | toYaml | nindent 6 }}
+  usages:
+    - client auth
+{{ end }}

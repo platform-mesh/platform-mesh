@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  {{- if .Values.webhooks.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "common.entity.name" . }}-serving-cert
+  {{- end }}
+spec:
+  revisionHistoryLimit: {{ include "common.getKeyValue" (dict "Values" .Values "key" "deployment.revisionHistoryLimit") }}
+  selector:
+    matchLabels:
+      {{- include "common.labelMatcher" . | indent 6 }}
+  replicas: {{ .Values.deployment.replicas }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+        {{- with .Values.deployment.specTemplate.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        control-plane: controller-manager
+      annotations:
+        {{- with .Values.deployment.specTemplate.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "common.imagePullSecret" . | indent 6 }}
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+{{ include "common.hostAliases" $ | nindent 6 }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadyness" . | indent 8}}
+        ports:
+        {{- include "common.PortsMetricsHealth" . | nindent 10 }}
+        {{- if .Values.webhooks.enabled }}
+          - name: webhook-port
+            containerPort: 9443
+            protocol: TCP
+        {{- end }}
+        args:
+          - operator
+          {{- include "common.commonOperatorArgs" . | indent 8 }}
+          - --subroutines-workspace-type-enabled={{ .Values.subroutines.workspaceType.enabled }}
+          - --subroutines-workspace-enabled={{ .Values.subroutines.workspace.enabled }}
+          - --subroutines-workspace-ready-enabled={{ .Values.subroutines.workspaceReady.enabled }}
+          - --subroutines-account-info-enabled={{ .Values.subroutines.accountInfo.enabled }}
+          - --controllers-account-info-enabled={{ .Values.controllers.accountInfo.enabled }}
+          - --kcp-api-export-endpoint-slice-name={{ .Values.kcp.apiExportEndpointSliceName }}
+          {{- if .Values.webhooks.enabled }}
+          - --webhooks-enabled
+          - --webhooks-cert-dir={{ .Values.webhooks.certDir }}
+          {{- if .Values.webhooks.denyList }}
+          - --webhooks-deny-list={{ join "," .Values.webhooks.denyList }}
+          {{- end }}
+          {{- with .Values.webhooks.additionalAccountTypes }}
+          - --webhooks-additional-account-types={{ join "," . }}
+          {{- end }}
+          {{- end }}
+        env:
+          {{- include "common.basicEnvironment" . | nindent 10 }}
+          {{- if .Values.kubeconfigSecret }}
+          - name: KUBECONFIG
+            value: /api-kubeconfig/kubeconfig
+          {{- end }}
+        volumeMounts:
+          {{- include "common.extraVolumeMounts" . | nindent 8 }}
+        {{- if .Values.kubeconfigSecret }}
+        - name: external-api-server
+          mountPath: /api-kubeconfig
+        {{- end }}
+        {{- if .Values.webhooks.enabled }}
+        - mountPath: {{ .Values.webhooks.certDir }}
+          name: cert
+          readOnly: true
+        {{- end }}
+      volumes:
+        {{- include "common.extraVolumes" . | nindent 8 }}
+        {{- if .Values.kubeconfigSecret }}
+        - name: external-api-server
+          secret:
+            secretName: {{ .Values.kubeconfigSecret }}
+        {{- end }}
+        {{- if .Values.webhooks.enabled }}
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: {{ include "common.entity.name" . }}-webhook-server-cert
+        {{- end }}

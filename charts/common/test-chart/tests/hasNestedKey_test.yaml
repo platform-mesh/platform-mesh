@@ -1,0 +1,42 @@
+suite: hasNestedKey
+templates:
+  - testHasNestedKey.yaml
+tests:
+  - it: nested key not found due to missing values
+    asserts:
+      - equal:
+          path: spec.check
+          value: false
+  - it: key configured - string
+    set:
+      testkey:
+        enabled: foo
+    asserts:
+      - equal:
+          path: spec.check
+          value: true
+  - it: key configured - bool
+    set:
+      testkey:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.check
+          value: true
+  - it: key configured - object
+    set:
+      testkey:
+        enabled:
+          some: object
+    asserts:
+      - equal:
+          path: spec.check
+          value: true
+  - it: key multilevel - wrong type
+    set:
+      level1:
+        testkey: "foo"
+    asserts:
+      - equal:
+          path: spec.check
+          value: false

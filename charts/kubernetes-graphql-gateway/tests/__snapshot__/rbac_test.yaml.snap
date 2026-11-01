@@ -1,0 +1,160 @@
+creates RBAC in multi mode even when kcp.enabled is true:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: platform-mesh-kubernetes-graphql-gateway
+      namespace: platform-mesh-system
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - users
+          - serviceaccounts
+        verbs:
+          - impersonate
+      - apiGroups:
+          - '*'
+        resources:
+          - '*'
+        verbs:
+          - '*'
+      - apiGroups:
+          - apiextensions.k8s.io
+        resources:
+          - customresourcedefinitions
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - gateway.platform-mesh.io
+        resources:
+          - clusteraccesses
+          - clusteraccesses/status
+        verbs:
+          - get
+          - list
+          - watch
+          - update
+          - patch
+      - apiGroups:
+          - ""
+        resources:
+          - secrets
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - configmaps
+        verbs:
+          - get
+      - apiGroups:
+          - ""
+        resources:
+          - serviceaccounts
+        verbs:
+          - get
+      - apiGroups:
+          - ""
+        resources:
+          - serviceaccounts/token
+        verbs:
+          - create
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: platform-mesh-kubernetes-graphql-gateway
+      namespace: platform-mesh-system
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: platform-mesh-kubernetes-graphql-gateway
+    subjects:
+      - kind: ServiceAccount
+        name: platform-mesh-kubernetes-graphql-gateway
+        namespace: platform-mesh-system
+matches the Snapshot:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: platform-mesh-kubernetes-graphql-gateway
+      namespace: platform-mesh-system
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - users
+          - serviceaccounts
+        verbs:
+          - impersonate
+      - apiGroups:
+          - '*'
+        resources:
+          - '*'
+        verbs:
+          - '*'
+      - apiGroups:
+          - apiextensions.k8s.io
+        resources:
+          - customresourcedefinitions
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - gateway.platform-mesh.io
+        resources:
+          - clusteraccesses
+          - clusteraccesses/status
+        verbs:
+          - get
+          - list
+          - watch
+          - update
+          - patch
+      - apiGroups:
+          - ""
+        resources:
+          - secrets
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - configmaps
+        verbs:
+          - get
+      - apiGroups:
+          - ""
+        resources:
+          - serviceaccounts
+        verbs:
+          - get
+      - apiGroups:
+          - ""
+        resources:
+          - serviceaccounts/token
+        verbs:
+          - create
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: platform-mesh-kubernetes-graphql-gateway
+      namespace: platform-mesh-system
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: platform-mesh-kubernetes-graphql-gateway
+    subjects:
+      - kind: ServiceAccount
+        name: platform-mesh-kubernetes-graphql-gateway
+        namespace: platform-mesh-system

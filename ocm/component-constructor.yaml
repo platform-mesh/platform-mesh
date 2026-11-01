@@ -1,0 +1,356 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Template for the Platform Mesh OCM component graph: the third-party wrapper
+# components and the top-level aggregate. hack/release/build-aggregate.sh
+# fills in the ${VARIABLES} (third-party pins from ocm/versions.yaml, plus
+# VERSION/COMPONENT_NAME/REPO_URL/COMMIT) and appends the generated per-chart
+# components (see ocm/charts/README.md). Everything built from this repository
+# has the one Platform Mesh ${VERSION}; only third-party wrappers and
+# components from other repositories have versions of their own.
+#
+# The reference names of the aggregate are a contract with the
+# platform-mesh-operator (referencePath) and must not be renamed.
+
+components:
+  - name: github.com/traefik/traefik
+    version: ${PM_TRAEFIK_VERSION}
+    provider:
+      name: traefik
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${TRAEFIK_CHART_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/platform-mesh/charts/traefik:${TRAEFIK_CHART_VERSION}
+      - name: crds
+        type: helmChart
+        relation: local
+        version: ${TRAEFIK_CRD_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/platform-mesh/ocm/charts/traefik-crds:${TRAEFIK_CRD_VERSION}
+      - name: image
+        type: ociImage
+        relation: local
+        version: ${TRAEFIK_IMAGE_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "docker.io/library/traefik:${TRAEFIK_IMAGE_VERSION}"
+  - name: github.com/cert-manager/cert-manager
+    version: ${PM_CERT_MANAGER_VERSION}
+    provider:
+      name: cert-manager
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${CERT_MANAGER_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: quay.io/jetstack/charts/cert-manager:${CERT_MANAGER_VERSION}
+      - name: webhook-image
+        type: ociImage
+        relation: local
+        version: ${CERT_MANAGER_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "quay.io/jetstack/cert-manager-webhook:${CERT_MANAGER_VERSION}"
+      - name: controller-image
+        type: ociImage
+        relation: local
+        version: ${CERT_MANAGER_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "quay.io/jetstack/cert-manager-controller:${CERT_MANAGER_VERSION}"
+      - name: cainjector-image
+        type: ociImage
+        relation: local
+        version: ${CERT_MANAGER_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "quay.io/jetstack/cert-manager-cainjector:${CERT_MANAGER_VERSION}"
+  - name: github.com/openfga/openfga
+    version: ${PM_OPENFGA_VERSION}
+    provider:
+      name: openfga
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${OPENFGA_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/platform-mesh/ocm/charts/openfga:${OPENFGA_VERSION}
+      - name: image
+        type: ociImage
+        relation: local
+        version: ${OPENFGA_IMAGE_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "docker.io/openfga/openfga:${OPENFGA_IMAGE_VERSION}"
+      - name: postgresql-image
+        type: ociImage
+        relation: local
+        version: ${OPENFGA_POSTGRESQL_IMAGE_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "ghcr.io/platform-mesh/upstream-images/postgresql:${OPENFGA_POSTGRESQL_IMAGE_VERSION}"
+  - name: github.com/kcp-dev/kcp-operator
+    version: ${PM_KCP_OPERATOR_VERSION}
+    provider:
+      name: kcp
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${KCP_OPERATOR_CHART_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/platform-mesh/helm-charts/charts/mirrored/kcp-operator:${KCP_OPERATOR_CHART_VERSION}
+      - name: image
+        type: ociImage
+        relation: local
+        version: ${KCP_OPERATOR_IMAGE_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "ghcr.io/kcp-dev/kcp-operator:${KCP_OPERATOR_IMAGE_VERSION}"
+  - name: github.com/kcp-dev/kcp
+    version: ${PM_KCP_VERSION}
+    provider:
+      name: kcp
+    resources:
+      - name: image
+        type: ociImage
+        relation: local
+        version: ${KCP_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "ghcr.io/kcp-dev/kcp:${KCP_VERSION}"
+  - name: github.com/kcp-dev/init-agent
+    version: ${PM_INIT_AGENT_VERSION}
+    provider:
+      name: kcp
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${INIT_AGENT_CHART_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/platform-mesh/ocm/charts/init-agent:${INIT_AGENT_CHART_VERSION}
+      - name: image
+        type: ociImage
+        relation: local
+        version: ${INIT_AGENT_IMAGE_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "ghcr.io/kcp-dev/init-agent:${INIT_AGENT_IMAGE_VERSION}"
+  - name: github.com/platform-mesh/api-syncagent
+    version: ${API_SYNCAGENT_COMPONENT_VERSION}
+    provider:
+      name: kcp
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${API_SYNCAGENT_CHART_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/platform-mesh/ocm/charts/api-syncagent:${API_SYNCAGENT_CHART_VERSION}
+      - name: image
+        type: ociImage
+        relation: local
+        version: ${API_SYNCAGENT_IMAGE_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "ghcr.io/kcp-dev/api-syncagent:${API_SYNCAGENT_IMAGE_VERSION}"
+  - name: github.com/cloudnative-pg/cloudnative-pg
+    version: ${PM_CNPG_OPERATOR_VERSION}
+    provider:
+      name: cloudnative-pg
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${CNPG_OPERATOR_CHART_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/cloudnative-pg/charts/cloudnative-pg:${CNPG_OPERATOR_CHART_VERSION}
+      - name: image
+        type: ociImage
+        relation: local
+        version: ${CNPG_OPERATOR_IMAGE_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "ghcr.io/cloudnative-pg/cloudnative-pg:${CNPG_OPERATOR_IMAGE_VERSION}"
+  - name: github.com/prometheus-community/prometheus-operator-crds
+    version: ${PM_PROMETHEUS_OPERATOR_CRDS_VERSION}
+    provider:
+      name: prometheus-community
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${PROMETHEUS_OPERATOR_CRDS_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/platform-mesh/ocm/charts/prometheus-operator-crds:${PROMETHEUS_OPERATOR_CRDS_VERSION}
+  - name: github.com/prometheus-community/kube-prometheus-stack
+    version: ${PM_KUBE_PROMETHEUS_STACK_VERSION}
+    provider:
+      name: prometheus-community
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${KUBE_PROMETHEUS_STACK_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/platform-mesh/ocm/charts/kube-prometheus-stack:${KUBE_PROMETHEUS_STACK_VERSION}
+  - name: github.com/open-telemetry/opentelemetry-operator
+    version: ${PM_OPENTELEMETRY_OPERATOR_VERSION}
+    provider:
+      name: open-telemetry
+    resources:
+      - name: chart
+        type: helmChart
+        relation: local
+        version: ${OPENTELEMETRY_OPERATOR_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/open-telemetry/opentelemetry-helm-charts/opentelemetry-operator:${OPENTELEMETRY_OPERATOR_VERSION}
+      - name: manager-image
+        type: ociImage
+        relation: local
+        version: ${OTEL_OPERATOR_IMAGE_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator:${OTEL_OPERATOR_IMAGE_VERSION}"
+      - name: collector-image
+        type: ociImage
+        relation: local
+        version: ${OTEL_COLLECTOR_IMAGE_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s:${OTEL_COLLECTOR_IMAGE_VERSION}"
+      - name: target-allocator-image
+        type: ociImage
+        relation: local
+        version: ${OTEL_TARGET_ALLOCATOR_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: "ghcr.io/open-telemetry/opentelemetry-operator/target-allocator:${OTEL_TARGET_ALLOCATOR_VERSION}"
+  - name: ${COMPONENT_NAME}
+    version: ${VERSION}
+    provider:
+      name: The Platform Mesh Team
+    sources:
+      - name: source
+        type: git
+        version: ${VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+    componentReferences:
+      - name: account-operator
+        componentName: github.com/platform-mesh/account-operator
+        version: ${VERSION}
+      - name: etcd-druid
+        componentName: github.com/gardener/etcd-druid
+        version: ${GARDENER_ETCD_DRUID_VERSION}
+      - name: extension-manager-operator
+        componentName: github.com/platform-mesh/extension-manager-operator
+        version: ${VERSION}
+      - name: example-httpbin-operator
+        componentName: github.com/platform-mesh/example-httpbin-operator
+        version: ${VERSION}
+      - name: kro-composition-operator
+        componentName: github.com/platform-mesh/kro-composition-operator
+        version: ${VERSION}
+      - name: infra
+        componentName: github.com/platform-mesh/infra
+        version: ${VERSION}
+      - name: keycloak-operator
+        componentName: github.com/platform-mesh/keycloak-operator
+        version: ${VERSION}
+      - name: kcp-operator
+        componentName: github.com/kcp-dev/kcp-operator
+        version: ${PM_KCP_OPERATOR_VERSION}
+      - name: kcp
+        componentName: github.com/kcp-dev/kcp
+        version: ${PM_KCP_VERSION}
+      - name: init-agent
+        componentName: github.com/kcp-dev/init-agent
+        version: ${PM_INIT_AGENT_VERSION}
+      - name: kubernetes-graphql-gateway
+        componentName: github.com/platform-mesh/kubernetes-graphql-gateway
+        version: ${VERSION}
+      - name: rebac-authz-webhook
+        componentName: github.com/platform-mesh/rebac-authz-webhook
+        version: ${VERSION}
+      - name: security-operator
+        componentName: github.com/platform-mesh/security-operator
+        version: ${VERSION}
+      - name: openfga
+        componentName: github.com/openfga/openfga
+        version: ${PM_OPENFGA_VERSION}
+      - name: platform-mesh-operator
+        componentName: github.com/platform-mesh/platform-mesh-operator
+        version: ${VERSION}
+      - name: portal
+        componentName: github.com/platform-mesh/portal
+        version: ${VERSION}
+      - name: virtual-workspaces
+        componentName: github.com/platform-mesh/virtual-workspaces
+        version: ${VERSION}
+      - name: iam-service
+        componentName: github.com/platform-mesh/iam-service
+        version: ${VERSION}
+      - name: iam-ui
+        componentName: github.com/platform-mesh/iam-ui
+        version: ${VERSION}
+      - name: marketplace-ui
+        componentName: github.com/platform-mesh/marketplace-ui
+        version: ${VERSION}
+      - name: gateway-api-crds
+        componentName: github.com/platform-mesh/gateway-api-crds
+        version: ${VERSION}
+      - name: traefik
+        componentName: github.com/traefik/traefik
+        version: ${PM_TRAEFIK_VERSION}
+      - name: terminal-controller-manager
+        componentName: github.com/platform-mesh/terminal-controller-manager
+        version: ${VERSION}
+      - name: cert-manager
+        componentName: github.com/cert-manager/cert-manager
+        version: ${PM_CERT_MANAGER_VERSION}
+      - name: observability
+        componentName: github.com/platform-mesh/observability
+        version: ${VERSION}
+      - name: cnpg-operator
+        componentName: github.com/cloudnative-pg/cloudnative-pg
+        version: ${PM_CNPG_OPERATOR_VERSION}
+      - name: prometheus-operator-crds
+        componentName: github.com/prometheus-community/prometheus-operator-crds
+        version: ${PM_PROMETHEUS_OPERATOR_CRDS_VERSION}
+      - name: kube-prometheus-stack
+        componentName: github.com/prometheus-community/kube-prometheus-stack
+        version: ${PM_KUBE_PROMETHEUS_STACK_VERSION}
+      - name: opentelemetry-operator
+        componentName: github.com/open-telemetry/opentelemetry-operator
+        version: ${PM_OPENTELEMETRY_OPERATOR_VERSION}

@@ -263,9 +263,9 @@ tasks:
         - istio-base
         - example-resources
       PLATFORM_MESH_COMP:
-        sh: "{{.OCM}} get componentversions --latest github.com/platform-mesh/platform-mesh --repo ghcr.io/platform-mesh -o json"
+        sh: "{{.OCM}} get component-version --latest ghcr.io/platform-mesh//github.com/platform-mesh/platform-mesh -o json"
     cmds:
-      - PLATFORM_MESH_COMP_VERSION=$(echo "{{ .PLATFORM_MESH_COMP }}" | yq -r '.items[0].component.version') yq -i ".spec.version.semver = strenv(PLATFORM_MESH_COMP_VERSION)" deployment/component-version.yaml
+      - PLATFORM_MESH_COMP_VERSION=$(echo "{{ .PLATFORM_MESH_COMP }}" | yq -r '.[0].component.version') yq -i ".spec.version.semver = strenv(PLATFORM_MESH_COMP_VERSION)" deployment/component-version.yaml
       - for:
           var: SERVICES
-        cmd: COMP_VERSION=$(echo "{{ .PLATFORM_MESH_COMP }}" | yq -r '.items[0].component.componentReferences[] | select(.name == "{{ .ITEM }}").version') yq -i ".spec.sourceRef.resourceRef.version = strenv(COMP_VERSION)" deployment/{{ range splitList "-" .ITEM }}{{ . }}{{ end }}/resource.yaml
+        cmd: COMP_VERSION=$(echo "{{ .PLATFORM_MESH_COMP }}" | yq -r '.[0].component.componentReferences[] | select(.name == "{{ .ITEM }}").version') yq -i ".spec.sourceRef.resourceRef.version = strenv(COMP_VERSION)" deployment/{{ range splitList "-" .ITEM }}{{ . }}{{ end }}/resource.yaml

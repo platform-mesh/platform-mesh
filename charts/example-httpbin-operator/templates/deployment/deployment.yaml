@@ -1,0 +1,75 @@
+{{- if .Values.operator.install }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "example-httpbin-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example-httpbin-operator.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "example-httpbin-operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "example-httpbin-operator.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Values.controllerManager.serviceAccountName }}
+      securityContext: {}
+      {{- if .Values.operator.remoteKubeconfig }}
+      volumes:
+      - name: kubeconfig-override
+        secret:
+          secretName: {{ .Values.operator.remoteKubeconfig }}
+          defaultMode: 420
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext: {}
+        image: {{ include "common.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        {{- if .Values.operator.args }}
+        {{- toYaml .Values.operator.args | nindent 10 }}
+        {{- end }}
+        {{- if .Values.operator.remoteKubeconfig }}
+          - "--remote-kubeconfig=/kubeconfig-override.yaml"
+        {{- end }}
+        volumeMounts:
+        {{- if .Values.operator.remoteKubeconfig }}
+        - name: kubeconfig-override
+          mountPath: /kubeconfig-override.yaml
+          readOnly: true
+          {{- if .Values.operator.remoteKubeconfigSubPath }}
+          subPath: {{ .Values.operator.remoteKubeconfigSubPath }}
+          {{- else }}
+          {{- end }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.operator.resources | nindent 10 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

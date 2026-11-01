@@ -1,0 +1,39 @@
+{{- range .Values.kcp.shards }}
+{{- $shardName := .name }}
+{{- $etcdName := printf "etcd-kcp-%s" $shardName }}
+{{- $etcdServiceName := printf "etcd-kcp-%s-client" $shardName }}
+{{- $hostname := .hostname | default (printf "%s.kcp.%s" $shardName $.Values.kcp.external.hostname) }}
+{{- $shardBaseURL := (.spec).shardBaseURL | default (printf "https://%s:%v/" $hostname $.Values.kcp.external.port) }}
+{{- $mergedEtcd := mustMergeOverwrite (mustDeepCopy $.Values.kcp.etcd) (.etcd | default dict) }}
+{{- $defaultSpec := dict "replicas" $.Values.kcp.rootShard.replicas "extraArgs" $.Values.kcp.rootShard.extraArgs "resources" $.Values.kcp.rootShard.resources }}
+{{- $mergedSpec := mustMergeOverwrite $defaultSpec (.spec | default dict) }}
+---
+{{ include "kcp.etcd" (dict "name" $etcdName "namespace" ($.Values.kcp.namespace | default "kcp-system") "etcd" $mergedEtcd) }}
+---
+apiVersion: operator.kcp.io/v1alpha1
+kind: Shard
+metadata:
+  name: {{ $shardName }}
+  namespace: {{ $.Values.kcp.namespace | default "kcp-system" }}
+spec:
+{{- include "kcp.shard.spec" (dict "root" $ "replicas" $mergedSpec.replicas "shardBaseURL" $shardBaseURL "extraArgs" $mergedSpec.extraArgs "resources" $mergedSpec.resources "hostname" $.Values.kcp.external.hostname "port" $.Values.kcp.external.port "webhookPort" $.Values.kcp.webhook.port) | nindent 2 }}
+  rootShard:
+    ref:
+      name: root
+  cache:
+    ref:
+      name: {{ $.Values.kcp.cacheServer.name }}
+  etcd:
+    endpoints:
+      - http://{{ $etcdServiceName }}.{{ $.Values.kcp.namespace | default "kcp-system" }}.svc.cluster.local:{{ $mergedEtcd.service.port | default 2379 }}
+  certificateTemplates:
+    server:
+      spec:
+        dnsNames:
+          - {{ $shardName }}-shard-kcp
+          - {{ $shardName }}-shard-kcp.{{ $.Values.kcp.namespace | default "kcp-system" }}
+          - {{ $shardName }}-shard-kcp.{{ $.Values.kcp.namespace | default "kcp-system" }}.svc.cluster.local
+          - {{ $hostname }}
+---
+{{ include "kcp.tlsroute" (dict "name" (printf "kcp-%s-tlsroute" $shardName) "hostname" $hostname "serviceName" (printf "%s-shard-kcp" $shardName) "namespace" ($.Values.kcp.namespace | default "kcp-system") "gatewayName" $.Values.gatewayApi.name "sectionName" (include "kcp.passthroughSectionName" (dict "root" $ "suffix" $shardName))) }}
+{{- end }}

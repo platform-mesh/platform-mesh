@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  {{ include "common.deploymentBasics" . | indent 2 }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+    spec:
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" . }}
+      {{- include "common.hostAliases" . | nindent 6 }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        {{- include "common.healthAndReadiness" . | indent 8}}
+        ports:
+          {{- include "common.ports" . | nindent 10 }}
+        args:
+          - -- operator
+          {{- include "common.commonOperatorArgs" . | indent 8 }}
+        env:
+          {{- include "common.basicEnvironment" . | nindent 10 }}
+      volumeMounts:
+        {{- include "common.extraVolumeMounts" . | nindent 8 }}
+      volumes:
+        {{- include "common.extraVolumes" . | nindent 8 }}

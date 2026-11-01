@@ -912,6 +912,98 @@ data:
 	suite.Equal("updated", cm.Data["key"])
 }
 
+func (suite *GatewayE2ETestSuite) TestApplyYamlDryRunCreate() {
+	clusterName := "apply-yaml-dryrun-create-cluster"
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
+
+	suite.generateSchema(clusterName, metadata)
+	suite.waitForSchemaLoaded(clusterName)
+
+	yamlInput := fmt.Sprintf(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apply-yaml-dryrun-created
+  namespace: %s
+data:
+  key: value`, testNamespace)
+
+	resp := suite.executeGraphQLQuery(clusterName, `
+		mutation($yaml: String!, $dryRun: Boolean) {
+			applyYaml(yaml: $yaml, dryRun: $dryRun)
+		}
+	`, map[string]any{
+		"yaml":   yamlInput,
+		"dryRun": true,
+	}, suite.testToken)
+
+	suite.Equal(200, resp.StatusCode)
+	suite.Empty(resp.Errors, "expected no errors, got: %v", resp.Errors)
+	suite.NotNil(resp.Data["applyYaml"])
+
+	cm := &corev1.ConfigMap{}
+	err := suite.client.Get(suite.T().Context(), ctrlruntimeclient.ObjectKey{
+		Name:      "apply-yaml-dryrun-created",
+		Namespace: testNamespace,
+	}, cm)
+	suite.True(apierrors.IsNotFound(err), "expected resource to not exist after dry-run create, got: %v", err)
+}
+
+func (suite *GatewayE2ETestSuite) TestApplyYamlDryRunUpdate() {
+	clusterName := "apply-yaml-dryrun-update-cluster"
+	metadata := suite.buildClusterMetadata(pmgatewayv1alpha1.AuthTypeKubeconfig)
+
+	suite.generateSchema(clusterName, metadata)
+	suite.waitForSchemaLoaded(clusterName)
+
+	yamlCreate := fmt.Sprintf(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apply-yaml-dryrun-updated
+  namespace: %s
+data:
+  key: original`, testNamespace)
+
+	resp := suite.executeGraphQLQuery(clusterName, `
+		mutation($yaml: String!) {
+			applyYaml(yaml: $yaml)
+		}
+	`, map[string]any{
+		"yaml": yamlCreate,
+	}, suite.testToken)
+
+	suite.Equal(200, resp.StatusCode)
+	suite.Empty(resp.Errors)
+
+	yamlUpdate := fmt.Sprintf(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apply-yaml-dryrun-updated
+  namespace: %s
+data:
+  key: changed`, testNamespace)
+
+	resp = suite.executeGraphQLQuery(clusterName, `
+		mutation($yaml: String!, $dryRun: Boolean) {
+			applyYaml(yaml: $yaml, dryRun: $dryRun)
+		}
+	`, map[string]any{
+		"yaml":   yamlUpdate,
+		"dryRun": true,
+	}, suite.testToken)
+
+	suite.Equal(200, resp.StatusCode)
+	suite.Empty(resp.Errors, "expected no errors, got: %v", resp.Errors)
+	suite.NotNil(resp.Data["applyYaml"])
+
+	cm := &corev1.ConfigMap{}
+	err := suite.client.Get(suite.T().Context(), ctrlruntimeclient.ObjectKey{
+		Name:      "apply-yaml-dryrun-updated",
+		Namespace: testNamespace,
+	}, cm)
+	suite.Require().NoError(err)
+	suite.Equal("original", cm.Data["key"], "expected resource to be unchanged after dry-run update")
+}
+
 // ============================================================================
 // Error Handling Tests
 // ============================================================================

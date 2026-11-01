@@ -1,0 +1,48 @@
+suite: operator
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+tests:
+  - it: operator match the snapshot
+    set:
+      kubeconfigSecret: kcp-kubeconfig
+      initializer:
+        extraArgs:
+          - --test=myval
+          - --test2=myval
+        kubeconfigSecret: kcp-initializer-kubeconfig
+      terminator:
+        kubeconfigSecret: kcp-terminator-kubeconfig
+    asserts:
+      - matchSnapshot: {}
+  - it: operator match the snapshot w. sentry
+    set:
+      sentry:
+        enabled: true
+      externalSecrets:
+        enabled: true
+      extraEnvs:
+        - name: TEST_ENV
+          value: test
+      extraVolumes:
+        - name: kcp-kubeconfig
+          secret:
+            secretName: kcp-kubeconfig
+      extraVolumeMounts:
+        - name: kcp-kubeconfig
+          mountPath: /etc/kcp-kubeconfig
+          readOnly: true
+    asserts:
+      - matchSnapshot: {}
+  - it: has all health checks
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /readyz
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /readyz

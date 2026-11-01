@@ -1,0 +1,67 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: prerelease-cleanup
+
+# Removes Platform Mesh prerelease aggregates (versions tagged -dev.*, built by
+# prerelease.yml) older than two weeks from GHCR. Releases and release
+# candidates are never touched, nor are the charts and components a prerelease
+# references.
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Delete prerelease versions older than this many days"
+        required: false
+        default: "14"
+        type: string
+      dry_run:
+        description: "Only list what would be deleted"
+        required: false
+        default: true
+        type: boolean
+  # FORK: schedule disabled to not burn runner minutes in the test fork; re-enable at cutover.
+  # schedule:
+  #   - cron: '0 4 * * 1' # Mondays
+
+permissions:
+  contents: read
+
+# Two deletions at once would race over the same package versions.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write # delete package versions
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Delete old prerelease versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DAYS: ${{ inputs.days || '14' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=(--days "$DAYS")
+          [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
+          hack/release/cleanup-prereleases.sh "$GITHUB_REPOSITORY_OWNER" "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"

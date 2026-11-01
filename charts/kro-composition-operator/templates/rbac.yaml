@@ -1,0 +1,30 @@
+# Runtime-cluster RBAC: the operator talks to kcp via the mounted kubeconfig; on the
+# runtime cluster it only needs leader-election.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "kro-composition-operator.name" . }}-leaderelection
+  labels:
+    {{- include "kro-composition-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "kro-composition-operator.name" . }}-leaderelection
+  labels:
+    {{- include "kro-composition-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "kro-composition-operator.name" . }}-leaderelection
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kro-composition-operator.name" . }}
+    namespace: {{ .Release.Namespace }}

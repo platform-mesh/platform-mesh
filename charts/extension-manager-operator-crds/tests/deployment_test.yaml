@@ -1,0 +1,13 @@
+suite: operator
+templates:
+  - ui.platform-mesh.io_contentconfigurations.yaml
+values:
+  - ../test-values.yaml
+chart:
+  version: 0.1.1
+  appVersion: 1.16.0
+tests:
+  - it: operator match the snapshot
+    asserts:
+      - matchSnapshot: {}
+

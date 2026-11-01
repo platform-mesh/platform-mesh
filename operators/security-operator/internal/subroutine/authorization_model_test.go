@@ -30,6 +30,7 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
+	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 
@@ -38,7 +39,6 @@ import (
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 )
@@ -527,7 +527,7 @@ type core_namespace
 			}
 
 			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, kcpHelper, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
-			ctx := mccontext.WithCluster(context.Background(), multicluster.ClusterName(logicalcluster.Name("path").String()))
+			ctx := mccontext.WithCluster(context.Background(), config.StoreClusterName(logicalcluster.Name("path").String()))
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {

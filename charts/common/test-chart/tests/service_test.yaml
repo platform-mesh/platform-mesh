@@ -1,0 +1,29 @@
+suite: deployment
+templates:
+  - service.yaml
+values:
+  - ../values.yaml
+chart:
+  namespace: default
+  appVersion: 0.1.0
+tests:
+  - it: test default
+    asserts:
+      - matchSnapshot: {}
+  - it: test extras
+    asserts:
+      - matchSnapshot: { }
+    set:
+      extraEnvs:
+        - name: MY_ENV
+          value: my-value
+      extraServicePorts:
+        - name: my-port
+          port: 8081
+          targetPort: 8081
+  - it: test service type
+    asserts:
+      - matchSnapshot: { }
+    set:
+      service:
+        type: NodePort

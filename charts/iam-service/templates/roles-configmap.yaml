@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.entity.name" . }}-roles
+  labels:
+    app: {{ include "common.entity.name" . }}
+data:
+  roles.yaml: |
+{{ .Values.roles.raw | toYaml | indent 4 }}

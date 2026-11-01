@@ -31,13 +31,17 @@ import (
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
 type DeploymentProcessTestSuite struct {
@@ -133,13 +137,37 @@ data:
 	s.writeFile("gotemplates/components/runtime/ocm-chart-resources.yaml", componentsRuntime)
 
 	// Webhook manifests required by manageAuthorizationWebhookSecrets
-	caIssuer := `apiVersion: cert-manager.io/v1
+	selfSignedIssuer := `apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: rebac-authz-webhook-issuer
+  name: rebac-authz-webhook-selfsigned-issuer
   namespace: {{ .namespace }}
 spec:
   selfSigned: {}
+`
+	s.writeFile("manifests/k8s/rebac-auth-webhook/selfsigned-issuer.yaml", selfSignedIssuer)
+
+	caCert := `apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rebac-authz-webhook-ca
+  namespace: {{ .namespace }}
+spec:
+  isCA: true
+  secretName: rebac-authz-webhook-ca
+  issuerRef:
+    name: rebac-authz-webhook-selfsigned-issuer
+`
+	s.writeFile("manifests/k8s/rebac-auth-webhook/ca-cert.yaml", caCert)
+
+	caIssuer := `apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: rebac-authz-webhook-ca-issuer
+  namespace: {{ .namespace }}
+spec:
+  ca:
+    secretName: rebac-authz-webhook-ca
 `
 	s.writeFile("manifests/k8s/rebac-auth-webhook/ca-issuer.yaml", caIssuer)
 
@@ -151,7 +179,7 @@ metadata:
 spec:
   secretName: rebac-authz-webhook-cert
   issuerRef:
-    name: rebac-authz-webhook-issuer
+    name: rebac-authz-webhook-ca-issuer
 `
 	s.writeFile("manifests/k8s/rebac-auth-webhook/webhook-cert.yaml", webhookCert)
 
@@ -557,4 +585,130 @@ func (s *DeploymentProcessTestSuite) Test_Process_DeploymentNamespace() {
 	err = cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "cert-manager-argo-rendered", Namespace: "custom-deploy-ns"}, &cm)
 	s.NoError(err, "ConfigMap should exist in custom-deploy-ns (the deploymentNamespace)")
 	s.Equal("custom-deploy-ns", cm.Namespace)
+}
+
+func (s *DeploymentProcessTestSuite) newWebhookSecretFixture(ns string, tlsCrt, caCrt, trustedCA []byte) (ctrlruntimeclient.Client, *DeploymentSubroutine, context.Context) {
+	operatorCfg := s.newOperatorConfig()
+	operatorCfg.Subroutines.Deployment.AuthorizationWebhookSecretName = "kcp-webhook-secret"
+	operatorCfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName = "rebac-authz-webhook-cert"
+	ctx := s.newContext(operatorCfg)
+
+	kubeconfig, err := clientcmd.Write(clientcmdapi.Config{
+		Clusters: map[string]*clientcmdapi.Cluster{
+			"webhook": {Server: "https://rebac-authz-webhook:9443/authz", CertificateAuthorityData: trustedCA},
+		},
+		Contexts:       map[string]*clientcmdapi.Context{"webhook": {Cluster: "webhook"}},
+		CurrentContext: "webhook",
+	})
+	s.Require().NoError(err)
+
+	kcpPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+		Name: "root-kcp-0", Namespace: ns, Labels: map[string]string{"app.kubernetes.io/name": "kcp"},
+	}}
+	cl := fake.NewClientBuilder().
+		WithScheme(s.scheme).
+		WithObjects(
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "rebac-authz-webhook-cert", Namespace: ns},
+				Data:       map[string][]byte{"tls.crt": tlsCrt, "ca.crt": caCrt},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "kcp-webhook-secret", Namespace: ns},
+				Data:       map[string][]byte{"kubeconfig": kubeconfig},
+			},
+			kcpPod,
+		).
+		WithInterceptorFuncs(interceptor.Funcs{
+			// The real client sets the kind of typed objects for apply patches; the fake one does not.
+			Patch: func(ctx context.Context, c ctrlruntimeclient.WithWatch, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
+				if secret, ok := obj.(*corev1.Secret); ok {
+					secret.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Secret"))
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).
+		Build()
+
+	sub := &DeploymentSubroutine{clientRuntime: cl, clientInfra: cl, cfgOperator: &operatorCfg}
+	return cl, sub, ctx
+}
+
+func (s *DeploymentProcessTestSuite) trustedWebhookCA(ctx context.Context, cl ctrlruntimeclient.Client, ns string) []byte {
+	secret := &corev1.Secret{}
+	s.Require().NoError(cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "kcp-webhook-secret", Namespace: ns}, secret))
+	kubeconfig, err := clientcmd.Load(secret.Data["kubeconfig"])
+	s.Require().NoError(err)
+	return kubeconfig.Clusters["webhook"].CertificateAuthorityData
+}
+
+func (s *DeploymentProcessTestSuite) Test_UpdateKcpWebhookSecret_SyncsNewCAAndRestartsKcp() {
+	ns := "platform-mesh-system"
+	cl, sub, ctx := s.newWebhookSecretFixture(ns, []byte("leaf"), []byte("new-ca"), []byte("old-ca"))
+	inst := &pmcorev1alpha1.PlatformMesh{ObjectMeta: metav1.ObjectMeta{Name: "platform-mesh", Namespace: ns}}
+
+	result, err := sub.updateKcpWebhookSecret(ctx, inst)
+
+	s.NoError(err)
+	s.True(result.IsContinue())
+	s.Zero(result.Requeue())
+	s.Equal([]byte("new-ca"), s.trustedWebhookCA(ctx, cl, ns))
+	err = cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "root-kcp-0", Namespace: ns}, &corev1.Pod{})
+	s.True(apierrors.IsNotFound(err), "kcp pods must restart to load the new CA")
+}
+
+func (s *DeploymentProcessTestSuite) Test_UpdateKcpWebhookSecret_RequeuesWhileCertificateIsSelfSigned() {
+	ns := "platform-mesh-system"
+	cl, sub, ctx := s.newWebhookSecretFixture(ns, []byte("self-signed"), []byte("self-signed"), []byte("self-signed"))
+	inst := &pmcorev1alpha1.PlatformMesh{ObjectMeta: metav1.ObjectMeta{Name: "platform-mesh", Namespace: ns}}
+
+	result, err := sub.updateKcpWebhookSecret(ctx, inst)
+
+	s.NoError(err)
+	s.True(result.IsContinue())
+	s.Equal(DefaultRequeueInterval, result.Requeue())
+	s.Equal([]byte("self-signed"), s.trustedWebhookCA(ctx, cl, ns))
+	s.NoError(cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "root-kcp-0", Namespace: ns}, &corev1.Pod{}), "kcp must not restart when the CA is unchanged")
+}
+
+func (s *DeploymentProcessTestSuite) Test_UpdateKcpWebhookSecret_RequeuesWhenCertificateSecretIsMissing() {
+	ns := "platform-mesh-system"
+	cl, sub, ctx := s.newWebhookSecretFixture(ns, nil, nil, []byte("old-ca"))
+	s.Require().NoError(cl.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "rebac-authz-webhook-cert", Namespace: ns}}))
+	inst := &pmcorev1alpha1.PlatformMesh{ObjectMeta: metav1.ObjectMeta{Name: "platform-mesh", Namespace: ns}}
+
+	result, err := sub.updateKcpWebhookSecret(ctx, inst)
+
+	s.NoError(err)
+	s.True(result.IsContinue())
+	s.Equal(DefaultRequeueInterval, result.Requeue())
+}
+
+func (s *DeploymentProcessTestSuite) Test_ManageAuthorizationWebhookSecrets_IssuesServingCertificateFromCA() {
+	ns := "platform-mesh-system"
+	cl, sub, ctx := s.newWebhookSecretFixture(ns, []byte("leaf"), []byte("ca"), []byte("ca"))
+	sub.workspaceDirectory = "../../manifests/k8s"
+	inst := &pmcorev1alpha1.PlatformMesh{ObjectMeta: metav1.ObjectMeta{Name: "platform-mesh", Namespace: ns}}
+
+	_, err := sub.manageAuthorizationWebhookSecrets(ctx, inst)
+	s.Require().NoError(err)
+
+	get := func(kind, name string) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "cert-manager.io", Version: "v1", Kind: kind})
+		s.Require().NoError(cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name, Namespace: ns}, obj))
+		return obj
+	}
+	field := func(obj *unstructured.Unstructured, path ...string) any {
+		value, _, _ := unstructured.NestedFieldNoCopy(obj.Object, path...)
+		return value
+	}
+
+	servingCert := get("Certificate", "rebac-authz-webhook-cert")
+	caIssuer := get("Issuer", field(servingCert, "spec", "issuerRef", "name").(string))
+	caCert := get("Certificate", "rebac-authz-webhook-ca")
+	selfSignedIssuer := get("Issuer", field(caCert, "spec", "issuerRef", "name").(string))
+
+	s.Equal(field(caCert, "spec", "secretName"), field(caIssuer, "spec", "ca", "secretName"))
+	s.Equal(true, field(caCert, "spec", "isCA"))
+	s.NotNil(field(selfSignedIssuer, "spec", "selfSigned"))
 }

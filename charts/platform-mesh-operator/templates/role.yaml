@@ -1,0 +1,74 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "common.entity.name" . }}
+rules:
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list","delete"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - core.platform-mesh.io
+  resources:
+  - platformmeshes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.platform-mesh.io
+  resources:
+  - platformmeshes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - core.platform-mesh.io
+  resources:
+  - platformmeshes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - providers.platform-mesh.io
+  resources:
+  - managedproviders
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - providers.platform-mesh.io
+  resources:
+  - managedproviders/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - providers.platform-mesh.io
+  resources:
+  - managedproviders/status
+  verbs:
+  - get
+  - patch
+  - update

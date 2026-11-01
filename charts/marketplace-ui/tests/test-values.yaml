@@ -1,0 +1,11 @@
+baseDomains:
+  - portal.example.com
+  - portal2.example.com
+
+trust:
+  portal:
+    baseDomains: "portal.example.com,portal2.example.com"
+    authDomain: https://auth.example.com
+    tokenUrl: https://auth.example.com/oauth2/token
+    loginAudience: 12345
+    oidcClientSecretName: portal

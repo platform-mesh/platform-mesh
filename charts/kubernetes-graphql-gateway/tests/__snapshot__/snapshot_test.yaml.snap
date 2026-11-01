@@ -1,0 +1,181 @@
+match the Snapshot:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: platform-mesh-kubernetes-graphql-gateway
+      name: platform-mesh-kubernetes-graphql-gateway
+      namespace: platform-mesh-system
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: platform-mesh-kubernetes-graphql-gateway
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+      template:
+        metadata:
+          labels:
+            app: platform-mesh-kubernetes-graphql-gateway
+            version: 1.0.0
+        spec:
+          containers:
+            - args:
+                - gateway
+                - --schema-handler=grpc
+                - --grpc-listener-address=platform-mesh-kubernetes-graphql-gateway-listener.platform-mesh-system.svc.cluster.local:50051
+                - --grpc-max-recv-msg-size=4194304
+              env:
+                - name: KUBECONFIG
+                  value: /app/kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/kubernetes-graphql-gateway:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8080
+                periodSeconds: 10
+              name: gateway
+              ports:
+                - containerPort: 8081
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8080
+                  name: service-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8080
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 1200Mi
+                requests:
+                  cpu: 250m
+                  memory: 1000Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8080
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /app/kubeconfig
+                  name: kubeconfig-volume
+          serviceAccountName: platform-mesh-kubernetes-graphql-gateway
+          volumes:
+            - name: kubeconfig-volume
+              secret:
+                secretName: kcp-root-kubeconfig
+  2: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: platform-mesh-kubernetes-graphql-gateway-listener
+      name: platform-mesh-kubernetes-graphql-gateway-listener
+      namespace: platform-mesh-system
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: platform-mesh-kubernetes-graphql-gateway-listener
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+      template:
+        metadata:
+          labels:
+            app: platform-mesh-kubernetes-graphql-gateway-listener
+            version: 1.0.0
+        spec:
+          containers:
+            - args:
+                - listener
+                - --schema-handler=grpc
+                - --grpc-listen-addr=:50051
+                - --grpc-max-send-msg-size=4194304
+                - --multicluster-runtime-provider=multi
+                - --kubeconfig=/app/kubeconfig/kubeconfig
+                - --apiexport-endpoint-slice-name=core.platform-mesh.io
+                - --workspace-schema-kubeconfig-override=/app/kubeconfig/kubeconfig
+                - --anchor-resource=true
+                - --reconciler-gvr=apibindings.v1alpha2.apis.kcp.io
+                - --additional-path-annotation-key=kcp.io/path
+                - --metrics-bind-address=:8091
+                - --enable-resource-controller=true
+                - --enable-clusteraccess-controller=true
+                - --single-kubeconfig=/app/single-kubeconfig/kubeconfig
+                - --resource-controller-providers=kcp
+                - --clusteraccess-controller-providers=single
+              env:
+                - name: KUBECONFIG
+                  value: /app/kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/kubernetes-graphql-gateway:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                periodSeconds: 10
+                tcpSocket:
+                  port: 8091
+              name: listener
+              ports:
+                - containerPort: 50051
+                  name: grpc
+                  protocol: TCP
+                - containerPort: 8091
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 3390
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 8090
+                  name: service-port
+                  protocol: TCP
+              readinessProbe:
+                periodSeconds: 10
+                tcpSocket:
+                  port: 8091
+              resources:
+                limits:
+                  memory: 600Mi
+                requests:
+                  cpu: 250m
+                  memory: 500Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 8091
+              volumeMounts:
+                - mountPath: /app/kubeconfig
+                  name: kubeconfig-volume
+                - mountPath: /app/single-kubeconfig
+                  name: single-kubeconfig-volume
+          serviceAccountName: platform-mesh-kubernetes-graphql-gateway
+          volumes:
+            - name: kubeconfig-volume
+              secret:
+                secretName: kcp-root-kubeconfig
+            - name: single-kubeconfig-volume
+              secret:
+                secretName: single-kubeconfig

@@ -1,0 +1,44 @@
+test sentry enabled (global):
+  1: |
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      name: RELEASE-NAME-test-chart-sentry
+      namespace: NAMESPACE
+    spec:
+      data:
+        - remoteRef:
+            conversionStrategy: Default
+            key: sentry/sentry-dsn
+            property: RELEASE-NAME-test-chart-sentry
+          secretKey: dsn
+      refreshInterval: 10m
+      secretStoreRef:
+        kind: SecretStore
+        name: environment-store
+      target:
+        creationPolicy: Owner
+        deletionPolicy: Retain
+        name: RELEASE-NAME-test-chart-sentry
+test sentry enabled (local):
+  1: |
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      name: RELEASE-NAME-test-chart-sentry
+      namespace: NAMESPACE
+    spec:
+      data:
+        - remoteRef:
+            conversionStrategy: Default
+            key: sentry/sentry-dsn
+            property: RELEASE-NAME-test-chart-sentry
+          secretKey: dsn
+      refreshInterval: 10m
+      secretStoreRef:
+        kind: SecretStore
+        name: environment-store
+      target:
+        creationPolicy: Owner
+        deletionPolicy: Retain
+        name: RELEASE-NAME-test-chart-sentry

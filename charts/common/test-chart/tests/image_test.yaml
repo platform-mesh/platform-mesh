@@ -1,0 +1,44 @@
+suite: image
+templates:
+  - deployment.yaml
+values:
+  - ../values.yaml
+chart:
+  namespace: default
+  appVersion: 0.1.0
+tests:
+  - it: renders registry/repository:tag from the chart values
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/your-org/your-image:0.1.0
+  - it: renders the overridden registry and repository
+    set:
+      image:
+        registry: internal.local:5000
+        repository: platform-mesh/my-svc
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: internal.local:5000/platform-mesh/my-svc:0.1.0
+  - it: prefers image.tag over the chart appVersion
+    set:
+      image:
+        registry: internal.local:5000
+        repository: platform-mesh/my-svc
+        tag: v9.9.9
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: internal.local:5000/platform-mesh/my-svc:v9.9.9
+  - it: digest replaces the tag and flips the separator to @
+    set:
+      image:
+        registry: internal.local:5000
+        repository: platform-mesh/my-svc
+        tag: v9.9.9
+        digest: sha256:abc123
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: internal.local:5000/platform-mesh/my-svc@sha256:abc123

@@ -1,0 +1,54 @@
+apiVersion: operator.kcp.io/v1alpha1
+kind: FrontProxy
+metadata:
+  name: {{.Values.kcp.frontProxy.name }}
+  namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
+spec:
+  replicas: {{ .Values.kcp.frontProxy.replicas }}
+  {{- if or .Values.kcp.auth.serviceAccount.enabled .Values.kcp.auth.oidc.enabled }}
+  auth:
+    {{- if .Values.kcp.auth.serviceAccount.enabled }}
+    serviceAccount:
+      enabled: true
+    {{- end }}
+    {{- if .Values.kcp.auth.oidc.enabled }}
+    {{- with .Values.kcp.auth.oidc }}
+    oidc:
+      enabled: true
+      issuerURL: {{ .issuerUrl }}
+      caFileRef:
+        name: {{ .caFileRef.name }}
+        key: {{ .caFileRef.key }}
+      clientID: {{ .clientID }}
+      groupsClaim: {{ .groupsClaim }}
+      usernameClaim: {{ .usernameClaim }}
+    {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with (include "kcp.image.block" .Values.kcp.image) }}{{ . | nindent 2 }}{{- end }}
+  additionalPathMappings:
+{{ toYaml .Values.kcp.frontProxy.additionalPathMappings | indent 4 }}
+  external:
+    # replace the hostname with the external DNS name for your kcp instance
+    hostname: {{ .Values.kcp.external.hostname }}
+    port: {{ .Values.kcp.external.port }}
+  rootShard:
+    ref:
+      name: root
+  serviceTemplate:
+    spec:
+      type: ClusterIP
+  {{- with .Values.kcp.frontProxy.clusterIP }}
+      clusterIP: {{ . }}
+  {{- end }}
+  {{- with .Values.kcp.frontProxy.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  deploymentTemplate:
+    spec:
+      template:
+        spec:
+          {{- include "common.hostAliases" $ | nindent 10 }}
+  extraArgs:
+{{ toYaml .Values.kcp.frontProxy.extraArgs | indent 4 }}

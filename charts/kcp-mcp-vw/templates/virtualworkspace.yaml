@@ -1,0 +1,102 @@
+# VirtualWorkspace CR — kcp-operator renders the Deployment and Service
+# (named mcp-vw-virtual-workspace, port 6443), mounts the serving
+# certificate, client and requestheader CAs, and generates the standard
+# apiserver arguments (including --kubeconfig for the secret below). Only
+# server-specific flags appear in extraArgs.
+#
+# Depends on the kcp-access-vw chart: each request fetches the caller's
+# workspace list from /services/access.
+apiVersion: operator.kcp.io/v1alpha1
+kind: VirtualWorkspace
+metadata:
+  name: mcp-vw
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kcp-mcp-vw.labels" . | nindent 4 }}
+spec:
+  # Singleton connected to the root shard.
+  target:
+    rootShardRef:
+      name: {{ .Values.kcp.rootShard }}
+
+  # Where clients reach this virtual workspace: the front-proxy's external
+  # hostname and port (routed via its additionalPathMappings).
+  external:
+    hostname: {{ .Values.external.hostname }}
+    port: {{ .Values.external.port }}
+
+  image:
+    repository: {{ include "common.image.name" . }}
+    tag: {{ include "common.image.tag" . | quote }}
+
+  command:
+    - /mcp-virtual-workspace
+    - serve
+
+  replicas: {{ .Values.replicas }}
+
+  # The identity the server impersonates callers from, minted by the
+  # Kubeconfig CR.
+  kubeconfigSecretRef:
+    name: mcp-vw-server-kubeconfig
+
+  extraArgs:
+    # The access virtual workspace, through the front-proxy. The server
+    # authenticates with its client certificate; the front-proxy turns it
+    # into X-Remote-* headers for access-vw.
+    - --access-url={{ include "kcp-mcp-vw.accessURL" . }}
+    # The front-proxy's serving certificate chains up to the root CA the
+    # operator mounts into every virtual workspace pod.
+    - --access-ca-file=/etc/kcp/tls/ca/root/tls.crt
+    - --access-cache-ttl={{ .Values.access.cacheTTL }}
+    {{- with .Values.toolsets }}
+    # Server-enforced toolset policy; unlisted toolsets are never registered.
+    - --toolsets={{ join "," . }}
+    {{- end }}
+    {{- if .Values.oidc.issuerURL }}
+    # Native bearer-token validation for clients that bypass the front-proxy.
+    - --oidc-issuer-url={{ .Values.oidc.issuerURL }}
+    - --oidc-client-id={{ .Values.oidc.clientID }}
+    - --oidc-username-claim={{ .Values.oidc.usernameClaim }}
+    # Quoted: prefixes conventionally end with ':' which YAML would
+    # otherwise parse as a mapping key.
+    - "--oidc-username-prefix={{ .Values.oidc.usernamePrefix }}"
+    {{- if .Values.oidc.caSecretName }}
+    - --oidc-ca-file=/etc/oidc-ca/ca.crt
+    {{- end }}
+    {{- end }}
+    {{- with .Values.oauth.authorizationServers }}
+    # RFC 9728 protected-resource discovery for MCP clients.
+    - --oauth-authorization-servers={{ join "," . }}
+    {{- end }}
+    {{- with .Values.oauth.resource }}
+    - --oauth-resource={{ . }}
+    {{- end }}
+    {{- with .Values.oauth.scopes }}
+    - --oauth-scopes={{ join "," . }}
+    {{- end }}
+
+  {{- if and .Values.oidc.issuerURL .Values.oidc.caSecretName }}
+  extraVolumes:
+    - name: oidc-ca
+      secret:
+        secretName: {{ .Values.oidc.caSecretName }}
+  extraVolumeMounts:
+    - name: oidc-ca
+      mountPath: /etc/oidc-ca
+      readOnly: true
+  {{- end }}
+
+  resources:
+    {{- toYaml .Values.resources | nindent 4 }}
+
+  {{- with .Values.hostAliases }}
+  deploymentTemplate:
+    spec:
+      template:
+        spec:
+          # --access-url and the minted kubeconfig address the front-proxy by
+          # its external hostname, so it has to resolve from inside the pod.
+          hostAliases:
+            {{- toYaml . | nindent 12 }}
+  {{- end }}

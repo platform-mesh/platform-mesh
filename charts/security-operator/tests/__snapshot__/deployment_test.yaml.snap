@@ -1,0 +1,1556 @@
+operator match the snapshot:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: RELEASE-NAME-security-operator
+    rules:
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - events
+          - secrets
+        verbs:
+          - '*'
+      - apiGroups:
+          - helm.toolkit.fluxcd.io
+        resources:
+          - helmreleases
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - delete
+          - update
+          - patch
+      - apiGroups:
+          - source.toolkit.fluxcd.io
+        resources:
+          - ocirepositories
+          - helmreleases
+        verbs:
+          - get
+          - list
+          - create
+          - update
+          - patch
+          - delete
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: RELEASE-NAME-security-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: RELEASE-NAME-security-operator
+    subjects:
+      - kind: ServiceAccount
+        name: RELEASE-NAME-security-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: v1
+    data:
+      coreModule.fga: |-
+        module core
+
+        type user
+
+        type role
+          relations
+            define assignee: [user,user:*]
+
+        type core_platform-mesh_io_account
+          relations
+            define parent: [core_platform-mesh_io_account]
+
+            define owner: [role#assignee] or owner from parent
+            define member: [role#assignee] or owner
+
+            define get: member
+            define update: member
+            define patch: member
+            define delete: owner
+
+            define create_core_platform-mesh_io_accounts: member
+            define list_core_platform-mesh_io_accounts: member
+            define watch_core_platform-mesh_io_accounts: member
+
+            # org and account specific
+            define watch: member
+
+            define create_core_platform-mesh_io_accountinfos: member
+            define list_core_platform-mesh_io_accountinfos: member
+            define watch_core_platform-mesh_io_accountinfos: member
+
+            define list_core_kcp_io_logicalclusters: member
+            define watch_core_kcp_io_logicalclusters: member
+
+            # IAM specific
+            define manage_iam_roles: owner
+            define get_iam_roles: member
+            define get_iam_users: member
+
+            # APIExport binding control
+            define bind_inherited: [apis_kcp_io_apiexport] or bind_inherited from parent
+            define bind: [apis_kcp_io_apiexport] or bind_inherited
+
+        type core_platform-mesh_io_accountinfo
+          relations
+            define parent: [core_platform-mesh_io_account]
+
+            define member: member from parent
+            define owner: owner from parent
+
+            define get: member
+            define watch: member
+
+            # IAM specific
+            define manage_iam_roles: owner
+            define get_iam_roles: member
+            define get_iam_users: member
+
+        type core_kcp_io_logicalcluster
+          relations
+            define parent: [core_platform-mesh_io_account]
+
+            define member: member from parent
+
+            define get: member
+            define watch: member
+    kind: ConfigMap
+    metadata:
+      name: RELEASE-NAME-security-operator-core-module
+  4: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-security-operator
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-security-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - fga
+                - --core-module-path=/data/coreModule.fga
+                - --user-claim=email
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --domain-ca-lookup
+                - --webhooks-enabled=true
+                - --webhooks-port=9443
+                - --webhooks-cert-dir=/certs
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: KEYCLOAK_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      key: client_secret
+                      name: security-operator-client-secret
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 9443
+                  name: webhook
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /keycloak-credentials
+                  name: keycloak-credentials
+                  readOnly: true
+                - mountPath: /data
+                  name: core-module
+                - mountPath: /certs
+                  name: webhook-certs
+                  readOnly: true
+          initContainers:
+            - args:
+                - init-container
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: bootstrap-keycloak-clients
+              resources: null
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts:
+                - mountPath: /config
+                  name: init-container-config
+                  readOnly: true
+                - mountPath: /secrets
+                  name: keycloak-password
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - configMap:
+                name: RELEASE-NAME-security-operator-init-container-config
+              name: init-container-config
+            - name: keycloak-password
+              secret:
+                items:
+                  - key: password
+                    path: keycloak-password
+                secretName: keycloak-admin
+            - name: external-api-server
+              secret:
+                secretName: kcp-kubeconfig
+            - name: keycloak-credentials
+              secret:
+                secretName: keycloak-admin
+            - configMap:
+                name: RELEASE-NAME-security-operator-core-module
+              name: core-module
+            - name: webhook-certs
+              secret:
+                secretName: RELEASE-NAME-security-operator-webhook-server-cert
+  5: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator-generator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-security-operator-generator
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-security-operator-generator
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - model-generator
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: kcp-kubeconfig
+  6: |
+    apiVersion: v1
+    data:
+      config.yaml: "keycloakBaseURL: \nkeycloakClientID: \"admin-cli\"\nkeycloakUser: \"keycloak-admin\"\npasswordFile: \"/secrets/keycloak-password\"\nclients:\n  - name: \"security-operator\"\n    secretRef:\n      name: \"security-operator-client-secret\"\n      namespace: \"platform-mesh-system\"\n  - name: \"iam-service\"\n    secretRef:\n      name: \"iam-client-secret\"\n      namespace: \"platform-mesh-system\"\n"
+    kind: ConfigMap
+    metadata:
+      name: RELEASE-NAME-security-operator-init-container-config
+      namespace: NAMESPACE
+  7: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator-initializer
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-security-operator-initializer
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-security-operator-initializer
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - initializer
+                - --core-module-path=/data/coreModule.fga
+                - --user-claim=email
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --domain-ca-lookup
+                - --test=myval
+                - --test2=myval
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /data
+                  name: core-module
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: kcp-initializer-kubeconfig
+            - configMap:
+                name: RELEASE-NAME-security-operator-core-module
+              name: core-module
+  8: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-security-operator-metrics
+    spec:
+      ports:
+        - name: metrics
+          port: 9090
+          protocol: TCP
+          targetPort: metrics
+      selector:
+        app: RELEASE-NAME-security-operator
+      type: ClusterIP
+  9: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: RELEASE-NAME-security-operator
+      namespace: NAMESPACE
+  10: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator-system
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-security-operator-system
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-security-operator-system
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - system
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: KEYCLOAK_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      key: client_secret
+                      name: security-operator-client-secret
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /keycloak-credentials
+                  name: keycloak-credentials
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: kcp-kubeconfig
+            - name: keycloak-credentials
+              secret:
+                secretName: keycloak-admin
+  11: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator-terminator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-security-operator-terminator
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-security-operator-terminator
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - terminator
+                - --core-module-path=/data/coreModule.fga
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /data
+                  name: core-module
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: kcp-terminator-kubeconfig
+            - configMap:
+                name: RELEASE-NAME-security-operator-core-module
+              name: core-module
+  12: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: RELEASE-NAME-security-operator-selfsigned-issuer
+    spec:
+      selfSigned: {}
+  13: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: RELEASE-NAME-security-operator-ca-cert
+    spec:
+      commonName: RELEASE-NAME-security-operator-ca
+      duration: 2160h
+      isCA: true
+      issuerRef:
+        kind: Issuer
+        name: RELEASE-NAME-security-operator-selfsigned-issuer
+      renewBefore: 720h
+      secretName: RELEASE-NAME-security-operator-ca-secret
+  14: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: RELEASE-NAME-security-operator-ca-issuer
+    spec:
+      ca:
+        secretName: RELEASE-NAME-security-operator-ca-secret
+  15: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: RELEASE-NAME-security-operator-serving-cert
+    spec:
+      dnsNames:
+        - RELEASE-NAME-security-operator-webhook.NAMESPACE.svc
+        - RELEASE-NAME-security-operator-webhook.NAMESPACE.svc.cluster.local
+      duration: 2160h
+      issuerRef:
+        kind: Issuer
+        name: RELEASE-NAME-security-operator-ca-issuer
+      renewBefore: 720h
+      secretName: RELEASE-NAME-security-operator-webhook-server-cert
+  16: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: RELEASE-NAME-security-operator-webhook
+      namespace: NAMESPACE
+    spec:
+      ports:
+        - port: 9443
+          protocol: TCP
+          targetPort: webhook
+      selector:
+        app: RELEASE-NAME-security-operator
+operator match the snapshot w. sentry:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: RELEASE-NAME-security-operator
+    rules:
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - events
+          - secrets
+        verbs:
+          - '*'
+      - apiGroups:
+          - helm.toolkit.fluxcd.io
+        resources:
+          - helmreleases
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - delete
+          - update
+          - patch
+      - apiGroups:
+          - source.toolkit.fluxcd.io
+        resources:
+          - ocirepositories
+          - helmreleases
+        verbs:
+          - get
+          - list
+          - create
+          - update
+          - patch
+          - delete
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: RELEASE-NAME-security-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: RELEASE-NAME-security-operator
+    subjects:
+      - kind: ServiceAccount
+        name: RELEASE-NAME-security-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: v1
+    data:
+      coreModule.fga: |-
+        module core
+
+        type user
+
+        type role
+          relations
+            define assignee: [user,user:*]
+
+        type core_platform-mesh_io_account
+          relations
+            define parent: [core_platform-mesh_io_account]
+
+            define owner: [role#assignee] or owner from parent
+            define member: [role#assignee] or owner
+
+            define get: member
+            define update: member
+            define patch: member
+            define delete: owner
+
+            define create_core_platform-mesh_io_accounts: member
+            define list_core_platform-mesh_io_accounts: member
+            define watch_core_platform-mesh_io_accounts: member
+
+            # org and account specific
+            define watch: member
+
+            define create_core_platform-mesh_io_accountinfos: member
+            define list_core_platform-mesh_io_accountinfos: member
+            define watch_core_platform-mesh_io_accountinfos: member
+
+            define list_core_kcp_io_logicalclusters: member
+            define watch_core_kcp_io_logicalclusters: member
+
+            # IAM specific
+            define manage_iam_roles: owner
+            define get_iam_roles: member
+            define get_iam_users: member
+
+            # APIExport binding control
+            define bind_inherited: [apis_kcp_io_apiexport] or bind_inherited from parent
+            define bind: [apis_kcp_io_apiexport] or bind_inherited
+
+        type core_platform-mesh_io_accountinfo
+          relations
+            define parent: [core_platform-mesh_io_account]
+
+            define member: member from parent
+            define owner: owner from parent
+
+            define get: member
+            define watch: member
+
+            # IAM specific
+            define manage_iam_roles: owner
+            define get_iam_roles: member
+            define get_iam_users: member
+
+        type core_kcp_io_logicalcluster
+          relations
+            define parent: [core_platform-mesh_io_account]
+
+            define member: member from parent
+
+            define get: member
+            define watch: member
+    kind: ConfigMap
+    metadata:
+      name: RELEASE-NAME-security-operator-core-module
+  4: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-security-operator
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-security-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - fga
+                - --core-module-path=/data/coreModule.fga
+                - --user-claim=email
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --domain-ca-lookup
+                - --webhooks-enabled=true
+                - --webhooks-port=9443
+                - --webhooks-cert-dir=/certs
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      key: dsn
+                      name: RELEASE-NAME-security-operator-sentry
+                - name: TEST_ENV
+                  value: test
+                - name: KEYCLOAK_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      key: client_secret
+                      name: security-operator-client-secret
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 9443
+                  name: webhook
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /keycloak-credentials
+                  name: keycloak-credentials
+                  readOnly: true
+                - mountPath: /data
+                  name: core-module
+                - mountPath: /certs
+                  name: webhook-certs
+                  readOnly: true
+                - mountPath: /etc/kcp-kubeconfig
+                  name: kcp-kubeconfig
+                  readOnly: true
+          initContainers:
+            - args:
+                - init-container
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: bootstrap-keycloak-clients
+              resources: null
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts:
+                - mountPath: /config
+                  name: init-container-config
+                  readOnly: true
+                - mountPath: /secrets
+                  name: keycloak-password
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - configMap:
+                name: RELEASE-NAME-security-operator-init-container-config
+              name: init-container-config
+            - name: keycloak-password
+              secret:
+                items:
+                  - key: password
+                    path: keycloak-password
+                secretName: keycloak-admin
+            - name: keycloak-credentials
+              secret:
+                secretName: keycloak-admin
+            - configMap:
+                name: RELEASE-NAME-security-operator-core-module
+              name: core-module
+            - name: webhook-certs
+              secret:
+                secretName: RELEASE-NAME-security-operator-webhook-server-cert
+            - name: kcp-kubeconfig
+              secret:
+                secretName: kcp-kubeconfig
+  5: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator-generator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-security-operator-generator
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-security-operator-generator
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - model-generator
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      key: dsn
+                      name: RELEASE-NAME-security-operator-sentry
+                - name: TEST_ENV
+                  value: test
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /etc/kcp-kubeconfig
+                  name: kcp-kubeconfig
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-kubeconfig
+              secret:
+                secretName: kcp-kubeconfig
+  6: |
+    apiVersion: v1
+    data:
+      config.yaml: "keycloakBaseURL: \nkeycloakClientID: \"admin-cli\"\nkeycloakUser: \"keycloak-admin\"\npasswordFile: \"/secrets/keycloak-password\"\nclients:\n  - name: \"security-operator\"\n    secretRef:\n      name: \"security-operator-client-secret\"\n      namespace: \"platform-mesh-system\"\n  - name: \"iam-service\"\n    secretRef:\n      name: \"iam-client-secret\"\n      namespace: \"platform-mesh-system\"\n"
+    kind: ConfigMap
+    metadata:
+      name: RELEASE-NAME-security-operator-init-container-config
+      namespace: NAMESPACE
+  7: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator-initializer
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-security-operator-initializer
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-security-operator-initializer
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - initializer
+                - --core-module-path=/data/coreModule.fga
+                - --user-claim=email
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --domain-ca-lookup
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      key: dsn
+                      name: RELEASE-NAME-security-operator-sentry
+                - name: TEST_ENV
+                  value: test
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /etc/kcp-kubeconfig
+                  name: kcp-kubeconfig
+                  readOnly: true
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /data
+                  name: core-module
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-kubeconfig
+              secret:
+                secretName: kcp-kubeconfig
+            - name: external-api-server
+              secret:
+                secretName: security-initializer-kubeconfig
+            - configMap:
+                name: RELEASE-NAME-security-operator-core-module
+              name: core-module
+  8: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-security-operator-metrics
+    spec:
+      ports:
+        - name: metrics
+          port: 9090
+          protocol: TCP
+          targetPort: metrics
+      selector:
+        app: RELEASE-NAME-security-operator
+      type: ClusterIP
+  9: |
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      name: RELEASE-NAME-security-operator-sentry
+      namespace: NAMESPACE
+    spec:
+      data:
+        - remoteRef:
+            conversionStrategy: Default
+            key: sentry/sentry-dsn
+            property: RELEASE-NAME-security-operator-sentry
+          secretKey: dsn
+      refreshInterval: 10m
+      secretStoreRef:
+        kind: SecretStore
+        name: environment-store
+      target:
+        creationPolicy: Owner
+        deletionPolicy: Retain
+        name: RELEASE-NAME-security-operator-sentry
+  10: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: RELEASE-NAME-security-operator
+      namespace: NAMESPACE
+  11: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator-system
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-security-operator-system
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-security-operator-system
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - system
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      key: dsn
+                      name: RELEASE-NAME-security-operator-sentry
+                - name: TEST_ENV
+                  value: test
+                - name: KEYCLOAK_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      key: client_secret
+                      name: security-operator-client-secret
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /etc/kcp-kubeconfig
+                  name: kcp-kubeconfig
+                  readOnly: true
+                - mountPath: /keycloak-credentials
+                  name: keycloak-credentials
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-kubeconfig
+              secret:
+                secretName: kcp-kubeconfig
+            - name: keycloak-credentials
+              secret:
+                secretName: keycloak-admin
+  12: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-security-operator-terminator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-security-operator-terminator
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-security-operator-terminator
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - terminator
+                - --core-module-path=/data/coreModule.fga
+                - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      key: dsn
+                      name: RELEASE-NAME-security-operator-sentry
+                - name: TEST_ENV
+                  value: test
+              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-security-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /etc/kcp-kubeconfig
+                  name: kcp-kubeconfig
+                  readOnly: true
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /data
+                  name: core-module
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-security-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-kubeconfig
+              secret:
+                secretName: kcp-kubeconfig
+            - name: external-api-server
+              secret:
+                secretName: security-terminator-kubeconfig
+            - configMap:
+                name: RELEASE-NAME-security-operator-core-module
+              name: core-module
+  13: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: RELEASE-NAME-security-operator-selfsigned-issuer
+    spec:
+      selfSigned: {}
+  14: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: RELEASE-NAME-security-operator-ca-cert
+    spec:
+      commonName: RELEASE-NAME-security-operator-ca
+      duration: 2160h
+      isCA: true
+      issuerRef:
+        kind: Issuer
+        name: RELEASE-NAME-security-operator-selfsigned-issuer
+      renewBefore: 720h
+      secretName: RELEASE-NAME-security-operator-ca-secret
+  15: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: RELEASE-NAME-security-operator-ca-issuer
+    spec:
+      ca:
+        secretName: RELEASE-NAME-security-operator-ca-secret
+  16: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: RELEASE-NAME-security-operator-serving-cert
+    spec:
+      dnsNames:
+        - RELEASE-NAME-security-operator-webhook.NAMESPACE.svc
+        - RELEASE-NAME-security-operator-webhook.NAMESPACE.svc.cluster.local
+      duration: 2160h
+      issuerRef:
+        kind: Issuer
+        name: RELEASE-NAME-security-operator-ca-issuer
+      renewBefore: 720h
+      secretName: RELEASE-NAME-security-operator-webhook-server-cert
+  17: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: RELEASE-NAME-security-operator-webhook
+      namespace: NAMESPACE
+    spec:
+      ports:
+        - port: 9443
+          protocol: TCP
+          targetPort: webhook
+      selector:
+        app: RELEASE-NAME-security-operator

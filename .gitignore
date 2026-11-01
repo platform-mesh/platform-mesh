@@ -57,4 +57,22 @@ debug
 
 # Task context (if using claude code delegation)
 task-context/
-cmd/release/release
+# Helm charts and tests (imported from helm-charts)
+oci/
+*.tgz
+# Chart dependencies are file:// references resolved at test/packaging time
+# (helm dependency update); nothing vendored is committed.
+charts/*/Chart.lock
+charts/*/charts/
+charts/common/test-chart/Chart.lock
+charts/common/test-chart/charts/
+*.webm
+*.pid
+tests/test-results/
+tests/node_modules/
+tests/*.png
+*.kubeconfig
+ocm/.ocmconfig
+/runtime-artifacts
+docs/deployment/migration-0.3/kcp-exports
+ocm/.generated/

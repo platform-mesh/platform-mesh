@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  labels:
+    app: {{ include "common.entity.name" . }}
+spec:
+  {{ include "common.deploymentBasics" . | indent 2 }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+    spec:
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+      {{ include "common.hostAliases" $ | nindent 6 }}
+      {{- with .Values.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        env:
+        - name: HTTP_PROTOCOL
+          value: {{ .Values.http.protocol }}
+        {{- with .Values.auth.default }}
+        - name: DISCOVERY_ENDPOINT
+          value: {{ .discoveryUrl }}
+        - name: OIDC_CLIENT_ID_DEFAULT
+          value: {{ .clientId }}
+        - name: BASE_DOMAINS_DEFAULT
+          value: {{ .baseDomain }}
+        {{- end }}
+        {{- if .Values.developmentLandcsape }}
+        - name: DEVELOPMENT_INSTANCE
+          value: "{{ .Values.developmentLandcsape }}"
+        {{- end }}
+        {{- if .Values.featureToggles }}
+        - name: FEATURE_TOGGLES
+          value: "{{ .Values.featureToggles }}"
+        {{- end }}
+        {{- if .Values.uiOptions }}
+        - name: UI_OPTIONS
+          value: "{{ .Values.uiOptions }}"
+        {{- end }}
+        - name: CONTENT_CONFIGURATION_VALIDATOR_API_URL
+          value: "{{ .Values.validation.protocol }}://{{ .Values.validation.service }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.validation.port }}{{ .Values.validation.path }}"
+        - name: PORT
+          value: "{{ include "common.getKeyValue" (dict "Values" .Values "key" "port") }}"
+        - name: REGION
+          value: {{ .Values.region }}
+        - name: IMAGE_TAG
+          value: "{{ .Chart.AppVersion }}"
+        - name: IMAGE_NAME
+          value: "{{ include "common.image.name" . }}"
+        {{- if .Values.cookieDomain }}
+        - name: COOKIE_DOMAIN
+          value: {{ .Values.cookieDomain }}
+        {{- end }}
+        {{- if .Values.frontendPort }}
+        - name: FRONTEND_PORT
+          value: "{{ .Values.frontendPort }}"
+        {{- end }}
+        {{- if .Values.environment }}
+        - name: ENVIRONMENT
+          value: "{{ .Values.environment }}"
+        {{- end }}
+        {{- if .Values.validWebcomponentUrls }}
+        - name: VALID_WEBCOMPONENT_URLS
+          value: '{{ .Values.validWebcomponentUrls }}'
+        {{- end }}
+        {{ range .Values.extraEnvVars }}
+        - name: {{ .name }}
+          value: {{ .value | toJson }}
+        {{ end }}
+        {{- if .Values.kcp.url }}
+        - name: KCP_URL
+          value: {{ .Values.kcp.url | quote }}
+        {{- end }}
+        {{- if .Values.kubeconfigSecret }}
+        - name: KUBECONFIG
+          value: /kubeconfig/kubeconfig
+        {{- end }}
+        {{- if .Values.kcp.kubeconfigSecret }}
+        - name: KUBECONFIG_KCP
+          value: /kcp-kubeconfig/kubeconfig
+        {{- end }}
+        ports:
+          {{- include "common.ports" . | nindent 10 }}
+        volumeMounts:
+        {{- include "common.extraVolumeMounts" . | nindent 8 }}
+        {{- with .Values.kubeconfigSecret }}
+        - name: kubeconfig
+          mountPath: /kubeconfig
+        {{- end }}
+        {{- with .Values.kcp.kubeconfigSecret }}
+        - name: kcp-kubeconfig
+          mountPath: /kcp-kubeconfig
+        {{- end }}
+      volumes:
+      {{- include "common.extraVolumes" . | nindent 8 }}
+        {{- with .Values.kubeconfigSecret }}
+        - name: kubeconfig
+          secret:
+            secretName: {{ . }}
+        {{- end }}
+        {{- with .Values.kcp.kubeconfigSecret }}
+        - name: kcp-kubeconfig
+          secret:
+            secretName: {{ . }}
+        {{- end }}

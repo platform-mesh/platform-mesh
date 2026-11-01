@@ -1,0 +1,32 @@
+{{- if .Values.dex.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dex
+  namespace: {{ .Release.Namespace }}
+data:
+  config.yaml: |
+    issuer: {{ .Values.dex.issuer | quote }}
+    storage:
+      type: memory
+    web:
+      http: 0.0.0.0:{{ .Values.dex.service.port }}
+    oauth2:
+      skipApprovalScreen: true
+    enablePasswordDB: true
+    staticPasswords:
+    {{- range .Values.dex.staticPasswords }}
+    - email: {{ .email | quote }}
+      hash: {{ .hash | quote }}
+      username: {{ .username | quote }}
+      userID: {{ .userID | quote }}
+    {{- end }}
+    staticClients:
+    - id: {{ .Values.dex.staticClient.id | quote }}
+      secret: {{ .Values.dex.staticClient.secret | quote }}
+      name: {{ .Values.dex.staticClient.name | quote }}
+      redirectURIs:
+      {{- range .Values.dex.staticClient.redirectURIs }}
+      - {{ . | quote }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+spec:
+  revisionHistoryLimit: {{ include "common.getKeyValue" (dict "Values" .Values "key" "deployment.revisionHistoryLimit") }}
+  selector:
+    matchLabels:
+      {{- include "common.labelMatcher" . | indent 6 }}
+  replicas: {{ .Values.deployment.replicas }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+        {{- with ((.Values.deployment).specTemplate).labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- with ((.Values.deployment).specTemplate).annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "common.imagePullSecret" . | indent 6 }}
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        ports:
+          - name: vws
+            containerPort: {{ .Values.service.port }}
+            protocol: TCP
+        args:
+          - start
+          - --tls-cert-file=/certs/tls.crt
+          - --tls-private-key-file=/certs/tls.key
+          - --kubeconfig=/api-kubeconfig/kubeconfig
+          - --bind-address=0.0.0.0
+          - --authentication-kubeconfig=/api-authentication-kubeconfig/kubeconfig
+          - --authentication-skip-lookup
+          - --client-ca-file=/client-ca/tls.crt
+          - --requestheader-client-ca-file=/requestheader-client-ca/tls.crt
+          - --requestheader-username-headers=X-Remote-User
+          - --requestheader-group-headers=X-Remote-Group
+          - --requestheader-extra-headers-prefix=X-Remote-Extra-
+          {{- with .Values.service.port }}
+          - --secure-port={{ . }}
+          {{- end }}
+          {{- with .Values.deployment.entityLabel }}
+          - --entity-label={{ . }}
+          {{- end }}
+          {{- with .Values.deployment.contentForLabel }}
+          - --content-for-label={{ . }}
+          {{- end }}
+          {{- with .Values.deployment.serverUrl }}
+          - --server-url={{ . }}
+          {{- end }}
+          {{- with .Values.deployment.resourceSchemaName }}
+          - --resource-schema-name={{ . }}
+          {{- end }}
+          {{- with .Values.deployment.resourceSchemaWorkspace }}
+          - --resource-schema-workspace={{ . }}
+          {{- end }}
+          {{- with .Values.deployment.resourceSchemaExportName }}
+          - --resource-apiexport-endpointslice-name={{ . }}
+          {{- end }}
+          {{- with .Values.deployment.mainEntityName }}
+          - --main-entity-name={{ . }}
+          {{- end }}
+          {{- with .Values.deployment.accountEntityName }}
+          - --account-entity-name={{ . }}
+          {{- end }}
+        volumeMounts:
+          {{- include "common.extraVolumeMounts" . | nindent 8 }}
+        - name: external-api-server
+          mountPath: /api-kubeconfig
+        - name: authentication
+          mountPath: /api-authentication-kubeconfig
+        - name: client-ca-secret
+          mountPath: /client-ca
+        - name: vws-cert
+          mountPath: /certs
+        - name: requestheader-client-ca
+          mountPath: /requestheader-client-ca
+      {{ include "common.hostAliases" . | nindent 6 }}
+      volumes:
+        {{- include "common.extraVolumes" . | nindent 8 }}
+        - name: external-api-server
+          secret:
+            secretName: {{ .Values.kubeconfigSecretName }}
+        - name: authentication
+          secret:
+            secretName: {{ .Values.authenticationKubeconfigSecretName }}
+        - name: client-ca-secret
+          secret:
+            secretName: {{ .Values.clientCASecretName }}
+        - name: vws-cert
+          secret:
+            secretName: {{ .Values.cert.secretName }}
+        - name: requestheader-client-ca
+          secret:
+            secretName: {{ .Values.requestHeaderClientCASecretName }}

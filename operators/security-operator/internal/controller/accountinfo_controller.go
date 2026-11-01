@@ -65,14 +65,14 @@ func (r *AccountInfoReconciler) Reconcile(ctx context.Context, req mcreconcile.R
 	return result, err
 }
 
-func (r *AccountInfoReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+func (r *AccountInfoReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, engageOpts mcbuilder.EngageOptions, evp ...predicate.Predicate) error {
 	opts := controller.TypedOptions[mcreconcile.Request]{
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 	}
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("accountinfo").
-		For(&pmcorev1alpha1.AccountInfo{}).
+		For(&pmcorev1alpha1.AccountInfo{}, engageOpts).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

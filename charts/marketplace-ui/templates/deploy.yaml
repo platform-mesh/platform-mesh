@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "common.entity.name" . }}
+spec:
+  strategy:
+    rollingUpdate:
+      maxSurge: {{ .Values.deployment.maxSurge }}
+      maxUnavailable: {{ .Values.deployment.maxUnavailable }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: {{ include "common.entity.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "common.entity.name" . }}
+    spec:
+      serviceAccountName: {{ include "common.entity.name" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadyness" . | indent 8 }}
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        ports:
+          - name: http
+            containerPort: 8080
+        volumeMounts:
+          - name: tmp-volume
+            mountPath: /var/cache/nginx
+            readOnly: false
+          - name: run-volume
+            mountPath: /var/run
+            readOnly: false
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+        - name: run-volume
+          emptyDir: {}

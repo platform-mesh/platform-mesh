@@ -49,10 +49,10 @@ permissions: {} # Default-deny at workflow level; the job elevates what it needs
 
 env:
   REGISTRY_TOKEN: ${{ secrets.registryToken || secrets.GITHUB_TOKEN }}
-  # Per-repo registry (ghcr.io/<owner>/<repo>) — where this monorepo's image-ocm
-  # job publishes the OCM component version. Upstream uses ghcr.io/<owner>.
-  IMAGE_REPO: ${{ format('ghcr.io/{0}', github.repository) }}
-  COMPONENT: ${{ inputs.componentName || format('github.com/{0}/images/{1}', github.repository_owner, github.event.repository.name) }}
+  # OCM repository the publish workflow publishes to (org root, the
+  # same repository the Platform Mesh aggregate and its consumers use).
+  IMAGE_REPO: ${{ format('ghcr.io/{0}', github.repository_owner) }}
+  COMPONENT: ${{ inputs.componentName || format('github.com/platform-mesh/images/{0}', github.event.repository.name) }}
 
 jobs:
   scan-sbom:
@@ -119,7 +119,7 @@ jobs:
         # Code scanning upload only works on public repos (or private repos with
         # GitHub Advanced Security), so gate it on the repo being public.
         if: hashFiles('trivy.sarif') != '' && github.event.repository.private == false
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: 'trivy.sarif'
           category: 'trivy-sbom-release-scan'

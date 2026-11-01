@@ -1,0 +1,4964 @@
+Gateway API enabled:
+  1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: ""
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: localhost
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.localhost
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.localhost
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.localhost
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      name: kubeconfig-kcp-admin
+      namespace: platform-mesh-system
+    spec:
+      groups:
+        - system:kcp:admin
+      secretRef:
+        name: kubeconfig-kcp-admin
+      target:
+        frontProxyRef:
+          name: frontproxy
+      username: kcp-admin
+      validity: 8766h
+  3: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: kcp-cluster-admin-client-cert
+      namespace: platform-mesh-system
+    spec:
+      commonName: cluster-admin
+      issuerRef:
+        name: root-client-ca
+      privateKey:
+        algorithm: RSA
+        size: 2048
+      secretName: kcp-cluster-admin-client-cert
+      subject:
+        organizations:
+          - system:kcp:admin
+      usages:
+        - client auth
+  4: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-cache
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  5: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: CacheServer
+    metadata:
+      name: cache-server
+      namespace: platform-mesh-system
+    spec:
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      etcd:
+        endpoints:
+          - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+  6: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: FrontProxy
+    metadata:
+      name: frontproxy
+      namespace: platform-mesh-system
+    spec:
+      additionalPathMappings:
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/contentconfigurations
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      auth:
+        serviceAccount:
+          enabled: true
+      deploymentTemplate:
+        spec:
+          template:
+            spec: null
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      serviceTemplate:
+        spec:
+          type: ClusterIP
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: selfsigned
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  8: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  9: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: RootShard
+    metadata:
+      name: root
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - root-kcp
+              - root-kcp.platform-mesh-system
+              - root-kcp.platform-mesh-system.svc.cluster.local
+              - root.kcp.localhost
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      shardBaseURL: https://root.kcp.localhost:8443/
+  10: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-root-shard-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - root.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-root
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: root-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  11: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-nereus
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  12: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: nereus
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - nereus-shard-kcp
+              - nereus-shard-kcp.platform-mesh-system
+              - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
+              - nereus.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://nereus.kcp.localhost:8443/
+  13: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-nereus-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - nereus.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-nereus
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: nereus-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  14: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-triton
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  15: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: triton
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - triton-shard-kcp
+              - triton-shard-kcp.platform-mesh-system
+              - triton-shard-kcp.platform-mesh-system.svc.cluster.local
+              - triton.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://triton.kcp.localhost:8443/
+  16: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-triton-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - triton.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-triton
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: triton-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  17: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-front-proxy-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: frontproxy-front-proxy
+              namespace: platform-mesh-system
+              port: 8443
+  18: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keycloak
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: keycloak
+              namespace: platform-mesh-system
+              port: 80
+          matches:
+            - path:
+                type: PathPrefix
+                value: /keycloak
+Istio disabled:
+  1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: ""
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: localhost
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.localhost
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.localhost
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.localhost
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      name: kubeconfig-kcp-admin
+      namespace: platform-mesh-system
+    spec:
+      groups:
+        - system:kcp:admin
+      secretRef:
+        name: kubeconfig-kcp-admin
+      target:
+        frontProxyRef:
+          name: frontproxy
+      username: kcp-admin
+      validity: 8766h
+  3: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: kcp-cluster-admin-client-cert
+      namespace: platform-mesh-system
+    spec:
+      commonName: cluster-admin
+      issuerRef:
+        name: root-client-ca
+      privateKey:
+        algorithm: RSA
+        size: 2048
+      secretName: kcp-cluster-admin-client-cert
+      subject:
+        organizations:
+          - system:kcp:admin
+      usages:
+        - client auth
+  4: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-cache
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  5: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: CacheServer
+    metadata:
+      name: cache-server
+      namespace: platform-mesh-system
+    spec:
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      etcd:
+        endpoints:
+          - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+  6: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: FrontProxy
+    metadata:
+      name: frontproxy
+      namespace: platform-mesh-system
+    spec:
+      additionalPathMappings:
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/contentconfigurations
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      auth:
+        serviceAccount:
+          enabled: true
+      deploymentTemplate:
+        spec:
+          template:
+            spec: null
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      serviceTemplate:
+        spec:
+          type: ClusterIP
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: selfsigned
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  8: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  9: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: RootShard
+    metadata:
+      name: root
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - root-kcp
+              - root-kcp.platform-mesh-system
+              - root-kcp.platform-mesh-system.svc.cluster.local
+              - root.kcp.localhost
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      shardBaseURL: https://root.kcp.localhost:8443/
+  10: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-root-shard-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - root.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-root
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: root-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  11: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-nereus
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  12: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: nereus
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - nereus-shard-kcp
+              - nereus-shard-kcp.platform-mesh-system
+              - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
+              - nereus.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://nereus.kcp.localhost:8443/
+  13: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-nereus-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - nereus.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-nereus
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: nereus-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  14: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-triton
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  15: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: triton
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - triton-shard-kcp
+              - triton-shard-kcp.platform-mesh-system
+              - triton-shard-kcp.platform-mesh-system.svc.cluster.local
+              - triton.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://triton.kcp.localhost:8443/
+  16: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-triton-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - triton.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-triton
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: triton-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  17: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-front-proxy-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: frontproxy-front-proxy
+              namespace: platform-mesh-system
+              port: 8443
+  18: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keycloak
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: keycloak
+              namespace: platform-mesh-system
+              port: 80
+          matches:
+            - path:
+                type: PathPrefix
+                value: /keycloak
+Istio enabled:
+  1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: ""
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: localhost
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.localhost
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.localhost
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.localhost
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      name: kubeconfig-kcp-admin
+      namespace: platform-mesh-system
+    spec:
+      groups:
+        - system:kcp:admin
+      secretRef:
+        name: kubeconfig-kcp-admin
+      target:
+        frontProxyRef:
+          name: frontproxy
+      username: kcp-admin
+      validity: 8766h
+  3: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: kcp-cluster-admin-client-cert
+      namespace: platform-mesh-system
+    spec:
+      commonName: cluster-admin
+      issuerRef:
+        name: root-client-ca
+      privateKey:
+        algorithm: RSA
+        size: 2048
+      secretName: kcp-cluster-admin-client-cert
+      subject:
+        organizations:
+          - system:kcp:admin
+      usages:
+        - client auth
+  4: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-cache
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  5: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: CacheServer
+    metadata:
+      name: cache-server
+      namespace: platform-mesh-system
+    spec:
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      etcd:
+        endpoints:
+          - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+  6: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: FrontProxy
+    metadata:
+      name: frontproxy
+      namespace: platform-mesh-system
+    spec:
+      additionalPathMappings:
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/contentconfigurations
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      auth:
+        serviceAccount:
+          enabled: true
+      deploymentTemplate:
+        spec:
+          template:
+            spec: null
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      serviceTemplate:
+        spec:
+          type: ClusterIP
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: selfsigned
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  8: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  9: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: RootShard
+    metadata:
+      name: root
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - root-kcp
+              - root-kcp.platform-mesh-system
+              - root-kcp.platform-mesh-system.svc.cluster.local
+              - root.kcp.localhost
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      shardBaseURL: https://root.kcp.localhost:8443/
+  10: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-root-shard-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - root.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-root
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: root-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  11: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-nereus
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  12: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: nereus
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - nereus-shard-kcp
+              - nereus-shard-kcp.platform-mesh-system
+              - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
+              - nereus.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://nereus.kcp.localhost:8443/
+  13: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-nereus-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - nereus.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-nereus
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: nereus-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  14: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-triton
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  15: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: triton
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - triton-shard-kcp
+              - triton-shard-kcp.platform-mesh-system
+              - triton-shard-kcp.platform-mesh-system.svc.cluster.local
+              - triton.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://triton.kcp.localhost:8443/
+  16: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-triton-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - triton.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-triton
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: triton-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  17: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-front-proxy-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: frontproxy-front-proxy
+              namespace: platform-mesh-system
+              port: 8443
+  18: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keycloak
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: keycloak
+              namespace: platform-mesh-system
+              port: 80
+          matches:
+            - path:
+                type: PathPrefix
+                value: /keycloak
+configure etcd backup store:
+  1: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+        store:
+          container: etcd-bucket
+          endpointOverride: http://localstack.default:4566
+          prefix: etcd-test
+          provider: S3
+          secretRef:
+            name: etcd-backup-aws
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: RootShard
+    metadata:
+      name: root
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - root-kcp
+              - root-kcp.platform-mesh-system
+              - root-kcp.platform-mesh-system.svc.cluster.local
+              - root.kcp.localhost
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      shardBaseURL: https://root.kcp.localhost:8443/
+  3: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-root-shard-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - root.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-root
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: root-kcp
+              namespace: platform-mesh-system
+              port: 6443
+configure frontproxy resources:
+  1: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: FrontProxy
+    metadata:
+      name: frontproxy
+      namespace: platform-mesh-system
+    spec:
+      additionalPathMappings:
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/contentconfigurations
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      auth:
+        serviceAccount:
+          enabled: true
+      deploymentTemplate:
+        spec:
+          template:
+            spec: null
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true
+      replicas: 1
+      resources:
+        limits:
+          cpu: 500m
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      rootShard:
+        ref:
+          name: root
+      serviceTemplate:
+        spec:
+          type: ClusterIP
+configure rootshard resources:
+  1: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: RootShard
+    metadata:
+      name: root
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - root-kcp
+              - root-kcp.platform-mesh-system
+              - root-kcp.platform-mesh-system.svc.cluster.local
+              - root.kcp.localhost
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+        requests:
+          cpu: 200m
+          memory: 256Mi
+      shardBaseURL: https://root.kcp.localhost:8443/
+  3: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-root-shard-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - root.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-root
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: root-kcp
+              namespace: platform-mesh-system
+              port: 6443
+match snapshots:
+  1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: ""
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: localhost
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.localhost
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.localhost
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.localhost
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      name: kubeconfig-kcp-admin
+      namespace: platform-mesh-system
+    spec:
+      groups:
+        - system:kcp:admin
+      secretRef:
+        name: kubeconfig-kcp-admin
+      target:
+        frontProxyRef:
+          name: frontproxy
+      username: kcp-admin
+      validity: 8766h
+  3: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: kcp-cluster-admin-client-cert
+      namespace: platform-mesh-system
+    spec:
+      commonName: cluster-admin
+      issuerRef:
+        name: root-client-ca
+      privateKey:
+        algorithm: RSA
+        size: 2048
+      secretName: kcp-cluster-admin-client-cert
+      subject:
+        organizations:
+          - system:kcp:admin
+      usages:
+        - client auth
+  4: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-cache
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  5: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: CacheServer
+    metadata:
+      name: cache-server
+      namespace: platform-mesh-system
+    spec:
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      etcd:
+        endpoints:
+          - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+      image:
+        tag: 0.0.0
+  6: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: FrontProxy
+    metadata:
+      name: frontproxy
+      namespace: platform-mesh-system
+    spec:
+      additionalPathMappings:
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/contentconfigurations
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      auth:
+        serviceAccount:
+          enabled: true
+      deploymentTemplate:
+        spec:
+          template:
+            spec: null
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true
+      image:
+        tag: 0.0.0
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      serviceTemplate:
+        spec:
+          type: ClusterIP
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: selfsigned
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  8: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  9: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: RootShard
+    metadata:
+      name: root
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - root-kcp
+              - root-kcp.platform-mesh-system
+              - root-kcp.platform-mesh-system.svc.cluster.local
+              - root.kcp.localhost
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        tag: 0.0.0
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+        image:
+          tag: 0.0.0
+      replicas: 1
+      shardBaseURL: https://root.kcp.localhost:8443/
+  10: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-root-shard-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - root.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-root
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: root-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  11: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-nereus
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  12: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: nereus
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - nereus-shard-kcp
+              - nereus-shard-kcp.platform-mesh-system
+              - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
+              - nereus.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        tag: 0.0.0
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+        image:
+          tag: 0.0.0
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://nereus.kcp.localhost:8443/
+  13: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-nereus-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - nereus.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-nereus
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: nereus-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  14: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-triton
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  15: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: triton
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - triton-shard-kcp
+              - triton-shard-kcp.platform-mesh-system
+              - triton-shard-kcp.platform-mesh-system.svc.cluster.local
+              - triton.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        tag: 0.0.0
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+        image:
+          tag: 0.0.0
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://triton.kcp.localhost:8443/
+  16: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-triton-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - triton.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-triton
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: triton-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  17: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-front-proxy-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: frontproxy-front-proxy
+              namespace: platform-mesh-system
+              port: 8443
+  18: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keycloak
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: keycloak
+              namespace: platform-mesh-system
+              port: 80
+          matches:
+            - path:
+                type: PathPrefix
+                value: /keycloak
+match snapshots w. hostAliases enabled:
+  1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: ""
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: localhost
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.localhost
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.localhost
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.localhost
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      name: kubeconfig-kcp-admin
+      namespace: platform-mesh-system
+    spec:
+      groups:
+        - system:kcp:admin
+      secretRef:
+        name: kubeconfig-kcp-admin
+      target:
+        frontProxyRef:
+          name: frontproxy
+      username: kcp-admin
+      validity: 8766h
+  3: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: kcp-cluster-admin-client-cert
+      namespace: platform-mesh-system
+    spec:
+      commonName: cluster-admin
+      issuerRef:
+        name: root-client-ca
+      privateKey:
+        algorithm: RSA
+        size: 2048
+      secretName: kcp-cluster-admin-client-cert
+      subject:
+        organizations:
+          - system:kcp:admin
+      usages:
+        - client auth
+  4: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-cache
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  5: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: CacheServer
+    metadata:
+      name: cache-server
+      namespace: platform-mesh-system
+    spec:
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      etcd:
+        endpoints:
+          - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+  6: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: FrontProxy
+    metadata:
+      name: frontproxy
+      namespace: platform-mesh-system
+    spec:
+      additionalPathMappings:
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/contentconfigurations
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      auth:
+        serviceAccount:
+          enabled: true
+      deploymentTemplate:
+        spec:
+          template:
+            spec:
+              hostAliases: []
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      serviceTemplate:
+        spec:
+          clusterIP: 10.0.0.1
+          type: ClusterIP
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: selfsigned
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  8: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  9: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: RootShard
+    metadata:
+      name: root
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - root-kcp
+              - root-kcp.platform-mesh-system
+              - root-kcp.platform-mesh-system.svc.cluster.local
+              - root.kcp.localhost
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec:
+              hostAliases: []
+      etcd:
+        endpoints:
+          - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec:
+                hostAliases: []
+      replicas: 1
+      shardBaseURL: https://root.kcp.localhost:8443/
+  10: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-root-shard-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - root.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-root
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: root-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  11: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-nereus
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  12: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: nereus
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - nereus-shard-kcp
+              - nereus-shard-kcp.platform-mesh-system
+              - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
+              - nereus.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec:
+              hostAliases: []
+      etcd:
+        endpoints:
+          - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec:
+                hostAliases: []
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://nereus.kcp.localhost:8443/
+  13: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-nereus-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - nereus.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-nereus
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: nereus-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  14: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-triton
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  15: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: triton
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - triton-shard-kcp
+              - triton-shard-kcp.platform-mesh-system
+              - triton-shard-kcp.platform-mesh-system.svc.cluster.local
+              - triton.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec:
+              hostAliases: []
+      etcd:
+        endpoints:
+          - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec:
+                hostAliases: []
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://triton.kcp.localhost:8443/
+  16: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-triton-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - triton.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-triton
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: triton-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  17: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-front-proxy-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: frontproxy-front-proxy
+              namespace: platform-mesh-system
+              port: 8443
+  18: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keycloak
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: keycloak
+              namespace: platform-mesh-system
+              port: 80
+          matches:
+            - path:
+                type: PathPrefix
+                value: /keycloak
+match snapshots w. kcp version:
+  1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: ""
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: localhost
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.localhost
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.localhost
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.localhost
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      name: kubeconfig-kcp-admin
+      namespace: platform-mesh-system
+    spec:
+      groups:
+        - system:kcp:admin
+      secretRef:
+        name: kubeconfig-kcp-admin
+      target:
+        frontProxyRef:
+          name: frontproxy
+      username: kcp-admin
+      validity: 8766h
+  3: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: kcp-cluster-admin-client-cert
+      namespace: platform-mesh-system
+    spec:
+      commonName: cluster-admin
+      issuerRef:
+        name: root-client-ca
+      privateKey:
+        algorithm: RSA
+        size: 2048
+      secretName: kcp-cluster-admin-client-cert
+      subject:
+        organizations:
+          - system:kcp:admin
+      usages:
+        - client auth
+  4: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-cache
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  5: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: CacheServer
+    metadata:
+      name: cache-server
+      namespace: platform-mesh-system
+    spec:
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      etcd:
+        endpoints:
+          - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+      image:
+        tag: v0.1.0
+  6: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: FrontProxy
+    metadata:
+      name: frontproxy
+      namespace: platform-mesh-system
+    spec:
+      additionalPathMappings:
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/contentconfigurations
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      auth:
+        serviceAccount:
+          enabled: true
+      deploymentTemplate:
+        spec:
+          template:
+            spec: null
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true
+      image:
+        tag: v0.1.0
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      serviceTemplate:
+        spec:
+          type: ClusterIP
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: selfsigned
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  8: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  9: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: RootShard
+    metadata:
+      name: root
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - root-kcp
+              - root-kcp.platform-mesh-system
+              - root-kcp.platform-mesh-system.svc.cluster.local
+              - root.kcp.localhost
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        tag: v0.1.0
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+        image:
+          tag: v0.1.0
+      replicas: 1
+      shardBaseURL: https://root.kcp.localhost:8443/
+  10: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-root-shard-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - root.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-root
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: root-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  11: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-nereus
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  12: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: nereus
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - nereus-shard-kcp
+              - nereus-shard-kcp.platform-mesh-system
+              - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
+              - nereus.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        tag: v0.1.0
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+        image:
+          tag: v0.1.0
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://nereus.kcp.localhost:8443/
+  13: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-nereus-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - nereus.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-nereus
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: nereus-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  14: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-triton
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  15: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: triton
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - triton-shard-kcp
+              - triton-shard-kcp.platform-mesh-system
+              - triton-shard-kcp.platform-mesh-system.svc.cluster.local
+              - triton.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        tag: v0.1.0
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+        image:
+          tag: v0.1.0
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://triton.kcp.localhost:8443/
+  16: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-triton-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - triton.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-triton
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: triton-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  17: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-front-proxy-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: frontproxy-front-proxy
+              namespace: platform-mesh-system
+              port: 8443
+  18: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keycloak
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: keycloak
+              namespace: platform-mesh-system
+              port: 80
+          matches:
+            - path:
+                type: PathPrefix
+                value: /keycloak
+match snapshots with mailpit enabled:
+  1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: ""
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: localhost
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.localhost
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.localhost
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.localhost
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Kubeconfig
+    metadata:
+      name: kubeconfig-kcp-admin
+      namespace: platform-mesh-system
+    spec:
+      groups:
+        - system:kcp:admin
+      secretRef:
+        name: kubeconfig-kcp-admin
+      target:
+        frontProxyRef:
+          name: frontproxy
+      username: kcp-admin
+      validity: 8766h
+  3: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: kcp-cluster-admin-client-cert
+      namespace: platform-mesh-system
+    spec:
+      commonName: cluster-admin
+      issuerRef:
+        name: root-client-ca
+      privateKey:
+        algorithm: RSA
+        size: 2048
+      secretName: kcp-cluster-admin-client-cert
+      subject:
+        organizations:
+          - system:kcp:admin
+      usages:
+        - client auth
+  4: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-cache
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  5: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: CacheServer
+    metadata:
+      name: cache-server
+      namespace: platform-mesh-system
+    spec:
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      etcd:
+        endpoints:
+          - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+  6: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: FrontProxy
+    metadata:
+      name: frontproxy
+      namespace: platform-mesh-system
+    spec:
+      additionalPathMappings:
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/contentconfigurations
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://virtual-workspaces.platform-mesh-system:8443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      auth:
+        serviceAccount:
+          enabled: true
+      deploymentTemplate:
+        spec:
+          template:
+            spec: null
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      serviceTemplate:
+        spec:
+          type: ClusterIP
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: selfsigned
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  8: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  9: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: RootShard
+    metadata:
+      name: root
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - root-kcp
+              - root-kcp.platform-mesh-system
+              - root-kcp.platform-mesh-system.svc.cluster.local
+              - root.kcp.localhost
+      certificates:
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: selfsigned
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
+      external:
+        hostname: localhost
+        port: 8443
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      shardBaseURL: https://root.kcp.localhost:8443/
+  10: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-root-shard-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - root.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-root
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: root-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  11: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-nereus
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  12: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: nereus
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - nereus-shard-kcp
+              - nereus-shard-kcp.platform-mesh-system
+              - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
+              - nereus.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://nereus.kcp.localhost:8443/
+  13: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-nereus-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - nereus.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-nereus
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: nereus-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  14: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-triton
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  15: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: triton
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - triton-shard-kcp
+              - triton-shard-kcp.platform-mesh-system
+              - triton-shard-kcp.platform-mesh-system.svc.cluster.local
+              - triton.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 1
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://triton.kcp.localhost:8443/
+  16: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-triton-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - triton.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-triton
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: triton-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443
+  17: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-front-proxy-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: frontproxy-front-proxy
+              namespace: platform-mesh-system
+              port: 8443
+  18: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keycloak
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: keycloak
+              namespace: platform-mesh-system
+              port: 80
+          matches:
+            - path:
+                type: PathPrefix
+                value: /keycloak
+render additional shard with explicit hostname:
+  1: |
+    apiVersion: druid.gardener.cloud/v1alpha1
+    kind: Etcd
+    metadata:
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      name: etcd-kcp-shard-1
+      namespace: platform-mesh-system
+    spec:
+      annotations:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      backup:
+        compression:
+          enabled: false
+          policy: gzip
+        deltaSnapshotMemoryLimit: 1Gi
+        deltaSnapshotPeriod: 300s
+        fullSnapshotSchedule: 0 */24 * * *
+        garbageCollectionPeriod: 43200s
+        garbageCollectionPolicy: Exponential
+        leaderElection:
+          etcdConnectionTimeout: 5s
+          reelectionPeriod: 5s
+        port: 8080
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1Gi
+          requests:
+            cpu: 23m
+            memory: 128Mi
+      etcd:
+        clientPort: 2379
+        defragmentationSchedule: 0 */24 * * *
+        metrics: basic
+        quota: 8Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        serverPort: 2380
+      labels:
+        app: etcd-statefulset
+        gardener.cloud/role: controlplane
+        role: kcp
+      replicas: 1
+      sharedConfig:
+        autoCompactionMode: periodic
+        autoCompactionRetention: 30m
+  2: |
+    apiVersion: operator.kcp.io/v1alpha1
+    kind: Shard
+    metadata:
+      name: shard-1
+      namespace: platform-mesh-system
+    spec:
+      auth:
+        serviceAccount:
+          enabled: true
+      authorization:
+        webhook:
+          configSecretName: kcp-webhook-secret
+          version: v1
+      cache:
+        ref:
+          name: cache-server
+      certificateTemplates:
+        server:
+          spec:
+            dnsNames:
+              - shard-1-shard-kcp
+              - shard-1-shard-kcp.platform-mesh-system
+              - shard-1-shard-kcp.platform-mesh-system.svc.cluster.local
+              - shard-1.kcp.localhost
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              annotations:
+                traffic.sidecar.istio.io/excludeOutboundPorts: "9443"
+            spec: null
+      etcd:
+        endpoints:
+          - http://etcd-kcp-shard-1-client.platform-mesh-system.svc.cluster.local:2379
+      extraArgs:
+        - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      proxy:
+        deploymentTemplate:
+          spec:
+            template:
+              spec: null
+      replicas: 2
+      rootShard:
+        ref:
+          name: root
+      shardBaseURL: https://shard-1.kcp.localhost:8443/
+  3: |
+    apiVersion: gateway.networking.k8s.io/v1alpha2
+    kind: TLSRoute
+    metadata:
+      name: kcp-shard-1-tlsroute
+      namespace: platform-mesh-system
+    spec:
+      hostnames:
+        - shard-1.kcp.localhost
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+          sectionName: passthrough-shard-1
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: shard-1-shard-kcp
+              namespace: platform-mesh-system
+              port: 6443

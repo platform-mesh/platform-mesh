@@ -1,0 +1,32 @@
+{{- $rootShardHostname := .Values.kcp.rootShard.hostname | default (printf "root.kcp.%s" .Values.kcp.external.hostname) }}
+{{- $rootShardBaseURL := .Values.kcp.rootShard.shardBaseURL | default (printf "https://%s:%v/" $rootShardHostname .Values.kcp.external.port) }}
+{{ include "kcp.etcd" (dict "name" (.Values.kcp.etcd.name | default "etcd-kcp-client") "namespace" (.Values.kcp.namespace | default "kcp-system") "etcd" .Values.kcp.etcd) }}
+---
+apiVersion: operator.kcp.io/v1alpha1
+kind: RootShard
+metadata:
+  name: root
+  namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
+spec:
+{{- include "kcp.shard.spec" (dict "root" $ "replicas" .Values.kcp.rootShard.replicas "shardBaseURL" $rootShardBaseURL "extraArgs" .Values.kcp.rootShard.extraArgs "resources" .Values.kcp.rootShard.resources "hostname" .Values.kcp.external.hostname "port" .Values.kcp.external.port "webhookPort" .Values.kcp.webhook.port) | nindent 2 }}
+  certificates:
+{{- include "kcp.certificates" $ | nindent 4 }}
+  cache:
+    ref:
+      name: {{ .Values.kcp.cacheServer.name }}
+  etcd:
+    endpoints:
+      - http://{{ .Values.kcp.etcd.service.name}}.{{ .Values.kcp.namespace}}.svc.cluster.local:{{.Values.kcp.etcd.service.port}}
+  certificateTemplates:
+    server:
+      spec:
+        dnsNames:
+          - root-kcp
+          - root-kcp.{{ .Values.kcp.namespace | default "kcp-system" }}
+          - root-kcp.{{ .Values.kcp.namespace | default "kcp-system" }}.svc.cluster.local
+          - {{ $rootShardHostname }}
+  external:
+    hostname: {{ .Values.kcp.external.hostname }}
+    port: {{ .Values.kcp.external.port }}
+---
+{{ include "kcp.tlsroute" (dict "name" "kcp-root-shard-tlsroute" "hostname" $rootShardHostname "serviceName" "root-kcp" "namespace" (.Values.kcp.namespace | default "kcp-system") "gatewayName" .Values.gatewayApi.name "sectionName" (include "kcp.passthroughSectionName" (dict "root" $ "suffix" "root"))) }}

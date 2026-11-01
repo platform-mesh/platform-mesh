@@ -1,0 +1,57 @@
+{{- if and .Values.ocm.enabled .Values.certificates.selfSigned.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: platform-mesh-domain-selfsigned
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: platform-mesh-domain-ca
+  namespace: {{ .Release.Namespace }}
+spec:
+  isCA: true
+  commonName: platform-mesh-domain-ca
+  secretName: {{ required "certificates.selfSigned.caSecretName must be set when self-signed certificates are enabled" .Values.certificates.selfSigned.caSecretName | quote }}
+  issuerRef:
+    group: cert-manager.io
+    kind: Issuer
+    name: platform-mesh-domain-selfsigned
+  usages:
+    - cert sign
+    - crl sign
+    - digital signature
+    - key encipherment
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: platform-mesh-domain-ca
+  namespace: {{ .Release.Namespace }}
+spec:
+  ca:
+    secretName: {{ .Values.certificates.selfSigned.caSecretName | quote }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: platform-mesh-domain
+  namespace: {{ .Release.Namespace }}
+spec:
+  commonName: {{ .Values.gateway.baseDomain | quote }}
+  dnsNames:
+    - {{ .Values.gateway.baseDomain | quote }}
+    - {{ printf "*.%s" .Values.gateway.baseDomain | quote }}
+  secretName: {{ required "certificateSecretName must be set when self-signed certificates are enabled" .Values.certificateSecretName | quote }}
+  issuerRef:
+    group: cert-manager.io
+    kind: Issuer
+    name: platform-mesh-domain-ca
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment
+{{- end }}

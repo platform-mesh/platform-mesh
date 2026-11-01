@@ -1,0 +1,97 @@
+keycloak operator enabled renders all resources:
+  1: |
+    apiVersion: k8s.keycloak.org/v2beta1
+    kind: Keycloak
+    metadata:
+      name: keycloak
+      namespace: platform-mesh-system
+    spec:
+      additionalOptions:
+        - name: http-relative-path
+          value: /keycloak
+      bootstrapAdmin:
+        user:
+          secret: keycloak-admin
+      db:
+        database: keycloak
+        host: platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local
+        passwordSecret:
+          key: password
+          name: keycloak-db-credentials
+        port: 5432
+        usernameSecret:
+          key: username
+          name: keycloak-db-credentials
+        vendor: postgres
+      hostname:
+        backchannelDynamic: true
+        hostname: null
+        strict: false
+      http:
+        httpEnabled: true
+      image: ghcr.io/platform-mesh/custom-images/keycloak:v26.8.1
+      ingress:
+        enabled: false
+      instances: 1
+      proxy:
+        headers: xforwarded
+      unsupported:
+        podTemplate:
+          spec:
+            containers:
+              - imagePullPolicy: IfNotPresent
+                livenessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /keycloak/health/live
+                    port: 9000
+                  periodSeconds: 10
+                name: keycloak
+                readinessProbe:
+                  httpGet:
+                    path: /keycloak/health/ready
+                    port: 9000
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                resources:
+                  limits:
+                    cpu: "2"
+                    memory: 2Gi
+                  requests:
+                    cpu: 750m
+                    memory: 1Gi
+                startupProbe:
+                  failureThreshold: 600
+                  httpGet:
+                    path: /keycloak/health
+                    port: 9000
+                  periodSeconds: 10
+            initContainers:
+              - command:
+                  - sh
+                  - -c
+                  - until nc -z platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local 5432; do echo "Waiting for PostgreSQL..."; sleep 2; done
+                image: docker.io/library/busybox:1.37
+                name: wait-for-db
+test HTTPRoutes:
+  1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: keycloak
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: keycloak
+              namespace: platform-mesh-system
+              port: 80
+          matches:
+            - path:
+                type: PathPrefix
+                value: /keycloak

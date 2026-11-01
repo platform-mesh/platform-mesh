@@ -40,6 +40,19 @@ tasks:
         vars:
           PATH: /core/...
           OUTPUT: '{{.CRD_DIRECTORY}}'
+      - task: providerpermissions-manifests
+  providerpermissions-manifests:
+    internal: true
+    vars:
+      PROVIDER_CRD_DIRECTORY:
+        sh: mktemp -d
+    cmds:
+      - defer: rm -rf '{{.PROVIDER_CRD_DIRECTORY}}'
+      - task: tools:generate-crds
+        vars:
+          PATH: /providers/...
+          OUTPUT: '{{.PROVIDER_CRD_DIRECTORY}}'
+      - cp '{{.PROVIDER_CRD_DIRECTORY}}/providers.platform-mesh.io_providerpermissions.yaml' '{{.CRD_DIRECTORY}}/'
   generate:
     cmds:
       - task: manifests

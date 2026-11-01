@@ -1,0 +1,20 @@
+{{- if .Values.initContainer.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.entity.name" . }}-init-container-config
+  namespace: {{ .Release.Namespace }}
+data:
+  config.yaml: |
+    keycloakBaseURL: {{ .Values.keycloak.baseUrl }}
+    keycloakClientID: {{ .Values.initContainer.keycloakClientId | quote }}
+    keycloakUser: {{ .Values.initContainer.keycloakUser | quote }}
+    passwordFile: "/secrets/keycloak-password"
+    clients:
+    {{- range .Values.initContainer.clients }}
+      - name: {{ .name | quote }}
+        secretRef:
+          name: {{ .secretRef.name | quote }}
+          namespace: {{ .secretRef.namespace | quote }}
+    {{- end }}
+{{- end }}

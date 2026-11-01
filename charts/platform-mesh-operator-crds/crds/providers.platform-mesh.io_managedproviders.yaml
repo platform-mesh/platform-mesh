@@ -1,0 +1,357 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: managedproviders.providers.platform-mesh.io
+spec:
+  group: providers.platform-mesh.io
+  names:
+    kind: ManagedProvider
+    listKind: ManagedProviderList
+    plural: managedproviders
+    singular: managedprovider
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Overall lifecycle phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    - description: Shows if resource is ready
+      jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          ManagedProvider is the Schema for the managedproviders API.
+          It orchestrates the full provider lifecycle from the runtime cluster side.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of ManagedProvider
+            properties:
+              cleanupOnDelete:
+                description: cleanupOnDelete removes the kcp workspace when the ManagedProvider
+                  is deleted.
+                type: boolean
+              platformMeshRef:
+                description: |-
+                  platformMeshRef is a reference to the PlatformMesh object.
+                  It must refer to the PlatformMesh instance this ManagedProvider
+                  is associated with.
+                properties:
+                  name:
+                    description: name of the PlatformMesh object.
+                    type: string
+                required:
+                - name
+                type: object
+              provider:
+                description: |-
+                  provider references the Provider resource.
+                  If not provided, a corresponding Provider is created in root:providers:system by default.
+                  If corresponding Provider doesn't exist, it is created.
+                  If specified, the workspace ProviderReference.Path must exist.
+                properties:
+                  name:
+                    description: name is the name of the referenced Provider.
+                    type: string
+                  path:
+                    description: path is a logical cluster path where the Provider
+                      is defined.
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                    type: string
+                required:
+                - name
+                - path
+                type: object
+              providerHostOverride:
+                description: |-
+                  providerHostOverride overrides the kcp front-proxy host written into the
+                  generated kubeconfig Secret. Optional; defaults to the operator-configured
+                  front-proxy URL.
+                type: string
+              providerKubeconfigSecret:
+                description: |-
+                  providerKubeconfigSecret is a Secret specification used to store
+                  the provider's kubeconfig in the runtime cluster. This is the admin kubeconfig
+                  that provider controllers can use to access the workspace in :root:providers:<WS name>.
+                  If not provided, a default of Name:<ManagedProvider.Name>-provider-kubeconfig,
+                  Key:kubeconfig is used.
+                properties:
+                  key:
+                    description: key is the key in data map where the kubeconfig YAML
+                      content is stored.
+                    type: string
+                  name:
+                    description: name is the name of the Secret.
+                    type: string
+                required:
+                - key
+                - name
+                type: object
+              runtimeDeployments:
+                description: runtimeDeployments is a list of components to be deployed
+                  in the runtime cluster.
+                items:
+                  description: |-
+                    ProviderComponentSpec references a single component to deploy in the runtime cluster.
+                    Exactly one of flux or ocm must be set.
+                  properties:
+                    flux:
+                      description: |-
+                        flux deploys a Helm chart from an OCI registry or HTTP Helm repository directly
+                        via Flux (OCIRepository/HelmRepository + HelmRelease). No OCM descriptor
+                        resolution is performed.
+                      properties:
+                        chart:
+                          description: |-
+                            chart is the chart name:
+                              - for type=oci: the chart's OCI repository path under the registry
+                                (e.g. wildwest-armament-sync).
+                              - for type=helm: the chart name within the Helm repository (e.g. cert-manager).
+                          type: string
+                        insecure:
+                          description: |-
+                            insecure allows HTTP (insecure) connection to the OCI repository.
+                            Disabled by default.
+                          type: boolean
+                        registry:
+                          description: |-
+                            registry is the chart source location:
+                              - for type=oci: the OCI registry host and base path that holds the chart
+                                (e.g. ghcr.io/platform-mesh/provider-quickstart/charts).
+                              - for type=helm: the Helm repository URL (e.g. https://charts.jetstack.io).
+                          type: string
+                        type:
+                          default: oci
+                          description: |-
+                            type selects how the chart is fetched:
+                              - "oci" (default): the chart is packaged as an OCI artifact in an OCI registry,
+                                deployed via a Flux OCIRepository.
+                              - "helm": the chart is served from a classic HTTP(S) Helm repository,
+                                deployed via a Flux HelmRepository.
+                          enum:
+                          - oci
+                          - helm
+                          type: string
+                        values:
+                          description: values are Helm values passed to the deployed
+                            chart.
+                          x-kubernetes-preserve-unknown-fields: true
+                        version:
+                          description: |-
+                            version is the chart version to deploy (the OCI tag for type=oci, or the chart
+                            version for type=helm).
+                          type: string
+                      required:
+                      - chart
+                      - registry
+                      - version
+                      type: object
+                    ocm:
+                      description: |-
+                        ocm deploys a chart resolved from an OCM component descriptor. The operator emits
+                        a delivery.ocm.software Resource that references an existing Repository and
+                        Component; the ocm-controller resolves the descriptor (signatures, references,
+                        relocation) and the resolved chart is then deployed via Flux.
+                      properties:
+                        component:
+                          description: |-
+                            component is the fully-qualified OCM component name
+                            (e.g. github.com/platform-mesh/provider-quickstart). The operator creates a
+                            delivery.ocm.software Component from it.
+                          type: string
+                        insecure:
+                          description: |-
+                            insecure allows HTTP (insecure) connection to the registry.
+                            Disabled by default.
+                          type: boolean
+                        name:
+                          description: |-
+                            name is the deployment name used for the generated Repository, Component,
+                            Resource, OCIRepository and HelmRelease. If empty it defaults to resourceName,
+                            then the last referencePath element, then the last segment of the component name.
+                            Set it explicitly when several components share the same component name (so the
+                            generated objects don't collide).
+                          type: string
+                        referencePath:
+                          description: |-
+                            referencePath navigates the component reference graph to reach the resource.
+                            Each element selects a nested component reference by name. Empty resolves a
+                            resource directly on the component.
+                          items:
+                            description: OCMReferencePathElement is a single element
+                              of an OCM component reference path.
+                            properties:
+                              name:
+                                description: name of the component reference to follow.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        registry:
+                          description: |-
+                            registry is the OCM/OCI registry root that holds the component
+                            (e.g. ghcr.io/platform-mesh). The operator creates a delivery.ocm.software
+                            Repository from it (baseUrl = host, subPath = remaining path).
+                          type: string
+                        resourceName:
+                          description: |-
+                            resourceName is the OCM resource name within the component to deploy.
+                            Defaults to "chart".
+                          type: string
+                        values:
+                          description: values are Helm values passed to the resolved
+                            chart.
+                          x-kubernetes-preserve-unknown-fields: true
+                        version:
+                          description: version is the OCM component version (semver).
+                          type: string
+                      required:
+                      - component
+                      - registry
+                      - version
+                      type: object
+                  type: object
+                type: array
+              runtimeKubeconfigSecretName:
+                description: |-
+                  runtimeKubeconfigSecretName is the name of the Secret that contains
+                  data.kubeconfig key, with kubeconfig referencing the runtime cluster
+                  where the provider components are to be deployed.
+                  If not provided, the hosting platform-mesh cluster is used.
+                type: string
+            required:
+            - platformMeshRef
+            - runtimeDeployments
+            type: object
+          status:
+            description: status defines the observed state of ManagedProvider
+            properties:
+              conditions:
+                description: conditions represent the current state of the ManagedProvider
+                  resource.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: observedGeneration is the last generation reconciled
+                  by the controller.
+                format: int64
+                type: integer
+              phase:
+                description: phase summarises the overall lifecycle state of the ManagedProvider.
+                type: string
+              providerKubeconfigSecretRef:
+                description: |-
+                  providerKubeconfigSecretRef points to the Secret in the runtime namespace that
+                  contains the scoped kubeconfig copied from the provider kcp workspace.
+                properties:
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

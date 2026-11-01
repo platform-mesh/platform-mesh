@@ -49,7 +49,7 @@ const (
 )
 
 func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) (*IDPSubroutine, error) {
-	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
+	limiter, err := ratelimiter.NewObjectRateLimiter[*pmcorev1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}

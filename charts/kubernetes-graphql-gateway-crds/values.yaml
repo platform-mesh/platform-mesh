@@ -1,0 +1,7 @@
+conversion:
+  # strategy controls spec.conversion.strategy on the ClusterAccess CRD.
+  # Set to "None" if a stale Webhook conversion was injected by an external controller
+  # (e.g. an old ESO cert-controller) and needs to be explicitly overwritten so that
+  # GitOps tools like ArgoCD can reconcile the CRD without a permanent diff.
+  # Valid values: "" (omit the field), "None", "Webhook"
+  strategy: ""

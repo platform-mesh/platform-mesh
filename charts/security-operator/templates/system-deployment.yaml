@@ -1,0 +1,101 @@
+{{- $systemKubeconfigSecret := .Values.system.kubeconfigSecret | default .Values.kubeconfigSecret }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}-system
+  namespace: {{ .Release.Namespace }}
+spec:
+  revisionHistoryLimit: {{ .Values.deployment.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      service: {{ include "common.entity.name" . }}-system
+  template:
+    metadata:
+      labels:
+        service: {{ include "common.entity.name" . }}-system
+        control-plane: controller-manager
+    spec:
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+      {{ include "common.hostAliases" $ | nindent 6 }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadyness" . | indent 8}}
+        ports:
+        {{- include "common.PortsMetricsHealth" . | nindent 10 }}
+        args:
+          - system
+          {{- with .Values.keycloak.baseUrl }}
+          - --keycloak-base-url={{ . }}
+          {{- end }}
+          {{- with .Values.baseDomain }}
+          - --base-domain={{ . }}
+          {{- end }}
+          - --fga-target={{ .Values.openfga.endpoint }}
+          {{- if $systemKubeconfigSecret }}
+          - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+          {{- end }}
+          {{- with .Values.idp.smtp.server }}
+          - --idp-smtp-server={{ . }}
+          {{- end }}
+          {{- with .Values.idp.smtp.port }}
+          - --idp-smtp-port={{ . }}
+          {{- end }}
+          {{- with .Values.idp.smtp.fromAddress }}
+          - --idp-from-address={{ . }}
+          {{- end }}
+          {{- with .Values.idp.additionalRedirectUrls }}
+          - --idp-additional-redirect-urls={{ join "," . }}
+          {{- end }}
+          {{- if .Values.idp.registrationAllowed }}
+          - --idp-registration-allowed
+          {{- end }}
+          {{- if .Values.idp.setDefaultPassword }}
+          - --set-default-password
+          {{- end }}
+          {{- with .Values.system.extraArgs }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- include "common.commonOperatorArgs" . | indent 8 }}
+        env:
+        {{- include "common.basicEnvironment" . | nindent 10 }}
+          - name: KEYCLOAK_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.keycloak.client.secret.name }}
+                key: {{ .Values.keycloak.client.secret.key }}
+        volumeMounts:
+          {{- include "common.extraVolumeMounts" . | nindent 10 }}
+          {{- if .Values.kubeconfigSecret }}
+          - name: external-api-server
+            mountPath: /api-kubeconfig
+          {{- end }}
+          {{- if .Values.keycloakSecret }}
+          - name: keycloak-credentials
+            mountPath: /keycloak-credentials
+            readOnly: true
+          {{- end }}
+          {{- if .Values.caSecret }}
+          - name: domain-ca
+            mountPath: /etc/ssl/certs/domain-ca.crt
+            subPath: tls.crt
+            readOnly: true
+          {{- end }}
+      volumes:
+        {{- include "common.extraVolumes" . | nindent 8 }}
+        {{- if $systemKubeconfigSecret }}
+        - name: external-api-server
+          secret:
+            secretName: {{ $systemKubeconfigSecret }}
+        {{- end }}
+        {{- if .Values.keycloakSecret }}
+        - name: keycloak-credentials
+          secret:
+            secretName: {{ .Values.keycloakSecret }}
+        {{- end }}
+        {{- if .Values.caSecret }}
+        - name: domain-ca
+          secret:
+            secretName: {{ .Values.caSecret }}
+        {{- end }}

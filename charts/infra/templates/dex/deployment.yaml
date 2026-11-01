@@ -1,0 +1,57 @@
+{{- if .Values.dex.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dex
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: dex
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dex
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dex
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: dex
+        image: {{ include "common.image" (dict "Values" (dict "image" .Values.dex.image) "Chart" .Chart) }}
+        args:
+        - dex
+        - serve
+        - /etc/dex/config.yaml
+        ports:
+        - name: http
+          containerPort: {{ .Values.dex.service.port }}
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/dex
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.dex.health.liveness.path }}
+            port: http
+          failureThreshold: {{ .Values.dex.health.liveness.failureThreshold }}
+          periodSeconds: {{ .Values.dex.health.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.dex.health.readiness.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.dex.health.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.dex.health.periodSeconds }}
+        resources:
+          {{- toYaml .Values.dex.resources | nindent 10 }}
+      volumes:
+      - name: config
+        configMap:
+          name: dex
+          items:
+          - key: config.yaml
+            path: config.yaml
+{{- end }}

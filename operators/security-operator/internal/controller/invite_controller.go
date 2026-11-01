@@ -84,7 +84,7 @@ func (r *InviteReconciler) Reconcile(ctx context.Context, req mcreconcile.Reques
 	return result, err
 }
 
-func (r *InviteReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger) error {
+func (r *InviteReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger, engageOpts mcbuilder.EngageOptions) error {
 	opts := controller.TypedOptions[mcreconcile.Request]{
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 		RateLimiter:             r.rateLimiter,
@@ -92,7 +92,7 @@ func (r *InviteReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platform
 	predicates := []predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("invite").
-		For(&pmcorev1alpha1.Invite{}).
+		For(&pmcorev1alpha1.Invite{}, engageOpts).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

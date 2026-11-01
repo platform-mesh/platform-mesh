@@ -1,0 +1,127 @@
+defaults:
+  log:
+    # -- default log level
+    level: warn
+
+  # -- service port
+  port: 8080
+
+  certManager:
+    # -- toggle to enable/disable cert-manager
+    enabled: false
+
+  # -- imagePullSecret is the name of the secret that holds the docker registry credentials
+  # imagePullSecret: "github"
+
+  # -- imagePullPolicy is the policy to use when pulling images for all charts
+  imagePullPolicy: IfNotPresent
+
+  deployment:
+    resources:
+      # -- cpu and memory limits for the deployment
+      limits:
+        cpu: ""
+        memory: "512Mi"
+      # -- cpu and memory requests for the deployment
+      requests:
+        cpu: "40m"
+        memory: "50Mi"
+    # -- maxSurge
+    maxSurge: 5
+    # -- maxUnavailable
+    maxUnavailable: 0
+    # -- deployment strategy
+    strategy: RollingUpdate
+    # -- deployment revision history limit
+    revisionHistoryLimit: 3
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  # -- enable HTTP/2 for metrics and webhook servers
+  enableHttp2: true
+
+  operator:
+    # -- by default operators participate in leader election
+    leaderElect: true
+    # -- number of concurrent reconciles per controller
+    maxConcurrentReconciles: 10
+    # -- duration on how long the operator waits before shutting down
+    shutdownTimeout: 1m
+
+  health:
+    # -- health port
+    port: 8090
+    # -- health period
+    periodSeconds: 10
+    # -- readiness probe parameters
+    readiness:
+      path: "/readyz"
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    # -- liveness probe parameters
+    liveness:
+      path: "/healthz"
+      failureThreshold: 1
+    # -- startup probe parameters
+    startup:
+      path: "/readyz"
+      failureThreshold: 30
+
+  # -- default region, this value is primarily used for observability, e.g. logs. Permissible values: any string (e.g. us-east-1, eu-west-1)
+  region: ""
+  # -- default environment, this value is primarily used for observability, e.g. logs. Permissible values: any string (e.g. production, staging, development)
+  environment: ""
+
+  metrics:
+    # -- metrics port
+    port: 9090
+
+  tracing:
+    # -- toggle to enable/disable OpenTelemetry
+    enabled: false
+    collector:
+      # -- the OpenTelemetry collector endpoint
+      endpoint: observability-opentelemetry-collector.platform-mesh-observability.svc.cluster.local:4317
+
+  istio:
+    # -- toggle to enable/disable istio
+    enabled: false
+    gateway:
+      # -- name of the gateway
+      name: gateway
+
+  sentry:
+    # -- toggle to enable/disable sentry integration
+    enabled: false
+    externalSecrets:
+      # -- the secret name that holds the sentry DSNs
+      secretKey: sentry/sentry-dsn
+
+  fga:
+    # -- toggle to enable/disable experimental FGA features
+    enabled: true
+
+  securityContext:
+    # -- user id to run the container
+    runAsUser: 1000
+    # -- group id to run the container
+    runAsGroup: 3000
+    # -- fsGroup id to run the container
+    fsGroup: 2000
+
+  externalSecrets:
+    # -- toggle to enable/disable external-secrets
+    enabled: false
+    secretStore:
+      # -- the default kind to be used in external secrets
+      kind: SecretStore
+      # -- the default store name to be used in external secrets
+      name: environment-store
+
+  hostAliases:
+    # -- toggle to enable/disable hostAliases configuration
+    enabled: false
+    # -- host aliases
+    entries: []

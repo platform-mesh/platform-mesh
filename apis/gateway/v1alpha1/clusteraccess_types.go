@@ -75,6 +75,11 @@ type ClusterAccessSpec struct {
 	// +optional
 	Auth *AuthConfig `json:"auth,omitempty"`
 
+	// SchemaFilter restricts which Kubernetes resource types are exposed as typed GraphQL operations.
+	// If unset, all discovered resource types are exposed.
+	// +optional
+	SchemaFilter *SchemaFilter `json:"schemaFilter,omitempty"`
+
 	// RequestIdentityMode controls which identity the gateway uses for
 	// Kubernetes requests. When omitted or set to userToken, the gateway requires,
 	// validates, and forwards the caller's bearer token. serviceAccount accepts
@@ -82,6 +87,27 @@ type ClusterAccessSpec struct {
 	// +kubebuilder:validation:Enum=userToken;serviceAccount
 	// +optional
 	RequestIdentityMode RequestIdentityMode `json:"requestIdentityMode,omitempty"`
+}
+
+// SchemaFilter selects the Kubernetes resource types exposed as typed GraphQL operations.
+type SchemaFilter struct {
+	// Include contains selectors that are ORed together.
+	// +kubebuilder:validation:MinItems=1
+	Include []ResourceSelector `json:"include"`
+}
+
+// ResourceSelector matches Kubernetes resources by exact group and, optionally, version and resource name.
+type ResourceSelector struct {
+	// Group is the Kubernetes API group. Use an empty string for the core API group.
+	Group string `json:"group"`
+
+	// Version is the optional Kubernetes API version to match.
+	// +optional
+	Version string `json:"version,omitempty"`
+
+	// Resource is the optional lowercase, plural Kubernetes resource name to match.
+	// +optional
+	Resource string `json:"resource,omitempty"`
 }
 
 // CAConfig defines CA configuration options

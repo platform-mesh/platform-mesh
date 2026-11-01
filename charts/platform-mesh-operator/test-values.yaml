@@ -1,0 +1,6 @@
+crds:
+  enabled: false
+
+image:
+  name: ghcr.io/platform-mesh/platform-mesh-operator
+  tag: 0.0.0

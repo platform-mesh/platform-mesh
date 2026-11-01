@@ -1,0 +1,79 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/portal
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  pullPolicyOverride: IfNotPresent
+
+http:
+  # -- protocol used by the portal backend. Must be set. Permissible values: http, https
+  protocol: ""
+
+validWebcomponentUrls: ".?"
+featureToggles: "enableSessionAutoRefresh=true"
+uiOptions: "enableFeatureToggleSetting"
+
+# -- environment label propagated to observability (e.g. logs, traces). Permissible values: any string (e.g. production, staging, development)
+environment: ""
+
+# -- development landscape toggle. Set to "true" only in local/dev environments to enable dev-only UI features. Permissible values: "true", "false"
+developmentLandcsape: "false"
+
+# -- frontend port
+frontendPort: 8000
+
+# -- cookie domain for auth session cookies. Must match the base domain of the portal deployment (e.g. example.com). Required.
+cookieDomain: ""
+
+# -- allows the configuration of a kubeconfig secret for external api servers
+kubeconfigSecret: ""
+kcp:
+  # -- kcp API URL (e.g. https://localhost:8443 for local setup)
+  url: ""
+  kubeconfigSecret: ""
+
+auth:
+  default:
+    # -- discovery url used for the idp
+    discoveryUrl: ""
+    # -- client id
+    clientId: ""
+    # -- baseDomain used by the portal
+    baseDomain: ""
+health:
+  # -- health port to be used by probes
+  port: 8080
+
+# -- hostAliases configuration
+hostAliases:
+  # -- enable hostAliases
+  enabled: false
+  # -- hostAliases entries
+  entries: []
+
+validation:
+  # -- Port of the extension-manager validation webhook
+  port: 8088
+  # -- Path of the extension-manager validation webhook
+  path: /validate
+  # -- Service name of the extension-manager validation webhook
+  service: "extension-manager-operator-server"
+  # -- Protocol used to reach the extension-manager validation webhook. Permissible values: http, https
+  protocol: "http"
+
+# -- init containers to run before the main container
+initContainers: []
+
+gatewayApi:
+  # -- toggle to enable the Gateway API
+  enabled: true
+  httpRoute:
+    pathPrefix: /
+    # -- hostnames for the HTTPRoute. When empty, the route matches all hostnames.
+    hostnames: []
+    parentRefs:
+    - name: k8sapi-gateway
+    # -- list of HTTPRoute filters (default: none)
+    filters: []

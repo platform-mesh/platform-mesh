@@ -1,5 +1,12 @@
 * @platform-mesh/go-maintainers
 
+# charts and the e2e tests were co-owned by the node maintainers in helm-charts
+charts/ @platform-mesh/go-maintainers @platform-mesh/node-maintainers
+tests/ @platform-mesh/go-maintainers @platform-mesh/node-maintainers
+
 # ownerless so renovate can auto-merge updates
 **/go.mod
 **/go.sum
+charts/**/Chart.yaml
+tests/package.json
+tests/package-lock.json

@@ -1,0 +1,26 @@
+suite: sentry
+templates:
+  - sentry.yaml
+values:
+  - ../values.yaml
+chart:
+  namespace: default
+  appVersion: 0.1.0
+tests:
+  - it: test sentry enabled (global)
+    set:
+      global:
+        sentry:
+          enabled: true
+        externalSecrets:
+          enabled: true
+    asserts:
+      - matchSnapshot: {}
+  - it: test sentry enabled (local)
+    set:
+      sentry:
+        enabled: true
+      externalSecrets:
+        enabled: true
+    asserts:
+      - matchSnapshot: {}

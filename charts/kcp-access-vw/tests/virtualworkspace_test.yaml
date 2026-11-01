@@ -1,0 +1,52 @@
+suite: kcp-access-vw
+chart:
+  appVersion: 0.1.1
+release:
+  name: kcp-access-vw
+  namespace: platform-mesh-system
+tests:
+  - it: matches snapshot (defaults)
+    asserts:
+      - matchSnapshot: {}
+
+  - it: virtualworkspace has correct image
+    template: templates/virtualworkspace.yaml
+    asserts:
+      - equal:
+          path: spec.image.repository
+          value: ghcr.io/kcp-dev/contrib-virtual-workspaces/access-vw
+      - equal:
+          path: spec.image.tag
+          value: "0.1.1"
+
+  - it: derives endpoint-base from external address
+    template: templates/virtualworkspace.yaml
+    set:
+      external:
+        hostname: kcp.portal.localhost
+        port: 8443
+    asserts:
+      - contains:
+          path: spec.extraArgs
+          content: --endpoint-base=https://kcp.portal.localhost:8443/clusters/
+
+  - it: explicit endpointBase wins
+    template: templates/virtualworkspace.yaml
+    set:
+      server:
+        endpointBase: https://elsewhere.example.com/clusters/
+    asserts:
+      - contains:
+          path: spec.extraArgs
+          content: --endpoint-base=https://elsewhere.example.com/clusters/
+
+  - it: renders hostAliases into the deployment template
+    template: templates/virtualworkspace.yaml
+    set:
+      hostAliases:
+        - ip: 10.96.0.10
+          hostnames: [kcp.portal.localhost]
+    asserts:
+      - equal:
+          path: spec.deploymentTemplate.spec.template.spec.hostAliases[0].ip
+          value: 10.96.0.10

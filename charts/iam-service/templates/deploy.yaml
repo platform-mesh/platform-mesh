@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "common.entity.name" . }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ include "common.entity.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "common.entity.name" . }}
+    spec:
+      serviceAccountName: {{ include "common.entity.name" . }}
+      {{- include "common.imagePullSecret" . | indent 6}}
+      containers:
+      - name: {{ include "common.entity.name" . }}
+        {{- include "common.healthAndReadiness" . | indent 8 }}
+        image: {{ include "common.image" .}}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.port }}
+          name: http
+          protocol: TCP
+        args:
+          - serve
+          - --keycloak-base-url={{ .Values.keycloak.baseUrl }}
+          - --keycloak-client-id={{ .Values.keycloak.client.id }}
+          - --roles-file-path=/roles/roles.yaml
+          - --jwt-user-id-claim={{ .Values.jwt.userIdClaim  }}
+          - --openfga-grpc-addr={{ .Values.openfga.endpoint }}
+          {{- include "common.extraArgs" . | indent 10 }}
+        env:
+          {{- include "common.basicEnvironment" . | nindent 10 }}
+          - name: KUBECONFIG
+            value: /api-kubeconfig/kubeconfig
+          - name: KEYCLOAK_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.keycloak.client.secret.name }}
+                key: {{ .Values.keycloak.client.secret.key }}
+        volumeMounts:
+        {{- include "common.extraVolumeMounts" . | nindent 8 }}
+          - name: external-api-server
+            mountPath: /api-kubeconfig
+          - name: roles
+            mountPath: /roles
+          {{- if .Values.caSecret }}
+          - name: domain-ca
+            mountPath: /etc/ssl/certs/domain-ca.crt
+            subPath: tls.crt
+            readOnly: true
+          {{- end }}
+      {{- include "common.hostAliases" $ | nindent 6 }}
+      volumes:
+        {{- include "common.extraVolumes" . | nindent 8 }}
+        - name: external-api-server
+          secret:
+            secretName: {{ .Values.kcp.kubeconfig.secretName }}
+        - name: roles
+          configMap:
+            name: {{ include "common.entity.name" . }}-roles
+        {{- if .Values.caSecret }}
+        - name: domain-ca
+          secret:
+            secretName: {{ .Values.caSecret }}
+        {{- end }}
+
+

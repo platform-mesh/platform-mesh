@@ -40,7 +40,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	kcpapiv1alpha2 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha2"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
 func TestWriteScopedKubeconfigToSecretTokenHandling(t *testing.T) {
@@ -69,7 +69,7 @@ func TestWriteScopedKubeconfigToSecretTokenHandling(t *testing.T) {
 			scheme := runtime.NewScheme()
 			require.NoError(t, corev1.AddToScheme(scheme))
 			require.NoError(t, rbacv1.AddToScheme(scheme))
-			require.NoError(t, kcpapiv1alpha2.AddToScheme(scheme))
+			require.NoError(t, kcpapisv1alpha2.AddToScheme(scheme))
 
 			k8sBuilder := fake.NewClientBuilder().WithScheme(scheme)
 			switch {
@@ -86,7 +86,7 @@ func TestWriteScopedKubeconfigToSecretTokenHandling(t *testing.T) {
 			}
 			k8sClient := k8sBuilder.Build()
 			kcpClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
-				&kcpapiv1alpha2.APIExport{ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"}},
+				&kcpapisv1alpha2.APIExport{ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"}},
 				&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{
 					Name: scopedSAPrefix + secretName, Namespace: defaultScopedSANamespace, UID: saUID,
 				}},
@@ -143,7 +143,7 @@ func TestProvidersecretProcessRequeuesForScopedTokens(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
 	require.NoError(t, rbacv1.AddToScheme(scheme))
-	require.NoError(t, kcpapiv1alpha2.AddToScheme(scheme))
+	require.NoError(t, kcpapisv1alpha2.AddToScheme(scheme))
 
 	k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 		availableKcpResource("RootShard", "root"),
@@ -154,7 +154,7 @@ func TestProvidersecretProcessRequeuesForScopedTokens(t *testing.T) {
 		},
 	).Build()
 	kcpClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
-		&kcpapiv1alpha2.APIExport{ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"}},
+		&kcpapisv1alpha2.APIExport{ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"}},
 	).Build()
 	kcpHelper := new(mocks.KcpHelper)
 	kcpHelper.EXPECT().NewKcpClient(mock.Anything, mock.Anything).Return(kcpClient, nil)

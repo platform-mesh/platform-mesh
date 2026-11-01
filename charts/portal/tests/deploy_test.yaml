@@ -1,0 +1,29 @@
+suite: deploy
+templates:
+  - deploy.yaml
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+release:
+  name: portal
+tests:
+  - it: matches the snapshot
+    values:
+      - test-values.yaml
+    template: deploy.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: test hosAliases
+    templates:
+      - deploy.yaml
+    set:
+      hostAliases:
+        enabled: true
+        entries:
+          - ip: "10.0.0.1"
+            hostnames:
+              - "example.com"
+              - "test.example.com"
+    template: deploy.yaml
+    asserts:
+      - matchSnapshot: {}

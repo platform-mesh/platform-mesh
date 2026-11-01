@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.deployment.replicas }}
+  {{- include "common.deploymentBasics" . | indent 2 }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+        control-plane: controller-manager
+      annotations:
+      {{- if eq (include "common.getKeyValue" (dict "Values" .Values "key" "istio.enabled")) "true" }}
+        sidecar.istio.io/inject: "{{ (include "common.istioEnabled" .) }}"
+      {{- end -}}
+      {{- if ((.Values.deployment).template).annotations }}
+      {{ .Values.deployment.template.annotations | toYaml | nindent 8 }}
+      {{- end }}
+    spec:
+      {{ include "common.pod.securityContext" . | nindent 6 }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        {{- include "common.healthAndReadiness" . | indent 8 }}
+        args:
+          - operator
+          {{- include "common.commonOperatorArgs" . | indent 8 }}
+          {{- if .Values.ocm.enabled }}
+          - --kcp-front-proxy-port={{ .Values.kcp.frontProxyPort }}
+          - --kcp-url=https://frontproxy-front-proxy.{{ .Release.Namespace }}:{{ .Values.kcp.frontProxyPort }}
+          {{- end }}
+          - --subroutines-deployment-enable-istio={{ (include "common.istioEnabled" .) }}
+          {{- with .Values.jwt.userIdClaim }}
+          - --user-claim={{ . }}
+          {{- end }}
+          {{- if .Values.remoteRuntime.enabled }}
+          - --remote-runtime-kubeconfig=/etc/platformmesh/kubeconfig
+          - --remote-runtime-infra-secret-name={{ .Values.remoteRuntime.infra.secretName }}
+          - --remote-runtime-infra-secret-key={{ .Values.remoteRuntime.infra.secretKey }}
+          {{- end }}
+          {{- if .Values.remoteInfra.enabled }}
+          - --remote-infra-kubeconfig=/etc/infra/kubeconfig
+          {{- end }}
+          {{- if .Values.idp.registrationAllowed }}
+          - --idp-registration-allowed
+          {{- end }}
+        ports:
+        {{- include "common.PortsMetricsHealth" . | nindent 10 }}
+        env:
+        {{- include "common.basicEnvironment" . | nindent 10 }}
+        {{- if .Values.ocm.enabled }}
+        - name: SSL_CERT_FILE
+          value: /etc/platform-mesh-ca/ca.crt
+        {{- end }}
+        volumeMounts:
+        {{- include "common.extraVolumeMounts" . | nindent 8 }}
+        {{- if .Values.ocm.enabled }}
+        - name: platform-mesh-ca
+          mountPath: /etc/platform-mesh-ca
+          readOnly: true
+        {{- end }}
+        {{- if .Values.remoteInfra.enabled }}
+        - name: external-infra-deployment
+          mountPath: /etc/infra
+          readOnly: true
+        {{- end }}
+        {{- if .Values.remoteRuntime.enabled }}
+        - name: external-platformmesh-deployment
+          mountPath: /etc/platformmesh
+          readOnly: true
+        {{- end }}
+      {{ include "common.hostAliases" $ | nindent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+      {{- if or .Values.extraVolumes .Values.remoteRuntime.enabled .Values.remoteInfra.enabled .Values.ocm.enabled }}
+      volumes:
+      {{- include "common.extraVolumes" . | nindent 6 }}
+      {{- if .Values.ocm.enabled }}
+      - name: platform-mesh-ca
+        secret:
+          secretName: {{ .Values.certificateSecretName }}
+          optional: true
+          items:
+          - key: ca.crt
+            path: ca.crt
+      {{- end }}
+      {{- if .Values.remoteInfra.enabled }}
+      - name: external-infra-deployment
+        secret:
+          secretName: {{ .Values.remoteInfra.secretName }}
+          items:
+          - key: {{ .Values.remoteInfra.secretKey }}
+            path: kubeconfig
+          defaultMode: 420
+      {{- end }}
+      {{- if .Values.remoteRuntime.enabled }}
+      - name: external-platformmesh-deployment
+        secret:
+          secretName: {{ .Values.remoteRuntime.secretName }}
+          items:
+          - key: {{ .Values.remoteRuntime.secretKey }}
+            path: kubeconfig
+          defaultMode: 420
+      {{- end }}
+      {{- end }}

@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}-server
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  revisionHistoryLimit: {{ include "common.getKeyValue" (dict "Values" .Values "key" "deployment.revisionHistoryLimit") }}
+  selector:
+    matchLabels:
+      {{- include "common.labelMatcher" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+        module: server
+      annotations:
+        sidecar.istio.io/inject: "{{ (include "common.istioEnabled" .) }}"
+      {{- if ((.Values.deployment).template).annotations }}
+      {{ .Values.deployment.template.annotations | toYaml | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        ports:
+        {{- include "common.PortsMetricsHealth" . | nindent 10 }}
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: 8088
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        startupProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: 8088
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        args:
+          - server
+          {{- if .Values.entityTypeValidation.enabled }}
+          - --entity-type-validation-enabled
+          {{- end }}
+        {{- include "common.leaderElectArg" . | indent 10 }}
+        {{- include "common.observabilityArgs" . | nindent 10 }}
+        {{- include "common.extraArgs" . | nindent 10 }}
+        {{- if eq (include "common.tracingEnabled" .) "true" }}
+          - --tracing-enabled={{ include "common.tracingEnabled" .}}
+          - --tracing-config-service-name={{ include "common.entity.name" . }}-server.{{ .Release.Namespace}}
+          - --tracing-config-service-version={{ include "common.image.tag" . }}
+          - --tracing-config-collector-endpoint={{ include "common.getKeyValue" (dict "Values" .Values "key" "tracing.collector.endpoint") }}
+        {{- end }}
+        env:
+        {{- include "common.basicEnvironment" . | nindent 10 }}
+        {{- if .Values.entityTypeValidation.enabled }}
+        {{- with .Values.kcp.kubeconfig.secret }}
+          - name: KUBECONFIG
+            value: /api-kubeconfig/kubeconfig
+        {{- end }}
+        {{- end }}
+      volumeMounts:
+        {{- include "common.extraVolumeMounts" . | nindent 8 }}
+        {{- if .Values.entityTypeValidation.enabled }}
+        {{- with .Values.kcp.kubeconfig.secret }}
+          - name: kcp-api-server
+            mountPath: /api-kubeconfig
+            readOnly: true
+        {{- end }}
+        {{- end }}
+    volumes:
+      {{- include "common.extraVolumes" . | nindent 8 }}
+      {{- if .Values.entityTypeValidation.enabled }}
+      {{- with .Values.kcp.kubeconfig.secret }}
+        - name: kcp-api-server
+          secret:
+            secretName: {{ . }}
+      {{- end }}
+      {{- end }}

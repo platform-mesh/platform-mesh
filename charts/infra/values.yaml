@@ -1,0 +1,439 @@
+hostAliases:
+  enabled: false
+
+externalSecrets:
+  enabled: false
+
+kcp:
+  image:
+    repository: ""
+    tag: ""
+  namespace: platform-mesh-system
+  certificates:
+    # -- Existing Issuer/ClusterIssuer that signs the kcp certificate chain. It must be able to issue CA certificates. Mutually exclusive with caSecretRef.
+    issuerRef: {}
+    # -- Existing CA to sign from directly. Secret must be of type kubernetes.io/tls and contain the CA certificate and its private key. Mutually exclusive with issuerRef.
+    caSecretRef: {}
+  external:
+    # -- External hostname for kcp. Required — must be set via profile map or PlatformMesh resource (e.g. kcp.api.example.com).
+    hostname: ""
+    port: 8443
+  auth:
+    adminCert:
+      enabled: true
+      privateKey:
+        algorithm: RSA
+        size: 2048
+      subject:
+        organizations:
+          - system:kcp:admin
+    serviceAccount:
+      enabled: true
+    oidc:
+      enabled: false
+      issuerUrl: ""
+      clientID: ""
+      groupsClaim: groups
+      usernameClaim: email
+      caFileRef:
+        name: domain-certificate-ca
+        key: tls.crt
+  etcd:
+    name: etcd-kcp
+    service:
+      name: etcd-kcp-client
+      port: 2379
+    image:
+      repository: ""
+      tag: ""
+    defragmentationSchedule: "0 */24 * * *"
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 200Mi
+    serverPort: 2380
+    quota: 8Gi
+    backup:
+      image:
+        repository: ""
+        tag: ""
+      port: 8080
+      fullSnapshotSchedule: "0 */24 * * *"
+      resources:
+        limits:
+          cpu: 200m
+          memory: 1Gi
+        requests:
+          cpu: 23m
+          memory: 128Mi
+      garbageCollectionPolicy: Exponential
+      garbageCollectionPeriod: 43200s
+      deltaSnapshotPeriod: 300s
+      deltaSnapshotMemoryLimit: 1Gi
+      compression:
+        enabled: false
+        policy: "gzip"
+      leaderElection:
+        reelectionPeriod: 5s
+        etcdConnectionTimeout: 5s
+      # store:
+      #   container: etcd-bucket
+      #   prefix: etcd-test
+      #   provider: S3
+      #   endpointOverride: http://localstack.default:4566
+      #   secretRef:
+      #     name: etcd-backup-aws
+    sharedConfig:
+      autoCompactionMode: periodic
+      autoCompactionRetention: "30m"
+    replicas: 1
+
+  cacheServer:
+    name: cache-server
+    etcd:
+      name: etcd-cache
+      service:
+        name: etcd-cache-client
+        port: 2379
+
+  webhook:
+    enabled: true
+    caData: ""
+    server: https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz
+    authorizationWebhookSecretName: kcp-webhook-secret
+    port: 9443
+    version: v1
+
+  rootShard:
+    replicas: 1
+    # -- Hostname for the root shard. Defaults to "root.kcp.<kcp.external.hostname>" when unset.
+    hostname: ""
+    # -- Base URL the root shard advertises. Defaults to "https://<rootShard.hostname>:<kcp.external.port>/" when unset.
+    shardBaseURL: ""
+    # -- Optional resource requests and limits for the root shard
+    resources: {}
+    # resources:
+    #   limits:
+    #     cpu: "2"
+    #     memory: "2Gi"
+    #   requests:
+    #     cpu: "1"
+    #     memory: "1Gi"
+    extraArgs:
+    - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+  shards:
+    - name: nereus
+    - name: triton
+  frontProxy:
+    replicas: 1
+    name: frontproxy
+    clusterIP: ""
+    # -- Optional resource requests and limits for the front proxy
+    resources: {}
+    # resources:
+    #   limits:
+    #     cpu: 500m
+    #     memory: 512Mi
+    #   requests:
+    #     cpu: 100m
+    #     memory: 128Mi
+    additionalPathMappings:
+      - path: /services/contentconfigurations
+        backend: https://virtual-workspaces.platform-mesh-system:8443
+        backend_server_ca: /etc/kcp/tls/ca/tls.crt
+        proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+        proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      - path: /services/marketplace
+        backend: https://virtual-workspaces.platform-mesh-system:8443
+        backend_server_ca: /etc/kcp/tls/ca/tls.crt
+        proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+        proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+    extraArgs:
+    - --feature-gates=WorkspaceAuthentication=true
+
+openfga:
+  rbac:
+    writePrincipals:
+      - cluster.local/ns/platform-mesh-system/sa/iam-service
+      - cluster.local/ns/platform-mesh-system/sa/security-operator
+      - cluster.local/ns/platform-mesh-system/sa/account-operator
+
+keycloak:
+  operator:
+    # -- Enable Keycloak CR and supporting secrets managed by Keycloak Operator
+    enabled: false
+    # -- Number of Keycloak instances
+    instances: 1
+    image:
+      # -- Keycloak image registry
+      registry: ghcr.io
+      # -- Keycloak image repository (without registry)
+      repository: platform-mesh/custom-images/keycloak
+      # -- Keycloak image tag (defaults to appVersion)
+      tag: "v26.8.1"
+      # -- Keycloak image digest (when set, overrides tag: registry/repository@digest)
+      digest: ""
+    waitForDb:
+      image:
+        # -- wait-for-db init container image registry
+        registry: docker.io
+        # -- wait-for-db init container image repository (without registry)
+        repository: library/busybox
+        # -- wait-for-db init container image tag
+        tag: "1.37"
+        # -- wait-for-db init container image digest (when set, overrides tag)
+        digest: ""
+    # -- Keycloak hostname (used in the Keycloak CR hostname.hostname field).
+    # Must not include a path — the operator auto-derives http-relative-path from
+    # any path component, which conflicts with the value baked into the image.
+    hostname: ""
+    db:
+      # -- PostgreSQL host
+      host: platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local
+      # -- PostgreSQL port
+      port: 5432
+      # -- Database name
+      database: keycloak
+      # -- Database username (written to keycloak-db-credentials secret)
+      username: keycloak
+      # -- Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value.
+      password: ""
+    admin:
+      # -- Bootstrap admin username (written to keycloak-admin secret)
+      username: keycloak-admin
+      # -- Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value.
+      password: ""
+      # -- Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value.
+      secret: ""
+    # -- Secret with PEM CA for outbound HTTPS trust (e.g. local mkcert CA)
+    caSecret: ""
+    # -- Enable plain HTTP on the Keycloak pod. Keycloak sits behind gatewayAPI, which
+    # handles TLS termination.
+    httpEnabled: true
+    resources:
+      limits:
+        cpu: "2"
+        memory: 2Gi
+      requests:
+        cpu: 750m
+        memory: 1Gi
+    health:
+      port: 9000
+      periodSeconds: 10
+      liveness:
+        path: /keycloak/health/live
+        failureThreshold: 3
+      readiness:
+        path: /keycloak/health/ready
+        initialDelaySeconds: 0
+        periodSeconds: 10
+      startup:
+        path: /keycloak/health
+        failureThreshold: 600
+  gatewayApi:
+    # -- hostnames for the Keycloak HTTPRoute
+    hostnames: []
+    # -- path prefix for the Keycloak HTTPRoute
+    pathPrefix: /keycloak
+    # -- list of HTTPRoute filters (default: none)
+    filters: []
+
+  # -- service configuration
+  service:
+    # -- service name
+    name: keycloak
+    # -- service port
+    port: 80
+
+  # -- domain configuration
+  domain:
+    # -- domain name
+    name: platform-mesh.io
+    # -- path prefix
+    pathPrefix: "/keycloak"
+
+  keycloakConfig:
+    # -- url of the keycloak server
+    url: http://keycloak.platform-mesh-system.svc.cluster.local/keycloak
+    userRegistration:
+      # -- toggle to enable/disable user registration
+      enabled: true
+    # -- redirect urls
+    redirectUrls: []
+    # -- realm configuration
+    realm:
+      # -- realm name
+      name: master
+    # -- client configuration
+    client:
+      # -- client name
+      name: welcome
+      # -- target secret options
+      targetSecret:
+        # -- secret name
+        name: portal-client-secret-welcome
+        # -- secret namespace
+        namespace: platform-mesh-system
+      # -- token lifespan
+      tokenLifespan: 3600
+    # -- admin user configuration
+    admin:
+      username:
+        # -- username
+        value: keycloak-admin
+      # -- admin password
+      password:
+        valueFrom:
+          secretKeyRef:
+            # -- name of the secret containing the password
+            name: keycloak-admin
+            # -- key of the password in the secret
+            key: secret
+
+dex:
+  # -- Enable Dex as a local upstream OIDC identity provider
+  enabled: false
+  # -- Dex issuer URL (must match external browser-reachable URL)
+  issuer: ""
+  image:
+    # -- Dex image registry
+    registry: ghcr.io
+    # -- Dex image repository (without registry)
+    repository: dexidp/dex
+    # -- Dex image tag
+    tag: v2.42.0
+    # -- Dex image digest (when set, overrides tag: registry/repository@digest)
+    digest: "sha256:1b4a6eee8550240b0faedad04d984ca939513650e1d9bd423502c67355e3822f"
+  service:
+    # -- Dex service name
+    name: dex
+    # -- Dex service port
+    port: 5556
+  health:
+    periodSeconds: 10
+    liveness:
+      # Main HTTP server only exposes /healthz (prefixed by issuer path).
+      # /healthz/live is on the optional telemetry port, not port 5556.
+      path: /dex/healthz
+      failureThreshold: 3
+    readiness:
+      path: /dex/healthz
+      initialDelaySeconds: 0
+      periodSeconds: 10
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  gatewayApi:
+    # -- hostnames for the Dex HTTPRoute
+    hostnames: []
+    # -- path prefix for the Dex HTTPRoute
+    pathPrefix: /dex
+    # -- list of HTTPRoute filters (default: none)
+    filters: []
+  staticClient:
+    # -- OIDC client ID for Keycloak identity broker
+    id: keycloak-broker
+    # -- OIDC client secret for Keycloak identity broker (local dev only)
+    secret: local-dev-broker-secret
+    # -- Display name for the static OIDC client
+    name: Keycloak Broker
+    # -- Allowed redirect URIs (Keycloak broker callback URLs)
+    redirectURIs: []
+  staticPasswords:
+    # -- Local test user for Dex password connector (dex@portal.localhost/dex/dex)
+    - email: dex@portal.localhost
+      # bcrypt hash of password "dex"
+      hash: "$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm"
+      username: dex
+      userID: "08a868f8-4b4b-42f3-9d23-5f46eda2c3a0"
+
+cnpg:
+  enabled: false
+  cluster:
+    name: platform-mesh-pg
+    image:
+      # -- PostgreSQL image registry
+      registry: ghcr.io
+      # -- PostgreSQL image repository (without registry)
+      repository: cloudnative-pg/postgresql
+      # -- PostgreSQL image tag
+      tag: "18.3"
+      # -- PostgreSQL image digest (when set, overrides tag)
+      digest: ""
+    instances: 2
+    storage:
+      size: 2Gi
+    postgresql:
+      maxConnections: "200"
+      sharedBuffers: "128MB"
+  roles:
+    keycloak:
+      # -- PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret.
+      username: keycloak
+      # -- REQUIRED: set to a strong random value.
+      password: ""
+    openfga:
+      # -- PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret.
+      username: openfga
+      # -- REQUIRED: set to a strong random value.
+      password: ""
+  databases:
+    - name: keycloak
+      owner: keycloak
+    - name: openfga
+      owner: openfga
+
+gatewayApi:
+  # -- Toggle to enable/disable Gateway API resources
+  enabled: true
+  # -- Name of the Gateway resource
+  name: k8sapi-gateway
+  # -- GatewayClass name
+  gatewayClassName: traefik
+  # -- HTTPS Terminate configuration
+  infrastructure: {}
+  # -- Gateway listeners. The HTTPS listener is hostname-less so all route hostnames share one listener (needed for HTTP/2 connection reuse on Istio).
+  listeners:
+    - name: terminate
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: domain-certificate
+            namespace: platform-mesh-system
+  passthrough:
+    # -- Generate one TLS passthrough listener per kcp hostname (front proxy, root shard, shards). Disable to manage passthrough listeners yourself; kcp TLSRoutes then attach to a listener named "passthrough".
+    enabled: true
+    # -- Port of the generated passthrough listeners
+    port: 443
+    # -- allowedRoutes of the generated passthrough listeners
+    allowedRoutes:
+      namespaces:
+        from: All
+  # -- Additional listeners to be added to the Gateway resource (e.g. for HTTPBin)
+  listenersExtra:
+    - name: terminate-services
+    # -- hostname should match the pattern "*.services.{{ .baseDomain }}"
+      hostname: ""
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: domain-certificate
+            namespace: platform-mesh-system
+      allowedRoutes:
+        namespaces:
+          from: All

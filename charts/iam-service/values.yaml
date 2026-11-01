@@ -1,0 +1,75 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/iam-service
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  pullPolicy: IfNotPresent
+
+health:
+  port: 8080
+
+exposure:
+  # -- hostnames to be used for exposure
+  hostnames: []
+
+gatewayApi:
+  httpRoute:
+    pathPrefix: /iam/graphql
+    parentRefs:
+      - name: k8sapi-gateway
+    # -- list of HTTPRoute filters (default: URLRewrite only, no CORS)
+    filters:
+      - type: URLRewrite
+        urlRewrite:
+          path:
+            type: ReplacePrefixMatch
+            replacePrefixMatch: /graphql
+
+port: 8080
+
+kcp:
+  kubeconfig:
+    secretName: iam-service-kubeconfig
+
+caSecret: ""
+
+hostAliases:
+  enabled: false
+
+openfga:
+  endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
+
+keycloak:
+  # -- base URL of the Keycloak instance (e.g. https://example.com/keycloak). Required.
+  baseUrl: ""
+  client:
+    id: iam-service
+    secret:
+      name: iam-client-secret
+      key: client_secret
+
+# JWT configuration
+jwt:
+  userIdClaim: "email"
+
+roles:
+  raw:
+    roles:
+    - groupResource: core.platform-mesh.io/Account
+      roles:
+        - id: owner
+          displayName: Owner
+          description: Full access to all resources within the account.
+        - id: member
+          displayName: Member
+          description: Limited access to resources within the account. Can view and interact with resources but cannot administrate them.
+    - groupResource: Namespace
+      roles:
+        - id: owner
+          displayName: Owner
+          description: Full access to all resources within the account.
+        - id: member
+          displayName: Member
+          description: Limited access to resources within the account. Can view and interact with resources but cannot administrate them.

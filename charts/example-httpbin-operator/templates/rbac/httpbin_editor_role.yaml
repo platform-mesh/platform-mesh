@@ -1,0 +1,28 @@
+{{- if .Values.rbac.enable }}
+# permissions for end users to edit httpbins.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: httpbin-editor-role
+rules:
+- apiGroups:
+  - orchestrate.platform-mesh.io
+  resources:
+  - httpbins
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - orchestrate.platform-mesh.io
+  resources:
+  - httpbins/status
+  verbs:
+  - get
+{{- end -}}

@@ -15,14 +15,14 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260624-0de8b9c.providerpermissions.providers.platform-mesh.io
+  name: v261029-3c474365.providerpermissions.providers.platform-mesh.io
 spec:
   group: providers.platform-mesh.io
   names:
     kind: ProviderPermissions
     listKind: ProviderPermissionsList
     plural: providerpermissions
-    singular: providerpermission
+    singular: providerpermissions
   scope: Cluster
   versions:
   - name: v1alpha1
@@ -50,15 +50,21 @@ spec:
         spec:
           description: ProviderPermissionsSpec defines the desired state of ProviderPermissions.
           properties:
-            apiExportRef:
-              description: APIExportRef references the APIExport this configuration
-                applies to
+            apiExport:
+              description: APIExport references the APIExport this configuration applies
+                to
               properties:
-                name:
-                  description: Name of the APIExport
-                  type: string
+                ref:
+                  description: Ref identifies the APIExport
+                  properties:
+                    name:
+                      description: Name of the APIExport
+                      type: string
+                  required:
+                  - name
+                  type: object
               required:
-              - name
+              - ref
               type: object
             permissions:
               additionalProperties:
@@ -76,6 +82,11 @@ spec:
                       DefaultPermissions overrides standard Kubernetes verb permissions
                       Empty string "" means use system default
                     properties:
+                      create:
+                        description: |-
+                          Create permission expression, evaluated on the parent account or namespace.
+                          Referenced relations must exist on that parent (empty string uses owner).
+                        type: string
                       delete:
                         description: Delete permission expression (empty string uses
                           default)
@@ -83,6 +94,11 @@ spec:
                       get:
                         description: Get permission expression (empty string uses
                           default)
+                        type: string
+                      list:
+                        description: |-
+                          List permission expression, evaluated on the parent account or namespace.
+                          Referenced relations must exist on that parent (empty string uses member).
                         type: string
                       patch:
                         description: Patch permission expression (empty string uses
@@ -93,14 +109,16 @@ spec:
                           default)
                         type: string
                       watch:
-                        description: Watch permission expression (empty string uses
-                          default)
+                        description: |-
+                          Watch permission expression, evaluated on the parent account or namespace.
+                          Referenced relations must exist on that parent; the resource's watch relation
+                          inherits the overridden parent permission (empty string uses member).
                         type: string
                     type: object
                 type: object
               description: |-
                 Permissions defines per-resource permission configuration
-                Key format: {resource}.{group} (e.g., "httpbin.orchestrate.platform-mesh.io")
+                Key format: {singular}.{group} (e.g., "httpbin.orchestrate.platform-mesh.io")
               type: object
             roles:
               description: Roles defines custom roles grouped by resource type
@@ -109,7 +127,7 @@ spec:
                 properties:
                   groupResource:
                     description: |-
-                      GroupResource identifies the resource type in format "{resource}.{group}"
+                      GroupResource identifies the resource type in format "{singular}.{group}"
                       (e.g., "httpbin.orchestrate.platform-mesh.io")
                     type: string
                   roles:
@@ -145,7 +163,7 @@ spec:
                 type: object
               type: array
           required:
-          - apiExportRef
+          - apiExport
           type: object
         status:
           description: ProviderPermissionsStatus defines the observed state of ProviderPermissions.

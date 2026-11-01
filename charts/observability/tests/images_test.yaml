@@ -1,0 +1,32 @@
+suite: image localization
+templates:
+  - templates/otel-collector.yaml
+  - templates/kcp-metrics-cert-job.yaml
+release:
+  name: observability
+  namespace: observability
+tests:
+  - it: renders the otel-collector image from the split schema
+    template: templates/otel-collector.yaml
+    asserts:
+      - equal:
+          path: spec.image
+          value: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.153.0
+  - it: renders the otel-collector image tag- and digest-pinned when digest set
+    template: templates/otel-collector.yaml
+    set:
+      otelCollector.image.digest: "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+    asserts:
+      - equal:
+          path: spec.image
+          value: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.153.0@sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+  - it: renders the cert-extractor image digest-pinned
+    template: templates/kcp-metrics-cert-job.yaml
+    documentIndex: 5
+    asserts:
+      - equal:
+          path: kind
+          value: Job
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ^docker\.io/bitnami/kubectl@sha256:[a-f0-9]{64}$

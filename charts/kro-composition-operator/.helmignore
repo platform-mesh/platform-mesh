@@ -1,0 +1,3 @@
+.git
+*.md.gotmpl
+tests/

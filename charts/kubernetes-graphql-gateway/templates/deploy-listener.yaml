@@ -1,0 +1,189 @@
+{{- $noJson := include "common.getKeyValue" (dict "Values" .Values "key" "log.noJson") }}
+{{- $provider := .Values.listener.provider | default "multi" }}
+{{- if eq $provider "kubernetes" }}
+{{- fail "listener.provider value 'kubernetes' is no longer supported. Use 'single' instead." }}
+{{- end }}
+{{- if and .Values.listener.clusterAccessControllerProviders (not .Values.listener.enableClusterAccessController) }}
+{{- fail "listener.clusterAccessControllerProviders requires listener.enableClusterAccessController=true" }}
+{{- end }}
+{{- $deploy := default dict .Values.deployment }}
+{{- $override := default dict .Values.listener.deployment }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}-listener
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "common.entity.name" . }}-listener
+spec:
+  replicas: {{ if hasKey $override "replicas" }}{{ $override.replicas }}{{ else }}{{ $deploy.replicas }}{{ end }}
+  strategy:
+    rollingUpdate:
+      maxSurge: {{ if hasKey $override "maxSurge" }}{{ $override.maxSurge }}{{ else }}{{ $deploy.maxSurge }}{{ end }}
+      maxUnavailable: {{ if hasKey $override "maxUnavailable" }}{{ $override.maxUnavailable }}{{ else }}{{ $deploy.maxUnavailable }}{{ end }}
+  revisionHistoryLimit: {{ if hasKey $override "revisionHistoryLimit" }}{{ $override.revisionHistoryLimit }}{{ else }}{{ $deploy.revisionHistoryLimit }}{{ end }}
+  selector:
+    matchLabels:
+      app: {{ include "common.entity.name" . }}-listener
+  template:
+    metadata:
+      labels:
+        app: {{ include "common.entity.name" . }}-listener
+        version: "{{ .Chart.AppVersion }}"
+        {{- if eq .Values.schemaHandler.type "file" }}
+        schema-handler-group: {{ include "common.entity.name" . }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "common.entity.name" . }}
+      {{- include "common.imagePullSecret" . | nindent 6 }}
+      {{- include "common.hostAliases" . | nindent 6 }}
+      {{- if eq .Values.schemaHandler.type "file" }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  schema-handler-group: {{ include "common.entity.name" . }}
+              topologyKey: kubernetes.io/hostname
+      {{- end }}
+      containers:
+      - name: listener
+        image: {{ include "common.image" . }}
+        {{- include "common.imagePullPolicy" . | nindent 8 }}
+        {{- with .Values.listener.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- include "common.container.securityContext" . | nindent 8 }}
+        {{- if .Values.listener.healthCheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.health.liveness.path }}
+            port: {{ .Values.listener.healthCheck.port }}
+          failureThreshold: {{ .Values.health.liveness.failureThreshold }}
+          periodSeconds: {{ .Values.health.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.health.readiness.path }}
+            port: {{ .Values.listener.healthCheck.port }}
+          initialDelaySeconds: {{ .Values.health.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.health.readiness.periodSeconds }}
+        startupProbe:
+          httpGet:
+            path: {{ .Values.health.startup.path }}
+            port: {{ .Values.listener.healthCheck.port }}
+          failureThreshold: {{ .Values.health.startup.failureThreshold }}
+          periodSeconds: {{ .Values.health.periodSeconds }}
+        # remove when needed endpoints are added
+        {{- else }}
+        startupProbe:
+          tcpSocket:
+            port: {{ .Values.listener.metricsPort }}
+          failureThreshold: {{ .Values.health.startup.failureThreshold }}
+          periodSeconds: {{ .Values.health.periodSeconds }}
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.listener.metricsPort }}
+          periodSeconds: {{ .Values.health.readiness.periodSeconds }}
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.listener.metricsPort }}
+          failureThreshold: {{ .Values.health.liveness.failureThreshold }}
+          periodSeconds: {{ .Values.health.periodSeconds }}
+        {{- end }}
+        args:
+        - listener
+        - --schema-handler={{ .Values.schemaHandler.type }}
+        {{- if eq .Values.schemaHandler.type "grpc" }}
+        - --grpc-listen-addr=:{{ .Values.listener.grpcPort }}
+        - --grpc-max-send-msg-size={{ int .Values.listener.grpcMaxSendMsgSize }}
+        {{- else if eq .Values.schemaHandler.type "file" }}
+        - --schemas-dir={{ .Values.schemaHandler.schemasDir }}
+        {{- end }}
+        - --multicluster-runtime-provider={{ $provider }}
+        {{- if or (eq $provider "kcp") (eq $provider "multi") }}
+        {{- if .Values.kubeConfig.enabled }}
+        - --kubeconfig={{ .Values.kubeConfig.path }}
+        {{- end }}
+        - --apiexport-endpoint-slice-name={{ .Values.listener.apiExportEndpointSliceName }}
+        - --workspace-schema-kubeconfig-override={{ .Values.listener.workspaceSchemaKubeconfigOverride | default .Values.kubeConfig.path }}
+        - --anchor-resource={{ .Values.listener.anchorResourceExpression }}
+        - --reconciler-gvr={{ .Values.listener.reconcilerGvr }}
+        - --additional-path-annotation-key={{ .Values.listener.additionalPathAnnotationKey }}
+        {{- end }}
+        - --metrics-bind-address=:{{ .Values.listener.metricsPort }}
+        - --enable-resource-controller={{ .Values.listener.enableResourceController }}
+        - --enable-clusteraccess-controller={{ .Values.listener.enableClusterAccessController }}
+        {{- if .Values.listener.cacheNamespaces }}
+        - --cache-namespaces={{ join "," .Values.listener.cacheNamespaces }}
+        {{- end }}
+        {{- if eq $provider "multi" }}
+        - --single-kubeconfig={{ .Values.singleKubeConfig.path }}
+        {{- if .Values.listener.resourceControllerProviders }}
+        - --resource-controller-providers={{ .Values.listener.resourceControllerProviders }}
+        {{- end }}
+        {{- if .Values.listener.clusterAccessControllerProviders }}
+        - --clusteraccess-controller-providers={{ .Values.listener.clusterAccessControllerProviders }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.listener.extraArgs }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if eq $noJson "true" }}
+        - --no-json
+        {{- end }}
+        ports:
+        {{- if eq .Values.schemaHandler.type "grpc" }}
+          - name: grpc
+            containerPort: {{ .Values.listener.grpcPort }}
+            protocol: TCP
+        {{- end }}
+          - name: metrics
+            containerPort: {{ .Values.listener.metricsPort }}
+            protocol: TCP
+          - name: health-port
+            containerPort: {{ .Values.listener.healthCheck.port }}
+            protocol: TCP
+          - name: service-port
+            containerPort: {{ .Values.listener.port }}
+            protocol: TCP
+        env:
+        {{- if .Values.kubeConfig.enabled }}
+        - name: KUBECONFIG
+          value: {{ .Values.kubeConfig.path }}
+        {{- end }}
+        volumeMounts:
+        {{- if eq .Values.schemaHandler.type "file" }}
+          - name: schemas-volume
+            mountPath: {{ .Values.schemaHandler.schemasDir }}
+        {{- end }}
+        {{- if .Values.kubeConfig.enabled }}
+          - name: kubeconfig-volume
+            mountPath: /app/kubeconfig
+        {{- end }}
+        {{- if .Values.singleKubeConfig.enabled }}
+          - name: single-kubeconfig-volume
+            mountPath: /app/single-kubeconfig
+        {{- end }}
+        {{- with .Values.extraVolumeMounts }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      volumes:
+        {{- if eq .Values.schemaHandler.type "file" }}
+        - name: schemas-volume
+          persistentVolumeClaim:
+            claimName: {{ include "common.entity.name" . }}-schemas
+        {{- end }}
+        {{- if .Values.kubeConfig.enabled }}
+        - name: kubeconfig-volume
+          secret:
+            secretName: {{ .Values.kubeConfig.secretName }}
+        {{- end }}
+        {{- if .Values.singleKubeConfig.enabled }}
+        - name: single-kubeconfig-volume
+          secret:
+            secretName: {{ .Values.singleKubeConfig.secretName }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

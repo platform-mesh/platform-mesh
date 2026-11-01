@@ -47,6 +47,7 @@ import (
 )
 
 type AccountLogicalClusterController struct {
+	engageOpts  mcbuilder.EngageOptions
 	log         *logger.Logger
 	name        string
 	lifecycle   *lifecycle.Lifecycle
@@ -90,6 +91,12 @@ func (r *AccountLogicalClusterController) Reconcile(ctx context.Context, req mcr
 	return result, err
 }
 
+// WithEngageOptions limits which clusters the controller engages with; by default it engages all.
+func (r *AccountLogicalClusterController) WithEngageOptions(opts mcbuilder.EngageOptions) *AccountLogicalClusterController {
+	r.engageOpts = opts
+	return r
+}
+
 func (r *AccountLogicalClusterController) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
 	opts := controller.TypedOptions[mcreconcile.Request]{
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
@@ -98,7 +105,7 @@ func (r *AccountLogicalClusterController) SetupWithManager(mgr mcmanager.Manager
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(r.name).
-		For(&kcpcorev1alpha1.LogicalCluster{}).
+		For(&kcpcorev1alpha1.LogicalCluster{}, r.engageOpts).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

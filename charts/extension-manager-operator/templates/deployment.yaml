@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  revisionHistoryLimit: {{ include "common.getKeyValue" (dict "Values" .Values "key" "deployment.revisionHistoryLimit") }}
+  selector:
+    matchLabels:
+      {{- include "common.labelMatcher" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+        control-plane: controller-manager
+      annotations:
+        sidecar.istio.io/inject: "{{ (include "common.istioEnabled" .) }}"
+      {{- if ((.Values.deployment).template).annotations }}
+      {{ .Values.deployment.template.annotations | toYaml | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+      {{ include "common.hostAliases" $ | nindent 6 }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        {{- include "common.healthAndReadiness" . | indent 8 }}
+        ports:
+        {{- include "common.PortsMetricsHealth" . | nindent 10 }}
+        args:
+          - operator
+          {{- if .Values.kcp.apiExportEndpointSliceName }}
+          - --kcp-api-export-endpoint-slice-name={{ .Values.kcp.apiExportEndpointSliceName }}
+          {{- end }}
+          {{- if .Values.entityTypeValidation.enabled }}
+          - --entity-type-validation-enabled
+          {{- end }}
+        {{- include "common.commonOperatorArgs" . | indent 8 }}
+        env:
+        {{- include "common.basicEnvironment" . | nindent 10 }}
+        {{- with .Values.kcp.kubeconfig.secret }}
+          - name: KUBECONFIG
+            value: /api-kubeconfig/kubeconfig
+        {{- end }}
+        volumeMounts:
+          {{- include "common.extraVolumeMounts" . | nindent 10 }}
+          {{- with .Values.kcp.kubeconfig.secret }}
+          - name: kcp-api-server
+            mountPath: /api-kubeconfig
+            readOnly: true
+          {{- end }}
+      volumes:
+        {{- include "common.extraVolumes" . | nindent 8 }}
+        {{- with .Values.kcp.kubeconfig.secret }}
+        - name: kcp-api-server
+          secret:
+            secretName: {{ . }}
+        {{- end }}

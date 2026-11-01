@@ -1,0 +1,78 @@
+{{- if .Values.ocm.enabled }}
+{{- $_ := required "gateway.baseDomain must be set when ocm.enabled=true" .Values.gateway.baseDomain }}
+{{- $gatewayClusterIP := .Values.gateway.clusterIP | default .Values.gateway.traefikClusterIP }}
+{{- if eq .Values.ocm.profile "kind" }}
+{{- $_ = required "gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind profile" $gatewayClusterIP }}
+{{- end }}
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Repository
+metadata:
+  name: platform-mesh
+  namespace: {{ .Release.Namespace }}
+spec:
+  repositorySpec:
+    baseUrl: {{ .Values.ocm.repository | quote }}
+    type: OCIRegistry
+  interval: 1m
+---
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Component
+metadata:
+  name: platform-mesh
+  namespace: {{ .Release.Namespace }}
+spec:
+  repositoryRef:
+    name: platform-mesh
+  component: github.com/platform-mesh/platform-mesh
+  semver: {{ .Values.ocm.version | quote }}
+  interval: 1m
+  verify:
+    - signature: {{ .Values.ocm.signatureName | quote }}
+      secretRef:
+        name: ocm-signing-public-cert
+  ocmConfig:
+    - kind: Repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      name: platform-mesh
+      namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ocm-resolver-config
+  namespace: {{ .Release.Namespace }}
+data:
+  .ocmconfig: |
+    type: generic.config.ocm.software/v1
+    configurations:
+      - type: resolvers.config.ocm.software
+        resolvers:
+          - repository:
+              type: OCIRegistry/v1
+              baseUrl: europe-docker.pkg.dev
+              subPath: gardener-project/releases
+            componentNamePattern: "github.com/gardener/*"
+---
+apiVersion: core.platform-mesh.io/v1alpha1
+kind: PlatformMesh
+metadata:
+  name: platform-mesh
+  namespace: {{ .Release.Namespace }}
+spec:
+  exposure:
+    port: {{ .Values.gateway.port }}
+    baseDomain: {{ .Values.gateway.baseDomain | quote }}
+    protocol: https
+    {{- if $gatewayClusterIP }}
+    traefikClusterIP: {{ $gatewayClusterIP | quote }}
+    {{- end }}
+  ocm:
+    repo:
+      name: platform-mesh
+    component:
+      name: platform-mesh
+    referencePath: []
+  featureToggles:
+    - name: feature-accounts-in-accounts
+  kcp: {}
+{{- end }}

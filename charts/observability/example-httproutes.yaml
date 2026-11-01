@@ -1,0 +1,50 @@
+# Example: Enabling HTTPRoutes for Observability Endpoints
+
+# This example shows how to expose the Prometheus UI and OTel Collector
+# via Gateway API HTTPRoutes
+
+# Enable HTTPRoutes
+httproutes:
+  # Reference to your Gateway resource
+  gatewayName: "platform-gateway"
+  gatewayNamespace: "platform-mesh-system"
+
+  # Expose Prometheus UI
+  prometheus:
+    enabled: true
+    hostnames:
+      - "prometheus.local.platform-mesh.io"
+    pathPrefix: /
+    # Optional: Strip path prefix if Prometheus expects requests at /
+    # filters:
+    #   - type: URLRewrite
+    #     urlRewrite:
+    #       path:
+    #         type: ReplacePrefixMatch
+    #         replacePrefixMatch: /
+
+  # Optional: Expose OTel Collector metrics endpoint
+  otelCollector:
+    enabled: true
+    hostnames:
+      - "otel-collector.local.platform-mesh.io"
+    pathPrefix: /metrics
+    port: 8888  # Metrics port
+
+# Keep other values as defaults...
+prometheus:
+  enabled: true
+  server:
+    persistentVolume:
+      enabled: false
+    extraFlags:
+      - web.enable-remote-write-receiver
+      - web.enable-lifecycle
+
+opentelemetry-operator:
+  enabled: true
+
+otelCollector:
+  name: otel-gateway
+  mode: statefulset
+  replicas: 1

@@ -1,0 +1,76 @@
+# Default values for example-httpbin-operator
+enabled: true
+nameOverride: ""
+fullnameOverride: ""
+
+# Installation configuration
+operator:
+  install: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 64Mi
+  args: []
+  # Name of a secret containing a kubeconfig for a remote cluster.
+  # Use remoteKubeconfigSubPath to specify the path within the secret.
+  #
+  # E.g. if a kubeconfig secret was created with:
+  # kubectl create secret generic remote-kubeconfig --from-file=kubeconfig=/path/to/kubeconfig
+  #
+  # Then set remoteKubeconfig to "remote-kubeconfig" and remoteKubeconfigSubPath to "kubeconfig".
+  remoteKubeconfig: ''
+  remoteKubeconfigSubPath: ''
+
+# Image configuration
+image:
+  registry: ghcr.io
+  repository: platform-mesh/example-httpbin-operator
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  pullPolicy: IfNotPresent
+
+controllerManager:
+  serviceAccountName: example-httpbin-operator-controller-manager
+  serviceAccount:
+    annotations: {}
+
+rbac:
+  enable: true
+
+# [API-SYNCAGENT]: kcp api-syncagent integration
+apiSyncagent:
+  rbac:
+    enable: false
+  publishedResources:
+    enable: false
+  serviceAccount:
+    name: api-syncagent
+    namespace: platform-mesh-system
+
+podAnnotations: {}
+podLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# [METRICS]: Set to true to generate manifests for exporting metrics.
+# To disable metrics export set false, and ensure that the
+# ControllerManager argument "--metrics-bind-address=:8443" is removed.
+metrics:
+  enable: true
+
+# [PROMETHEUS]: To enable a ServiceMonitor to export metrics to Prometheus set true
+prometheus:
+  enable: false
+
+# [CERT-MANAGER]: To enable cert-manager injection to webhooks set true
+certmanager:
+  enable: false
+
+# [NETWORK POLICIES]: To enable NetworkPolicies set true
+networkPolicy:
+  enable: false

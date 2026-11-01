@@ -1,0 +1,72 @@
+suite: keycloak-operator
+chart:
+  appVersion: 0.0.0
+release:
+  name: keycloak-operator
+tests:
+  - it: deployment matches snapshot (defaults)
+    asserts:
+      - matchSnapshot: {}
+
+  - it: deployment has correct image
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: quay.io/keycloak/keycloak-operator:26.8.1
+
+  - it: deployment uses custom watchNamespace
+    template: templates/deployment.yaml
+    set:
+      watchNamespaces: my-namespace
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[2].value
+          value: my-namespace
+      - equal:
+          path: spec.template.spec.containers[0].env[3].value
+          value: my-namespace
+
+  - it: deployment uses JOSDK_WATCH_CURRENT when watchNamespaces is empty
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[2].value
+          value: JOSDK_WATCH_CURRENT
+
+  - it: deployment has security context
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: keycloak-operator
+
+  - it: deployment matches snapshot with custom resources
+    template: templates/deployment.yaml
+    set:
+      deployment:
+        resources:
+          limits:
+            cpuOverride: 1000m
+            memoryOverride: 1Gi
+          requests:
+            cpuOverride: 500m
+            memoryOverride: 512Mi
+    asserts:
+      - matchSnapshot: {}
+
+  - it: service matches snapshot
+    template: templates/service.yaml
+    asserts:
+      - matchSnapshot: {}
+
+  - it: serviceaccount matches snapshot
+    template: templates/serviceaccount.yaml
+    asserts:
+      - matchSnapshot: {}

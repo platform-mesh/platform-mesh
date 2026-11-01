@@ -1,0 +1,195 @@
+rbac:
+  enabled: true
+
+crds:
+  enabled: true
+
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/kubernetes-graphql-gateway
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  pullPolicy: IfNotPresent
+
+kcp:
+  # -- Controls kcp-specific RBAC. Set to true when provider is "kcp" or "multi".
+  enabled: true
+
+# -- Schema handler type: "grpc" or "file"
+schemaHandler:
+  type: grpc
+  # -- Directory path for schema files (used when type is "file")
+  schemasDir: /app/schemas
+  # -- Shared volume configuration (used when type is "file")
+  sharedVolume:
+    storageClassName: ""
+    size: 500Mi
+    accessMode: ReadWriteOnce
+
+gateway:
+  port: 8080
+  healthCheck:
+    enabled: true
+    port: 8080
+  metricsPort: 8081
+  # -- enable GraphQL playground UI (dev-only; exposes introspection)
+  playground: false
+  # -- log level for the gateway. Permissible values: trace, debug, info, warn, error
+  logLevel: info
+  shouldImpersonate: false
+  introspectionAuthentication: true
+  usernameClaim: email
+  extraArgs: []
+
+  # -- Maximum gRPC receive message size in bytes (used with --schema-handler=grpc).
+  # Increase if the gateway logs ResourceExhausted errors receiving schema updates.
+  grpcMaxRecvMsgSize: 4194304  # 4MB default, matches Go default
+
+  resources:
+    limits:
+      memory: 1200Mi
+    requests:
+      cpu: 250m
+      memory: 1000Mi
+
+  # -- Per-deployment overrides for the gateway Deployment. Any field set
+  # here takes precedence over the matching field in the top-level
+  # `deployment` block. Unset fields fall back to the top-level defaults.
+  # Example:
+  #   gateway:
+  #     deployment:
+  #       replicas: 3
+  deployment: {}
+
+listener:
+  port: 8090
+  grpcPort: 50051
+  # -- Multicluster runtime provider: "single", "kcp", or "multi" (default).
+  # "single" watches only the local cluster.
+  # "kcp" watches only kcp workspaces.
+  # "multi" composes both kcp + single providers.
+  provider: multi
+  apiExportEndpointSliceName: core.platform-mesh.io
+  workspaceSchemaKubeconfigOverride: ""
+  # -- CEL expression that selects which resources trigger a reconcile
+  anchorResourceExpression: 'true'
+  # -- GroupVersionResource for the reconciler to watch
+  reconcilerGvr: apibindings.v1alpha2.apis.kcp.io
+  additionalPathAnnotationKey: kcp.io/path
+  # -- (multi mode only) Comma-separated list of providers for the resource controller.
+  # Valid values: "kcp", "single". Only valid when provider=multi.
+  resourceControllerProviders: "kcp"
+  # -- (multi mode only) Comma-separated list of providers for the ClusterAccess controller.
+  # Valid values: "kcp", "single". Only valid when provider=multi.
+  # Requires enableClusterAccessController=true.
+  clusterAccessControllerProviders: "single"
+  # -- Enable the resource controller for watching the configured anchor resource and generating schemas.
+  enableResourceController: true
+  # -- Restrict the cache to these namespaces for namespaced resources (e.g. secrets, configmaps).
+  # Cluster-scoped resources are unaffected. When empty, all namespaces are cached.
+  cacheNamespaces: []
+  # -- Enable the ClusterAccess controller.
+  enableClusterAccessController: true
+
+  extraArgs: []
+  # -- Maximum gRPC send message size in bytes (used with --schema-handler=grpc).
+  # Must be >= gateway.grpcMaxRecvMsgSize.
+  grpcMaxSendMsgSize: 4194304  # 4MB default, matches Go default
+  healthCheck:
+    enabled: false
+    port: 3390
+  metricsPort: 8091
+  resources:
+    limits:
+      memory: 600Mi
+    requests:
+      cpu: 250m
+      memory: 500Mi
+
+  # -- Per-deployment overrides for the listener Deployment. Any field set
+  # here takes precedence over the matching field in the top-level
+  # `deployment` block. Unset fields fall back to the top-level defaults.
+  # Example:
+  #   listener:
+  #     deployment:
+  #       replicas: 1
+  deployment: {}
+
+# -- Default deployment settings applied to both the gateway and listener
+# Deployments. Each setting can be overridden per-deployment via
+# `gateway.deployment.<field>` or `listener.deployment.<field>` (see those
+# blocks in this file). When a per-deployment override is unset, the value
+# from this block is used.
+deployment:
+  maxUnavailable: 0
+  maxSurge: 5
+  revisionHistoryLimit: 3
+  replicas: 1
+
+sentry:
+  # -- environment label reported to Sentry (e.g. production, staging, development)
+  environment: production
+
+kubeConfig:
+  createSecret: false
+  # -- Mounts an external kubeconfig (for kcp provider).
+  # When provider is "kcp" or "multi", this provides the kcp kubeconfig.
+  enabled: true
+  secretName: "kcp-root-kubeconfig"
+  path: /app/kubeconfig/kubeconfig
+
+# -- Single-provider kubeconfig. Used when listener.provider=multi.
+singleKubeConfig:
+  # -- Auto-generate an in-cluster kubeconfig using the pod's service account.
+  # Set to false if providing your own secret via secretName.
+  createInClusterSecret: true
+  enabled: true
+  secretName: "single-kubeconfig"
+  path: /app/single-kubeconfig/kubeconfig
+
+extraVolumes: []
+extraVolumeMounts: []
+
+hostAliases:
+  enabled: false
+
+# Health check configuration shared by both pods
+health:
+  periodSeconds: 10
+  readiness:
+    path: "/readyz"
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  liveness:
+    path: "/healthz"
+    failureThreshold: 1
+    periodSeconds: 10
+  startup:
+    path: "/readyz"
+    failureThreshold: 30
+    periodSeconds: 10
+
+gatewayApi:
+  # -- configuration for the HTTPRoute resource
+  httpRoute:
+    enabled: true
+    pathPrefix: /gateway/api/clusters/
+    # -- hostnames for the HTTPRoute. When empty, the route matches all hostnames.
+    hostnames: []
+    parentRefs:
+    - name: k8sapi-gateway
+    # -- list of HTTPRoute filters (default: URLRewrite only, no CORS)
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          replacePrefixMatch: /api/clusters/
+          type: ReplacePrefixMatch
+
+clusterScopedName:
+  # -- Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one
+  prefix: ""
+  # -- Suffix for the names of cluster-scoped resources
+  suffix: ""

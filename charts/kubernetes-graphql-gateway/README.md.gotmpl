@@ -1,0 +1,10 @@
+# Local setup
+
+You can install helm chart locally, but you must provide kubeconfig:
+```
+kubeConfig:
+  createSecret: true # the content below must be stored in the secret, set to true to create it
+  enabled: true
+  content: |-
+    apiVersion: v1
+```

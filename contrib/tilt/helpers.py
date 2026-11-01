@@ -25,18 +25,19 @@ load('ext://restart_process', 'docker_build_with_restart')
 
 BUILD_GOARCH = os.getenv('GOARCH', '') or str(local('go env GOARCH', quiet=True, echo_off=True)).strip()
 
-def chart_path(name, version, oci_repo, cache_dir='.cache/charts'):
+def chart_path(name, version=None, oci_repo=None, cache_dir='.cache/charts'):
     """Resolve a Platform Mesh Helm chart to a local directory path.
 
-    By default pulls the pinned version from the OCI registry into cache_dir,
-    so `tilt up` works from a clone of this monorepo alone (no helm-charts
-    checkout). Set HELM_CHARTS_DIR to a local helm-charts checkout to override
-    the source for chart development — then charts render from
-    $HELM_CHARTS_DIR/charts/<name> live.
+    Charts live in this repository under charts/<name>, so by default that
+    directory is used and charts render live. Set HELM_CHARTS_DIR to point at
+    a different checkout. If TILT_CHARTS_FROM_OCI is set and version/oci_repo
+    are given, the pinned version is pulled from the OCI registry into
+    cache_dir instead.
 
     Returns a path suitable for helm(...).
     """
-    local_dir = os.getenv('HELM_CHARTS_DIR', '')
+    local_dir = os.getenv('HELM_CHARTS_DIR', '') or (
+        '' if os.getenv('TILT_CHARTS_FROM_OCI', '') else '.')
     if local_dir:
         return os.path.join(local_dir, 'charts', name)
 

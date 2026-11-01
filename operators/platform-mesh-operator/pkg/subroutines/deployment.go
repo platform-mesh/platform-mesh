@@ -271,7 +271,7 @@ func (r *DeploymentSubroutine) Process(ctx context.Context, runtimeObj ctrlrunti
 		}
 	}
 
-	_, oErr = r.manageAuthorizationWebhookSecrets(ctx, inst)
+	webhookResult, oErr := r.manageAuthorizationWebhookSecrets(ctx, inst)
 	if oErr != nil {
 		log.Info().Msg("Failed to manage authorization webhook secrets")
 		return subroutines.OK(), oErr
@@ -339,7 +339,7 @@ func (r *DeploymentSubroutine) Process(ctx context.Context, runtimeObj ctrlrunti
 	if err != nil || !matchesConditionWithStatus(frontProxy, "Available", "True") {
 		return subroutines.StopWithRequeue(DefaultRequeueInterval, "FrontProxy is not ready"), nil
 	}
-	return subroutines.OK(), nil
+	return webhookResult, nil
 }
 
 // templateVarsFromProfileInfra parses the infra profile and merges it with templateVars for rendering gotemplates/infra
@@ -1214,7 +1214,7 @@ func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info().Str("name", caSecretName).Msg("Webhook secret does not exist")
-			return subroutines.StopWithRequeue(DefaultRequeueInterval, "Webhook secret does not exist"), nil
+			return subroutines.OKWithRequeue(DefaultRequeueInterval), nil
 		}
 		log.Error().Err(err).Str("secret", caSecretName).Str("namespace", inst.Namespace).Msg("Failed to get webhook cert secret")
 		return subroutines.OK(), err
@@ -1225,6 +1225,14 @@ func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst 
 		err := fmt.Errorf("ca.crt not found or empty in secret %s/%s", inst.Namespace, caSecretName)
 		log.Error().Err(err).Msg("ca.crt missing from webhook cert secret")
 		return subroutines.OK(), err
+	}
+
+	// A self-signed certificate is left over from before the CA issuer and is about to be
+	// reissued, so check again soon to sync the new CA.
+	issuedResult := subroutines.OK()
+	if bytes.Equal(caCrt, webhookCertSecret.Data["tls.crt"]) {
+		log.Info().Str("name", caSecretName).Msg("Webhook certificate is not yet issued by the CA issuer")
+		issuedResult = subroutines.OKWithRequeue(DefaultRequeueInterval)
 	}
 
 	// Get the kcp-webhook-secret
@@ -1263,7 +1271,7 @@ func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst 
 
 	if !updated {
 		log.Debug().Msg("certificate-authority-data is already up to date in kcp-webhook-secret, skipping update")
-		return subroutines.OK(), nil
+		return issuedResult, nil
 	}
 
 	// Marshal the updated kubeconfig back to YAML using clientcmd
@@ -1294,7 +1302,7 @@ func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst 
 		return subroutines.OK(), oErr
 	}
 
-	return subroutines.OK(), nil
+	return issuedResult, nil
 }
 
 // deleteKcpPods deletes all pods with label app.kubernetes.io/name=kcp in the given namespace
@@ -1432,18 +1440,12 @@ func (r *DeploymentSubroutine) hasIstioProxyInjected(ctx context.Context, labelS
 }
 
 func (r *DeploymentSubroutine) manageAuthorizationWebhookSecrets(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh) (subroutines.Result, error) {
-	// Create Issuer
-	caIssuerPath := fmt.Sprintf("%s/rebac-auth-webhook/ca-issuer.yaml", r.workspaceDirectory)
-	err := r.ApplyManifestFromFileWithMergedValues(ctx, caIssuerPath, r.clientRuntime, map[string]any{})
-	if err != nil {
-		return subroutines.OK(), err
-	}
-
-	// Create Certificate
-	certPath := fmt.Sprintf("%s/rebac-auth-webhook/webhook-cert.yaml", r.workspaceDirectory)
-	err = r.ApplyManifestFromFileWithMergedValues(ctx, certPath, r.clientRuntime, map[string]any{})
-	if err != nil {
-		return subroutines.OK(), err
+	// The serving certificate is signed by a long-lived CA, so renewing it keeps the CA that kcp trusts.
+	for _, file := range []string{"selfsigned-issuer.yaml", "ca-cert.yaml", "ca-issuer.yaml", "webhook-cert.yaml"} {
+		path := fmt.Sprintf("%s/rebac-auth-webhook/%s", r.workspaceDirectory, file)
+		if err := r.ApplyManifestFromFileWithMergedValues(ctx, path, r.clientRuntime, map[string]any{}); err != nil {
+			return subroutines.OK(), err
+		}
 	}
 
 	// Prepare KCP Webhook secret

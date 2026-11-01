@@ -1,0 +1,25 @@
+# values that come from the stack that do not have defaults
+image:
+  tag: 12345
+
+hostnames: [ "portal.d1.mydomain.com", "*.portal.d1.mydomain.com" ]
+
+region: test-region
+environment: test-environment
+
+redirectToOpenFGA:
+  expand:
+    path: openfga.v1.OpenFGAService/Expand
+  check:
+    path: openfga.v1.OpenFGAService/Check
+  read:
+    path: openfga.v1.OpenFGAService/Read
+  get:
+    path: openfga.v1.OpenFGAService/Get
+  streamed:
+    path: openfga.v1.OpenFGAService/Streamed
+  list:
+    path: openfga.v1.OpenFGAService/List
+
+hostAliases:
+  enabled: true

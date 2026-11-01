@@ -1,0 +1,69 @@
+suite: clusterScopedName
+templates:
+  - templates/rbac.yaml
+release:
+  name: keycloak-operator
+tests:
+  - it: keeps default names and role references
+    documentSelector:
+      path: metadata.name
+      value: keycloakcontroller-role-binding
+    asserts:
+      - equal:
+          path: roleRef.name
+          value: keycloakcontroller-cluster-role
+  - it: renames the keycloakrealmimportcontroller RoleBinding together with its ClusterRole
+    set:
+      clusterScopedName:
+        prefix: pm-a
+    documentSelector:
+      path: metadata.name
+      value: pm-a-keycloakrealmimportcontroller-role-binding
+    asserts:
+      - equal:
+          path: roleRef.name
+          value: pm-a-keycloakrealmimportcontroller-cluster-role
+  - it: renames the keycloakcontroller RoleBinding together with its ClusterRole
+    set:
+      clusterScopedName:
+        prefix: pm-a
+    documentSelector:
+      path: metadata.name
+      value: pm-a-keycloakcontroller-role-binding
+    asserts:
+      - equal:
+          path: roleRef.name
+          value: pm-a-keycloakcontroller-cluster-role
+  - it: renames the keycloaksamlclientcontroller RoleBinding together with its ClusterRole
+    set:
+      clusterScopedName:
+        prefix: pm-a
+    documentSelector:
+      path: metadata.name
+      value: pm-a-keycloaksamlclientcontroller-role-binding
+    asserts:
+      - equal:
+          path: roleRef.name
+          value: pm-a-keycloaksamlclientcontroller-cluster-role
+  - it: renames the keycloakoidcclientcontroller RoleBinding together with its ClusterRole
+    set:
+      clusterScopedName:
+        prefix: pm-a
+    documentSelector:
+      path: metadata.name
+      value: pm-a-keycloakoidcclientcontroller-role-binding
+    asserts:
+      - equal:
+          path: roleRef.name
+          value: pm-a-keycloakoidcclientcontroller-cluster-role
+  - it: renames the ClusterRoleBinding together with its ClusterRole
+    set:
+      clusterScopedName:
+        prefix: pm-a
+    documentSelector:
+      path: metadata.name
+      value: pm-a-keycloak-operator-clusterrole-binding
+    asserts:
+      - equal:
+          path: roleRef.name
+          value: pm-a-keycloak-operator-clusterrole

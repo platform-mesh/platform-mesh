@@ -1,0 +1,99 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: mirror-helm-chart
+
+# Pulls a chart from a public Helm HTTP repository and pushes it as an OCI
+# artifact under ghcr.io/platform-mesh/charts. This workflow is idempotent:
+# re-pushing the same chart+version is a no-op on the registry side.
+#
+# Used to mirror external charts referenced by the OCM constructor so that
+# `ocm transfer` produces a self-contained, air-gapped-installable artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      helm_repo:
+        description: "Source Helm repository URL (e.g. https://traefik.github.io/charts)"
+        required: true
+        type: string
+      chart:
+        description: "Chart name (e.g. traefik)"
+        required: true
+        type: string
+      version:
+        description: "Chart version (e.g. 39.0.7)"
+        required: true
+        type: string
+      destination_namespace:
+        description: "OCI destination namespace (default: ghcr.io/<owner>/charts)"
+        required: false
+        default: ""
+        type: string
+  workflow_call:
+    inputs:
+      helm_repo:
+        required: true
+        type: string
+      chart:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      destination_namespace:
+        required: false
+        default: ""
+        type: string
+
+# No permissions by default; only the mirror job may publish packages.
+permissions: {}
+
+jobs:
+  mirror:
+    name: Mirror ${{ inputs.chart }}@${{ inputs.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      packages: write # Push mirrored charts to GHCR; no repository access needed
+    env:
+      DESTINATION: ${{ inputs.destination_namespace || format('ghcr.io/{0}/charts', github.repository_owner) }}
+    steps:
+      - name: Pull chart from source Helm repo
+        run: |
+          set -euo pipefail
+          helm repo add src "${{ inputs.helm_repo }}"
+          helm repo update src
+          helm pull "src/${{ inputs.chart }}" --version "${{ inputs.version }}" --destination .
+          ls -l "${{ inputs.chart }}-${{ inputs.version }}.tgz"
+
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io \
+            --username "${{ github.actor }}" \
+            --password-stdin
+
+      - name: Push chart to OCI
+        run: |
+          set -euo pipefail
+          helm push "${{ inputs.chart }}-${{ inputs.version }}.tgz" \
+            "oci://${DESTINATION}"
+
+      - name: Verify chart is pullable from OCI
+        run: |
+          set -euo pipefail
+          rm -f "${{ inputs.chart }}-${{ inputs.version }}.tgz"
+          helm pull "oci://${DESTINATION}/${{ inputs.chart }}" \
+            --version "${{ inputs.version }}" --destination .
+          test -f "${{ inputs.chart }}-${{ inputs.version }}.tgz"

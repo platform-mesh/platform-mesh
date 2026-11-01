@@ -1,0 +1,116 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Versions of THIRD-PARTY software shipped with Platform Mesh (kcp, OpenFGA,
+# Traefik, cert-manager, ...). Nothing in here is built from this repository.
+#
+# Platform Mesh's own components are NOT listed here and never need to be:
+# their charts are versioned by charts/<name>/Chart.yaml, their images by the
+# appVersion in the same file. A Platform Mesh release (tag vX.Y.Z) uses
+# whatever those files say at the tagged commit.
+#
+# This is the single place the third-party versions are pinned. The OCM
+# component constructor (ocm/component-constructor*.yaml) references them as
+# ${VARIABLE}; the release workflow loads them with
+# hack/release/export-versions.sh. Renovate updates the upstream versions (see
+# the comments above each entry).
+#
+# Two kinds of entries:
+#
+#   *_CHART_VERSION, *_IMAGE_VERSION, ..._VERSION
+#       the upstream artifact versions used as OCM resources
+#
+#   PM_*_VERSION
+#       the version of the OCM component Platform Mesh publishes to wrap the
+#       upstream artifacts (e.g. github.com/traefik/traefik:${PM_TRAEFIK_VERSION}).
+#       Published component versions are immutable: whenever an upstream
+#       version of a wrapper changes, its PM_* version must be bumped as well,
+#       otherwise the release fails because the existing component version
+#       would differ from what the constructor describes.
+
+# --- kcp ----------------------------------------------------------------------
+# renovate: datasource=docker depName=ghcr.io/platform-mesh/helm-charts/charts/mirrored/kcp-operator
+KCP_OPERATOR_CHART_VERSION: "0.7.12"
+# renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp-operator
+KCP_OPERATOR_IMAGE_VERSION: "v0.8.3"
+PM_KCP_OPERATOR_VERSION: "0.0.2"
+
+# renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp
+KCP_VERSION: "v0.33.4"
+PM_KCP_VERSION: "0.0.5"
+
+# renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/init-agent
+INIT_AGENT_CHART_VERSION: "0.2.0"
+# renovate: datasource=docker depName=ghcr.io/kcp-dev/init-agent
+INIT_AGENT_IMAGE_VERSION: "v0.2.0"
+PM_INIT_AGENT_VERSION: "0.0.1"
+
+# renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/api-syncagent
+API_SYNCAGENT_CHART_VERSION: "0.6.1"
+# renovate: datasource=docker depName=ghcr.io/kcp-dev/api-syncagent
+API_SYNCAGENT_IMAGE_VERSION: "v0.7.0"
+API_SYNCAGENT_COMPONENT_VERSION: "1.0.0"
+
+# --- auth ---------------------------------------------------------------------
+# renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/openfga
+OPENFGA_VERSION: "0.2.62"
+# renovate: datasource=docker depName=docker.io/openfga/openfga
+OPENFGA_IMAGE_VERSION: "v1.22.1"
+# renovate: datasource=docker depName=ghcr.io/platform-mesh/upstream-images/postgresql
+OPENFGA_POSTGRESQL_IMAGE_VERSION: "17.9.0-debian-12-r3"
+PM_OPENFGA_VERSION: "0.0.2"
+
+# --- ingress / certificates ---------------------------------------------------
+# renovate: datasource=docker depName=ghcr.io/platform-mesh/charts/traefik
+TRAEFIK_CHART_VERSION: "42.1.3"
+# renovate: datasource=docker depName=docker.io/library/traefik
+TRAEFIK_IMAGE_VERSION: "v3.7.16"
+# renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/traefik-crds
+TRAEFIK_CRD_VERSION: "1.14.0"
+PM_TRAEFIK_VERSION: "0.1.1"
+
+# chart and images share one version
+# renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
+CERT_MANAGER_VERSION: "v1.20.5"
+PM_CERT_MANAGER_VERSION: "0.0.2"
+
+# --- storage ------------------------------------------------------------------
+# renovate: datasource=docker depName=ghcr.io/cloudnative-pg/charts/cloudnative-pg
+CNPG_OPERATOR_CHART_VERSION: "0.28.0"
+# renovate: datasource=docker depName=ghcr.io/cloudnative-pg/cloudnative-pg
+CNPG_OPERATOR_IMAGE_VERSION: "1.29.0"
+PM_CNPG_OPERATOR_VERSION: "0.0.1"
+
+# Published as an OCM component by Gardener; copied into our registry as-is.
+# renovate: datasource=docker depName=europe-docker.pkg.dev/gardener-project/releases/component-descriptors/github.com/gardener/etcd-druid
+GARDENER_ETCD_DRUID_VERSION: "v0.39.1"
+
+# --- observability ------------------------------------------------------------
+# renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/prometheus-operator-crds
+PROMETHEUS_OPERATOR_CRDS_VERSION: "29.0.0"
+PM_PROMETHEUS_OPERATOR_CRDS_VERSION: "0.0.1"
+
+# renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/kube-prometheus-stack
+KUBE_PROMETHEUS_STACK_VERSION: "27.0.0"
+PM_KUBE_PROMETHEUS_STACK_VERSION: "0.0.1"
+
+# renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-helm-charts/opentelemetry-operator
+OPENTELEMETRY_OPERATOR_VERSION: "0.128.0"
+# renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator
+OTEL_OPERATOR_IMAGE_VERSION: "0.162.0"
+# renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s
+OTEL_COLLECTOR_IMAGE_VERSION: "0.164.0"
+# renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-operator/target-allocator
+OTEL_TARGET_ALLOCATOR_VERSION: "0.162.0"
+PM_OPENTELEMETRY_OPERATOR_VERSION: "0.0.3"

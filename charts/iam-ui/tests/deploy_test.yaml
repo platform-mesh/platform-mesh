@@ -1,0 +1,33 @@
+suite: deploy
+templates:
+  - deploy.yaml
+  - sa.yaml
+chart:
+  appVersion: 1.0.0
+tests:
+  - it: matches the snapshot
+    values:
+      - test-values.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: matches the snapshot with FRONTEND_PORT
+    values:
+      - test-values.yaml
+    set:
+      frontendPort: 8080
+    template: deploy.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: has all health checks
+    template: deploy.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /healthz
+

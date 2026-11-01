@@ -1,0 +1,9 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ include "common.entity.name" . }}
+spec:
+  {{- include "common.serviceBasics" . | indent 2 }}
+  ports:
+  {{- include "common.servicePorts" . | indent 2 }}
+

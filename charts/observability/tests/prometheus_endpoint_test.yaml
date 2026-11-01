@@ -1,0 +1,21 @@
+suite: Prometheus remote-write endpoint
+templates:
+  - templates/otel-collector.yaml
+release:
+  name: observability
+  namespace: observability
+tests:
+  - it: uses the bundled Prometheus endpoint by default
+    asserts:
+      - equal:
+          path: spec.config.exporters.prometheusremotewrite.endpoint
+          value: http://observability-prometheus-server:80/api/v1/write
+
+  - it: uses an external Prometheus-compatible endpoint when configured
+    set:
+      prometheus.enabled: false
+      prometheus.external.url: https://mimir.example.com/api/v1/push
+    asserts:
+      - equal:
+          path: spec.config.exporters.prometheusremotewrite.endpoint
+          value: https://mimir.example.com/api/v1/push

@@ -37,8 +37,8 @@ tilt up -f contrib/tilt/Tiltfile
 # with a feature layer on top
 tilt up -f contrib/tilt/Tiltfile -- --profile=auth
 
-# optional: render Helm charts from a local helm-charts checkout
-export HELM_CHARTS_DIR=~/go/src/github.com/platform-mesh/helm-charts
+# charts render live from ./charts; set TILT_CHARTS_FROM_OCI=1 to pull the
+# pinned published versions instead
 ```
 
 ### Profiles

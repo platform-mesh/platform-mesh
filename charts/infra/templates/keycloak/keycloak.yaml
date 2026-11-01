@@ -1,0 +1,57 @@
+{{- if .Values.keycloak.operator.enabled }}
+apiVersion: k8s.keycloak.org/v2beta1
+kind: Keycloak
+metadata:
+  name: keycloak
+  namespace: {{ .Release.Namespace }}
+spec:
+  instances: {{ .Values.keycloak.operator.instances }}
+  image: {{ include "common.image" (dict "Values" (dict "image" .Values.keycloak.operator.image) "Chart" .Chart) }}
+  db:
+    vendor: postgres
+    host: {{ .Values.keycloak.operator.db.host }}
+    port: {{ .Values.keycloak.operator.db.port }}
+    database: {{ .Values.keycloak.operator.db.database }}
+    usernameSecret:
+      name: keycloak-db-credentials
+      key: username
+    passwordSecret:
+      name: keycloak-db-credentials
+      key: password
+  http:
+    httpEnabled: {{ .Values.keycloak.operator.httpEnabled }}
+  ingress:
+    enabled: false
+  hostname:
+    hostname: {{ .Values.keycloak.operator.hostname }}
+    strict: false
+    backchannelDynamic: true
+  proxy:
+    headers: xforwarded
+  additionalOptions:
+    - name: http-relative-path
+      value: /keycloak
+  bootstrapAdmin:
+    user:
+      secret: keycloak-admin
+  {{- if .Values.keycloak.operator.caSecret }}
+  truststores:
+    domain-ca:
+      secret:
+        name: {{ .Values.keycloak.operator.caSecret }}
+  {{- end }}
+  unsupported:
+    podTemplate:
+      spec:
+        {{- include "common.hostAliases" . | nindent 8 }}
+        initContainers:
+          - name: wait-for-db
+            image: {{ include "common.image" (dict "Values" (dict "image" .Values.keycloak.operator.waitForDb.image) "Chart" .Chart) }}
+            command: ['sh', '-c', 'until nc -z {{ .Values.keycloak.operator.db.host }} {{ .Values.keycloak.operator.db.port }}; do echo "Waiting for PostgreSQL..."; sleep 2; done']
+        containers:
+          - imagePullPolicy: IfNotPresent
+            name: keycloak
+            {{- include "common.operatorHealthAndReadyness" (dict "Values" .Values.keycloak.operator) | nindent 12 }}
+            resources:
+              {{- toYaml .Values.keycloak.operator.resources | nindent 14 }}
+{{- end }}

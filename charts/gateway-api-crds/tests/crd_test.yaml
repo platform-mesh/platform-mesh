@@ -1,0 +1,73 @@
+suite: crds
+templates:
+  - gateway.networking.k8s.io_backendtlspolicies.yaml
+  - gateway.networking.k8s.io_gatewayclasses.yaml
+  - gateway.networking.k8s.io_gateways.yaml
+  - gateway.networking.k8s.io_grpcroutes.yaml
+  - gateway.networking.k8s.io_httproutes.yaml
+  - gateway.networking.k8s.io_listenersets.yaml
+  - gateway.networking.k8s.io_referencegrants.yaml
+  - gateway.networking.k8s.io_tcproutes.yaml
+  - gateway.networking.k8s.io_tlsroutes.yaml
+  - gateway.networking.k8s.io_udproutes.yaml
+  - gateway.networking.k8s.io_vap_safeupgrades.yaml
+  - gateway.networking.x-k8s.io_xbackendtrafficpolicies.yaml
+  - gateway.networking.x-k8s.io_xmeshes.yaml
+values:
+  - ../test-values.yaml
+chart:
+  version: 1.5.1
+  appVersion: "0.0.0"
+tests:
+  - it: BackendTLSPolicy CRD matches snapshot
+    template: gateway.networking.k8s.io_backendtlspolicies.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: GatewayClass CRD matches snapshot
+    template: gateway.networking.k8s.io_gatewayclasses.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: Gateway CRD matches snapshot
+    template: gateway.networking.k8s.io_gateways.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: GRPCRoute CRD matches snapshot
+    template: gateway.networking.k8s.io_grpcroutes.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: HTTPRoute CRD matches snapshot
+    template: gateway.networking.k8s.io_httproutes.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: ReferenceGrant CRD matches snapshot
+    template: gateway.networking.k8s.io_referencegrants.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: TCPRoute CRD matches snapshot
+    template: gateway.networking.k8s.io_tcproutes.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: TLSRoute CRD matches snapshot
+    template: gateway.networking.k8s.io_tlsroutes.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: UDPRoute CRD matches snapshot
+    template: gateway.networking.k8s.io_udproutes.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: XBackendTrafficPolicy CRD matches snapshot
+    template: gateway.networking.x-k8s.io_xbackendtrafficpolicies.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: ListenerSet CRD matches snapshot
+    template: gateway.networking.k8s.io_listenersets.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: VAPSafeUpgrades CRD matches snapshot
+    template: gateway.networking.k8s.io_vap_safeupgrades.yaml
+    asserts:
+      - matchSnapshot: {}
+  - it: XMesh CRD matches snapshot
+    template: gateway.networking.x-k8s.io_xmeshes.yaml
+    asserts:
+      - matchSnapshot: {}

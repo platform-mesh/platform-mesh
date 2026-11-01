@@ -87,6 +87,15 @@ var (
 	//go:embed yaml/apiexport-providers.platform-mesh.io.yaml
 	ApiExportProvidersYAML []byte
 
+	//go:embed yaml/apiexport-fga.platform-mesh.io.yaml
+	ApiExportFgaYAML []byte
+
+	//go:embed yaml/apiexport-provider-fga.platform-mesh.io.yaml
+	ApiExportProviderFgaYAML []byte
+
+	//go:embed yaml/apibinding-provider-fga-platform-mesh.io.yaml
+	ApiBindingProviderFgaPlatformMeshYAML []byte
+
 	//go:embed yaml/apibinding-core-platform-mesh.io.yaml
 	ApiBindingCorePlatformMeshYAML []byte
 
@@ -203,6 +212,17 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	}
 	t.Log("created APIExport 'core.platform-mesh.io' in platform-mesh-system workspace")
 
+	// Same split as production: stores in fga.platform-mesh.io, authorizationmodels in provider-fga.platform-mesh.io.
+	for _, exportYAML := range [][]byte{ApiExportFgaYAML, ApiExportProviderFgaYAML} {
+		var splitExport kcpapisv1alpha1.APIExport
+		suite.Require().NoError(yaml.Unmarshal(exportYAML, &splitExport))
+		err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &splitExport)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			suite.Require().NoError(err)
+		}
+		t.Logf("created APIExport '%s' in platform-mesh-system workspace", splitExport.Name)
+	}
+
 	// Create providers.platform-mesh.io APIExport
 	var providersApiExport kcpapisv1alpha1.APIExport
 	suite.Require().NoError(yaml.Unmarshal(ApiExportProvidersYAML, &providersApiExport))
@@ -245,6 +265,21 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 		}
 		return binding.Status.Phase == kcpapisv1alpha2.APIBindingPhaseBound
 	}, 10*time.Second, 200*time.Millisecond, "APIBinding providers.platform-mesh.io should be bound")
+
+	// platform-mesh-system plays the provider in these tests, so it holds the AuthorizationModels.
+	var providerFgaBinding kcpapisv1alpha2.APIBinding
+	suite.Require().NoError(yaml.Unmarshal(ApiBindingProviderFgaPlatformMeshYAML, &providerFgaBinding))
+	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &providerFgaBinding)
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		suite.Require().NoError(err)
+	}
+	suite.Assert().Eventually(func() bool {
+		var binding kcpapisv1alpha2.APIBinding
+		if err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, ctrlruntimeclient.ObjectKey{Name: providerFgaBinding.Name}, &binding); err != nil {
+			return false
+		}
+		return binding.Status.Phase == kcpapisv1alpha2.APIBindingPhaseBound
+	}, 10*time.Second, 200*time.Millisecond, "APIBinding provider-fga.platform-mesh.io should be bound")
 
 	// The bind permission check can lag behind the new APIExport when it is on another shard.
 	createWorkspaceType := func(wst *kcptenancyv1alpha1.WorkspaceType) {
@@ -302,10 +337,20 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	providersProvider, err := apiexport.New(pmSystemConfig, "providers.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
 	suite.Require().NoError(err)
 
+	fgaProvider, err := apiexport.New(pmSystemConfig, "fga.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
+	providerFgaProvider, err := apiexport.New(pmSystemConfig, "provider-fga.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
 	multiProv := multiprovider.New(multiprovider.Options{})
 	err = multiProv.AddProvider(config.CoreProviderName, coreProvider)
 	suite.Require().NoError(err)
 	err = multiProv.AddProvider(config.ProvidersProviderName, providersProvider)
+	suite.Require().NoError(err)
+	err = multiProv.AddProvider(config.FgaProviderName, fgaProvider)
+	suite.Require().NoError(err)
+	err = multiProv.AddProvider(config.ProviderFgaProviderName, providerFgaProvider)
 	suite.Require().NoError(err)
 
 	mgr, err := mcmanager.New(pmSystemConfig, multiProv, mcmanager.Options{

@@ -17,6 +17,7 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 
@@ -40,6 +41,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -97,7 +99,21 @@ func NewServeCmd() *cobra.Command {
 				klog.Exit(err, "unable to set up overall controller manager")
 			}
 
-			clusterCache, err := clustercache.New(mgr)
+			klog.InfoS("using store endpoint slice name", "name", serverCfg.StoreAPIExportEndpointSliceName)
+			storeProvider, err := pathaware.New(restCfg, serverCfg.StoreAPIExportEndpointSliceName, apiexport.Options{
+				Scheme: scheme,
+			})
+			if err != nil {
+				klog.Exit(err, "unable to construct store cluster provider")
+			}
+			// Only used to read Stores, so no Aware engages its clusters.
+			if err := mgr.GetLocalManager().Add(manager.RunnableFunc(func(ctx context.Context) error {
+				return storeProvider.Start(ctx, nil)
+			})); err != nil {
+				klog.Exit(err, "unable to register store cluster provider")
+			}
+
+			clusterCache, err := clustercache.New(mgr, clustercache.WithStoreClusters(storeProvider))
 			if err != nil {
 				klog.Exit(err, "failed to create cluster cache")
 			}

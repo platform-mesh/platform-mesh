@@ -1,12 +1,11 @@
 go 1.26.4
 
-toolchain go1.26.4
+toolchain go1.26.10
 
 use (
 	./apis
 	./cmd/jl
 	./cmd/qbrtool
-	./cmd/release
 	./golang-commons
 	./operators/account-operator
 	./operators/backup-operator

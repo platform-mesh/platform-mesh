@@ -1,0 +1,79 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: kcp-dev/contrib-virtual-workspaces/mcp-vw
+  # -- The image tag (defaults to appVersion)
+  tag: ""
+
+# -- Number of server replicas
+replicas: 1
+
+# kcp-operator objects the chart depends on, in the release namespace.
+kcp:
+  # -- RootShard the VirtualWorkspace connects to.
+  rootShard: root
+  # -- FrontProxy the Kubeconfig CR targets.
+  frontProxy: frontproxy
+
+# The front-proxy address clients use; the operator puts it in the
+# VirtualWorkspace status URL, and the chart derives the access URL from it.
+external:
+  # -- External hostname of the kcp front-proxy
+  hostname: kcp.example.com
+  # -- External port of the kcp front-proxy
+  port: 6443
+
+# SCAR leg: the access virtual workspace, through the front-proxy.
+access:
+  # -- SCAR endpoint. Defaults to
+  # https://<external.hostname>:<external.port>/services/access.
+  url: ""
+  # -- How long a caller's workspace list is cached per session.
+  cacheTTL: 30s
+
+# Native OIDC bearer-token validation, for clients that reach the server
+# directly (e.g. via a dedicated hostname) instead of through the
+# front-proxy. Leave issuerURL empty to rely on front-proxy headers only.
+oidc:
+  # -- OIDC issuer URL; empty disables native bearer-token validation.
+  issuerURL: ""
+  # -- Expected audience (client ID) of accepted tokens.
+  clientID: ""
+  # -- Token claim used as the username.
+  usernameClaim: email
+  # -- Prefix applied to usernames from tokens.
+  usernamePrefix: "oidc:"
+  # -- Secret in the release namespace holding the issuer CA under key
+  # ca.crt; empty means the issuer certificate must chain to a system root.
+  caSecretName: ""
+
+# RFC 9728 protected-resource discovery, so MCP clients can find the
+# authorization server on their own. Setting authorizationServers enables
+# the metadata endpoint and WWW-Authenticate hints.
+oauth:
+  # -- Authorization server issuer URLs; non-empty enables discovery.
+  authorizationServers: []
+  # -- Canonical resource identifier; empty derives it from each request's
+  # Host header.
+  resource: ""
+  # -- Scopes advertised in the protected-resource metadata.
+  scopes: []
+
+# -- Toolsets the server exposes (--toolsets). Empty means the server
+# default (core, read-only). Valid: core, apis, admin, write.
+toolsets: []
+
+resources:
+  requests:
+    # -- CPU request
+    cpu: 100m
+    # -- Memory request
+    memory: 128Mi
+  limits:
+    # -- Memory limit
+    memory: 512Mi
+
+# -- Extra /etc/hosts entries for the pod, e.g. when the front-proxy hostname
+# only resolves via cluster-external DNS.
+hostAliases: []

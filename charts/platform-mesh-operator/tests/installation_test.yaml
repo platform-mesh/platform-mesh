@@ -1,0 +1,174 @@
+suite: declarative installation
+templates:
+  - installation.yaml
+  - installation-profile.yaml
+  - installation-signing-certificate.yaml
+  - certificates-selfsigned.yaml
+tests:
+  - it: creates the operator-managed Platform Mesh installation
+    template: installation.yaml
+    set:
+      ocm:
+        enabled: true
+        version: 0.5.2
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - equal:
+          path: spec.exposure.baseDomain
+          value: platform.example.com
+        documentIndex: 3
+      - equal:
+          path: spec.exposure.port
+          value: 8443
+        documentIndex: 3
+      - equal:
+          path: spec.repositorySpec.baseUrl
+          value: ghcr.io/platform-mesh
+        documentIndex: 0
+      - equal:
+          path: spec.verify[0].signature
+          value: platform-mesh.platform-mesh
+        documentIndex: 1
+
+  - it: reads the components from another registry
+    template: installation.yaml
+    set:
+      ocm:
+        enabled: true
+        version: 26.10.0
+        repository: registry.example.com/mirror/platform-mesh
+        signatureName: mirror.example.com
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - equal:
+          path: spec.repositorySpec.baseUrl
+          value: registry.example.com/mirror/platform-mesh
+        documentIndex: 0
+      - equal:
+          path: spec.verify[0].signature
+          value: mirror.example.com
+        documentIndex: 1
+  - it: bundles the default profile
+    template: installation-profile.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+        traefikClusterIP: 10.96.188.4
+    asserts:
+      - equal:
+          path: metadata.name
+          value: platform-mesh-profile
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'cat /domain-ca/ca\.crt /webhook-ca/ca\.crt'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'cat /domain-ca/tls\.crt'
+      # The external port must be substituted by Helm at template time; the
+      # __EXTERNAL_PORT__ placeholder must not leak into the ConfigMap, and
+      # PMO's template context does not define `.port`.
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'port: 8443'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: '__EXTERNAL_PORT__'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: '\{\{ \.port \}\}'
+  - it: disables OpenFGA tracing in the kind profile
+    template: installation-profile.yaml
+    set:
+      ocm:
+        enabled: true
+        profile: kind
+      gateway:
+        baseDomain: platform.example.com
+        traefikClusterIP: 10.96.188.4
+    asserts:
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'cat /domain-ca/ca\.crt /webhook-ca/ca\.crt'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'cat /domain-ca/tls\.crt'
+  - it: fails when ocm.profile has no bundled profile file
+    template: installation-profile.yaml
+    set:
+      ocm:
+        enabled: true
+        profile: bogus
+      gateway:
+        baseDomain: platform.example.com
+        traefikClusterIP: 10.96.188.4
+    asserts:
+      - failedTemplate:
+          errorMessage: 'unknown ocm.profile "bogus": no files/bogus-profile.yaml exists'
+  - it: does not install platform resources by default
+    template: installation.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: creates the gateway certificate from the installation base domain
+    template: certificates-selfsigned.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+      certificates:
+        selfSigned:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 4
+      - equal:
+          path: metadata.name
+          value: platform-mesh-domain-selfsigned
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: platform-mesh-domain-ca
+        documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: platform-mesh-domain-ca
+        documentIndex: 2
+      - equal:
+          path: metadata.name
+          value: platform-mesh-domain
+        documentIndex: 3
+      - equal:
+          path: spec.commonName
+          value: platform.example.com
+        documentIndex: 3
+      - equal:
+          path: spec.dnsNames
+          value:
+            - platform.example.com
+            - "*.platform.example.com"
+        documentIndex: 3
+      - equal:
+          path: spec.secretName
+          value: domain-certificate
+        documentIndex: 3
+  - it: does not create certificates unless explicitly enabled
+    template: certificates-selfsigned.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - hasDocuments:
+          count: 0

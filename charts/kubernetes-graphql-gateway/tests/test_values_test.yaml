@@ -1,0 +1,17 @@
+suite: Test the Template files  with test values
+values:
+- ../test_values.yaml
+release:
+  name: platform-mesh
+  namespace: platform-mesh-system
+chart:
+  appVersion: 1.0.0
+tests:
+- it: match the Snapshot
+  asserts:
+  - matchSnapshot: {}
+- it: match the Snapshot with crds
+  set:
+    crds.enabled: true
+  asserts:
+  - matchSnapshot: {}

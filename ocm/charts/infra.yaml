@@ -1,0 +1,56 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# OCM settings for charts/infra. See ocm/charts/README.md.
+
+# Third-party images deployed by this chart. Published as the OCM component
+# github.com/platform-mesh/images/infra:<chart version> so that air-gapped
+# installations can mirror them. Keep in sync with the chart's values.
+images:
+  - name: keycloak-image
+    type: ociImage
+    version: "v26.8.1"
+    access:
+      type: ociArtifact
+      imageReference: "ghcr.io/platform-mesh/custom-images/keycloak:v26.8.1"
+  - name: busybox-image
+    type: ociImage
+    version: "1.37"
+    access:
+      type: ociArtifact
+      imageReference: "docker.io/library/busybox:1.37"
+  - name: postgres-image
+    type: ociImage
+    version: "18.3"
+    access:
+      type: ociArtifact
+      imageReference: "ghcr.io/cloudnative-pg/postgresql:18.3"
+  - name: dex-image
+    type: ociImage
+    version: "v2.42.0"
+    access:
+      type: ociArtifact
+      imageReference: "ghcr.io/dexidp/dex:v2.42.0@sha256:1b4a6eee8550240b0faedad04d984ca939513650e1d9bd423502c67355e3822f"
+  - name: etcd-wrapper-image
+    type: ociImage
+    version: "v0.6.2"
+    access:
+      type: ociArtifact
+      imageReference: "europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2@sha256:3992f1aedaae733acdd5794ba02cf1beb311c7a24269accd790885cecacdd3f9"
+  - name: etcdbrctl-image
+    type: ociImage
+    version: "v0.41.2"
+    access:
+      type: ociArtifact
+      imageReference: "europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2@sha256:b21f0d7aeaa275bad9bf616fba9ae29092ac39a391a88b2659eba5981b4650a1"

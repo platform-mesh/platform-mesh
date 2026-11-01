@@ -24,6 +24,11 @@ spec:
       path: root
     - export: topology.kcp.io
       path: root
+    # ContentConfigurations live in ui.platform-mesh.io since the APIExport
+    # split (#333); the portal reads them through the contentconfigurations
+    # virtual workspace, which only serves clusters bound to that export.
+    - export: ui.platform-mesh.io
+      path: root:platform-mesh-system
 {{- if eq .featureEnableTerminalControllerManager "true" }}
     - export: terminal.platform-mesh.io
       path: root:platform-mesh-system

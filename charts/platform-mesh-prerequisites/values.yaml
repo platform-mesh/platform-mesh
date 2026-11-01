@@ -1,0 +1,55 @@
+# Set a component to false when it is supplied by the target cluster.
+flux2:
+  enabled: true
+  # Flux's default policies select every Pod in the release namespace and only
+  # allow ingress from that namespace. The API server must reach cert-manager's
+  # admission webhook, so do not install them alongside shared prerequisites.
+  policies:
+    create: false
+  # Platform Mesh creates several independent HelmReleases.  Some wait for KCP
+  # bootstrap resources, so the default four workers can otherwise starve the
+  # infra release that creates those resources.
+  helmController:
+    container:
+      additionalArgs:
+        - --concurrent=10
+ocm-k8s-toolkit:
+  enabled: true
+cert-manager:
+  enabled: true
+  crds:
+    enabled: true
+  webhook:
+    # Gardener requires admission webhooks to complete within 15 seconds so
+    # they cannot delay shoot maintenance or hibernation operations.
+    timeoutSeconds: 15
+traefik:
+  # Install on the second pass, after Gateway API CRDs are established.
+  enabled: false
+  gatewayClass:
+    enabled: true
+  providers:
+    kubernetesGateway:
+      enabled: true
+      experimentalChannel: true
+traefik-crds:
+  enabled: true
+  # Gateway API CRDs are installed by the dedicated gateway-api-crds dependency.
+  gatewayAPI: false
+gateway-api-crds:
+  enabled: true
+cnpg:
+  enabled: true
+keycloak-operator:
+  enabled: true
+etcd-druid:
+  enabled: true
+
+# Local Kind only. Production installations should provide their own certificates.
+localCertificates:
+  enabled: false
+  # Namespace consumed by the Platform Mesh Gateway and PMO profile.
+  namespace: platform-mesh-system
+  dnsNames: []
+  caSecretName: domain-certificate-ca
+  certificateSecretName: domain-certificate

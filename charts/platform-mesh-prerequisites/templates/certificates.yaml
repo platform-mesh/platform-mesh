@@ -1,0 +1,57 @@
+{{- if .Values.localCertificates.enabled }}
+{{- $_ := required "dnsNames must contain the Platform Mesh base domain and wildcard subdomain" (.Values.localCertificates.dnsNames | first | default "") }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: platform-mesh-gateway-selfsigned
+  namespace: {{ .Values.localCertificates.namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: platform-mesh-gateway-ca
+  namespace: {{ .Values.localCertificates.namespace }}
+spec:
+  isCA: true
+  commonName: platform-mesh-gateway-ca
+  secretName: {{ .Values.localCertificates.caSecretName }}
+  issuerRef:
+    group: cert-manager.io
+    kind: Issuer
+    name: platform-mesh-gateway-selfsigned
+  usages:
+    - cert sign
+    - crl sign
+    - digital signature
+    - key encipherment
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: platform-mesh-gateway-ca
+  namespace: {{ .Values.localCertificates.namespace }}
+spec:
+  ca:
+    secretName: {{ .Values.localCertificates.caSecretName }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: platform-mesh-gateway
+  namespace: {{ .Values.localCertificates.namespace }}
+spec:
+  commonName: {{ first .Values.localCertificates.dnsNames | quote }}
+  dnsNames:
+{{ toYaml .Values.localCertificates.dnsNames | indent 4 }}
+  secretName: {{ .Values.localCertificates.certificateSecretName }}
+  issuerRef:
+    group: cert-manager.io
+    kind: Issuer
+    name: platform-mesh-gateway-ca
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment
+{{- end }}

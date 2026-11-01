@@ -41,7 +41,7 @@ import (
 )
 
 func NewInviteSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter) (*inviteSubroutine, error) {
-	lim, err := ratelimiter.NewStaticThenExponentialRateLimiter[*kcpcorev1alpha1.LogicalCluster](
+	lim, err := ratelimiter.NewObjectRateLimiter[*kcpcorev1alpha1.LogicalCluster](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)

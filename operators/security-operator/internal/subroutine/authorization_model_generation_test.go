@@ -18,10 +18,14 @@ package subroutine_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
@@ -31,13 +35,227 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
+
+// Collection permissions are evaluated against these parent types. In particular,
+// authenticated_user exists only on the account, not on either resource type.
+const collectionPermissionsCoreModule = `module core
+
+type user
+
+type role
+  relations
+    define assignee: [user, user:*]
+
+type core_platform-mesh_io_account
+  relations
+    define parent: [core_platform-mesh_io_account]
+    define owner: [role#assignee] or owner from parent
+    define member: [role#assignee] or owner
+    define authenticated_user: [role#assignee] or authenticated_user from parent
+
+type core_namespace
+  relations
+    define parent: [core_platform-mesh_io_account]
+    define owner: [role#assignee] or owner from parent
+    define member: [role#assignee] or owner or member from parent
+`
+
+func TestAuthorizationModelGeneration_CollectionPermissions(t *testing.T) {
+	for _, scope := range []apiextensionsv1.ResourceScope{apiextensionsv1.ClusterScoped, apiextensionsv1.NamespaceScoped} {
+		t.Run(string(scope), func(t *testing.T) {
+			parentType := "core_platform-mesh_io_account"
+			readExpression := "authenticated_user or member"
+			if scope == apiextensionsv1.NamespaceScoped {
+				parentType = "core_namespace"
+				readExpression = "owner or member"
+			}
+
+			tests := []struct {
+				name        string
+				permissions *pmprovidersv1alpha1.DefaultPermissions
+			}{
+				{name: "no ProviderPermissions"},
+				{name: "empty overrides", permissions: &pmprovidersv1alpha1.DefaultPermissions{}},
+				{name: "create override", permissions: &pmprovidersv1alpha1.DefaultPermissions{Create: "member"}},
+				{name: "list override", permissions: &pmprovidersv1alpha1.DefaultPermissions{List: readExpression}},
+				{name: "watch override", permissions: &pmprovidersv1alpha1.DefaultPermissions{Watch: readExpression}},
+				{
+					name: "read overrides",
+					permissions: &pmprovidersv1alpha1.DefaultPermissions{
+						Get:   strings.Split(readExpression, " or ")[0] + " from parent or member",
+						List:  readExpression,
+						Watch: readExpression,
+					},
+				},
+				{
+					name: "all collection overrides",
+					permissions: &pmprovidersv1alpha1.DefaultPermissions{
+						Create: "member",
+						Get:    strings.Split(readExpression, " or ")[0] + " from parent or member",
+						List:   readExpression,
+						Watch:  readExpression,
+					},
+				},
+			}
+
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					ctx := context.Background()
+					scheme := runtime.NewScheme()
+					require.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
+					require.NoError(t, pmprovidersv1alpha1.AddToScheme(scheme))
+					require.NoError(t, kcpapisv1alpha1.AddToScheme(scheme))
+					require.NoError(t, kcpapisv1alpha2.AddToScheme(scheme))
+
+					accountInfo := &pmcorev1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: "account"}}
+					accountInfo.Spec.Organization.Name = "org"
+					accountInfo.Spec.Organization.OriginClusterId = "orgs"
+					apiExport := &kcpapisv1alpha2.APIExport{
+						ObjectMeta: metav1.ObjectMeta{Name: "metadata.dxp.sap.com"},
+						Spec: kcpapisv1alpha2.APIExportSpec{Resources: []kcpapisv1alpha2.ResourceSchema{
+							{Schema: "v1.components.metadata.dxp.sap.com"},
+							{Schema: "v1.commits.metadata.dxp.sap.com"},
+						}},
+					}
+					objects := []ctrlruntimeclient.Object{
+						accountInfo, apiExport,
+						&pmcorev1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: "org"}},
+					}
+					for _, resource := range []string{"component", "commit"} {
+						objects = append(objects, &kcpapisv1alpha1.APIResourceSchema{
+							ObjectMeta: metav1.ObjectMeta{Name: "v1." + resource + "s.metadata.dxp.sap.com"},
+							Spec: kcpapisv1alpha1.APIResourceSchemaSpec{
+								Group: "metadata.dxp.sap.com",
+								Names: apiextensionsv1.CustomResourceDefinitionNames{Singular: resource, Plural: resource + "s"},
+								Scope: scope,
+							},
+						})
+					}
+					if tt.permissions != nil {
+						objects = append(objects, &pmprovidersv1alpha1.ProviderPermissions{
+							ObjectMeta: metav1.ObjectMeta{Name: "metadata", Generation: 1},
+							Spec: pmprovidersv1alpha1.ProviderPermissionsSpec{
+								APIExport: pmprovidersv1alpha1.APIExport{Ref: pmprovidersv1alpha1.APIExportReference{Name: apiExport.Name}},
+								Permissions: map[string]pmprovidersv1alpha1.ResourcePermissions{
+									"component.metadata.dxp.sap.com": {DefaultPermissions: *tt.permissions},
+								},
+							},
+						})
+					}
+					client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).
+						WithStatusSubresource(&pmprovidersv1alpha1.ProviderPermissions{}).Build()
+					manager := mocks.NewMockManager(t)
+					cluster := mocks.NewMockCluster(t)
+					cluster.EXPECT().GetClient().Return(client)
+					manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+					manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
+					processor := subroutine.NewAuthorizationModelGenerationSubroutine(manager, mocks.NewMockLister(t))
+					binding := providerBoundBinding(apiExport.Name, "root:providers:metadata", "consumer", "provider")
+					_, err := processor.Process(ctx, binding)
+					require.NoError(t, err)
+
+					checkModels := func(overrides pmprovidersv1alpha1.DefaultPermissions) {
+						t.Helper()
+						modules := make([]language.ModuleFile, 0, 3)
+						modules = append(modules, language.ModuleFile{Name: "core.fga", Contents: collectionPermissionsCoreModule})
+						for _, resource := range []string{"component", "commit"} {
+							var model pmcorev1alpha1.AuthorizationModel
+							require.NoError(t, client.Get(ctx, types.NamespacedName{Name: "metadata-dxp-sap-com-" + resource + "s-org"}, &model))
+							assert.Equal(t, pmcorev1alpha1.WorkspaceStoreRef{Name: "org", Cluster: "orgs"}, model.Spec.StoreRef)
+							modules = append(modules, language.ModuleFile{Name: resource + ".fga", Contents: model.Spec.Model})
+						}
+						model, err := language.TransformModuleFilesToModel(modules, "1.2")
+						require.NoError(t, err, "overrides must form a valid combined model with the existing parent relations")
+						types := map[string]*openfgav1.TypeDefinition{}
+						for _, definition := range model.TypeDefinitions {
+							types[definition.Type] = definition
+						}
+						for _, resource := range []string{"component", "commit"} {
+							expected := pmprovidersv1alpha1.DefaultPermissions{}
+							if resource == "component" {
+								expected = overrides
+							}
+							for verb, expression := range map[string]string{"create": expected.Create, "list": expected.List, "watch": expected.Watch} {
+								if expression == "" {
+									expression = "member"
+									if verb == "create" {
+										expression = "owner"
+									}
+								}
+								relation := verb + "_metadata_dxp_sap_com_" + resource + "s"
+								rewrite := types[parentType].Relations[relation]
+								require.NotNil(t, rewrite, "collection permission must exist on the correct parent")
+								terms := []*openfgav1.Userset{rewrite}
+								if rewrite.GetUnion() != nil {
+									terms = rewrite.GetUnion().Child
+								}
+								var relations []string
+								for _, term := range terms {
+									relations = append(relations, term.GetComputedUserset().GetRelation())
+								}
+								assert.Equal(t, strings.Split(expression, " or "), relations, relation)
+								otherParent := "core_namespace"
+								if parentType == otherParent {
+									otherParent = "core_platform-mesh_io_account"
+								}
+								assert.NotContains(t, types[otherParent].Relations, relation)
+							}
+							resourceType := types["metadata_dxp_sap_com_"+resource]
+							for _, verb := range []string{"update", "delete", "patch"} {
+								assert.Equal(t, "member", resourceType.Relations[verb].GetComputedUserset().GetRelation(), verb)
+							}
+							if expected.Get == "" {
+								assert.Equal(t, "member", resourceType.Relations["get"].GetComputedUserset().GetRelation())
+							} else {
+								get := resourceType.Relations["get"].GetUnion().GetChild()
+								require.Len(t, get, 2)
+								assert.Equal(t, strings.Split(expected.Get, " from parent")[0], get[0].GetTupleToUserset().GetComputedUserset().GetRelation())
+								assert.Equal(t, "parent", get[0].GetTupleToUserset().GetTupleset().GetRelation())
+								assert.Equal(t, "member", get[1].GetComputedUserset().GetRelation())
+							}
+							if expected.Watch == "" {
+								assert.Equal(t, "member", resourceType.Relations["watch"].GetComputedUserset().GetRelation())
+							} else {
+								inheritance := resourceType.Relations["watch"].GetTupleToUserset()
+								require.NotNil(t, inheritance, "object watch must inherit the parent override")
+								assert.Equal(t, "parent", inheritance.Tupleset.Relation)
+								assert.Equal(t, "watch_metadata_dxp_sap_com_"+resource+"s", inheritance.ComputedUserset.Relation)
+							}
+						}
+					}
+
+					if tt.permissions == nil {
+						checkModels(pmprovidersv1alpha1.DefaultPermissions{})
+						return
+					}
+					checkModels(*tt.permissions)
+					var permissions pmprovidersv1alpha1.ProviderPermissions
+					require.NoError(t, client.Get(ctx, types.NamespacedName{Name: "metadata"}, &permissions))
+					assert.Equal(t, int64(1), permissions.Status.ObservedGeneration)
+					assert.True(t, meta.IsStatusConditionTrue(permissions.Status.Conditions, "Applied"))
+
+					// Removing overrides must update existing models back to their defaults.
+					permissions.Spec.Permissions = nil
+					require.NoError(t, client.Update(ctx, &permissions))
+					_, err = processor.Process(ctx, binding)
+					require.NoError(t, err)
+					checkModels(pmprovidersv1alpha1.DefaultPermissions{})
+				})
+			}
+		})
+	}
+}
 
 func newApiBinding(name, path string) *kcpapisv1alpha2.APIBinding {
 	return &kcpapisv1alpha2.APIBinding{
@@ -132,7 +350,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(3)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(4)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -169,6 +387,21 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			mockSetup: nil,
 		},
 		{
+			name:      "skip ui.platform-mesh.io exports in Process (early return, no mocks)",
+			binding:   newApiBinding("ui.platform-mesh.io", "root"),
+			mockSetup: nil,
+		},
+		{
+			name:      "skip fga.platform-mesh.io exports in Process (early return, no mocks)",
+			binding:   newApiBinding("fga.platform-mesh.io", "root"),
+			mockSetup: nil,
+		},
+		{
+			name:      "skip provider-fga.platform-mesh.io exports in Process (early return, no mocks)",
+			binding:   newApiBinding("provider-fga.platform-mesh.io", "root"),
+			mockSetup: nil,
+		},
+		{
 			name:      "skip kcp.io exports in Process (early return, no mocks)",
 			binding:   newApiBinding("tenancy.kcp.io", "root"),
 			mockSetup: nil,
@@ -180,7 +413,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(3)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(4)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -216,7 +449,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(3)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(4)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -265,7 +498,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(2)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(3)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -289,7 +522,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(3)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(4)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -346,7 +579,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(3)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(4)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -388,7 +621,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(2)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(3)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -421,7 +654,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Once()
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Twice()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -442,7 +675,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Once()
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Twice()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -461,7 +694,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
-				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(2)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Times(3)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -539,6 +772,10 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				})
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				modelCluster := mocks.NewMockCluster(t)
+				modelClient := mocks.NewMockClient(t)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
 					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -549,7 +786,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 					rs.Spec.Names.Plural = "foos"
 					return nil
 				})
-				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+				modelClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -621,6 +858,10 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				})
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				modelCluster := mocks.NewMockCluster(t)
+				modelClient := mocks.NewMockClient(t)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
 					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -631,7 +872,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 					rs.Spec.Names.Plural = "foos"
 					return nil
 				})
-				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(assert.AnError)
+				modelClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 		},
 		{
@@ -717,6 +958,10 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				})
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				modelCluster := mocks.NewMockCluster(t)
+				modelClient := mocks.NewMockClient(t)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
 					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -727,7 +972,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 					rs.Spec.Names.Plural = "foos"
 					return nil
 				})
-				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+				modelClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -769,6 +1014,10 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				})
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				modelCluster := mocks.NewMockCluster(t)
+				modelClient := mocks.NewMockClient(t)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
 					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -779,7 +1028,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 					rs.Spec.Names.Plural = "foos"
 					return nil
 				})
-				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(
+				modelClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(
 					apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "foos-org"))
 				// deregisterAuthorizationModelFromStore: the model was never created, so release
 				// any reservation left on the Store. A NotFound Store means nothing to release.
@@ -867,6 +1116,10 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 					apierrors.NewNotFound(schema.GroupResource{Group: "account.platform-mesh.org", Resource: "accountinfos"}, "account"))
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				modelCluster := mocks.NewMockCluster(t)
+				modelClient := mocks.NewMockClient(t)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
 					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -877,7 +1130,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 					rs.Spec.Names.Plural = "foos"
 					return nil
 				})
-				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+				modelClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -969,6 +1222,10 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				})
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				modelCluster := mocks.NewMockCluster(t)
+				modelClient := mocks.NewMockClient(t)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
 					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
@@ -979,7 +1236,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 					rs.Spec.Names.Plural = "foos"
 					return nil
 				})
-				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+				modelClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -1053,6 +1310,9 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				})
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				modelCluster := mocks.NewMockCluster(t)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil).Maybe()
+				modelCluster.EXPECT().GetClient().Return(mocks.NewMockClient(t)).Maybe()
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).Return(assert.AnError)
 			},
 		},
@@ -1092,6 +1352,9 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				})
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				modelCluster := mocks.NewMockCluster(t)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil).Maybe()
+				modelCluster.EXPECT().GetClient().Return(mocks.NewMockClient(t)).Maybe()
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
 					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}

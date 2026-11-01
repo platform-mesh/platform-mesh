@@ -1,0 +1,22 @@
+{{- if eq (include "common.istioEnabled" .) "true" -}}
+{{- if not .Values.gatewayApi.enabled }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: kcp
+  namespace: {{ .Release.Namespace }}
+spec:
+  gateways:
+  - {{ .Release.Namespace }}/{{ .Values.istio.gateway.name}}
+  hosts:
+  {{ .Values.kcp.istio.hosts | toYaml | nindent 4 }}
+  tls:
+  - match:
+    - sniHosts:
+      {{ .Values.kcp.istio.hosts | toYaml | nindent 6 }}
+    route:
+    - destination:
+        host: {{.Values.kcp.frontProxy.name}}-front-proxy.{{ .Values.kcp.namespace }}.svc.cluster.local
+{{- end -}}
+{{- end -}}

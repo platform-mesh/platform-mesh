@@ -1,0 +1,18 @@
+{{ template "chart.header" . }}
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+## Configuration
+
+The chart supports the following configuration parameters in the table below. Additionally, default configuration parameters documented in [common/README.md](../common/README.md) are not explicitely listed in the table but are also supported. 
+
+{{ template "chart.valuesHeader" . }}
+
+Default configuration parameters, which can be overriden either globally or on a chart level are documented in [common/README.md](../common/README.md).
+
+{{ template "chart.valuesTable" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}

@@ -1,0 +1,9 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: your-org/your-image
+  # -- The image tag (defaults to the chart appVersion when empty)
+  tag: ""
+  # -- The image digest; when set it overrides the tag (registry/repository@digest)
+  digest: ""

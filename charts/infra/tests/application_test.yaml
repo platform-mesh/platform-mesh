@@ -1,0 +1,356 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: Test the application manifests
+release:
+  name: infra
+  namespace: platform-mesh-system
+tests:
+- it: match snapshots
+  set:
+    kcp:
+      external:
+        hostname: localhost
+      image:
+        tag: 0.0.0
+  asserts:
+  - matchSnapshot: {}
+- it: match snapshots w. hostAliases enabled
+  set:
+    kcp:
+      external:
+        hostname: localhost
+      frontProxy:
+        clusterIP: "10.0.0.1"
+    hostAliases:
+      enabled: true
+  asserts:
+    - matchSnapshot: {}
+- it: match snapshots w. kcp version
+  set:
+    kcp:
+      external:
+        hostname: localhost
+      image:
+        tag: "v0.1.0"
+  asserts:
+    - matchSnapshot: {}
+- it: match snapshots with mailpit enabled
+  set:
+    kcp:
+      external:
+        hostname: localhost
+    mailpit:
+      enabled: true
+  asserts:
+  - matchSnapshot: {}
+- it: Gateway API enabled
+  set:
+    kcp:
+      external:
+        hostname: localhost
+    gatewayApi:
+      enabled: true
+  asserts:
+    - matchSnapshot: {}
+- it: Istio disabled
+  set:
+    kcp:
+      external:
+        hostname: localhost
+    istio:
+      enabled: false
+  asserts:
+    - matchSnapshot: {}
+- it: Istio enabled
+  set:
+    kcp:
+      external:
+        hostname: localhost
+    istio:
+      enabled: true
+  asserts:
+    - matchSnapshot: {}
+- it: configure gateway TLS credential namespace
+  templates:
+    - gatewayapi/gateway.yaml
+  set:
+    gatewayApi:
+      enabled: true
+      listeners:
+        - name: terminate
+          hostname: portal.localhost
+          port: 8443
+          protocol: HTTPS
+          tls:
+            mode: Terminate
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: default2
+  asserts:
+  - equal:
+      path: spec.listeners[0].tls.certificateRefs[0].namespace
+      value: default2
+- it: configure frontproxy resources
+  templates:
+    - kcp/front-proxy.yaml
+  set:
+    kcp:
+      external:
+        hostname: localhost
+      frontProxy:
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+  asserts:
+  - matchSnapshot: {}
+- it: frontproxy serviceTemplate only sets fields the CRD declares
+  templates:
+    - kcp/front-proxy.yaml
+  set:
+    kcp:
+      frontProxy:
+        clusterIP: "10.96.0.100"
+        port: 9443
+  asserts:
+  - notExists:
+      path: spec.serviceTemplate.spec.ports
+  - equal:
+      path: spec.serviceTemplate.spec.clusterIP
+      value: "10.96.0.100"
+  - equal:
+      path: spec.serviceTemplate.spec.type
+      value: ClusterIP
+- it: configure rootshard resources
+  templates:
+    - kcp/root-shard.yaml
+  set:
+    kcp:
+      external:
+        hostname: localhost
+      rootShard:
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 200m
+            memory: 256Mi
+  asserts:
+  - matchSnapshot: {}
+- it: root-shard TLSRoute uses kcp.external.hostname
+  templates:
+    - kcp/root-shard.yaml
+  set:
+    kcp:
+      external:
+        hostname: example.com
+        port: 8443
+      rootShard:
+        hostname: null
+        shardBaseURL: null
+  asserts:
+  - documentIndex: 2
+    equal:
+      path: spec.hostnames[0]
+      value: root.kcp.example.com
+- it: root-shard shardBaseURL derived from kcp.external.hostname
+  templates:
+    - kcp/root-shard.yaml
+  set:
+    kcp:
+      external:
+        hostname: example.com
+        port: 8443
+      rootShard:
+        hostname: null
+        shardBaseURL: null
+  asserts:
+  - documentIndex: 1
+    equal:
+      path: spec.shardBaseURL
+      value: https://root.kcp.example.com:8443/
+- it: root-shard defaults to root.kcp.<external.hostname>
+  templates:
+    - kcp/root-shard.yaml
+  set:
+    kcp:
+      external:
+        hostname: localhost
+  asserts:
+  - documentIndex: 1
+    equal:
+      path: spec.shardBaseURL
+      value: https://root.kcp.localhost:8443/
+  - documentIndex: 2
+    equal:
+      path: spec.hostnames[0]
+      value: root.kcp.localhost
+  - documentIndex: 1
+    contains:
+      path: spec.certificateTemplates.server.spec.dnsNames
+      content: root.kcp.localhost
+- it: root-shard honors explicit kcp.rootShard.hostname override
+  templates:
+    - kcp/root-shard.yaml
+  set:
+    kcp:
+      external:
+        hostname: example.com
+        port: 8443
+      rootShard:
+        hostname: my-root.example.org
+        shardBaseURL: null
+  asserts:
+  - documentIndex: 1
+    equal:
+      path: spec.shardBaseURL
+      value: https://my-root.example.org:8443/
+  - documentIndex: 2
+    equal:
+      path: spec.hostnames[0]
+      value: my-root.example.org
+- it: root-shard honors explicit kcp.rootShard.shardBaseURL override
+  templates:
+    - kcp/root-shard.yaml
+  set:
+    kcp:
+      external:
+        hostname: example.com
+        port: 8443
+      rootShard:
+        hostname: null
+        shardBaseURL: https://custom-shard.example.org:9999/
+  asserts:
+  - documentIndex: 1
+    equal:
+      path: spec.shardBaseURL
+      value: https://custom-shard.example.org:9999/
+- it: configure etcd backup store
+  templates:
+    - kcp/root-shard.yaml
+  set:
+    kcp:
+      external:
+        hostname: localhost
+      etcd:
+        backup:
+          store:
+            container: etcd-bucket
+            prefix: etcd-test
+            provider: S3
+            endpointOverride: http://localstack.default:4566
+            secretRef:
+              name: etcd-backup-aws
+  asserts:
+  - documentIndex: 0
+    equal:
+      path: spec.backup.store
+      value:
+        container: etcd-bucket
+        prefix: etcd-test
+        provider: S3
+        endpointOverride: http://localstack.default:4566
+        secretRef:
+          name: etcd-backup-aws
+  - matchSnapshot: {}
+- it: render additional shard with explicit hostname
+  templates:
+    - kcp/shards.yaml
+  set:
+    kcp:
+      external:
+        hostname: localhost
+      shards:
+        - name: shard-1
+          hostname: shard-1.kcp.localhost
+          spec:
+            replicas: 2
+  asserts:
+  - matchSnapshot: {}
+- it: render additional shard with hostname fallback
+  templates:
+    - kcp/shards.yaml
+  set:
+    kcp:
+      external:
+        hostname: localhost
+      shards:
+        - name: shard-2
+  asserts:
+  - contains:
+      path: spec.hostnames
+      content: shard-2.kcp.localhost
+    documentIndex: 2
+- it: render additional shard with etcd override
+  templates:
+    - kcp/shards.yaml
+  set:
+    kcp:
+      shards:
+        - name: shard-3
+          etcd:
+            replicas: 3
+  asserts:
+  - equal:
+      path: spec.replicas
+      value: 3
+    documentIndex: 0
+  - equal:
+      path: metadata.name
+      value: etcd-kcp-shard-3
+    documentIndex: 0
+- it: render additional shard with spec override
+  templates:
+    - kcp/shards.yaml
+  set:
+    kcp:
+      shards:
+        - name: shard-4
+          spec:
+            resources:
+              limits:
+                cpu: 2000m
+                memory: 2Gi
+  asserts:
+  - equal:
+      path: spec.resources
+      value:
+        limits:
+          cpu: 2000m
+          memory: 2Gi
+    documentIndex: 1
+- it: test keycloak route has no filters when both are empty
+  templates:
+    - keycloak/httproute.yaml
+  set:
+    keycloak:
+      gatewayApi:
+        filters: []
+  asserts:
+  - notExists:
+      path: spec.rules[0].filters
+- it: attaches the root shard TLSRoute to its own passthrough listener
+  templates:
+    - kcp/root-shard.yaml
+  asserts:
+  - documentIndex: 2
+    equal:
+      path: spec.parentRefs[0].sectionName
+      value: passthrough-root
+- it: attaches kcp TLSRoutes to a user-managed passthrough listener when generation is disabled
+  templates:
+    - kcp/root-shard.yaml
+  set:
+    gatewayApi:
+      passthrough:
+        enabled: false
+  asserts:
+  - documentIndex: 2
+    equal:
+      path: spec.parentRefs[0].sectionName
+      value: passthrough

@@ -1,0 +1,49 @@
+{{- if .Values.webhooks.enabled -}}
+# Self-signed issuer for bootstrapping the CA
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "common.entity.name" . }}-selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+# CA Certificate with longer lifecycle (separate from serving cert)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "common.entity.name" . }}-ca-cert
+spec:
+  isCA: true
+  commonName: {{ include "common.entity.name" . }}-ca
+  secretName: {{ include "common.entity.name" . }}-ca-secret
+  duration: {{ .Values.webhooks.caDuration }}
+  renewBefore: {{ .Values.webhooks.caRenewBefore }}
+  issuerRef:
+    kind: Issuer
+    name: {{ include "common.entity.name" . }}-selfsigned-issuer
+---
+# CA Issuer that uses the CA certificate
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "common.entity.name" . }}-ca-issuer
+spec:
+  ca:
+    secretName: {{ include "common.entity.name" . }}-ca-secret
+---
+# Serving certificate issued by the CA
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "common.entity.name" . }}-serving-cert
+spec:
+  dnsNames:
+  - {{ include "common.entity.name" . }}-webhook.{{ .Release.Namespace }}.svc
+  - {{ include "common.entity.name" . }}-webhook.{{ .Release.Namespace }}.svc.cluster.local
+  duration: {{ .Values.webhooks.certDuration }}
+  renewBefore: {{ .Values.webhooks.certRenewBefore }}
+  issuerRef:
+    kind: Issuer
+    name: {{ include "common.entity.name" . }}-ca-issuer
+  secretName: {{ include "common.entity.name" . }}-webhook-server-cert
+{{- end -}}

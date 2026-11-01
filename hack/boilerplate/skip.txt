@@ -37,3 +37,9 @@ operators/platform-mesh-operator/test/e2e/kind/kustomize/base/crds/druid.gardene
 operators/platform-mesh-operator/test/e2e/kind/kustomize/base/crds/druid.gardener.cloud_etcdcopybackupstasks.yaml
 operators/platform-mesh-operator/manifests/kcp/01-platform-mesh-system/crds-inittargets.initialization.kcp.io.yaml
 operators/platform-mesh-operator/manifests/kcp/01-platform-mesh-system/crds-inittemplates.initialization.kcp.io.yaml
+
+# Imported from the helm-charts repository without headers; to be added
+# chart by chart. (A leading / anchors the entry at the repository root.)
+/charts/
+/tests/
+/docs/deployment/migration-

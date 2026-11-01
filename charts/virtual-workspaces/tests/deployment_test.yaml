@@ -1,0 +1,15 @@
+suite: operator
+chart:
+  appVersion: 0.0.0
+release:
+  name: virtual-workspaces
+tests:
+  - it: virtual-workspaces match the snapshot
+    set:
+      cert:
+        extraDnsNames:
+          - my.example.com
+          - my.example2.com
+    asserts:
+      - matchSnapshot: {}
+  

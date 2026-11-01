@@ -19,6 +19,6 @@ metadata:
   name: providers.platform-mesh.io
 spec:
   latestResourceSchemas:
-  - v260624-0de8b9c.providerpermissions.providers.platform-mesh.io
+  - v261029-3c474365.providerpermissions.providers.platform-mesh.io
   permissionClaims: []
 status: {}

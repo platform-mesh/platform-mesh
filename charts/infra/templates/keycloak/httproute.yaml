@@ -1,0 +1,32 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: keycloak
+spec:
+  {{- with .Values.keycloak.gatewayApi.hostnames }}
+  hostnames:
+  {{- range . }}
+  - {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: {{ .Values.gatewayApi.name }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.keycloak.gatewayApi.pathPrefix }}
+    {{- if .Values.keycloak.gatewayApi.filters }}
+    filters:
+    {{- with .Values.keycloak.gatewayApi.filters }}
+    {{ toYaml . | nindent 4 }}
+    {{- end }}
+    {{- end }}
+    backendRefs:
+    - group: ""
+      kind: Service
+      name: {{ .Values.keycloak.service.name }}
+      namespace: {{ .Release.Namespace }}
+      port: {{ .Values.keycloak.service.port }}

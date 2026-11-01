@@ -32,7 +32,7 @@ type ProviderPermissionsSpec struct {
 	Roles []ResourceRoles `json:"roles,omitempty"`
 
 	// Permissions defines per-resource permission configuration
-	// Key format: {group}.{resource} (e.g., "orchestrate.platform-mesh.io.httpbin")
+	// Key format: {singular}.{group} (e.g., "httpbin.orchestrate.platform-mesh.io")
 	// +optional
 	Permissions map[string]ResourcePermissions `json:"permissions,omitempty"`
 }
@@ -51,8 +51,8 @@ type APIExportReference struct {
 
 // ResourceRoles defines roles for a specific resource type.
 type ResourceRoles struct {
-	// GroupResource identifies the resource type in format "{group}.{resource}"
-	// (e.g., "orchestrate.platform-mesh.io.httpbin")
+	// GroupResource identifies the resource type in format "{singular}.{group}"
+	// (e.g., "httpbin.orchestrate.platform-mesh.io")
 	GroupResource string `json:"groupResource"`
 
 	// Roles defines the roles for this resource type
@@ -89,9 +89,19 @@ type ResourcePermissions struct {
 
 // DefaultPermissions defines standard Kubernetes verb permissions.
 type DefaultPermissions struct {
+	// Create permission expression, evaluated on the parent account or namespace.
+	// Referenced relations must exist on that parent (empty string uses owner).
+	// +optional
+	Create string `json:"create,omitempty"`
+
 	// Get permission expression (empty string uses default)
 	// +optional
 	Get string `json:"get,omitempty"`
+
+	// List permission expression, evaluated on the parent account or namespace.
+	// Referenced relations must exist on that parent (empty string uses member).
+	// +optional
+	List string `json:"list,omitempty"`
 
 	// Update permission expression (empty string uses default)
 	// +optional
@@ -105,7 +115,9 @@ type DefaultPermissions struct {
 	// +optional
 	Patch string `json:"patch,omitempty"`
 
-	// Watch permission expression (empty string uses default)
+	// Watch permission expression, evaluated on the parent account or namespace.
+	// Referenced relations must exist on that parent; the resource's watch relation
+	// inherits the overridden parent permission (empty string uses member).
 	// +optional
 	Watch string `json:"watch,omitempty"`
 }

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: account-operator
+description: A Helm chart to deploy platform-mesh Account-Operator
+type: application
+version: 0.0.0
+appVersion: "0.0.0"
+dependencies:
+  - name: common
+    version: 0.0.0
+    repository: file://../common

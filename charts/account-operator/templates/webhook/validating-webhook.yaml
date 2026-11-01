@@ -1,0 +1,29 @@
+{{- if and .Values.webhooks.enabled .Values.webhooks.register -}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "common.clusterScoped.affix" (dict "context" . "name" (printf "%s-validating-webhook-configuration" (include "common.entity.name" .))) }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "common.entity.name" . }}-serving-cert
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "common.entity.name" . }}-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: "/validate-core-platform-mesh-io-v1alpha1-account"
+  failurePolicy: Fail
+  name: vaccount.kb.io
+  rules:
+  - apiGroups:
+    - core.platform-mesh.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - accounts
+  sideEffects: None
+{{- end -}}

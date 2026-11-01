@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+spec:
+  revisionHistoryLimit: {{ include "common.getKeyValue" (dict "Values" .Values "key" "deployment.revisionHistoryLimit") }}
+  selector:
+    matchLabels:
+      {{- include "common.labelMatcher" . | indent 6 }}
+  replicas: {{ .Values.deployment.replicas }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+        {{- with .Values.deployment.specTemplate.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        control-plane: controller-manager
+      annotations:
+        {{- with .Values.deployment.specTemplate.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "common.imagePullSecret" . | indent 6 }}
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+{{ include "common.hostAliases" $ | nindent 6 }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadyness" . | indent 8}}
+        ports:
+        {{- include "common.PortsMetricsHealth" . | nindent 10 }}
+        args:
+          - operator
+          {{- include "common.commonOperatorArgs" . | indent 8 }}
+          - --kcp-api-export-endpoint-slice-name={{ .Values.kcp.apiExportEndpointSliceName }}
+          - --terminal-image={{ .Values.terminal.image.registry }}/{{ .Values.terminal.image.repository }}:{{ .Values.terminal.image.tag | default .Chart.AppVersion }}
+          - --terminal-namespace={{ .Values.terminal.namespace }}
+          - --terminal-lifetime={{ .Values.terminal.lifetime }}
+          {{- if .Values.terminal.hostAliasIP }}
+          - --terminal-host-alias-ip={{ .Values.terminal.hostAliasIP }}
+          {{- end }}
+          {{- if .Values.terminal.hostAliasNames }}
+          - --terminal-host-alias-names={{ join "," .Values.terminal.hostAliasNames }}
+          {{- end }}
+          - --gateway-name={{ .Values.gateway.name }}
+          - --gateway-namespace={{ .Values.gateway.namespace }}
+          {{- if .Values.gateway.hostnames }}
+          - --gateway-hostnames={{ join "," .Values.gateway.hostnames }}
+          {{- end }}
+          - --subroutines-lifetime-enabled={{ .Values.subroutines.lifetime.enabled }}
+          - --subroutines-pod-enabled={{ .Values.subroutines.pod.enabled }}
+          - --subroutines-service-enabled={{ .Values.subroutines.service.enabled }}
+          - --subroutines-httproute-enabled={{ .Values.subroutines.httproute.enabled }}
+          {{- if .Values.kcp.kubeconfigSecret }}
+          - --kcp-kubeconfig=/kcp-kubeconfig/kubeconfig
+          {{- end }}
+        env:
+          {{- include "common.basicEnvironment" . | nindent 10 }}
+          {{- if .Values.kubeconfigSecret }}
+          - name: KUBECONFIG
+            value: /runtime-kubeconfig/kubeconfig
+          {{- end }}
+        volumeMounts:
+          {{- include "common.extraVolumeMounts" . | nindent 8 }}
+        {{- if .Values.kcp.kubeconfigSecret }}
+        - name: kcp-kubeconfig
+          mountPath: /kcp-kubeconfig
+          readOnly: true
+        {{- end }}
+        {{- if .Values.kubeconfigSecret }}
+        - name: runtime-kubeconfig
+          mountPath: /runtime-kubeconfig
+          readOnly: true
+        {{- end }}
+      volumes:
+        {{- include "common.extraVolumes" . | nindent 8 }}
+        {{- if .Values.kcp.kubeconfigSecret }}
+        - name: kcp-kubeconfig
+          secret:
+            secretName: {{ .Values.kcp.kubeconfigSecret }}
+        {{- end }}
+        {{- if .Values.kubeconfigSecret }}
+        - name: runtime-kubeconfig
+          secret:
+            secretName: {{ .Values.kubeconfigSecret }}
+        {{- end }}

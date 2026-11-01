@@ -37,6 +37,15 @@ includes:
   tools:
     taskfile: tools/Taskfile.yaml
     dir: .
+  # Helm charts: `task charts:lint`, `task charts:test`, `task charts:docs`, ...
+  charts:
+    taskfile: charts/Taskfile.yaml
+    dir: .
+  # Playwright end-to-end tests against a running Platform Mesh:
+  # `task tests:portal-e2e:setup`, `task tests:portal-e2e:remote`, ...
+  tests:
+    taskfile: tests/Taskfile.yaml
+    dir: .
 
 vars:
   COMPONENTS:
@@ -149,10 +158,11 @@ tasks:
       - for: {var: COMPONENTS}
         cmd: task test-e2e-{{.ITEM}}
   generate:
-    desc: Run code generation for every component.
+    desc: Run code generation for every component, then sync the generated CRDs into the charts.
     cmds:
       - for: {var: COMPONENTS}
         cmd: task generate-{{.ITEM}}
+      - task: charts:sync-crds
   build:
     desc: Build every component.
     cmds:
@@ -195,6 +205,8 @@ tasks:
     cmds:
       - task: _run
         vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: generate}
+      # The *-crds charts ship copies of the generated CRDs; keep them in step.
+      - task: charts:sync-crds
   "build-*":
     desc: "Build one component (e.g. task build-account-operator)."
     cmds:
@@ -326,27 +338,11 @@ tasks:
           "$context"
 
   # ---------------------------------------------------------------------------
-  # Release: cut a per-component semver tag (cmd/release). The tag (<name>/v*)
-  # triggers that component's release workflow (e.g. account-operator.yml), which
-  # builds + signs the image, cuts a GitHub release, bumps the chart and publishes
-  # SBOM + OCM. `apis` tags are go-gettable module tags only. Pass component +
-  # flags after `--`, e.g.:
-  #   task release -- account-operator --minor
-  #   task release -- all --dry-run
-  # ---------------------------------------------------------------------------
-  release:
-    desc: 'Cut a release tag for a component (e.g. task release -- account-operator --minor).'
-    dir: cmd/release
-    env:
-      GOWORK: "off"   # cmd/release is a standalone tool module, not in the workspace.
-    cmds:
-      - go run . {{.CLI_ARGS}}
-
   # Point every consumer at a released version of an internal module. Generic
   # over the module: the component's own go.mod supplies the module path, so the
   # same target works for apis, golang-commons, subroutines, ... — nothing is
-  # hardcoded. `cmd/release` prints the exact invocation after tagging such a
-  # module; run it, then commit the resulting go.mod/go.sum changes.
+  # hardcoded. Run it after tagging a module (git tag <module>/vX.Y.Z), then
+  # commit the resulting go.mod/go.sum changes.
   #   task bump-deps -- apis v0.0.1
   bump-deps:
     desc: 'Point every consumer at a released internal-module version (e.g. task bump-deps -- apis v0.0.1).'

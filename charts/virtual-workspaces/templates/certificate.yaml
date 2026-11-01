@@ -1,0 +1,25 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: virtual-workspaces
+spec:
+  dnsNames:
+    - frontproxy-front-proxy
+    - frontproxy-front-proxy.{{.Release.Namespace}}
+    - frontproxy-front-proxy.{{.Release.Namespace}}.svc.cluster.local
+    - virtual-workspaces
+    - virtual-workspaces.{{.Release.Namespace}}
+    - virtual-workspaces.{{.Release.Namespace}}.svc.cluster.local
+    {{ .Values.cert.extraDnsNames | toYaml | nindent 4 }}
+  duration: {{ .Values.cert.duration }}
+  issuerRef:
+    group: cert-manager.io
+    kind: {{ .Values.cert.issuer.kind }}
+    name: {{ .Values.cert.issuer.name }}
+  privateKey:
+    algorithm: {{ .Values.cert.key.algorithm }}
+    size: {{ .Values.cert.key.size }}
+  renewBefore: {{ .Values.cert.renewBefore }}
+  secretName: {{ .Values.cert.secretName }}
+  usages:
+    - server auth

@@ -1,0 +1,397 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: publish
+
+# Builds and publishes one Platform Mesh version from the calling workflow's
+# checkout. Used by release.yml (for a vX.Y.Z tag) and prerelease.yml (for a
+# -dev build of main); the only difference between the two is the version.
+#
+#   1. images     every component image from ocm/components.yaml, tagged
+#                 v<version>, for linux/amd64 and linux/arm64, cosign-signed,
+#                 with SBOMs attested to the image and published as the OCM
+#                 component github.com/platform-mesh/images/<component>:<version>
+#   2. aggregate  hack/release/build-aggregate.sh: charts packaged at <version>,
+#                 their OCM components, the third-party wrappers and the
+#                 aggregate github.com/platform-mesh/platform-mesh:<version>,
+#                 all signed
+#   3. verify     the published graph the way a consumer sees it
+#   4. trivy      vulnerability scans of the images and SBOMs
+#
+# Nothing is tested here: the commit went through the verify-* workflows as a
+# pull request. Published versions are immutable; a version that exists in the
+# registry already makes the run fail.
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "The Platform Mesh version to publish, without leading v"
+        required: true
+        type: string
+      ref:
+        description: "Commit to build (default: the commit the calling workflow runs for)"
+        required: false
+        type: string
+        default: ""
+    secrets:
+      OCM_SIGNING_PRIVATE_KEY:
+        description: "PEM private key the OCM components are signed with"
+        required: true
+      OCM_SIGNING_CERT:
+        description: "Certificate matching OCM_SIGNING_PRIVATE_KEY; its CN is the signature name"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  OCM_REPO: ghcr.io/${{ github.repository_owner }}
+  # The signature name must equal the CN of the signing certificate.
+  SIGNATURE: ${{ vars.OCM_SIGNATURE_NAME || 'platform-mesh.platform-mesh' }}
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Which images to build, from ocm/components.yaml.
+  # ──────────────────────────────────────────────
+  components:
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.c.outputs.images }}
+      extraImages: ${{ steps.c.outputs.extraImages }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - name: List image components
+        id: c
+        run: |
+          set -euo pipefail
+          images="$(yq -o=json -I=0 '[.components | to_entries | .[] | select(.value.image != null) | {"component": .key, "image": .value.image}]' ocm/components.yaml)"
+          extra="$(yq -o=json -I=0 '[.components | to_entries | .[] | .value.extraImages // [] | .[]]' ocm/components.yaml)"
+          [ "$images" != "[]" ] && [ -n "$images" ] || { echo "::error::no image components found in ocm/components.yaml"; exit 1; }
+          echo "images=$images" >> "$GITHUB_OUTPUT"
+          echo "extraImages=$extra" >> "$GITHUB_OUTPUT"
+          echo "$images" | jq -r '.[] | "- \(.component) (image \(.image))"'
+          echo "$extra" | jq -r '.[] | "- \(.name) (extra image, context \(.context))"'
+
+  # ──────────────────────────────────────────────
+  # Component images: build, push, sign, SBOM, attest, OCM component.
+  # ──────────────────────────────────────────────
+  image:
+    needs: components
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write # push the image and the component descriptor
+      id-token: write # keyless cosign signing
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.components.outputs.images) }}
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/platform-mesh/${{ matrix.image }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        id: build
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          set -euo pipefail
+          task images-${COMPONENT} \
+            VERSION=v${VERSION} \
+            REPO=${GITHUB_REPOSITORY_OWNER}/platform-mesh \
+            PLATFORMS=linux/amd64,linux/arm64 \
+            PUSH=true \
+            METADATA_FILE="${RUNNER_TEMP}/metadata.json"
+          digest=$(jq -r '."containerimage.digest"' "${RUNNER_TEMP}/metadata.json")
+          echo "imageRef=${IMAGE}@${digest}" >> "$GITHUB_OUTPUT"
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign image
+        run: cosign sign --yes "${IMAGE_REF}"
+        env:
+          IMAGE_REF: ${{ steps.build.outputs.imageRef }}
+      - run: mkdir -p sbom # sbom-action does not create the output directory
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: ${{ steps.build.outputs.imageRef }}
+          format: cyclonedx-json
+          output-file: sbom/sbom-cyclonedx.json
+          upload-release-assets: false
+          upload-artifact: false
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: ${{ steps.build.outputs.imageRef }}
+          format: spdx-json
+          output-file: sbom/sbom-spdx.json
+          upload-release-assets: false
+          upload-artifact: false
+      - name: Attest SBOMs to image
+        run: |
+          cosign attest --yes --type cyclonedx --predicate sbom/sbom-cyclonedx.json "${IMAGE_REF}"
+          cosign attest --yes --type spdxjson --predicate sbom/sbom-spdx.json "${IMAGE_REF}"
+        env:
+          IMAGE_REF: ${{ steps.build.outputs.imageRef }}
+      - name: OCM config (registry credentials + signing key)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
+          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$OCM_SIGNING_PRIVATE_KEY" ] || [ -z "$OCM_SIGNING_CERT" ]; then
+            echo "::error::OCM_SIGNING_PRIVATE_KEY / OCM_SIGNING_CERT secrets are not set"; exit 1
+          fi
+          hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" > "$HOME/.ocmconfig"
+      - name: Publish OCM component github.com/platform-mesh/images/${{ matrix.component }}
+        env:
+          COMPONENT: ${{ matrix.component }}
+          IMAGE_REF: ${{ steps.build.outputs.imageRef }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          hack/release/build-image-component.sh \
+            --component "$COMPONENT" --version "$VERSION" --image-ref "$IMAGE_REF" \
+            --sbom-dir sbom --ocm-repo "$OCM_REPO" --signature "$SIGNATURE" \
+            --repo-url "$REPO_URL" --commit "$(git rev-parse HEAD)"
+
+  # ──────────────────────────────────────────────
+  # Additional images from plain Dockerfile contexts (ocm/components.yaml
+  # extraImages). Signed, not part of the OCM graph.
+  # ──────────────────────────────────────────────
+  extra-image:
+    needs: components
+    if: needs.components.outputs.extraImages != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push the image and the component descriptor
+      id-token: write # keyless cosign signing
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.components.outputs.extraImages) }}
+    steps:
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/platform-mesh/${{ matrix.name }}:v${{ inputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign image
+        run: cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY_OWNER}/platform-mesh/${NAME}@${DIGEST}"
+        env:
+          NAME: ${{ matrix.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+
+  # ──────────────────────────────────────────────
+  # Charts, chart components, third-party wrappers, aggregate.
+  # ──────────────────────────────────────────────
+  aggregate:
+    needs: [image, extra-image]
+    # extra-image may be skipped (no extraImages); image must have succeeded.
+    if: |
+      !cancelled() && needs.image.result == 'success'
+      && (needs.extra-image.result == 'success' || needs.extra-image.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write # push charts and OCM components
+    env:
+      VERSION: ${{ inputs.version }}
+      # Test setups only: copy referenced components that were built elsewhere
+      # (portal, iam-ui, ...) from this OCM repository. Unset in the platform-mesh org.
+      MIRROR_FROM: ${{ vars.OCM_MIRROR_FROM }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install helm (pinned in tools/Taskfile.yaml)
+        run: |
+          echo "HELM=$(UGET_PRINT_PATH=absolute task tools:helm)" >> "$GITHUB_ENV"
+      - name: Registry credentials
+        run: |
+          set -euo pipefail
+          if [ -z "$OCM_SIGNING_PRIVATE_KEY" ] || [ -z "$OCM_SIGNING_CERT" ]; then
+            echo "::error::OCM_SIGNING_PRIVATE_KEY / OCM_SIGNING_CERT secrets are not set"; exit 1
+          fi
+          echo "$GITHUB_TOKEN" | "$HELM" registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" > "$HOME/.ocmconfig"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
+          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+      - name: Build and publish OCM components
+        run: |
+          set -euo pipefail
+          args=(--version "$VERSION" --ocm-repo "$OCM_REPO" --signature "$SIGNATURE"
+                --repo-url "$REPO_URL" --commit "$(git rev-parse HEAD)")
+          [ -n "$MIRROR_FROM" ] && args+=(--mirror-from "$MIRROR_FROM")
+          hack/release/build-aggregate.sh "${args[@]}"
+          {
+            echo "### Published to \`$OCM_REPO\`"
+            echo '```'
+            cat ocm/.generated/published.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ocm-${{ inputs.version }}
+          path: |
+            ocm/.generated/published.txt
+            ocm/.generated/constructor.yaml
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Check the published result the way a consumer would see it.
+  # ──────────────────────────────────────────────
+  verify:
+    needs: aggregate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read # pull the published components back for verification
+    env:
+      COMPONENT: github.com/platform-mesh/platform-mesh
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install ocm, helm, yq (pinned in tools/Taskfile.yaml)
+        run: |
+          echo "OCM=$(UGET_PRINT_PATH=absolute task tools:ocm)" >> "$GITHUB_ENV"
+          echo "HELM=$(UGET_PRINT_PATH=absolute task tools:helm)" >> "$GITHUB_ENV"
+          echo "YQ=$(UGET_PRINT_PATH=absolute task tools:yq)" >> "$GITHUB_ENV"
+      - name: Registry credentials (public key only, no signing key)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_TOKEN" | "$HELM" registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          OCM_SIGNING_PRIVATE_KEY=unused hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" \
+            | "$YQ" 'del(.configurations[].consumers[].credentials[].properties.private_key_pem)' > "$HOME/.ocmconfig"
+      - name: Component graph
+        run: |
+          set -euo pipefail
+          {
+            echo "### Component graph of \`$COMPONENT:$VERSION\`"
+            echo '```'
+            "$OCM" get component-version "$OCM_REPO//$COMPONENT:$VERSION" --recursive
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ocm-${{ inputs.version }}
+      - name: Signatures
+        run: |
+          set -euo pipefail
+          # Everything built from this repository at this version must verify
+          # with our certificate; third-party wrappers published by earlier runs
+          # and components from other repositories may carry other signatures.
+          {
+            echo "$COMPONENT:$VERSION"
+            cat published.txt
+            "$YQ" '.components | to_entries[] | select(.value.image) | "github.com/platform-mesh/images/" + .key + ":" + strenv(VERSION)' ocm/components.yaml
+          } | sort -u | while read -r cv; do
+            [ -n "$cv" ] || continue
+            "$OCM" verify component-version --signature "$SIGNATURE" "$OCM_REPO//$cv" >/dev/null
+            echo "verified $cv"
+          done
+      - name: Charts are installable
+        run: |
+          set -euo pipefail
+          for chart in account-operator infra common; do
+            "$HELM" pull "oci://$OCM_REPO/helm-charts/$chart" --version "$VERSION" --destination /tmp
+            [ "$chart" = common ] || "$HELM" template "/tmp/$chart-$VERSION.tgz" >/dev/null
+            echo "ok: $chart $VERSION"
+          done
+
+  # ──────────────────────────────────────────────
+  # Vulnerability scans.
+  # ──────────────────────────────────────────────
+  trivy-image:
+    needs: [components, image]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.components.outputs.images) }}
+    uses: ./.github/workflows/job-trivy-image.yml
+    permissions:
+      contents: read
+      packages: read # pull the image to scan
+      security-events: write # upload the SARIF report
+    with:
+      imageRef: ghcr.io/${{ github.repository_owner }}/platform-mesh/${{ matrix.image }}:v${{ inputs.version }}
+
+  trivy-sbom:
+    needs: [components, image]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.components.outputs.images) }}
+    uses: ./.github/workflows/job-trivy-sbom.yml
+    permissions:
+      contents: read
+      packages: read # read the SBOM from the component
+      security-events: write # upload the SARIF report
+    with:
+      componentName: github.com/platform-mesh/images/${{ matrix.component }}
+      componentVersion: ${{ inputs.version }}

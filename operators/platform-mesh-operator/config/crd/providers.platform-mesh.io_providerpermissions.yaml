@@ -85,6 +85,11 @@ spec:
                         DefaultPermissions overrides standard Kubernetes verb permissions
                         Empty string "" means use system default
                       properties:
+                        create:
+                          description: |-
+                            Create permission expression, evaluated on the parent account or namespace.
+                            Referenced relations must exist on that parent (empty string uses owner).
+                          type: string
                         delete:
                           description: Delete permission expression (empty string
                             uses default)
@@ -92,6 +97,11 @@ spec:
                         get:
                           description: Get permission expression (empty string uses
                             default)
+                          type: string
+                        list:
+                          description: |-
+                            List permission expression, evaluated on the parent account or namespace.
+                            Referenced relations must exist on that parent (empty string uses member).
                           type: string
                         patch:
                           description: Patch permission expression (empty string uses
@@ -102,14 +112,16 @@ spec:
                             uses default)
                           type: string
                         watch:
-                          description: Watch permission expression (empty string uses
-                            default)
+                          description: |-
+                            Watch permission expression, evaluated on the parent account or namespace.
+                            Referenced relations must exist on that parent; the resource's watch relation
+                            inherits the overridden parent permission (empty string uses member).
                           type: string
                       type: object
                   type: object
                 description: |-
                   Permissions defines per-resource permission configuration
-                  Key format: {group}.{resource} (e.g., "orchestrate.platform-mesh.io.httpbin")
+                  Key format: {singular}.{group} (e.g., "httpbin.orchestrate.platform-mesh.io")
                 type: object
               roles:
                 description: Roles defines custom roles grouped by resource type
@@ -119,8 +131,8 @@ spec:
                   properties:
                     groupResource:
                       description: |-
-                        GroupResource identifies the resource type in format "{group}.{resource}"
-                        (e.g., "orchestrate.platform-mesh.io.httpbin")
+                        GroupResource identifies the resource type in format "{singular}.{group}"
+                        (e.g., "httpbin.orchestrate.platform-mesh.io")
                       type: string
                     roles:
                       description: Roles defines the roles for this resource type

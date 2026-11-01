@@ -1,0 +1,15 @@
+suite: Test Kubernetes Gateway API
+values:
+- ../values.yaml
+- ../test_values.yaml
+release:
+  name: kubernetes-graphql-gateway
+  namespace: platform-mesh-system
+chart:
+  appVersion: 1.0.0
+templates:
+  - httproute.yaml
+tests:
+  - it: HTTPRoute matches snapshot
+    asserts:
+      - matchSnapshot: {}

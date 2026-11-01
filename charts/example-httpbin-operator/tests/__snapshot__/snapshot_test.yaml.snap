@@ -1,0 +1,428 @@
+match snapshot:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator
+      namespace: NAMESPACE
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/instance: example-httpbin-operator
+          app.kubernetes.io/name: example-httpbin-operator
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/instance: example-httpbin-operator
+            app.kubernetes.io/name: example-httpbin-operator
+        spec:
+          containers:
+            - args: null
+              image: ghcr.io/platform-mesh/example-httpbin-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: example-httpbin-operator
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+                requests:
+                  cpu: 100m
+                  memory: 64Mi
+              securityContext: {}
+              volumeMounts: null
+          securityContext: {}
+          serviceAccountName: example-httpbin-operator-controller-manager
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: httpbin-editor-role
+    rules:
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbins
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbins/status
+        verbs:
+          - get
+  3: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: httpbin-viewer-role
+    rules:
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbins
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbins/status
+        verbs:
+          - get
+  4: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: httpbindeployment-editor-role
+    rules:
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbindeployments
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbindeployments/status
+        verbs:
+          - get
+  5: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: httpbindeployment-viewer-role
+    rules:
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbindeployments
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbindeployments/status
+        verbs:
+          - get
+  6: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator-leader-election-role
+      namespace: NAMESPACE
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - configmaps
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - ""
+        resources:
+          - events
+        verbs:
+          - create
+          - patch
+  7: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator-leader-election-rolebinding
+      namespace: NAMESPACE
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: example-httpbin-operator-leader-election-role
+    subjects:
+      - kind: ServiceAccount
+        name: example-httpbin-operator-controller-manager
+        namespace: NAMESPACE
+  8: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator-metrics-auth-role
+    rules:
+      - apiGroups:
+          - authentication.k8s.io
+        resources:
+          - tokenreviews
+        verbs:
+          - create
+      - apiGroups:
+          - authorization.k8s.io
+        resources:
+          - subjectaccessreviews
+        verbs:
+          - create
+  9: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator-metrics-auth-rolebinding
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: example-httpbin-operator-metrics-auth-role
+    subjects:
+      - kind: ServiceAccount
+        name: example-httpbin-operator-controller-manager
+        namespace: NAMESPACE
+  10: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator-metrics-reader
+    rules:
+      - nonResourceURLs:
+          - /metrics
+        verbs:
+          - get
+  11: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator-manager-role
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - services
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - apps
+        resources:
+          - deployments
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - networking.k8s.io
+        resources:
+          - ingresses
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbindeployments
+          - httpbins
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbindeployments/finalizers
+          - httpbindeployments/status
+          - httpbins/status
+        verbs:
+          - get
+          - patch
+          - update
+      - apiGroups:
+          - orchestrate.platform-mesh.io
+        resources:
+          - httpbins/finalizers
+        verbs:
+          - update
+      - apiGroups:
+          - gateway.networking.k8s.io
+        resources:
+          - httproutes
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+  12: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator-manager-rolebinding
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: example-httpbin-operator-manager-role
+    subjects:
+      - kind: ServiceAccount
+        name: example-httpbin-operator-controller-manager
+        namespace: NAMESPACE
+  13: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator-controller-manager
+      namespace: NAMESPACE
+  14: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      labels:
+        app.kubernetes.io/instance: example-httpbin-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: example-httpbin-operator
+        app.kubernetes.io/version: 1.0.0
+        helm.sh/chart: example-httpbin-operator-1.0.0
+      name: example-httpbin-operator-kubeconfig
+      namespace: NAMESPACE
+    stringData:
+      kubeconfig: |
+        apiVersion: v1
+        kind: Config
+        clusters:
+        - cluster:
+            certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            server: https://kubernetes.default.svc
+          name: default
+        contexts:
+        - context:
+            cluster: default
+            user: default
+          name: default
+        current-context: default
+        users:
+        - name: default
+          user:
+            tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    type: Opaque

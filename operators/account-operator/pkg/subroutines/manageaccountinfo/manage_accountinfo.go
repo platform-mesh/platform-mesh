@@ -55,7 +55,7 @@ type ManageAccountInfoSubroutine struct {
 }
 
 func New(mgr mcmanager.Manager, serverCA string) (*ManageAccountInfoSubroutine, error) {
-	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[*pmcorev1alpha1.Account](
+	rl, err := ratelimiter.NewObjectRateLimiter[*pmcorev1alpha1.Account](
 		ratelimiter.NewConfig(
 			ratelimiter.WithRequeueDelay(1*time.Second),
 			ratelimiter.WithStaticWindow(1*time.Second),

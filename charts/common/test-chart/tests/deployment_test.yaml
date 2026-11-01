@@ -1,0 +1,187 @@
+suite: deployment
+templates:
+  - deployment.yaml
+values:
+  - ../values.yaml
+chart:
+  namespace: default
+  appVersion: 0.1.0
+tests:
+  - it: test tag default
+    asserts:
+      - matchSnapshot: {}
+  - it: test tag override
+    set:
+      image:
+        tag: 1.0.0
+    asserts:
+      - matchSnapshot: {}
+  - it: test repository override
+    set:
+      image:
+        registry: my-registry.io
+        repository: my-org/my-image
+    asserts:
+      - matchSnapshot: {}
+  - it: test sentry enabled
+    set:
+      global:
+        sentry:
+          enabled: true
+      environment: "test"
+      sentry:
+        environment: "test"
+    asserts:
+      - matchSnapshot: {}
+  - it: test extras
+    set:
+      extraEnvs:
+        - name: MY_ENV
+          value: my-value
+      extraArgs:
+        - --arg1=value1
+        - --arg2=value2
+      extraVolumes:
+        - name: my-volume
+          emptyDir: {}
+        - name: my-volume2
+          emptyDir: {}
+      extraVolumeMounts:
+        - name: my-volume
+          mountPath: /mnt/my-volume
+        - name: my-volume2
+          mountPath: /mnt/my-volume2
+    asserts:
+      - matchSnapshot: {}
+  - it: test global region
+    set:
+      global:
+        region: us-east-1
+    asserts:
+      - matchSnapshot: {}
+  - it: set cpu limits
+    set:
+      deployment:
+        resources:
+          limits:
+            cpu: 1000m
+    asserts:
+      - matchSnapshot: {}
+  - it: test tracing
+    set:
+      log:
+        noJson: true
+      tracing:
+        enabled: true
+        collector:
+            endpoint: collector:4317
+    asserts:
+      - matchSnapshot: {}
+  - it: test duplicate ports
+    set:
+      health:
+        port: 8080
+    asserts:
+      - matchSnapshot: {}
+  - it: test host aliases
+    set:
+      hostAliases:
+        enabled: true
+        entries:
+          - ip: "127.0.0.1"
+            hostnames:
+              - "local.test"
+          - ip: "192.168.1.1"
+            hostnames:
+              - "my.test"
+    asserts:
+      - matchSnapshot: {}
+      - equal:
+          path: spec.template.spec.hostAliases[0].ip
+          value: "127.0.0.1"
+      - equal:
+          path: spec.template.spec.hostAliases[0].hostnames[0]
+          value: "local.test"
+      - equal:
+          path: spec.template.spec.hostAliases[1].ip
+          value: "192.168.1.1"
+      - equal:
+          path: spec.template.spec.hostAliases[1].hostnames[0]
+          value: "my.test"
+  - it: test disabled hostAliases
+    set:
+      hostAliases.enabled: false
+    asserts:
+      - notExists:
+          path: spec.template.spec.hostAliases
+  - it: test hostAliases override
+    set:
+      global:
+        hostAliases:
+          enabled: false
+      hostAliasesOverride:
+        enabled: true
+        entries:
+          - ip: "127.0.0.1"
+            hostnames:
+              - "local.test"
+          - ip: "192.168.1.1"
+            hostnames:
+              - "my.test"
+    asserts:
+      - equal:
+          path: spec.template.spec.hostAliases[0].ip
+          value: "127.0.0.1"
+      - equal:
+          path: spec.template.spec.hostAliases[0].hostnames[0]
+          value: "local.test"
+      - equal:
+          path: spec.template.spec.hostAliases[1].ip
+          value: "192.168.1.1"
+      - equal:
+          path: spec.template.spec.hostAliases[1].hostnames[0]
+          value: "my.test"
+  - it: test hostAliases global
+    set:
+      global:
+        hostAliases:
+          enabled: true
+          entries:
+            - ip: "127.0.0.1"
+              hostnames:
+                - "local.test"
+            - ip: "192.168.1.1"
+              hostnames:
+                - "my.test"
+    asserts:
+      - equal:
+          path: spec.template.spec.hostAliases[0].ip
+          value: "127.0.0.1"
+      - equal:
+          path: spec.template.spec.hostAliases[0].hostnames[0]
+          value: "local.test"
+      - equal:
+          path: spec.template.spec.hostAliases[1].ip
+          value: "192.168.1.1"
+      - equal:
+          path: spec.template.spec.hostAliases[1].hostnames[0]
+          value: "my.test"
+  - it: test disable http2
+    set:
+      enableHttp2: false
+    asserts:
+      - matchSnapshot: {}
+  - it: test enable default hostAliases
+    set:
+      hostAliases:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.hostAliases[0].ip
+          value: "10.96.188.4"
+      - equal:
+          path: spec.template.spec.hostAliases[0].hostnames[0]
+          value: "localhost"
+      - equal:
+          path: spec.template.spec.hostAliases[0].hostnames[1]
+          value: "portal.localhost"

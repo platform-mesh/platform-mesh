@@ -1,0 +1,974 @@
+set cpu limits:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=local
+                - --environment=local
+                - --image-tag=0.1.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/your-org/your-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 1000m
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null
+test disable http2:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=local
+                - --environment=local
+                - --image-tag=0.1.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --enable-http2=false
+              env: null
+              image: ghcr.io/your-org/your-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null
+test duplicate ports:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8080
+                - --log-level=warn
+                - --region=local
+                - --environment=local
+                - --image-tag=0.1.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/your-org/your-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8080
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8080
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8080
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null
+test extras:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=local
+                - --environment=local
+                - --image-tag=0.1.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --arg1=value1
+                - --arg2=value2
+              env:
+                - name: MY_ENV
+                  value: my-value
+              image: ghcr.io/your-org/your-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts:
+            - mountPath: /mnt/my-volume
+              name: my-volume
+            - mountPath: /mnt/my-volume2
+              name: my-volume2
+          volumes:
+            - emptyDir: {}
+              name: my-volume
+            - emptyDir: {}
+              name: my-volume2
+test global region:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=us-east-1
+                - --environment=local
+                - --image-tag=0.1.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/your-org/your-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null
+test host aliases:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=local
+                - --environment=local
+                - --image-tag=0.1.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/your-org/your-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          hostAliases:
+            - hostnames:
+                - local.test
+              ip: 127.0.0.1
+            - hostnames:
+                - my.test
+              ip: 192.168.1.1
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null
+test repository override:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=local
+                - --environment=local
+                - --image-tag=0.1.0
+                - --image-name="my-registry.io/my-org/my-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: my-registry.io/my-org/my-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null
+test sentry enabled:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=local
+                - --environment=test
+                - --image-tag=0.1.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      key: dsn
+                      name: RELEASE-NAME-test-chart-sentry
+              image: ghcr.io/your-org/your-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null
+test tag default:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=local
+                - --environment=local
+                - --image-tag=0.1.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/your-org/your-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null
+test tag override:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=local
+                - --environment=local
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/your-org/your-image:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null
+test tracing:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-test-chart
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-test-chart
+      strategy:
+        rollingUpdate:
+          maxSurge: 5
+          maxUnavailable: 0
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-test-chart
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - -- operator
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --no-json
+                - --region=local
+                - --environment=local
+                - --image-tag=0.1.0
+                - --image-name="ghcr.io/your-org/your-image"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --tracing-enabled=true
+                - --tracing-config-service-name=RELEASE-NAME-test-chart.NAMESPACE
+                - --tracing-config-service-version=0.1.0
+                - --tracing-config-collector-endpoint=collector:4317
+              env: null
+              image: ghcr.io/your-org/your-image:0.1.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-test-chart
+              ports:
+                - containerPort: 8080
+                  name: http
+                  protocol: TCP
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-test-chart
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+          volumes: null

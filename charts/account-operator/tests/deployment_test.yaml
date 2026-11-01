@@ -1,0 +1,102 @@
+suite: operator
+chart:
+  appVersion: 0.0.0
+release:
+  name: account-operator
+tests:
+  - it: operator match the snapshot
+    set:
+      webhooks:
+        additionalAccountTypes: my-type,my-other-type
+      # health:
+      #   portOverride: 8080
+      deployment:
+        resources:
+          limits:
+            cpuOverride: 260m
+            memoryOverride: 512Mi
+          requests:
+            cpuOverride: 150m
+            memoryOverride: 128Mi
+        hostAliases:
+          - hostnames:
+              - kcp.dev.local
+            ip: 10.96.0.100
+    asserts:
+      - matchSnapshot: {}
+  - it: operator match the snapshot (with kubeconfigSecret)
+    set:
+      kubeconfigSecret: "kubeconfig"
+    asserts:
+      - matchSnapshot: {}
+  - it: operator match the snapshot with webhook enabled
+    set:
+      health:
+        # portOverride: 8081
+        liveness:
+          pathOverride: "/healthz"
+          # failureThreshold: 1
+        startup:
+          pathOverride: "/healthz"
+        readiness:
+          initialDelaySecondsOverride: 45
+      webhooks:
+        enabled: true
+        certDir: /certs
+      deployment:
+        resources:
+          limits:
+            cpuOverride: 260m
+            memoryOverride: 512Mi
+          requests:
+            cpuOverride: 150m
+            memoryOverride: 128Mi
+    asserts:
+      - matchSnapshot: {}
+  - it: deployment with security context
+    template: deployment.yaml
+    set:
+      security:
+        mountServiceAccountToken: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: account-operator
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: true
+  - it: deployment with tracing
+    template: deployment.yaml
+    set:
+      tracing:
+        enabled: true
+        collector:
+          endpoint: test:4317
+    asserts:
+      - matchSnapshot: {}
+  - it: multi-pod leader election
+    template: deployment.yaml
+    set:
+      deployment:
+        replicas: 2
+      operator:
+        leaderElect: true
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.template.spec.containers[0].args[1]
+          value: "--leader-elect"
+  - it: disable istio
+    set:
+      istio:
+        enabled: false
+    asserts:
+      - matchSnapshot: {}

@@ -1,0 +1,1239 @@
+custom certs:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: extension-manager-operator
+    rules:
+      - apiGroups:
+          - ui.platform-mesh.io
+        resources:
+          - contentconfigurations
+          - contentconfigurations/status
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - events
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: extension-manager-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: extension-manager-operator
+    subjects:
+      - kind: ServiceAccount
+        name: extension-manager-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-server
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            app: extension-manager-operator
+            module: server
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - server
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: extension-manager-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumeMounts:
+            - mountPath: /etc/ssl/certs/domain-ca.crt
+              name: domain-ca
+              readOnly: true
+              subPath: tls.crt
+        volumes:
+          - name: domain-ca
+            secret:
+              secretName: domain-certificate-ca
+  4: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            app: extension-manager-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --kcp-api-export-endpoint-slice-name=ui.platform-mesh.io
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: extension-manager-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
+                - mountPath: /api-kubeconfig
+                  name: kcp-api-server
+                  readOnly: true
+          hostAliases: []
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate-ca
+            - name: kcp-api-server
+              secret:
+                secretName: extension-manager-operator-kubeconfig
+  5: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: extension-manager-operator
+      namespace: NAMESPACE
+deployment with external kubeconfig:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            app: extension-manager-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --kcp-api-export-endpoint-slice-name=ui.platform-mesh.io
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: extension-manager-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /test
+                  name: test
+                - mountPath: /api-kubeconfig
+                  name: kcp-api-server
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: test
+              secret:
+                secretName: test
+            - name: kcp-api-server
+              secret:
+                secretName: test-kubeconfig
+enable Gateway API:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: extension-manager-operator
+    rules:
+      - apiGroups:
+          - ui.platform-mesh.io
+        resources:
+          - contentconfigurations
+          - contentconfigurations/status
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - events
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: extension-manager-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: extension-manager-operator
+    subjects:
+      - kind: ServiceAccount
+        name: extension-manager-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-server
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            app: extension-manager-operator
+            module: server
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - server
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: extension-manager-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+        volumes: null
+  4: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            app: extension-manager-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --kcp-api-export-endpoint-slice-name=ui.platform-mesh.io
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: extension-manager-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: kcp-api-server
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-api-server
+              secret:
+                secretName: extension-manager-operator-kubeconfig
+  5: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: extension-manager-operator-server
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: k8sapi-gateway
+      rules:
+        - backendRefs:
+            - group: ""
+              kind: Service
+              name: extension-manager-operator-server
+              port: 8088
+          matches:
+            - path:
+                type: PathPrefix
+                value: /custom-validate
+  6: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: extension-manager-operator
+      namespace: NAMESPACE
+entity type validation enabled:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-server
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            app: extension-manager-operator
+            module: server
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - server
+                - --entity-type-validation-enabled
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: extension-manager-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumeMounts:
+            - mountPath: /api-kubeconfig
+              name: kcp-api-server
+              readOnly: true
+        volumes:
+          - name: kcp-api-server
+            secret:
+              secretName: test-kubeconfig
+  2: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            app: extension-manager-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --kcp-api-export-endpoint-slice-name=ui.platform-mesh.io
+                - --entity-type-validation-enabled
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: extension-manager-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: kcp-api-server
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-api-server
+              secret:
+                secretName: test-kubeconfig
+operator match the snapshot:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: extension-manager-operator
+    rules:
+      - apiGroups:
+          - ui.platform-mesh.io
+        resources:
+          - contentconfigurations
+          - contentconfigurations/status
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - events
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: extension-manager-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: extension-manager-operator
+    subjects:
+      - kind: ServiceAccount
+        name: extension-manager-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-server
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "true"
+          labels:
+            app: extension-manager-operator
+            module: server
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - server
+                - --leader-elect
+                - --metrics-bind-address=:8080
+                - --health-probe-bind-address=:8081
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: extension-manager-operator
+              ports:
+                - containerPort: 8081
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+        volumes: null
+  4: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "true"
+          labels:
+            app: extension-manager-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --kcp-api-export-endpoint-slice-name=ui.platform-mesh.io
+                - --leader-elect
+                - --metrics-bind-address=:8080
+                - --health-probe-bind-address=:8081
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                periodSeconds: 10
+              name: extension-manager-operator
+              ports:
+                - containerPort: 8081
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: kcp-api-server
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-api-server
+              secret:
+                secretName: extension-manager-operator-kubeconfig
+  5: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: extension-manager-operator
+      namespace: NAMESPACE
+  6: |
+    apiVersion: networking.istio.io/v1alpha3
+    kind: VirtualService
+    metadata:
+      name: extension-manager-operator-server
+      namespace: NAMESPACE
+    spec:
+      gateways:
+        - NAMESPACE/gateway
+      hosts:
+        - '*'
+      http:
+        - match:
+            - uri:
+                prefix: /validate
+          route:
+            - destination:
+                host: extension-manager-operator-server.NAMESPACE.svc.cluster.local
+                port:
+                  number: 8088
+operator match the snapshot with tracing:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-server
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            app: extension-manager-operator
+            module: server
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - server
+                - --leader-elect
+                - --metrics-bind-address=:8080
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --tracing-enabled=true
+                - --tracing-config-service-name=extension-manager-operator-server.NAMESPACE
+                - --tracing-config-service-version=1.0.0
+                - --tracing-config-collector-endpoint=test:1234
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: extension-manager-operator
+              ports:
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /readyz
+                  port: 8088
+                  scheme: HTTP
+                initialDelaySeconds: 5
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumeMounts: null
+        volumes: null
+  2: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: extension-manager-operator-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: extension-manager-operator
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            app: extension-manager-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --kcp-api-export-endpoint-slice-name=ui.platform-mesh.io
+                - --leader-elect
+                - --metrics-bind-address=:8080
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/extension-manager-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+                - --tracing-enabled=true
+                - --tracing-config-service-name=extension-manager-operator.NAMESPACE
+                - --tracing-config-service-version=1.0.0
+                - --tracing-config-collector-endpoint=test:1234
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/extension-manager-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: extension-manager-operator
+              ports:
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: kcp-api-server
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: extension-manager-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-api-server
+              secret:
+                secretName: extension-manager-operator-kubeconfig

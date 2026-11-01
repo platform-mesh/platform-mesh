@@ -1,0 +1,18 @@
+{{- if .Values.serviceMonitors.openfga.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: openfga
+  labels:
+    {{- include "observability.labels" . | nindent 4 }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.serviceMonitors.openfga.namespace }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.serviceMonitors.openfga.labels | nindent 6 }}
+  endpoints:
+    - port: {{ .Values.serviceMonitors.openfga.port }}
+      path: {{ .Values.serviceMonitors.openfga.path }}
+{{- end }}

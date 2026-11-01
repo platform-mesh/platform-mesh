@@ -1,0 +1,931 @@
+it should render the application manifests:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: rebac-authz-webhook
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+          - accounts/status
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: rebac-authz-webhook
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: rebac-authz-webhook
+    subjects:
+      - kind: ServiceAccount
+        name: rebac-authz-webhook
+        namespace: platform-mesh-system
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: rebac-authz-webhook
+      namespace: platform-mesh-system
+    spec:
+      selector:
+        matchLabels:
+          app: rebac-authz-webhook
+      template:
+        metadata:
+          labels:
+            app: rebac-authz-webhook
+        spec:
+          containers:
+            - args:
+                - serve
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --health-probe-bind-address=:8081
+                - --webhook-cache-miss-max-retries=1
+                - --webhook-cache-miss-ttl=5m
+                - --webhook-cache-miss-cleanup-interval=2m
+                - --webhook-cache-miss-retry-after=1s
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8081
+                periodSeconds: 10
+              name: rebac-authz-webhook
+              ports:
+                - containerPort: 9443
+                - containerPort: 8080
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /config
+                  name: certs
+                - mountPath: /api-kubeconfig
+                  name: api-kubeconfig
+                  readOnly: true
+          serviceAccountName: rebac-authz-webhook
+          volumes:
+            - name: certs
+              secret:
+                secretName: rebac-authz-webhook-cert
+            - name: api-kubeconfig
+              secret:
+                secretName: rebac-authz-webhook-kubeconfig
+  4: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-ca-issuer
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  5: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-ca
+      namespace: platform-mesh-system
+    spec:
+      commonName: rebac-authz-webhook-ca
+      isCA: true
+      issuerRef:
+        group: cert-manager.io
+        kind: Issuer
+        name: rebac-authz-webhook-ca-issuer
+      secretName: rebac-authz-webhook-webhook-ca
+  6: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-issuer
+      namespace: platform-mesh-system
+    spec:
+      ca:
+        secretName: rebac-authz-webhook-webhook-ca
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-cert
+      namespace: platform-mesh-system
+    spec:
+      dnsNames: []
+      ipAddresses: []
+      issuerRef:
+        name: rebac-authz-webhook-issuer
+      secretName: rebac-authz-webhook-cert
+  8: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: rebac-authz-webhook
+    spec:
+      ports:
+        - name: rebac-authz-webhook
+          port: 9443
+          targetPort: 9443
+        - name: metrics
+          port: 8080
+          targetPort: 8080
+      selector:
+        app: rebac-authz-webhook
+      type: ClusterIP
+  9: |
+    apiVersion: v1
+    automountServiceAccountToken: true
+    kind: ServiceAccount
+    metadata:
+      name: rebac-authz-webhook
+it should render the application manifests with service account:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: rebac-authz-webhook
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+          - accounts/status
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: rebac-authz-webhook
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: rebac-authz-webhook
+    subjects:
+      - kind: ServiceAccount
+        name: rebac-authz-webhook
+        namespace: platform-mesh-system
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: rebac-authz-webhook
+      namespace: platform-mesh-system
+    spec:
+      selector:
+        matchLabels:
+          app: rebac-authz-webhook
+      template:
+        metadata:
+          labels:
+            app: rebac-authz-webhook
+        spec:
+          containers:
+            - args:
+                - serve
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --health-probe-bind-address=:8081
+                - --webhook-cache-miss-max-retries=1
+                - --webhook-cache-miss-ttl=5m
+                - --webhook-cache-miss-cleanup-interval=2m
+                - --webhook-cache-miss-retry-after=1s
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8081
+                periodSeconds: 10
+              name: rebac-authz-webhook
+              ports:
+                - containerPort: 9443
+                - containerPort: 8080
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /config
+                  name: certs
+                - mountPath: /api-kubeconfig
+                  name: api-kubeconfig
+                  readOnly: true
+          serviceAccountName: rebac-authz-webhook
+          volumes:
+            - name: certs
+              secret:
+                secretName: rebac-authz-webhook-cert
+            - name: api-kubeconfig
+              secret:
+                secretName: rebac-authz-webhook-kubeconfig
+  4: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-ca-issuer
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  5: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-ca
+      namespace: platform-mesh-system
+    spec:
+      commonName: rebac-authz-webhook-ca
+      isCA: true
+      issuerRef:
+        group: cert-manager.io
+        kind: Issuer
+        name: rebac-authz-webhook-ca-issuer
+      secretName: rebac-authz-webhook-webhook-ca
+  6: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-issuer
+      namespace: platform-mesh-system
+    spec:
+      ca:
+        secretName: rebac-authz-webhook-webhook-ca
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-cert
+      namespace: platform-mesh-system
+    spec:
+      dnsNames: []
+      ipAddresses: []
+      issuerRef:
+        name: rebac-authz-webhook-issuer
+      secretName: rebac-authz-webhook-cert
+  8: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: rebac-authz-webhook
+    spec:
+      ports:
+        - name: rebac-authz-webhook
+          port: 9443
+          targetPort: 9443
+        - name: metrics
+          port: 8080
+          targetPort: 8080
+      selector:
+        app: rebac-authz-webhook
+      type: ClusterIP
+  9: |
+    apiVersion: v1
+    automountServiceAccountToken: true
+    kind: ServiceAccount
+    metadata:
+      name: rebac-authz-webhook
+it should render the application manifests with service monitor:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: rebac-authz-webhook
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+          - accounts/status
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: rebac-authz-webhook
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: rebac-authz-webhook
+    subjects:
+      - kind: ServiceAccount
+        name: rebac-authz-webhook
+        namespace: platform-mesh-system
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: rebac-authz-webhook
+      namespace: platform-mesh-system
+    spec:
+      selector:
+        matchLabels:
+          app: rebac-authz-webhook
+      template:
+        metadata:
+          labels:
+            app: rebac-authz-webhook
+        spec:
+          containers:
+            - args:
+                - serve
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --health-probe-bind-address=:8081
+                - --webhook-cache-miss-max-retries=1
+                - --webhook-cache-miss-ttl=5m
+                - --webhook-cache-miss-cleanup-interval=2m
+                - --webhook-cache-miss-retry-after=1s
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8081
+                periodSeconds: 10
+              name: rebac-authz-webhook
+              ports:
+                - containerPort: 9443
+                - containerPort: 8080
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /config
+                  name: certs
+                - mountPath: /api-kubeconfig
+                  name: api-kubeconfig
+                  readOnly: true
+          serviceAccountName: rebac-authz-webhook
+          volumes:
+            - name: certs
+              secret:
+                secretName: rebac-authz-webhook-cert
+            - name: api-kubeconfig
+              secret:
+                secretName: rebac-authz-webhook-kubeconfig
+  4: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-ca-issuer
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  5: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-ca
+      namespace: platform-mesh-system
+    spec:
+      commonName: rebac-authz-webhook-ca
+      isCA: true
+      issuerRef:
+        group: cert-manager.io
+        kind: Issuer
+        name: rebac-authz-webhook-ca-issuer
+      secretName: rebac-authz-webhook-webhook-ca
+  6: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-issuer
+      namespace: platform-mesh-system
+    spec:
+      ca:
+        secretName: rebac-authz-webhook-webhook-ca
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-cert
+      namespace: platform-mesh-system
+    spec:
+      dnsNames: []
+      ipAddresses: []
+      issuerRef:
+        name: rebac-authz-webhook-issuer
+      secretName: rebac-authz-webhook-cert
+  8: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: rebac-authz-webhook
+    spec:
+      ports:
+        - name: rebac-authz-webhook
+          port: 9443
+          targetPort: 9443
+        - name: metrics
+          port: 8080
+          targetPort: 8080
+      selector:
+        app: rebac-authz-webhook
+      type: ClusterIP
+  9: |
+    apiVersion: v1
+    automountServiceAccountToken: true
+    kind: ServiceAccount
+    metadata:
+      name: rebac-authz-webhook
+it should render the application manifests with useInClusterClient:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: rebac-authz-webhook
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+          - accounts/status
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: rebac-authz-webhook
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: rebac-authz-webhook
+    subjects:
+      - kind: ServiceAccount
+        name: rebac-authz-webhook
+        namespace: platform-mesh-system
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: rebac-authz-webhook
+      namespace: platform-mesh-system
+    spec:
+      selector:
+        matchLabels:
+          app: rebac-authz-webhook
+      template:
+        metadata:
+          labels:
+            app: rebac-authz-webhook
+        spec:
+          containers:
+            - args:
+                - serve
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --health-probe-bind-address=:8081
+                - --webhook-cache-miss-max-retries=1
+                - --webhook-cache-miss-ttl=5m
+                - --webhook-cache-miss-cleanup-interval=2m
+                - --webhook-cache-miss-retry-after=1s
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8081
+                periodSeconds: 10
+              name: rebac-authz-webhook
+              ports:
+                - containerPort: 9443
+                - containerPort: 8080
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /config
+                  name: certs
+                - mountPath: /api-kubeconfig
+                  name: api-kubeconfig
+                  readOnly: true
+          serviceAccountName: rebac-authz-webhook
+          volumes:
+            - name: certs
+              secret:
+                secretName: rebac-authz-webhook-cert
+            - name: api-kubeconfig
+              secret:
+                secretName: rebac-authz-webhook-kubeconfig
+  4: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-ca-issuer
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  5: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-ca
+      namespace: platform-mesh-system
+    spec:
+      commonName: rebac-authz-webhook-ca
+      isCA: true
+      issuerRef:
+        group: cert-manager.io
+        kind: Issuer
+        name: rebac-authz-webhook-ca-issuer
+      secretName: rebac-authz-webhook-webhook-ca
+  6: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-issuer
+      namespace: platform-mesh-system
+    spec:
+      ca:
+        secretName: rebac-authz-webhook-webhook-ca
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-cert
+      namespace: platform-mesh-system
+    spec:
+      dnsNames: []
+      ipAddresses: []
+      issuerRef:
+        name: rebac-authz-webhook-issuer
+      secretName: rebac-authz-webhook-cert
+  8: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: rebac-authz-webhook
+    spec:
+      ports:
+        - name: rebac-authz-webhook
+          port: 9443
+          targetPort: 9443
+        - name: metrics
+          port: 8080
+          targetPort: 8080
+      selector:
+        app: rebac-authz-webhook
+      type: ClusterIP
+  9: |
+    apiVersion: v1
+    automountServiceAccountToken: true
+    kind: ServiceAccount
+    metadata:
+      name: rebac-authz-webhook
+it should render the cert-manager manifests with certManager enabled:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: rebac-authz-webhook
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - core.platform-mesh.io
+        resources:
+          - accounts
+          - accounts/status
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+        verbs:
+          - get
+          - list
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: rebac-authz-webhook
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: rebac-authz-webhook
+    subjects:
+      - kind: ServiceAccount
+        name: rebac-authz-webhook
+        namespace: platform-mesh-system
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: rebac-authz-webhook
+      namespace: platform-mesh-system
+    spec:
+      selector:
+        matchLabels:
+          app: rebac-authz-webhook
+      template:
+        metadata:
+          labels:
+            app: rebac-authz-webhook
+        spec:
+          containers:
+            - args:
+                - serve
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --health-probe-bind-address=:8081
+                - --webhook-cache-miss-max-retries=1
+                - --webhook-cache-miss-ttl=5m
+                - --webhook-cache-miss-cleanup-interval=2m
+                - --webhook-cache-miss-retry-after=1s
+              env:
+                - name: KUBECONFIG
+                  value: /api-kubeconfig/kubeconfig
+              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8081
+                periodSeconds: 10
+              name: rebac-authz-webhook
+              ports:
+                - containerPort: 9443
+                - containerPort: 8080
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8081
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /config
+                  name: certs
+                - mountPath: /api-kubeconfig
+                  name: api-kubeconfig
+                  readOnly: true
+          serviceAccountName: rebac-authz-webhook
+          volumes:
+            - name: certs
+              secret:
+                secretName: rebac-authz-webhook-cert
+            - name: api-kubeconfig
+              secret:
+                secretName: rebac-authz-webhook-kubeconfig
+  4: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-ca-issuer
+      namespace: platform-mesh-system
+    spec:
+      selfSigned: {}
+  5: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-ca
+      namespace: platform-mesh-system
+    spec:
+      commonName: rebac-authz-webhook-ca
+      isCA: true
+      issuerRef:
+        group: cert-manager.io
+        kind: Issuer
+        name: rebac-authz-webhook-ca-issuer
+      secretName: rebac-authz-webhook-webhook-ca
+  6: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: rebac-authz-webhook-issuer
+      namespace: platform-mesh-system
+    spec:
+      ca:
+        secretName: rebac-authz-webhook-webhook-ca
+  7: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: rebac-authz-webhook-cert
+      namespace: platform-mesh-system
+    spec:
+      dnsNames: []
+      ipAddresses: []
+      issuerRef:
+        name: rebac-authz-webhook-issuer
+      secretName: rebac-authz-webhook-cert
+  8: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: rebac-authz-webhook
+    spec:
+      clusterIP: 10.96.86.219
+      ports:
+        - name: rebac-authz-webhook
+          port: 9443
+          targetPort: 9443
+        - name: metrics
+          port: 8080
+          targetPort: 8080
+      selector:
+        app: rebac-authz-webhook
+      type: ClusterIP
+  9: |
+    apiVersion: v1
+    automountServiceAccountToken: true
+    kind: ServiceAccount
+    metadata:
+      name: rebac-authz-webhook
+  10: |
+    apiVersion: networking.istio.io/v1beta1
+    kind: VirtualService
+    metadata:
+      name: rebac-authz-webhook
+      namespace: platform-mesh-system
+    spec:
+      gateways:
+        - platform-mesh-system/gateway
+      hosts:
+        - webhook.portal.cc.showroom.apeirora.eu
+      tls:
+        - match:
+            - sniHosts:
+                - webhook.portal.cc.showroom.apeirora.eu
+          route:
+            - destination:
+                host: rebac-authz-webhook.platform-mesh-system.svc.cluster.local
+                port:
+                  number: 9443

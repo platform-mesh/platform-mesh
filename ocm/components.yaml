@@ -1,0 +1,120 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Registry of the components built from this repository. This is the single
+# source for the CI and release workflows (which components exist, where their
+# sources are, which images they produce) and for the release notes.
+#
+# Components are not released on their own: a Platform Mesh release (tag
+# vX.Y.Z, release.yml) builds every image listed here at that version and
+# publishes it as the OCM component `github.com/platform-mesh/images/<name>`.
+# Libraries are Go modules other projects import; they keep versions of their
+# own and are tagged `<name>/vX.Y.Z` by hand, nothing is built for them.
+#
+# Fields:
+#   path         directory of the component (module root)
+#   library      true for go-gettable modules without an image
+#   image        name of the primary image, pushed as
+#                ghcr.io/<owner>/platform-mesh/<image>:<version>, built with
+#                `task images-<name>` (repo root as build context, see the
+#                root Taskfile). Omit for libraries.
+#   extraImages  additional images built from a plain Dockerfile context:
+#                - name:    image name (same registry namespace)
+#                  context: build context directory
+#   chart        the component's Helm chart, if any (charts/<name>). Marks the
+#                chart as one whose appVersion is the Platform Mesh version
+#                (hack/release/stage-charts.sh); charts not listed here wrap
+#                components from other repositories or third parties.
+#   e2e          whether `task test-e2e-<name>` exists (default true)
+
+components:
+  # --- libraries -------------------------------------------------------------
+  golang-commons:
+    path: golang-commons
+    library: true
+    e2e: false
+  subroutines:
+    path: subroutines
+    library: true
+    e2e: false
+  apis: # imports golang-commons and subroutines
+    path: apis
+    library: true
+    e2e: false
+
+  # --- operators -------------------------------------------------------------
+  account-operator:
+    path: operators/account-operator
+    image: account-operator
+    chart: charts/account-operator
+  backup-operator:
+    path: operators/backup-operator
+    image: backup-operator
+  extension-manager-operator:
+    path: operators/extension-manager-operator
+    image: extension-manager-operator
+    chart: charts/extension-manager-operator
+  kcp-migration-operator:
+    path: operators/kcp-migration-operator
+    image: kcp-migration-operator
+  kro-composition-operator:
+    path: operators/kro-composition-operator
+    image: kro-composition-operator
+    chart: charts/kro-composition-operator
+  platform-mesh-deployer:
+    path: operators/platform-mesh-deployer
+    image: platform-mesh-deployer
+    e2e: false # builds real kcp installations on kind; does not fit a hosted runner
+  platform-mesh-operator:
+    path: operators/platform-mesh-operator
+    image: platform-mesh-operator
+    chart: charts/platform-mesh-operator
+  resource-broker:
+    path: operators/resource-broker
+    image: resource-broker
+  search-operator:
+    path: operators/search-operator
+    image: search-operator
+  security-operator:
+    path: operators/security-operator
+    image: security-operator
+    chart: charts/security-operator
+  terminal-controller-manager:
+    path: operators/terminal-controller-manager
+    image: terminal-controller-manager
+    chart: charts/terminal-controller-manager
+    extraImages:
+      - name: terminal
+        context: operators/terminal-controller-manager/images/terminal
+
+  # --- services --------------------------------------------------------------
+  iam-service:
+    path: services/iam-service
+    image: iam-service
+    chart: charts/iam-service
+  kubernetes-graphql-gateway:
+    path: services/kubernetes-graphql-gateway
+    image: kubernetes-graphql-gateway
+    chart: charts/kubernetes-graphql-gateway
+  rebac-authz-webhook:
+    path: services/rebac-authz-webhook
+    image: rebac-authz-webhook
+    chart: charts/rebac-authz-webhook
+  search-service:
+    path: services/search-service
+    image: search-service
+  virtual-workspaces:
+    path: services/virtual-workspaces
+    image: virtual-workspaces
+    chart: charts/virtual-workspaces

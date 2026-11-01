@@ -1,0 +1,13 @@
+apiVersion: v2
+version: 0.0.0
+appVersion: 0.0.0
+name: kubernetes-graphql-gateway
+description: Basic helm chart that contains listener and gateway
+dependencies:
+  - name: common
+    version: 0.0.0
+    repository: file://../common
+  - name: kubernetes-graphql-gateway-crds
+    version: 0.0.0
+    condition: crds.enabled
+    repository: file://../kubernetes-graphql-gateway-crds

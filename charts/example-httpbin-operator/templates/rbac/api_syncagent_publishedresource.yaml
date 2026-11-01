@@ -1,0 +1,13 @@
+{{- if .Values.apiSyncagent.publishedResources.enable }}
+apiVersion: syncagent.kcp.io/v1alpha1
+kind: PublishedResource
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: httpbin-local-provider
+spec:
+  resource:
+    kind: HttpBin
+    apiGroup: orchestrate.platform-mesh.io
+    version: v1alpha1
+{{- end -}}

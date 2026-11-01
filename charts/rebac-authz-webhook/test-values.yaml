@@ -1,0 +1,4 @@
+openfga:
+  url: https://example.com
+  storeName: test
+
