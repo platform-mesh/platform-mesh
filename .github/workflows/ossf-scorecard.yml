@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   scorecard:
-    uses: platform-mesh/.github/.github/workflows/job-ossf-scorecard.yml@bc940c04f874cb46be445b421b8f6f1622ab61c2 # main
+    uses: platform-mesh/.github/.github/workflows/job-ossf-scorecard.yml@fdd4eba80b1790501afc7b5289c026fb302d30d0 # main
     permissions:
       security-events: write # Needed to upload the Scorecard SARIF to code scanning
       id-token: write # Needed for the OIDC token when publishing Scorecard results
