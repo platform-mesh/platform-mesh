@@ -16,7 +16,7 @@
 #   docker build -f operators/kro-composition-operator/Dockerfile .
 # The module is linked through the repository-root go.work; this operator depends
 # only on external modules (kro, kcp SDK, controller-runtime), not the shared ./apis.
-FROM --platform=$BUILDPLATFORM golang:1.26.10@sha256:670bb5aa5349ae03b8516764718486f4f16399134bdc9acd0c46a23f043ab05c AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.2@sha256:820153096fda4de6ac1b7194d12e416b7dd8f4e9a33d17e0345b111b945162d8 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 

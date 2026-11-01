@@ -13,7 +13,7 @@
 # the lot for ~8MB. This image only ever runs in the kind dev cluster; the
 # images a real install pulls are built by each component's own Dockerfile and
 # stay distroless.
-FROM alpine:3.22
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 
 # The binary lands in a directory owned by the runtime user, NOT at `/`: the
 # live_update sync runs as the container's user, and replacing a file means
