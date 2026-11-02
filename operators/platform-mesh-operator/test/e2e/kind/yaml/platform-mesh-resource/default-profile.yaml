@@ -123,7 +123,7 @@ data:
               enabled: true
     components:
       hostAliasesEntries: &hostAliasesEntries
-        - ip: "{{ .traefikClusterIP }}"
+        - ip: "{{ .gatewayServiceClusterIP }}"
           hostnames:
             - "{{ .baseDomain }}"
             - "kcp.api.{{ .baseDomain }}"
