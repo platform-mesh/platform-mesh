@@ -22,8 +22,8 @@ step is required.
 #### Tilt setup
 
 The deployer is not part of the repository's Tilt environment
-([contrib/tilt/README.md](../../contrib/tilt/README.md)), which deploys
-Platform Mesh from the in-repo charts with kcp-operator.
+(`contrib/tilt`), which deploys Platform Mesh from the in-repo charts
+with kcp-operator.
 
 It runs kcp-operator's config and workload controller groups inside its own
 manager, from the ntnn/kcp-operator fork pinned by the `replace` in `go.mod`.
