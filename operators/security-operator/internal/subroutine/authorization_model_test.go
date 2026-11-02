@@ -598,7 +598,7 @@ func TestAuthorizationModelSelfSubjectReviewCreateOverride(t *testing.T) {
 
 	logger := testlogger.New()
 	sub := subroutine.NewAuthorizationModelSubroutine(fga, manager, kcpHelper, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
-	ctx := mccontext.WithCluster(context.Background(), multicluster.ClusterName(logicalcluster.Name("path").String()))
+	ctx := mccontext.WithCluster(context.Background(), config.StoreClusterName(logicalcluster.Name("path").String()))
 
 	_, err := sub.Process(ctx, store)
 	assert.NoError(t, err)
