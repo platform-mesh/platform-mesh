@@ -268,7 +268,7 @@ data:
               frontProxy:
                 port: __EXTERNAL_PORT__
               image:
-                tag: v0.33.4
+                tag: 550ab5751
               rootShard:
                 hostname: "root.kcp.{{ .baseDomain }}"
                 shardBaseURL: https://root.kcp.{{ .baseDomain }}:__EXTERNAL_PORT__/
