@@ -32,6 +32,10 @@ E2E_STATE="${E2E_STATE:-$E2E_ROOT/.e2e}"
 E2E_CLUSTER="${E2E_CLUSTER:-platform-mesh}"
 E2E_KIND_IMAGE="${E2E_KIND_IMAGE:-kindest/node:v1.35.1}"
 E2E_NETWORK="${E2E_NETWORK:-kind}"
+# Subnets for the network when hack/e2e creates it (a fresh CI runner); an
+# existing network, e.g. one kind created, is used as it is.
+E2E_NETWORK_SUBNET="${E2E_NETWORK_SUBNET:-172.18.0.0/16}"
+E2E_NETWORK_SUBNET6="${E2E_NETWORK_SUBNET6:-fc00:f853:ccd:e793::/64}"
 E2E_REGISTRY_NAME="${E2E_REGISTRY_NAME:-platform-mesh-e2e-registry}"
 E2E_REGISTRY_IMAGE="${E2E_REGISTRY_IMAGE:-registry:2.8.3}"
 # The registry is also published on the loopback interface: `docker push` goes

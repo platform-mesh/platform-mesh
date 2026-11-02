@@ -39,9 +39,18 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 case "${1:-}" in
   up)
+    mkdir -p "$E2E_STATE"
     if ! docker network inspect "$E2E_NETWORK" >/dev/null 2>&1; then
-      log "creating docker network $E2E_NETWORK (kind reuses it)"
-      docker network create "$E2E_NETWORK" >/dev/null
+      # Created the way kind creates it (kind reuses an existing network of
+      # that name), with explicit subnets: Docker only accepts a fixed --ip on
+      # a network whose subnet was configured by the user.
+      log "creating docker network $E2E_NETWORK ($E2E_NETWORK_SUBNET; kind reuses it)"
+      docker network create -d bridge \
+        -o com.docker.network.bridge.enable_ip_masquerade=true \
+        -o com.docker.network.driver.mtu=1500 \
+        --subnet "$E2E_NETWORK_SUBNET" \
+        --ipv6 --subnet "$E2E_NETWORK_SUBNET6" \
+        "$E2E_NETWORK" >/dev/null
     fi
     subnet="$(docker network inspect "$E2E_NETWORK" -f '{{range .IPAM.Config}}{{.Subnet}} {{end}}' | tr ' ' '\n' | grep -m1 '\.')"
     [[ -n "$subnet" ]] || die "network $E2E_NETWORK has no IPv4 subnet"
@@ -50,9 +59,18 @@ case "${1:-}" in
     if [[ "$(docker inspect -f '{{.State.Running}}' "$E2E_REGISTRY_NAME" 2>/dev/null)" != "true" || "$current" != "$ip" ]]; then
       docker rm -f "$E2E_REGISTRY_NAME" >/dev/null 2>&1 || true
       log "starting registry $E2E_REGISTRY_NAME ($E2E_REGISTRY_IMAGE) at $ip"
-      docker run -d --restart=always --name "$E2E_REGISTRY_NAME" --network "$E2E_NETWORK" --ip "$ip" \
-        -v "$E2E_REGISTRY_NAME-data:/var/lib/registry" \
-        -p "127.0.0.1:$E2E_REGISTRY_HOST_PORT:5000" "$E2E_REGISTRY_IMAGE" >/dev/null
+      run=(docker run -d --restart=always --name "$E2E_REGISTRY_NAME" --network "$E2E_NETWORK"
+        -v "$E2E_REGISTRY_NAME-data:/var/lib/registry"
+        -p "127.0.0.1:$E2E_REGISTRY_HOST_PORT:5000" "$E2E_REGISTRY_IMAGE")
+      if ! "${run[@]:0:6}" --ip "$ip" "${run[@]:6}" >/dev/null 2>"$E2E_STATE/registry.err"; then
+        # A network created elsewhere without an explicit subnet cannot pin
+        # the address. Run without it; the address then changes when the
+        # container is recreated, and the snapshot must be republished.
+        log "cannot pin $ip on $E2E_NETWORK ($(tail -1 "$E2E_STATE/registry.err")); using a dynamic address"
+        docker rm -f "$E2E_REGISTRY_NAME" >/dev/null 2>&1 || true
+        "${run[@]}" >/dev/null
+        ip="$(docker inspect -f "{{(index .NetworkSettings.Networks \"$E2E_NETWORK\").IPAddress}}" "$E2E_REGISTRY_NAME")"
+      fi
     fi
     url="${E2E_REGISTRY_URL:-http://$ip:5000}"
     save_state registry.url "$url"
