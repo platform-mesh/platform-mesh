@@ -69,6 +69,9 @@ the next full version from it and from the tags reachable from `HEAD`.
    into it) or later (then `main` is in code freeze until the release). See
    RFC 015.
 
+5. Run `task deps:post-release` to update all dependencies. This may
+   need manual fixes to the code.
+
 ### A patch release
 
 Fixes are merged to `main` first, then cherry-picked into the release branch
