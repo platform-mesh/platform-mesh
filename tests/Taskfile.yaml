@@ -16,8 +16,8 @@
 # Included from the root Taskfile as `tests:`; the tasks keep the names they
 # had in the helm-charts repository minus the `test:` prefix, e.g.
 # `task tests:portal-e2e:remote`. The installation they run against is
-# described in installation/README.md; .github/workflows/install-kind.yml
-# runs them in CI.
+# described in installation/README.md; hack/e2e/test.sh runs them locally
+# and in CI (.github/workflows/e2e.yml).
 
 version: '3'
 

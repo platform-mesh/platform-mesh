@@ -281,7 +281,7 @@ tasks:
           extractArg: 'mkcert-*'
           uncompressed: true
   kind:
-    desc: Install kind into the root bin (used by the operator e2e tests and install-kind.yml).
+    desc: Install kind into the root bin (used by the operator e2e tests and hack/e2e/).
     cmds:
       - task: uget
         vars:

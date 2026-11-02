@@ -1,0 +1,30 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# kind cluster for the end-to-end flow (hack/e2e/kind.sh), the cluster
+# installation/README.md describes: Traefik's NodePort 31000 is published as
+# https://portal.localhost:8443. The plain-HTTP registry is configured per
+# node after creation (hosts.toml), since its address is only known at runtime.
+apiVersion: kind.x-k8s.io/v1alpha4
+kind: Cluster
+networking:
+  apiServerAddress: "127.0.0.1"
+  kubeProxyMode: iptables
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 31000
+        hostPort: 8443
+        protocol: TCP
+        listenAddress: "127.0.0.1"

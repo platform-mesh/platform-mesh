@@ -76,3 +76,6 @@ ocm/.ocmconfig
 /runtime-artifacts
 docs/deployment/migration-0.3/kcp-exports
 ocm/.generated/
+
+# hack/e2e state (registry address, signing key, image digests)
+.e2e/

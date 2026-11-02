@@ -46,6 +46,11 @@ includes:
   tests:
     taskfile: tests/Taskfile.yaml
     dir: .
+  # End-to-end flow of this checkout on kind (build, publish to a local
+  # registry, install, test): `task e2e:pr`, `task e2e:upgrade`, `task e2e:down`.
+  e2e:
+    taskfile: hack/e2e/Taskfile.yaml
+    dir: .
 
 vars:
   COMPONENTS:
