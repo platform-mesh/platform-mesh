@@ -9,7 +9,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.cluster.image.digest | string | `""` | PostgreSQL image digest (when set, overrides tag) |
 | cnpg.cluster.image.registry | string | `"ghcr.io"` | PostgreSQL image registry |
 | cnpg.cluster.image.repository | string | `"cloudnative-pg/postgresql"` | PostgreSQL image repository (without registry) |
-| cnpg.cluster.image.tag | string | `"18.3"` | PostgreSQL image tag |
+| cnpg.cluster.image.tag | string | `"18.6"` | PostgreSQL image tag |
 | cnpg.cluster.instances | int | `2` |  |
 | cnpg.cluster.name | string | `"platform-mesh-pg"` |  |
 | cnpg.cluster.postgresql.maxConnections | string | `"200"` |  |
@@ -37,7 +37,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.image.digest | string | `"sha256:1b4a6eee8550240b0faedad04d984ca939513650e1d9bd423502c67355e3822f"` | Dex image digest (when set, overrides tag: registry/repository@digest) |
 | dex.image.registry | string | `"ghcr.io"` | Dex image registry |
 | dex.image.repository | string | `"dexidp/dex"` | Dex image repository (without registry) |
-| dex.image.tag | string | `"v2.42.0"` | Dex image tag |
+| dex.image.tag | string | `"v2.46.1"` | Dex image tag |
 | dex.issuer | string | `""` | Dex issuer URL (must match external browser-reachable URL) |
 | dex.resources.limits.cpu | string | `"200m"` |  |
 | dex.resources.limits.memory | string | `"256Mi"` |  |
@@ -202,7 +202,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | keycloak.operator.waitForDb.image.digest | string | `""` | wait-for-db init container image digest (when set, overrides tag) |
 | keycloak.operator.waitForDb.image.registry | string | `"docker.io"` | wait-for-db init container image registry |
 | keycloak.operator.waitForDb.image.repository | string | `"library/busybox"` | wait-for-db init container image repository (without registry) |
-| keycloak.operator.waitForDb.image.tag | string | `"1.37"` | wait-for-db init container image tag |
+| keycloak.operator.waitForDb.image.tag | string | `"1.38"` | wait-for-db init container image tag |
 | keycloak.service | object | `{"name":"keycloak","port":80}` | service configuration |
 | keycloak.service.name | string | `"keycloak"` | service name |
 | keycloak.service.port | int | `80` | service port |
