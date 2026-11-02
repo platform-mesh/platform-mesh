@@ -34,10 +34,19 @@ func NewOpenFGAServiceClient(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *OpenFGAServiceClient {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &OpenFGAServiceClient{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -98,9 +107,9 @@ type OpenFGAServiceClient_BatchCheck_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.BatchCheckRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) BatchCheck(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_BatchCheck_Call {
+func (_e *OpenFGAServiceClient_Expecter) BatchCheck(ctx any, in any, opts ...any) *OpenFGAServiceClient_BatchCheck_Call {
 	return &OpenFGAServiceClient_BatchCheck_Call{Call: _e.mock.On("BatchCheck",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_BatchCheck_Call) Run(run func(ctx context.Context, in *openfgav1.BatchCheckRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_BatchCheck_Call {
@@ -181,9 +190,9 @@ type OpenFGAServiceClient_Check_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.CheckRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) Check(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_Check_Call {
+func (_e *OpenFGAServiceClient_Expecter) Check(ctx any, in any, opts ...any) *OpenFGAServiceClient_Check_Call {
 	return &OpenFGAServiceClient_Check_Call{Call: _e.mock.On("Check",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_Check_Call) Run(run func(ctx context.Context, in *openfgav1.CheckRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_Check_Call {
@@ -264,9 +273,9 @@ type OpenFGAServiceClient_CreateStore_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.CreateStoreRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) CreateStore(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_CreateStore_Call {
+func (_e *OpenFGAServiceClient_Expecter) CreateStore(ctx any, in any, opts ...any) *OpenFGAServiceClient_CreateStore_Call {
 	return &OpenFGAServiceClient_CreateStore_Call{Call: _e.mock.On("CreateStore",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_CreateStore_Call) Run(run func(ctx context.Context, in *openfgav1.CreateStoreRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_CreateStore_Call {
@@ -347,9 +356,9 @@ type OpenFGAServiceClient_DeleteStore_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.DeleteStoreRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) DeleteStore(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_DeleteStore_Call {
+func (_e *OpenFGAServiceClient_Expecter) DeleteStore(ctx any, in any, opts ...any) *OpenFGAServiceClient_DeleteStore_Call {
 	return &OpenFGAServiceClient_DeleteStore_Call{Call: _e.mock.On("DeleteStore",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_DeleteStore_Call) Run(run func(ctx context.Context, in *openfgav1.DeleteStoreRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_DeleteStore_Call {
@@ -430,9 +439,9 @@ type OpenFGAServiceClient_Expand_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.ExpandRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) Expand(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_Expand_Call {
+func (_e *OpenFGAServiceClient_Expecter) Expand(ctx any, in any, opts ...any) *OpenFGAServiceClient_Expand_Call {
 	return &OpenFGAServiceClient_Expand_Call{Call: _e.mock.On("Expand",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_Expand_Call) Run(run func(ctx context.Context, in *openfgav1.ExpandRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_Expand_Call {
@@ -513,9 +522,9 @@ type OpenFGAServiceClient_GetStore_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.GetStoreRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) GetStore(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_GetStore_Call {
+func (_e *OpenFGAServiceClient_Expecter) GetStore(ctx any, in any, opts ...any) *OpenFGAServiceClient_GetStore_Call {
 	return &OpenFGAServiceClient_GetStore_Call{Call: _e.mock.On("GetStore",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_GetStore_Call) Run(run func(ctx context.Context, in *openfgav1.GetStoreRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_GetStore_Call {
@@ -596,9 +605,9 @@ type OpenFGAServiceClient_ListObjects_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.ListObjectsRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) ListObjects(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_ListObjects_Call {
+func (_e *OpenFGAServiceClient_Expecter) ListObjects(ctx any, in any, opts ...any) *OpenFGAServiceClient_ListObjects_Call {
 	return &OpenFGAServiceClient_ListObjects_Call{Call: _e.mock.On("ListObjects",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_ListObjects_Call) Run(run func(ctx context.Context, in *openfgav1.ListObjectsRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_ListObjects_Call {
@@ -679,9 +688,9 @@ type OpenFGAServiceClient_ListStores_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.ListStoresRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) ListStores(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_ListStores_Call {
+func (_e *OpenFGAServiceClient_Expecter) ListStores(ctx any, in any, opts ...any) *OpenFGAServiceClient_ListStores_Call {
 	return &OpenFGAServiceClient_ListStores_Call{Call: _e.mock.On("ListStores",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_ListStores_Call) Run(run func(ctx context.Context, in *openfgav1.ListStoresRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_ListStores_Call {
@@ -762,9 +771,9 @@ type OpenFGAServiceClient_ListUsers_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.ListUsersRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) ListUsers(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_ListUsers_Call {
+func (_e *OpenFGAServiceClient_Expecter) ListUsers(ctx any, in any, opts ...any) *OpenFGAServiceClient_ListUsers_Call {
 	return &OpenFGAServiceClient_ListUsers_Call{Call: _e.mock.On("ListUsers",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_ListUsers_Call) Run(run func(ctx context.Context, in *openfgav1.ListUsersRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_ListUsers_Call {
@@ -845,9 +854,9 @@ type OpenFGAServiceClient_Read_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.ReadRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) Read(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_Read_Call {
+func (_e *OpenFGAServiceClient_Expecter) Read(ctx any, in any, opts ...any) *OpenFGAServiceClient_Read_Call {
 	return &OpenFGAServiceClient_Read_Call{Call: _e.mock.On("Read",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_Read_Call) Run(run func(ctx context.Context, in *openfgav1.ReadRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_Read_Call {
@@ -928,9 +937,9 @@ type OpenFGAServiceClient_ReadAssertions_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.ReadAssertionsRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) ReadAssertions(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_ReadAssertions_Call {
+func (_e *OpenFGAServiceClient_Expecter) ReadAssertions(ctx any, in any, opts ...any) *OpenFGAServiceClient_ReadAssertions_Call {
 	return &OpenFGAServiceClient_ReadAssertions_Call{Call: _e.mock.On("ReadAssertions",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_ReadAssertions_Call) Run(run func(ctx context.Context, in *openfgav1.ReadAssertionsRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_ReadAssertions_Call {
@@ -1011,9 +1020,9 @@ type OpenFGAServiceClient_ReadAuthorizationModel_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.ReadAuthorizationModelRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) ReadAuthorizationModel(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_ReadAuthorizationModel_Call {
+func (_e *OpenFGAServiceClient_Expecter) ReadAuthorizationModel(ctx any, in any, opts ...any) *OpenFGAServiceClient_ReadAuthorizationModel_Call {
 	return &OpenFGAServiceClient_ReadAuthorizationModel_Call{Call: _e.mock.On("ReadAuthorizationModel",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_ReadAuthorizationModel_Call) Run(run func(ctx context.Context, in *openfgav1.ReadAuthorizationModelRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_ReadAuthorizationModel_Call {
@@ -1094,9 +1103,9 @@ type OpenFGAServiceClient_ReadAuthorizationModels_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.ReadAuthorizationModelsRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) ReadAuthorizationModels(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_ReadAuthorizationModels_Call {
+func (_e *OpenFGAServiceClient_Expecter) ReadAuthorizationModels(ctx any, in any, opts ...any) *OpenFGAServiceClient_ReadAuthorizationModels_Call {
 	return &OpenFGAServiceClient_ReadAuthorizationModels_Call{Call: _e.mock.On("ReadAuthorizationModels",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_ReadAuthorizationModels_Call) Run(run func(ctx context.Context, in *openfgav1.ReadAuthorizationModelsRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_ReadAuthorizationModels_Call {
@@ -1177,9 +1186,9 @@ type OpenFGAServiceClient_ReadChanges_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.ReadChangesRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) ReadChanges(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_ReadChanges_Call {
+func (_e *OpenFGAServiceClient_Expecter) ReadChanges(ctx any, in any, opts ...any) *OpenFGAServiceClient_ReadChanges_Call {
 	return &OpenFGAServiceClient_ReadChanges_Call{Call: _e.mock.On("ReadChanges",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_ReadChanges_Call) Run(run func(ctx context.Context, in *openfgav1.ReadChangesRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_ReadChanges_Call {
@@ -1218,7 +1227,7 @@ func (_c *OpenFGAServiceClient_ReadChanges_Call) RunAndReturn(run func(ctx conte
 }
 
 // StreamedListObjects provides a mock function for the type OpenFGAServiceClient
-func (_mock *OpenFGAServiceClient) StreamedListObjects(ctx context.Context, in *openfgav1.StreamedListObjectsRequest, opts ...grpc.CallOption) (openfgav1.OpenFGAService_StreamedListObjectsClient, error) {
+func (_mock *OpenFGAServiceClient) StreamedListObjects(ctx context.Context, in *openfgav1.StreamedListObjectsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[openfgav1.StreamedListObjectsResponse], error) {
 	var tmpRet mock.Arguments
 	if len(opts) > 0 {
 		tmpRet = _mock.Called(ctx, in, opts)
@@ -1231,16 +1240,16 @@ func (_mock *OpenFGAServiceClient) StreamedListObjects(ctx context.Context, in *
 		panic("no return value specified for StreamedListObjects")
 	}
 
-	var r0 openfgav1.OpenFGAService_StreamedListObjectsClient
+	var r0 grpc.ServerStreamingClient[openfgav1.StreamedListObjectsResponse]
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *openfgav1.StreamedListObjectsRequest, ...grpc.CallOption) (openfgav1.OpenFGAService_StreamedListObjectsClient, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *openfgav1.StreamedListObjectsRequest, ...grpc.CallOption) (grpc.ServerStreamingClient[openfgav1.StreamedListObjectsResponse], error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *openfgav1.StreamedListObjectsRequest, ...grpc.CallOption) openfgav1.OpenFGAService_StreamedListObjectsClient); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *openfgav1.StreamedListObjectsRequest, ...grpc.CallOption) grpc.ServerStreamingClient[openfgav1.StreamedListObjectsResponse]); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(openfgav1.OpenFGAService_StreamedListObjectsClient)
+			r0 = ret.Get(0).(grpc.ServerStreamingClient[openfgav1.StreamedListObjectsResponse])
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *openfgav1.StreamedListObjectsRequest, ...grpc.CallOption) error); ok {
@@ -1260,9 +1269,9 @@ type OpenFGAServiceClient_StreamedListObjects_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.StreamedListObjectsRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) StreamedListObjects(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_StreamedListObjects_Call {
+func (_e *OpenFGAServiceClient_Expecter) StreamedListObjects(ctx any, in any, opts ...any) *OpenFGAServiceClient_StreamedListObjects_Call {
 	return &OpenFGAServiceClient_StreamedListObjects_Call{Call: _e.mock.On("StreamedListObjects",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_StreamedListObjects_Call) Run(run func(ctx context.Context, in *openfgav1.StreamedListObjectsRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_StreamedListObjects_Call {
@@ -1290,12 +1299,12 @@ func (_c *OpenFGAServiceClient_StreamedListObjects_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *OpenFGAServiceClient_StreamedListObjects_Call) Return(openFGAService_StreamedListObjectsClient openfgav1.OpenFGAService_StreamedListObjectsClient, err error) *OpenFGAServiceClient_StreamedListObjects_Call {
-	_c.Call.Return(openFGAService_StreamedListObjectsClient, err)
+func (_c *OpenFGAServiceClient_StreamedListObjects_Call) Return(serverStreamingClient grpc.ServerStreamingClient[openfgav1.StreamedListObjectsResponse], err error) *OpenFGAServiceClient_StreamedListObjects_Call {
+	_c.Call.Return(serverStreamingClient, err)
 	return _c
 }
 
-func (_c *OpenFGAServiceClient_StreamedListObjects_Call) RunAndReturn(run func(ctx context.Context, in *openfgav1.StreamedListObjectsRequest, opts ...grpc.CallOption) (openfgav1.OpenFGAService_StreamedListObjectsClient, error)) *OpenFGAServiceClient_StreamedListObjects_Call {
+func (_c *OpenFGAServiceClient_StreamedListObjects_Call) RunAndReturn(run func(ctx context.Context, in *openfgav1.StreamedListObjectsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[openfgav1.StreamedListObjectsResponse], error)) *OpenFGAServiceClient_StreamedListObjects_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1343,9 +1352,9 @@ type OpenFGAServiceClient_UpdateStore_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.UpdateStoreRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) UpdateStore(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_UpdateStore_Call {
+func (_e *OpenFGAServiceClient_Expecter) UpdateStore(ctx any, in any, opts ...any) *OpenFGAServiceClient_UpdateStore_Call {
 	return &OpenFGAServiceClient_UpdateStore_Call{Call: _e.mock.On("UpdateStore",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_UpdateStore_Call) Run(run func(ctx context.Context, in *openfgav1.UpdateStoreRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_UpdateStore_Call {
@@ -1426,9 +1435,9 @@ type OpenFGAServiceClient_Write_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.WriteRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) Write(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_Write_Call {
+func (_e *OpenFGAServiceClient_Expecter) Write(ctx any, in any, opts ...any) *OpenFGAServiceClient_Write_Call {
 	return &OpenFGAServiceClient_Write_Call{Call: _e.mock.On("Write",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_Write_Call) Run(run func(ctx context.Context, in *openfgav1.WriteRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_Write_Call {
@@ -1509,9 +1518,9 @@ type OpenFGAServiceClient_WriteAssertions_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.WriteAssertionsRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) WriteAssertions(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_WriteAssertions_Call {
+func (_e *OpenFGAServiceClient_Expecter) WriteAssertions(ctx any, in any, opts ...any) *OpenFGAServiceClient_WriteAssertions_Call {
 	return &OpenFGAServiceClient_WriteAssertions_Call{Call: _e.mock.On("WriteAssertions",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_WriteAssertions_Call) Run(run func(ctx context.Context, in *openfgav1.WriteAssertionsRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_WriteAssertions_Call {
@@ -1592,9 +1601,9 @@ type OpenFGAServiceClient_WriteAuthorizationModel_Call struct {
 //   - ctx context.Context
 //   - in *openfgav1.WriteAuthorizationModelRequest
 //   - opts ...grpc.CallOption
-func (_e *OpenFGAServiceClient_Expecter) WriteAuthorizationModel(ctx interface{}, in interface{}, opts ...interface{}) *OpenFGAServiceClient_WriteAuthorizationModel_Call {
+func (_e *OpenFGAServiceClient_Expecter) WriteAuthorizationModel(ctx any, in any, opts ...any) *OpenFGAServiceClient_WriteAuthorizationModel_Call {
 	return &OpenFGAServiceClient_WriteAuthorizationModel_Call{Call: _e.mock.On("WriteAuthorizationModel",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *OpenFGAServiceClient_WriteAuthorizationModel_Call) Run(run func(ctx context.Context, in *openfgav1.WriteAuthorizationModelRequest, opts ...grpc.CallOption)) *OpenFGAServiceClient_WriteAuthorizationModel_Call {

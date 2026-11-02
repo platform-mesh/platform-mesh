@@ -33,10 +33,19 @@ func NewIDMUserChecker(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *IDMUserChecker {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &IDMUserChecker{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -90,7 +99,7 @@ type IDMUserChecker_UserByMail_Call struct {
 // UserByMail is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID string
-func (_e *IDMUserChecker_Expecter) UserByMail(ctx interface{}, userID interface{}) *IDMUserChecker_UserByMail_Call {
+func (_e *IDMUserChecker_Expecter) UserByMail(ctx any, userID any) *IDMUserChecker_UserByMail_Call {
 	return &IDMUserChecker_UserByMail_Call{Call: _e.mock.On("UserByMail", ctx, userID)}
 }
 

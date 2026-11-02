@@ -188,7 +188,7 @@ keycloak:
         # -- wait-for-db init container image repository (without registry)
         repository: library/busybox
         # -- wait-for-db init container image tag
-        tag: "1.37"
+        tag: "1.38"
         # -- wait-for-db init container image digest (when set, overrides tag)
         digest: ""
     # -- Keycloak hostname (used in the Keycloak CR hostname.hostname field).
@@ -309,7 +309,7 @@ dex:
     # -- Dex image repository (without registry)
     repository: dexidp/dex
     # -- Dex image tag
-    tag: v2.42.0
+    tag: v2.46.1
     # -- Dex image digest (when set, overrides tag: registry/repository@digest)
     digest: "sha256:1b4a6eee8550240b0faedad04d984ca939513650e1d9bd423502c67355e3822f"
   service:
@@ -369,7 +369,7 @@ cnpg:
       # -- PostgreSQL image repository (without registry)
       repository: cloudnative-pg/postgresql
       # -- PostgreSQL image tag
-      tag: "18.3"
+      tag: "18.6"
       # -- PostgreSQL image digest (when set, overrides tag)
       digest: ""
     instances: 2

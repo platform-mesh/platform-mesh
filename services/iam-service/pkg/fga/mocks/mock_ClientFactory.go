@@ -34,10 +34,19 @@ func NewClientFactory(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *ClientFactory {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &ClientFactory{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -91,7 +100,7 @@ type ClientFactory_New_Call struct {
 // New is a helper method to define mock.On call
 //   - ctx context.Context
 //   - accountPath multicluster.ClusterName
-func (_e *ClientFactory_Expecter) New(ctx interface{}, accountPath interface{}) *ClientFactory_New_Call {
+func (_e *ClientFactory_Expecter) New(ctx any, accountPath any) *ClientFactory_New_Call {
 	return &ClientFactory_New_Call{Call: _e.mock.On("New", ctx, accountPath)}
 }
 

@@ -23,4 +23,4 @@ resources:
 images:
 - name: broker
   newName: ghcr.io/platform-mesh/resource-broker
-  newTag: latest
+  newTag: latest@sha256:7582992a48f2170075d7ede575d8765e2de5d14b40350220ac2cc329c62d8c38
