@@ -1,0 +1,78 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The PlatformMesh and profile the Tilt environment hands to platform-mesh-operator.
+# __BASE_DOMAIN__, __PORT__ and __HTTPBIN_NAMESPACE__ are substituted by the Tiltfile.
+#
+# The profile enables nothing: Tilt deploys every chart itself, PMO only does
+# the glue no chart does (kcp workspaces and APIExports, per-component kcp
+# kubeconfig secrets, the rebac webhook CA, feature toggles).
+apiVersion: core.platform-mesh.io/v1alpha1
+kind: PlatformMesh
+metadata:
+  name: platform-mesh
+  namespace: platform-mesh-system
+spec:
+  exposure:
+    baseDomain: __BASE_DOMAIN__
+    port: __PORT__
+    protocol: https
+  featureToggles:
+    - name: feature-accounts-in-accounts
+  kcp:
+    # HTTPBin e2e fixture (tiltfiles/httpbin.Tiltfile): admin kubeconfig for the
+    # provider workspace, consumed by api-syncagent and the e2e tests, and the
+    # export bound into every account by default.
+    extraProviderConnections:
+      - path: root:providers:httpbin-provider
+        secret: httpbin-kubeconfig
+        namespace: __HTTPBIN_NAMESPACE__
+        external: true
+        adminAuth: true
+    extraDefaultAPIBindings:
+      - workspaceTypePath: root:account
+        export: orchestrate.platform-mesh.io
+        path: root:providers:httpbin-provider
+  # platform-mesh-operator is not deploying anything, so it doesn't need
+  # to wait on anything
+  wait:
+    resourceTypes: []
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-mesh-profile
+  namespace: platform-mesh-system
+data:
+  profile.yaml: |
+    infra:
+      deploymentTechnology: fluxcd
+      certManager:
+        enabled: false
+      gatewayApi:
+        enabled: false
+      traefik:
+        enabled: false
+      etcdDruid:
+        enabled: false
+      traefikCRDs:
+        enabled: false
+      prometheusOperatorCRDs:
+        enabled: false
+      opentelemetryOperator:
+        enabled: false
+    components:
+      deploymentTechnology: fluxcd
+      targetNamespace: platform-mesh-system
+      services: {}
