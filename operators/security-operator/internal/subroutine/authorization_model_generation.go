@@ -81,7 +81,7 @@ var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
 {{ if eq .Scope "Cluster" }}
 extend type core_platform-mesh_io_account
 	relations
-		define create_{{ .Group }}_{{ .Name }}: {{ or .Create "owner" }}
+		define create_{{ .Group }}_{{ .Name }}: {{ or .Create .CreateRelation "owner" }}
 		define list_{{ .Group }}_{{ .Name }}: {{ or .List "member" }}
 		define watch_{{ .Group }}_{{ .Name }}: {{ or .Watch "member" }}
 {{ end }}
@@ -89,7 +89,7 @@ extend type core_platform-mesh_io_account
 {{ if eq .Scope "Namespaced" }}
 extend type core_namespace
 	relations
-		define create_{{ .Group }}_{{ .Name }}: {{ or .Create "owner" }}
+		define create_{{ .Group }}_{{ .Name }}: {{ or .Create .CreateRelation "owner" }}
 		define list_{{ .Group }}_{{ .Name }}: {{ or .List "member" }}
 		define watch_{{ .Group }}_{{ .Name }}: {{ or .Watch "member" }}
 {{ end }}

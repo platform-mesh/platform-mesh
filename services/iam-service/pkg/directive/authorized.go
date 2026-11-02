@@ -69,7 +69,7 @@ func NewAuthorizedDirective(air accountinfo.Retriever, cf workspace.ClientFactor
 		wcClient: cf,
 		log:      log,
 	}
-	d.ssar = newRESTSelfSubjectAccessReviewer(restCfg)
+	d.ssar = newRESTSelfSubjectAccessReviewer(restCfg, log)
 	return d
 }
 
@@ -223,7 +223,7 @@ func resourceAttributes(rctx *graph.ResourceContext, permission string, mapper k
 // SelfSubjectAccessReview to the given kcp workspace using the caller's
 // Authorization header. The apiserver fills in the user identity (and the
 // cluster-name Extra the webhook relies on); iam-service never impersonates.
-func newRESTSelfSubjectAccessReviewer(baseCfg *rest.Config) selfSubjectAccessReviewer {
+func newRESTSelfSubjectAccessReviewer(baseCfg *rest.Config, log *logger.Logger) selfSubjectAccessReviewer {
 	return func(ctx context.Context, workspacePath, authHeader string, attrs *authorizationv1.ResourceAttributes) (bool, error) {
 		cfg, err := workspaceConfig(baseCfg, workspacePath, authHeader)
 		if err != nil {
@@ -244,6 +244,13 @@ func newRESTSelfSubjectAccessReviewer(baseCfg *rest.Config) selfSubjectAccessRev
 		res, err := client.SelfSubjectAccessReviews().Create(ctx, review, metav1.CreateOptions{})
 		if err != nil {
 			return false, err
+		}
+
+		if res.Status.EvaluationError != "" {
+			log.Debug().
+				Str("evaluationError", res.Status.EvaluationError).
+				Bool("allowed", res.Status.Allowed).
+				Msg("SelfSubjectAccessReview returned an evaluation error")
 		}
 
 		return res.Status.Allowed, nil
@@ -268,6 +275,10 @@ func workspaceConfig(baseCfg *rest.Config, workspacePath, authHeader string) (*r
 	cfg.KeyFile = ""
 	cfg.Username = ""
 	cfg.Password = ""
+	cfg.Impersonate = rest.ImpersonationConfig{}
+	cfg.AuthProvider = nil
+	cfg.AuthConfigPersister = nil
+	cfg.ExecProvider = nil
 
 	host, err := url.Parse(cfg.Host)
 	if err != nil {
