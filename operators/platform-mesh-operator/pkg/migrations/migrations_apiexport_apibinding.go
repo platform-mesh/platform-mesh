@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
@@ -195,7 +196,9 @@ func (providerAPIExportSplit) Run(ctx context.Context, deps Deps) error {
 	uiPath, uiOptedIn := uiExportPath(deps.Instance)
 
 	for _, ws := range workspaces.Items {
-		if ws.Name == "system" {
+		// Initializing workspaces have no bindings yet; applying one here collides with the
+		// type's defaultAPIBindings and leaves the system:apibindings initializer stuck.
+		if ws.Name == "system" || ws.Status.Phase != kcpcorev1alpha1.LogicalClusterPhaseReady {
 			continue
 		}
 		if err := migrateLegacyProviderBinding(ctx, deps.KcpHelper, deps.Config, ws.Name, uiPath, uiOptedIn); err != nil {
