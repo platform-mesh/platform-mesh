@@ -69,44 +69,29 @@ The modules are linked through the root [`go.work`](go.work), so cross-module ch
 
 ## Development
 
-For the inner loop, [Tilt](https://tilt.dev) replaces the OCM/Flux delivery pipeline: static infrastructure is deployed once into a kind cluster, and the components you are working on hot-reload in seconds.
+For the development loop, [Tilt](https://tilt.dev) replaces the OCM/Flux delivery pipeline: the kind installation from [installation/README.md](installation/README.md) is rendered straight from [`charts/`](charts), and the operators and services you are working on are compiled on the host and hot-reloaded into their pods in seconds.
+
+`helm` needs to be authenticated with ghcr.io to pull the charts:
 
 ```sh
-# the cluster MUST be named platform-mesh — the Tiltfile refuses any kube
-# context other than kind-platform-mesh, so a stray `tilt up` cannot hit a
-# shared cluster. Override with TILT_ALLOWED_CONTEXT.
-kind create cluster --name platform-mesh
-tilt up -f contrib/tilt/Tiltfile -- --profile=core,auth
+helm registry login ghcr.io --username "<github-user>"
 ```
 
-The `--` matters: everything after it is parsed by the Tiltfile, not by Tilt itself.
-
-### Profiles
-
-Profiles are independent feature layers, not an ordered ladder — each only ever *adds* resources, so several can be requested at once (`--profile=core,auth`, `--profile=core --profile=auth`, or `--profile=full` for all of them). An unknown profile fails the Tiltfile rather than being silently ignored, so a typo cannot quietly give you a smaller environment than you asked for.
-
-| Profile | Adds |
-|---------|------|
-| `infra` | the base environment — namespace, cert-manager issuer, envoy `Gateway`, a mutual-TLS etcd, dex, and kcp, which `platform-mesh-deployer` builds from a `PlatformMesh`. **Always on**; naming it is allowed but redundant |
-| `core` | nothing yet (reserved) |
-| `auth` | the ReBAC authorization webhook secret on kcp (L3) |
-| `full` | shorthand for all of the above |
-
-### Charts
-
-The Helm charts live in [`charts/`](charts) and are rendered from there directly, so chart changes are picked up live. Set `TILT_CHARTS_FROM_OCI=1` to pull the pinned published versions instead, or `HELM_CHARTS_DIR` to use another checkout.
-
-kcp needs no such override: it is built in-cluster from a `PlatformMesh` rather than fetched, so there is nothing external to pin.
-
-### Validating manifests without a cluster
+Then bring up the kind cluster and tilt:
 
 ```sh
-TILT_NO_INFRA=1 tilt alpha tiltfile-result -f contrib/tilt/Tiltfile -- --profile=full
+task tilt:up  # brings up tilt with a webinterface
+task tilt:ci  # bring up tilt until all resources are green, then exits
+task tilt:e2e # runs the portal sharded e2e tests against the running tilt PM instance
 ```
 
-This renders the local manifests and the `PlatformMesh` and topology templates kcp is built from, with every substitution applied — no cluster and no remote fetches — so gateway wiring, OIDC issuer and the authorization webhook can be confirmed before deploying.
+Everything is addressed as `<name>.pm.<node-ip>.sslip.io:31000`; `platformmesh-ready` turning green means the installation is usable. Chart changes are picked up live, service values come from the operator's [kind profile](charts/platform-mesh-operator/files/kind-profile.yaml).
 
-See [contrib/tilt/README.md](contrib/tilt/README.md) for the full environment: what each resource is, how kcp gets built, and how to poke at it.
+### Validating manifests without deploying
+
+```sh
+tilt alpha tiltfile-result -f contrib/tilt/Tiltfile
+```
 
 ## Releasing
 
