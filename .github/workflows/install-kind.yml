@@ -304,19 +304,9 @@ jobs:
 
       - name: Dump cluster diagnostics
         if: failure()
-        run: |
-          mkdir -p runtime-artifacts
-          kubectl get platformmesh -n platform-mesh-system -o yaml > runtime-artifacts/platformmesh.yaml 2>&1 || true
-          kubectl describe platformmesh platform-mesh -n platform-mesh-system > runtime-artifacts/platformmesh-describe.txt 2>&1 || true
-          kubectl get component,resources.delivery.ocm.software -n platform-mesh-system -o yaml > runtime-artifacts/ocm.yaml 2>&1 || true
-          kubectl get pods -A -o wide > runtime-artifacts/pods.txt 2>&1 || true
-          kubectl describe node > runtime-artifacts/node-describe.txt 2>&1 || true
-          kubectl get events -A --sort-by=.lastTimestamp > runtime-artifacts/events.txt 2>&1 || true
-          kubectl get helmreleases,ocirepositories -A > runtime-artifacts/flux.txt 2>&1 || true
-          for p in $(kubectl get pods -n platform-mesh-system -o name 2>/dev/null); do
-            safe="${p//\//_}"
-            kubectl logs -n platform-mesh-system "$p" --all-containers --tail=500 > "runtime-artifacts/platform-mesh-system_${safe}.log" 2>&1 || true
-          done
+        env:
+          ADMIN_KUBECONFIG: .secret/kcp/admin.kubeconfig
+        run: hack/dump-cluster-diagnostics.bash runtime-artifacts
 
       - name: Upload runtime artifacts
         if: failure()
