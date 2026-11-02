@@ -22,9 +22,9 @@ name: e2e
 # hack/e2e/ (`task e2e:pr` runs the same flow on a laptop).
 #
 #   pr        pull requests, the merge queue, on demand: snapshot of the checkout
-#   upgrade   merge queue, nightly, on demand: the latest release first, the
-#             smoke test, then the upgrade to the checkout and the smoke test
-#             again
+#   upgrade   pull requests, the merge queue, nightly, on demand: the latest
+#             release first, the smoke test, then the upgrade to the checkout
+#             and the smoke test again
 #
 # The images are built once per run on default runners (one job per image)
 # and handed to the install jobs as artifacts.
@@ -143,9 +143,7 @@ jobs:
 
   upgrade:
     needs: image
-    if: |
-      github.event_name == 'merge_group' || github.event_name == 'schedule'
-      || (github.event_name == 'workflow_dispatch' && inputs.run-upgrade)
+    if: github.event_name != 'workflow_dispatch' || inputs.run-upgrade
     runs-on: ubuntu-latest-large
     timeout-minutes: 180
     permissions:
