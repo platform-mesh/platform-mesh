@@ -178,7 +178,7 @@ func (c *Client) GetIndexSettings(ctx context.Context, indexName string) (IndexS
 		return IndexSettings{}, fmt.Errorf("failed to get settings for index %s: empty response", indexName)
 	}
 
-	indexEntry, ok := resp.Indices[indexName]
+	indexEntry, ok := resp.GetIndices()[indexName]
 	if !ok {
 		return IndexSettings{}, fmt.Errorf("settings for index %s not found in response", indexName)
 	}

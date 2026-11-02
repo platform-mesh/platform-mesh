@@ -364,8 +364,8 @@ func (s *stagesSubroutine) stagingCopies(ctx context.Context, migration *pmcoord
 // All expressions must evaluate to true.
 func checkSuccessConditions(ctx context.Context, stage pmcoordbrokerv1alpha1.MigrationStage, resources map[string]*unstructured.Unstructured, copies map[string]any) (bool, error) {
 	evalArgs := make(map[string]any, len(resources)+len(copies))
-	for name, copy := range copies {
-		evalArgs[name] = copy
+	for name, stagingCopy := range copies {
+		evalArgs[name] = stagingCopy
 	}
 	for name, resource := range resources {
 		evalArgs[name] = resource.Object
