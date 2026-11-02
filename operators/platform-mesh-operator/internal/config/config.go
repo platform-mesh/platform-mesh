@@ -33,6 +33,15 @@ type KCPConfig struct {
 	ClusterAdminSecretName string
 }
 
+// ExposureConfig holds operator-level networking values the operator injects as template vars
+// when it renders installation profiles. Only meaningful for local installs;
+type ExposureConfig struct {
+	// GatewayServiceClusterIP is the ClusterIP of the gateway controller Service. It anchors the
+	// in-cluster host aliases the kind installation profile renders so kind pods resolve the public
+	// hostnames to the in-cluster gateway.
+	GatewayServiceClusterIP string
+}
+
 type IDPConfig struct {
 	RegistrationAllowed                     bool
 	WelcomeAdditionalRedirectUris           []string
@@ -115,6 +124,7 @@ type SubroutinesConfig struct {
 type OperatorConfig struct {
 	WorkspaceDir  string
 	KCP           KCPConfig
+	Exposure      ExposureConfig
 	IDP           IDPConfig
 	Subroutines   SubroutinesConfig
 	RemoteRuntime RemoteClusterConfig
@@ -131,6 +141,10 @@ func NewOperatorConfig() OperatorConfig {
 			FrontProxyName:         "frontproxy",
 			FrontProxyPort:         "8443",
 			ClusterAdminSecretName: "kcp-cluster-admin-client-cert",
+		},
+		Exposure: ExposureConfig{
+			// Default for a standard kind cluster service CIDR.
+			GatewayServiceClusterIP: "10.96.188.4",
 		},
 		IDP: IDPConfig{
 			UserClaim: "email",
@@ -181,6 +195,8 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.KCP.FrontProxyName, "kcp-front-proxy-name", c.KCP.FrontProxyName, "Set KCP front-proxy name")
 	fs.StringVar(&c.KCP.FrontProxyPort, "kcp-front-proxy-port", c.KCP.FrontProxyPort, "Set KCP front-proxy port")
 	fs.StringVar(&c.KCP.ClusterAdminSecretName, "kcp-cluster-admin-secret-name", c.KCP.ClusterAdminSecretName, "Set cluster-admin secret name")
+
+	fs.StringVar(&c.Exposure.GatewayServiceClusterIP, "gateway-service-cluster-ip", c.Exposure.GatewayServiceClusterIP, "Set the gateway controller Service ClusterIP used in local installation profile host aliases")
 
 	fs.BoolVar(&c.IDP.RegistrationAllowed, "idp-registration-allowed", c.IDP.RegistrationAllowed, "Allow IDP registration")
 	fs.StringSliceVar(&c.IDP.WelcomeAdditionalRedirectUris, "idp-welcome-additional-redirect-uris", c.IDP.WelcomeAdditionalRedirectUris, "Additional redirect URIs for the welcome client (comma-separated)")

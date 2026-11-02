@@ -215,6 +215,9 @@ func (s *DeploymentProcessTestSuite) newOperatorConfig() config.OperatorConfig {
 			FrontProxyName: "frontproxy",
 			FrontProxyPort: "8443",
 		},
+		Exposure: config.ExposureConfig{
+			GatewayServiceClusterIP: "10.96.188.4",
+		},
 		Subroutines: config.SubroutinesConfig{
 			Deployment: config.DeploymentSubroutineConfig{
 				Enabled:     true,

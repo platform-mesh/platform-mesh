@@ -241,7 +241,7 @@ jobs:
         run: |
           # hostAliases is intentionally not set: the operator reaches
           # kcp via the in-cluster front-proxy Service, and component pods get their
-          # host aliases from the kind profile keyed on gateway.traefikClusterIP.
+          # host aliases from the kind profile keyed on gateway.clusterIP.
           #
           # No --wait here: the chart applies the PlatformMesh resource, then the
           # dedicated "Wait for Platform Mesh" step gates readiness with a 30m budget.
@@ -262,7 +262,7 @@ jobs:
             --set image.tag="v${PM_VERSION}" \
             --set gateway.baseDomain="${BASE_DOMAIN}" \
             --set gateway.port=8443 \
-            --set gateway.traefikClusterIP="${TRAEFIK_CLUSTER_IP}" \
+            --set gateway.clusterIP="${TRAEFIK_CLUSTER_IP}" \
             --set kcp.frontProxyPort=8443 \
             --set certificates.selfSigned.enabled=true \
             --set-string ocm.version="${PM_VERSION}"

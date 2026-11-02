@@ -78,11 +78,9 @@ type ComponentConfig struct {
 }
 
 type ExposureConfig struct {
-	BaseDomain             string `json:"baseDomain,omitempty"`
-	Port                   int    `json:"port,omitempty"`
-	Protocol               string `json:"protocol,omitempty"`
-	TraefikClusterIP       string `json:"traefikClusterIP,omitempty"`
-	KcpFrontProxyClusterIP string `json:"kcpFrontProxyClusterIP,omitempty"`
+	BaseDomain string `json:"baseDomain,omitempty"`
+	Port       int    `json:"port,omitempty"`
+	Protocol   string `json:"protocol,omitempty"`
 }
 
 type Kcp struct {
