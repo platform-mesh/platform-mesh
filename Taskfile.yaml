@@ -100,36 +100,8 @@ tasks:
     desc: Run the portal e2e suite against the Tilt environment.
     cmds:
       - |
-        set -o pipefail
-        export KIND_CONTEXT=kind-platform-mesh
-
-        BASE_DOMAIN="$(kubectl --context "$KIND_CONTEXT" -n platform-mesh-system \
-            get platformmesh platform-mesh -o jsonpath='{.spec.exposure.baseDomain}'
-        )" || exit 1
-        : "${BASE_DOMAIN:?PlatformMesh exposure.baseDomain is empty}"
-        export BASE_DOMAIN
-        export PORTAL_BASE_URL="https://${BASE_DOMAIN}:31000/"
-        export KEYCLOAK_BASE_URL="${PORTAL_BASE_URL}keycloak"
-        export KCP_URL="https://kcp.api.${BASE_DOMAIN}:31000"
-        export ADMIN_KUBECONFIG="$PWD/contrib/tilt/.secret/kcp-admin.kubeconfig"
-        export KCP_ROOT_CA_PATH="${KCP_ROOT_CA_PATH:-$PWD/contrib/tilt/.secret/kcp-root-ca.crt}"
-        export MKCERT_CA_PATH="${MKCERT_CA_PATH:-$PWD/contrib/tilt/.secret/ca.crt}"
-
-        KEYCLOAK_ADMIN_USER="$(
-          kubectl --context "$KIND_CONTEXT" -n platform-mesh-system \
-            get secret keycloak-admin -o jsonpath='{.data.username}' | base64 -d
-        )" || exit 1
-        KEYCLOAK_ADMIN_PASSWORD="$(
-          kubectl --context "$KIND_CONTEXT" -n platform-mesh-system \
-            get secret keycloak-admin -o jsonpath='{.data.password}' | base64 -d
-        )" || exit 1
-        : "${KEYCLOAK_ADMIN_USER:?Keycloak admin username is empty}"
-        : "${KEYCLOAK_ADMIN_PASSWORD:?Keycloak admin password is empty}"
-        export KEYCLOAK_ADMIN_USER KEYCLOAK_ADMIN_PASSWORD
-
-        # Currently the full e2e suite errors, so just running the :remote smoke test
-        # task tests:portal-e2e TEST_RUN_ID="$(date +%s)"
-        task tests:portal-e2e:remote TEST_RUN_ID="$(date +%s)"
+        . contrib/tilt/env.sh || exit 1
+        task tests:portal-e2e TEST_RUN_ID="$(date +%s)"
 
   # ---------------------------------------------------------------------------
   # Global fan-out targets: run the standard target across all components.
