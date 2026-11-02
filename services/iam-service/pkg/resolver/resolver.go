@@ -21,7 +21,7 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/resolver/api"
 )
 
-//go:generate go run github.com/99designs/gqlgen@v0.17.81 generate
+//go:generate go run github.com/99designs/gqlgen generate
 
 type Resolver struct {
 	svc    api.ResolverService
