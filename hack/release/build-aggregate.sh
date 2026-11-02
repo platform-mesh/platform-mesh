@@ -50,13 +50,19 @@
 #                       (default <ocm-repo>/helm-charts, the namespace charts
 #                       have always been published to; images live under
 #                       <ocm-repo>/platform-mesh/, so the two never share a
-#                       repository)
+#                       repository). A plain-HTTP registry (test setups, see
+#                       hack/e2e/) is given with http://: charts are then
+#                       pushed with --plain-http and the components record
+#                       http:// in their chart references, which is how the
+#                       ocm-k8s-toolkit and the platform-mesh-operator learn
+#                       that the registry has no TLS.
 #   --repo-url URL      git repository URL recorded as source (default from origin)
 #   --commit SHA        git commit recorded as source (default HEAD)
 #   --signature NAME    sign every newly published component version with this
 #                       signature (key from the ocm config, see ocm-config.sh)
-#   --mirror-from REPO  copy referenced image components that are missing in
-#                       --ocm-repo from this OCM repository (for test setups)
+#   --mirror-from REPO  copy referenced component versions that are missing in
+#                       --ocm-repo (images from other repositories, etcd-druid)
+#                       from this OCM repository (for test setups)
 #   --skip-charts       do not package/push charts (assume they are published)
 #   --ctf PATH          build into a CTF archive instead of --ocm-repo; nothing
 #                       is pushed. Existence checks still run against --ocm-repo.
@@ -107,6 +113,16 @@ IMAGE_VERSION="${IMAGE_VERSION:-$VERSION}"
 IMAGE_VERSION="${IMAGE_VERSION#v}"
 CHART_REPO="${CHART_REPO:-$OCM_REPO/helm-charts}"
 CHART_REPO="${CHART_REPO#oci://}"
+# http:// marks a plain-HTTP chart registry: Helm needs --plain-http, and the
+# chart references in the components keep the scheme (see --chart-repo above).
+CHART_SCHEME=""
+HELM_PLAIN_HTTP=()
+if [[ "$CHART_REPO" == http://* ]]; then
+  CHART_SCHEME="http://"
+  HELM_PLAIN_HTTP=(--plain-http)
+fi
+CHART_REPO="${CHART_REPO#http://}"
+CHART_REPO="${CHART_REPO#https://}"
 COMMIT="${COMMIT:-$(git rev-parse HEAD)}"
 if [[ -z "$REPO_URL" ]]; then
   REPO_URL="$(git remote get-url origin 2>/dev/null | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$##')"
@@ -194,7 +210,7 @@ while IFS= read -r chart; do
   image_component="$(jq -r .imageComponent <<<"$chart")"
   image_version="$(jq -r .imageVersion <<<"$chart")"
 
-  chart_resource="$(jq -n --arg ref "$CHART_REPO/$name:$version" --arg v "$version" \
+  chart_resource="$(jq -n --arg ref "$CHART_SCHEME$CHART_REPO/$name:$version" --arg v "$version" \
     '{name:"chart", type:"helmChart", relation:"external", version:$v, access:{type:"ociArtifact", imageReference:$ref}}')"
   chart_source="$(jq -n --arg v "$version" --arg commit "$COMMIT" --arg url "$REPO_URL" \
     '{name:"chart", type:"git", version:$v, access:{type:"gitHub", repoUrl:$url, commit:$commit}}')"
@@ -254,7 +270,7 @@ cv_exists() { # <repo> <component> <version>
 }
 
 chart_exists() { # <name> <version>
-  "$HELM" show chart "oci://$CHART_REPO/$1" --version "$2" >/dev/null 2>&1
+  "$HELM" show chart "oci://$CHART_REPO/$1" --version "$2" ${HELM_PLAIN_HTTP[@]+"${HELM_PLAIN_HTTP[@]}"} >/dev/null 2>&1
 }
 
 # ---------------------------------------------------------------------------
@@ -270,7 +286,7 @@ if [[ "$SKIP_CHARTS" != "true" ]]; then
     fi
     log "packaging and pushing chart $name:$version"
     "$HELM" package "$STAGED/$name" --destination "$tmp" >/dev/null
-    retry 3 "$HELM" push "$tmp/$name-$version.tgz" "oci://$CHART_REPO" >/dev/null
+    retry 3 "$HELM" push "$tmp/$name-$version.tgz" "oci://$CHART_REPO" ${HELM_PLAIN_HTTP[@]+"${HELM_PLAIN_HTTP[@]}"} >/dev/null
   done < <(jq -c '.[]' <<<"$charts_json")
 fi
 
@@ -315,8 +331,16 @@ fi
 # repository with all referenced resources.
 etcd_druid_ref="github.com/gardener/etcd-druid"
 if jq -e --arg n "$etcd_druid_ref" '.components[].componentReferences[]? | select(.componentName == $n)' <<<"$generated" >/dev/null; then
-  if cv_exists "$OCM_REPO" "$etcd_druid_ref" "$GARDENER_ETCD_DRUID_VERSION"; then
+  # etcd-druid references further Gardener components (etcd-backup-restore,
+  # etcd-wrapper), so "present" means the whole subgraph resolves.
+  if "$OCM" get component-version "$OCM_REPO//$etcd_druid_ref:$GARDENER_ETCD_DRUID_VERSION" --recursive >/dev/null 2>&1; then
     log "etcd-druid $GARDENER_ETCD_DRUID_VERSION already present"
+  elif [[ -n "$MIRROR_FROM" ]] && cv_exists "$MIRROR_FROM" "$etcd_druid_ref" "$GARDENER_ETCD_DRUID_VERSION"; then
+    # The copy in --mirror-from already has its resources localized; take it
+    # (and its references) as it is rather than copying the images from
+    # Gardener's registry again.
+    log "mirroring etcd-druid $GARDENER_ETCD_DRUID_VERSION from $MIRROR_FROM"
+    retry 3 "$OCM" transfer component-version --recursive "$MIRROR_FROM//$etcd_druid_ref:$GARDENER_ETCD_DRUID_VERSION" "$OCM_REPO" >/dev/null
   else
     log "copying etcd-druid $GARDENER_ETCD_DRUID_VERSION from Gardener's registry"
     "$OCM" transfer component-version --copy-resources --recursive \

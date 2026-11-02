@@ -328,7 +328,11 @@ jobs:
           echo "$GITHUB_TOKEN" | "$HELM" registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           OCM_SIGNING_PRIVATE_KEY=unused hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" \
             | "$YQ" 'del(.configurations[].consumers[].credentials[].properties.private_key_pem)' > "$HOME/.ocmconfig"
-      - name: Component graph
+      - name: Verify the published graph
+        # hack/release/verify-graph.sh: the graph resolves, every component
+        # version built here at this version verifies against our signature,
+        # every chart pulls and templates. hack/e2e/verify.sh runs the same
+        # checks against a pull request's local registry.
         run: |
           set -euo pipefail
           {
@@ -337,32 +341,7 @@ jobs:
             "$OCM" get component-version "$OCM_REPO//$COMPONENT:$VERSION" --recursive
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: ocm-${{ inputs.version }}
-      - name: Signatures
-        run: |
-          set -euo pipefail
-          # Everything built from this repository at this version must verify
-          # with our certificate; third-party wrappers published by earlier runs
-          # and components from other repositories may carry other signatures.
-          {
-            echo "$COMPONENT:$VERSION"
-            cat published.txt
-            "$YQ" '.components | to_entries[] | select(.value.image) | "github.com/platform-mesh/images/" + .key + ":" + strenv(VERSION)' ocm/components.yaml
-          } | sort -u | while read -r cv; do
-            [ -n "$cv" ] || continue
-            "$OCM" verify component-version --signature "$SIGNATURE" "$OCM_REPO//$cv" >/dev/null
-            echo "verified $cv"
-          done
-      - name: Charts are installable
-        run: |
-          set -euo pipefail
-          for chart in account-operator infra common; do
-            "$HELM" pull "oci://$OCM_REPO/helm-charts/$chart" --version "$VERSION" --destination /tmp
-            [ "$chart" = common ] || "$HELM" template "/tmp/$chart-$VERSION.tgz" >/dev/null
-            echo "ok: $chart $VERSION"
-          done
+          hack/release/verify-graph.sh --version "$VERSION" --ocm-repo "$OCM_REPO" --signature "$SIGNATURE"
 
   # ──────────────────────────────────────────────
   # Vulnerability scans.

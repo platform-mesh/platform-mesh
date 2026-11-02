@@ -1,0 +1,181 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: e2e
+
+# Tests the checkout end to end, as it would be released: every component
+# image and the whole OCM component graph are built from the pull request
+# and published to a registry next to a kind cluster, Platform Mesh is
+# installed from there, and the Playwright smoke test (tests/) runs against
+# it. Nothing is published outside the runner. The steps are the scripts in
+# hack/e2e/ (`task e2e:pr` runs the same flow on a laptop).
+#
+#   pr        pull requests, the merge queue, on demand: snapshot of the checkout
+#   upgrade   merge queue, nightly, on demand: the latest release first, the
+#             smoke test, then the upgrade to the checkout and the smoke test
+#             again
+#
+# The images are built once per run on default runners (one job per image)
+# and handed to the install jobs as artifacts.
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+  merge_group:
+  schedule:
+    - cron: '0 3 * * *' # nightly upgrade test of main
+  workflow_dispatch:
+    inputs:
+      upgrade-from:
+        description: "Upgrade test: Platform Mesh version to install first (default: latest release)"
+        required: false
+        type: string
+      run-upgrade:
+        description: "Run the upgrade test"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# hack/e2e/version.sh derives the snapshot version from GITHUB_RUN_NUMBER, so
+# the image jobs and the install jobs of one run agree on it without sharing
+# state.
+jobs:
+  # ──────────────────────────────────────────────
+  # Images: one job per component, saved as artifacts.
+  # ──────────────────────────────────────────────
+  components:
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.c.outputs.images }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: c
+        run: |
+          set -euo pipefail
+          echo "images=$(yq -o=json -I=0 '.components | to_entries | map(select(.value.image)) | map(.key)' ocm/components.yaml)" >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: components
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJson(needs.components.outputs.images) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # version.sh needs the tags
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build ${{ matrix.component }}
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          hack/e2e/images.sh build "$COMPONENT"
+          hack/e2e/images.sh save images "$COMPONENT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-${{ matrix.component }}
+          path: images/
+          retention-days: 1
+          compression-level: 0 # layers are compressed already
+
+  # ──────────────────────────────────────────────
+  # Install and test. The stack does not fit the 4-vCPU default runner; this
+  # is the organisation's 8-vCPU runner (forks without it cannot run this).
+  # ──────────────────────────────────────────────
+  pr:
+    needs: image
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest-large
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read # components from other repositories, from ghcr.io
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/e2e-runner
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Snapshot of the checkout
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # ghcr.io rate limits when copying the out-of-repo components
+        run: |
+          task e2e:ocm
+          task e2e:verify
+          task e2e:install
+      - name: Smoke test
+        run: task e2e:test TEST_RUN_ID="${GITHUB_RUN_ID:(-8)}"
+      - uses: ./.github/actions/e2e-diagnostics
+        if: failure()
+        with:
+          name: pr
+
+  upgrade:
+    needs: image
+    if: |
+      github.event_name == 'merge_group' || github.event_name == 'schedule'
+      || (github.event_name == 'workflow_dispatch' && inputs.run-upgrade)
+    runs-on: ubuntu-latest-large
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/e2e-runner
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Snapshot of the checkout
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          task e2e:ocm
+          task e2e:verify
+      - name: Install the release
+        env:
+          RELEASE: ${{ inputs.upgrade-from }}
+        run: task e2e:install-release RELEASE="$RELEASE"
+      - name: Smoke test on the release
+        run: task e2e:test TEST_RUN_ID="a${GITHUB_RUN_ID:(-7)}"
+      - name: Upgrade to the snapshot
+        run: task e2e:install
+      - name: Smoke test after the upgrade
+        run: task e2e:test TEST_RUN_ID="b${GITHUB_RUN_ID:(-7)}"
+      - uses: ./.github/actions/e2e-diagnostics
+        if: failure()
+        with:
+          name: upgrade

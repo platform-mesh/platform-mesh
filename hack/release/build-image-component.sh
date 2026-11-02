@@ -21,10 +21,12 @@
 #
 # Usage:
 #   build-image-component.sh --component NAME --version V --image-ref REF \
-#       --sbom-dir DIR --ocm-repo REPO [--signature NAME] [--repo-url URL] [--commit SHA]
+#       --ocm-repo REPO [--sbom-dir DIR] [--signature NAME] [--repo-url URL] [--commit SHA]
 #
-#   --image-ref   image reference including digest (ghcr.io/.../name@sha256:...)
-#   --sbom-dir    directory containing sbom-cyclonedx.json and sbom-spdx.json
+#   --image-ref   image reference including digest (ghcr.io/.../name@sha256:...);
+#                 http://... for a plain-HTTP registry (test setups, hack/e2e/)
+#   --sbom-dir    directory containing sbom-cyclonedx.json and sbom-spdx.json;
+#                 releases always pass it, test builds may omit the SBOMs
 #   --signature   sign the component with this signature (key from the ocm
 #                 config, see ocm-config.sh)
 #
@@ -55,7 +57,7 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown option: $1" >&2; exit 1 ;;
   esac
 done
-for v in COMPONENT VERSION IMAGE_REF SBOM_DIR OCM_REPO; do
+for v in COMPONENT VERSION IMAGE_REF OCM_REPO; do
   [[ -n "${!v}" ]] || { echo "--$(tr 'A-Z_' 'a-z-' <<<"$v") is required" >&2; exit 1; }
 done
 COMMIT="${COMMIT:-$(git rev-parse HEAD)}"
@@ -63,7 +65,9 @@ if [[ -z "$REPO_URL" ]]; then
   REPO_URL="$(git remote get-url origin 2>/dev/null | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$##')"
 fi
 [[ "$IMAGE_REF" == *@sha256:* ]] || { echo "--image-ref must include the digest" >&2; exit 1; }
-[[ -f "$SBOM_DIR/sbom-cyclonedx.json" && -f "$SBOM_DIR/sbom-spdx.json" ]] || { echo "SBOMs missing in $SBOM_DIR" >&2; exit 1; }
+if [[ -n "$SBOM_DIR" ]]; then
+  [[ -f "$SBOM_DIR/sbom-cyclonedx.json" && -f "$SBOM_DIR/sbom-spdx.json" ]] || { echo "SBOMs missing in $SBOM_DIR" >&2; exit 1; }
+fi
 
 source hack/release/tools.sh
 require_tools ocm
@@ -78,7 +82,25 @@ fi
 
 # OCM only reads file inputs from below the constructor's directory.
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-cp "$SBOM_DIR/sbom-cyclonedx.json" "$SBOM_DIR/sbom-spdx.json" "$tmp/"
+sboms=""
+if [[ -n "$SBOM_DIR" ]]; then
+  cp "$SBOM_DIR/sbom-cyclonedx.json" "$SBOM_DIR/sbom-spdx.json" "$tmp/"
+  sboms="$(cat <<'YAML'
+      - name: sbom-cyclonedx
+        type: sbom
+        input:
+          type: file
+          path: sbom-cyclonedx.json
+          mediaType: application/vnd.cyclonedx+json
+      - name: sbom-spdx
+        type: sbom
+        input:
+          type: file
+          path: sbom-spdx.json
+          mediaType: application/spdx+json
+YAML
+)"
+fi
 cat > "$tmp/constructor.yaml" <<EOF
 components:
   - name: "$name"
@@ -101,18 +123,7 @@ components:
         access:
           type: ociArtifact
           imageReference: "$IMAGE_REF"
-      - name: sbom-cyclonedx
-        type: sbom
-        input:
-          type: file
-          path: sbom-cyclonedx.json
-          mediaType: application/vnd.cyclonedx+json
-      - name: sbom-spdx
-        type: sbom
-        input:
-          type: file
-          path: sbom-spdx.json
-          mediaType: application/spdx+json
+${sboms}
 EOF
 
 # Build into a CTF first so the signature covers the local blobs, then transfer.

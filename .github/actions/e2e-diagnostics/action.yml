@@ -1,0 +1,44 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: e2e-diagnostics
+description: >-
+  Collects what is needed to see why an e2e job failed (hack/e2e/diagnostics.sh:
+  cluster state, logs) and the Playwright traces, and uploads both.
+
+inputs:
+  name:
+    description: Suffix for the artifact names (the job)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Dump cluster diagnostics
+      shell: bash
+      run: task e2e:diagnostics DIR=runtime-artifacts || true
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: runtime-artifacts-${{ inputs.name }}
+        path: runtime-artifacts/
+        retention-days: 5
+        if-no-files-found: ignore
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: playwright-artifacts-${{ inputs.name }}
+        path: |
+          tests/test-results/
+          tests/*.png
+        retention-days: 5
+        if-no-files-found: ignore

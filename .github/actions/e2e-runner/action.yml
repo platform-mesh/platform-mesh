@@ -1,0 +1,72 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: e2e-runner
+description: >-
+  Prepares a runner for the hack/e2e/ flow: the pinned tools, Node and the
+  Playwright browsers, the local registry and the kind cluster, and the
+  component images built by the image jobs of the same run (downloaded,
+  loaded and pushed to the registry). Afterwards `task e2e:ocm`,
+  `task e2e:install`, ... run as they do locally.
+
+inputs:
+  github-token:
+    description: Token for setup-task and for ghcr.io (rate limits when copying the out-of-repo components)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+      with:
+        repo-token: ${{ inputs.github-token }}
+    - uses: ./.github/actions/helm
+    - name: Install kind, ocm, yq (pinned in tools/Taskfile.yaml)
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo install -m 0755 "$(UGET_PRINT_PATH=absolute task tools:kind)" /usr/local/bin/kind
+        task tools:ocm tools:yq >/dev/null
+        kind version
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+      with:
+        node-version: '26'
+        cache: 'npm'
+        cache-dependency-path: 'tests/package-lock.json'
+    - name: Cache Playwright browsers
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('tests/package-lock.json') }}
+    - name: Log in to ghcr.io (rate limits)
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: echo "$GITHUB_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+    - name: Registry and kind cluster
+      shell: bash
+      run: |
+        task e2e:registry
+        task e2e:kind
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        pattern: image-*
+        path: images
+        merge-multiple: true
+    - name: Push the images of this run to the registry
+      shell: bash
+      run: |
+        hack/e2e/images.sh load images
+        hack/e2e/images.sh push
+        rm -rf images

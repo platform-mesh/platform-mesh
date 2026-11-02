@@ -1,0 +1,98 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# End-to-end testing of this checkout on kind (hack/e2e/README.md). Included
+# from the root Taskfile as `e2e:`. Every task is one step of the flow and
+# one script in this directory; .github/workflows/e2e.yml runs the same steps.
+#
+#   task e2e:pr        build, publish, verify, install and test the checkout
+#   task e2e:upgrade   install the latest release, test, upgrade to the
+#                      checkout, test again
+#   task e2e:down      remove cluster, registry and state
+
+version: '3'
+
+vars:
+  E2E: hack/e2e
+
+tasks:
+  registry:
+    desc: Start the local registry on kind's docker network.
+    cmds: ['{{.E2E}}/registry.sh up']
+
+  kind:
+    desc: Create the kind cluster, pulling from the local registry.
+    cmds: ['{{.E2E}}/kind.sh up']
+
+  images:
+    desc: Build the component images (COMPONENTS="a b" for a subset, KEEP_VERSION=true to resume) and push them to the registry.
+    cmds:
+      - '{{.E2E}}/images.sh build {{if .KEEP_VERSION}}--keep-version{{end}} {{.COMPONENTS}}'
+      - '{{.E2E}}/images.sh push {{.COMPONENTS}}'
+
+  ocm:
+    desc: Publish the OCM component graph of this checkout to the registry (BUMP=true after a chart change).
+    cmds: ['{{.E2E}}/ocm.sh {{if .BUMP}}--bump{{end}}']
+
+  verify:
+    desc: Check the published graph (resolves, signatures, charts template).
+    cmds: ['{{.E2E}}/verify.sh']
+
+  install:
+    desc: Install (or upgrade to) the snapshot from the registry and wait until it is ready.
+    cmds: ['{{.E2E}}/install.sh']
+
+  install-release:
+    desc: Install the latest published release from ghcr.io (RELEASE=V for a specific one).
+    cmds: ['{{.E2E}}/install.sh --release {{.RELEASE}}']
+
+  test:
+    desc: Run the Playwright smoke tests against the installation (TEST_RUN_ID=... to pick the id).
+    cmds: ['{{.E2E}}/test.sh {{.TEST_RUN_ID}}']
+
+  diagnostics:
+    desc: Dump cluster state and logs (DIR=... for the target directory).
+    cmds: ['{{.E2E}}/diagnostics.sh {{.DIR}}']
+
+  version:
+    desc: Print the snapshot version of this checkout.
+    cmds: ['{{.E2E}}/version.sh']
+
+  pr:
+    desc: The pull-request flow end to end, from an empty machine.
+    cmds:
+      - task: registry
+      - task: kind
+      - task: images
+      - task: ocm
+      - task: verify
+      - task: install
+      - task: test
+
+  upgrade:
+    desc: The upgrade flow end to end, latest release -> this checkout.
+    cmds:
+      - task: registry
+      - task: kind
+      - task: images
+      - task: ocm
+      - task: verify
+      - task: install-release
+      - task: test
+      - task: install
+      - task: test
+
+  down:
+    desc: Remove the kind cluster, the registry and the e2e state.
+    cmds: ['{{.E2E}}/down.sh']

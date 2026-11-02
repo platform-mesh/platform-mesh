@@ -13,7 +13,10 @@ spec:
   repositorySpec:
     baseUrl: {{ .Values.ocm.repository | quote }}
     type: OCIRegistry
-  interval: 1m
+  # 1m0s, not 1m: the ocm-k8s-toolkit writes the duration back in Go's
+  # normalized form and owns the field; with the same value, Helm's server-side
+  # apply on upgrade shares it instead of reporting a conflict.
+  interval: 1m0s
 ---
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Component
@@ -25,7 +28,7 @@ spec:
     name: platform-mesh
   component: github.com/platform-mesh/platform-mesh
   semver: {{ .Values.ocm.version | quote }}
-  interval: 1m
+  interval: 1m0s
   verify:
     - signature: {{ .Values.ocm.signatureName | quote }}
       secretRef:

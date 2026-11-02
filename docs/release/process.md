@@ -129,7 +129,10 @@ Prerelease versions older than two weeks are deleted by
 ## Changing things
 
 - **A component or its chart**: just change it. The next release ships it.
-  CI runs the chart lint and unit tests; there is no version to bump.
+  CI runs the chart lint and unit tests, and `e2e.yml` builds the pull
+  request's images and component graph, installs them on kind and runs the
+  smoke test (`task e2e:pr` does the same locally, see
+  [`hack/e2e/README.md`](../../hack/e2e/README.md)); there is no version to bump.
 - **A component from another repository** (portal, …): that repository
   releases its image and OCM component `github.com/platform-mesh/images/<name>`
   as before; then bump `appVersion` in `charts/<name>/Chart.yaml` here.

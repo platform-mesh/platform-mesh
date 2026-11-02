@@ -41,7 +41,8 @@ signature="${2:-}"
 # Credentials are configured per registry host, not per path: OCM v2 matches
 # a consumer's path attribute with path.Match (a glob), so "platform-mesh"
 # would not match a request for "platform-mesh/platform-mesh/<chart>".
-hostname="${repo%%/*}"
+hostname="${repo#*://}"
+hostname="${hostname%%/*}"
 
 indent() { sed "s/^/$1/"; }
 
