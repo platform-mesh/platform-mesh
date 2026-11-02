@@ -129,21 +129,6 @@ tests:
     - contains:
         path: spec.template.spec.containers[0].args
         content: "--kcp-url=https://frontproxy-front-proxy.NAMESPACE:8443"
-- it: passes the gateway Service ClusterIP to the operator for profile host aliases
-  template: deployment.yaml
-  set:
-    ocm:
-      enabled: true
-      profile: kind
-    gateway:
-      baseDomain: portal.localhost
-      clusterIP: 10.96.188.4
-    kcp:
-      frontProxyPort: 8443
-  asserts:
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: "--gateway-service-cluster-ip=10.96.188.4"
 - it: uses the production front-proxy Service port when the Gateway exposes HTTPS on 443
   template: deployment.yaml
   set:

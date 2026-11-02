@@ -35,7 +35,7 @@ data:
       # -- Change hostaliases here and all involved components will get the same hostaliases
       hostAliasesEntries: &hostAliasesEntries
         # REQUIRED: set the host aliases for kcp shards
-        - ip: "{{ .gatewayServiceClusterIP }}"
+        - ip: "{{ .traefikClusterIP }}"
           hostnames:
             - "{{ .baseDomain }}"
             - "kcp.api.{{ .baseDomain }}"
@@ -326,7 +326,7 @@ data:
             hostAliases:
               enabled: true
               values:
-                - ip: "{{ .gatewayServiceClusterIP }}"
+                - ip: "{{ .traefikClusterIP }}"
                   hostnames:
                     - "kcp.api.{{ .baseDomain }}"
         kcp:

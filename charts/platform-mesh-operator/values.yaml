@@ -29,6 +29,8 @@ gateway:
   className: traefik
   # -- ClusterIP of the gateway controller Service. Required when ocm.profile=kind; production uses public DNS. Controller-agnostic replacement for gateway.traefikClusterIP.
   clusterIP: ""
+  # -- Deprecated alias for gateway.clusterIP. Still the wire field consumed by the operator reconciler; prefer gateway.clusterIP.
+  traefikClusterIP: ""
 
 # -- KCP connectivity configuration (used when ocm.enabled=true).
 kcp:
