@@ -63,9 +63,7 @@ spec:
     port: {{ .Values.gateway.port }}
     baseDomain: {{ .Values.gateway.baseDomain | quote }}
     protocol: https
-    {{- if $gatewayClusterIP }}
-    traefikClusterIP: {{ $gatewayClusterIP | quote }}
-    {{- end }}
+
   ocm:
     repo:
       name: platform-mesh
