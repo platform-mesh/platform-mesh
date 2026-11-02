@@ -77,6 +77,10 @@ vars:
     - subroutines
     - golang-commons
 
+  # Renovate CLI image. Cannot be placed in tools/ as vars from other
+  # taskfile are not visible.
+  RENOVATE_IMAGE: ghcr.io/renovatebot/renovate:44.202.1
+
 tasks:
   default:
     cmds:
@@ -401,6 +405,24 @@ tasks:
         # Re-sync the workspace with GOWORK reset (the task disables it above so
         # the per-module bumps resolve the published version, not the local copy).
         GOWORK= go work sync
+
+  # ---------------------------------------------------------------------------
+  # Dependency refresh via the Renovate CLI.
+  # The Renovate app only raises vulnerability PRs via .github/renovate.json.
+  # Everything else moves through these targets once per release cycle.
+  # ---------------------------------------------------------------------------
+  deps:local-update:
+    desc: 'Run Renovate against a throwaway local Forgejo and fetches the deps/all branch.'
+    cmds:
+      - RENOVATE_IMAGE={{.RENOVATE_IMAGE}} hack/deps-local.sh
+  deps:post-release:
+    desc: 'Bump every dependency using renovate and regenerate.'
+    cmds:
+      - task: deps:local-update
+      - hack/deps-local.sh apply
+      - hack/verify-go-version.sh --fix
+      - task: tidy
+      - task: generate
 
   # ---------------------------------------------------------------------------
   # Workspace helpers

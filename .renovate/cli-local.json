@@ -1,0 +1,14 @@
+{
+  "platform": "forgejo",
+  "endpoint": "http://deps-local-forgejo:3000/api/v1",
+  "gitUrl": "endpoint",
+  "autodiscover": false,
+  "repositories": [
+    "renovate/platform-mesh"
+  ],
+  "onboarding": false,
+  "requireConfig": "optional",
+  "configFileNames": [
+    ".github/renovate-release.json"
+  ]
+}
