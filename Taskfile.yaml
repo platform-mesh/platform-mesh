@@ -112,6 +112,8 @@ tasks:
         export KEYCLOAK_BASE_URL="${PORTAL_BASE_URL}keycloak"
         export KCP_URL="https://kcp.api.${BASE_DOMAIN}:31000"
         export ADMIN_KUBECONFIG="$PWD/contrib/tilt/.secret/kcp-admin.kubeconfig"
+        export KCP_ROOT_CA_PATH="${KCP_ROOT_CA_PATH:-$PWD/contrib/tilt/.secret/kcp-root-ca.crt}"
+        export MKCERT_CA_PATH="${MKCERT_CA_PATH:-$PWD/contrib/tilt/.secret/ca.crt}"
 
         KEYCLOAK_ADMIN_USER="$(
           kubectl --context "$KIND_CONTEXT" -n platform-mesh-system \

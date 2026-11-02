@@ -1,5 +1,5 @@
 # Thin runtime image for hot-reloaded components. The host builds the linux
-# binary (see component_build in helpers.py); Tilt live_update-syncs it into
+# binary (see component_binary in helpers.py); Tilt live_update-syncs it into
 # this image, so a code change never triggers a full docker build.
 #
 # NOT distroless, deliberately. Tilt implements live_update by exec'ing `tar`
@@ -15,11 +15,13 @@
 # stay distroless.
 FROM alpine:3.22
 
-# The binary lands in a directory owned by the runtime user, NOT at `/`: the
-# live_update sync runs as the container's user, and replacing a file means
-# writing to its parent directory. Rooted at `/` that needs root, which would
-# mean giving up the nonroot parity the production image has.
-COPY entrypoint /app/entrypoint
+# The build context is ./bin/<component>: the binary as `entrypoint` plus any
+# payload directories the component reads at runtime (component_binary's
+# extra_dirs). It lands in a directory owned by the runtime user, NOT at `/`:
+# the live_update sync runs as the container's user, and replacing a file
+# means writing to its parent directory. Rooted at `/` that needs root, which
+# would mean giving up the nonroot parity the production image has.
+COPY . /app/
 RUN chown -R 65532:65532 /app
 
 # Fixed path + fixed entrypoint. The production charts set container `args` only
@@ -27,6 +29,6 @@ RUN chown -R 65532:65532 /app
 # would never be invoked. live_update syncs the rebuilt binary to this same
 # path. The ENTRYPOINT here is a fallback for a plain `docker run` — under Tilt
 # the restart_process extension replaces it with its wrapper around this path
-# (see _component_binary in helpers.py), preserving args-append semantics.
+# (see component_binary in helpers.py), preserving args-append semantics.
 USER 65532:65532
 ENTRYPOINT ["/app/entrypoint"]

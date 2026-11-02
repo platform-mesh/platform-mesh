@@ -19,15 +19,12 @@ const keycloakBaseUrl = process.env.KEYCLOAK_BASE_URL || 'https://portal.localho
 const keycloakAdminUser = process.env.KEYCLOAK_ADMIN_USER || 'keycloak-admin';
 const keycloakAdminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin';
 const repoRoot = path.resolve(process.cwd(), '..');
-const kcpRootCaPath = process.env.KCP_ROOT_CA_PATH || path.join(repoRoot, 'local-setup', 'scripts', 'certs', 'root-ca.crt');
-const mkcertCaPath = process.env.MKCERT_CA_PATH || path.join(repoRoot, 'local-setup', 'scripts', 'certs', 'ca.crt');
+const kcpRootCaPath = process.env.KCP_ROOT_CA_PATH || path.join(repoRoot, 'contrib', 'tilt', '.secret', 'kcp-root-ca.crt');
+const mkcertCaPath = process.env.MKCERT_CA_PATH || path.join(repoRoot, 'contrib', 'tilt', '.secret', 'ca.crt');
 const adminKubeconfigPath = process.env.ADMIN_KUBECONFIG || path.join(repoRoot, '.secret/kcp/admin.kubeconfig');
-const httpbinProviderManifestPath = path.join(repoRoot, 'local-setup', 'example-data', 'root', 'providers', 'httpbin-provider');
-const exampleDataOverlayPath = path.join(repoRoot, 'local-setup', 'kustomize', 'overlays', 'example-data-sharded');
-const exampleDataRemoteOverlayPath = path.join(repoRoot, 'local-setup', 'kustomize', 'overlays', 'example-data-remote');
-const exampleHttpbinProviderRuntimeComponentPath = path.join(repoRoot, 'local-setup', 'kustomize', 'components', 'example-httpbin-provider-runtime');
-const exampleHttpbinProviderFluxcdComponentPath = path.join(repoRoot, 'local-setup', 'kustomize', 'components', 'example-httpbin-provider-fluxcd');
-const exampleHttpbinProviderArgocdComponentPath = path.join(repoRoot, 'local-setup', 'kustomize', 'components', 'example-httpbin-provider-argocd');
+const platformNamespace = process.env.PLATFORM_NAMESPACE || 'platform-mesh-system';
+const httpbinNamespace = process.env.HTTPBIN_NAMESPACE || 'example-httpbin-provider';
+const httpbinProviderKubeconfigPath = process.env.HTTPBIN_PROVIDER_KUBECONFIG || path.join(repoRoot, 'contrib', 'tilt', '.secret', 'httpbin-provider.kubeconfig');
 
 // Remote mode = both kubeconfigs are present (start.sh writes both when invoked
 // with --remote).  Allows the e2e helpers to switch overlay/wait targets without
@@ -89,12 +86,9 @@ export {
   kcpRootCaPath,
   mkcertCaPath,
   adminKubeconfigPath,
-  httpbinProviderManifestPath,
-  exampleDataOverlayPath,
-  exampleDataRemoteOverlayPath,
-  exampleHttpbinProviderRuntimeComponentPath,
-  exampleHttpbinProviderFluxcdComponentPath,
-  exampleHttpbinProviderArgocdComponentPath,
+  platformNamespace,
+  httpbinNamespace,
+  httpbinProviderKubeconfigPath,
   infraKubeconfigPath,
   runtimeKubeconfigPath,
   remoteMode,
