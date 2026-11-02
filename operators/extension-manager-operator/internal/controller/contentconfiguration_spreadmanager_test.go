@@ -35,12 +35,12 @@ func TestLegacyNextReconcileDelay_withinMax(t *testing.T) {
 		time.Hour,
 		24 * time.Hour,
 	}
-	for _, max := range tests {
-		t.Run(max.String(), func(t *testing.T) {
+	for _, maxDelay := range tests {
+		t.Run(maxDelay.String(), func(t *testing.T) {
 			for range 200 {
-				got := nextReconcileDelay(max)
-				require.GreaterOrEqual(t, got, max/2, "delay should be at least half of max")
-				require.Less(t, got, max, "delay should stay below max")
+				got := nextReconcileDelay(maxDelay)
+				require.GreaterOrEqual(t, got, maxDelay/2, "delay should be at least half of max")
+				require.Less(t, got, maxDelay, "delay should stay below max")
 			}
 		})
 	}
