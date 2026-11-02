@@ -1,4 +1,13 @@
-{{- if .Values.ocm.enabled }}
+{{- if or .Values.ocm.enabled .Release.IsUpgrade }}
+{{- $existing := lookup "v1" "ConfigMap" "platform-mesh-system" "platform-mesh-profile" }}
+{{- if and .Release.IsUpgrade $existing }}
+{{- $annotations := $existing.metadata.annotations | default dict }}
+{{- if and (eq (index $annotations "meta.helm.sh/release-name") .Release.Name) (eq (index $annotations "meta.helm.sh/release-namespace") .Release.Namespace) (ne (index $annotations "helm.sh/resource-policy") "keep") }}
+{{- fail "the existing platform-mesh-profile is managed by this Helm release without deletion protection; before upgrading, run: kubectl annotate configmap platform-mesh-profile -n platform-mesh-system helm.sh/resource-policy=keep --overwrite" }}
+{{- end }}
+{{- end }}
+{{/* Bootstrap once. Retain the ConfigMap when later upgrades omit it. */}}
+{{- if and .Values.ocm.enabled .Release.IsInstall (not $existing) }}
 {{- $profile := .Files.Get (printf "files/%s-profile.yaml" .Values.ocm.profile) }}
 {{- $profile = required (printf "unknown ocm.profile %q: no files/%s-profile.yaml exists" .Values.ocm.profile .Values.ocm.profile) $profile }}
 {{- $profile = replace "__EXTERNAL_PORT__" (printf "%v" .Values.gateway.port) $profile }}

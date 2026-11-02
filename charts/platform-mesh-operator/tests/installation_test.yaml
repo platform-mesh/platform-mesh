@@ -15,14 +15,6 @@ tests:
         baseDomain: platform.example.com
     asserts:
       - equal:
-          path: spec.exposure.baseDomain
-          value: platform.example.com
-        documentIndex: 3
-      - equal:
-          path: spec.exposure.port
-          value: 8443
-        documentIndex: 3
-      - equal:
           path: spec.repositorySpec.baseUrl
           value: ghcr.io/platform-mesh
         documentIndex: 0
@@ -30,25 +22,31 @@ tests:
           path: spec.verify[0].signature
           value: platform-mesh.platform-mesh
         documentIndex: 1
-
-  - it: reads the components from another registry
+      - equal:
+          path: spec.exposure.baseDomain
+          value: platform.example.com
+        documentIndex: 3
+      - equal:
+          path: spec.exposure.port
+          value: 8443
+        documentIndex: 3
+  - it: supports mirrored repositories and their signing identities
     template: installation.yaml
     set:
       ocm:
         enabled: true
-        version: 26.10.0
-        repository: registry.example.com/mirror/platform-mesh
-        signatureName: mirror.example.com
+        repository: ghcr.io/example/platform-mesh
+        signatureName: example.platform-mesh
       gateway:
         baseDomain: platform.example.com
     asserts:
       - equal:
           path: spec.repositorySpec.baseUrl
-          value: registry.example.com/mirror/platform-mesh
+          value: ghcr.io/example/platform-mesh
         documentIndex: 0
       - equal:
           path: spec.verify[0].signature
-          value: mirror.example.com
+          value: example.platform-mesh
         documentIndex: 1
   - it: bundles the default profile
     template: installation-profile.yaml
@@ -62,6 +60,9 @@ tests:
       - equal:
           path: metadata.name
           value: platform-mesh-profile
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
       - matchRegex:
           path: data["profile.yaml"]
           pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'
@@ -93,6 +94,9 @@ tests:
         baseDomain: platform.example.com
         clusterIP: 10.96.188.4
     asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
       - matchRegex:
           path: data["profile.yaml"]
           pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'

@@ -1,12 +1,13 @@
 crds:
   enabled: true
 
-# -- When enabled, installs the OCM Repository/Component CRs, the PlatformMesh CR, and the
-# profile ConfigMap alongside the operator. Disable to deploy only the operator binary and
-# supply PlatformMesh resources from a separate GitOps source.
+# -- When enabled, manages the OCM Repository/Component CRs and the PlatformMesh CR, and
+# creates the profile ConfigMap once on Helm install if absent. Helm upgrades preserve
+# the existing profile. Disable to supply PlatformMesh resources from a separate GitOps source.
 ocm:
+  # -- Enable the bundled installation resources. Keep enabled on upgrades to continue managing the OCM and PlatformMesh resources.
   enabled: false
-  # -- Installation profile. `production` assumes the infrastructure prerequisites already exist.
+  # -- Initial profile, applied only on Helm install when no profile ConfigMap exists. Changes on upgrade do not update the profile. `production` assumes the infrastructure prerequisites already exist.
   profile: production
   # -- Platform Mesh OCM component version to reconcile.
   version: "0.5.2"
@@ -15,8 +16,7 @@ ocm:
   repository: ghcr.io/platform-mesh
   # -- Name of the OCM signature the components are verified against.
   signatureName: platform-mesh.platform-mesh
-  # -- Set to false when the OCM component is signed by a different trusted key. Then provide a
-  # Secret `ocm-signing-public-cert` with the certificate in the release namespace yourself.
+  # -- Set to false when the OCM component is signed by a different trusted key.
   installSigningCertificate: true
 
 # -- Gateway/exposure configuration (used when ocm.enabled=true).

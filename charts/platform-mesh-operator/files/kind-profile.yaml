@@ -191,6 +191,8 @@ data:
               enabled: false
             cnpg:
               enabled: true
+              cluster:
+                instances: 1
               roles:
                 keycloak:
                   password: keycloak-password
@@ -198,7 +200,6 @@ data:
                   password: openfga-password
             gatewayApi:
               enabled: true
-              gatewayClassName: __GATEWAY_CLASS_NAME__
               listeners:
                 - name: terminate
                   hostname: "{{ .baseDomain }}"
@@ -454,6 +455,7 @@ data:
             datastore:
               applyMigrations: true
               engine: postgres
+              existingSecret: cnpg-openfga-user
               maxOpenConns: 30
               migrationType: initContainer
               migrations:
@@ -461,27 +463,41 @@ data:
                   pullPolicy: Always
                   repository: groundnuty/k8s-wait-for
                   tag: v2.0
-              uri: postgres://postgres:openfga-password@openfga-postgres.platform-mesh-system.svc.cluster.local:5432/postgres?sslmode=disable
+              secretKeys:
+                passwordKey: password
+                usernameKey: username
+              uri: postgres://platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local:5432/openfga?sslmode=verify-full&sslrootcert=/etc/openfga/cnpg-ca/ca.crt
             extraEnvVars:
             - name: OPENFGA_EXPERIMENTALS
               value: enable-list-users
+            extraVolumeMounts:
+            - mountPath: /etc/openfga/cnpg-ca
+              name: cnpg-ca
+              readOnly: true
+            extraVolumes:
+            - name: cnpg-ca
+              secret:
+                secretName: platform-mesh-pg-ca
+            image:
+              tag: v1.11.2
             log:
               level: info
             migrate:
               repository: openfga/openfga
               annotations:
                 sidecar.istio.io/inject: "false"
+              extraVolumeMounts:
+              - mountPath: /etc/openfga/cnpg-ca
+                name: cnpg-ca
+                readOnly: true
+              extraVolumes:
+              - name: cnpg-ca
+                secret:
+                  secretName: platform-mesh-pg-ca
             podAnnotations:
               traffic.sidecar.istio.io/excludeInboundPorts: "2112"
             postgresql:
-              enabled: true
-              auth:
-                password: openfga-password
-              image:
-                registry: ghcr.io/platform-mesh
-                repository: upstream-images/postgresql
-                tag: 17.6.0-debian-12-r4
-              nameOverride: postgres
+              enabled: false
             replicaCount: 1
             telemetry:
               trace:
@@ -582,8 +598,6 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            # The operator manages the webhook's Issuer and Certificate (stable
-            # CA, kcp trusts it); the chart must not render its own.
             certManager:
               enabled: false
             istio:
