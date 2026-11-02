@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
@@ -187,6 +188,28 @@ func (s *MigrationTestSuite) Test_providerAPIExportSplit_SkipsSystemWorkspace() 
 	err := providerAPIExportSplit{}.Run(ctx, Deps{KcpHelper: s.helperMock, Config: &rest.Config{}, Instance: &pmcorev1alpha1.PlatformMesh{}})
 	s.Assert().NoError(err)
 	s.helperMock.AssertNotCalled(s.T(), "NewKcpClient", mock.Anything, "root:providers:system")
+}
+
+// Locks in the race where the migration applied provider-fga.platform-mesh.io into a workspace
+// the system:apibindings initializer was still populating, colliding with its default binding.
+func (s *MigrationTestSuite) Test_providerAPIExportSplit_SkipsInitializingWorkspace() {
+	ctx := context.WithValue(context.Background(), keys.LoggerCtxKey, s.log)
+
+	providersClientMock := new(mocks.Client)
+	s.helperMock.EXPECT().NewKcpClient(mock.Anything, "root:providers").Return(providersClientMock, nil)
+	providersClientMock.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
+			list := ol.(*kcptenancyv1alpha1.WorkspaceList)
+			list.Items = []kcptenancyv1alpha1.Workspace{{
+				ObjectMeta: metav1.ObjectMeta{Name: "wildwest"},
+				Status:     kcptenancyv1alpha1.WorkspaceStatus{Phase: kcpcorev1alpha1.LogicalClusterPhaseInitializing},
+			}}
+			return nil
+		})
+
+	err := providerAPIExportSplit{}.Run(ctx, Deps{KcpHelper: s.helperMock, Config: &rest.Config{}, Instance: &pmcorev1alpha1.PlatformMesh{}})
+	s.Assert().NoError(err)
+	s.helperMock.AssertNotCalled(s.T(), "NewKcpClient", mock.Anything, "root:providers:wildwest")
 }
 
 func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_MigratesWithoutUIOptIn() {
