@@ -57,9 +57,8 @@ on:
         default: ""
         type: string
 
-permissions:
-  contents: read
-  packages: write
+# No permissions by default; only the mirror job may publish packages.
+permissions: {}
 
 jobs:
   mirror:
@@ -67,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      packages: write
+      packages: write # Push mirrored charts to GHCR; no repository access needed
     env:
       DESTINATION: ${{ inputs.destination_namespace || format('ghcr.io/{0}/charts', github.repository_owner) }}
     steps:

@@ -14,8 +14,10 @@
 
 name: verify
 
-# These are the global verification jobs that run regardless of what was changed
-# in a Pull Request.
+# Repo-wide checks, no path filter: the commits themselves (DCO), license
+# headers, Go versions, and every generated file committed up to date. The
+# per-component and per-chart checks live in go-lint.yml, helm-lint.yml and
+# test.yml; pr-gate.yml aggregates them all.
 
 on:
   pull_request:
@@ -30,11 +32,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ──────────────────────────────────────────────
-  # Repo-wide checks, no path filter. Per-component lint/tidy/boilerplate run
-  # in `verify` below for the changed components; this catches everything
-  # outside a component (hack/, tools/, ...) and the commits themselves.
-  # ──────────────────────────────────────────────
   verify:
     runs-on: ubuntu-latest
     env:
@@ -47,10 +44,10 @@ jobs:
           persist-credentials: false
           fetch-depth: 0 # `task dco` needs the base branch and full commit history
 
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: stable
-          cache: true
+          go-version-file: go.work
+          cache: true # zizmor: ignore[cache-poisoning]
 
       - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
@@ -69,3 +66,35 @@ jobs:
 
       - name: Verify Go versions in go.mod files
         run: hack/verify-go-version.sh
+
+      # Everything a generator writes: controller-gen CRDs, deepcopy, mocks,
+      # apigen APIExports/APIResourceSchemas, the chart copies of the CRDs
+      # (hack/charts/sync-crds.sh, run by `task generate`) and the helm-docs
+      # READMEs. All components, not only the changed ones: a change in a shared
+      # module (apis/) regenerates everyone.
+      - name: Regenerate
+        run: |
+          task generate
+          task charts:docs
+
+      - name: Generated files must be committed
+        run: |
+          set -euo pipefail
+          hint="Generated files are out of date. Run 'task generate' and 'task charts:docs', then commit the result (a changed *-crds chart also needs 'task charts:update-changed' for the snapshots). Renames of APIResourceSchemas (v<date>-<commit>.*) alone are ignored and need no commit."
+          untracked="$(git ls-files --others --exclude-standard)"
+          if [ -n "$untracked" ]; then
+            echo "generated files that are not committed:" >&2
+            echo "$untracked" >&2
+            echo "::error title=verify::$hint"
+            exit 1
+          fi
+          # apigen stamps every APIResourceSchema name with the date and HEAD
+          # commit (v261030-566cb8a8.<resource>, 7+ hex chars), so those lines
+          # churn on every run even when the schema is unchanged; `-I` drops
+          # hunks made only of such lines. go.work.sum is rewritten by the Go
+          # toolchain as a side effect of running the generators (see `task
+          # tidy`) and is not generator output.
+          if ! git diff --exit-code -I 'v[0-9]{6}-[0-9a-f]{7,}\.' -- . ':!go.work.sum'; then
+            echo "::error title=verify::$hint"
+            exit 1
+          fi

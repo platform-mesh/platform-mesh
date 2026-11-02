@@ -147,9 +147,9 @@ func normalizeAdminProviderKubeconfigForLocalRun(kubeconfigBytes []byte) ([]byte
 	cur := cfg.Contexts[cfg.CurrentContext]
 	cluster := cfg.Clusters[cur.Cluster]
 	server := cluster.Server
-	server = strings.Replace(server, "frontproxy-front-proxy.platform-mesh-system:6443", "root.kcp.localhost:8443", 1)
+	server = strings.Replace(server, "frontproxy-front-proxy.platform-mesh-system:6443", "kcp.api.portal.localhost:8443", 1)
 	if strings.Contains(server, "/services/apiexport/") {
-		server = fmt.Sprintf("https://root.kcp.localhost:8443/clusters/%s", kindE2EAdminProviderWorkspacePath)
+		server = fmt.Sprintf("https://kcp.api.portal.localhost:8443/clusters/%s", kindE2EAdminProviderWorkspacePath)
 	}
 	cluster.Server = server
 	return clientcmd.Write(*cfg)

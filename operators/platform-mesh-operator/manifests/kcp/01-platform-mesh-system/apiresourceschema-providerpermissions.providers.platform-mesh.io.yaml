@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261029-3c474365.providerpermissions.providers.platform-mesh.io
+  name: v261030-c2ae2d3a.providerpermissions.providers.platform-mesh.io
 spec:
   group: providers.platform-mesh.io
   names:

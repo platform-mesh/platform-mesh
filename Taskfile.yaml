@@ -158,10 +158,11 @@ tasks:
       - for: {var: COMPONENTS}
         cmd: task test-e2e-{{.ITEM}}
   generate:
-    desc: Run code generation for every component.
+    desc: Run code generation for every component, then sync the generated CRDs into the charts.
     cmds:
       - for: {var: COMPONENTS}
         cmd: task generate-{{.ITEM}}
+      - task: charts:sync-crds
   build:
     desc: Build every component.
     cmds:
@@ -204,6 +205,8 @@ tasks:
     cmds:
       - task: _run
         vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: generate}
+      # The *-crds charts ship copies of the generated CRDs; keep them in step.
+      - task: charts:sync-crds
   "build-*":
     desc: "Build one component (e.g. task build-account-operator)."
     cmds:

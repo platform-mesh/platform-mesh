@@ -41,14 +41,14 @@
 
 # --- kcp ----------------------------------------------------------------------
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/helm-charts/charts/mirrored/kcp-operator
-KCP_OPERATOR_CHART_VERSION: "0.7.4"
+KCP_OPERATOR_CHART_VERSION: "0.7.12"
 # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp-operator
-KCP_OPERATOR_IMAGE_VERSION: "v0.8.0"
-PM_KCP_OPERATOR_VERSION: "0.0.1"
+KCP_OPERATOR_IMAGE_VERSION: "v0.8.3"
+PM_KCP_OPERATOR_VERSION: "0.0.2"
 
 # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp
-KCP_VERSION: "v0.33.0"
-PM_KCP_VERSION: "0.0.4"
+KCP_VERSION: "v0.33.4"
+PM_KCP_VERSION: "0.0.5"
 
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/init-agent
 INIT_AGENT_CHART_VERSION: "0.2.0"

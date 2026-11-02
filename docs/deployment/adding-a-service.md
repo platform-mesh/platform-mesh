@@ -111,6 +111,13 @@ dependencies:
     condition: crds.enabled
 ```
 
+If the CRD is generated from Go types in this repository, do not copy it by
+hand: add a `sync` line for it to
+[`hack/charts/sync-crds.sh`](../../hack/charts/sync-crds.sh). `task generate`
+then writes the chart copy from the component's `config/` output, and CI fails
+when the two drift apart. Chart-specific templating (`spec.scope` from values,
+an optional conversion strategy) is done by the script's transforms.
+
 ### Run Tests and Generate Docs
 
 ```sh
@@ -168,9 +175,13 @@ The reference `name` is what the PlatformMesh profile uses as `referencePath`
 
 ## Step 4: CI
 
-Nothing to set up. [`verify-component.yml`](../../.github/workflows/verify-component.yml)
-lints and tests changed charts and runs the Go checks for components listed
-in `ocm/components.yaml`.
+Nothing to set up. For components listed in `ocm/components.yaml`,
+[`go-lint.yml`](../../.github/workflows/go-lint.yml) and
+[`test.yml`](../../.github/workflows/test.yml) run the Go checks and tests of
+the changed ones, [`helm-lint.yml`](../../.github/workflows/helm-lint.yml)
+lints and tests the changed charts, and
+[`verify.yml`](../../.github/workflows/verify.yml) checks the commits and that
+all generated files are committed.
 
 ## Step 5: Profile / PlatformMesh Resource Configuration
 

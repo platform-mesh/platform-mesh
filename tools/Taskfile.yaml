@@ -84,7 +84,7 @@ vars:
   OAPI_CODEGEN: '{{.BIN}}/oapi-codegen-{{.OAPI_CODEGEN_VERSION}}'
 
   # renovate: datasource=github-releases depName=open-component-model/open-component-model
-  OCM_VERSION: 0.13.0
+  OCM_VERSION: 0.22.1
   OCM: '{{.BIN}}/ocm-{{.OCM_VERSION}}'
 
   # renovate: datasource=github-releases depName=helm/helm

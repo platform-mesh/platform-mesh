@@ -87,6 +87,10 @@ tasks:
       - task: setup:helm-docs
     cmds:
       - "for chart in $(echo {{.CHARTS}} | tr ',' ' '); do {{.LOCAL_BIN}}/helm-docs --log-level=debug --chart-search-root $chart --template-files=../.docs-templates/header.md.gotmpl,README.md.gotmpl,../.docs-templates/footer.md.gotmpl --skip-version-footer=false; done"
+  sync-crds:
+    desc: Copy the generated CRDs from the components' config/ into the *-crds charts.
+    cmds:
+      - "./hack/charts/sync-crds.sh"
   oci:
     desc: Package all charts into oci/
     cmds:

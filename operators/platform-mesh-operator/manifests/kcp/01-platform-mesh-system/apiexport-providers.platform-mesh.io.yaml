@@ -71,12 +71,12 @@ spec:
   resources:
   - group: providers.platform-mesh.io
     name: providerpermissions
-    schema: v261029-3c474365.providerpermissions.providers.platform-mesh.io
+    schema: v261030-c2ae2d3a.providerpermissions.providers.platform-mesh.io
     storage:
       crd: {}
   - group: providers.platform-mesh.io
     name: providers
-    schema: v260901-c099a15f.providers.providers.platform-mesh.io
+    schema: v261030-c2ae2d3a.providers.providers.platform-mesh.io
     storage:
       crd: {}
 status: {}

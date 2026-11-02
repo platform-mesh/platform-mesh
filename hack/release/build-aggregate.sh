@@ -312,15 +312,15 @@ if [[ ${#missing[@]} -gt 0 ]]; then
 fi
 
 # etcd-druid is published as an OCM component by Gardener and copied into our
-# repository. Its SPDX resources are backed by a multi-manifest OCI index that
-# OCM v2 cannot re-pack, so they are stripped from the transfer.
+# repository with all referenced resources.
 etcd_druid_ref="github.com/gardener/etcd-druid"
 if jq -e --arg n "$etcd_druid_ref" '.components[].componentReferences[]? | select(.componentName == $n)' <<<"$generated" >/dev/null; then
   if cv_exists "$OCM_REPO" "$etcd_druid_ref" "$GARDENER_ETCD_DRUID_VERSION"; then
     log "etcd-druid $GARDENER_ETCD_DRUID_VERSION already present"
   else
     log "copying etcd-druid $GARDENER_ETCD_DRUID_VERSION from Gardener's registry"
-    hack/release/copy-etcd-druid.sh "$GARDENER_ETCD_DRUID_VERSION" "$OCM_REPO"
+    "$OCM" transfer component-version --copy-resources --recursive \
+      "europe-docker.pkg.dev/gardener-project/releases//$etcd_druid_ref:$GARDENER_ETCD_DRUID_VERSION" "$OCM_REPO"
   fi
 fi
 

@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260812-3d80609b.platformmeshes.core.platform-mesh.io
+  name: v261030-566cb8a8.platformmeshes.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -94,9 +94,13 @@ spec:
               properties:
                 baseDomain:
                   type: string
+                kcpFrontProxyClusterIP:
+                  type: string
                 port:
                   type: integer
                 protocol:
+                  type: string
+                traefikClusterIP:
                   type: string
               type: object
             featureToggles:

@@ -1,0 +1,122 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: helm-lint
+
+# Image schema, ct lint, helm unittest and the vendored keycloak CRDs for the
+# changed charts. One job, not a matrix: every chart is run even if an earlier
+# one fails; the failing ones are listed at the end. Chart READMEs and the
+# chart copies of generated CRDs are checked by verify.yml.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: helm-lint-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # changes and ct lint diff against the target branch
+      - uses: ./.github/actions/changes
+        id: changes
+
+      - name: Enforce common image schema (air-gap localization)
+        if: steps.changes.outputs.charts != '[]'
+        run: |
+          bash hack/charts/lint-image-schema.test.sh
+          ./hack/charts/lint-image-schema.sh
+
+      # The keycloak-operator chart vendors the operator's CRDs; they must match
+      # the operator version in values.yaml.
+      - name: Keycloak CRDs match the operator version
+        if: contains(fromJson(steps.changes.outputs.charts), 'keycloak-operator')
+        run: |
+          set -euo pipefail
+          bash hack/charts/update-keycloak-crds.sh "$(yq '.image.tag' charts/keycloak-operator/values.yaml)"
+          if ! git diff --exit-code charts/keycloak-operator/crds/; then
+            echo "::error title=helm-lint::The keycloak-operator CRDs do not match image.tag. Run 'hack/charts/update-keycloak-crds.sh <version>' and commit the result."
+            exit 1
+          fi
+
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        if: steps.changes.outputs.charts != '[]'
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/actions/helm
+        if: steps.changes.outputs.charts != '[]'
+        id: helm
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: steps.changes.outputs.charts != '[]'
+        with:
+          python-version: '3.x'
+          check-latest: true
+
+      - uses: helm/chart-testing-action@720270857a28afd41e2426521a7801db09e9b510 # v2.9.0
+        if: steps.changes.outputs.charts != '[]'
+        with:
+          version: 'v3.15.0'
+          yamllint_version: '1.37.0'
+          yamale_version: '5.2.1'
+
+      - name: Install helm-unittest
+        if: steps.changes.outputs.charts != '[]'
+        # Helm 4 verifies plugin signatures by default; helm-unittest ships none.
+        run: ${HELM} plugin install https://github.com/helm-unittest/helm-unittest --verify=false
+        env:
+          HELM: ${{ steps.helm.outputs.path }}
+
+      - name: Log in to ghcr.io (chart dependencies)
+        if: steps.changes.outputs.charts != '[]'
+        run: echo "${GITHUB_TOKEN}" | ${HELM} registry login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HELM: ${{ steps.helm.outputs.path }}
+
+      - name: Lint charts
+        if: steps.changes.outputs.charts != '[]'
+        run: task charts:lint
+        env:
+          TARGET_BRANCH: ${{ github.event.repository.default_branch }}
+
+      - name: Chart unit tests
+        if: steps.changes.outputs.charts != '[]'
+        env:
+          CHARTS: ${{ steps.changes.outputs.charts }}
+          HELM: ${{ steps.helm.outputs.path }}
+        run: |
+          set -euo pipefail
+          hack/charts/resolve-dependencies.sh
+          failed=()
+          for chart in $(jq -r '.[]' <<<"$CHARTS"); do
+            echo "::group::helm unittest charts/$chart"
+            ${HELM} unittest "charts/$chart" || failed+=("$chart")
+            echo "::endgroup::"
+          done
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error title=helm-lint::Unit tests failed for: ${failed[*]}. If the rendered output change is intended, run 'task charts:update-changed' (or 'helm unittest -u charts/<chart>') and commit the updated tests/__snapshot__ files. A *-crds chart change also changes the snapshots of the charts that depend on it."
+            exit 1
+          fi

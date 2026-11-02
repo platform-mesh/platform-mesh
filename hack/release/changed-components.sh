@@ -27,8 +27,8 @@
 #   changed-components.sh ""          # empty list means: everything
 #
 # A change to a library component (apis, golang-commons, subroutines), to
-# go.work(.sum), to ocm/components.yaml or to the CI workflows selects all
-# components, since the others depend on them. A change to charts/common or a *-crds chart selects all charts,
+# go.work(.sum), to ocm/components.yaml or to anything under .github/ selects
+# all components, since the others depend on them. A change to charts/common or a *-crds chart selects all charts,
 # since other charts depend on them.
 
 set -euo pipefail
@@ -49,7 +49,7 @@ if [ -z "$changed" ]; then
   selected_charts="$all_charts"
 else
   # Paths that affect every Go component.
-  shared_re='^(go\.work|go\.work\.sum|ocm/components\.yaml|\.github/workflows/verify-component\.yml|\.github/workflows/images\.yml|Taskfile\.yaml|tools/)'
+  shared_re='^(go\.work|go\.work\.sum|ocm/components\.yaml|\.github/|Taskfile\.yaml|tools/)'
   lib_paths=$(yq '.components | to_entries | map(select(.value.library == true)) | .[].value.path' "$registry")
   for p in $lib_paths; do shared_re="$shared_re|^$p/"; done
 

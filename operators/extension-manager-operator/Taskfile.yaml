@@ -25,13 +25,6 @@ dotenv: ['.taskenv', '.secret/.env', '{{.HOME}}/.env' ]
 
 vars:
   CRD_DIRECTORY: config/crd/bases
-  SEDCMD:
-    sh: |
-      if sed --version >/dev/null 2>&1; then
-        echo "sed -i"
-      else
-        echo "sed -i ''"
-      fi
 
 tasks:
   default:
@@ -60,7 +53,6 @@ tasks:
       - task: schemagen
       - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
       - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir ./test/setup --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
-      - task: copynamespacedcrd
   build:
     cmds:
       - go build ./...
@@ -175,15 +167,3 @@ tasks:
   run:
     cmds:
       - go run ./main.go operator
-  copynamespacedcrd:
-    cmd: |
-         cp -rf config/crd/bases/* config/out/
-         yq -i '.spec.scope = "Namespaced"' ./config/out/ui.platform-mesh.io_contentconfigurations.yaml
-         {{.SEDCMD}} 's;^---$;---\n\{\{ if not .Values.kcp.enabled \}\};' ./config/out/ui.platform-mesh.io_contentconfigurations.yaml
-         echo "{{ `{{- end }}` }}" >> ./config/out/ui.platform-mesh.io_contentconfigurations.yaml
-  copytocharts:
-    cmd: |
-         cp -rf config/crd/bases/* config/out/
-         yq -i '.spec.scope = "Namespaced"' ./config/out/core.openmfp.io_contentconfigurations.yaml
-         {{.SEDCMD}} 's;^---$;---\n\{\{ if not .Values.kcp.enabled \}\};' ./config/out/core.openmfp.io_contentconfigurations.yaml
-         echo "{{ `{{- end }}` }}" >> ./config/out/core.openmfp.io_contentconfigurations.yaml

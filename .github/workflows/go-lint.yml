@@ -1,0 +1,68 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: go-lint
+
+# golangci-lint, tidy-check and boilerplate (`task verify-<component>`) for the
+# changed components, as per ocm/components.yaml. One job, not a matrix: every
+# component is run even if an earlier one fails; the failing ones are listed
+# at the end.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-lint-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # changes diffs against the base commit
+      - uses: ./.github/actions/changes
+        id: changes
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        if: steps.changes.outputs.components != '[]'
+        with:
+          go-version-file: go.work
+          cache: true # zizmor: ignore[cache-poisoning]
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        if: steps.changes.outputs.components != '[]'
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Lint, tidy, boilerplate
+        if: steps.changes.outputs.components != '[]'
+        env:
+          COMPONENTS: ${{ steps.changes.outputs.components }}
+        run: |
+          set -euo pipefail
+          failed=()
+          for component in $(jq -r '.[]' <<<"$COMPONENTS"); do
+            echo "::group::task verify-$component"
+            task "verify-$component" || failed+=("$component")
+            echo "::endgroup::"
+          done
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error title=go-lint::Failed for: ${failed[*]}. Reproduce with 'task verify-<component>' (lint, tidy-check, boilerplate)."
+            exit 1
+          fi
