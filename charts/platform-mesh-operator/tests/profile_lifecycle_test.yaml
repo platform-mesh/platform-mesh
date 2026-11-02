@@ -7,7 +7,7 @@ release:
 set:
   ocm.enabled: true
   gateway.baseDomain: platform.example.com
-  gateway.traefikClusterIP: 10.96.188.4
+  gateway.clusterIP: 10.96.188.4
 kubernetesProvider:
   scheme:
     v1/ConfigMap:

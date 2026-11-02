@@ -84,6 +84,9 @@ tests:
       - notMatchRegex:
           path: data["profile.yaml"]
           pattern: '\{\{ \.port \}\}'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: '__GATEWAY_CLASS_NAME__'
   - it: disables OpenFGA tracing in the kind profile
     template: installation-profile.yaml
     set:
@@ -106,6 +109,12 @@ tests:
       - notMatchRegex:
           path: data["profile.yaml"]
           pattern: 'cat /domain-ca/tls\.crt'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: '__GATEWAY_SERVICE_CLUSTER_IP__'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'ip: "?10\.96\.188\.4"?'
   - it: fails when ocm.profile has no bundled profile file
     template: installation-profile.yaml
     set:

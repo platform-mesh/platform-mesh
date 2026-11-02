@@ -11,7 +11,10 @@
 {{- $profile := .Files.Get (printf "files/%s-profile.yaml" .Values.ocm.profile) }}
 {{- $profile = required (printf "unknown ocm.profile %q: no files/%s-profile.yaml exists" .Values.ocm.profile .Values.ocm.profile) $profile }}
 {{- $profile = replace "__EXTERNAL_PORT__" (printf "%v" .Values.gateway.port) $profile }}
-{{- $profile = replace "__GATEWAY_SERVICE_CLUSTER_IP__" (.Values.gateway.clusterIP) $profile }}
-{{- $profile = replace "__GATEWAY_CLASS_NAME__" (.Values.gateway.className) $profile }}
-{{ $profile }}
+{{- $profile = replace "__GATEWAY_SERVICE_CLUSTER_IP__" (.Values.gateway.clusterIP | default "") $profile }}
+{{- $profile = replace "__GATEWAY_CLASS_NAME__" (.Values.gateway.className | default "traefik") $profile }}
+{{- $configMap := fromYaml $profile }}
+{{- $_ := set $configMap.metadata "annotations" (merge (dict "helm.sh/resource-policy" "keep") ($configMap.metadata.annotations | default dict)) }}
+{{ toYaml $configMap }}
+{{- end }}
 {{- end }}
