@@ -31,7 +31,9 @@ Navigate to the portal URL and log in with the user's credentials:
 For example, with the recommended `base_domain=portal.localhost`, the Kind URL
 is `https://portal.localhost:8443/`.
 
-After login the portal shows the **Organization management** panel. If it
+After login the portal shows the **Organization management** panel, on a page
+titled "Welcome to the Platform Mesh Portal!". Its organization list is empty
+until the first organization is onboarded. If it
 instead shows a "Welcome! Let's get started." screen, the user is already
 inside an organization — navigate back to the root portal URL to reach the
 Organization management panel.
@@ -47,13 +49,39 @@ organization workspace is ready.
 
 ### 3. Switch to the organization
 
+The organization's Keycloak realm, `<org-name>`, has its own user accounts.
+Onboarding copies only the creator's username and email from the `welcome`
+realm. It does not copy the password, name, or verified-email flag. Instead,
+Keycloak emails the creator an invitation link to verify the address and set a
+password for the new realm. Use that link before signing in to the
+organization; the `welcome` realm password does not work there.
+
+> [!IMPORTANT]
+> The invitation email requires SMTP, which is not configured by default. Set
+> `server`, `port`, and `fromAddress` under
+> `components.services.security-operator.values.idp.smtp` in the
+> `platform-mesh-profile` ConfigMap. The platform-mesh-operator chart has no
+> values for these settings. Without SMTP, the email is not sent and the
+> organization creator cannot sign in. Keycloak logs
+> `Failed to send execute actions email: … Invalid sender address 'null'`, and
+> the portal does not report an error.
+
+Without SMTP, for example on Kind, a Keycloak administrator prepares the
+account instead. In the Keycloak console, select the `<org-name>` realm and
+open **Users → `<user-email>`**:
+
+1. On **Details**, turn on **Email verified**, remove **Verify Email** from
+   **Required user actions**, and click **Save**.
+2. On **Credentials**, click **Set password**, enter a password, leave
+   **Temporary** on, and click **Save**. Give this password to the user.
+
 Click **Switch**. The portal redirects to the organization-scoped portal at
 `https://<org-name>.<base-domain>/` (Kind: `https://<org-name>.<base-domain>:8443/home/overview`).
 
 The browser is redirected through the new organization's Keycloak realm. For a
 first-time login in that realm you will go through several screens in sequence:
 
-1. **Sign in** — enter your email and password.
+1. **Sign in** — enter your email and the password for the `<org-name>` realm.
 2. **Update password** — set a new password if the account was pre-created by
    an administrator.
 3. **Update profile** — enter first and last name if not yet on the account.
@@ -97,8 +125,21 @@ placeholder below:
 { kubectl -n platform-mesh-system get secret root-ca \
     -o jsonpath='{.data.ca\.crt}' | base64 -d; \
   kubectl -n platform-mesh-system get secret domain-certificate \
-    -o jsonpath='{.data.ca\.crt}' | base64 -d; } | base64 -w0
+    -o jsonpath='{.data.ca\.crt}' | base64 -d; } | base64 | tr -d '\n'
 ```
+
+`kubectl oidc-login` connects to Keycloak itself and does not read the
+cluster's `certificate-authority-data`. With a private CA, paste the output of
+the following command in place of `<base64-domain-ca>`. If the domain
+certificate is issued by a publicly trusted CA, remove the
+`--certificate-authority-data` argument.
+
+```shell
+kubectl -n platform-mesh-system get secret domain-certificate \
+  -o jsonpath='{.data.ca\.crt}'
+```
+
+Save the following as `user.kubeconfig`; the next steps use that file:
 
 ```yaml
 apiVersion: v1
@@ -148,6 +189,7 @@ users:
         args:
           - oidc-login
           - get-token
+          - --certificate-authority-data=<base64-domain-ca>
           - --oidc-issuer-url=https://<base-domain>:<external-port>/keycloak/realms/welcome
           - --oidc-client-id=<oidc-client-id>
           - --oidc-extra-scope=offline_access
@@ -160,34 +202,10 @@ users:
         provideClusterInfo: false
 ```
 
-### 2. Grant temporary access to `root:orgs`
+### 2. Create the organization account
 
-Generate the administrative kubeconfig from the cluster context, then use the
-resulting `.secret/kcp/admin.kubeconfig` to grant the new user temporary
-`cluster-admin` access:
-
-```shell
-# Requires kubectl, base64, and yq. Run from the repository root.
-./tests/create-kcp-admin-kubeconfig.sh
-admin_kubeconfig="$PWD/.secret/kcp/admin.kubeconfig"
-kubectl --kubeconfig "${admin_kubeconfig}" get --raw /readyz
-```
-
-> [!WARNING]
-> This helper currently removes CA data and sets `insecure-skip-tls-verify: true`
-> because of a known root-CA rotation issue. Restrict the generated kubeconfig,
-> use it only for this administrative operation, and replace it with a
-> TLS-verifying kubeconfig when the CA issue is resolved.
-
-```shell
-kubectl --kubeconfig "${admin_kubeconfig}" create clusterrolebinding <username>-admin \
-  --clusterrole=cluster-admin \
-  --user="<user-email>"
-```
-
-### 3. Create the organization account
-
-Using the new user's OIDC kubeconfig, apply an `Account` resource:
+Using the new user's OIDC kubeconfig, apply an `Account` resource. The first
+`kubectl` call opens a browser window for the Keycloak login:
 
 ```yaml
 apiVersion: core.platform-mesh.io/v1alpha1
@@ -204,7 +222,7 @@ spec:
 kubectl --kubeconfig ./user.kubeconfig apply --filename account.yaml
 ```
 
-### 4. Verify the account
+### 3. Verify the account
 
 ```shell
 kubectl --kubeconfig ./user.kubeconfig wait \
@@ -213,11 +231,3 @@ kubectl --kubeconfig ./user.kubeconfig get account <organization-name> --output 
 ```
 
 If it times out, inspect the Account conditions; do not patch generated resources.
-
-### 5. Remove temporary access
-
-Using the administrative kubeconfig, remove the temporary binding:
-
-```shell
-kubectl --kubeconfig "${admin_kubeconfig}" delete clusterrolebinding <username>-admin
-```
