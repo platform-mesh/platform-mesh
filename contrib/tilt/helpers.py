@@ -163,6 +163,28 @@ def kind_in(kinds):
     return lambda o: o['kind'] in kinds
 
 
+def _pod_spec(o):
+    """Pod spec of a workload object, or None."""
+    if o['kind'] == 'Pod':
+        return o.get('spec')
+    if o['kind'] == 'CronJob':
+        return o.get('spec', {}).get('jobTemplate', {}).get('spec', {}).get('template', {}).get('spec')
+    return o.get('spec', {}).get('template', {}).get('spec')
+
+
+def _strip_resources(o):
+    """Drop resources from every container of workload o, in place.
+
+    The charts' production requests add up to more CPU than a small kind node
+    has. Limits go too: Kubernetes defaults missing requests to the limits.
+    """
+    spec = _pod_spec(o)
+    if not spec:
+        return
+    for c in spec.get('containers', []) + spec.get('initContainers', []):
+        c.pop('resources', None)
+
+
 def _release(blob, namespace):
     """Post-process `helm template` output the way `helm install` would; returns a blob.
 
@@ -172,6 +194,7 @@ def _release(blob, namespace):
     - repeated objects (same apiVersion, kind, namespace, name) are dropped:
       --include-crds emits a subchart's crds/ directory next to the CRD
       templates of a sibling subchart (traefik and traefik-crds)
+    - workloads lose their resources (see _strip_resources)
     """
     seen = {}
     out = []
@@ -185,6 +208,8 @@ def _release(blob, namespace):
         if key in seen:
             continue
         seen[key] = True
+        if o['kind'] in _WORKLOAD_KINDS:
+            _strip_resources(o)
         out.append(o)
     return encode_yaml_stream(out)
 
