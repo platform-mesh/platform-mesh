@@ -48,6 +48,7 @@ tasks:
     cmds:
       - go test ./jwt/ -run=^$ -fuzz=FuzzNew -fuzztime={{.FUZZTIME}} -count=1
       - go test ./jwt/ -run=^$ -fuzz=FuzzGetURIValue -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./fga/util/ -run=^$ -fuzz=FuzzConvertToRelationName -fuzztime={{.FUZZTIME}} -count=1
   test:
     deps:
       - task: mockery

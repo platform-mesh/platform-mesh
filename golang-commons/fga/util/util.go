@@ -14,83 +14,91 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package util provides utility functions for converting API group and resource names
-// into normalized type names suitable for use in authorization systems.
-//
-// This package is primarily designed for use with Fine-Grained Authorization (FGA)
-// systems where consistent naming conventions are required for type definitions.
+// Package util derives the OpenFGA type and relation names Platform Mesh uses
+// for Kubernetes API resources. Every component that builds or checks these
+// names must go through this package so that they agree.
 package util
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 )
 
-// maxRelationLength defines the maximum allowed length for relation names in FGA systems.
-// This limit ensures compatibility with authorization backends that have string length
-// constraints on relation and type names.
-//
-// The value of 50 is chosen to accommodate the longest possible relation format:
-// "create_<group>_<singular>s" while leaving room for reasonable group and resource names.
-const maxRelationLength = 50
+const (
+	// MaxRelationLength is OpenFGA's limit for relation names.
+	MaxRelationLength = 50
+	// MaxTypeLength is OpenFGA's limit for type names.
+	MaxTypeLength = 254
 
-// ConvertToTypeName converts an API group and singular resource name into a normalized
-// type name suitable for use in authorization systems.
-//
-// Parameters:
-//   - group: The API group name (e.g., "apps", "networking.k8s.io", "")
-//   - singular: The singular form of the resource name (e.g., "deployment", "pod", "Service")
-//
-// Returns:
-//
-//	A normalized type name string suitable for authorization system usage.
-//
-// Examples:
+	hashLength = 16
+	// hashSeparator precedes the hash in a shortened relation. A normalized
+	// group never has two underscores in a row and a plural has none.
+	hashSeparator = "__"
+	// longestVerb is the longest verb a resource relation is defined for in
+	// the model (create, list, watch).
+	longestVerb = "create"
+	// minGroupPrefix keeps part of the group readable in a hashed relation
+	// even when the plural alone would fill the budget.
+	minGroupPrefix = 8
+)
+
+// ConvertToTypeName returns the OpenFGA type for an API group and singular
+// resource name: "<group>_<singular>" with dots replaced by underscores,
+// lowercased, and "core" for the empty group. It is never truncated; only a
+// name above MaxTypeLength is replaced by a readable prefix and a hash.
 //
 //	ConvertToTypeName("apps", "deployment") → "apps_deployment"
-//	ConvertToTypeName("", "pod") → "core_pod"
-//	ConvertToTypeName("networking.k8s.io", "ingress") → "networking_k8s_io_ingress"
-//	ConvertToTypeName("Apps", "Deployment") → "apps_deployment"
-//
-// The function handles edge cases gracefully:
-//   - Empty group names default to "core"
-//   - Very long names are truncated to respect maxRelationLength
-//   - Special characters like dots are normalized to underscores
-//   - Mixed case is normalized to lowercase
+//	ConvertToTypeName("", "Pod") → "core_pod"
 func ConvertToTypeName(group, singular string) string {
+	name := normalizeGroup(group) + "_" + strings.ToLower(singular)
+	if len(name) <= MaxTypeLength {
+		return name
+	}
+	return name[:MaxTypeLength-hashLength-1] + "_" + hash(group, singular)
+}
+
+// ConvertToRelationName returns the relation that grants verb on the resources
+// group/plural, defined on the parent account or namespace:
+// "<verb>_<group>_<plural>". When the create relation of the resource would
+// exceed MaxRelationLength, the "<group>_<plural>" part is replaced by a
+// readable prefix and a hash of group and plural, the same for every verb.
+// The hash follows "__", which an unshortened name never contains, so a
+// shortened relation cannot equal the relation of another resource.
+// It returns an error when the relation for verb does not fit.
+func ConvertToRelationName(verb, group, plural string) (string, error) {
+	relation := verb + "_" + resourceRelationSuffix(group, plural)
+	if len(relation) > MaxRelationLength {
+		return "", fmt.Errorf("relation %q for %s %s/%s exceeds %d characters", relation, verb, group, plural, MaxRelationLength)
+	}
+	return relation, nil
+}
+
+func resourceRelationSuffix(group, plural string) string {
+	g := normalizeGroup(group)
+	p := strings.ToLower(plural)
+
+	suffix := g + "_" + p
+	if len(longestVerb)+1+len(suffix) <= MaxRelationLength {
+		return suffix
+	}
+
+	budget := MaxRelationLength - len(longestVerb) - 1 - len(hashSeparator) - hashLength
+	groupLen := min(len(g), max(budget-1-len(p), minGroupPrefix))
+	pluralLen := min(len(p), budget-1-groupLen)
+
+	return strings.TrimRight(g[:groupLen], "_-") + "_" + p[:pluralLen] + hashSeparator + hash(group, plural)
+}
+
+func normalizeGroup(group string) string {
 	if group == "" {
 		group = "core"
 	}
-
-	// Cap the length of the group_singular string to respect relation length limits
-	objectType := capGroupSingularLength(group, singular, maxRelationLength)
-
-	// Make sure the result does not start with an underscore (can happen with empty groups)
-	objectType = strings.TrimPrefix(objectType, "_")
-
-	// Replace dots with underscores in the final objectType for system compatibility
-	objectType = strings.ReplaceAll(objectType, ".", "_")
-
-	// Convert to lowercase for consistent naming conventions
-	objectType = strings.ToLower(objectType)
-
-	return objectType
+	return strings.ToLower(strings.ReplaceAll(group, ".", "_"))
 }
 
-// capGroupSingularLength creates a group_singular string and truncates it if necessary
-// to ensure the resulting relation names don't exceed the specified maximum length.
-//
-// This function is used internally by ConvertToTypeName to handle length constraints
-// imposed by authorization systems. It calculates the potential length of the longest
-// relation that would be created ("create_<group>_<singular>") and truncates the
-// group_singular combination if needed.
-func capGroupSingularLength(group, singular string, maxLength int) string {
-	groupSingular := fmt.Sprintf("%s_%s", group, singular)
-	maxRelation := fmt.Sprintf("create_%ss", groupSingular)
-
-	if len(maxRelation) > maxLength && maxLength > 0 {
-		truncateLen := len(maxRelation) - maxLength
-		return groupSingular[truncateLen:]
-	}
-	return groupSingular
+func hash(group, name string) string {
+	sum := sha256.Sum256([]byte(group + "/" + name))
+	return hex.EncodeToString(sum[:])[:hashLength]
 }
