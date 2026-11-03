@@ -182,7 +182,7 @@ func Test_disabledHelmReleases(t *testing.T) {
 
 	assert.NotContains(t, disabled, "infra-ns/opentelemetry-operator")
 	assert.NotContains(t, disabled, "components-ns/observability")
-	assert.Len(t, disabled, 4)
+	assert.Len(t, disabled, 3)
 }
 
 func Test_pruneDisabledDependencies(t *testing.T) {

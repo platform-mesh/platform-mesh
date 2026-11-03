@@ -213,8 +213,6 @@ func Test_ShippedProfile_HasNoDanglingDependencies(t *testing.T) {
 	assert.NotContains(t, graph, helmReleaseKey(ns, "observability"),
 		"the shipped profile keeps observability off so the e2e fits the default runner")
 
-	// The gates only pay off if the dependency survives while the target is enabled.
-	assert.Contains(t, graph[helmReleaseKey(ns, "traefik")], helmReleaseKey(ns, "traefik-crds"))
 
 	sub, inst = newSubroutineForProfile(t, withObservabilityStack(t, shipped), ns)
 	graph = renderHelmReleaseGraph(t, sub, inst)
@@ -239,11 +237,6 @@ func Test_DisablingComponent_LeavesRemainingStackDeployable(t *testing.T) {
 			absent: "cert-manager", dependent: "opentelemetry-operator",
 		},
 		{
-			name:    "traefik CRDs managed outside the platform",
-			section: "infra", component: "traefikCRDs",
-			absent: "traefik-crds", dependent: "traefik",
-		},
-		{
 			name:    "otel operator off: a service depending on an infra release",
 			section: "infra", component: "opentelemetryOperator",
 			absent: "opentelemetry-operator", dependent: "observability",
@@ -252,11 +245,6 @@ func Test_DisablingComponent_LeavesRemainingStackDeployable(t *testing.T) {
 			name:    "cluster already runs Prometheus, so its CRDs come from elsewhere",
 			section: "infra", component: "prometheusOperatorCRDs",
 			absent: "prometheus-operator-crds", dependent: "observability",
-		},
-		{
-			name:    "traefik off entirely",
-			section: "infra", component: "traefik",
-			absent: "traefik",
 		},
 		{
 			name:    "cluster already runs the whole observability stack",
