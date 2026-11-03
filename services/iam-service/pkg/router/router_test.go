@@ -47,10 +47,11 @@ func (s *testResolverService) User(ctx context.Context, userID string) (*graph.U
 	return &graph.User{UserID: userID, Email: userID + "@example.com"}, nil
 }
 
-func (s *testResolverService) Users(ctx context.Context, resourceContext graph.ResourceContext, roleFilters []string, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
+func (s *testResolverService) Users(ctx context.Context, resourceContext graph.ResourceContext, roleFilters, countRoleFilters []string, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
 	return &graph.UserConnection{
-		Users:    []*graph.UserRoles{},
-		PageInfo: &graph.PageInfo{Count: 0, TotalCount: 0, HasNextPage: false, HasPreviousPage: false},
+		Users:      []*graph.UserRoles{},
+		PageInfo:   &graph.PageInfo{Count: 0, TotalCount: 0, HasNextPage: false, HasPreviousPage: false},
+		RoleCounts: []*graph.RoleCount{},
 	}, nil
 }
 
@@ -68,8 +69,9 @@ func (s *testResolverService) RemoveRole(ctx context.Context, resourceContext gr
 
 func (s *testResolverService) KnownUsers(ctx context.Context, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
 	return &graph.UserConnection{
-		Users:    []*graph.UserRoles{},
-		PageInfo: &graph.PageInfo{Count: 0, TotalCount: 0, HasNextPage: false, HasPreviousPage: false},
+		Users:      []*graph.UserRoles{},
+		PageInfo:   &graph.PageInfo{Count: 0, TotalCount: 0, HasNextPage: false, HasPreviousPage: false},
+		RoleCounts: []*graph.RoleCount{},
 	}, nil
 }
 
@@ -376,15 +378,17 @@ func TestCreateRouter_GraphQLIntrospection(t *testing.T) {
 	// Execute
 	router := CreateRouter(commonCfg, serviceCfg, resolver, log, nil, createEmptyDirectiveRoot())
 
-	// Assert - Test introspection query
-	introspectionQuery := `{"query": "{ __schema { types { name } } }"}`
+	// Assert - Test the backward-compatible users contract through introspection.
+	introspectionQuery := `{"query":"{ connection: __type(name: \"UserConnection\") { fields(includeDeprecated: true) { name isDeprecated deprecationReason } } query: __type(name: \"Query\") { fields { name args { name } } } }"}`
 	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(introspectionQuery))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	// Should not return error (introspection should be enabled)
-	assert.NotEqual(t, http.StatusNotFound, rr.Code)
-	assert.NotEqual(t, http.StatusMethodNotAllowed, rr.Code)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.NotContains(t, rr.Body.String(), `"errors"`)
+	assert.Contains(t, rr.Body.String(), `"name":"ownersCount","isDeprecated":true,"deprecationReason":"Use roleCounts instead"`)
+	assert.Contains(t, rr.Body.String(), `"name":"roleCounts","isDeprecated":false`)
+	assert.Contains(t, rr.Body.String(), `"name":"countRoleFilters"`)
 }
