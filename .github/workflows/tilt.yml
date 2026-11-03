@@ -39,10 +39,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  # renovate: datasource=github-releases depName=tilt-dev/tilt
-  TILT_VERSION: 0.37.8
-
 jobs:
   tilt:
     runs-on: ubuntu-latest
@@ -67,20 +63,12 @@ jobs:
       - uses: ./.github/actions/helm
         id: helm
 
-      - name: Install kind
+      - name: Install kind and tilt
         run: |
           kind="$(UGET_PRINT_PATH=absolute task tools:kind)"
           sudo install -m 0755 "$kind" /usr/local/bin/kind
           kind version
-
-      - name: Install tilt
-        env:
-          TILT_VERSION: ${{ env.TILT_VERSION }}
-        run: |
-          set -euo pipefail
-          curl -fsSL "https://github.com/tilt-dev/tilt/releases/download/v${TILT_VERSION}/tilt.${TILT_VERSION}.linux.x86_64.tar.gz" \
-            | sudo tar -xz -C /usr/local/bin tilt
-          tilt version
+          "$(UGET_PRINT_PATH=absolute task tools:tilt)" version
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:

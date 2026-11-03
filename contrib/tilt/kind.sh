@@ -39,16 +39,17 @@ coredns_sslip_block='sslip.io:53 {
 }
 '
 
-for tool in kind kubectl helm tilt; do
+kind="${KIND:-kind}"
+for tool in "$kind" kubectl helm "${TILT:-tilt}"; do
     installed "$tool" || die "$tool not found"
 done
 
-if ! kind get clusters 2> /dev/null | grep -qx "$cluster_name"; then
+if ! "$kind" get clusters 2> /dev/null | grep -qx "$cluster_name"; then
     log "creating kind cluster $cluster_name"
-    kind create cluster --name "$cluster_name" || die "kind create cluster failed"
+    "$kind" create cluster --name "$cluster_name" || die "kind create cluster failed"
 fi
 
-kind export kubeconfig --name "$cluster_name" || die "kind export kubeconfig failed"
+"$kind" export kubeconfig --name "$cluster_name" || die "kind export kubeconfig failed"
 ctx="kind-$cluster_name"
 
 corefile="$(kubectl --context "$ctx" -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}')" \
