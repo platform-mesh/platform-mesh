@@ -57,7 +57,7 @@ tests:
         enabled: true
       gateway:
         baseDomain: platform.example.com
-        traefikClusterIP: 10.96.188.4
+        clusterIP: 10.96.188.4
     asserts:
       - equal:
           path: metadata.name
@@ -91,7 +91,7 @@ tests:
         profile: kind
       gateway:
         baseDomain: platform.example.com
-        traefikClusterIP: 10.96.188.4
+        clusterIP: 10.96.188.4
     asserts:
       - matchRegex:
           path: data["profile.yaml"]
@@ -110,7 +110,7 @@ tests:
         profile: bogus
       gateway:
         baseDomain: platform.example.com
-        traefikClusterIP: 10.96.188.4
+        clusterIP: 10.96.188.4
     asserts:
       - failedTemplate:
           errorMessage: 'unknown ocm.profile "bogus": no files/bogus-profile.yaml exists'

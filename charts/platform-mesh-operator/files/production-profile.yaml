@@ -21,13 +21,7 @@ data:
       gatewayApi:
         # Installed or supplied by the target cluster.
         enabled: false
-      traefik:
-        # Installed or supplied by the target cluster.
-        enabled: false
       etcdDruid:
-        # Installed or supplied by the target cluster.
-        enabled: false
-      traefikCRDs:
         # Installed or supplied by the target cluster.
         enabled: false
       prometheusOperatorCRDs:
@@ -238,9 +232,6 @@ data:
                   allowedRoutes:
                     namespaces:
                       from: All
-              # Traefik accepts the hostname-less passthrough listener above, so keep it instead of the generated ones.
-              passthrough:
-                enabled: false
               listenersExtra:
                 - name: terminate-services
                   hostname: "*.services.{{ .baseDomain }}"

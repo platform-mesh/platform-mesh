@@ -52,7 +52,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.staticPasswords[0] | object | `{"email":"dex@portal.localhost","hash":"$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm","userID":"08a868f8-4b4b-42f3-9d23-5f46eda2c3a0","username":"dex"}` | Local test user for Dex password connector (dex@portal.localhost/dex/dex) |
 | externalSecrets.enabled | bool | `false` |  |
 | gatewayApi.enabled | bool | `true` | Toggle to enable/disable Gateway API resources |
-| gatewayApi.gatewayClassName | string | `"traefik"` | GatewayClass name |
+| gatewayApi.gatewayClassName | string | `""` | GatewayClass name |
 | gatewayApi.infrastructure | object | `{}` | HTTPS Terminate configuration |
 | gatewayApi.listeners | list | `[{"name":"terminate","port":443,"protocol":"HTTPS","tls":{"certificateRefs":[{"group":"","kind":"Secret","name":"domain-certificate","namespace":"platform-mesh-system"}],"mode":"Terminate"}}]` | Gateway listeners. The HTTPS listener is hostname-less so all route hostnames share one listener (needed for HTTP/2 connection reuse on Istio). |
 | gatewayApi.listenersExtra | list | `[{"allowedRoutes":{"namespaces":{"from":"All"}},"hostname":"","name":"terminate-services","port":443,"protocol":"HTTPS","tls":{"certificateRefs":[{"group":"","kind":"Secret","name":"domain-certificate","namespace":"platform-mesh-system"}],"mode":"Terminate"}}]` | Additional listeners to be added to the Gateway resource (e.g. for HTTPBin) |

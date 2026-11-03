@@ -252,7 +252,7 @@ After merging, the combined values are processed through Go template rendering (
 
 The profile has two top-level sections:
 
-- `infra` — defines infrastructure components (cert-manager, traefik, etcd-druid, gateway-api) with their enabled state, intervals, namespaces, values
+- `infra` — defines infrastructure components (cert-manager, etcd-druid, gateway-api) with their enabled state, intervals, namespaces, values
 - `components` — defines application services with enabled state, chart source, Helm values, dependsOn, syncWave, imageResources
 
 ### Merge Hierarchy
@@ -314,7 +314,7 @@ The ordering is significant:
 ### Go Templates
 
 The operator renders deployment manifests directly from Go templates located in:
-- `gotemplates/infra/` — infrastructure components (cert-manager, traefik, gateway-api, etcd-druid, kcp-operator)
+- `gotemplates/infra/` — infrastructure components (cert-manager, gateway-api, etcd-druid, kcp-operator)
 - `gotemplates/components/` — application components (HelmReleases, OCM Resources for each service)
 
 These templates are rendered using the profile ConfigMap data merged with exposure-derived template variables (`baseDomain`, `baseDomainPort`, `port`, `protocol`, `gatewayServiceClusterIP`, `internalFrontProxyUrl`). The gotemplates replace the previously used `platform-mesh-operator-components` and `platform-mesh-operator-infra-components` Helm charts.
@@ -336,13 +336,11 @@ gotemplates/
 ├── infra/
 │   ├── infra/           → Infrastructure HelmReleases / ArgoCD Applications (applied to infra cluster)
 │   │   ├── cert-manager/helmrelease.yaml, application.yaml
-│   │   ├── traefik/helmrelease.yaml, helmrelease-crds.yaml, application.yaml, application-crds.yaml
 │   │   ├── etcd-druid/application.yaml
 │   │   ├── gateway-api/kustomization.yaml, application.yaml
 │   │   └── appproject.yaml
 │   └── runtime/         → OCM Resources + infra HelmReleases (routed per-GVK)
 │       ├── cert-manager/resource.yaml, resource-*.yaml
-│       ├── traefik/resource.yaml, resource-crds.yaml
 │       ├── etcd-druid/resource.yaml, resource-image.yaml, helmrelease.yaml
 │       └── gateway-api/resource.yaml
 └── components/

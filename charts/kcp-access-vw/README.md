@@ -49,7 +49,7 @@ the existing entries) with:
 For callers authenticating with bearer tokens, the front-proxy also needs
 OIDC enabled against the installation's Keycloak (`kcp.auth.oidc` in the
 `infra` chart). In the local-setup kind cluster, add a `hostAliases` entry
-pointing `kcp.api.portal.localhost` at the traefik ClusterIP so the minted
+pointing `kcp.api.portal.localhost` at the gateway service ClusterIP so the minted
 kubeconfigs resolve from inside pods.
 ## Values
 | Key | Type | Default | Description |

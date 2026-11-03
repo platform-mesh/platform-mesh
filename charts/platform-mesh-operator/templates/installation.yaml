@@ -1,6 +1,6 @@
 {{- if .Values.ocm.enabled }}
 {{- $_ := required "gateway.baseDomain must be set when ocm.enabled=true" .Values.gateway.baseDomain }}
-{{- $gatewayClusterIP := .Values.gateway.clusterIP | default .Values.gateway.traefikClusterIP }}
+{{- $gatewayClusterIP := .Values.gateway.clusterIP }}
 {{- if eq .Values.ocm.profile "kind" }}
 {{- $_ = required "gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind profile" $gatewayClusterIP }}
 {{- end }}

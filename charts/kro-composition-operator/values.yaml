@@ -32,7 +32,7 @@ featureGates: ""
 # hostAliases maps the kcp shard hostnames (from the APIExport VW URLs) to the
 # in-cluster gateway IP so the operator can reach the virtual workspaces. Required
 # for kind/local-setup where those hostnames otherwise resolve to 127.0.0.1. The IP
-# is the runtime gateway (traefik) ClusterIP; set it via the HelmRelease values.
+# is the runtime gateway service ClusterIP; set it via the HelmRelease values.
 hostAliases:
   enabled: false
   values: []
