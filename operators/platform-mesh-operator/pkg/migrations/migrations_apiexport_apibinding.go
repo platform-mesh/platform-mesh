@@ -46,8 +46,9 @@ const (
 // needs to pair a provider's APIExports with its ProviderMetadata and to tell which of
 // them a consumer has bound.
 func uiBindingClaims() []any {
-	claims := []any{}
-	for _, resource := range []string{"apiexports", "apibindings"} {
+	resources := []string{"apiexports", "apibindings"}
+	claims := make([]any, 0, len(resources))
+	for _, resource := range resources {
 		claims = append(claims, map[string]any{
 			"resource": resource,
 			"group":    "apis.kcp.io",
