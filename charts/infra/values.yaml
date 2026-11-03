@@ -369,7 +369,7 @@ cnpg:
       # -- PostgreSQL image repository (without registry)
       repository: cloudnative-pg/postgresql
       # -- PostgreSQL image tag
-      tag: "18.6"
+      tag: "18.6-system-trixie"
       # -- PostgreSQL image digest (when set, overrides tag)
       digest: ""
     instances: 2
