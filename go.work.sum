@@ -619,8 +619,6 @@ github.com/kcp-dev/apimachinery/v2 v2.31.2-0.20260505083940-abda469632ba/go.mod 
 github.com/kcp-dev/client-go v0.28.1-0.20260511140521-487de9552c40/go.mod h1:SVLehuEWP57f8F4rKUn8hJXCFXJFtER4va77pY+x2m8=
 github.com/kcp-dev/client-go v0.33.0 h1:BZA2xbSi76idNoe4I4fmNNoGV9q2UIeB82kS7QeYeHo=
 github.com/kcp-dev/client-go v0.33.0/go.mod h1:CXPF+AHW5FPdOcxdiZ88Q7+6AwA/YVlBlmqxMN1NN6U=
-github.com/kcp-dev/client-go v0.33.1 h1:GEvN2u4DQ9TWXnbYMEQUgqCCphjWAnfQNVEGshrgWew=
-github.com/kcp-dev/client-go v0.33.1/go.mod h1:gWK5Y4BWkkY/yhQXaNmetAcaAxZ5lEZcXyjl5gvQHYo=
 github.com/kcp-dev/code-generator/v3 v3.32.3 h1:xs5XBDfO8XMaQWGScS/e98UNbMJ2g7f2nhksvcOK17w=
 github.com/kcp-dev/code-generator/v3 v3.32.3/go.mod h1:1OaW64ALeGKyw8G8RRv2vHsXDPgOoDuiNBG0RW6dWNI=
 github.com/kcp-dev/code-generator/v3 v3.33.0 h1:yWBdQLeIYqr487874OeqCTk773WzPB3fwrGWW2ztjEk=
@@ -1082,6 +1080,7 @@ golang.org/x/telemetry v0.0.0-20260708182218-49f421fb7959 h1:RJhm5l6Fo4rmEIcndxD
 golang.org/x/telemetry v0.0.0-20260708182218-49f421fb7959/go.mod h1:LV7u5Oco+Z/g6XI7PqN+EUUUGGkEcmB1uj2ceI0fOVg=
 golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5 h1:ZUSxONxc981v7AW7QUg+I9WwZzSTTJ019ENBYr5pV/Q=
 golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5/go.mod h1:LVehoXe41cL5SCVQilsV7Gg6BNG+Js6P9PhSbYTIUkQ=
+golang.org/x/telemetry v0.0.0-20260924152758-ed294f943157 h1:DftxASHKl6JolFPqoN+2WrFO53JvkHwRXvFqf8gsivA=
 golang.org/x/telemetry v0.0.0-20260924152758-ed294f943157/go.mod h1:i+ivNqjDnTF3WTElsdk5g9V5DTSBYgdNo7xTU9SDwYA=
 golang.org/x/term v0.42.0/go.mod h1:Dq/D+snpsbazcBG5+F9Q1n2rXV8Ma+71xEjTRufARgY=
 golang.org/x/text v0.22.0/go.mod h1:YRoo4H8PVmsu+E3Ou7cqLVH8oXWIHVoX0jqUWALQhfY=
