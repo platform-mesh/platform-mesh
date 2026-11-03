@@ -78,6 +78,8 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.cacheServer.etcd.service.name | string | `"etcd-cache-client"` |  |
 | kcp.cacheServer.etcd.service.port | int | `2379` |  |
 | kcp.cacheServer.name | string | `"cache-server"` |  |
+| kcp.cacheServer.replicas | string | `""` |  |
+| kcp.cacheServer.resources | object | `{}` |  |
 | kcp.certificates.caSecretRef | object | `{}` | Existing CA to sign from directly. Secret must be of type kubernetes.io/tls and contain the CA certificate and its private key. Mutually exclusive with issuerRef. |
 | kcp.certificates.issuerRef | object | `{}` | Existing Issuer/ClusterIssuer that signs the kcp certificate chain. It must be able to issue CA certificates. Mutually exclusive with caSecretRef. |
 | kcp.etcd.backup.compression.enabled | bool | `false` |  |
@@ -131,6 +133,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.image.repository | string | `""` |  |
 | kcp.image.tag | string | `""` |  |
 | kcp.namespace | string | `"platform-mesh-system"` |  |
+| kcp.proxy.replicas | string | `""` |  |
 | kcp.rootShard.extraArgs[0] | string | `"--feature-gates=WorkspaceAuthentication=true,CacheAPIs=true"` |  |
 | kcp.rootShard.hostname | string | `""` | Hostname for the root shard. Defaults to "root.kcp.<kcp.external.hostname>" when unset. |
 | kcp.rootShard.replicas | int | `1` |  |

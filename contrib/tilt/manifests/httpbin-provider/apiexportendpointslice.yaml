@@ -12,18 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Self-signed cert-manager Issuer that Dex's CA chain roots from. Separate from
-# the namespace so a not-yet-installed cert-manager CRD only delays the Issuer
-# (Tilt retries it), never the namespace. Replaces mkcert + the local-setup cert
-# scripts.
-#
-# NOT what the kcp shards use: their CAs root from the cluster-scoped `kcp`
-# ClusterIssuer the deployer brings (config/bases/cert-issuer), which is what the
-# RootShardTemplate's certificates.issuerRef names.
-apiVersion: cert-manager.io/v1
-kind: Issuer
+apiVersion: apis.kcp.io/v1alpha1
+kind: APIExportEndpointSlice
 metadata:
-  name: selfsigned
-  namespace: platform-mesh-system
+  name: orchestrate.platform-mesh.io
 spec:
-  selfSigned: {}
+  export:
+    name: orchestrate.platform-mesh.io

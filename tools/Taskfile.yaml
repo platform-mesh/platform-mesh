@@ -54,7 +54,7 @@ vars:
   ENVTEST_VERSION: v0.24.1
   ENVTEST: '{{.BIN}}/setup-envtest-{{.ENVTEST_VERSION}}'
 
-  GOLANGCI_LINT_VERSION: 2.13.2
+  GOLANGCI_LINT_VERSION: 2.15.0
   GOLANGCI_LINT: '{{.BIN}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}'
 
   GO_TEST_COVERAGE_VERSION: v2.18.9
@@ -70,6 +70,10 @@ vars:
 
   KIND_VERSION: v0.29.0
   KIND: '{{.BIN}}/kind-{{.KIND_VERSION}}'
+
+  # renovate: datasource=github-releases depName=tilt-dev/tilt
+  TILT_VERSION: 0.37.8
+  TILT: '{{.BIN}}/tilt-{{.TILT_VERSION}}'
 
   KUSTOMIZE_VERSION: v5.4.3
   KUSTOMIZE: '{{.BIN}}/kustomize-{{.KUSTOMIZE_VERSION}}'
@@ -290,6 +294,16 @@ tasks:
           version: '{{ .KIND_VERSION }}'
           extractArg: 'kind-*'
           uncompressed: true
+  tilt:
+    desc: Install tilt into the root bin (used by the tilt:* tasks and tilt.yml).
+    cmds:
+      - task: uget
+        vars:
+          tool: tilt
+          source: 'https://github.com/tilt-dev/tilt/releases/download/v{VERSION}/tilt.{VERSION}.{ENV:TILT_OS}.{ENV:MY_ARCH}.tar.gz'
+          version: '{{ .TILT_VERSION }}'
+          extractArg: tilt
+
   yaml-patch:
     internal: true
     cmds:
@@ -317,6 +331,8 @@ tasks:
       # have to declare these here globally.
       MY_OS: { sh: uname -s }
       MY_ARCH: { sh: uname -m }
+      # tilt's release assets say "mac", not "darwin"
+      TILT_OS: { sh: 'uname -s | sed "s/Darwin/mac/;s/Linux/linux/"' }
     cmds:
       - "UNCOMPRESSED={{ .uncompressed }} GO_MODULE={{ .goModule }} {{.HACK}}/uget.sh {{ .source }} {{ .tool }} {{ .version }} '{{ .extractArg }}'"
 

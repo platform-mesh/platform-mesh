@@ -1,0 +1,69 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Tilt settings and the constants every sub-Tiltfile shares.
+# Evaluated once, load() the names needed.
+
+load("../helpers.py", "REPO")
+
+DEFAULT_CONTEXT = "kind-platform-mesh"
+DEFAULT_HTTPBIN_NAMESPACE = "example-httpbin-provider"
+
+config.define_string("context", usage="kube context to deploy into (default {}, see kind.sh)".format(DEFAULT_CONTEXT))
+config.define_string(
+    "httpbin-namespace", usage="HTTPBin provider runtime namespace (default {})".format(DEFAULT_HTTPBIN_NAMESPACE)
+)
+config.define_string("cluster-id", usage="dashed node IP used in hostnames (default: InternalIP of the first node)")
+cfg = config.parse()
+
+CONTEXT = cfg.get("context", DEFAULT_CONTEXT)
+NAMESPACE = "platform-mesh-system"
+HTTPBIN_NAMESPACE = cfg.get("httpbin-namespace", DEFAULT_HTTPBIN_NAMESPACE)
+KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
+GO_DEPS = ["apis", "subroutines", "golang-commons"]
+VERSIONS = read_yaml(os.path.join(REPO, "ocm/versions.yaml"))
+
+# Every hostname is <x>.pm.<node-ip-dashed>.sslip.io, reaching the kind
+# node's traefik NodePort from host, pods and kcp alike.
+# kind.sh makes CoreDNS answer sslip.io in-cluster.
+CLUSTER_ID = cfg.get("cluster-id", "") or str(
+    local(
+        "kubectl --context {} get nodes -o jsonpath='{{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}}'".format(
+            CONTEXT
+        ),
+        quiet=True,
+        echo_off=True,
+    )
+).strip().replace(".", "-")
+if not CLUSTER_ID:
+    fail("could not determine the node InternalIP; run contrib/tilt/kind.sh or pass --cluster-id")
+BASE_DOMAIN = "pm.{}.sslip.io".format(CLUSTER_ID)
+PORT = 31000
+BASE_DOMAIN_PORT = "{}:{}".format(BASE_DOMAIN, PORT)
+KCP_URL = "https://kcp.api." + BASE_DOMAIN_PORT
+
+# In-cluster front proxy URL. kcp-operator gives the Service the FrontProxy's
+# external port, so it is the NodePort here (the kind install has 8443 twice).
+KCP_FRONT_PROXY_URL = "https://frontproxy-front-proxy.{}:{}".format(NAMESPACE, PORT)
+
+# Values the kind-profile templates with (pkg/subroutines/subroutine_helpers.go
+# getExposureParams). traefikClusterIP only feeds hostAliases, which are dropped.
+TEMPLATE_VARS = {
+    "baseDomain": BASE_DOMAIN,
+    "baseDomainPort": BASE_DOMAIN_PORT,
+    "port": str(PORT),
+    "traefikClusterIP": "",
+    "internalFrontProxyUrl": KCP_FRONT_PROXY_URL,
+    "gatewayClassName": "traefik",
+}

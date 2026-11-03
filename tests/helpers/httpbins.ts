@@ -2,21 +2,15 @@ import { expect, Locator, Page } from '@playwright/test';
 
 import {
   defaultHttpBinName,
-  exampleDataOverlayPath,
-  exampleDataRemoteOverlayPath,
-  exampleHttpbinProviderArgocdComponentPath,
-  exampleHttpbinProviderFluxcdComponentPath,
-  exampleHttpbinProviderRuntimeComponentPath,
-  httpbinProviderManifestPath,
   kcpClusterServer,
   newOrgName,
-  remoteMode,
   testAccountName,
   testNamespaceHttpBinName,
   testNamespaceName,
 } from './constants';
 import { logStep, portalOrgUrl } from './log';
-import { runAdminKubectl, runInfraKubectl, runRuntimeKubectl } from './runtime';
+import { runAdminKubectl } from './runtime';
+import { ensureExampleHttpbinProviderWorkspace } from './httpbin-provider';
 
 async function clickRobust(locator: Locator): Promise<void> {
   try {
@@ -56,103 +50,6 @@ async function closeDialogIfVisible(dialog: Locator, page: Page): Promise<void> 
   }
 
   await dialog.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
-}
-
-function detectRemoteDeploymentTech(): 'fluxcd' | 'argocd' {
-  // The argocd namespace is only created on the infra cluster in argocd remote
-  // mode.  Falling back to fluxcd matches start.sh's default.
-  const out = runInfraKubectl(['get', 'namespace', 'argocd', '--ignore-not-found', '-o', 'name']);
-  return out.includes('namespace/argocd') ? 'argocd' : 'fluxcd';
-}
-
-function ensureExampleHttpbinProviderWorkspace(): void {
-  if (remoteMode) {
-    const tech = detectRemoteDeploymentTech();
-    const infraComponentPath = tech === 'argocd'
-      ? exampleHttpbinProviderArgocdComponentPath
-      : exampleHttpbinProviderFluxcdComponentPath;
-
-    // Mirrors the EXAMPLE_DATA branch in start.sh: a remote-aware overlay on
-    // runtime (no fluxcd HelmReleases, no profile clobber), the runtime-side
-    // component (just the namespace), and the infra-side component carrying
-    // the source CRs + HelmReleases/Applications.
-    runRuntimeKubectl(['apply', '-k', exampleDataRemoteOverlayPath]);
-    runRuntimeKubectl(['apply', '-k', exampleHttpbinProviderRuntimeComponentPath]);
-    runInfraKubectl(['apply', '-k', infraComponentPath]);
-  } else {
-    runRuntimeKubectl(['apply', '-k', exampleDataOverlayPath]);
-  }
-
-  runAdminKubectl([
-    'create-workspace',
-    'providers',
-    '--type=root:providers',
-    '--ignore-existing',
-    '--server',
-    kcpClusterServer('root'),
-  ]);
-
-  runAdminKubectl([
-    'create-workspace',
-    'httpbin-provider',
-    '--type=root:provider',
-    '--ignore-existing',
-    '--server',
-    kcpClusterServer('root:providers'),
-  ]);
-
-  runAdminKubectl([
-    'apply',
-    '-k',
-    httpbinProviderManifestPath,
-    '--server',
-    kcpClusterServer('root:providers:httpbin-provider'),
-  ]);
-
-  // In remote mode the operator creates source CRs + HelmReleases/Applications
-  // on infra; in single-cluster mode they live on the runtime cluster.  Wait
-  // on whichever cluster owns them.
-  const waitKubectl = remoteMode ? runInfraKubectl : runRuntimeKubectl;
-  if (remoteMode && detectRemoteDeploymentTech() === 'argocd') {
-    // The platform-mesh operator watches Applications in platform-mesh-system.
-    waitKubectl([
-      'wait',
-      '--namespace',
-      'platform-mesh-system',
-      '--for=jsonpath={.status.health.status}=Healthy',
-      'applications.argoproj.io',
-      '--timeout=180s',
-      'api-syncagent',
-    ]);
-    waitKubectl([
-      'wait',
-      '--namespace',
-      'platform-mesh-system',
-      '--for=jsonpath={.status.health.status}=Healthy',
-      'applications.argoproj.io',
-      '--timeout=180s',
-      'example-httpbin-provider',
-    ]);
-  } else {
-    waitKubectl([
-      'wait',
-      '--namespace',
-      'platform-mesh-system',
-      '--for=condition=Ready',
-      'helmreleases',
-      '--timeout=180s',
-      'api-syncagent',
-    ]);
-    waitKubectl([
-      'wait',
-      '--namespace',
-      'platform-mesh-system',
-      '--for=condition=Ready',
-      'helmreleases',
-      '--timeout=180s',
-      'example-httpbin-provider',
-    ]);
-  }
 }
 
 function ensureHttpBinExistsViaBackend(namespaceName: string, httpBinName: string, orgName?: string, accountName?: string): void {
