@@ -606,8 +606,8 @@ func TestAuthorizationModelSelfSubjectReviewCreateOverride(t *testing.T) {
 	_, err := sub.Process(ctx, store)
 	assert.NoError(t, err)
 
-	assert.Contains(t, dsl, "define create_thorization_k8s_io_selfsubjectaccessreviews: member")
-	assert.Contains(t, dsl, "define create_uthorization_k8s_io_selfsubjectrulesreviews: member")
+	assert.Contains(t, dsl, "define create_authoriz_selfsubjectacces__bbffa37626ea5bb0: member")
+	assert.Contains(t, dsl, "define create_authoriz_selfsubjectrules__6bfa51ea938fdaae: member")
 	// non-overridden cluster-scoped resource keeps the owner-only default
 	assert.Contains(t, dsl, "define create_authorization_k8s_io_subjectaccessreviews: owner")
 }
