@@ -216,6 +216,50 @@ func TestHandler(t *testing.T) {
 			},
 		},
 		{
+			name: "should check the shared relation name for the verb",
+			req: authorization.Request{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						User: "alice",
+						Extra: map[string]authorizationv1.ExtraValue{
+							"authorization.kubernetes.io/cluster-name": {"a"},
+						},
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
+							Group:    "core.platform-mesh.io",
+							Version:  "v1alpha1",
+							Resource: "accounts",
+							Verb:     "get",
+						},
+					},
+				},
+			},
+			res: authorization.Allowed(),
+			fgaMocks: func(openfga *mocks.OpenFGAServiceClient) {
+				openfga.EXPECT().Check(mock.Anything, mock.MatchedBy(func(req *openfgav1.CheckRequest) bool {
+					return req.TupleKey.Relation == "get_core_platform-mesh_io_accounts" && req.TupleKey.User == "user:alice"
+				})).Return(&openfgav1.CheckResponse{Allowed: true}, nil)
+			},
+		},
+		{
+			name: "should skip processing without an fga check if the relation does not fit",
+			req: authorization.Request{
+				SubjectAccessReview: authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						Extra: map[string]authorizationv1.ExtraValue{
+							"authorization.kubernetes.io/cluster-name": {"a"},
+						},
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
+							Group:    "generators.external-secrets.io",
+							Version:  "v1alpha1",
+							Resource: "beyondtrustworkloadcredentialsdynamicsecrets",
+							Verb:     "deletecollection",
+						},
+					},
+				},
+			},
+			res: authorization.NoOpinion(),
+		},
+		{
 			name: "should skip processing if fga check returns an error",
 			req: authorization.Request{
 				SubjectAccessReview: authorizationv1.SubjectAccessReview{
