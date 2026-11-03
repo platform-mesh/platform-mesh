@@ -89,8 +89,8 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.etcd.backup.fullSnapshotSchedule | string | `"0 */24 * * *"` |  |
 | kcp.etcd.backup.garbageCollectionPeriod | string | `"43200s"` |  |
 | kcp.etcd.backup.garbageCollectionPolicy | string | `"Exponential"` |  |
-| kcp.etcd.backup.image.repository | string | `""` |  |
-| kcp.etcd.backup.image.tag | string | `""` |  |
+| kcp.etcd.backup.image.repository | string | `"europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl"` |  |
+| kcp.etcd.backup.image.tag | string | `"v0.41.2"` |  |
 | kcp.etcd.backup.leaderElection.etcdConnectionTimeout | string | `"5s"` |  |
 | kcp.etcd.backup.leaderElection.reelectionPeriod | string | `"5s"` |  |
 | kcp.etcd.backup.port | int | `8080` |  |
@@ -99,8 +99,8 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.etcd.backup.resources.requests.cpu | string | `"23m"` |  |
 | kcp.etcd.backup.resources.requests.memory | string | `"128Mi"` |  |
 | kcp.etcd.defragmentationSchedule | string | `"0 */24 * * *"` |  |
-| kcp.etcd.image.repository | string | `""` |  |
-| kcp.etcd.image.tag | string | `""` |  |
+| kcp.etcd.image.repository | string | `"europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper"` |  |
+| kcp.etcd.image.tag | string | `"v0.6.2"` |  |
 | kcp.etcd.name | string | `"etcd-kcp"` |  |
 | kcp.etcd.quota | string | `"8Gi"` |  |
 | kcp.etcd.replicas | int | `1` |  |
