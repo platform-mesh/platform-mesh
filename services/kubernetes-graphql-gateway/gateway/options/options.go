@@ -68,6 +68,7 @@ type ExtraOptions struct {
 	// MaxInFlightSubscriptions is the maximum number of concurrent in-flight SSE subscriptions.
 	MaxInFlightSubscriptions int
 	// MaxQueryDepth is the maximum allowed nesting depth for GraphQL queries.
+	// The default leaves headroom over marketplace-ui's MarketplaceEntries query, which nests 11 levels.
 	MaxQueryDepth int
 	// MaxQueryComplexity is the maximum allowed complexity score for GraphQL queries.
 	MaxQueryComplexity int
@@ -120,7 +121,7 @@ func NewOptions() *Options {
 			MaxRequestBodyBytes:        3 * 1024 * 1024,
 			MaxInFlightRequests:        400,
 			MaxInFlightSubscriptions:   50,
-			MaxQueryDepth:              10,
+			MaxQueryDepth:              15,
 			MaxQueryComplexity:         1000,
 			MaxQueryBatchSize:          10,
 			ReadHeaderTimeout:          32 * time.Second,

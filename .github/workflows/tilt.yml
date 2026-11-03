@@ -1,0 +1,136 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: tilt
+
+on:
+  pull_request:
+    paths:
+      - 'apis/**'
+      - 'golang-commons/**'
+      - 'subroutines/**'
+      - 'operators/**'
+      - 'services/**'
+      - 'charts/**'
+      - 'contrib/tilt/**'
+      - 'tests/**'
+      - 'go.work'
+      - 'go.work.sum'
+      - 'Taskfile.yaml'
+      - 'hack/dump-cluster-diagnostics.bash'
+      - '.github/workflows/tilt.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tilt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read # pull the third-party charts mirrored on ghcr.io
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.work
+          cache: true # zizmor: ignore[cache-poisoning]
+
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/actions/helm
+        id: helm
+
+      - name: Install kind and tilt
+        run: |
+          kind="$(UGET_PRINT_PATH=absolute task tools:kind)"
+          sudo install -m 0755 "$kind" /usr/local/bin/kind
+          kind version
+          "$(UGET_PRINT_PATH=absolute task tools:tilt)" version
+
+      - name: Install kubectl oidc-login plugin
+        # The account-kubeconfig e2e runs kubectl with the downloaded OIDC kubeconfig.
+        run: |
+          set -euo pipefail
+          ( set -x; cd "$(mktemp -d)" && curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-linux_amd64.tar.gz" && tar zxvf krew-linux_amd64.tar.gz && KREW_ROOT="$HOME/.krew" ./krew-linux_amd64 install krew )
+          echo "$HOME/.krew/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.krew/bin:$PATH"
+          kubectl krew install oidc-login
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '26'
+          cache: 'npm'
+          cache-dependency-path: 'tests/package-lock.json'
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/package-lock.json') }}
+
+      - name: Log in to ghcr.io for Helm
+        run: echo "${GITHUB_TOKEN}" | ${HELM} registry login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HELM: ${{ steps.helm.outputs.path }}
+
+      - name: Install Playwright
+        run: task tests:portal-e2e:setup
+
+      - name: Bring up the Tilt environment
+        run: task tilt:ci
+
+      - name: Run portal e2e
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Single-node kind: the shards compete for CPU, workspace provisioning is slower.
+          ORG_READY_TIMEOUT_SECONDS: "600"
+        run: task tilt:e2e
+
+      - name: Dump cluster diagnostics
+        if: failure()
+        env:
+          KUBE_CONTEXT: kind-platform-mesh
+          ADMIN_KUBECONFIG: contrib/tilt/.secret/kcp-admin.kubeconfig
+        run: hack/dump-cluster-diagnostics.bash runtime-artifacts
+
+      - name: Upload runtime artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtime-artifacts
+          path: runtime-artifacts/
+          retention-days: 5
+
+      - name: Upload Playwright artefacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-artifacts
+          path: |
+            tests/test-results/
+            tests/*.png
+          retention-days: 5

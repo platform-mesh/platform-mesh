@@ -33,4 +33,21 @@ spec:
     schema: v260817-a47fd3e4.providermetadatas.ui.platform-mesh.io
     storage:
       crd: {}
+  # virtual-workspaces builds MarketplaceEntries from the APIExports next to each
+  # ProviderMetadata and marks them installed by the consumer's APIBindings.
+  permissionClaims:
+    - resource: apiexports
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+      - get
+      - list
+      - watch
+    - resource: apibindings
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+      - get
+      - list
+      - watch
 status: {}

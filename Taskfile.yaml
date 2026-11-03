@@ -84,6 +84,31 @@ tasks:
     cmds:
       - task --list
 
+  tilt:up:
+    desc: Start the Tilt development environment on kind.
+    vars:
+      KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
+      TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
+    cmds:
+      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - "{{.TILT}} up -f ./contrib/tilt/Tiltfile"
+
+  tilt:ci:
+    desc: Bring up the Tilt development environment and wait for readiness.
+    vars:
+      KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
+      TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
+    cmds:
+      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile"
+
+  tilt:e2e:
+    desc: Run the portal e2e suite against the Tilt environment.
+    cmds:
+      - |
+        . contrib/tilt/env.sh || exit 1
+        task tests:portal-e2e TEST_RUN_ID="$(date +%s)"
+
   # ---------------------------------------------------------------------------
   # Global fan-out targets: run the standard target across all components.
   # ---------------------------------------------------------------------------
