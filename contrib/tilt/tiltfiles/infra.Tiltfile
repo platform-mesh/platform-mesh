@@ -88,6 +88,9 @@ infra = profile_chart(
             "external": {"port": PORT},
             "rootShard": {"shardBaseURL": "https://root.kcp.{}/".format(BASE_DOMAIN_PORT)},
             "shards": [{"name": "triton", "hostname": "triton.kcp." + BASE_DOMAIN}],
+            # kcp-operator defaults both to 2; one is enough on a single node.
+            "proxy": {"replicas": 1},
+            "cacheServer": {"replicas": 1},
         },
     },
 )
