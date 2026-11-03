@@ -30,7 +30,7 @@ optional:
 | `publish: false` | push the chart to the registry, but create no OCM component (library charts) |
 | `flat: true` | put the chart resource directly into the service component, no `helm-charts/` layer |
 | `image: false` | no `image` reference even though `appVersion` is set (charts that only record an upstream version) |
-| `images:` | list of OCM resources (third-party images the chart deploys). Published as `github.com/platform-mesh/images/<chart>:V` and referenced as `image` |
+| `images:` | list of OCM resources (third-party images the chart deploys). Published as `github.com/platform-mesh/images/<chart>:V` and referenced as `image`. An entry names an image block in the chart's values (`values: .dex.image`). |
 | `extraReferences:` | additional `componentReferences` of the service component. Values may use `${VARIABLES}` from `ocm/versions.yaml` |
 
 Charts without such a file use the defaults.
