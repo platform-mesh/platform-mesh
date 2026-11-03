@@ -19,6 +19,7 @@ package subroutine
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -32,7 +33,6 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
-	"go.platform-mesh.io/security-operator/internal/util"
 	"go.platform-mesh.io/subroutines"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -58,20 +58,20 @@ var (
 {{ if eq .Scope "Cluster" }}
 extend type core_platform-mesh_io_account
 	relations
-		define create_{{ .Group }}_{{ .Name }}: owner
-		define list_{{ .Group }}_{{ .Name }}: member
-		define watch_{{ .Group }}_{{ .Name }}: member
+		define {{ .CreateRelation }}: owner
+		define {{ .ListRelation }}: member
+		define {{ .WatchRelation }}: member
 {{ end }}
 
 {{ if eq .Scope "Namespaced" }}
 extend type core_namespace
 	relations
-		define create_{{ .Group }}_{{ .Name }}: owner
-		define list_{{ .Group }}_{{ .Name }}: member
-		define watch_{{ .Group }}_{{ .Name }}: member
+		define {{ .CreateRelation }}: owner
+		define {{ .ListRelation }}: member
+		define {{ .WatchRelation }}: member
 {{ end }}
 
-type {{ .Group }}_{{ .Singular }}
+type {{ .TypeName }}
 	relations
 		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
 		define member: [role#assignee] or owner or member from parent
@@ -145,6 +145,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 		return subroutines.OK(), err
 	}
 
+	renames := typeRenames{}
 	moduleFiles := []language.ModuleFile{{
 		Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(store)),
 		Contents: store.Spec.CoreModule,
@@ -154,6 +155,9 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 			Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(&module)),
 			Contents: module.Spec.Model,
 		})
+		if err := renames.addAuthorizationModel(module); err != nil {
+			return subroutines.OK(), err
+		}
 	}
 
 	if store.Name != "orgs" {
@@ -175,17 +179,22 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 
 		discoveryClient := a.newDiscoveryClientFunc(cfg)
 
-		coreModules, err := discoverAndRender(discoveryClient, modelTpl, groupVersions)
+		coreModules, err := discoverAndRender(discoveryClient, modelTpl, groupVersions, renames)
 		if err != nil {
 			return subroutines.OK(), err
 		}
 		moduleFiles = append(moduleFiles, coreModules...)
 
-		privilegedModules, err := discoverAndRender(discoveryClient, privilegedTemplate, privilegedGroupVersions)
+		privilegedModules, err := discoverAndRender(discoveryClient, privilegedTemplate, privilegedGroupVersions, renames)
 		if err != nil {
 			return subroutines.OK(), err
 		}
 		moduleFiles = append(moduleFiles, privilegedModules...)
+	}
+
+	if err := checkModuleConflicts(moduleFiles); err != nil {
+		log.Error().Err(err).Msg("conflicting authorization modules")
+		return subroutines.OK(), err
 	}
 
 	authorizationModel, err := language.TransformModuleFilesToModel(moduleFiles, schemaVersion)
@@ -194,6 +203,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 		return subroutines.OK(), err
 	}
 
+	var current *openfgav1.AuthorizationModel
 	if store.Status.AuthorizationModelID != "" {
 		res, err := a.fga.ReadAuthorizationModel(ctx, &openfgav1.ReadAuthorizationModelRequest{
 			StoreId: store.Status.StoreID,
@@ -203,10 +213,18 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 			log.Error().Err(err).Msg("unable to read authorization model")
 			return subroutines.OK(), err
 		}
+		current = res.AuthorizationModel
+	}
 
-		res.AuthorizationModel.Id = ""
+	if err := a.migrateRenamedTypes(ctx, store.Status.StoreID, current, authorizationModel, renames); err != nil {
+		log.Error().Err(err).Msg("unable to migrate renamed FGA types")
+		return subroutines.OK(), err
+	}
 
-		currentRaw, err := protojson.Marshal(res.AuthorizationModel)
+	if current != nil {
+		current.Id = ""
+
+		currentRaw, err := protojson.Marshal(current)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to marshal current model")
 			return subroutines.OK(), err
@@ -239,32 +257,30 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 	return subroutines.OK(), nil
 }
 
-func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template) (bytes.Buffer, error) {
+func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template, renames typeRenames) (bytes.Buffer, error) {
 	scope := apiextensionsv1.ClusterScoped
 	if resource.Namespaced {
 		scope = apiextensionsv1.NamespaceScoped
 	}
 
-	group := "core"
-	if resource.Group != "" {
-		group = util.CapGroupToRelationLength(schema.GroupVersionResource{Group: resource.Group, Resource: resource.Name}, 50)
+	var buffer bytes.Buffer
+	input, err := newModelInput(resource.Group, resource.Name, resource.SingularName, string(scope))
+	if err != nil {
+		return buffer, err
 	}
 
-	var buffer bytes.Buffer
-	err := tpl.Execute(&buffer, modelInput{
-		Name:     resource.Name,
-		Group:    strings.ReplaceAll(group, ".", "_"), // TODO: group name length capping
-		Singular: resource.SingularName,
-		Scope:    string(scope),
-	})
-	if err != nil {
+	if legacy, ok := legacyRename(resource.Group, resource.Name, resource.SingularName); ok {
+		renames.add(legacy, input.TypeName)
+	}
+
+	if err := tpl.Execute(&buffer, input); err != nil {
 		return buffer, err
 	}
 
 	return buffer, nil
 }
 
-func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, groupVersions []string) ([]language.ModuleFile, error) {
+func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, groupVersions []string, renames typeRenames) ([]language.ModuleFile, error) {
 	var files []language.ModuleFile
 	for _, gv := range groupVersions {
 		resourceList, err := dc.ServerResourcesForGroupVersion(gv)
@@ -286,7 +302,7 @@ func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, 
 				apiRes.Group = parsedGV.Group
 			}
 
-			buf, err := processAPIResourceIntoModel(apiRes, tpl)
+			buf, err := processAPIResourceIntoModel(apiRes, tpl, renames)
 			if err != nil {
 				return nil, fmt.Errorf("process api resource %s in %s: %w", apiRes.Name, gv, err)
 			}
@@ -298,4 +314,36 @@ func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, 
 		}
 	}
 	return files, nil
+}
+
+// checkModuleConflicts returns an error naming both modules when two modules
+// define the same type or add the same relation to a type.
+func checkModuleConflicts(modules []language.ModuleFile) error {
+	owners := map[string]string{}
+	var errs []error
+	claim := func(key, module string) {
+		if other, ok := owners[key]; ok && other != module {
+			errs = append(errs, fmt.Errorf("%s is defined by both %s and %s", key, other, module))
+			return
+		}
+		owners[key] = module
+	}
+
+	for _, module := range modules {
+		mdl, extended, err := language.TransformModularDSLToProto(module.Contents)
+		if err != nil {
+			// Reported with its location by TransformModuleFilesToModel.
+			continue
+		}
+		for _, td := range mdl.GetTypeDefinitions() {
+			if _, ok := extended[td.GetType()]; !ok {
+				claim("type "+td.GetType(), module.Name)
+			}
+			for relation := range td.GetRelations() {
+				claim(fmt.Sprintf("relation %s on type %s", relation, td.GetType()), module.Name)
+			}
+		}
+	}
+
+	return errors.Join(errs...)
 }

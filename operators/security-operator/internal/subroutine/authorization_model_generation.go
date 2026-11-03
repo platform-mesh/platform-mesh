@@ -19,13 +19,16 @@ package subroutine
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"text/template"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
+	fgautil "go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/config"
@@ -81,20 +84,20 @@ var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
 {{ if eq .Scope "Cluster" }}
 extend type core_platform-mesh_io_account
 	relations
-		define create_{{ .Group }}_{{ .Name }}: {{ or .Create "owner" }}
-		define list_{{ .Group }}_{{ .Name }}: {{ or .List "member" }}
-		define watch_{{ .Group }}_{{ .Name }}: {{ or .Watch "member" }}
+		define {{ .CreateRelation }}: {{ or .Create "owner" }}
+		define {{ .ListRelation }}: {{ or .List "member" }}
+		define {{ .WatchRelation }}: {{ or .Watch "member" }}
 {{ end }}
 
 {{ if eq .Scope "Namespaced" }}
 extend type core_namespace
 	relations
-		define create_{{ .Group }}_{{ .Name }}: {{ or .Create "owner" }}
-		define list_{{ .Group }}_{{ .Name }}: {{ or .List "member" }}
-		define watch_{{ .Group }}_{{ .Name }}: {{ or .Watch "member" }}
+		define {{ .CreateRelation }}: {{ or .Create "owner" }}
+		define {{ .ListRelation }}: {{ or .List "member" }}
+		define {{ .WatchRelation }}: {{ or .Watch "member" }}
 {{ end }}
 
-type {{ .Group }}_{{ .Singular }}
+type {{ .TypeName }}
 	relations
 		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
 		define member: [role#assignee] or owner or member from parent
@@ -104,7 +107,7 @@ type {{ .Group }}_{{ .Singular }}
 		define update: {{ or .Update "member" }}
 		define delete: {{ or .Delete "member" }}
 		define patch: {{ or .Patch "member" }}
-		define watch: {{ if .Watch }}watch_{{ .Group }}_{{ .Name }} from parent{{ else }}member{{ end }}
+		define watch: {{ if .Watch }}{{ .WatchRelation }} from parent{{ else }}member{{ end }}
 {{ range .Roles }}
 		define {{ .ID }}: {{ .Definition }}
 {{ end }}
@@ -118,10 +121,13 @@ type {{ .Group }}_{{ .Singular }}
 `))
 
 type modelInput struct {
-	Name     string
-	Group    string
-	Singular string
-	Scope    string
+	Name  string
+	Scope string
+
+	TypeName       string
+	CreateRelation string
+	ListRelation   string
+	WatchRelation  string
 
 	Create string
 	Get    string
@@ -133,6 +139,45 @@ type modelInput struct {
 
 	Roles                 []pmprovidersv1alpha1.RoleDefinition
 	AdditionalPermissions map[string]string
+}
+
+// newModelInput returns the template input for an API resource with its
+// OpenFGA type and relation names.
+func newModelInput(group, plural, singular, scope string) (modelInput, error) {
+	in := modelInput{
+		Name:     plural,
+		Scope:    scope,
+		TypeName: fgautil.ConvertToTypeName(group, singular),
+	}
+
+	for verb, relation := range map[string]*string{
+		"create": &in.CreateRelation,
+		"list":   &in.ListRelation,
+		"watch":  &in.WatchRelation,
+	} {
+		name, err := fgautil.ConvertToRelationName(verb, group, plural)
+		if err != nil {
+			return modelInput{}, err
+		}
+		*relation = name
+	}
+
+	return in, nil
+}
+
+// checkRelationNames rejects provider defined relations OpenFGA cannot store,
+// which would otherwise fail the model of the whole org.
+func checkRelationNames(in modelInput) error {
+	names := slices.Collect(maps.Keys(in.AdditionalPermissions))
+	for _, role := range in.Roles {
+		names = append(names, role.ID)
+	}
+	for _, name := range names {
+		if len(name) > fgautil.MaxRelationLength {
+			return fmt.Errorf("relation %q exceeds %d characters", name, fgautil.MaxRelationLength)
+		}
+	}
+	return nil
 }
 
 func getRolesForResource(resourceRoles []pmprovidersv1alpha1.ResourceRoles, permissionKey string) []pmprovidersv1alpha1.RoleDefinition {
@@ -344,21 +389,12 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 			return subroutines.OK(), fmt.Errorf("getting APIResourceSchema: %w", err)
 		}
 
-		longestRelationName := fmt.Sprintf("create_%s_%s", resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural)
+		names := resourceSchema.Spec.Names
+		permissionKey := resourceToPermissionKey(names.Singular, resourceSchema.Spec.Group)
 
-		group := resourceSchema.Spec.Group
-
-		if len(longestRelationName) > 50 {
-			group = resourceSchema.Spec.Group[len(longestRelationName)-50:]
-		}
-
-		permissionKey := resourceToPermissionKey(resourceSchema.Spec.Names.Singular, resourceSchema.Spec.Group)
-
-		input := modelInput{
-			Name:     resourceSchema.Spec.Names.Plural,
-			Group:    strings.ReplaceAll(group, ".", "_"),
-			Singular: resourceSchema.Spec.Names.Singular,
-			Scope:    string(resourceSchema.Spec.Scope),
+		input, err := newModelInput(resourceSchema.Spec.Group, names.Plural, names.Singular, string(resourceSchema.Spec.Scope))
+		if err != nil {
+			return subroutines.OK(), fmt.Errorf("building FGA names for %s: %w", resourceSchema.Name, err)
 		}
 
 		if providerPermissions != nil {
@@ -374,6 +410,10 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 			}
 
 			input.Roles = getRolesForResource(providerPermissions.Spec.Roles, permissionKey)
+			if err := checkRelationNames(input); err != nil {
+				return subroutines.OK(), updateAppliedCondition(ctx, providerClient, providerPermissions,
+					fmt.Errorf("ProviderPermissions for %s: %w", permissionKey, err))
+			}
 		}
 
 		var buffer bytes.Buffer
@@ -398,7 +438,13 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 			},
 		}
 
+		legacyType, renamed := legacyRename(resourceSchema.Spec.Group, names.Plural, names.Singular)
 		_, err = controllerutil.CreateOrUpdate(ctx, modelCluster.GetClient(), &model, func() error {
+			if renamed {
+				metav1.SetMetaDataAnnotation(&model.ObjectMeta, legacyTypeAnnotation, legacyType)
+			} else {
+				delete(model.Annotations, legacyTypeAnnotation)
+			}
 			model.Spec = pmcorev1alpha1.AuthorizationModelSpec{
 				Model: buffer.String(),
 				StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
@@ -414,20 +460,33 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 	}
 
 	if providerPermissions != nil {
-		providerPermissions.Status.ObservedGeneration = providerPermissions.Generation
-		meta.SetStatusCondition(&providerPermissions.Status.Conditions, metav1.Condition{
-			Type:               "Applied",
-			Status:             metav1.ConditionTrue,
-			ObservedGeneration: providerPermissions.Generation,
-			LastTransitionTime: metav1.Now(),
-			Reason:             "AuthorizationModelsGenerated",
-			Message:            "ProviderPermissions successfully applied to all AuthorizationModels",
-		})
-
-		if err := providerClient.Status().Update(ctx, providerPermissions); err != nil {
-			return subroutines.OK(), fmt.Errorf("updating ProviderPermissions status: %w", err)
-		}
+		return subroutines.OK(), updateAppliedCondition(ctx, providerClient, providerPermissions, nil)
 	}
 
 	return subroutines.OK(), nil
+}
+
+// updateAppliedCondition records on the ProviderPermissions whether they were
+// applied and returns applyErr.
+func updateAppliedCondition(ctx context.Context, c ctrlruntimeclient.Client, permissions *pmprovidersv1alpha1.ProviderPermissions, applyErr error) error {
+	condition := metav1.Condition{
+		Type:               "Applied",
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: permissions.Generation,
+		LastTransitionTime: metav1.Now(),
+		Reason:             "AuthorizationModelsGenerated",
+		Message:            "ProviderPermissions successfully applied to all AuthorizationModels",
+	}
+	if applyErr != nil {
+		condition.Status = metav1.ConditionFalse
+		condition.Reason = "InvalidRelationName"
+		condition.Message = applyErr.Error()
+	}
+
+	permissions.Status.ObservedGeneration = permissions.Generation
+	meta.SetStatusCondition(&permissions.Status.Conditions, condition)
+	if err := c.Status().Update(ctx, permissions); err != nil {
+		return errors.Join(applyErr, fmt.Errorf("updating ProviderPermissions status: %w", err))
+	}
+	return applyErr
 }
