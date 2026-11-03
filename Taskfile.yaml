@@ -86,15 +86,21 @@ tasks:
 
   tilt:up:
     desc: Start the Tilt development environment on kind.
+    vars:
+      KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
+      TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
-      - contrib/tilt/kind.sh
-      - tilt up -f ./contrib/tilt/Tiltfile
+      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - "{{.TILT}} up -f ./contrib/tilt/Tiltfile"
 
   tilt:ci:
     desc: Bring up the Tilt development environment and wait for readiness.
+    vars:
+      KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
+      TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
-      - contrib/tilt/kind.sh
-      - tilt ci -f ./contrib/tilt/Tiltfile
+      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile"
 
   tilt:e2e:
     desc: Run the portal e2e suite against the Tilt environment.
