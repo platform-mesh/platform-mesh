@@ -94,6 +94,16 @@ tasks:
       MKCERT_BINARY: '{{.MKCERT}}'
     dir: test/e2e/kind
     cmds:
+      # Create the kind cluster if it doesn't already exist. The Go test suite
+      # also calls createKindCluster() but it runs after `go test` starts -
+      # too late for the helm prerequisites installs below.
+      - |
+        if ! {{.KIND}} get clusters 2>/dev/null | grep -q '^platform-mesh$'; then
+          {{.KIND}} create cluster \
+            --name platform-mesh \
+            --image kindest/node:v1.33.1 \
+            --config kind-config.yaml
+        fi
       # Pass 1: install controllers and CRDs (cert-manager, flux2, ocm-k8s-toolkit,
       # etcd-druid, keycloak-operator) without Traefik so the Service ClusterIP is
       # not yet assigned — Traefik's Service must be created after the namespace
