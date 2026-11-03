@@ -110,10 +110,19 @@ tasks:
   # `task tools` installs everything; `task tools:all` is an explicit alias.
   default:
     desc: Install all shared tools into the root bin.
-    deps: [controller-gen, golangci-lint, mockery, apigen]
+    deps: [all]
   all:
-    desc: Install all shared tools into the root bin.
-    deps: [controller-gen, golangci-lint, mockery, apigen]
+    desc: Install every tool into the root bin.
+    vars:
+      # Install yq first and grab the absolute path.
+      YQ_BIN:
+        sh: 'UGET_DIRECTORY={{.BIN}} UGET_CHECKSUMS={{.HACK}}/tools.checksums UGET_PRINT_PATH=absolute task tools:yq'
+      # Grab tool tasks from the taskfile.
+      TOOL_TASKS:
+        sh: "{{.YQ_BIN}} '.tasks | to_entries | map(select([.value.cmds[]?.task] | contains([\"uget\"]))) | .[].key' {{.TOPLEVEL}}/tools/Taskfile.yaml | sort"
+    cmds:
+      - for: { var: TOOL_TASKS }
+        task: '{{.ITEM}}'
 
   controller-gen:
     desc: Install controller-gen into the root bin.
