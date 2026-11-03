@@ -44,8 +44,9 @@ kcp:
       name: etcd-kcp-client
       port: 2379
     image:
-      repository: ""
-      tag: ""
+      # pinned for ocm inventory
+      repository: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper
+      tag: v0.6.2
     defragmentationSchedule: "0 */24 * * *"
     resources:
       limits:
@@ -58,8 +59,9 @@ kcp:
     quota: 8Gi
     backup:
       image:
-        repository: ""
-        tag: ""
+        # pinned for ocm inventory
+        repository: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl
+        tag: v0.41.2
       port: 8080
       fullSnapshotSchedule: "0 */24 * * *"
       resources:
@@ -309,9 +311,9 @@ dex:
     # -- Dex image repository (without registry)
     repository: dexidp/dex
     # -- Dex image tag
-    tag: v2.42.0
+    tag: v2.46.1
     # -- Dex image digest (when set, overrides tag: registry/repository@digest)
-    digest: "sha256:1b4a6eee8550240b0faedad04d984ca939513650e1d9bd423502c67355e3822f"
+    digest: "sha256:65b72ca0f4b0bf6d4ada84ec21da8851782563404ac7b8f926923d27ceced9ab"
   service:
     # -- Dex service name
     name: dex
@@ -369,7 +371,7 @@ cnpg:
       # -- PostgreSQL image repository (without registry)
       repository: cloudnative-pg/postgresql
       # -- PostgreSQL image tag
-      tag: "18.3"
+      tag: "18.6-system-trixie"
       # -- PostgreSQL image digest (when set, overrides tag)
       digest: ""
     instances: 2

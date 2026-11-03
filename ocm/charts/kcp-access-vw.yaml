@@ -16,11 +16,7 @@
 
 # Third-party images deployed by this chart. Published as the OCM component
 # github.com/platform-mesh/images/kcp-access-vw:<chart version> so that air-gapped
-# installations can mirror them. Keep in sync with the chart's values.
+# installations can mirror them. Resolved from the chart's values at build time.
 images:
   - name: access-vw-image
-    type: ociImage
-    version: "0.1.1"
-    access:
-      type: ociArtifact
-      imageReference: "ghcr.io/kcp-dev/contrib-virtual-workspaces/access-vw:0.1.1@sha256:2e84f6d28d949b8a55beae449b6a13af8fe13ecf324b03be15379993a0515e55"
+    values: .image
