@@ -24,17 +24,16 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
+	fgautil "go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/clustercache"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/retry"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 const (
-	maxRelationLength   = 50
 	systemClusterPrefix = "system:cluster:"
 	bindVerb            = "bind"
 )
@@ -195,12 +194,7 @@ func (c *contextualAuthorizer) handleKCPBindCheck(ctx context.Context, req autho
 		return authorization.NoOpinion()
 	}
 
-	gvr := schema.GroupVersionResource{
-		Group:    attrs.Group,
-		Resource: attrs.Resource,
-	}
-
-	_, resourceObjectType := BuildObjectType(gvr, singular)
+	resourceObjectType := fgautil.ConvertToTypeName(attrs.Group, singular)
 
 	resourceToBind := renderObject(resourceObjectType, providerClusterName, attrs.Name)
 	consumerAccountObject := fmt.Sprintf("core_platform-mesh_io_account:%s/%s",

@@ -18,10 +18,10 @@ package contextual
 
 import (
 	"fmt"
-	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
+	fgautil "go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/clustercache"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/util"
 
@@ -75,7 +75,7 @@ func BuildCheckInput(
 		return nil, fmt.Errorf("failed to singularize resource %q: %w", attrs.Resource, err)
 	}
 
-	group, objectType := BuildObjectType(gvr, singular)
+	objectType := fgautil.ConvertToTypeName(gvr.Group, singular)
 
 	object := renderObject(objectType, clusterName, attrs.Name)
 	relation := attrs.Verb
@@ -85,7 +85,10 @@ func BuildCheckInput(
 	accountObject := fmt.Sprintf("core_platform-mesh_io_account:%s/%s", clusterInfo.ParentClusterID, clusterInfo.AccountName)
 
 	if hasParent {
-		relation = fmt.Sprintf("%s_%s_%s", relation, group, gvr.Resource)
+		relation, err = fgautil.ConvertToRelationName(attrs.Verb, gvr.Group, gvr.Resource)
+		if err != nil {
+			return nil, err
+		}
 		object = accountObject
 	}
 
@@ -135,19 +138,4 @@ func BuildCheckInput(
 // bindings) may legitimately contain colons themselves.
 func renderObject(objectType, clusterName, name string) string {
 	return fmt.Sprintf("%s:%s/%s", objectType, clusterName, util.EncodeName(name))
-}
-
-// BuildObjectType builds the FGA object type string from GVR and singular resource name.
-// Returns the sanitized group name and the full object type.
-func BuildObjectType(gvr schema.GroupVersionResource, singular string) (string, string) {
-	group := util.CapGroupToRelationLength(gvr, maxRelationLength)
-	group = strings.ReplaceAll(group, ".", "_")
-
-	objectType := fmt.Sprintf("%s_%s", group, singular)
-	longestObjectType := fmt.Sprintf("create_%ss", objectType)
-	if len(longestObjectType) > maxRelationLength {
-		objectType = objectType[len(longestObjectType)-maxRelationLength:]
-	}
-
-	return group, objectType
 }

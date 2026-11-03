@@ -68,7 +68,6 @@ tasks:
       FUZZTIME: '{{.FUZZTIME | default "30s"}}'
     cmds:
       - go test ./pkg/handler/nonresourceattributes/ -run=^$ -fuzz=FuzzNonResourceAttributes -fuzztime={{.FUZZTIME}} -count=1
-      - go test ./pkg/util/ -run=^$ -fuzz=FuzzCapGroupToRelationLength -fuzztime={{.FUZZTIME}} -count=1
       - go test ./pkg/util/ -run=^$ -fuzz=FuzzResolveOnParent -fuzztime={{.FUZZTIME}} -count=1
   validate:
     cmds:

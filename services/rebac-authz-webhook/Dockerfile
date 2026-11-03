@@ -15,9 +15,9 @@
 # Build the manager binary.
 #
 # NOTE: the build context is the repository ROOT, not this directory.
-# The operator module is linked to the shared ./apis module through the
-# repository-root go.work file, so the workspace and apis source must be
-# present in the build:
+# The operator module is linked to the shared ./apis and ./golang-commons
+# modules through the repository-root go.work file, so the workspace and their
+# sources must be present in the build:
 #   docker build -f services/rebac-authz-webhook/Dockerfile .
 FROM --platform=$BUILDPLATFORM golang:1.27.2@sha256:820153096fda4de6ac1b7194d12e416b7dd8f4e9a33d17e0345b111b945162d8 AS builder
 ARG TARGETOS
@@ -29,15 +29,16 @@ WORKDIR /workspace
 COPY go.work go.work
 COPY go.work.sum go.work.sum
 COPY apis/ apis/
+COPY golang-commons/ golang-commons/
 COPY services/rebac-authz-webhook/ services/rebac-authz-webhook/
 
 # Drop every workspace module except the ones copied above, so the workspace
-# resolves with only apis + this operator — regardless of what else go.work lists
+# resolves with only apis, golang-commons + this operator — regardless of what else go.work lists
 # (other operators, cmd/* tools, ...). This is a textual edit of go.work, so the
 # dropped modules don't need to exist in the build context.
 RUN for m in $(go work edit -json | sed -n 's/.*"DiskPath": "\(.*\)".*/\1/p'); do \
       case "$m" in \
-        ./apis|./services/rebac-authz-webhook) ;; \
+        ./apis|./golang-commons|./services/rebac-authz-webhook) ;; \
         *) go work edit -dropuse "$m" ;; \
       esac; \
     done
