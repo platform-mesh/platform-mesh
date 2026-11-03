@@ -62,6 +62,8 @@ type ResourceRoles struct {
 // RoleDefinition defines a custom role with UI metadata and optional relation definition.
 type RoleDefinition struct {
 	// ID is the role identifier (must match relation name used in permissions)
+	// +kubebuilder:validation:MaxLength=50
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z_][a-zA-Z0-9_-]*$`
 	ID string `json:"id"`
 
 	// DisplayName is the human-readable role name for UIs
