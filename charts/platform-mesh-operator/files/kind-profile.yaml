@@ -220,14 +220,9 @@ data:
                       - kind: Secret
                         name: domain-certificate
                         namespace: platform-mesh-system
-                - name: passthrough
-                  port: 8443
-                  protocol: TLS
-                  tls:
-                    mode: Passthrough
-                  allowedRoutes:
-                    namespaces:
-                      from: All
+              passthrough:
+                enabled: true
+                port: 8443
               listenersExtra:
                 - name: terminate-services
                   hostname: "*.services.{{ .baseDomain }}"
