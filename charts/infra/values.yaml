@@ -94,6 +94,7 @@ kcp:
   cacheServer:
     name: cache-server
     replicas: ""
+    resources: {}
     etcd:
       name: etcd-cache
       service:
