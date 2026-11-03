@@ -611,6 +611,9 @@
         },
         "author": {
           "$ref": "#/$defs/Url"
+        },
+        "namespace": {
+          "$ref": "#/$defs/Url"
         }
       },
       "additionalProperties": false,

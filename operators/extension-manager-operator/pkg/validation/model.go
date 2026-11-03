@@ -175,9 +175,10 @@ type ClientPermissions struct {
 }
 
 type UrlParameters struct {
-	Url    Url `json:"url,omitempty" yaml:"url,omitempty"`
-	Q      Url `json:"q,omitempty" yaml:"q,omitempty"`
-	Author Url `json:"author,omitempty" yaml:"author,omitempty"`
+	Url       Url `json:"url,omitempty" yaml:"url,omitempty"`
+	Q         Url `json:"q,omitempty" yaml:"q,omitempty"`
+	Author    Url `json:"author,omitempty" yaml:"author,omitempty"`
+	Namespace Url `json:"namespace,omitempty" yaml:"namespace,omitempty"`
 }
 
 type Url struct {

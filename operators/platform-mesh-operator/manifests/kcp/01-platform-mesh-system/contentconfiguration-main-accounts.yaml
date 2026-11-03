@@ -39,6 +39,9 @@ spec:
                           },
                           "keepSelectedForChildren": true,
                           "url": "/assets/platform-mesh-portal-ui-wc.js#generic-list-view",
+                          "clientPermissions": {
+                            "urlParameters": { "namespace": { "read": true, "write": true } }
+                          },
                           "webcomponent": {
                               "selfRegistered": true,
                               "type": "module"
