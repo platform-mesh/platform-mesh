@@ -15,6 +15,11 @@ prometheus:
     # to false separately to disable the bundled deployment.
     url: ""
   server:
+    # image is set explicitly for ocm aggregate build to reference
+    image:
+      repository: quay.io/prometheus/prometheus
+      tag: v3.15.1
+      digest: ""
     persistentVolume:
       # -- Disable persistence for local development
       enabled: false
@@ -25,6 +30,13 @@ prometheus:
       - web.enable-lifecycle
     service:
       type: ClusterIP
+  configmapReload:
+    prometheus:
+      # image is set explicitly for ocm aggregate build to reference
+      image:
+        repository: quay.io/prometheus-operator/prometheus-config-reloader
+        tag: v0.94.2
+        digest: ""
   # -- Disable components not needed for this POC
   alertmanager:
     enabled: false
