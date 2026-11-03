@@ -44,8 +44,9 @@ kcp:
       name: etcd-kcp-client
       port: 2379
     image:
-      repository: ""
-      tag: ""
+      # pinned for ocm inventory
+      repository: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper
+      tag: v0.6.2
     defragmentationSchedule: "0 */24 * * *"
     resources:
       limits:
@@ -58,8 +59,9 @@ kcp:
     quota: 8Gi
     backup:
       image:
-        repository: ""
-        tag: ""
+      # pinned for ocm inventory
+        repository: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl
+        tag: v0.41.2
       port: 8080
       fullSnapshotSchedule: "0 */24 * * *"
       resources:

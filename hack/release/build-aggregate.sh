@@ -221,8 +221,37 @@ while IFS= read -r chart; do
   fi
 
   if [[ "$(jq -r .hasImages <<<"$chart")" == "true" ]]; then
+    # TODO(ntnn): This is ridiculous. Should rewrite this in Go.
+
     # Third-party image inventory of a wrapper chart, versioned like the chart.
-    images="$("$YQ" -o=json '.images | map(.relation = "external")' "$settings" | envsubst)"
+    # Each entry points at an image block in the chart's values (`values:`),
+    # the single source for registry/repository/tag/digest. The tag defaults
+    # to the chart's appVersion, the resource version to the tag; an explicit
+    # `version:` overrides it (e.g. for a `latest` tag).
+    chart_app_version="$("$YQ" -r '.appVersion // ""' "$STAGED/$name/Chart.yaml")"
+    images="[]"
+    while IFS= read -r entry; do
+      entry_name="$(jq -r .name <<<"$entry")"
+      values_path="$(jq -r '.values // ""' <<<"$entry")"
+      [[ -n "$values_path" ]] || die "$settings: images entry $entry_name: missing values:"
+
+      img="$("$YQ" -o=json "$values_path" "$STAGED/$name/values.yaml")"
+      registry="$(jq -r '.registry // ""' <<<"$img")"
+      repository="$(jq -r '.repository // ""' <<<"$img")"
+      tag="$(jq -r '.tag // ""' <<<"$img")"
+      digest="$(jq -r '.digest // ""' <<<"$img")"
+      [[ -n "$repository" ]] || die "$settings: images entry $entry_name: no image at $values_path"
+      [[ -n "$tag" ]] || tag="$chart_app_version"
+
+      ref="$repository:$tag"
+      [[ -z "$registry" ]] || ref="$registry/$ref"
+      [[ -z "$digest" ]] || ref="$ref@$digest"
+      resource_version="$(jq -r '.version // ""' <<<"$entry")"
+      [[ -n "$resource_version" ]] || resource_version="$tag"
+
+      images="$(jq --arg n "$entry_name" --arg v "$resource_version" --arg ref "$ref" \
+        '. += [{name:$n, type:"ociImage", relation:"external", version:$v, access:{type:"ociArtifact", imageReference:$ref}}]' <<<"$images")"
+    done < <("$YQ" -o=json -I0 '.images[]' "$settings")
     image_comp="$(jq -n --arg name "$image_component" --arg v "$version" --argjson res "$images" \
       "{name:\$name, version:\$v, provider:$provider, resources:\$res}")"
     generated="$(jq --argjson c "$image_comp" '.components += [$c]' <<<"$generated")"
