@@ -104,6 +104,8 @@ tasks:
             --image kindest/node:v1.33.1 \
             --config kind-config.yaml
         fi
+      # Resolve helm chart dependencies (file:// refs and third-party charts).
+      - "{{.TASKFILE_DIR}}/../../hack/charts/resolve-dependencies.sh {{.TASKFILE_DIR}}/../../charts"
       # Pass 1: install controllers and CRDs (cert-manager, flux2, ocm-k8s-toolkit,
       # etcd-druid, keycloak-operator) without Traefik so the Service ClusterIP is
       # not yet assigned — Traefik's Service must be created after the namespace
@@ -212,7 +214,7 @@ tasks:
   build:
     cmds:
       - go build -o bin/manager main.go
-  fuzz:
+  fuzz-api:
     desc: "Run fuzz tests with a configurable duration (default 30s per target)"
     vars:
       FUZZTIME: '{{.FUZZTIME | default "30s"}}'
