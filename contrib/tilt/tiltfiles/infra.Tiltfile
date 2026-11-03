@@ -79,6 +79,14 @@ k8s_resource(
 )
 
 # The profile's 8443 literals mean "external port"; here that is the NodePort.
+
+# Resources for pods created by operators from CRs, where _strip_resources cannot reach.
+# Requests near zero rather than empty, since kcp-operator defaults
+# empty shard resources to 1 CPU / 1 GiB and the infra chart's etcd
+# helper `default`s empty values. Limits stay where the chart sets them;
+# Kubernetes would otherwise copy them into the requests.
+NO_REQUESTS = {"requests": {"cpu": "1m", "memory": "1Mi"}}
+
 infra = profile_chart(
     "infra",
     NAMESPACE,
@@ -86,12 +94,15 @@ infra = profile_chart(
     overrides={
         "kcp": {
             "external": {"port": PORT},
-            "rootShard": {"shardBaseURL": "https://root.kcp.{}/".format(BASE_DOMAIN_PORT)},
-            "shards": [{"name": "triton", "hostname": "triton.kcp." + BASE_DOMAIN}],
+            "rootShard": {"shardBaseURL": "https://root.kcp.{}/".format(BASE_DOMAIN_PORT), "resources": NO_REQUESTS},
+            "shards": [{"name": "triton", "hostname": "triton.kcp." + BASE_DOMAIN, "spec": {"resources": NO_REQUESTS}}],
             # kcp-operator defaults both to 2; one is enough on a single node.
             "proxy": {"replicas": 1},
-            "cacheServer": {"replicas": 1},
+            "cacheServer": {"replicas": 1, "resources": NO_REQUESTS},
+            "frontProxy": {"resources": NO_REQUESTS},
+            "etcd": {"resources": NO_REQUESTS, "backup": {"resources": NO_REQUESTS}},
         },
+        "keycloak": {"operator": {"resources": NO_REQUESTS}},
     },
 )
 k8s_yaml(infra)
