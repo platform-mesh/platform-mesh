@@ -63,7 +63,6 @@ vars:
     - platform-mesh-deployer
     - platform-mesh-operator
     - resource-broker
-    - search-operator
     - security-operator
     - terminal-controller-manager
 
@@ -71,7 +70,6 @@ vars:
     - iam-service
     - kubernetes-graphql-gateway
     - rebac-authz-webhook
-    - search-service
     - virtual-workspaces
 
   LIBRARIES:

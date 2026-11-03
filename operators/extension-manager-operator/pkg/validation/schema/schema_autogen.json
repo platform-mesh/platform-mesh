@@ -411,9 +411,6 @@
         "id": {
           "type": "string"
         },
-        "hideGlobalSearch": {
-          "type": "boolean"
-        },
         "hideFromBreadcrumb": {
           "type": "boolean"
         }

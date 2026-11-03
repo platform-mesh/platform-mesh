@@ -1218,7 +1218,7 @@ func GetValidJSON_learnings() string {
                                 "urlSuffix": "/microfrontends/quicklinks.js",
                                 "context": {
                                   "title": "Ask a Question",
-                                  "description": "Link to search stack",
+                                  "description": "Link to help center",
                                   "links": [
                                     {
                                       "label": "Help Center",
@@ -1394,22 +1394,6 @@ func GetValidJSON_organization_ui() string {
                   {
                     "pathSegment": ":projectId",
                     "hideFromNav": true,
-                    "navHeader": {
-                      "useTitleResolver": true
-                    },
-                    "titleResolver": {
-                      "request": {
-                        "method": "GET",
-                        "url": "${frameContext.accountSearchServiceApiUrl}?q=name:${projectId}",
-                        "headers": {
-                          "authorization": "Bearer ${token}"
-                        }
-                      },
-                      "titlePropertyChain": "docs[0].displayName",
-                      "prerenderFallback": false,
-                      "fallbackTitle": "{{project}}",
-                      "fallbackIcon": "curriculum"
-                    },
                     "defineEntity": {
                       "id": "project",
                       "contextKey": "projectId",
@@ -1418,8 +1402,7 @@ func GetValidJSON_organization_ui() string {
                       "label": "{{project}}",
                       "pluralLabel": "{{projects}}",
                       "notFoundConfig": {
-                        "entityListNavigationContext": "projects",
-                        "sapIllusSVG": "Scene-NoSearchResults"
+                        "entityListNavigationContext": "projects"
                       }
                     },
                     "context": {
@@ -1467,22 +1450,6 @@ func GetValidJSON_organization_ui() string {
                   {
                     "pathSegment": ":projectId",
                     "hideFromNav": true,
-                    "navHeader": {
-                      "useTitleResolver": true
-                    },
-                    "titleResolver": {
-                      "request": {
-                        "method": "GET",
-                        "url": "${frameContext.accountSearchServiceApiUrl}?q=name:${projectId}",
-                        "headers": {
-                          "authorization": "Bearer ${token}"
-                        }
-                      },
-                      "titlePropertyChain": "docs[0].displayName",
-                      "prerenderFallback": false,
-                      "fallbackTitle": "{{project}}",
-                      "fallbackIcon": "curriculum"
-                    },
                     "defineEntity": {
                       "id": "project",
                       "contextKey": "projectId",
@@ -1491,8 +1458,7 @@ func GetValidJSON_organization_ui() string {
                       "label": "{{project}}",
                       "pluralLabel": "{{projects}}",
                       "notFoundConfig": {
-                        "entityListNavigationContext": "projects",
-                        "sapIllusSVG": "Scene-NoSearchResults"
+                        "entityListNavigationContext": "projects"
                       }
                     },
                     "context": {
@@ -1540,22 +1506,6 @@ func GetValidJSON_organization_ui() string {
                   {
                     "pathSegment": ":teamId",
                     "hideFromNav": true,
-                    "navHeader": {
-                      "useTitleResolver": true
-                    },
-                    "titleResolver": {
-                      "request": {
-                        "method": "GET",
-                        "url": "${frameContext.accountSearchServiceApiUrl}?q=name:${teamId}&fuzzy=false&fq=accountRole%3A%22Team%22",
-                        "headers": {
-                          "authorization": "Bearer ${token}"
-                        }
-                      },
-                      "titlePropertyChain": "docs[0].displayName",
-                      "prerenderFallback": false,
-                      "fallbackTitle": "{{team}}",
-                      "fallbackIcon": "group"
-                    },
                     "defineEntity": {
                       "id": "team",
                       "contextKey": "teamId",
@@ -1564,8 +1514,7 @@ func GetValidJSON_organization_ui() string {
                       "label": "{{team}}",
                       "pluralLabel": "{{teams}}",
                       "notFoundConfig": {
-                        "entityListNavigationContext": "teams",
-                        "sapIllusSVG": "Scene-NoSearchResults"
+                        "entityListNavigationContext": "teams"
                       }
                     },
                     "context": {
@@ -1728,172 +1677,6 @@ func GetValidJSON_organization_ui() string {
       }`
 }
 
-func GetValidJSON_search_ui() string {
-	return `{
-        "name": "search-ui",
-        "luigiConfigFragment": {
-          "data": {
-            "viewGroup": {
-              "preloadSuffix": "/#/preload",
-              "requiredIFramePermissions": {
-                "allow": ["clipboard-read", "clipboard-write"],
-                "sandbox": ["allow-forms"]
-              }
-            },
-            "nodes": [
-              {
-                "entityType": "global",
-                "pathSegment": "search",
-                "hideFromNav": true,
-                "showBreadcrumbs": false,
-                "navHeader": {
-                  "label": "Category"
-                },
-                "navigationContext": "search",
-                "urlSuffix": "/#/search",
-                "children": [
-                  {
-                    "label": "Projects {viewGroupData.projects}",
-                    "icon": "curriculum",
-                    "pathSegment": "projects",
-                    "urlSuffix": "/#/search/projects",
-                    "visibleForFeatureToggles": ["!splitProjectByType"],
-                    "clientPermissions": {
-                      "urlParameters": {
-                        "q": {
-                          "read": true,
-                          "write": true
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "label": "Products {viewGroupData.products}",
-                    "icon": "product",
-                    "pathSegment": "products",
-                    "urlSuffix": "/#/search/products",
-                    "visibleForFeatureToggles": ["splitProjectByType"],
-                    "clientPermissions": {
-                      "urlParameters": {
-                        "q": {
-                          "read": true,
-                          "write": true
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "hideFromNav": true,
-                    "pathSegment": "projects",
-                    "urlSuffix": "/#/search/products",
-                    "visibleForFeatureToggles": ["splitProjectByType"],
-                    "clientPermissions": {
-                      "urlParameters": {
-                        "q": {
-                          "read": true,
-                          "write": true
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "label": "Experiments {viewGroupData.experiments}",
-                    "icon": "lab",
-                    "pathSegment": "experiments",
-                    "urlSuffix": "/#/search/experiments",
-                    "visibleForFeatureToggles": ["splitProjectByType"],
-                    "clientPermissions": {
-                      "urlParameters": {
-                        "q": {
-                          "read": true,
-                          "write": true
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "label": "Components {viewGroupData.components}",
-                    "icon": "course-book",
-                    "pathSegment": "components",
-                    "urlSuffix": "/#/search/components",
-                    "clientPermissions": {
-                      "urlParameters": {
-                        "q": {
-                          "read": true,
-                          "write": true
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "label": "Teams {viewGroupData.teams}",
-                    "icon": "group",
-                    "pathSegment": "teams",
-                    "urlSuffix": "/#/search/teams",
-                    "clientPermissions": {
-                      "urlParameters": {
-                        "q": {
-                          "read": true,
-                          "write": true
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "label": "Documentation {viewGroupData.techdocs}",
-                    "icon": "curriculum",
-                    "pathSegment": "techdocs",
-                    "urlSuffix": "/#/search/techdocs",
-                    "clientPermissions": {
-                      "urlParameters": {
-                        "q": {
-                          "read": true,
-                          "write": true
-                        },
-                        "url": {
-                          "read": true,
-                          "write": true
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "label": "API Documentation (draft)",
-                    "icon": "curriculum",
-                    "pathSegment": "apidocs",
-                    "urlSuffix": "/#/search/apidocs",
-                    "visibleForFeatureToggles": ["enable-api-docs-search"],
-                    "clientPermissions": {
-                      "urlParameters": {
-                        "q": {
-                          "read": true,
-                          "write": true
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "label": "Users {viewGroupData.users}",
-                    "icon": "group",
-                    "pathSegment": "users",
-                    "urlSuffix": "/#/search/users",
-                    "clientPermissions": {
-                      "urlParameters": {
-                        "q": {
-                          "read": true,
-                          "write": true
-                        }
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          }
-        }
-      }`
-}
-
 func GetValidJSON_extension_manager_ui2() string {
 	return `{
         "name": "metadata-registry-ui",
@@ -1928,21 +1711,7 @@ func GetValidJSON_extension_manager_ui2() string {
                           "keepSelectedForChildren": false,
                           "navigationContext": "component",
                           "navHeader": {
-                            "useTitleResolver": true,
                             "showUpLink": false
-                          },
-                          "titleResolver": {
-                            "request": {
-                              "method": "GET",
-                              "url": "${frameContext.componentSearchServiceApiUrl}?q=account:${projectId}%20name:${componentId}",
-                              "headers": {
-                                "authorization": "Bearer ${token}"
-                              }
-                            },
-                            "titlePropertyChain": "docs[0].displayName",
-                            "prerenderFallback": false,
-                            "fallbackTitle": "{{component}}",
-                            "fallbackIcon": "tree"
                           },
                           "defineEntity": {
                             "id": "component",
@@ -1952,8 +1721,7 @@ func GetValidJSON_extension_manager_ui2() string {
                             "label": "{{component}}",
                             "pluralLabel": "{{components}}",
                             "notFoundConfig": {
-                              "entityListNavigationContext": "components",
-                              "sapIllusSVG": "Scene-NoSearchResults"
+                              "entityListNavigationContext": "components"
                             }
                           },
                           "context": {
@@ -1984,21 +1752,7 @@ func GetValidJSON_extension_manager_ui2() string {
                           "keepSelectedForChildren": false,
                           "navigationContext": "component",
                           "navHeader": {
-                            "useTitleResolver": true,
                             "showUpLink": false
-                          },
-                          "titleResolver": {
-                            "request": {
-                              "method": "GET",
-                              "url": "${frameContext.componentSearchServiceApiUrl}?q=teamName:${teamId}%20name:${componentId}",
-                              "headers": {
-                                "authorization": "Bearer ${token}"
-                              }
-                            },
-                            "titlePropertyChain": "docs[0].displayName",
-                            "prerenderFallback": false,
-                            "fallbackTitle": "{{component}}",
-                            "fallbackIcon": "tree"
                           },
                           "defineEntity": {
                             "id": "component",
@@ -2008,8 +1762,7 @@ func GetValidJSON_extension_manager_ui2() string {
                             "label": "{{component}}",
                             "pluralLabel": "{{components}}",
                             "notFoundConfig": {
-                              "entityListNavigationContext": "components",
-                              "sapIllusSVG": "Scene-NoSearchResults"
+                              "entityListNavigationContext": "components"
                             }
                           },
                           "context": {
@@ -2691,22 +2444,6 @@ func GetValidJSON_organization_ui2() string {
                   {
                     "pathSegment": ":projectId",
                     "hideFromNav": true,
-                    "navHeader": {
-                      "useTitleResolver": true
-                    },
-                    "titleResolver": {
-                      "request": {
-                        "method": "GET",
-                        "url": "${frameContext.accountSearchServiceApiUrl}?q=name:${projectId}",
-                        "headers": {
-                          "authorization": "Bearer ${token}"
-                        }
-                      },
-                      "titlePropertyChain": "docs[0].displayName",
-                      "prerenderFallback": false,
-                      "fallbackTitle": "{{project}}",
-                      "fallbackIcon": "curriculum"
-                    },
                     "defineEntity": {
                       "id": "project",
                       "contextKey": "projectId",
@@ -2715,8 +2452,7 @@ func GetValidJSON_organization_ui2() string {
                       "label": "{{project}}",
                       "pluralLabel": "{{projects}}",
                       "notFoundConfig": {
-                        "entityListNavigationContext": "projects",
-                        "sapIllusSVG": "Scene-NoSearchResults"
+                        "entityListNavigationContext": "projects"
                       }
                     },
                     "context": {
@@ -2764,22 +2500,6 @@ func GetValidJSON_organization_ui2() string {
                   {
                     "pathSegment": ":projectId",
                     "hideFromNav": true,
-                    "navHeader": {
-                      "useTitleResolver": true
-                    },
-                    "titleResolver": {
-                      "request": {
-                        "method": "GET",
-                        "url": "${frameContext.accountSearchServiceApiUrl}?q=name:${projectId}",
-                        "headers": {
-                          "authorization": "Bearer ${token}"
-                        }
-                      },
-                      "titlePropertyChain": "docs[0].displayName",
-                      "prerenderFallback": false,
-                      "fallbackTitle": "{{project}}",
-                      "fallbackIcon": "curriculum"
-                    },
                     "defineEntity": {
                       "id": "project",
                       "contextKey": "projectId",
@@ -2788,8 +2508,7 @@ func GetValidJSON_organization_ui2() string {
                       "label": "{{project}}",
                       "pluralLabel": "{{projects}}",
                       "notFoundConfig": {
-                        "entityListNavigationContext": "projects",
-                        "sapIllusSVG": "Scene-NoSearchResults"
+                        "entityListNavigationContext": "projects"
                       }
                     },
                     "context": {
@@ -2838,22 +2557,6 @@ func GetValidJSON_organization_ui2() string {
                   {
                     "pathSegment": ":teamId",
                     "hideFromNav": true,
-                    "navHeader": {
-                      "useTitleResolver": true
-                    },
-                    "titleResolver": {
-                      "request": {
-                        "method": "GET",
-                        "url": "${frameContext.accountSearchServiceApiUrl}?q=name:${teamId}&fuzzy=false&fq=accountRole%3A%22Team%22",
-                        "headers": {
-                          "authorization": "Bearer ${token}"
-                        }
-                      },
-                      "titlePropertyChain": "docs[0].displayName",
-                      "prerenderFallback": false,
-                      "fallbackTitle": "{{team}}",
-                      "fallbackIcon": "group"
-                    },
                     "defineEntity": {
                       "id": "team",
                       "contextKey": "teamId",
@@ -2862,8 +2565,7 @@ func GetValidJSON_organization_ui2() string {
                       "label": "{{team}}",
                       "pluralLabel": "{{teams}}",
                       "notFoundConfig": {
-                        "entityListNavigationContext": "teams",
-                        "sapIllusSVG": "Scene-NoSearchResults"
+                        "entityListNavigationContext": "teams"
                       }
                     },
                     "context": {

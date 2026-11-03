@@ -15,13 +15,11 @@ use (
 	./operators/platform-mesh-deployer
 	./operators/platform-mesh-operator
 	./operators/resource-broker
-	./operators/search-operator
 	./operators/security-operator
 	./operators/terminal-controller-manager
 	./services/iam-service
 	./services/kubernetes-graphql-gateway
 	./services/rebac-authz-webhook
-	./services/search-service
 	./services/virtual-workspaces
 	./subroutines
 )

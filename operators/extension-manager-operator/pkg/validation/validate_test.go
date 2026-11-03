@@ -231,14 +231,6 @@ func TestValidate(t *testing.T) {
 			schema:      nil,
 		},
 		{
-			name:        "search-ui",
-			input:       validation_test.GetValidJSON_search_ui(),
-			contentType: "json",
-			expected:    validation_test.GetValidJSON_search_ui(),
-			expectError: false,
-			schema:      nil,
-		},
-		{
 			name:        "metadata-registry-wc",
 			input:       validation_test.GetValidJSON_metadata_registry_wc(),
 			contentType: "json",
