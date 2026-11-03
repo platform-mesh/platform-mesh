@@ -25,10 +25,16 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/search-service/internal/config"
 	"go.platform-mesh.io/search-service/internal/service/search"
+)
+
+const (
+	batchCheckChunkSize = 100
+	listStoresPageSize  = 100
 )
 
 type client interface {
@@ -172,14 +178,26 @@ func (a *Authorizer) FilterAuthorized(ctx context.Context, req search.Authorizat
 }
 
 func (a *Authorizer) resolveStoreID(ctx context.Context, org string) (string, error) {
-	res, err := a.client.ListStores(ctx, &openfgav1.ListStoresRequest{})
-	if err != nil {
-		return "", fmt.Errorf("list stores: %w", err)
-	}
+	// no Name filter: the match is trimSpace tolerant, which an exact server-side filter would defeat. So we paginate the full list instead.
+	var continuationToken string
+	for {
+		res, err := a.client.ListStores(ctx, &openfgav1.ListStoresRequest{
+			PageSize:          wrapperspb.Int32(listStoresPageSize),
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return "", fmt.Errorf("list stores: %w", err)
+		}
 
-	for _, store := range res.GetStores() {
-		if strings.TrimSpace(store.GetName()) == org {
-			return store.GetId(), nil
+		for _, store := range res.GetStores() {
+			if strings.TrimSpace(store.GetName()) == org {
+				return store.GetId(), nil
+			}
+		}
+
+		continuationToken = res.GetContinuationToken()
+		if continuationToken == "" {
+			break
 		}
 	}
 
