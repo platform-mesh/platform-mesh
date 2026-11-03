@@ -119,6 +119,9 @@ spec:
 replicas: {{ .replicas }}
 shardBaseURL: {{ .shardBaseURL }}
 proxy:
+  {{- with .root.Values.kcp.proxy.replicas }}
+  replicas: {{ . }}
+  {{- end }}
   deploymentTemplate:
     spec:
       template:

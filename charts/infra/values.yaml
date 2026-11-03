@@ -93,6 +93,7 @@ kcp:
 
   cacheServer:
     name: cache-server
+    replicas: ""
     etcd:
       name: etcd-cache
       service:
@@ -106,6 +107,9 @@ kcp:
     authorizationWebhookSecretName: kcp-webhook-secret
     port: 9443
     version: v1
+
+  proxy:
+    replicas: ""
 
   rootShard:
     replicas: 1
