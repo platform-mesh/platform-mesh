@@ -31,8 +31,8 @@ func (r *queryResolver) Users(ctx context.Context, context graph.ResourceContext
 }
 
 // KnownUsers is the resolver for the knownUsers field.
-func (r *queryResolver) KnownUsers(ctx context.Context, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
-	return r.svc.KnownUsers(ctx, sortBy, page)
+func (r *queryResolver) KnownUsers(ctx context.Context, context graph.ResourceContext, search *string, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
+	return r.svc.KnownUsers(ctx, context, search, sortBy, page)
 }
 
 // User is the resolver for the user field.
