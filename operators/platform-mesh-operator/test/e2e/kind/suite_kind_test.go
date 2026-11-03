@@ -477,7 +477,7 @@ func (s *KindTestSuite) createReleases(ctx context.Context) error {
 
 		err := s.client.Get(ctx, ctrlruntimeclient.ObjectKey{
 			Name:      "helm-controller",
-			Namespace: "flux-system",
+			Namespace: "platform-mesh-system",
 		}, deployment)
 		if err != nil {
 			s.logger.Warn().Msg("Not getting helm-controller deployment")
@@ -487,7 +487,7 @@ func (s *KindTestSuite) createReleases(ctx context.Context) error {
 
 		err = s.client.Get(ctx, ctrlruntimeclient.ObjectKey{
 			Name:      "source-controller",
-			Namespace: "flux-system",
+			Namespace: "platform-mesh-system",
 		}, deployment)
 		if err != nil {
 			s.logger.Warn().Msg("Not getting source-controller deployment")

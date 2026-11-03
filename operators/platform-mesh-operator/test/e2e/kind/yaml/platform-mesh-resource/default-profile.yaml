@@ -46,38 +46,6 @@ data:
         name: gateway-api-crds
         ocmResourceName: chart
         targetNamespace: default
-      traefik:
-        skipCrds: true
-        syncOptions:
-        - SkipCRDs=true
-        syncWave: 1
-        chart:
-          name: traefik
-        enabled: true
-        interval: 1m
-        name: traefik
-        ocmResourceName: chart
-        targetNamespace: default
-        values:
-          experimental:
-            kubernetesGateway:
-              enabled: true
-          gateway:
-            enabled: false
-          gatewayClass:
-            enabled: true
-          ports:
-            websecure:
-              exposedPort: 8443
-              nodePort: 31000
-          providers:
-            kubernetesGateway:
-              enabled: true
-              experimentalChannel: true
-          service:
-            spec:
-              clusterIP: "{{ .gatewayServiceClusterIP }}"
-            type: NodePort
       etcdDruid:
         enabled: true
         interval: 1m
@@ -86,17 +54,6 @@ data:
         ocmImageResourceName: image
         targetNamespace: etcd-druid-system
         values: {}
-      traefikCRDs:
-        chart:
-          name: traefik-crds
-        enabled: true
-        interval: 1m
-        name: traefik-crds
-        ocmComponentName: traefik
-        ocmResourceName: crds
-        targetNamespace: default
-        values:
-          gatewayAPI: false
       prometheusOperatorCRDs:
         enabled: false
         interval: 1m
