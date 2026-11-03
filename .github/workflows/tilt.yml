@@ -70,6 +70,15 @@ jobs:
           kind version
           "$(UGET_PRINT_PATH=absolute task tools:tilt)" version
 
+      - name: Install kubectl oidc-login plugin
+        # The account-kubeconfig e2e runs kubectl with the downloaded OIDC kubeconfig.
+        run: |
+          set -euo pipefail
+          ( set -x; cd "$(mktemp -d)" && curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-linux_amd64.tar.gz" && tar zxvf krew-linux_amd64.tar.gz && KREW_ROOT="$HOME/.krew" ./krew-linux_amd64 install krew )
+          echo "$HOME/.krew/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.krew/bin:$PATH"
+          kubectl krew install oidc-login
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '26'
