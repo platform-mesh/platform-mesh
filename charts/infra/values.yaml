@@ -311,7 +311,7 @@ dex:
     # -- Dex image tag
     tag: v2.46.1
     # -- Dex image digest (when set, overrides tag: registry/repository@digest)
-    digest: "sha256:1b4a6eee8550240b0faedad04d984ca939513650e1d9bd423502c67355e3822f"
+    digest: "sha256:65b72ca0f4b0bf6d4ada84ec21da8851782563404ac7b8f926923d27ceced9ab"
   service:
     # -- Dex service name
     name: dex
