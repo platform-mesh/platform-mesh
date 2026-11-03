@@ -9,7 +9,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.cluster.image.digest | string | `""` | PostgreSQL image digest (when set, overrides tag) |
 | cnpg.cluster.image.registry | string | `"ghcr.io"` | PostgreSQL image registry |
 | cnpg.cluster.image.repository | string | `"cloudnative-pg/postgresql"` | PostgreSQL image repository (without registry) |
-| cnpg.cluster.image.tag | string | `"18.6"` | PostgreSQL image tag |
+| cnpg.cluster.image.tag | string | `"18.6-system-trixie"` | PostgreSQL image tag |
 | cnpg.cluster.instances | int | `2` |  |
 | cnpg.cluster.name | string | `"platform-mesh-pg"` |  |
 | cnpg.cluster.postgresql.maxConnections | string | `"200"` |  |
@@ -34,7 +34,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.health.readiness.initialDelaySeconds | int | `0` |  |
 | dex.health.readiness.path | string | `"/dex/healthz"` |  |
 | dex.health.readiness.periodSeconds | int | `10` |  |
-| dex.image.digest | string | `"sha256:1b4a6eee8550240b0faedad04d984ca939513650e1d9bd423502c67355e3822f"` | Dex image digest (when set, overrides tag: registry/repository@digest) |
+| dex.image.digest | string | `"sha256:65b72ca0f4b0bf6d4ada84ec21da8851782563404ac7b8f926923d27ceced9ab"` | Dex image digest (when set, overrides tag: registry/repository@digest) |
 | dex.image.registry | string | `"ghcr.io"` | Dex image registry |
 | dex.image.repository | string | `"dexidp/dex"` | Dex image repository (without registry) |
 | dex.image.tag | string | `"v2.46.1"` | Dex image tag |
