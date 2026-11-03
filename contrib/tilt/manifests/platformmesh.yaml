@@ -62,11 +62,7 @@ data:
         enabled: false
       gatewayApi:
         enabled: false
-      traefik:
-        enabled: false
       etcdDruid:
-        enabled: false
-      traefikCRDs:
         enabled: false
       prometheusOperatorCRDs:
         enabled: false
