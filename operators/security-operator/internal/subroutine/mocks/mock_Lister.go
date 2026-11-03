@@ -33,10 +33,19 @@ func NewMockLister(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockLister {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockLister{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -86,9 +95,9 @@ type MockLister_List_Call struct {
 //   - ctx context.Context
 //   - list client.ObjectList
 //   - opts ...client.ListOption
-func (_e *MockLister_Expecter) List(ctx interface{}, list interface{}, opts ...interface{}) *MockLister_List_Call {
+func (_e *MockLister_Expecter) List(ctx any, list any, opts ...any) *MockLister_List_Call {
 	return &MockLister_List_Call{Call: _e.mock.On("List",
-		append([]interface{}{ctx, list}, opts...)...)}
+		append([]any{ctx, list}, opts...)...)}
 }
 
 func (_c *MockLister_List_Call) Run(run func(ctx context.Context, list client.ObjectList, opts ...client.ListOption)) *MockLister_List_Call {

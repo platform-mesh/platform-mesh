@@ -32,10 +32,19 @@ func NewMockRESTMapper(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockRESTMapper {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockRESTMapper{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -86,7 +95,7 @@ type MockRESTMapper_KindFor_Call struct {
 
 // KindFor is a helper method to define mock.On call
 //   - resource schema.GroupVersionResource
-func (_e *MockRESTMapper_Expecter) KindFor(resource interface{}) *MockRESTMapper_KindFor_Call {
+func (_e *MockRESTMapper_Expecter) KindFor(resource any) *MockRESTMapper_KindFor_Call {
 	return &MockRESTMapper_KindFor_Call{Call: _e.mock.On("KindFor", resource)}
 }
 
@@ -148,7 +157,7 @@ type MockRESTMapper_KindsFor_Call struct {
 
 // KindsFor is a helper method to define mock.On call
 //   - resource schema.GroupVersionResource
-func (_e *MockRESTMapper_Expecter) KindsFor(resource interface{}) *MockRESTMapper_KindsFor_Call {
+func (_e *MockRESTMapper_Expecter) KindsFor(resource any) *MockRESTMapper_KindsFor_Call {
 	return &MockRESTMapper_KindsFor_Call{Call: _e.mock.On("KindsFor", resource)}
 }
 
@@ -217,9 +226,9 @@ type MockRESTMapper_RESTMapping_Call struct {
 // RESTMapping is a helper method to define mock.On call
 //   - gk schema.GroupKind
 //   - versions ...string
-func (_e *MockRESTMapper_Expecter) RESTMapping(gk interface{}, versions ...interface{}) *MockRESTMapper_RESTMapping_Call {
+func (_e *MockRESTMapper_Expecter) RESTMapping(gk any, versions ...any) *MockRESTMapper_RESTMapping_Call {
 	return &MockRESTMapper_RESTMapping_Call{Call: _e.mock.On("RESTMapping",
-		append([]interface{}{gk}, versions...)...)}
+		append([]any{gk}, versions...)...)}
 }
 
 func (_c *MockRESTMapper_RESTMapping_Call) Run(run func(gk schema.GroupKind, versions ...string)) *MockRESTMapper_RESTMapping_Call {
@@ -294,9 +303,9 @@ type MockRESTMapper_RESTMappings_Call struct {
 // RESTMappings is a helper method to define mock.On call
 //   - gk schema.GroupKind
 //   - versions ...string
-func (_e *MockRESTMapper_Expecter) RESTMappings(gk interface{}, versions ...interface{}) *MockRESTMapper_RESTMappings_Call {
+func (_e *MockRESTMapper_Expecter) RESTMappings(gk any, versions ...any) *MockRESTMapper_RESTMappings_Call {
 	return &MockRESTMapper_RESTMappings_Call{Call: _e.mock.On("RESTMappings",
-		append([]interface{}{gk}, versions...)...)}
+		append([]any{gk}, versions...)...)}
 }
 
 func (_c *MockRESTMapper_RESTMappings_Call) Run(run func(gk schema.GroupKind, versions ...string)) *MockRESTMapper_RESTMappings_Call {
@@ -362,7 +371,7 @@ type MockRESTMapper_ResourceFor_Call struct {
 
 // ResourceFor is a helper method to define mock.On call
 //   - input schema.GroupVersionResource
-func (_e *MockRESTMapper_Expecter) ResourceFor(input interface{}) *MockRESTMapper_ResourceFor_Call {
+func (_e *MockRESTMapper_Expecter) ResourceFor(input any) *MockRESTMapper_ResourceFor_Call {
 	return &MockRESTMapper_ResourceFor_Call{Call: _e.mock.On("ResourceFor", input)}
 }
 
@@ -422,7 +431,7 @@ type MockRESTMapper_ResourceSingularizer_Call struct {
 
 // ResourceSingularizer is a helper method to define mock.On call
 //   - resource string
-func (_e *MockRESTMapper_Expecter) ResourceSingularizer(resource interface{}) *MockRESTMapper_ResourceSingularizer_Call {
+func (_e *MockRESTMapper_Expecter) ResourceSingularizer(resource any) *MockRESTMapper_ResourceSingularizer_Call {
 	return &MockRESTMapper_ResourceSingularizer_Call{Call: _e.mock.On("ResourceSingularizer", resource)}
 }
 
@@ -484,7 +493,7 @@ type MockRESTMapper_ResourcesFor_Call struct {
 
 // ResourcesFor is a helper method to define mock.On call
 //   - input schema.GroupVersionResource
-func (_e *MockRESTMapper_Expecter) ResourcesFor(input interface{}) *MockRESTMapper_ResourcesFor_Call {
+func (_e *MockRESTMapper_Expecter) ResourcesFor(input any) *MockRESTMapper_ResourcesFor_Call {
 	return &MockRESTMapper_ResourcesFor_Call{Call: _e.mock.On("ResourcesFor", input)}
 }
 

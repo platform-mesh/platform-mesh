@@ -46,10 +46,19 @@ func NewManager(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *Manager {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &Manager{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -91,7 +100,7 @@ type Manager_Add_Call struct {
 
 // Add is a helper method to define mock.On call
 //   - runnable manager.Runnable
-func (_e *Manager_Expecter) Add(runnable interface{}) *Manager_Add_Call {
+func (_e *Manager_Expecter) Add(runnable any) *Manager_Add_Call {
 	return &Manager_Add_Call{Call: _e.mock.On("Add", runnable)}
 }
 
@@ -143,7 +152,7 @@ type Manager_AddHealthzCheck_Call struct {
 // AddHealthzCheck is a helper method to define mock.On call
 //   - name string
 //   - check healthz.Checker
-func (_e *Manager_Expecter) AddHealthzCheck(name interface{}, check interface{}) *Manager_AddHealthzCheck_Call {
+func (_e *Manager_Expecter) AddHealthzCheck(name any, check any) *Manager_AddHealthzCheck_Call {
 	return &Manager_AddHealthzCheck_Call{Call: _e.mock.On("AddHealthzCheck", name, check)}
 }
 
@@ -200,7 +209,7 @@ type Manager_AddMetricsServerExtraHandler_Call struct {
 // AddMetricsServerExtraHandler is a helper method to define mock.On call
 //   - path string
 //   - handler http.Handler
-func (_e *Manager_Expecter) AddMetricsServerExtraHandler(path interface{}, handler interface{}) *Manager_AddMetricsServerExtraHandler_Call {
+func (_e *Manager_Expecter) AddMetricsServerExtraHandler(path any, handler any) *Manager_AddMetricsServerExtraHandler_Call {
 	return &Manager_AddMetricsServerExtraHandler_Call{Call: _e.mock.On("AddMetricsServerExtraHandler", path, handler)}
 }
 
@@ -257,7 +266,7 @@ type Manager_AddReadyzCheck_Call struct {
 // AddReadyzCheck is a helper method to define mock.On call
 //   - name string
 //   - check healthz.Checker
-func (_e *Manager_Expecter) AddReadyzCheck(name interface{}, check interface{}) *Manager_AddReadyzCheck_Call {
+func (_e *Manager_Expecter) AddReadyzCheck(name any, check any) *Manager_AddReadyzCheck_Call {
 	return &Manager_AddReadyzCheck_Call{Call: _e.mock.On("AddReadyzCheck", name, check)}
 }
 
@@ -635,7 +644,7 @@ type Manager_GetEventRecorder_Call struct {
 
 // GetEventRecorder is a helper method to define mock.On call
 //   - name string
-func (_e *Manager_Expecter) GetEventRecorder(name interface{}) *Manager_GetEventRecorder_Call {
+func (_e *Manager_Expecter) GetEventRecorder(name any) *Manager_GetEventRecorder_Call {
 	return &Manager_GetEventRecorder_Call{Call: _e.mock.On("GetEventRecorder", name)}
 }
 
@@ -652,8 +661,8 @@ func (_c *Manager_GetEventRecorder_Call) Run(run func(name string)) *Manager_Get
 	return _c
 }
 
-func (_c *Manager_GetEventRecorder_Call) Return(v events.EventRecorder) *Manager_GetEventRecorder_Call {
-	_c.Call.Return(v)
+func (_c *Manager_GetEventRecorder_Call) Return(eventRecorder events.EventRecorder) *Manager_GetEventRecorder_Call {
+	_c.Call.Return(eventRecorder)
 	return _c
 }
 
@@ -688,7 +697,7 @@ type Manager_GetEventRecorderFor_Call struct {
 
 // GetEventRecorderFor is a helper method to define mock.On call
 //   - name string
-func (_e *Manager_Expecter) GetEventRecorderFor(name interface{}) *Manager_GetEventRecorderFor_Call {
+func (_e *Manager_Expecter) GetEventRecorderFor(name any) *Manager_GetEventRecorderFor_Call {
 	return &Manager_GetEventRecorderFor_Call{Call: _e.mock.On("GetEventRecorderFor", name)}
 }
 
@@ -1013,7 +1022,7 @@ type Manager_Start_Call struct {
 
 // Start is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Manager_Expecter) Start(ctx interface{}) *Manager_Start_Call {
+func (_e *Manager_Expecter) Start(ctx any) *Manager_Start_Call {
 	return &Manager_Start_Call{Call: _e.mock.On("Start", ctx)}
 }
 

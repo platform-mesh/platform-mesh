@@ -29,4 +29,4 @@ resources:
 images:
   - name: controller
     newName: ghcr.io/platform-mesh/platform-mesh/platform-mesh-deployer
-    newTag: latest
+    newTag: latest@sha256:db905b38e6cbf9ada5709dd90e67f6569786dba7289b131ab2dbc07c88b7c5e7

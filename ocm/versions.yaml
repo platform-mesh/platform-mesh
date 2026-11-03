@@ -43,7 +43,7 @@
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/helm-charts/charts/mirrored/kcp-operator
 KCP_OPERATOR_CHART_VERSION: "0.7.12"
 # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp-operator
-KCP_OPERATOR_IMAGE_VERSION: "v0.8.3"
+KCP_OPERATOR_IMAGE_VERSION: "v0.10.2"
 PM_KCP_OPERATOR_VERSION: "0.0.2"
 
 # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp
@@ -53,7 +53,7 @@ PM_KCP_VERSION: "0.0.5"
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/init-agent
 INIT_AGENT_CHART_VERSION: "0.2.0"
 # renovate: datasource=docker depName=ghcr.io/kcp-dev/init-agent
-INIT_AGENT_IMAGE_VERSION: "v0.2.0"
+INIT_AGENT_IMAGE_VERSION: "v0.4.0"
 PM_INIT_AGENT_VERSION: "0.0.1"
 
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/api-syncagent
@@ -75,21 +75,21 @@ PM_OPENFGA_VERSION: "0.0.2"
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/charts/traefik
 TRAEFIK_CHART_VERSION: "42.1.3"
 # renovate: datasource=docker depName=docker.io/library/traefik
-TRAEFIK_IMAGE_VERSION: "v3.7.16"
+TRAEFIK_IMAGE_VERSION: "v3.7.17"
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/traefik-crds
 TRAEFIK_CRD_VERSION: "1.14.0"
 PM_TRAEFIK_VERSION: "0.1.1"
 
 # chart and images share one version
 # renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
-CERT_MANAGER_VERSION: "v1.20.5"
+CERT_MANAGER_VERSION: "v1.21.3"
 PM_CERT_MANAGER_VERSION: "0.0.2"
 
 # --- storage ------------------------------------------------------------------
 # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/charts/cloudnative-pg
-CNPG_OPERATOR_CHART_VERSION: "0.28.0"
+CNPG_OPERATOR_CHART_VERSION: "0.29.1"
 # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/cloudnative-pg
-CNPG_OPERATOR_IMAGE_VERSION: "1.29.0"
+CNPG_OPERATOR_IMAGE_VERSION: "1.30.1"
 PM_CNPG_OPERATOR_VERSION: "0.0.1"
 
 # Published as an OCM component by Gardener; copied into our registry as-is.

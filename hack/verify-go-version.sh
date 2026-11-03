@@ -125,8 +125,8 @@ if [[ $errors -gt 0 ]]; then
     echo "The 'go' directive should reflect the minimum required version, not the installed version."
     echo
     echo "Run 'hack/verify-go-version.sh --fix' to automatically fix these issues."
+    exit 1
   fi
-  exit 1
 fi
 
 echo "All go.mod files have correct minimum Go versions."

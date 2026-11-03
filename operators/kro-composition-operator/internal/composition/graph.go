@@ -35,8 +35,8 @@ const (
 )
 
 // RGDConfig is shared so compile and reconcile use the same limits.
-func RGDConfig() graph.RGDConfig {
-	return graph.RGDConfig{
+func RGDConfig() graph.Config {
+	return graph.Config{
 		MaxCollectionSize:          maxCollectionSize,
 		MaxCollectionDimensionSize: maxCollectionDimensionSize,
 	}
