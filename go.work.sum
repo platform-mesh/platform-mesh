@@ -753,6 +753,8 @@ github.com/kcp-dev/code-generator/v3 v3.33.1 h1:YMVgay7BJTs50tUqUXTjrSRkAxRk6ZNv
 github.com/kcp-dev/code-generator/v3 v3.33.1/go.mod h1:1OaW64ALeGKyw8G8RRv2vHsXDPgOoDuiNBG0RW6dWNI=
 github.com/kcp-dev/code-generator/v3 v3.33.4 h1:0nw0O+Yob+qiQP/xLwYgGzZlfL4pgoQlqyvfWtWxxZc=
 github.com/kcp-dev/code-generator/v3 v3.33.4/go.mod h1:1OaW64ALeGKyw8G8RRv2vHsXDPgOoDuiNBG0RW6dWNI=
+github.com/kcp-dev/code-generator/v3 v3.33.5 h1:OpvQO8DURPWa5yEc6JUNqmRcC6k3YD4E7CKTOg8/nYo=
+github.com/kcp-dev/code-generator/v3 v3.33.5/go.mod h1:1OaW64ALeGKyw8G8RRv2vHsXDPgOoDuiNBG0RW6dWNI=
 github.com/kcp-dev/embeddedetcd v1.1.1-0.20260402110232-2cc5c5cce35e h1:nOcf6Id7wozcS2pwoNNmuKqIozAAn/K+0wu3z7xGxE0=
 github.com/kcp-dev/embeddedetcd v1.1.1-0.20260402110232-2cc5c5cce35e/go.mod h1:bv5D/GGLuILI1Y5tZzbBvzOjkdixKS9lM+bbN1vWZTE=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/cli-runtime v0.0.0-20260602065202-e006560fc76a h1:NtJ9xqcyfYM4c/smHzN0butj7POt/9QfYMdleAWO4xk=
@@ -763,8 +765,6 @@ github.com/kcp-dev/kubernetes/staging/src/k8s.io/cri-streaming v0.0.0-2026060206
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/cri-streaming v0.0.0-20260602065202-e006560fc76a/go.mod h1:x5m0ddgRzUc5Aivtq48/etZq2ciqvu/tMsiBu2uRfII=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/sample-apiserver v0.0.0-20260602065202-e006560fc76a h1:2IQv3XqczuNo3RkhEsrpgFcpmRAyjC8rugvrFd1J1Oo=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/sample-apiserver v0.0.0-20260602065202-e006560fc76a/go.mod h1:8blR+03YTwY2VBKLxBKICaH/vAeGxkRHbSwSa05QRfc=
-github.com/kcp-dev/multicluster-provider v0.9.0 h1:LpjZaQH7c2HrVADtm1OtuptHj8hZAGsor8T5VC/lvTM=
-github.com/kcp-dev/multicluster-provider v0.9.0/go.mod h1:DHaeprSRpuSGgzW0QJyY67IaKiCtpm2WtsT8n5Ird3o=
 github.com/kcp-dev/sdk v0.32.0/go.mod h1:H6SCvNS25sReJ61YDy6OPEmngTUFP7/CY0fRM576FM4=
 github.com/kisielk/errcheck v1.5.0 h1:e8esj/e4R+SAOwFwN+n3zr0nYeCyeweozKfO23MvHzY=
 github.com/kisielk/gotool v1.0.0 h1:AV2c/EiW3KqPNT9ZKl07ehoAGi4C5/01Cfbblndcapg=
