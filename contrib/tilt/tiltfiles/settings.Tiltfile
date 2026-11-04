@@ -25,11 +25,16 @@ config.define_string(
     "httpbin-namespace", usage="HTTPBin provider runtime namespace (default {})".format(DEFAULT_HTTPBIN_NAMESPACE)
 )
 config.define_string("cluster-id", usage="dashed node IP used in hostnames (default: InternalIP of the first node)")
+config.define_bool(
+    "frontend-cors",
+    usage="allow browser calls from a frontend run outside the cluster (see installation/frontend-dev-cors-values.yaml)",
+)
 cfg = config.parse()
 
 CONTEXT = cfg.get("context", DEFAULT_CONTEXT)
 NAMESPACE = "platform-mesh-system"
 HTTPBIN_NAMESPACE = cfg.get("httpbin-namespace", DEFAULT_HTTPBIN_NAMESPACE)
+FRONTEND_CORS = cfg.get("frontend-cors", False)
 KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
 GO_DEPS = ["apis", "subroutines", "golang-commons"]
 VERSIONS = read_yaml(os.path.join(REPO, "ocm/versions.yaml"))

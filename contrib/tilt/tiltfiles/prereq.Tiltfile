@@ -16,8 +16,8 @@
 # cnpg, keycloak-operator, etcd-druid, OCM CRDs.
 
 load("ext://namespace", "namespace_create")
-load("../helpers.py", "chart", "kind_in", "named", "select_objects", "suffixed")
-load("./settings.Tiltfile", "BASE_DOMAIN", "KUBECTL", "NAMESPACE", "PORT")
+load("../helpers.py", "REPO", "chart", "kind_in", "named", "select_objects", "suffixed")
+load("./settings.Tiltfile", "BASE_DOMAIN", "FRONTEND_CORS", "KUBECTL", "NAMESPACE", "PORT")
 
 namespace_create(NAMESPACE)
 k8s_resource(new_name="namespace", objects=[NAMESPACE + ":namespace"], labels=["prereq"])
@@ -25,6 +25,8 @@ k8s_resource(new_name="namespace", objects=[NAMESPACE + ":namespace"], labels=["
 prereq = chart(
     "platform-mesh-prerequisites",
     NAMESPACE,
+    # Opt-in Traefik CORS middleware for a frontend run outside the cluster.
+    values=[os.path.join(REPO, "installation/frontend-dev-cors-values.yaml")] if FRONTEND_CORS else [],
     set=[
         "flux2.enabled=false",
         "ocm-k8s-toolkit.enabled=false",

@@ -94,7 +94,8 @@ tasks:
     cmds:
       - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
       - contrib/tilt/hack/print-urls.sh
-      - "{{.TILT}} up -f ./contrib/tilt/Tiltfile"
+      # Arguments after `--` go to the Tiltfile, e.g. task tilt:up -- --frontend-cors
+      - "{{.TILT}} up -f ./contrib/tilt/Tiltfile -- {{.CLI_ARGS}}"
 
   tilt:ci:
     desc: Bring up the Tilt development environment and wait for readiness.
@@ -104,6 +105,34 @@ tasks:
     cmds:
       - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
       - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile {{.CLI_ARGS}}"
+
+  tilt:help:
+    desc: Print the Tilt options, URLs and the environment for running the portal locally.
+    silent: true
+    cmds:
+      - |
+        cat <<'EOF'
+        Tilt development environment
+
+          task tilt:up                         start kind and Tilt
+          task tilt:up -- --frontend-cors      same, and allow browser calls from a frontend
+                                               run outside the cluster (localhost, *.portal.localhost)
+          task tilt:ci                         start and wait until everything is ready
+          task tilt:e2e                        run the portal e2e suite against Tilt
+          . contrib/tilt/env.sh                export the URLs and credentials for tests
+
+        Change options of a running Tilt without restarting it:
+
+          tilt args -- --frontend-cors
+
+        Tiltfile options (after `--`): --frontend-cors, --context, --cluster-id, --httpbin-namespace
+        EOF
+      - contrib/tilt/hack/print-urls.sh
+      - |
+        echo "Running the portal outside the cluster: start Tilt with --frontend-cors, then"
+        echo "use this environment (save it as .env, or source it):"
+        echo
+        contrib/tilt/hack/print-frontend-env.sh || echo "(not available until Tilt has deployed the portal)"
 
   tilt:e2e:
     desc: Run the portal e2e suite against the Tilt environment.
