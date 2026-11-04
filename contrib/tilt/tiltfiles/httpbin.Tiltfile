@@ -93,7 +93,7 @@ local_resource(
     "httpbin-provider-bootstrap",
     labels=["e2e"],
     allow_parallel=True,
-    resource_deps=["kcp-ready", "export-kcp-admin-kubeconfig"],
+    resource_deps=["kcp-ready", "kcp-gateway-ready", "export-kcp-admin-kubeconfig"],
     deps=[os.path.join(TILT_DIR, p) for p in ["manifests/httpbin-provider", "manifests/httpbin-workspace.yaml"]] + [BOOTSTRAP],
     env={"KCP_URL": KCP_URL},
     dir=TILT_DIR,

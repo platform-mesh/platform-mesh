@@ -16,11 +16,10 @@
 # (charts the kind-profile marks external) and the infra chart (kcp
 # RootShard/FrontProxy, postgres, keycloak, gateway).
 
-load("../helpers.py", "kind_in", "profile_chart", "profile_values_file", "remote_chart", "select_objects", "write_yaml")
+load("../helpers.py", "TILT_DIR", "kind_in", "profile_chart", "profile_values_file", "remote_chart", "select_objects", "write_yaml")
 load(
     "./settings.Tiltfile",
     "BASE_DOMAIN",
-    "BASE_DOMAIN_PORT",
     "KUBECTL",
     "NAMESPACE",
     "PORT",
@@ -87,6 +86,9 @@ k8s_resource(
 # Kubernetes would otherwise copy them into the requests.
 NO_REQUESTS = {"requests": {"cpu": "1m", "memory": "1Mi"}}
 
+KCP_ROOT_HOSTNAME = "root.kcp." + BASE_DOMAIN
+KCP_TRITON_HOSTNAME = "triton.kcp." + BASE_DOMAIN
+
 infra = profile_chart(
     "infra",
     NAMESPACE,
@@ -94,8 +96,8 @@ infra = profile_chart(
     overrides={
         "kcp": {
             "external": {"port": PORT},
-            "rootShard": {"shardBaseURL": "https://root.kcp.{}/".format(BASE_DOMAIN_PORT), "resources": NO_REQUESTS},
-            "shards": [{"name": "triton", "hostname": "triton.kcp." + BASE_DOMAIN, "spec": {"resources": NO_REQUESTS}}],
+            "rootShard": {"shardBaseURL": "https://{}:{}/".format(KCP_ROOT_HOSTNAME, PORT), "resources": NO_REQUESTS},
+            "shards": [{"name": "triton", "hostname": KCP_TRITON_HOSTNAME, "spec": {"resources": NO_REQUESTS}}],
             # kcp-operator defaults both to 2; one is enough on a single node.
             "proxy": {"replicas": 1},
             "cacheServer": {"replicas": 1, "resources": NO_REQUESTS},
@@ -126,6 +128,7 @@ local_resource(
     allow_parallel=True,
     cmd=KUBECTL + " wait rootshard/root frontproxy/frontproxy --for=condition=Available --timeout=15m",
 )
+
 # Second shard, exercised by the e2e tests only.
 k8s_resource(
     new_name="kcp-triton", objects=["triton:shard"], resource_deps=["kcp"], labels=["e2e"], pod_readiness="ignore"
@@ -139,6 +142,28 @@ local_resource(
     + " wait shards.operator.kcp.io/triton --for=create --timeout=5m && "
     + KUBECTL
     + " wait shards.operator.kcp.io/triton --for=condition=Available --timeout=15m",
+)
+
+# wait for kcp components to report being healthy and ready before proceeding
+# this handles two cases:
+# 1. kcp needing time to setup and sync
+# 2. ingress manager needing time to program the gateway
+KCP_GATEWAY_HOSTNAMES = ["kcp.api." + BASE_DOMAIN, KCP_ROOT_HOSTNAME, KCP_TRITON_HOSTNAME]
+KCP_GATEWAY_ATTEMPTS = 60
+KCP_GATEWAY_RETRY_SECONDS = 5
+local_resource(
+    "kcp-gateway-ready",
+    labels=["infra"],
+    resource_deps=["kcp-ready", "gateway", "export-kcp-ca"],
+    allow_parallel=True,
+    dir=TILT_DIR,
+    cmd=(
+        "for url in {urls}; do curl -fsS --cacert .secret/kcp-root-ca.crt --retry {attempts} --retry-delay {retry} --retry-all-errors \"$url\" || exit 1; done"
+    ).format(
+        urls=" ".join(["https://{}:{}/readyz".format(h, PORT) for h in KCP_GATEWAY_HOSTNAMES]),
+        attempts=KCP_GATEWAY_ATTEMPTS,
+        retry=KCP_GATEWAY_RETRY_SECONDS,
+    ),
 )
 
 # The cnpg Deployment is Ready before its webhook server listens; a server-side
