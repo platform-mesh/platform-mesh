@@ -69,10 +69,15 @@ func legacyTypeName(group, plural, singular string) (string, bool) {
 // the current one.
 func legacyRename(group, plural, singular string) (string, bool) {
 	legacy, ok := legacyTypeName(group, plural, singular)
-	if !ok || legacy == fgautil.ConvertToTypeName(group, singular) {
+	if !ok || !isShortenedFrom(legacy, fgautil.ConvertToTypeName(group, singular)) {
 		return "", false
 	}
 	return legacy, true
+}
+
+// isShortenedFrom reports whether legacy is typeName cut from the front.
+func isShortenedFrom(legacy, typeName string) bool {
+	return len(legacy) < len(typeName) && strings.HasSuffix(typeName, legacy)
 }
 
 // typeRenames maps a legacy type name to the current names it was derived
@@ -106,6 +111,9 @@ func (r typeRenames) addAuthorizationModel(model pmcorev1alpha1.AuthorizationMod
 	}
 	if len(types) != 1 {
 		return fmt.Errorf("authorization model %s has annotation %s but defines %d types", model.Name, legacyTypeAnnotation, len(types))
+	}
+	if !isShortenedFrom(legacy, types[0]) {
+		return fmt.Errorf("authorization model %s: annotation %s %q is not a shortened form of type %s", model.Name, legacyTypeAnnotation, legacy, types[0])
 	}
 
 	r.add(legacy, types[0])

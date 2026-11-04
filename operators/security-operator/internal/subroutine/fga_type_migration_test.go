@@ -39,6 +39,7 @@ import (
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/security-operator/pkg/config"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
@@ -417,6 +418,25 @@ func TestMigrateRenamedTypes(t *testing.T) {
 		assert.NotContains(t, e.currentTypes(), crbOld)
 	})
 
+	t.Run("a bad annotation skips only the rename of its own model", func(t *testing.T) {
+		e := newMigrationEnv(t, grantsOnOldTypes)
+		e.models[0].Annotations[legacyTypeAnnotation] = "_other_type"
+
+		require.NoError(t, e.process(e.fga))
+		assert.Subset(t, e.tuples(), []string{crbNewObj + "#owner@" + crbNewRole + "#assignee", crbNewRole + "#assignee@user:bob"})
+		assert.Subset(t, e.tuples(), []string{policyOldRole + "#assignee@user:alice"}, "not moved")
+		assert.Contains(t, e.currentTypes(), policyNew)
+		condition := meta.FindStatusCondition(e.store.Status.Conditions, legacyTypeAnnotationCondition)
+		require.NotNil(t, condition)
+		assert.Equal(t, metav1.ConditionFalse, condition.Status)
+		assert.Contains(t, condition.Message, `annotation core.platform-mesh.io/legacy-fga-type "_other_type" is not a shortened form`)
+
+		e.models[0].Annotations[legacyTypeAnnotation] = policyOld
+		require.NoError(t, e.process(e.fga))
+		assert.Nil(t, meta.FindStatusCondition(e.store.Status.Conditions, legacyTypeAnnotationCondition))
+		assert.Subset(t, e.tuples(), []string{policyOldRole + "#assignee@user:alice"}, "the old type already left the model")
+	})
+
 	t.Run("tuples of a type shared by two APIs fail visibly", func(t *testing.T) {
 		e := newMigrationEnv(t, grantsOnOldTypes)
 		bravo := e.models[0].DeepCopy()
@@ -554,6 +574,20 @@ func TestTypeRenamesFromAuthorizationModel(t *testing.T) {
 	renames = typeRenames{}
 	require.NoError(t, renames.addAuthorizationModel(model))
 	assert.Empty(t, renames)
+
+	// Old names were cut from the front, anything else would redirect the
+	// tuples of an unrelated type.
+	for _, legacy := range []string{
+		"alpha_inventory_platform-mesh_example_io_widget",
+		"bravo_inventory_platform-mesh_example_io_widget",
+		"rbac_authorization_k8s_io_clusterrolebinding",
+		"_inventory_platform-mesh_example_io",
+	} {
+		model.Annotations = map[string]string{legacyTypeAnnotation: legacy}
+		renames = typeRenames{}
+		assert.ErrorContains(t, renames.addAuthorizationModel(model), "is not a shortened form of type", legacy)
+		assert.Empty(t, renames)
+	}
 }
 
 func TestRenameKey(t *testing.T) {
