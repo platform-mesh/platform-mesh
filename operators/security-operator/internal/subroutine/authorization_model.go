@@ -36,6 +36,7 @@ import (
 	"go.platform-mesh.io/subroutines"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
@@ -46,7 +47,8 @@ import (
 )
 
 const (
-	schemaVersion = "1.2"
+	schemaVersion                 = "1.2"
+	legacyTypeAnnotationCondition = "LegacyTypeAnnotationsValid"
 )
 
 var (
@@ -146,6 +148,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 	}
 
 	renames := typeRenames{}
+	var annotationErrs []string
 	moduleFiles := []language.ModuleFile{{
 		Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(store)),
 		Contents: store.Spec.CoreModule,
@@ -156,9 +159,11 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 			Contents: module.Spec.Model,
 		})
 		if err := renames.addAuthorizationModel(module); err != nil {
-			return subroutines.OK(), err
+			log.Error().Err(err).Msg("ignoring legacy FGA type annotation")
+			annotationErrs = append(annotationErrs, err.Error())
 		}
 	}
+	setLegacyTypeAnnotationCondition(store, annotationErrs)
 
 	if store.Name != "orgs" {
 		cfg := rest.CopyConfig(a.mgr.GetLocalManager().GetConfig())
@@ -250,6 +255,22 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 	store.Status.AuthorizationModelID = res.AuthorizationModelId
 
 	return subroutines.OK(), nil
+}
+
+// setLegacyTypeAnnotationCondition reports the legacy type annotations the
+// store ignored. Only the modules carrying them skip the type migration.
+func setLegacyTypeAnnotationCondition(store *pmcorev1alpha1.Store, errs []string) {
+	if len(errs) == 0 {
+		meta.RemoveStatusCondition(&store.Status.Conditions, legacyTypeAnnotationCondition)
+		return
+	}
+	meta.SetStatusCondition(&store.Status.Conditions, metav1.Condition{
+		Type:               legacyTypeAnnotationCondition,
+		Status:             metav1.ConditionFalse,
+		ObservedGeneration: store.Generation,
+		Reason:             "InvalidAnnotation",
+		Message:            "tuples of these models are not migrated: " + strings.Join(errs, "; "),
+	})
 }
 
 func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template, renames typeRenames) (bytes.Buffer, error) {
