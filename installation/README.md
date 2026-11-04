@@ -35,7 +35,7 @@ Platform Mesh requires the following cluster components at the listed versions:
 | cert-manager | v1.20.5 |
 | Gateway API CRDs | 1.5.1 |
 | Traefik | 42.1.3 |
-| Traefik CRDs | 1.14.0 |
+| Traefik CRDs | 1.18.0 |
 | CloudNativePG | 0.28.0 |
 | Keycloak operator | 0.10.0 |
 | etcd-druid | v0.39.2 |
@@ -292,8 +292,9 @@ your own controller:
 1. Install your Gateway API controller through your own tooling and let it register
    a `GatewayClass`. Install it instead of enabling Traefik — skip the second
    prerequisites pass (`--set traefik.enabled=true`). The Gateway API CRDs still
-   come from the `gateway-api-crds` chart (prerequisites pass 1) regardless of
-   controller.
+   come from prerequisites pass 1 regardless of controller; they are bundled in
+   Traefik's CRD chart, add `--set traefik-crds.traefik=false` to skip
+   Traefik's own CRDs.
 2. Point Platform Mesh at that class when installing the operator (step 3):
    `--set gateway.className=<your-gatewayclass>`.
 3. For Kind, configure your gateway controller's NodePort Service to use port

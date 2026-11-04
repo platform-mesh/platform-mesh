@@ -34,10 +34,13 @@ traefik:
       experimentalChannel: true
 traefik-crds:
   enabled: true
-  # Gateway API CRDs are installed by the dedicated gateway-api-crds dependency.
-  gatewayAPI: false
-gateway-api-crds:
-  enabled: true
+  # Traefik's own CRDs (Middleware, ...). Set to false when not using Traefik.
+  traefik: true
+  # Gateway API CRDs (experimental channel, needed for TLSRoute). The upstream
+  # Gateway API project publishes no Helm chart; Traefik's CRD chart bundles
+  # the upstream release unmodified. Set to false when the cluster already
+  # provides the Gateway API CRDs.
+  gatewayAPIExperimental: true
 cnpg:
   enabled: true
 keycloak-operator:

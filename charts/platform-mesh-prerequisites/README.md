@@ -14,7 +14,6 @@ Optional infrastructure prerequisites for Platform Mesh
 | flux2.enabled | bool | `true` |  |
 | flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=10"` |  |
 | flux2.policies.create | bool | `false` |  |
-| gateway-api-crds.enabled | bool | `true` |  |
 | keycloak-operator.enabled | bool | `true` |  |
 | localCertificates.caSecretName | string | `"domain-certificate-ca"` |  |
 | localCertificates.certificateSecretName | string | `"domain-certificate"` |  |
@@ -23,7 +22,8 @@ Optional infrastructure prerequisites for Platform Mesh
 | localCertificates.namespace | string | `"platform-mesh-system"` |  |
 | ocm-k8s-toolkit.enabled | bool | `true` |  |
 | traefik-crds.enabled | bool | `true` |  |
-| traefik-crds.gatewayAPI | bool | `false` |  |
+| traefik-crds.gatewayAPIExperimental | bool | `true` |  |
+| traefik-crds.traefik | bool | `true` |  |
 | traefik.enabled | bool | `false` |  |
 | traefik.gatewayClass.enabled | bool | `true` |  |
 | traefik.providers.kubernetesGateway.enabled | bool | `true` |  |
@@ -57,14 +57,13 @@ Optional infrastructure prerequisites for Platform Mesh
 
 | Repository | Name | Version |
 |------------|------|---------|
-| file://../gateway-api-crds | gateway-api-crds | 0.0.0 |
 | file://../keycloak-operator | keycloak-operator | 0.0.0 |
 | oci://europe-docker.pkg.dev/gardener-project/releases/charts/gardener | etcd-druid | v0.39.2 |
 | oci://ghcr.io/cloudnative-pg/charts | cloudnative-pg | 0.29.1 |
 | oci://ghcr.io/fluxcd-community/charts | flux2 | 2.17.2 |
 | oci://ghcr.io/open-component-model/kubernetes/controller | ocm-k8s-toolkit(chart) | 0.17.0 |
-| oci://ghcr.io/platform-mesh/ocm/charts | traefik-crds | 1.14.0 |
 | oci://ghcr.io/traefik/helm | traefik | 42.2.0 |
+| oci://ghcr.io/traefik/helm | traefik-crds | 1.18.0 |
 | oci://quay.io/jetstack/charts | cert-manager | v1.21.3 |
 
 ## Values
@@ -79,7 +78,6 @@ Optional infrastructure prerequisites for Platform Mesh
 | flux2.enabled | bool | `true` |  |
 | flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=10"` |  |
 | flux2.policies.create | bool | `false` |  |
-| gateway-api-crds.enabled | bool | `true` |  |
 | keycloak-operator.enabled | bool | `true` |  |
 | localCertificates.caSecretName | string | `"domain-certificate-ca"` |  |
 | localCertificates.certificateSecretName | string | `"domain-certificate"` |  |
@@ -88,7 +86,8 @@ Optional infrastructure prerequisites for Platform Mesh
 | localCertificates.namespace | string | `"platform-mesh-system"` |  |
 | ocm-k8s-toolkit.enabled | bool | `true` |  |
 | traefik-crds.enabled | bool | `true` |  |
-| traefik-crds.gatewayAPI | bool | `false` |  |
+| traefik-crds.gatewayAPIExperimental | bool | `true` |  |
+| traefik-crds.traefik | bool | `true` |  |
 | traefik.enabled | bool | `false` |  |
 | traefik.gatewayClass.enabled | bool | `true` |  |
 | traefik.providers.kubernetesGateway.enabled | bool | `true` |  |

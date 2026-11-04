@@ -1,0 +1,17 @@
+{{- /*
+Fails rendering when values removed from the chart are still set, so helm
+install/upgrade/template stop before anything is applied to the cluster.
+*/}}
+{{- with index .Values "gateway-api-crds" }}
+{{- fail `
+
+gateway-api-crds was removed: the Gateway API CRDs now come from Traefik's
+public CRD chart (traefik-crds), which bundles the upstream release unmodified.
+
+To fix it, drop gateway-api-crds from your values. To skip the Gateway API CRDs
+because the cluster already provides them, set instead:
+
+  traefik-crds:
+    gatewayAPIExperimental: false
+` }}
+{{- end }}

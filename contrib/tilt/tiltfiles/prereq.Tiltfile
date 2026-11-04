@@ -150,7 +150,6 @@ ocm_crds = chart(
             "flux2",
             "ocm-k8s-toolkit",
             "cert-manager",
-            "gateway-api-crds",
             "traefik",
             "traefik-crds",
             "cnpg",

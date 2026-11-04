@@ -42,7 +42,7 @@ components:
         version: ${TRAEFIK_CRD_VERSION}
         access:
           type: ociArtifact
-          imageReference: ghcr.io/platform-mesh/ocm/charts/traefik-crds:${TRAEFIK_CRD_VERSION}
+          imageReference: ghcr.io/traefik/helm/traefik-crds:${TRAEFIK_CRD_VERSION}
       - name: image
         type: ociImage
         relation: local
