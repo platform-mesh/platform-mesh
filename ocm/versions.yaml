@@ -59,8 +59,8 @@ PM_INIT_AGENT_VERSION: "0.1.0"
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/api-syncagent
 API_SYNCAGENT_CHART_VERSION: "0.6.1"
 # renovate: datasource=docker depName=ghcr.io/kcp-dev/api-syncagent
-API_SYNCAGENT_IMAGE_VERSION: "v0.7.0"
-API_SYNCAGENT_COMPONENT_VERSION: "1.0.0"
+API_SYNCAGENT_IMAGE_VERSION: "v0.8.0"
+API_SYNCAGENT_COMPONENT_VERSION: "1.1.0"
 
 # --- auth ---------------------------------------------------------------------
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/openfga
