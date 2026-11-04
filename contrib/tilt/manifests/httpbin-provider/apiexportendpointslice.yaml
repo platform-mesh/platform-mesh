@@ -18,4 +18,5 @@ metadata:
   name: orchestrate.platform-mesh.io
 spec:
   export:
+    path: root:providers:httpbin-provider
     name: orchestrate.platform-mesh.io
