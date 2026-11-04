@@ -93,6 +93,7 @@ tasks:
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
       - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - contrib/tilt/hack/print-urls.sh
       - "{{.TILT}} up -f ./contrib/tilt/Tiltfile"
 
   tilt:ci:
