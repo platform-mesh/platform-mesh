@@ -109,6 +109,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Single-node kind: the shards compete for CPU, workspace provisioning is slower.
           ORG_READY_TIMEOUT_SECONDS: "600"
+          ACCOUNT_READY_TIMEOUT_SECONDS: "600"
         run: task tilt:e2e
 
       - name: Dump cluster diagnostics
