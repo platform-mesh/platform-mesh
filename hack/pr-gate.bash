@@ -72,9 +72,9 @@ relevant_checks() {
     fi | filter_checks
 }
 
+# the predicates read the {name, bucket} stream from stdin
 pending_checks() {
-    relevant_checks \
-        | jq 'select(.bucket as $val | ["pass", "skipping", "fail"] | index($val) | not)'
+    jq 'select(.bucket as $val | ["pass", "skipping", "fail"] | index($val) | not)'
 }
 
 are_checks_pending() {
@@ -82,7 +82,7 @@ are_checks_pending() {
 }
 
 failed_checks() {
-    relevant_checks | jq 'select(.bucket == "fail")'
+    jq 'select(.bucket == "fail")'
 }
 
 are_any_failed() {
@@ -90,11 +90,12 @@ are_any_failed() {
 }
 
 while true; do
-    if are_any_failed; then
+    checks="$(relevant_checks)"
+    if are_any_failed <<< "$checks"; then
         echo Some jobs failed, reporting failure
         exit 1
     fi
-    if are_checks_pending; then
+    if are_checks_pending <<< "$checks"; then
         echo Some jobs are still running, sleeping
         sleep 1
         continue
@@ -102,9 +103,4 @@ while true; do
     break
 done
 
-echo All jobs finished, checking for failures
-if are_any_failed; then
-    echo Some jobs failed, reporting failure
-    exit 1
-fi
 echo No jobs failed, success!
