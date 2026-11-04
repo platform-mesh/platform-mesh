@@ -79,7 +79,7 @@ func TestProcess(t *testing.T) {
 			expectRequeue: true,
 		},
 		{
-			name: "error when workspace not found",
+			name: "requeue when workspace not found yet",
 			obj: &pmcorev1alpha1.Account{
 				ObjectMeta: metav1.ObjectMeta{Name: "test"},
 			},
@@ -88,7 +88,7 @@ func TestProcess(t *testing.T) {
 					Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(apierrors.NewNotFound(schema.GroupResource{}, "test"))
 			},
-			expectError: true,
+			expectRequeue: true,
 		},
 		{
 			name: "error on get workspace failure",

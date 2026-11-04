@@ -27,6 +27,7 @@ import (
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/subroutines"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/workqueue"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -78,6 +79,12 @@ func (r *WorkspaceReadySubroutine) Process(ctx context.Context, obj ctrlruntimec
 
 	ws := &kcptenancyv1alpha1.Workspace{}
 	if err := clusterClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: instance.Name}, ws); err != nil {
+		// workspace subroutine creates the workspace in the same
+		// reconcile, a busy informer will lag behind.
+		// hence requeue instead of erroring.
+		if apierrors.IsNotFound(err) {
+			return subroutines.StopWithRequeue(r.limiter.When(instance), "Workspace not found yet"), nil
+		}
 		return subroutines.OK(), fmt.Errorf("getting Account's Workspace: %w", err)
 	}
 
