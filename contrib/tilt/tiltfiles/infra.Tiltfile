@@ -115,7 +115,7 @@ k8s_resource(
     objects=select_objects(
         infra, kind_in(["FrontProxy", "CacheServer", "Etcd", "Kubeconfig", "Issuer", "Certificate"])
     ),
-    resource_deps=["kcp-operator", "etcd-druid", "domain-certificate"],
+    resource_deps=["kcp-operator", "etcd-druid", "domain-certificate-ready"],
     labels=["infra"],
 )
 k8s_resource(
@@ -194,7 +194,7 @@ k8s_resource(
         infra,
         lambda o: o["kind"] == "Keycloak" or (o["kind"] == "Secret" and o["metadata"]["name"].startswith("keycloak-")),
     ),
-    resource_deps=["keycloak-operator", "postgres", "domain-certificate"],
+    resource_deps=["keycloak-operator", "postgres", "domain-certificate-ready"],
     labels=["infra"],
     extra_pod_selectors=[{"app": "keycloak"}],
     pod_readiness="wait",
@@ -202,6 +202,6 @@ k8s_resource(
 k8s_resource(
     new_name="gateway",
     objects=select_objects(infra, kind_in(["Gateway", "HTTPRoute", "TLSRoute"])),
-    resource_deps=["traefik-gateway", "domain-certificate"],
+    resource_deps=["traefik-gateway", "domain-certificate-ready"],
     labels=["infra"],
 )

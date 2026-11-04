@@ -22,12 +22,12 @@ EXPORT_ENV = {"KUBE_CONTEXT": CONTEXT, "NAMESPACE": NAMESPACE}
 local_resource(
     "export-ca",
     labels=["dev"],
-    resource_deps=["domain-certificate"],
+    resource_deps=["domain-certificate-ready"],
     allow_parallel=True,
     deps=[EXPORT],
     env=EXPORT_ENV,
     dir=TILT_DIR,
-    cmd=[EXPORT, "domain-certificate", "ca.crt", ".secret/ca.crt", "certificate/platform-mesh-gateway"],
+    cmd=[EXPORT, "domain-certificate", "ca.crt", ".secret/ca.crt"],
 )
 local_resource(
     "export-kcp-ca",

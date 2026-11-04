@@ -1294,3 +1294,78 @@ func TestHelperFunctions(t *testing.T) {
 	assert.Nil(t, finalizerErr)
 	assert.Equal(t, subroutines.OK(), res)
 }
+
+func TestProcessRefreshesStaleRegistrationClientURI(t *testing.T) {
+	mux := http.NewServeMux()
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	configureOIDCProvider(t, mux, srv.URL)
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, srv.Client())
+
+	mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	})
+	mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]map[string]any{{"clientId": "existing-client-id", "name": "test-realm"}})
+	})
+	updated := false
+	mux.HandleFunc("PUT /realms/test-realm/clients-registrations/openid-connect/existing-client-id", func(w http.ResponseWriter, r *http.Request) {
+		updated = true
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"client_id":                 "existing-client-id",
+			"client_secret":             "existing-secret",
+			"registration_access_token": "updated-token",
+			// Keycloak answers with its own public hostname.
+			"registration_client_uri": "https://keycloak.public.example/realms/test-realm/clients-registrations/openid-connect/existing-client-id",
+		})
+	})
+
+	secretRef := corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"}
+	idpObj := &pmcorev1alpha1.IdentityProviderConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
+		Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
+			Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+				ClientName:   "test-realm",
+				ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+				RedirectURIs: []string{"https://test.example.com/*"},
+				SecretRef:    secretRef,
+			}},
+		},
+		Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
+			ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				"test-realm": {
+					ClientID: "existing-client-id",
+					// Issued under a Keycloak base URL that is no longer configured.
+					RegistrationClientURI: "https://stale.invalid/keycloak/realms/test-realm/clients-registrations/openid-connect/existing-client-id",
+					SecretRef:             secretRef,
+				},
+			},
+		},
+	}
+
+	orgsClient := mocks.NewMockClient(t)
+	orgsClient.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+	orgsClient.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Maybe()
+	orgsClient.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1.Secret")).Run(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) {
+		obj.(*corev1.Secret).Data = map[string][]byte{"registration_access_token": []byte("existing-registration-token")}
+	}).Return(nil).Maybe()
+
+	mgr, _, kcpClient := setupManagerAndCluster(t, orgsClient, idpObj.DeepCopy())
+
+	s, err := idp.New(ctx, getTestConfig(nil, srv.URL), mgr, iclient.NewManagerKCPClientGetter(mgr, nil))
+	assert.NoError(t, err)
+
+	_, opErr := s.Process(testlogger.New().WithContext(ctx), idpObj)
+	assert.Nil(t, opErr)
+	assert.True(t, updated, "client update must go to the configured Keycloak base URL")
+
+	got := &pmcorev1alpha1.IdentityProviderConfiguration{}
+	assert.NoError(t, kcpClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "test-realm"}, got))
+	assert.Equal(t,
+		srv.URL+"/realms/test-realm/clients-registrations/openid-connect/existing-client-id",
+		got.Status.ManagedClients["test-realm"].RegistrationClientURI,
+	)
+}

@@ -17,7 +17,7 @@
 
 load("ext://namespace", "namespace_create")
 load("../helpers.py", "chart", "kind_in", "named", "select_objects", "suffixed")
-load("./settings.Tiltfile", "BASE_DOMAIN", "NAMESPACE", "PORT")
+load("./settings.Tiltfile", "BASE_DOMAIN", "KUBECTL", "NAMESPACE", "PORT")
 
 namespace_create(NAMESPACE)
 k8s_resource(new_name="namespace", objects=[NAMESPACE + ":namespace"], labels=["prereq"])
@@ -115,6 +115,26 @@ k8s_resource(
     objects=select_objects(prereq, kind_in(["Issuer", "Certificate"])),
     resource_deps=["cert-manager-startupapicheck"],
     labels=["prereq"],
+)
+
+# Tilt reports the Certificates as ready once applied; wait for cert-manager to
+# issue them, and on failure print why (e.g. IncorrectIssuer when a stale
+# Certificate from an older install writes to the same Secret).
+DOMAIN_CERTIFICATES = "certificate/platform-mesh-gateway-ca certificate/platform-mesh-gateway"
+local_resource(
+    "domain-certificate-ready",
+    labels=["prereq"],
+    resource_deps=["domain-certificate"],
+    allow_parallel=True,
+    cmd=KUBECTL
+    + " wait "
+    + DOMAIN_CERTIFICATES
+    + " --for=condition=Ready --timeout=5m || { "
+    + KUBECTL
+    + " get "
+    + DOMAIN_CERTIFICATES
+    + " -o jsonpath='{range .items[*]}{.metadata.name}: {.status.conditions[?(@.type==\"Ready\")].reason}"
+    + " {.status.conditions[?(@.type==\"Ready\")].message}{\"\\n\"}{end}' >&2; exit 1; }",
 )
 
 # PMO watches delivery.ocm.software Resources at startup whatever the profile
