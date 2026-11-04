@@ -25,6 +25,7 @@ import (
 	"slices"
 	"strings"
 	"text/template"
+	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
@@ -41,6 +42,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
@@ -48,7 +50,8 @@ import (
 )
 
 const (
-	apiBindingFinalizer = "core.platform-mesh.io/apibinding-finalizer"
+	apiBindingFinalizer      = "core.platform-mesh.io/apibinding-finalizer"
+	clusterNotEngagedRequeue = 5 * time.Second
 )
 
 // toK8sName creates a valid Kubernetes metadata.name from the given parts.
@@ -191,6 +194,11 @@ func getRolesForResource(resourceRoles []pmprovidersv1alpha1.ResourceRoles, perm
 
 // Finalize implements subroutines.Finalizer.
 func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	result, err := a.finalize(ctx, obj)
+	return pendingIfClusterNotEngaged(ctx, result, err)
+}
+
+func (a *AuthorizationModelGenerationSubroutine) finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	bindingToDelete := obj.(*kcpapisv1alpha2.APIBinding)
@@ -319,6 +327,21 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 
 // Process implements subroutines.Processor.
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	result, err := a.process(ctx, obj)
+	return pendingIfClusterNotEngaged(ctx, result, err)
+}
+
+// pendingIfClusterNotEngaged retries a cluster the multicluster provider has not
+// engaged yet. Returned as is, the error would be dropped without a requeue.
+func pendingIfClusterNotEngaged(ctx context.Context, result subroutines.Result, err error) (subroutines.Result, error) {
+	if !errors.Is(err, multicluster.ErrClusterNotFound) {
+		return result, err
+	}
+	logger.LoadLoggerFromContext(ctx).Info().Err(err).Msg("cluster not engaged by multicluster provider yet, requeueing")
+	return subroutines.Pending(clusterNotEngagedRequeue, "waiting for cluster to be engaged by the multicluster provider"), nil
+}
+
+func (a *AuthorizationModelGenerationSubroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	binding := obj.(*kcpapisv1alpha2.APIBinding)
 
 	internalAPIBindings := []string{
