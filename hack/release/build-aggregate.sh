@@ -383,8 +383,6 @@ while IFS=$'\t' read -r cname cver; do
     diff <(jq . <<<"$have") <(jq . <<<"$want") | sed 's/^/    /' >&2 || true
     if [[ "$cver" == "$VERSION" ]]; then
       echo "    -> $VERSION was already published from a different commit; versions are immutable, use a new one" >&2
-    else
-      echo "    -> bump the PM_* version of this wrapper in ocm/versions.yaml" >&2
     fi
     conflicts=$((conflicts + 1))
   fi

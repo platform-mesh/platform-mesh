@@ -25,7 +25,7 @@
 
 components:
   - name: github.com/traefik/traefik
-    version: ${PM_TRAEFIK_VERSION}
+    version: ${VERSION}
     provider:
       name: traefik
     resources:
@@ -51,7 +51,7 @@ components:
           type: ociArtifact
           imageReference: "docker.io/library/traefik:${TRAEFIK_IMAGE_VERSION}"
   - name: github.com/cert-manager/cert-manager
-    version: ${PM_CERT_MANAGER_VERSION}
+    version: ${VERSION}
     provider:
       name: cert-manager
     resources:
@@ -84,7 +84,7 @@ components:
           type: ociArtifact
           imageReference: "quay.io/jetstack/cert-manager-cainjector:${CERT_MANAGER_VERSION}"
   - name: github.com/openfga/openfga
-    version: ${PM_OPENFGA_VERSION}
+    version: ${VERSION}
     provider:
       name: openfga
     resources:
@@ -110,7 +110,7 @@ components:
           type: ociArtifact
           imageReference: "ghcr.io/platform-mesh/upstream-images/postgresql:${OPENFGA_POSTGRESQL_IMAGE_VERSION}"
   - name: github.com/kcp-dev/kcp-operator
-    version: ${PM_KCP_OPERATOR_VERSION}
+    version: ${VERSION}
     provider:
       name: kcp
     resources:
@@ -129,7 +129,7 @@ components:
           type: ociArtifact
           imageReference: "ghcr.io/kcp-dev/kcp-operator:${KCP_OPERATOR_IMAGE_VERSION}"
   - name: github.com/kcp-dev/kcp
-    version: ${PM_KCP_VERSION}
+    version: ${VERSION}
     provider:
       name: kcp
     resources:
@@ -141,7 +141,7 @@ components:
           type: ociArtifact
           imageReference: "ghcr.io/kcp-dev/kcp:${KCP_VERSION}"
   - name: github.com/kcp-dev/init-agent
-    version: ${PM_INIT_AGENT_VERSION}
+    version: ${VERSION}
     provider:
       name: kcp
     resources:
@@ -160,7 +160,7 @@ components:
           type: ociArtifact
           imageReference: "ghcr.io/kcp-dev/init-agent:${INIT_AGENT_IMAGE_VERSION}"
   - name: github.com/platform-mesh/api-syncagent
-    version: ${API_SYNCAGENT_COMPONENT_VERSION}
+    version: ${VERSION}
     provider:
       name: kcp
     resources:
@@ -179,7 +179,7 @@ components:
           type: ociArtifact
           imageReference: "ghcr.io/kcp-dev/api-syncagent:${API_SYNCAGENT_IMAGE_VERSION}"
   - name: github.com/cloudnative-pg/cloudnative-pg
-    version: ${PM_CNPG_OPERATOR_VERSION}
+    version: ${VERSION}
     provider:
       name: cloudnative-pg
     resources:
@@ -198,7 +198,7 @@ components:
           type: ociArtifact
           imageReference: "ghcr.io/cloudnative-pg/cloudnative-pg:${CNPG_OPERATOR_IMAGE_VERSION}"
   - name: github.com/prometheus-community/prometheus-operator-crds
-    version: ${PM_PROMETHEUS_OPERATOR_CRDS_VERSION}
+    version: ${VERSION}
     provider:
       name: prometheus-community
     resources:
@@ -210,7 +210,7 @@ components:
           type: ociArtifact
           imageReference: ghcr.io/platform-mesh/ocm/charts/prometheus-operator-crds:${PROMETHEUS_OPERATOR_CRDS_VERSION}
   - name: github.com/prometheus-community/kube-prometheus-stack
-    version: ${PM_KUBE_PROMETHEUS_STACK_VERSION}
+    version: ${VERSION}
     provider:
       name: prometheus-community
     resources:
@@ -222,7 +222,7 @@ components:
           type: ociArtifact
           imageReference: ghcr.io/platform-mesh/ocm/charts/kube-prometheus-stack:${KUBE_PROMETHEUS_STACK_VERSION}
   - name: github.com/open-telemetry/opentelemetry-operator
-    version: ${PM_OPENTELEMETRY_OPERATOR_VERSION}
+    version: ${VERSION}
     provider:
       name: open-telemetry
     resources:
@@ -290,13 +290,13 @@ components:
         version: ${VERSION}
       - name: kcp-operator
         componentName: github.com/kcp-dev/kcp-operator
-        version: ${PM_KCP_OPERATOR_VERSION}
+        version: ${VERSION}
       - name: kcp
         componentName: github.com/kcp-dev/kcp
-        version: ${PM_KCP_VERSION}
+        version: ${VERSION}
       - name: init-agent
         componentName: github.com/kcp-dev/init-agent
-        version: ${PM_INIT_AGENT_VERSION}
+        version: ${VERSION}
       - name: kubernetes-graphql-gateway
         componentName: github.com/platform-mesh/kubernetes-graphql-gateway
         version: ${VERSION}
@@ -308,7 +308,7 @@ components:
         version: ${VERSION}
       - name: openfga
         componentName: github.com/openfga/openfga
-        version: ${PM_OPENFGA_VERSION}
+        version: ${VERSION}
       - name: platform-mesh-operator
         componentName: github.com/platform-mesh/platform-mesh-operator
         version: ${VERSION}
@@ -332,25 +332,25 @@ components:
         version: ${VERSION}
       - name: traefik
         componentName: github.com/traefik/traefik
-        version: ${PM_TRAEFIK_VERSION}
+        version: ${VERSION}
       - name: terminal-controller-manager
         componentName: github.com/platform-mesh/terminal-controller-manager
         version: ${VERSION}
       - name: cert-manager
         componentName: github.com/cert-manager/cert-manager
-        version: ${PM_CERT_MANAGER_VERSION}
+        version: ${VERSION}
       - name: observability
         componentName: github.com/platform-mesh/observability
         version: ${VERSION}
       - name: cnpg-operator
         componentName: github.com/cloudnative-pg/cloudnative-pg
-        version: ${PM_CNPG_OPERATOR_VERSION}
+        version: ${VERSION}
       - name: prometheus-operator-crds
         componentName: github.com/prometheus-community/prometheus-operator-crds
-        version: ${PM_PROMETHEUS_OPERATOR_CRDS_VERSION}
+        version: ${VERSION}
       - name: kube-prometheus-stack
         componentName: github.com/prometheus-community/kube-prometheus-stack
-        version: ${PM_KUBE_PROMETHEUS_STACK_VERSION}
+        version: ${VERSION}
       - name: opentelemetry-operator
         componentName: github.com/open-telemetry/opentelemetry-operator
-        version: ${PM_OPENTELEMETRY_OPERATOR_VERSION}
+        version: ${VERSION}

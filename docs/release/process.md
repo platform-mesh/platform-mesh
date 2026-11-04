@@ -134,9 +134,8 @@ Prerelease versions older than two weeks are deleted by
   releases its image and OCM component `github.com/platform-mesh/images/<name>`
   as before; then bump `appVersion` in `charts/<name>/Chart.yaml` here.
 - **Third-party software**: change the pin in `ocm/versions.yaml` (Renovate
-  proposes these). Wrapper components are versioned by their `PM_*` entry there
-  and are immutable like everything else — bump it when a wrapper's content
-  changes.
+  proposes these). Wrapper components are versioned with the PM version
+  and are immutable like everything else.
 - **A new component**: see [adding a service](../deployment/adding-a-service.md).
 - **A Go module** (`apis`, …): see below.
 
@@ -175,7 +174,7 @@ github.com/platform-mesh/platform-mesh:X.Y.Z
 ├─ infra             → github.com/platform-mesh/infra:X.Y.Z
 │                        ├─ chart → .../helm-charts/infra:X.Y.Z
 │                        └─ image → .../images/infra:X.Y.Z                  (third-party images the chart deploys)
-├─ kcp               → github.com/kcp-dev/kcp:<PM_KCP_VERSION>              (wrapper around upstream artifacts)
+├─ kcp               → github.com/kcp-dev/kcp:<X.Y.Z>                       (wrapper around upstream artifacts)
 └─ ...
 ```
 
