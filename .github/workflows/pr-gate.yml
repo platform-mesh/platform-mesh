@@ -44,8 +44,10 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # With GH_REPO set the repository doesn't need to be cloned just to run the gh cli
       GH_REPO: ${{ github.repository }}
-      SELF: ${{ github.workflow }}
       PR: ${{ github.event.pull_request.number }}
+      # for merge group checks are looked up by the hash
+      MERGE_GROUP_SHA: ${{ github.event.merge_group.head_sha }}
+      SELF_JOB: ${{ github.job }}
     steps:
       - name: pr-gate
         run: |
@@ -53,12 +55,38 @@ jobs:
 
           sleep 30  # let workflows register their checks first
 
-          # checks on the PR
-          # ignores renovate/ checks to exclude e.g. stability-days
+          # checks on the PR as a stream of {name, bucket}
+          pr_checks() {
+            gh pr checks "$PR" --json bucket,name --jq '.[]'
+          }
+
+          # checks on the merge queue commit as a stream of {name, bucket}, like pr_checks
+          merge_group_checks() {
+            gh api --paginate "repos/$GH_REPO/commits/$MERGE_GROUP_SHA/check-runs?per_page=100" \
+              --jq '.check_runs[]
+                | {
+                    name,
+                    bucket: (
+                      if .status != "completed" then "pending"
+                      elif .conclusion == "success" then "pass"
+                      elif .conclusion == "skipped" or .conclusion == "neutral" then "skipping"
+                      else "fail"
+                      end
+                    )
+                  }'
+          }
+
+          # drops this job and renovate/ checks (e.g. stability-days)
+          filter_checks() {
+            jq 'select(.name != env.SELF_JOB) | select(.name | startswith("renovate/") | not)'
+          }
+
           relevant_checks() {
-            gh pr checks "$PR" \
-              --json bucket,name,workflow \
-              --jq '.[] | select(.workflow != env.SELF) | select(.name | startswith("renovate/") | not)'
+            if [[ -n "$MERGE_GROUP_SHA" ]]; then
+              merge_group_checks
+            else
+              pr_checks
+            fi | filter_checks
           }
 
           pending_checks() {
