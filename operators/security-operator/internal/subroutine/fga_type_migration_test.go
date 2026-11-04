@@ -17,14 +17,12 @@ limitations under the License.
 package subroutine
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"net"
 	"slices"
 	"strings"
 	"testing"
-	"text/template"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
@@ -99,13 +97,6 @@ func legacyModelInput(t *testing.T, group, plural, singular string) modelInput {
 		ListRelation:   "list_" + g + "_" + plural,
 		WatchRelation:  "watch_" + g + "_" + plural,
 	}
-}
-
-func render(t *testing.T, tpl *template.Template, in modelInput) string {
-	t.Helper()
-	var buf bytes.Buffer
-	require.NoError(t, tpl.Execute(&buf, in))
-	return buf.String()
 }
 
 // faultyFGA fails selected calls to simulate a crash between migration steps.
@@ -472,4 +463,113 @@ func TestMigrateRenamedTypes(t *testing.T) {
 		assert.ElementsMatch(t, grants, e.tuples())
 		assert.True(t, e.allowed("user:alice", "owner", obj))
 	})
+}
+
+func TestLegacyTypeName(t *testing.T) {
+	tests := []struct {
+		group, plural, singular string
+		want                    string
+		ok                      bool
+	}{
+		// Shortened types found in every org store before #436.
+		{"rbac.authorization.k8s.io", "clusterrolebindings", "clusterrolebinding", "ac_authorization_k8s_io_clusterrolebinding", true},
+		{"authorization.k8s.io", "selfsubjectaccessreviews", "selfsubjectaccessreview", "thorization_k8s_io_selfsubjectaccessreview", true},
+		{"authorization.k8s.io", "selfsubjectrulesreviews", "selfsubjectrulesreview", "uthorization_k8s_io_selfsubjectrulesreview", true},
+		{"authorization.k8s.io", "localsubjectaccessreviews", "localsubjectaccessreview", "horization_k8s_io_localsubjectaccessreview", true},
+		{"alpha.inventory.platform-mesh.example.io", "widgets", "widget", "_inventory_platform-mesh_example_io_widget", true},
+		{"bravo.inventory.platform-mesh.example.io", "widgets", "widget", "_inventory_platform-mesh_example_io_widget", true},
+		{"security.a-long-provider-name.example.io", "policies", "policy", "ty_a-long-provider-name_example_io_policy", true},
+		{"rbac.authorization.k8s.io", "clusterroles", "clusterrole", "rbac_authorization_k8s_io_clusterrole", true},
+		{"", "pods", "pod", "core_pod", true},
+		// The previous algorithm panicked on these.
+		{"generators.external-secrets.io", "beyondtrustworkloadcredentialsdynamicsecrets", "beyondtrustworkloadcredentialsdynamicsecret", "", false},
+		{"example.io", "abcdefghijabcdefghijabcdefghijabcdefghijabcde", "abcdefghijabcdefghijabcdefghijabcdefghijabcd", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.group+"/"+tt.plural, func(t *testing.T) {
+			got, ok := legacyTypeName(tt.group, tt.plural, tt.singular)
+			assert.Equal(t, tt.ok, ok)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestLegacyRename(t *testing.T) {
+	tests := []struct {
+		group, plural, singular string
+		legacy                  string
+	}{
+		{"alpha.inventory.platform-mesh.example.io", "widgets", "widget", "_inventory_platform-mesh_example_io_widget"},
+		{"bravo.inventory.platform-mesh.example.io", "widgets", "widget", "_inventory_platform-mesh_example_io_widget"},
+		{"security.a-long-provider-name.example.io", "policies", "policy", "ty_a-long-provider-name_example_io_policy"},
+		{"rbac.authorization.k8s.io", "clusterrolebindings", "clusterrolebinding", "ac_authorization_k8s_io_clusterrolebinding"},
+		{"authorization.k8s.io", "selfsubjectaccessreviews", "selfsubjectaccessreview", "thorization_k8s_io_selfsubjectaccessreview"},
+		{"authorization.k8s.io", "selfsubjectrulesreviews", "selfsubjectrulesreview", "uthorization_k8s_io_selfsubjectrulesreview"},
+		{"authorization.k8s.io", "localsubjectaccessreviews", "localsubjectaccessreview", "horization_k8s_io_localsubjectaccessreview"},
+		// No legacy name: the previous algorithm panicked.
+		{"generators.external-secrets.io", "beyondtrustworkloadcredentialsdynamicsecrets", "beyondtrustworkloadcredentialsdynamicsecret", ""},
+		// Not renamed: the name fit before #436.
+		{"", "namespaces", "namespace", ""},
+		{"", "configmaps", "configmap", ""},
+		{"", "serviceaccounts", "serviceaccount", ""},
+		{"rbac.authorization.k8s.io", "clusterroles", "clusterrole", ""},
+		{"rbac.authorization.k8s.io", "roles", "role", ""},
+		{"rbac.authorization.k8s.io", "rolebindings", "rolebinding", ""},
+		{"authentication.k8s.io", "tokenreviews", "tokenreview", ""},
+		{"authentication.k8s.io", "selfsubjectreviews", "selfsubjectreview", ""},
+		{"authorization.k8s.io", "subjectaccessreviews", "subjectaccessreview", ""},
+		{"apis.kcp.io", "apibindings", "apibinding", ""},
+		{"apis.kcp.io", "apiexports", "apiexport", ""},
+		{"ui.platform-mesh.io", "contentconfigurations", "contentconfiguration", ""},
+		{"orchestrate.platform-mesh.io", "httpbins", "httpbin", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.group+"/"+tt.plural, func(t *testing.T) {
+			legacy, renamed := legacyRename(tt.group, tt.plural, tt.singular)
+			assert.Equal(t, tt.legacy, legacy)
+			assert.Equal(t, tt.legacy != "", renamed)
+		})
+	}
+}
+
+func TestTypeRenamesFromAuthorizationModel(t *testing.T) {
+	in, err := newModelInput("alpha.inventory.platform-mesh.example.io", "widgets", "widget", "Cluster")
+	require.NoError(t, err)
+
+	model := pmcorev1alpha1.AuthorizationModel{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "alpha",
+			Annotations: map[string]string{legacyTypeAnnotation: "_inventory_platform-mesh_example_io_widget"},
+		},
+		Spec: pmcorev1alpha1.AuthorizationModelSpec{Model: render(t, modelTpl, in)},
+	}
+
+	renames := typeRenames{}
+	require.NoError(t, renames.addAuthorizationModel(model))
+	assert.Equal(t, typeRenames{"_inventory_platform-mesh_example_io_widget": {"alpha_inventory_platform-mesh_example_io_widget"}}, renames)
+
+	model.Annotations = nil
+	renames = typeRenames{}
+	require.NoError(t, renames.addAuthorizationModel(model))
+	assert.Empty(t, renames)
+}
+
+func TestRenameKey(t *testing.T) {
+	renames := typeRenames{"ac_authorization_k8s_io_clusterrolebinding": {"rbac_authorization_k8s_io_clusterrolebinding"}}
+
+	tests := map[string]string{
+		"ac_authorization_k8s_io_clusterrolebinding:c/crb":                     "rbac_authorization_k8s_io_clusterrolebinding:c/crb",
+		"role:ac_authorization_k8s_io_clusterrolebinding/c/crb/owner":          "role:rbac_authorization_k8s_io_clusterrolebinding/c/crb/owner",
+		"role:ac_authorization_k8s_io_clusterrolebinding/c/crb/owner#assignee": "role:rbac_authorization_k8s_io_clusterrolebinding/c/crb/owner#assignee",
+		"ac_authorization_k8s_io_clusterrolebinding:c/crb#owner":               "rbac_authorization_k8s_io_clusterrolebinding:c/crb#owner",
+		"rbac_authorization_k8s_io_clusterrolebinding:c/crb":                   "rbac_authorization_k8s_io_clusterrolebinding:c/crb",
+		"role:core_platform-mesh_io_account/c/acc/owner#assignee":              "role:core_platform-mesh_io_account/c/acc/owner#assignee",
+		"role:authenticated#assignee":                                          "role:authenticated#assignee",
+		"user:ac_authorization_k8s_io_clusterrolebinding":                      "user:ac_authorization_k8s_io_clusterrolebinding",
+	}
+	for in, want := range tests {
+		assert.Equal(t, want, renameKey(in, renames), in)
+	}
 }

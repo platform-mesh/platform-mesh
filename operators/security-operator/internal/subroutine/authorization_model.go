@@ -231,12 +231,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 		moduleFiles = append(moduleFiles, privilegedModules...)
 	}
 
-	if err := checkModuleConflicts(moduleFiles); err != nil {
-		log.Error().Err(err).Msg("conflicting authorization modules")
-		return subroutines.OK(), err
-	}
-
-	authorizationModel, err := language.TransformModuleFilesToModel(moduleFiles, schemaVersion)
+	authorizationModel, err := transformModules(moduleFiles)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to transform module files to model")
 		return subroutines.OK(), err
@@ -352,34 +347,21 @@ func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, 
 	return files, nil
 }
 
-// checkModuleConflicts returns an error naming both modules when two modules
-// define the same type or add the same relation to a type.
-func checkModuleConflicts(modules []language.ModuleFile) error {
-	owners := map[string]string{}
-	var errs []error
-	claim := func(key, module string) {
-		if other, ok := owners[key]; ok && other != module {
-			errs = append(errs, fmt.Errorf("%s is defined by both %s and %s", key, other, module))
-			return
-		}
-		owners[key] = module
+// transformModules builds the model and names the module file in each error.
+func transformModules(modules []language.ModuleFile) (*openfgav1.AuthorizationModel, error) {
+	model, err := language.TransformModuleFilesToModel(modules, schemaVersion)
+	var multi *language.ModuleValidationMultipleError
+	if err == nil || !errors.As(err, &multi) {
+		return model, err
 	}
 
-	for _, module := range modules {
-		mdl, extended, err := language.TransformModularDSLToProto(module.Contents)
-		if err != nil {
-			// Reported with its location by TransformModuleFilesToModel.
-			continue
+	errs := make([]error, 0, len(multi.Errors))
+	for _, e := range multi.Errors {
+		var single *language.ModuleTransformationSingleError
+		if errors.As(e, &single) && single.File != "" {
+			e = fmt.Errorf("%s: %s", single.File, single.Msg)
 		}
-		for _, td := range mdl.GetTypeDefinitions() {
-			if _, ok := extended[td.GetType()]; !ok {
-				claim("type "+td.GetType(), module.Name)
-			}
-			for relation := range td.GetRelations() {
-				claim(fmt.Sprintf("relation %s on type %s", relation, td.GetType()), module.Name)
-			}
-		}
+		errs = append(errs, e)
 	}
-
-	return errors.Join(errs...)
+	return nil, errors.Join(errs...)
 }

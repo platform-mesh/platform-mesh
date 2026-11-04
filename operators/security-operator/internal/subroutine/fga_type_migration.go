@@ -163,7 +163,7 @@ func (a *authorizationModelSubroutine) migrateRenamedTypes(ctx context.Context, 
 		}
 
 		if transitionID == "" {
-			transitionID, err = a.writeTransitionModel(ctx, storeID, final, renames, originals)
+			transitionID, err = a.writeTransitionModel(ctx, storeID, final, finalTypes, renames, originals)
 			if err != nil {
 				return err
 			}
@@ -205,8 +205,8 @@ func planTypeMigration(tuples []pmcorev1alpha1.Tuple, renames typeRenames, final
 			Relation: t.Relation,
 			User:     renameKey(t.User, renames),
 		}
-		if typ, _, _ := strings.Cut(c.Object, ":"); finalTypes[typ] != nil && typ != objectType(t.Object) {
-			if _, ok := finalTypes[typ].GetRelations()[t.Relation]; !ok {
+		if objectType(c.Object) != objectType(t.Object) {
+			if _, ok := finalTypes[targets[0]].GetRelations()[t.Relation]; !ok {
 				log.Warn().Str("object", t.Object).Str("relation", t.Relation).Str("user", t.User).
 					Msg("relation no longer defined on the renamed type, leaving tuple in place")
 				continue
@@ -227,7 +227,7 @@ func planTypeMigration(tuples []pmcorev1alpha1.Tuple, renames typeRenames, final
 	return copies, originals, nil
 }
 
-func (a *authorizationModelSubroutine) writeTransitionModel(ctx context.Context, storeID string, final *openfgav1.AuthorizationModel, renames typeRenames, originals []pmcorev1alpha1.Tuple) (string, error) {
+func (a *authorizationModelSubroutine) writeTransitionModel(ctx context.Context, storeID string, final *openfgav1.AuthorizationModel, finalTypes map[string]*openfgav1.TypeDefinition, renames typeRenames, originals []pmcorev1alpha1.Tuple) (string, error) {
 	legacy := map[string]bool{}
 	for _, t := range originals {
 		legacy[referencedLegacyType(t, renames)] = true
@@ -235,13 +235,9 @@ func (a *authorizationModelSubroutine) writeTransitionModel(ctx context.Context,
 
 	transition := proto.Clone(final).(*openfgav1.AuthorizationModel)
 	for _, old := range slices.Sorted(maps.Keys(legacy)) {
-		for _, td := range final.GetTypeDefinitions() {
-			if td.GetType() == renames[old][0] {
-				oldTD := proto.Clone(td).(*openfgav1.TypeDefinition)
-				oldTD.Type = old
-				transition.TypeDefinitions = append(transition.TypeDefinitions, oldTD)
-			}
-		}
+		oldTD := proto.Clone(finalTypes[renames[old][0]]).(*openfgav1.TypeDefinition)
+		oldTD.Type = old
+		transition.TypeDefinitions = append(transition.TypeDefinitions, oldTD)
 	}
 
 	res, err := a.fga.WriteAuthorizationModel(ctx, &openfgav1.WriteAuthorizationModelRequest{
