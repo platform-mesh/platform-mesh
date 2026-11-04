@@ -40,5 +40,5 @@ dependencies:
     condition: keycloak-operator.enabled
   - name: etcd-druid
     version: v0.39.2
-    repository: oci://ghcr.io/platform-mesh/charts/gardener
+    repository: oci://europe-docker.pkg.dev/gardener-project/releases/charts/gardener
     condition: etcd-druid.enabled
