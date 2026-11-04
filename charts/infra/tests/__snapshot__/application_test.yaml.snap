@@ -127,7 +127,7 @@ Gateway API enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -142,7 +142,7 @@ Gateway API enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -245,7 +245,7 @@ Gateway API enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -260,7 +260,7 @@ Gateway API enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -376,7 +376,7 @@ Gateway API enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -391,7 +391,7 @@ Gateway API enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -502,7 +502,7 @@ Gateway API enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -517,7 +517,7 @@ Gateway API enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -775,7 +775,7 @@ Istio disabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -790,7 +790,7 @@ Istio disabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -893,7 +893,7 @@ Istio disabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -908,7 +908,7 @@ Istio disabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -1024,7 +1024,7 @@ Istio disabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -1039,7 +1039,7 @@ Istio disabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -1150,7 +1150,7 @@ Istio disabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -1165,7 +1165,7 @@ Istio disabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -1423,7 +1423,7 @@ Istio enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -1438,7 +1438,7 @@ Istio enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -1541,7 +1541,7 @@ Istio enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -1556,7 +1556,7 @@ Istio enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -1672,7 +1672,7 @@ Istio enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -1687,7 +1687,7 @@ Istio enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -1798,7 +1798,7 @@ Istio enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -1813,7 +1813,7 @@ Istio enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -1967,7 +1967,7 @@ configure etcd backup store:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -1989,7 +1989,7 @@ configure etcd backup store:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -2151,7 +2151,7 @@ configure rootshard resources:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -2166,7 +2166,7 @@ configure rootshard resources:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -2394,7 +2394,7 @@ match snapshots:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -2409,7 +2409,7 @@ match snapshots:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -2516,7 +2516,7 @@ match snapshots:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -2531,7 +2531,7 @@ match snapshots:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -2651,7 +2651,7 @@ match snapshots:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -2666,7 +2666,7 @@ match snapshots:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -2781,7 +2781,7 @@ match snapshots:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -2796,7 +2796,7 @@ match snapshots:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -3058,7 +3058,7 @@ match snapshots w. hostAliases enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -3073,7 +3073,7 @@ match snapshots w. hostAliases enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -3178,7 +3178,7 @@ match snapshots w. hostAliases enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -3193,7 +3193,7 @@ match snapshots w. hostAliases enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -3311,7 +3311,7 @@ match snapshots w. hostAliases enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -3326,7 +3326,7 @@ match snapshots w. hostAliases enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -3439,7 +3439,7 @@ match snapshots w. hostAliases enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -3454,7 +3454,7 @@ match snapshots w. hostAliases enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -3714,7 +3714,7 @@ match snapshots w. kcp version:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -3729,7 +3729,7 @@ match snapshots w. kcp version:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -3836,7 +3836,7 @@ match snapshots w. kcp version:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -3851,7 +3851,7 @@ match snapshots w. kcp version:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -3971,7 +3971,7 @@ match snapshots w. kcp version:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -3986,7 +3986,7 @@ match snapshots w. kcp version:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -4101,7 +4101,7 @@ match snapshots w. kcp version:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -4116,7 +4116,7 @@ match snapshots w. kcp version:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -4378,7 +4378,7 @@ match snapshots with mailpit enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -4393,7 +4393,7 @@ match snapshots with mailpit enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -4496,7 +4496,7 @@ match snapshots with mailpit enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -4511,7 +4511,7 @@ match snapshots with mailpit enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -4627,7 +4627,7 @@ match snapshots with mailpit enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -4642,7 +4642,7 @@ match snapshots with mailpit enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -4753,7 +4753,7 @@ match snapshots with mailpit enabled:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -4768,7 +4768,7 @@ match snapshots with mailpit enabled:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:
@@ -4922,7 +4922,7 @@ render additional shard with explicit hostname:
         fullSnapshotSchedule: 0 */24 * * *
         garbageCollectionPeriod: 43200s
         garbageCollectionPolicy: Exponential
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.45.3
         leaderElection:
           etcdConnectionTimeout: 5s
           reelectionPeriod: 5s
@@ -4937,7 +4937,7 @@ render additional shard with explicit hostname:
       etcd:
         clientPort: 2379
         defragmentationSchedule: 0 */24 * * *
-        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.8.4
         metrics: basic
         quota: 8Gi
         resources:

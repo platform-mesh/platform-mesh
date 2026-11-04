@@ -94,7 +94,7 @@ PM_CNPG_OPERATOR_VERSION: "0.0.1"
 
 # Published as an OCM component by Gardener; copied into our registry as-is.
 # renovate: datasource=docker depName=europe-docker.pkg.dev/gardener-project/releases/component-descriptors/github.com/gardener/etcd-druid
-GARDENER_ETCD_DRUID_VERSION: "v0.39.1"
+GARDENER_ETCD_DRUID_VERSION: "v0.39.2"
 
 # --- observability ------------------------------------------------------------
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/prometheus-operator-crds
