@@ -18,8 +18,10 @@ package subroutine_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
@@ -42,6 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
@@ -375,6 +378,47 @@ func mockAccountInfo(cl *mocks.MockClient, orgName, originCluster string) {
 		}
 		return nil
 	}).Once()
+}
+
+// A cluster the multicluster provider has not engaged yet must be retried,
+// because controllers drop ErrClusterNotFound without a requeue.
+func TestAuthorizationModelGeneration_ClusterNotEngaged(t *testing.T) {
+	notEngaged := fmt.Errorf("cluster with name export not found: %w", multicluster.ErrClusterNotFound)
+	setup := func(t *testing.T) (*subroutine.AuthorizationModelGenerationSubroutine, *mocks.MockLister) {
+		manager := mocks.NewMockManager(t)
+		lister := mocks.NewMockLister(t)
+		cluster := mocks.NewMockCluster(t)
+		kcpClient := mocks.NewMockClient(t)
+		manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+		cluster.EXPECT().GetClient().Return(kcpClient)
+		mockAccountInfo(kcpClient, "org", "origin")
+		manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(nil, notEngaged)
+		return subroutine.NewAuthorizationModelGenerationSubroutine(manager, lister), lister
+	}
+
+	t.Run("process", func(t *testing.T) {
+		sub, _ := setup(t)
+		result, err := sub.Process(context.Background(), newApiBinding("foo", "bar"))
+		require.NoError(t, err)
+		assert.True(t, result.IsPending())
+		assert.Equal(t, 5*time.Second, result.Requeue())
+	})
+
+	t.Run("finalize", func(t *testing.T) {
+		sub, lister := setup(t)
+		lister.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
+		result, err := sub.Finalize(context.Background(), newApiBinding("foo", "bar"))
+		require.NoError(t, err)
+		assert.True(t, result.IsPending())
+	})
+
+	t.Run("other errors are returned", func(t *testing.T) {
+		manager := mocks.NewMockManager(t)
+		manager.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
+		_, err := subroutine.NewAuthorizationModelGenerationSubroutine(manager, mocks.NewMockLister(t)).
+			Process(context.Background(), newApiBinding("foo", "bar"))
+		require.ErrorIs(t, err, assert.AnError)
+	})
 }
 
 func TestAuthorizationModelGeneration_Process(t *testing.T) {
