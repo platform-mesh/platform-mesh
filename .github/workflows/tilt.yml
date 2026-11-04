@@ -101,6 +101,7 @@ jobs:
         run: task tests:portal-e2e:setup
 
       - name: Bring up the Tilt environment
+        shell: bash # use bash with implicit pipefail so `|& tee` doesn't mask a failing `tilt:ci` call
         run: |
           task tilt:ci -- --debug --output-snapshot-on-exit="$GITHUB_WORKSPACE/contrib/tilt/.cache/tilt-snapshot.json" |& tee tilt-ci.log
 
