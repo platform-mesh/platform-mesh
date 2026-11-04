@@ -130,8 +130,8 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.frontProxy.name | string | `"frontproxy"` |  |
 | kcp.frontProxy.replicas | int | `1` |  |
 | kcp.frontProxy.resources | object | `{}` | Optional resource requests and limits for the front proxy |
-| kcp.image.repository | string | `""` |  |
-| kcp.image.tag | string | `""` |  |
+| kcp.image.repository | string | `"ghcr.io/kcp-dev/kcp"` |  |
+| kcp.image.tag | string | `"v0.33.6"` |  |
 | kcp.namespace | string | `"platform-mesh-system"` |  |
 | kcp.proxy.replicas | string | `""` |  |
 | kcp.rootShard.extraArgs[0] | string | `"--feature-gates=WorkspaceAuthentication=true,CacheAPIs=true"` |  |

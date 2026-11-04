@@ -8,7 +8,7 @@ require (
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.9.0
 	github.com/kcp-dev/multicluster-provider/client v0.9.0
-	github.com/kcp-dev/sdk v0.33.4
+	github.com/kcp-dev/sdk v0.33.5
 	github.com/stretchr/testify v1.12.1
 	go.platform-mesh.io/apis v0.1.0
 	go.platform-mesh.io/golang-commons v0.20.0
@@ -58,7 +58,7 @@ require (
 	github.com/google/pprof v0.0.0-20260830191439-4932ad3515ea // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.33.4 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.33.5 // indirect
 	github.com/martinlindhe/base36 v1.1.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect

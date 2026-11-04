@@ -9,7 +9,7 @@ require (
 	github.com/fluxcd/source-controller/api v1.9.6
 	github.com/go-logr/logr v1.4.4
 	github.com/kcp-dev/multicluster-provider v0.9.0
-	github.com/kcp-dev/sdk v0.33.4
+	github.com/kcp-dev/sdk v0.33.5
 	github.com/mandelsoft/goutils v0.0.0-20260802101738-162cd2928e3c
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/opencontainers/go-digest v1.0.0
@@ -74,7 +74,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.33.4 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.33.5 // indirect
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect

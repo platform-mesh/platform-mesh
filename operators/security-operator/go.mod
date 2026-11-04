@@ -12,7 +12,7 @@ require (
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.9.0
 	github.com/kcp-dev/multicluster-provider/client v0.9.0
-	github.com/kcp-dev/sdk v0.33.4
+	github.com/kcp-dev/sdk v0.33.5
 	github.com/openfga/api/proto v0.0.0-20260928071936-c0650ce2169b
 	github.com/openfga/language/pkg/go v0.3.2
 	github.com/prometheus/client_golang v1.25.0
@@ -81,7 +81,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.33.4 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.33.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/martinlindhe/base36 v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
