@@ -7,8 +7,8 @@ require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.8.1-0.20260714141811-833f063357f8
-	github.com/kcp-dev/multicluster-provider/client v0.8.0
+	github.com/kcp-dev/multicluster-provider v0.9.0
+	github.com/kcp-dev/multicluster-provider/client v0.9.0
 	github.com/kcp-dev/sdk v0.33.4
 	github.com/oapi-codegen/runtime v1.8.0
 	github.com/openfga/api/proto v0.0.0-20260928071936-c0650ce2169b
