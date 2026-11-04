@@ -53,8 +53,8 @@ PM_KCP_VERSION: "0.0.5"
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/init-agent
 INIT_AGENT_CHART_VERSION: "0.2.0"
 # renovate: datasource=docker depName=ghcr.io/kcp-dev/init-agent
-INIT_AGENT_IMAGE_VERSION: "v0.2.0"
-PM_INIT_AGENT_VERSION: "0.0.1"
+INIT_AGENT_IMAGE_VERSION: "v0.5.0"
+PM_INIT_AGENT_VERSION: "0.1.0"
 
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/api-syncagent
 API_SYNCAGENT_CHART_VERSION: "0.6.1"
