@@ -12,9 +12,9 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.platform-mesh.io/apis v0.1.0
 	go.platform-mesh.io/golang-commons v0.19.0
-	k8s.io/api v0.36.3
-	k8s.io/apimachinery v0.36.3
-	k8s.io/client-go v0.36.3
+	k8s.io/api v0.36.4
+	k8s.io/apimachinery v0.36.4
+	k8s.io/client-go v0.36.4
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/yaml v1.6.0
 )

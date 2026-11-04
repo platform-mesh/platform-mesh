@@ -642,6 +642,8 @@ github.com/kcp-dev/code-generator/v3 v3.33.0 h1:yWBdQLeIYqr487874OeqCTk773WzPB3f
 github.com/kcp-dev/code-generator/v3 v3.33.0/go.mod h1:1OaW64ALeGKyw8G8RRv2vHsXDPgOoDuiNBG0RW6dWNI=
 github.com/kcp-dev/code-generator/v3 v3.33.1 h1:YMVgay7BJTs50tUqUXTjrSRkAxRk6ZNvsveCv4lbYI4=
 github.com/kcp-dev/code-generator/v3 v3.33.1/go.mod h1:1OaW64ALeGKyw8G8RRv2vHsXDPgOoDuiNBG0RW6dWNI=
+github.com/kcp-dev/code-generator/v3 v3.33.5 h1:OpvQO8DURPWa5yEc6JUNqmRcC6k3YD4E7CKTOg8/nYo=
+github.com/kcp-dev/code-generator/v3 v3.33.5/go.mod h1:1OaW64ALeGKyw8G8RRv2vHsXDPgOoDuiNBG0RW6dWNI=
 github.com/kcp-dev/embeddedetcd v1.1.1-0.20260402110232-2cc5c5cce35e h1:nOcf6Id7wozcS2pwoNNmuKqIozAAn/K+0wu3z7xGxE0=
 github.com/kcp-dev/embeddedetcd v1.1.1-0.20260402110232-2cc5c5cce35e/go.mod h1:bv5D/GGLuILI1Y5tZzbBvzOjkdixKS9lM+bbN1vWZTE=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/cli-runtime v0.0.0-20260602065202-e006560fc76a h1:NtJ9xqcyfYM4c/smHzN0butj7POt/9QfYMdleAWO4xk=

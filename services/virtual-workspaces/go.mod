@@ -14,9 +14,9 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.platform-mesh.io/apis v0.1.0
 	k8s.io/apiextensions-apiserver v0.36.3
-	k8s.io/apimachinery v0.36.3
+	k8s.io/apimachinery v0.36.4
 	k8s.io/apiserver v0.36.3
-	k8s.io/client-go v0.36.3
+	k8s.io/client-go v0.36.4
 	k8s.io/klog/v2 v2.140.0
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
@@ -110,7 +110,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.33.1 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.33.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/moby/spdystream v0.5.1 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
@@ -169,7 +169,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.36.3 // indirect
+	k8s.io/api v0.36.4 // indirect
 	k8s.io/cloud-provider v0.0.0 // indirect
 	k8s.io/cluster-bootstrap v0.0.0 // indirect
 	k8s.io/component-base v0.36.4 // indirect
