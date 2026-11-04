@@ -31,6 +31,7 @@ import (
 	"go.platform-mesh.io/subroutines"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -95,12 +96,13 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj ctrlruntimecli
 	}
 
 	var ai pmcorev1alpha1.AccountInfo
-	if err := cluster.GetClient().Get(ctx, ctrlruntimeclient.ObjectKey{
-		Name: "account",
-	}, &ai); err != nil && !apierrors.IsNotFound(err) {
+	if err := cluster.GetClient().Get(ctx, ctrlruntimeclient.ObjectKey{Name: "account"}, &ai); err != nil {
+		// IsNoMatch means the API isn't available yet
+		// IsNotFound means the AccountInfo hasn't been created yet
+		if meta.IsNoMatchError(err) || apierrors.IsNotFound(err) {
+			return subroutines.StopWithRequeue(5*time.Second, "AccountInfo not available yet, requeuing"), nil
+		}
 		return subroutines.OK(), fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err)
-	} else if apierrors.IsNotFound(err) {
-		return subroutines.StopWithRequeue(5*time.Second, "AccountInfo not found yet, requeuing"), nil
 	}
 
 	orgsClient, err := w.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
