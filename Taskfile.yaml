@@ -102,7 +102,7 @@ tasks:
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
       - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
-      - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile"
+      - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile {{.CLI_ARGS}}"
 
   tilt:e2e:
     desc: Run the portal e2e suite against the Tilt environment.
