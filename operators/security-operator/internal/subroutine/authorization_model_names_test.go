@@ -19,6 +19,8 @@ package subroutine
 import (
 	"bytes"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"text/template"
@@ -162,11 +164,64 @@ func TestTransformModulesNamesConflictingFile(t *testing.T) {
 
 func TestCheckRelationNames(t *testing.T) {
 	long := strings.Repeat("r", 51)
+	role := func(id, definition string) modelInput {
+		return modelInput{Roles: []pmprovidersv1alpha1.RoleDefinition{{ID: id, Definition: definition}}}
+	}
+	permission := func(name string) modelInput {
+		return modelInput{AdditionalPermissions: map[string]string{name: "owner"}}
+	}
 
-	require.NoError(t, checkRelationNames(modelInput{
-		AdditionalPermissions: map[string]string{strings.Repeat("r", 50): "owner"},
-		Roles:                 []pmprovidersv1alpha1.RoleDefinition{{ID: "viewer"}},
-	}))
-	assert.ErrorContains(t, checkRelationNames(modelInput{AdditionalPermissions: map[string]string{long: "owner"}}), "exceeds 50 characters")
-	assert.ErrorContains(t, checkRelationNames(modelInput{Roles: []pmprovidersv1alpha1.RoleDefinition{{ID: long}}}), "exceeds 50 characters")
+	for _, in := range []modelInput{
+		permission(strings.Repeat("r", 50)),
+		role("viewer", "member"),
+		role("owner", ""),
+		role("member", ""),
+		permission("list"),
+		permission("create"),
+	} {
+		require.NoError(t, checkRelationNames(in))
+	}
+
+	for _, tc := range []struct {
+		in  modelInput
+		msg string
+	}{
+		{permission(long), "exceeds 50 characters"},
+		{role(long, "owner"), "exceeds 50 characters"},
+		{role("owner", "member"), `relation "owner" is reserved`},
+		{role("parent", "owner"), `relation "parent" is reserved`},
+		{permission("get"), `relation "get" is reserved`},
+		{permission("or"), `relation "or" is reserved`},
+		{permission("self"), `relation "self" is reserved`},
+		{role("viewer", ""), `role "viewer" has no definition`},
+		{modelInput{
+			Roles:                 []pmprovidersv1alpha1.RoleDefinition{{ID: "viewer", Definition: "member"}},
+			AdditionalPermissions: map[string]string{"viewer": "owner"},
+		}, `relation "viewer" is defined more than once`},
+	} {
+		assert.ErrorContains(t, checkRelationNames(tc.in), tc.msg)
+	}
+}
+
+// The reserved names follow the template, so a template change shows up here.
+func TestReservedRelations(t *testing.T) {
+	assert.ElementsMatch(t, []string{
+		"parent", "member", "owner", "get", "update", "delete", "patch", "watch",
+		"manage_iam_roles", "get_iam_roles", "get_iam_users",
+		"and", "or", "from", "define", "relations", "condition", "with", "in", "true", "false", "null", "self", "this",
+	}, slices.Collect(maps.Keys(reservedRelations)))
+}
+
+// Roles named after built-in relations add no definition and keep the model valid.
+func TestBuiltInRolesRender(t *testing.T) {
+	in, err := newModelInput("example.io", "widgets", "widget", "Cluster")
+	require.NoError(t, err)
+	in.Roles = []pmprovidersv1alpha1.RoleDefinition{{ID: "owner"}, {ID: "member"}, {ID: "viewer", Definition: "member"}}
+	require.NoError(t, checkRelationNames(in))
+
+	_, err = language.TransformModuleFilesToModel([]language.ModuleFile{
+		{Name: "core.fga", Contents: migrationCoreModule},
+		{Name: "widgets.fga", Contents: render(t, modelTpl, in)},
+	}, schemaVersion)
+	require.NoError(t, err)
 }
