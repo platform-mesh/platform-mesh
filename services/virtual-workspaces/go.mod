@@ -3,12 +3,12 @@ module go.platform-mesh.io/virtual-workspaces
 go 1.26.3
 
 require (
-	github.com/kcp-dev/client-go v0.33.4
-	github.com/kcp-dev/kcp v0.33.4
+	github.com/kcp-dev/client-go v0.33.5
+	github.com/kcp-dev/kcp v0.33.5
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.9.0
-	github.com/kcp-dev/sdk v0.33.4
-	github.com/kcp-dev/virtual-workspace-framework v0.33.4
+	github.com/kcp-dev/sdk v0.33.5
+	github.com/kcp-dev/virtual-workspace-framework v0.33.5
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1

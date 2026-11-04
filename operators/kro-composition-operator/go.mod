@@ -7,7 +7,7 @@ require (
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.9.0
 	github.com/kcp-dev/multicluster-provider/client v0.9.0
-	github.com/kcp-dev/sdk v0.33.4
+	github.com/kcp-dev/sdk v0.33.5
 	github.com/kubernetes-sigs/kro v0.9.4
 	github.com/stretchr/testify v1.12.1
 	k8s.io/api v0.36.4
