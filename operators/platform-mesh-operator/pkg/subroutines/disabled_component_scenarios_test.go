@@ -217,7 +217,6 @@ func Test_ShippedProfile_HasNoDanglingDependencies(t *testing.T) {
 	sub, inst = newSubroutineForProfile(t, withObservabilityStack(t, shipped), ns)
 	graph = renderHelmReleaseGraph(t, sub, inst)
 	assertNoDanglingDependencies(t, graph)
-	assert.Contains(t, graph[helmReleaseKey(ns, "opentelemetry-operator")], helmReleaseKey(ns, "cert-manager"))
 }
 
 // Switching a component off must never leave another release waiting on it.

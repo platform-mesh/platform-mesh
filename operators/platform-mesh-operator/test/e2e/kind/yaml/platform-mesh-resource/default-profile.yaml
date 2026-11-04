@@ -350,15 +350,6 @@ data:
               shards: []
               webhook:
                 enabled: true
-            traefik:
-              accessControlAllowOriginList:
-              - http://localhost:4200
-              - http://localhost:4300
-              - http://*.localhost:4200
-              - http://*.localhost:4300
-              - http://sub.localhost:4300
-              - https://portal.localhost:8443
-              - https://*.portal.localhost:8443
         iam-ui:
           enabled: true
           syncWave: 4
