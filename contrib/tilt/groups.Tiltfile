@@ -29,8 +29,10 @@ GROUPS = {
     "iam": ["authz", "pm-keycloak-operator", "iam-service", "iam-ui"],
     # GraphQL gateway and virtual workspaces.
     "api": ["core", "kubernetes-graphql-gateway", "marketplace", "extension-manager-virtual-workspace"],
+    # Federation with external actors (e.g. providers, consumers).
+    "extern": ["core", "access-operator"],
     # The portal and what it talks to.
-    "ui": ["api", "iam", "extension-manager-operator", "portal", "marketplace-ui"],
+    "ui": ["api", "iam", "extern", "extension-manager-operator", "portal", "marketplace-ui"],
     # Optional kcp virtual workspaces behind the front proxy: permission-aware
     # workspace discovery and the MCP server on top of it.
     "vw": ["kcp-access-vw", "kcp-mcp-vw"],

@@ -57,11 +57,14 @@ vars:
 
     # shared
     - apis
+    - protocol
+    - sdk
     - subroutines
     - golang-commons
     - virtual-workspaces
 
     # operators
+    - access-operator
     - account-operator
     - extension-manager-operator
     - extension-manager-virtual-workspace
@@ -82,6 +85,8 @@ vars:
 
   LIBRARIES:
     - apis
+    - protocol
+    - sdk
     - subroutines
     - golang-commons
     - virtual-workspaces
@@ -175,7 +180,8 @@ tasks:
           authz   core + OpenFGA, pm-openfga-operator, pm-openfga-authz-webhook
           iam     authz + Keycloak, pm-keycloak-operator, iam-service, iam-ui
           api     core + kubernetes-graphql-gateway, marketplace, extension-manager-virtual-workspace
-          ui      api + iam + portal, marketplace-ui, extension-manager-operator
+          extern  core, access-operator
+          ui      api + iam + portal + extern, marketplace-ui, extension-manager-operator
           vw      kcp access and MCP virtual workspaces (charts kcp-access-vw, kcp-mcp-vw)
           e2e     HTTPBin provider fixture and a second kcp shard
           full    ui + e2e (default of tilt:ci; what task tilt:e2e expects)

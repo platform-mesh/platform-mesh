@@ -46,6 +46,24 @@ data:
           name: platform-mesh
         skipVerify: true
       services:
+        access-operator:
+          imageResources:
+          - annotations:
+              repo: oci
+              artifact: image
+              for: access-operator
+          syncWave: 4
+          enabled: true
+          dependsOn: []
+          values:
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
+            kcp:
+              externalUrl: "https://kcp.api.{{ .baseDomainPort }}"
+            log:
+              level: debug
+              noJson: true
         account-operator:
           # Installed once its image is known: a HelmRelease applied before the
           # operator has filled in the image runs the chart's default, and Flux
