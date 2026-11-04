@@ -62,7 +62,7 @@ Optional infrastructure prerequisites for Platform Mesh
 | oci://ghcr.io/cloudnative-pg/charts | cloudnative-pg | 0.28.0 |
 | oci://ghcr.io/fluxcd-community/charts | flux2 | 2.17.2 |
 | oci://ghcr.io/open-component-model/kubernetes/controller | ocm-k8s-toolkit(chart) | 0.13.0 |
-| oci://ghcr.io/platform-mesh/charts/gardener | etcd-druid | v0.39.1 |
+| oci://ghcr.io/platform-mesh/charts/gardener | etcd-druid | v0.39.2 |
 | oci://ghcr.io/platform-mesh/ocm/charts | traefik-crds | 1.14.0 |
 | oci://ghcr.io/traefik/helm | traefik | 42.1.3 |
 | oci://quay.io/jetstack/charts | cert-manager | v1.20.5 |

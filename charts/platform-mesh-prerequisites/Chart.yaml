@@ -39,6 +39,6 @@ dependencies:
     repository: file://../keycloak-operator
     condition: keycloak-operator.enabled
   - name: etcd-druid
-    version: v0.39.1
+    version: v0.39.2
     repository: oci://ghcr.io/platform-mesh/charts/gardener
     condition: etcd-druid.enabled
