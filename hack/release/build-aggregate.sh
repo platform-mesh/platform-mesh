@@ -259,6 +259,10 @@ while IFS= read -r chart; do
 
   if [[ "$(jq -r .hasRefs <<<"$chart")" == "true" ]]; then
     refs="$("$YQ" -o=json '.extraReferences' "$settings" | envsubst)"
+    # envsubst turns an unset variable into an empty version, which the
+    # "not built here" checks below can only report as an unpublished component.
+    unversioned="$(jq -r '[.[] | select(.version == "") | .componentName] | join(", ")' <<<"$refs")"
+    [[ -z "$unversioned" ]] || die "$settings: extraReferences without a version (unset variable): $unversioned"
     service="$(jq --argjson refs "$refs" '.componentReferences += $refs' <<<"$service")"
   fi
 
@@ -383,8 +387,6 @@ while IFS=$'\t' read -r cname cver; do
     diff <(jq . <<<"$have") <(jq . <<<"$want") | sed 's/^/    /' >&2 || true
     if [[ "$cver" == "$VERSION" ]]; then
       echo "    -> $VERSION was already published from a different commit; versions are immutable, use a new one" >&2
-    else
-      echo "    -> bump the PM_* version of this wrapper in ocm/versions.yaml" >&2
     fi
     conflicts=$((conflicts + 1))
   fi
