@@ -27,6 +27,8 @@ import (
 	"text/template"
 	"time"
 
+	language "github.com/openfga/language/pkg/go/transformer"
+
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	fgautil "go.platform-mesh.io/golang-commons/fga/util"
@@ -111,9 +113,9 @@ type {{ .TypeName }}
 		define delete: {{ or .Delete "member" }}
 		define patch: {{ or .Patch "member" }}
 		define watch: {{ if .Watch }}{{ .WatchRelation }} from parent{{ else }}member{{ end }}
-{{ range .Roles }}
+{{ range .Roles }}{{ if .Definition }}
 		define {{ .ID }}: {{ .Definition }}
-{{ end }}
+{{ end }}{{ end }}
 {{ range $name, $def := .AdditionalPermissions }}
 		define {{ $name }}: {{ $def }}
 {{ end }}
@@ -171,17 +173,69 @@ func newModelInput(group, plural, singular, scope string) (modelInput, error) {
 // checkRelationNames rejects provider defined relations OpenFGA cannot store,
 // which would otherwise fail the model of the whole org.
 func checkRelationNames(in modelInput) error {
-	names := slices.Collect(maps.Keys(in.AdditionalPermissions))
-	for _, role := range in.Roles {
-		names = append(names, role.ID)
-	}
-	for _, name := range names {
-		if len(name) > fgautil.MaxRelationLength {
+	seen := map[string]bool{}
+	check := func(name string) error {
+		switch {
+		case len(name) > fgautil.MaxRelationLength:
 			return fmt.Errorf("relation %q exceeds %d characters", name, fgautil.MaxRelationLength)
+		case reservedRelations[name]:
+			return fmt.Errorf("relation %q is reserved by the authorization model template or OpenFGA", name)
+		case seen[name]:
+			return fmt.Errorf("relation %q is defined more than once", name)
+		}
+		seen[name] = true
+		return nil
+	}
+
+	for _, role := range in.Roles {
+		// Roles without a definition name a relation the template defines.
+		if role.Definition == "" {
+			if role.ID != "owner" && role.ID != "member" {
+				return fmt.Errorf("role %q has no definition", role.ID)
+			}
+			continue
+		}
+		if err := check(role.ID); err != nil {
+			return err
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(in.AdditionalPermissions)) {
+		if err := check(name); err != nil {
+			return err
 		}
 	}
 	return nil
 }
+
+// reservedRelations are the relations the template defines on the resource
+// type and the words the DSL or OpenFGA do not accept as relation names.
+var reservedRelations = func() map[string]bool {
+	reserved := map[string]bool{}
+	for _, word := range []string{"and", "or", "from", "define", "relations", "condition", "with", "in", "true", "false", "null", "self", "this"} {
+		reserved[word] = true
+	}
+
+	in, err := newModelInput("example.io", "examples", "example", "Cluster")
+	if err != nil {
+		panic(err)
+	}
+	var buffer bytes.Buffer
+	if err := modelTpl.Execute(&buffer, in); err != nil {
+		panic(err)
+	}
+	model, _, err := language.TransformModularDSLToProto(buffer.String())
+	if err != nil {
+		panic(err)
+	}
+	for _, td := range model.GetTypeDefinitions() {
+		if td.GetType() == in.TypeName {
+			for relation := range td.GetRelations() {
+				reserved[relation] = true
+			}
+		}
+	}
+	return reserved
+}()
 
 func getRolesForResource(resourceRoles []pmprovidersv1alpha1.ResourceRoles, permissionKey string) []pmprovidersv1alpha1.RoleDefinition {
 	for _, rr := range resourceRoles {
