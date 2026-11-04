@@ -38,7 +38,7 @@ Platform Mesh requires the following cluster components at the listed versions:
 | Traefik CRDs | 1.14.0 |
 | CloudNativePG | 0.28.0 |
 | Keycloak operator | 0.10.0 |
-| etcd-druid | v0.39.1 |
+| etcd-druid | v0.39.2 |
 
 The `platform-mesh-prerequisites` chart installs all of the above at these exact
 versions and is the simplest way to satisfy this requirement. Any other
