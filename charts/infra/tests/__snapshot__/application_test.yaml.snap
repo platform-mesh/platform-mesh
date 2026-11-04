@@ -176,6 +176,9 @@ Gateway API enabled:
       etcd:
         endpoints:
           - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
   6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
@@ -206,6 +209,9 @@ Gateway API enabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -324,11 +330,17 @@ Gateway API enabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
@@ -447,11 +459,17 @@ Gateway API enabled:
           - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -573,11 +591,17 @@ Gateway API enabled:
           - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -824,6 +848,9 @@ Istio disabled:
       etcd:
         endpoints:
           - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
   6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
@@ -854,6 +881,9 @@ Istio disabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -972,11 +1002,17 @@ Istio disabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
@@ -1095,11 +1131,17 @@ Istio disabled:
           - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -1221,11 +1263,17 @@ Istio disabled:
           - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -1472,6 +1520,9 @@ Istio enabled:
       etcd:
         endpoints:
           - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
   6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
@@ -1502,6 +1553,9 @@ Istio enabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -1620,11 +1674,17 @@ Istio enabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
@@ -1743,11 +1803,17 @@ Istio enabled:
           - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -1869,11 +1935,17 @@ Istio enabled:
           - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -2053,11 +2125,17 @@ configure etcd backup store:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   3: |
@@ -2112,6 +2190,9 @@ configure frontproxy resources:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       replicas: 1
       resources:
         limits:
@@ -2230,11 +2311,17 @@ configure rootshard resources:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       resources:
         limits:
@@ -2444,6 +2531,7 @@ match snapshots:
         endpoints:
           - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: 0.0.0
   6: |
     apiVersion: operator.kcp.io/v1alpha1
@@ -2476,6 +2564,7 @@ match snapshots:
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: 0.0.0
       replicas: 1
       rootShard:
@@ -2596,6 +2685,7 @@ match snapshots:
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: 0.0.0
       proxy:
         deploymentTemplate:
@@ -2603,6 +2693,7 @@ match snapshots:
             template:
               spec: null
         image:
+          repository: ghcr.io/kcp-dev/kcp
           tag: 0.0.0
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
@@ -2723,6 +2814,7 @@ match snapshots:
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: 0.0.0
       proxy:
         deploymentTemplate:
@@ -2730,6 +2822,7 @@ match snapshots:
             template:
               spec: null
         image:
+          repository: ghcr.io/kcp-dev/kcp
           tag: 0.0.0
       replicas: 1
       rootShard:
@@ -2853,6 +2946,7 @@ match snapshots:
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: 0.0.0
       proxy:
         deploymentTemplate:
@@ -2860,6 +2954,7 @@ match snapshots:
             template:
               spec: null
         image:
+          repository: ghcr.io/kcp-dev/kcp
           tag: 0.0.0
       replicas: 1
       rootShard:
@@ -3107,6 +3202,9 @@ match snapshots w. hostAliases enabled:
       etcd:
         endpoints:
           - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
   6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
@@ -3138,6 +3236,9 @@ match snapshots w. hostAliases enabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -3258,12 +3359,18 @@ match snapshots w. hostAliases enabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec:
                 hostAliases: []
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
@@ -3383,12 +3490,18 @@ match snapshots w. hostAliases enabled:
           - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec:
                 hostAliases: []
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -3511,12 +3624,18 @@ match snapshots w. hostAliases enabled:
           - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec:
                 hostAliases: []
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -3764,6 +3883,7 @@ match snapshots w. kcp version:
         endpoints:
           - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: v0.1.0
   6: |
     apiVersion: operator.kcp.io/v1alpha1
@@ -3796,6 +3916,7 @@ match snapshots w. kcp version:
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: v0.1.0
       replicas: 1
       rootShard:
@@ -3916,6 +4037,7 @@ match snapshots w. kcp version:
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: v0.1.0
       proxy:
         deploymentTemplate:
@@ -3923,6 +4045,7 @@ match snapshots w. kcp version:
             template:
               spec: null
         image:
+          repository: ghcr.io/kcp-dev/kcp
           tag: v0.1.0
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
@@ -4043,6 +4166,7 @@ match snapshots w. kcp version:
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: v0.1.0
       proxy:
         deploymentTemplate:
@@ -4050,6 +4174,7 @@ match snapshots w. kcp version:
             template:
               spec: null
         image:
+          repository: ghcr.io/kcp-dev/kcp
           tag: v0.1.0
       replicas: 1
       rootShard:
@@ -4173,6 +4298,7 @@ match snapshots w. kcp version:
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
+        repository: ghcr.io/kcp-dev/kcp
         tag: v0.1.0
       proxy:
         deploymentTemplate:
@@ -4180,6 +4306,7 @@ match snapshots w. kcp version:
             template:
               spec: null
         image:
+          repository: ghcr.io/kcp-dev/kcp
           tag: v0.1.0
       replicas: 1
       rootShard:
@@ -4427,6 +4554,9 @@ match snapshots with mailpit enabled:
       etcd:
         endpoints:
           - http://etcd-cache-client.platform-mesh-system.svc.cluster.local:2379
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
   6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
@@ -4457,6 +4587,9 @@ match snapshots with mailpit enabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -4575,11 +4708,17 @@ match snapshots with mailpit enabled:
         port: 8443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
@@ -4698,11 +4837,17 @@ match snapshots with mailpit enabled:
           - http://etcd-kcp-nereus-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -4824,11 +4969,17 @@ match snapshots with mailpit enabled:
           - http://etcd-kcp-triton-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 1
       rootShard:
         ref:
@@ -4993,11 +5144,17 @@ render additional shard with explicit hostname:
           - http://etcd-kcp-shard-1-client.platform-mesh-system.svc.cluster.local:2379
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+      image:
+        repository: ghcr.io/kcp-dev/kcp
+        tag: v0.33.6
       proxy:
         deploymentTemplate:
           spec:
             template:
               spec: null
+        image:
+          repository: ghcr.io/kcp-dev/kcp
+          tag: v0.33.6
       replicas: 2
       rootShard:
         ref:
