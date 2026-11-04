@@ -36,7 +36,7 @@ Platform Mesh requires the following cluster components at the listed versions:
 | Gateway API CRDs | 1.5.1 |
 | Traefik | 42.1.3 |
 | Traefik CRDs | 1.14.0 |
-| CloudNativePG | 0.28.0 |
+| CloudNativePG | 0.29.1 |
 | Keycloak operator | 0.10.0 |
 | etcd-druid | v0.39.2 |
 
