@@ -9,6 +9,7 @@ Optional infrastructure prerequisites for Platform Mesh
 | cert-manager.crds.enabled | bool | `true` |  |
 | cert-manager.enabled | bool | `true` |  |
 | cert-manager.webhook.timeoutSeconds | int | `15` |  |
+| cloudnative-pg.image.tag | string | `"1.30.1-ubi9"` |  |
 | cnpg.enabled | bool | `true` |  |
 | etcd-druid.enabled | bool | `true` |  |
 | flux2.enabled | bool | `true` |  |
@@ -60,7 +61,7 @@ Optional infrastructure prerequisites for Platform Mesh
 | file://../gateway-api-crds | gateway-api-crds | 0.0.0 |
 | file://../keycloak-operator | keycloak-operator | 0.0.0 |
 | oci://europe-docker.pkg.dev/gardener-project/releases/charts/gardener | etcd-druid | v0.39.2 |
-| oci://ghcr.io/cloudnative-pg/charts | cloudnative-pg | 0.28.0 |
+| oci://ghcr.io/cloudnative-pg/charts | cloudnative-pg | 0.29.1 |
 | oci://ghcr.io/fluxcd-community/charts | flux2 | 2.17.2 |
 | oci://ghcr.io/open-component-model/kubernetes/controller | ocm-k8s-toolkit(chart) | 0.13.0 |
 | oci://ghcr.io/platform-mesh/ocm/charts | traefik-crds | 1.14.0 |
@@ -74,6 +75,7 @@ Optional infrastructure prerequisites for Platform Mesh
 | cert-manager.crds.enabled | bool | `true` |  |
 | cert-manager.enabled | bool | `true` |  |
 | cert-manager.webhook.timeoutSeconds | int | `15` |  |
+| cloudnative-pg.image.tag | string | `"1.30.1-ubi9"` |  |
 | cnpg.enabled | bool | `true` |  |
 | etcd-druid.enabled | bool | `true` |  |
 | flux2.enabled | bool | `true` |  |
