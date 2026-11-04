@@ -106,9 +106,10 @@ tasks:
         fi
       # Resolve helm chart dependencies (file:// refs and third-party charts).
       - "{{.TASKFILE_DIR}}/../../hack/charts/resolve-dependencies.sh {{.TASKFILE_DIR}}/../../charts"
+
       # Pass 1: install controllers and CRDs (cert-manager, flux2, ocm-k8s-toolkit,
-      # etcd-druid, keycloak-operator) without Traefik so the Service ClusterIP is
-      # not yet assigned — Traefik's Service must be created after the namespace
+      # etcd-druid, keycloak-operator) without gateway controller so the Service ClusterIP is
+      # not yet assigned — Gateway's Service must be created after the namespace
       # exists so Kubernetes picks a stable IP.
       - |
         {{.HELM}} upgrade --install platform-mesh-prerequisites \
@@ -119,7 +120,7 @@ tasks:
           --create-namespace \
           --wait \
           --timeout 15m
-      # Pass 2: enable Traefik as a NodePort with a pinned ClusterIP so the
+      # Pass 2: enable Traefik as a gateway controller with a pinned ClusterIP so the
       # gateway.clusterIP passed to the operator chart is deterministic.
       - |
         {{.HELM}} upgrade platform-mesh-prerequisites \
