@@ -140,7 +140,6 @@ type Node struct {
 	ConfigurationHint         string                   `json:"configurationHint,omitempty" yaml:"configurationHint,omitempty"`
 	ConfigurationLink         string                   `json:"configurationLink,omitempty" yaml:"configurationLink,omitempty"`
 	Id                        string                   `json:"id,omitempty" yaml:"id,omitempty"`
-	HideGlobalSearch          *bool                    `json:"hideGlobalSearch,omitempty" yaml:"hideGlobalSearch,omitempty"`
 	HideFromBreadcrumb        *bool                    `json:"hideFromBreadcrumb,omitempty" yaml:"hideFromBreadcrumb,omitempty"`
 }
 
@@ -176,9 +175,10 @@ type ClientPermissions struct {
 }
 
 type UrlParameters struct {
-	Url    Url `json:"url,omitempty" yaml:"url,omitempty"`
-	Q      Url `json:"q,omitempty" yaml:"q,omitempty"`
-	Author Url `json:"author,omitempty" yaml:"author,omitempty"`
+	Url       Url `json:"url,omitempty" yaml:"url,omitempty"`
+	Q         Url `json:"q,omitempty" yaml:"q,omitempty"`
+	Author    Url `json:"author,omitempty" yaml:"author,omitempty"`
+	Namespace Url `json:"namespace,omitempty" yaml:"namespace,omitempty"`
 }
 
 type Url struct {

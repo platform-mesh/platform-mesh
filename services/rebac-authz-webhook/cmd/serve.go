@@ -19,7 +19,9 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
+	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/spf13/cobra"
@@ -28,6 +30,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"go.platform-mesh.io/golang-commons/fga/store"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization/union"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/clustercache"
@@ -38,6 +41,7 @@ import (
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/handler/orgs"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/retry"
 
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -129,14 +133,15 @@ func NewServeCmd() *cobra.Command {
 
 			fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-			storeRes, err := fga.ListStores(ctx, &openfgav1.ListStoresRequest{Name: "orgs"})
+			// The store is created by the security-operator, on a fresh
+			// install, e.g. in CI, the authz webhook may be started
+			// before the store is available. Instead of crash-looping
+			// the pod wait until the store is available.
+			storeID, err := waitForStore(ctx, fga, orgsStoreName)
 			if err != nil {
-				klog.Exit(err, "cannot list stores from OpenFGA")
+				klog.Exit(err, "cannot find the OpenFGA store to authorize against")
 			}
-			if len(storeRes.Stores) == 0 {
-				klog.Exit("no stores found in OpenFGA")
-			}
-			klog.InfoS("using OpenFGA store", "id", storeRes.Stores[0].Id)
+			klog.InfoS("using OpenFGA store", "id", storeID)
 
 			extraAttrClusterKey := serverCfg.Webhook.ClusterKey
 			cacheMissTracker := retry.NewExpiringRetryTracker[string](ctx, serverCfg.Webhook.CacheMissMaxRetries, serverCfg.Webhook.CacheMissTTL)
@@ -144,7 +149,7 @@ func NewServeCmd() *cobra.Command {
 				klog.NewKlogr(),
 				union.New(
 					nonresourceattributes.New(serverCfg.Webhook.AllowedNonResourcePrefixes...),
-					orgs.New(fga, mgr, extraAttrClusterKey, storeRes.Stores[0].Id),
+					orgs.New(fga, mgr, extraAttrClusterKey, storeID),
 					contextual.New(fga, clusterCache, extraAttrClusterKey, cacheMissTracker, serverCfg.Webhook.CacheMissRetryAfter),
 				),
 			))
@@ -178,4 +183,34 @@ func NewServeCmd() *cobra.Command {
 	serverCfg = config.New()
 	serverCfg.AddFlags(cmd.Flags())
 	return cmd
+}
+
+const (
+	orgsStoreName     = "orgs"
+	storePollInterval = 2 * time.Second
+	storePollTimeout  = 4 * time.Minute
+)
+
+func waitForStore(ctx context.Context, fga openfgav1.OpenFGAServiceClient, name string) (string, error) {
+	var storeID string
+
+	err := wait.PollUntilContextTimeout(ctx, storePollInterval, storePollTimeout, true, func(ctx context.Context) (bool, error) {
+		id, found, err := store.FindStoreIDByName(ctx, fga, name)
+		switch {
+		case err != nil:
+			klog.ErrorS(err, "cannot list OpenFGA stores, retrying", "name", name)
+			return false, nil
+		case !found:
+			klog.InfoS("no OpenFGA store yet, retrying", "name", name)
+			return false, nil
+		default:
+			storeID = id
+			return true, nil
+		}
+	})
+	if err != nil {
+		return "", fmt.Errorf("waiting for the %q OpenFGA store: %w", name, err)
+	}
+
+	return storeID, nil
 }

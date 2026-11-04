@@ -58,7 +58,7 @@ func (e *Engine) instanceHandler(
 	// kro resolves graphs through the registry, so hold one active revision per RGD. kro does
 	// not read SpecHash, so it carries the published schema's hash to tie the two together.
 	registry.Put(revisions.Entry{
-		RGDName:       rgd.Name,
+		OwnerKey:      rgd.Name,
 		Revision:      activeRevision,
 		SpecHash:      schemaHash(g.CRD),
 		State:         revisions.RevisionStateActive,
@@ -78,7 +78,7 @@ func (e *Engine) instanceHandler(
 			RGDConfig:      composition.RGDConfig(),
 		},
 		gvr,
-		registry.ResolverForRGD(rgd.Name),
+		registry.ResolverFor(rgd.Name),
 		g.Instance.Meta.Namespaced,
 		wc.KroSet,
 		krometadata.NewResourceGraphDefinitionLabeler(rgd),

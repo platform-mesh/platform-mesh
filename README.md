@@ -9,7 +9,7 @@
 
 ## Description
 
-Platform Mesh is an open, multi-tenant developer platform built on [kcp](https://github.com/kcp-dev/kcp). It provides account-based tenancy, relationship-based authorization (ReBAC via [OpenFGA](https://openfga.dev/)), search, and UI extensibility on top of a Kubernetes-like control plane.
+Platform Mesh is an open, multi-tenant developer platform built on [kcp](https://github.com/kcp-dev/kcp). It provides account-based tenancy, relationship-based authorization (ReBAC via [OpenFGA](https://openfga.dev/)), and UI extensibility on top of a Kubernetes-like control plane.
 
 This repository is the Platform Mesh **monorepo**: it consolidates the shared libraries, operators, services, and tooling that make up the platform. Each component is its own Go module, linked together through the repository-root [`go.work`](go.work) workspace. The Helm charts (`charts/`), the OCM component definitions (`ocm/`) and the installation guide (`installation/`) live here as well.
 
@@ -32,7 +32,6 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | [extension-manager-operator](operators/extension-manager-operator) | Lifecycle management of `ContentConfiguration` resources for Micro Frontends. |
 | [kcp-migration-operator](operators/kcp-migration-operator) | Synchronizes custom resources from existing Kubernetes clusters into kcp workspaces. |
 | [resource-sharding-operator](operators/resource-sharding-operator) | Assigns resources to shards via labels so downstream operator replicas filter their watches by shard. |
-| [search-operator](operators/search-operator) | Indexes kcp workspaces and accounts into OpenSearch together with OpenFGA permission tuples. |
 | [security-operator](operators/security-operator) | Manages security-related configuration (authorization models, identity providers, tuples, stores, invites). |
 | [terminal-controller-manager](operators/terminal-controller-manager) | Manages browser-based terminal sessions (ephemeral pods) to kcp workspaces. |
 
@@ -41,7 +40,6 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | Service | Description |
 |---------|-------------|
 | [iam-service](services/iam-service) | GraphQL API for user and role management, driving OpenFGA and the identity provider (Keycloak). |
-| [search-service](services/search-service) | REST API to query OpenSearch-indexed resources with OpenFGA post-filtering. |
 | [virtual-workspaces](services/virtual-workspaces) | Custom kcp-based virtual workspaces that expose tailored data to UIs. |
 | [rebac-authz-webhook](services/rebac-authz-webhook) | Kubernetes authorization webhook backed by OpenFGA (ReBAC). |
 | [kubernetes-graphql-gateway](services/kubernetes-graphql-gateway) | Exposes Kubernetes resources as a GraphQL API for UIs and tools. |
@@ -62,51 +60,36 @@ Target a single component with the `<target>-<component>` pattern:
 ```sh
 task build-iam-service
 task test-account-operator
-task images-search-service VERSION=v0.1.0 PUSH=false
+task images-iam-service VERSION=v0.1.0 PUSH=false
 ```
 
 The modules are linked through the root [`go.work`](go.work), so cross-module changes resolve against local source during development.
 
 ## Development
 
-For the inner loop, [Tilt](https://tilt.dev) replaces the OCM/Flux delivery pipeline: static infrastructure is deployed once into a kind cluster, and the components you are working on hot-reload in seconds.
+For the development loop, [Tilt](https://tilt.dev) replaces the OCM/Flux delivery pipeline: the kind installation from [installation/README.md](installation/README.md) is rendered straight from [`charts/`](charts), and the operators and services you are working on are compiled on the host and hot-reloaded into their pods in seconds.
+
+`helm` needs to be authenticated with ghcr.io to pull the charts:
 
 ```sh
-# the cluster MUST be named platform-mesh — the Tiltfile refuses any kube
-# context other than kind-platform-mesh, so a stray `tilt up` cannot hit a
-# shared cluster. Override with TILT_ALLOWED_CONTEXT.
-kind create cluster --name platform-mesh
-tilt up -f contrib/tilt/Tiltfile -- --profile=core,auth
+helm registry login ghcr.io --username "<github-user>"
 ```
 
-The `--` matters: everything after it is parsed by the Tiltfile, not by Tilt itself.
-
-### Profiles
-
-Profiles are independent feature layers, not an ordered ladder — each only ever *adds* resources, so several can be requested at once (`--profile=core,auth`, `--profile=core --profile=auth`, or `--profile=full` for all of them). An unknown profile fails the Tiltfile rather than being silently ignored, so a typo cannot quietly give you a smaller environment than you asked for.
-
-| Profile | Adds |
-|---------|------|
-| `infra` | the base environment — namespace, cert-manager issuer, envoy `Gateway`, a mutual-TLS etcd, dex, and kcp, which `platform-mesh-deployer` builds from a `PlatformMesh`. **Always on**; naming it is allowed but redundant |
-| `core` | nothing yet (reserved) |
-| `auth` | the ReBAC authorization webhook secret on kcp (L3) |
-| `full` | shorthand for all of the above |
-
-### Charts
-
-The Helm charts live in [`charts/`](charts) and are rendered from there directly, so chart changes are picked up live. Set `TILT_CHARTS_FROM_OCI=1` to pull the pinned published versions instead, or `HELM_CHARTS_DIR` to use another checkout.
-
-kcp needs no such override: it is built in-cluster from a `PlatformMesh` rather than fetched, so there is nothing external to pin.
-
-### Validating manifests without a cluster
+Then bring up the kind cluster and tilt:
 
 ```sh
-TILT_NO_INFRA=1 tilt alpha tiltfile-result -f contrib/tilt/Tiltfile -- --profile=full
+task tilt:up  # brings up tilt with a webinterface
+task tilt:ci  # bring up tilt until all resources are green, then exits
+task tilt:e2e # runs the portal sharded e2e tests against the running tilt PM instance
 ```
 
-This renders the local manifests and the `PlatformMesh` and topology templates kcp is built from, with every substitution applied — no cluster and no remote fetches — so gateway wiring, OIDC issuer and the authorization webhook can be confirmed before deploying.
+Everything is addressed as `<name>.pm.<node-ip>.sslip.io:31000`; `platformmesh-ready` turning green means the installation is usable. Chart changes are picked up live, service values come from the operator's [kind profile](charts/platform-mesh-operator/files/kind-profile.yaml).
 
-See [contrib/tilt/README.md](contrib/tilt/README.md) for the full environment: what each resource is, how kcp gets built, and how to poke at it.
+### Validating manifests without deploying
+
+```sh
+tilt alpha tiltfile-result -f contrib/tilt/Tiltfile
+```
 
 ## Releasing
 

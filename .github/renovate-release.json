@@ -1,0 +1,207 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    "docker:pinDigests",
+    ":gitSignOff"
+  ],
+  "branchPrefix": "deps/",
+  "separateMajorMinor": false,
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "branchConcurrentLimit": 0,
+  "prCreation": "immediate",
+  "dependencyDashboard": false,
+  "labels": [
+    "dependencies"
+  ],
+  "automerge": false,
+  "platformAutomerge": false,
+  "autoApprove": false,
+  "rebaseWhen": "conflicted",
+  "osvVulnerabilityAlerts": false,
+  "vulnerabilityAlerts": {
+    "enabled": false
+  },
+  "ignoreDeps": [
+    "github.com/kcp-dev/multicluster-provider",
+    "github.com/kcp-dev/multicluster-provider/client",
+    "k8s.io/api",
+    "k8s.io/apiextensions-apiserver",
+    "k8s.io/apimachinery",
+    "k8s.io/apiserver",
+    "k8s.io/client-go",
+    "k8s.io/component-base",
+    "k8s.io/klog/v2",
+    "k8s.io/kube-openapi",
+    "k8s.io/utils",
+    "sigs.k8s.io/controller-runtime",
+    "sigs.k8s.io/multicluster-runtime"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Tool versions pinned in tools/Taskfile.yaml",
+      "managerFilePatterns": [
+        "/(^|/)tools/Taskfile\\.yaml$/"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[A-Z0-9_]+_VERSION:\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
+      ],
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Third-party versions shipped with Platform Mesh (ocm/versions.yaml)",
+      "managerFilePatterns": [
+        "/(^|/)ocm/versions\\.yaml$/"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n[A-Z0-9_]+:\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "go and toolchain directives in go.work; no gomod manager owns go.work",
+      "managerFilePatterns": [
+        "/(^|/)go\\.work$/"
+      ],
+      "matchStrings": [
+        "(?:^|\\n)go (?<currentValue>\\d+\\.\\d+\\.\\d+)\\s",
+        "(?:^|\\n)toolchain go(?<currentValue>\\d+\\.\\d+\\.\\d+)\\s"
+      ],
+      "depNameTemplate": "go",
+      "datasourceTemplate": "golang-version",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Plain-tag pins - the regex manager cannot write digests, and chart values keep digests in a separate field.",
+      "matchManagers": [
+        "custom.regex",
+        "helm-values"
+      ],
+      "pinDigests": false
+    },
+    {
+      "description": "Everything in one branch, the release cycle takes all updates at once.",
+      "groupName": "all dependencies",
+      "groupSlug": "all",
+      "matchPackageNames": [
+        "*"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch",
+        "pin",
+        "digest",
+        "pinDigest",
+        "lockFileMaintenance",
+        "replacement",
+        "rollback"
+      ]
+    },
+    {
+      "description": "Skip kcp's kube fork, its version is welded to the kcp modules.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "github.com/kcp-dev/kubernetes{/,}**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "k8s release-train riders: they move only when the kcp train moves.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "k8s.io/**",
+        "sigs.k8s.io/**",
+        "github.com/kcp-dev/multicluster-provider{/,}**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "capped at the last k8s-0.36-era release; raise when the kcp train moves.",
+      "matchPackageNames": [
+        "github.com/openfga/openfga"
+      ],
+      "allowedVersions": "<1.22.0"
+    },
+    {
+      "matchPackageNames": [
+        "github.com/fluxcd/helm-controller/api"
+      ],
+      "allowedVersions": "<1.7.0"
+    },
+    {
+      "description": "Local component image tags in chart values are stamped by the release process.",
+      "matchManagers": [
+        "helm-values"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/platform-mesh/**",
+        "platform-mesh/**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "opensearch-go v5 is a breaking migration (search-operator code changes), needs manual bump.",
+      "matchPackageNames": [
+        "github.com/opensearch-project/opensearch-go/v4"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "flux2 chart >=2.18 ships Flux v2.8 (Helm v4 SSA), which rejects the null fields the published platform charts render, raise after the released charts render null-free.",
+      "matchPackageNames": [
+        "ghcr.io/fluxcd-community/charts/flux2"
+      ],
+      "allowedVersions": "<2.18.0"
+    },
+    {
+      "description": "ocm-k8s-toolkit >=0.18 drops Component.spec.verify, migrate installation.yaml and then update.",
+      "matchPackageNames": [
+        "ghcr.io/open-component-model/kubernetes/controller/chart"
+      ],
+      "allowedVersions": "<0.18.0"
+    },
+    {
+      "description": "cel-go v0.32+ renamed its module to cel.dev/cel-go; switching is a code migration.",
+      "matchPackageNames": [
+        "github.com/google/cel-go"
+      ],
+      "allowedVersions": "<0.32.0"
+    },
+    {
+      "matchPackageNames": [
+        "github.com/fluxcd/source-controller/api"
+      ],
+      "allowedVersions": "<1.10.0"
+    },
+    {
+      "description": "Allow pre-release updates for OCM component",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchFileNames": [
+        "**/ocm/component.yaml",
+        "**/ocm-k8s-toolkit/ocm-k8s-toolkit.yaml"
+      ],
+      "ignoreUnstable": false
+    }
+  ]
+}

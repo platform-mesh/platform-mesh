@@ -32,10 +32,19 @@ func NewKcpHelper(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *KcpHelper {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &KcpHelper{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -89,7 +98,7 @@ type KcpHelper_NewKcpClient_Call struct {
 // NewKcpClient is a helper method to define mock.On call
 //   - config *rest.Config
 //   - workspacePath string
-func (_e *KcpHelper_Expecter) NewKcpClient(config interface{}, workspacePath interface{}) *KcpHelper_NewKcpClient_Call {
+func (_e *KcpHelper_Expecter) NewKcpClient(config any, workspacePath any) *KcpHelper_NewKcpClient_Call {
 	return &KcpHelper_NewKcpClient_Call{Call: _e.mock.On("NewKcpClient", config, workspacePath)}
 }
 

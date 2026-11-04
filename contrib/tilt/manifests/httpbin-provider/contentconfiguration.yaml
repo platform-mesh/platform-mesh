@@ -1,0 +1,121 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: ui.platform-mesh.io/v1alpha1
+kind: ContentConfiguration
+metadata:
+  labels:
+    ui.platform-mesh.io/entity: core_platform-mesh_io_account
+    ui.platform-mesh.io/content-for: orchestrate.platform-mesh.io
+  name: httpbin-ui
+spec:
+  inlineConfiguration:
+    content: |-
+      {
+          "name": "httpbins",
+          "creationTimestamp": "2022-05-17T11:37:17Z",
+          "luigiConfigFragment": {
+              "data": {
+                  "nodes": [
+                      {
+                          "pathSegment": "orchestrate_platform-mesh_io_httpbins",
+                          "navigationContext": "orchestrate_platform-mesh_io_httpbins",
+                          "label": "Http Bins",
+                          "icon": "paint-bucket",
+                          "order": 800,
+                          "entityType": "main.core_platform-mesh_io_account",
+                          "loadingIndicator": {
+                              "enabled": false
+                          },
+                          "keepSelectedForChildren": true,
+                          "url": "/assets/platform-mesh-portal-ui-wc.js#generic-list-view",
+                          "clientPermissions": {
+                            "urlParameters": { "namespace": { "read": true, "write": true } }
+                          },
+                          "webcomponent": {
+                              "selfRegistered": true, 
+                              "type": "module"
+                          },
+                          "context": {
+                              "resourceDefinition": {
+                                  "apiGroup": "orchestrate_platform_mesh_io",
+                                  "entityCollection": "HttpBins",
+                                  "version": "v1alpha1",
+                                  "entity": "HttpBin",
+                                  "scope": "Namespaced",
+                                  "namespace": null,
+                                  "readyCondition": {
+                                    "jsonPathExpression": "status.ready",
+                                    "property": ["status.ready"]
+                                  },
+                                  "ui": {
+                                      "logoUrl": "https://www.kcp.io/icons/logo.svg",
+                                      "listView": {
+                                          "fields": [
+                                              {
+                                                  "label": "Name",
+                                                  "property": "metadata.name"
+                                              },
+                                              {
+                                                  "label": "Ready",
+                                                  "property": "status.ready",
+                                                  "uiSettings": {
+                                                    "displayAs": "boolIcon"
+                                                  }
+                                              },
+                                              {
+                                                  "label": "Link",
+                                                  "property": "status.url",
+                                                  "uiSettings": {
+                                                    "displayAs": "link"
+                                                  }
+                                              },
+                                              {
+                                                  "uiSettings": {
+                                                      "align": "end",
+                                                      "displayAs": "button",
+                                                      "columnWidth": "90px",
+                                                      "buttonSettings": {
+                                                          "icon": "decline",
+                                                          "design": "Transparent",
+                                                          "action": "delete",
+                                                          "tooltip": "Delete"
+                                                      }
+                                                  },
+                                                  "group": {
+                                                      "name": "actions",
+                                                      "label": "",
+                                                      "multiline": false
+                                                  }
+                                              }
+                                          ]
+                                      },
+                                      "createView": {
+                                          "fields": [
+                                              {
+                                                  "label": "Name",
+                                                  "property": "metadata.name",
+                                                  "required": true
+                                              }
+                                          ]
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  ]
+              }
+          }
+      }
+    contentType: json

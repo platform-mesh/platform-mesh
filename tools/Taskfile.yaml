@@ -54,7 +54,7 @@ vars:
   ENVTEST_VERSION: v0.24.1
   ENVTEST: '{{.BIN}}/setup-envtest-{{.ENVTEST_VERSION}}'
 
-  GOLANGCI_LINT_VERSION: 2.13.2
+  GOLANGCI_LINT_VERSION: 2.15.0
   GOLANGCI_LINT: '{{.BIN}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}'
 
   GO_TEST_COVERAGE_VERSION: v2.18.9
@@ -71,13 +71,17 @@ vars:
   KIND_VERSION: v0.29.0
   KIND: '{{.BIN}}/kind-{{.KIND_VERSION}}'
 
+  # renovate: datasource=github-releases depName=tilt-dev/tilt
+  TILT_VERSION: 0.37.8
+  TILT: '{{.BIN}}/tilt-{{.TILT_VERSION}}'
+
   KUSTOMIZE_VERSION: v5.4.3
   KUSTOMIZE: '{{.BIN}}/kustomize-{{.KUSTOMIZE_VERSION}}'
 
   MKCERT_VERSION: v1.4.4
   MKCERT: '{{.BIN}}/mkcert-{{.MKCERT_VERSION}}'
 
-  MOCKERY_VERSION: 3.7.0
+  MOCKERY_VERSION: 3.9.0
   MOCKERY: '{{.BIN}}/mockery-{{.MOCKERY_VERSION}}'
 
   OAPI_CODEGEN_VERSION: v2.7.1
@@ -88,11 +92,11 @@ vars:
   OCM: '{{.BIN}}/ocm-{{.OCM_VERSION}}'
 
   # renovate: datasource=github-releases depName=helm/helm
-  HELM_VERSION: v4.2.3
+  HELM_VERSION: v4.3.1
   HELM: '{{.BIN}}/helm-{{.HELM_VERSION}}'
 
   # renovate: datasource=github-releases depName=mikefarah/yq
-  YQ_VERSION: v4.52.4
+  YQ_VERSION: v4.54.1
   YQ: '{{.BIN}}/yq-{{.YQ_VERSION}}'
 
   OPENAPI_GEN_VERSION: d427ff9ee9ad05f5da435abbb7c5929cb713ac56 # most recent commit as of writing this
@@ -110,10 +114,19 @@ tasks:
   # `task tools` installs everything; `task tools:all` is an explicit alias.
   default:
     desc: Install all shared tools into the root bin.
-    deps: [controller-gen, golangci-lint, mockery, apigen]
+    deps: [all]
   all:
-    desc: Install all shared tools into the root bin.
-    deps: [controller-gen, golangci-lint, mockery, apigen]
+    desc: Install every tool into the root bin.
+    vars:
+      # Install yq first and grab the absolute path.
+      YQ_BIN:
+        sh: 'UGET_DIRECTORY={{.BIN}} UGET_CHECKSUMS={{.HACK}}/tools.checksums UGET_PRINT_PATH=absolute task tools:yq'
+      # Grab tool tasks from the taskfile.
+      TOOL_TASKS:
+        sh: "{{.YQ_BIN}} '.tasks | to_entries | map(select([.value.cmds[]?.task] | contains([\"uget\"]))) | .[].key' {{.TOPLEVEL}}/tools/Taskfile.yaml | sort"
+    cmds:
+      - for: { var: TOOL_TASKS }
+        task: '{{.ITEM}}'
 
   controller-gen:
     desc: Install controller-gen into the root bin.
@@ -290,6 +303,16 @@ tasks:
           version: '{{ .KIND_VERSION }}'
           extractArg: 'kind-*'
           uncompressed: true
+  tilt:
+    desc: Install tilt into the root bin (used by the tilt:* tasks and tilt.yml).
+    cmds:
+      - task: uget
+        vars:
+          tool: tilt
+          source: 'https://github.com/tilt-dev/tilt/releases/download/v{VERSION}/tilt.{VERSION}.{ENV:TILT_OS}.{ENV:MY_ARCH}.tar.gz'
+          version: '{{ .TILT_VERSION }}'
+          extractArg: tilt
+
   yaml-patch:
     internal: true
     cmds:
@@ -317,6 +340,8 @@ tasks:
       # have to declare these here globally.
       MY_OS: { sh: uname -s }
       MY_ARCH: { sh: uname -m }
+      # tilt's release assets say "mac", not "darwin"
+      TILT_OS: { sh: 'uname -s | sed "s/Darwin/mac/;s/Linux/linux/"' }
     cmds:
       - "UNCOMPRESSED={{ .uncompressed }} GO_MODULE={{ .goModule }} {{.HACK}}/uget.sh {{ .source }} {{ .tool }} {{ .version }} '{{ .extractArg }}'"
 

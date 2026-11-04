@@ -63,7 +63,6 @@ vars:
     - platform-mesh-deployer
     - platform-mesh-operator
     - resource-broker
-    - search-operator
     - security-operator
     - terminal-controller-manager
 
@@ -71,7 +70,6 @@ vars:
     - iam-service
     - kubernetes-graphql-gateway
     - rebac-authz-webhook
-    - search-service
     - virtual-workspaces
 
   LIBRARIES:
@@ -79,10 +77,39 @@ vars:
     - subroutines
     - golang-commons
 
+  # Renovate CLI image. Cannot be placed in tools/ as vars from other
+  # taskfile are not visible.
+  RENOVATE_IMAGE: ghcr.io/renovatebot/renovate:44.202.1
+
 tasks:
   default:
     cmds:
       - task --list
+
+  tilt:up:
+    desc: Start the Tilt development environment on kind.
+    vars:
+      KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
+      TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
+    cmds:
+      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - "{{.TILT}} up -f ./contrib/tilt/Tiltfile"
+
+  tilt:ci:
+    desc: Bring up the Tilt development environment and wait for readiness.
+    vars:
+      KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
+      TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
+    cmds:
+      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile {{.CLI_ARGS}}"
+
+  tilt:e2e:
+    desc: Run the portal e2e suite against the Tilt environment.
+    cmds:
+      - |
+        . contrib/tilt/env.sh || exit 1
+        task tests:portal-e2e TEST_RUN_ID="$(date +%s)"
 
   # ---------------------------------------------------------------------------
   # Global fan-out targets: run the standard target across all components.
@@ -378,6 +405,24 @@ tasks:
         # Re-sync the workspace with GOWORK reset (the task disables it above so
         # the per-module bumps resolve the published version, not the local copy).
         GOWORK= go work sync
+
+  # ---------------------------------------------------------------------------
+  # Dependency refresh via the Renovate CLI.
+  # The Renovate app only raises vulnerability PRs via .github/renovate.json.
+  # Everything else moves through these targets once per release cycle.
+  # ---------------------------------------------------------------------------
+  deps:local-update:
+    desc: 'Run Renovate against a throwaway local Forgejo and fetches the deps/all branch.'
+    cmds:
+      - RENOVATE_IMAGE={{.RENOVATE_IMAGE}} hack/deps-local.sh
+  deps:post-release:
+    desc: 'Bump every dependency using renovate and regenerate.'
+    cmds:
+      - task: deps:local-update
+      - hack/deps-local.sh apply
+      - hack/verify-go-version.sh --fix
+      - task: tidy
+      - task: generate
 
   # ---------------------------------------------------------------------------
   # Workspace helpers

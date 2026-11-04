@@ -83,9 +83,6 @@ components:
   resource-broker:
     path: operators/resource-broker
     image: resource-broker
-  search-operator:
-    path: operators/search-operator
-    image: search-operator
   security-operator:
     path: operators/security-operator
     image: security-operator
@@ -111,9 +108,6 @@ components:
     path: services/rebac-authz-webhook
     image: rebac-authz-webhook
     chart: charts/rebac-authz-webhook
-  search-service:
-    path: services/search-service
-    image: search-service
   virtual-workspaces:
     path: services/virtual-workspaces
     image: virtual-workspaces

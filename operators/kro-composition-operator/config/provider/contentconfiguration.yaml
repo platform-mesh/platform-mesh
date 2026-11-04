@@ -43,6 +43,9 @@ spec:
                 "entityType": "main.core_platform-mesh_io_account",
                 "keepSelectedForChildren": true,
                 "url": "/assets/platform-mesh-portal-ui-wc.js#generic-list-view",
+                "clientPermissions": {
+                  "urlParameters": { "namespace": { "read": true, "write": true } }
+                },
                 "webcomponent": { "selfRegistered": true, "type": "module" },
                 "context": {
                   "resourceDefinition": {

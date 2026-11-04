@@ -38,7 +38,7 @@ Platform Mesh requires the following cluster components at the listed versions:
 | Traefik CRDs | 1.14.0 |
 | CloudNativePG | 0.28.0 |
 | Keycloak operator | 0.10.0 |
-| etcd-druid | v0.39.1 |
+| etcd-druid | v0.39.2 |
 
 The `platform-mesh-prerequisites` chart installs all of the above at these exact
 versions and is the simplest way to satisfy this requirement. Any other
@@ -445,7 +445,34 @@ kubectl --namespace platform-mesh-system get secret domain-certificate \
 
 For example, `curl --cacert platform-mesh-domain-ca.crt https://<base-domain>:<port>/`
 should succeed. The exact trust-store import procedure is operating-system and
-browser specific. Do not bypass certificate warnings in a normal deployment.
+browser specific. Do not bypass certificate warnings in a normal deployment: an
+exception covers only one host name, and the portal redirects to
+`<org-name>.<base-domain>` during organization onboarding. Common cases:
+
+```shell
+# Linux: Chrome, Edge, and other Chromium-based browsers read only the NSS
+# database, not the operating-system store. Restart the browser afterwards.
+certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n platform-mesh-domain-ca \
+  -i platform-mesh-domain-ca.crt
+
+# Linux (Debian/Ubuntu): operating-system store, used by command-line tools
+# such as curl and kubectl oidc-login.
+sudo cp platform-mesh-domain-ca.crt /usr/local/share/ca-certificates/
+sudo update-ca-certificates
+
+# macOS: system keychain, used by Safari, Chrome, and Edge.
+sudo security add-trusted-cert -d -r trustRoot \
+  -k /Library/Keychains/System.keychain platform-mesh-domain-ca.crt
+```
+
+Firefox uses its own store: under **Settings → Privacy & Security →
+Connection and software security → Certificates**, click **Manage
+Certificates** (**View Certificates** in older versions), open **Authorities**,
+click **Import**, and select **Trust this CA to identify websites**.
+
+After reinstalling, the generated CA changes. Remove the old one first, for
+example `certutil -d sql:$HOME/.pki/nssdb -D -n platform-mesh-domain-ca`, then
+import the new file.
 
 Open the Platform Mesh endpoint. For production: `https://${base_domain}`. For Kind: `https://${base_domain}:8443`.
 

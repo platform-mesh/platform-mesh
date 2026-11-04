@@ -21,3 +21,22 @@ spec:
     export:
       name: ui.platform-mesh.io
       path: root:platform-mesh-system
+  permissionClaims:
+  - resource: apiexports
+    group: apis.kcp.io
+    selector:
+      matchAll: true
+    verbs:
+      - get
+      - list
+      - watch
+    state: Accepted
+  - resource: apibindings
+    group: apis.kcp.io
+    selector:
+      matchAll: true
+    verbs:
+      - get
+      - list
+      - watch
+    state: Accepted

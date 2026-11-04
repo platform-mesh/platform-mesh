@@ -71,7 +71,7 @@ keycloak operator enabled renders all resources:
                   - sh
                   - -c
                   - until nc -z platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local 5432; do echo "Waiting for PostgreSQL..."; sleep 2; done
-                image: docker.io/library/busybox:1.37
+                image: docker.io/library/busybox:1.38
                 name: wait-for-db
 test HTTPRoutes:
   1: |

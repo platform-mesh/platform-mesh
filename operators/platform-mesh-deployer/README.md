@@ -21,28 +21,20 @@ step is required.
 
 #### Tilt setup
 
-```bash
-kind create cluster --name platform-mesh
-tilt up -f contrib/tilt/Tiltfile
-```
-
-[`Tiltfile`](Tiltfile) here stands the operator up hot-reloaded from source
-against a dev `PlatformMesh`, in the same single-cluster shape as `test/e2e`'s
-`TestSingleCluster`. No profile flag: this component **is** the dev
-environment's kcp — it replaced the static install, and everything else in the
-repo's Tilt env sits on the kcp it builds.
+The deployer is not part of the repository's Tilt environment
+(`contrib/tilt`), which deploys Platform Mesh from the in-repo charts
+with kcp-operator.
 
 It runs kcp-operator's config and workload controller groups inside its own
 manager, from the ntnn/kcp-operator fork pinned by the `replace` in `go.mod`.
 Nothing deploys kcp-operator itself; only its CRDs are installed, from
 `config/bases/kcp-operator/crds`, pinned to the same commit — bump the two
-together. See
-[contrib/tilt/README.md](../../contrib/tilt/README.md#how-kcp-gets-built).
+together.
 
-#### Kind setup, without Tilt
+#### Kind setup
 
-The same single-cluster environment stood up with plain `kubectl`, `helm` and
-`kind` — no Tilt session owning it. Step by step, including the pieces that are
+A single-cluster environment stood up with plain `kubectl`, `helm` and
+`kind`. Step by step, including the pieces that are
 easy to miss (the CoreDNS sslip.io block, the gateway NodePort, the kubeconfig
 Secret that engages the cluster with itself, and an admin kubeconfig at the end):
 [`docs/local-kind.md`](docs/local-kind.md).

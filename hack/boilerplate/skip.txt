@@ -23,7 +23,8 @@ services/iam-service/pkg/resolver/schema.resolvers.go
 services/kubernetes-graphql-gateway/sdk/schemahandler.pb.go
 services/kubernetes-graphql-gateway/sdk/schemahandler_grpc.pb.go
 
-# Tilt chart/download cache (gitignored, but the checker walks the filesystem)
+# Tilt build output and chart/download cache (gitignored, but the checker walks the filesystem)
+contrib/tilt/bin
 contrib/tilt/.cache
 
 # Derived from the kcp project, keeps the upstream copyright

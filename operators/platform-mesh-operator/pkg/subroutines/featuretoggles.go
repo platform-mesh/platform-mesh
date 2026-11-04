@@ -179,7 +179,7 @@ func (r *FeatureToggleSubroutine) applyKcpManifests(
 	dir := r.workspaceDirectory + kcpDir
 
 	tplValues := make(map[string]any)
-	for k, v := range getExposureParams(inst).templateVars(operatorCfg.KCP) {
+	for k, v := range getExposureParams(inst, operatorCfg.Exposure).templateVars(operatorCfg.KCP) {
 		tplValues[k] = v
 	}
 	err = ApplyDirStructure(ctx, dir, "root", cfg, tplValues, inst, r.kcpHelper, operatorCfg.Subroutines.Deployment.IgnoredResources)

@@ -258,7 +258,7 @@ See `config/examples/clusteraccess-serviceaccount.yaml` for a read-only example.
 | `--max-request-body-bytes` | `3145728` (3 MB) | Max request body size |
 | `--max-inflight-requests` | `400` | Max concurrent requests |
 | `--max-inflight-subscriptions` | `50` | Max concurrent SSE subscriptions |
-| `--max-query-depth` | `10` | Max query nesting depth |
+| `--max-query-depth` | `15` | Max query nesting depth |
 | `--max-query-complexity` | `1000` | Max query complexity score |
 | `--max-query-batch-size` | `10` | Max queries per batch request |
 | `--read-header-timeout` | `32s` | Max duration for reading request headers |

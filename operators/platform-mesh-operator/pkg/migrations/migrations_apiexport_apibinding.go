@@ -32,13 +32,33 @@ import (
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 const (
 	corePlatformMeshIOExport        = "core.platform-mesh.io"
 	providerFgaPlatformMeshIOExport = "provider-fga.platform-mesh.io"
+	uiPlatformMeshIOExport          = "ui.platform-mesh.io"
 )
+
+// uiBindingClaims accepts the claims of ui.platform-mesh.io, which virtual-workspaces
+// needs to pair a provider's APIExports with its ProviderMetadata and to tell which of
+// them a consumer has bound.
+func uiBindingClaims() []any {
+	resources := []string{"apiexports", "apibindings"}
+	claims := make([]any, 0, len(resources))
+	for _, resource := range resources {
+		claims = append(claims, map[string]any{
+			"resource": resource,
+			"group":    "apis.kcp.io",
+			"selector": map[string]any{"matchAll": true},
+			"verbs":    []any{"get", "list", "watch"},
+			"state":    "Accepted",
+		})
+	}
+	return claims
+}
 
 // findLegacyBinding returns the APIBinding, if any, that still references the pre-split
 // core.platform-mesh.io export and has resourceMarker among its locked boundResources.
@@ -62,13 +82,45 @@ func findLegacyBinding(bindings *unstructured.UnstructuredList, resourceMarker s
 }
 
 func hasBindingToExport(bindings *unstructured.UnstructuredList, export string) bool {
+	return findBindingToExport(bindings, export) != nil
+}
+
+// findBindingToExport returns the APIBinding referencing export, if any.
+func findBindingToExport(bindings *unstructured.UnstructuredList, export string) *unstructured.Unstructured {
 	for i := range bindings.Items {
 		name, _, _ := unstructured.NestedString(bindings.Items[i].Object, "spec", "reference", "export", "name")
 		if name == export {
+			return &bindings.Items[i]
+		}
+	}
+	return nil
+}
+
+// acceptsClaim reports whether binding has an Accepted permission claim for group/resource.
+func acceptsClaim(binding *unstructured.Unstructured, group, resource string) bool {
+	claims, _, _ := unstructured.NestedSlice(binding.Object, "spec", "permissionClaims")
+	for _, c := range claims {
+		claim, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		if claim["group"] == group && claim["resource"] == resource && claim["state"] == "Accepted" {
 			return true
 		}
 	}
 	return false
+}
+
+// ensureUIBindingClaims makes an existing ui.platform-mesh.io binding accept the export's claims.
+// kcp copies an export's claims into default bindings only at creation, so bindings from before
+// a claim was added never pick it up on their own.
+func ensureUIBindingClaims(ctx context.Context, client ctrlruntimeclient.Client, bindings *unstructured.UnstructuredList) error {
+	binding := findBindingToExport(bindings, uiPlatformMeshIOExport)
+	if binding == nil || (acceptsClaim(binding, "apis.kcp.io", "apiexports") && acceptsClaim(binding, "apis.kcp.io", "apibindings")) {
+		return nil
+	}
+	path, _, _ := unstructured.NestedString(binding.Object, "spec", "reference", "export", "path")
+	return applyBinding(ctx, client, binding.GetName(), uiPlatformMeshIOExport, path, uiBindingClaims())
 }
 
 // deleteWithSuccessorWait sets deletionPolicy=WaitForSuccessor and deletes binding; kcp (>=v0.33.0)
@@ -195,7 +247,9 @@ func (providerAPIExportSplit) Run(ctx context.Context, deps Deps) error {
 	uiPath, uiOptedIn := uiExportPath(deps.Instance)
 
 	for _, ws := range workspaces.Items {
-		if ws.Name == "system" {
+		// Initializing workspaces have no bindings yet; applying one here collides with the
+		// type's defaultAPIBindings and leaves the system:apibindings initializer stuck.
+		if ws.Name == "system" || ws.Status.Phase != kcpcorev1alpha1.LogicalClusterPhaseReady {
 			continue
 		}
 		if err := migrateLegacyProviderBinding(ctx, deps.KcpHelper, deps.Config, ws.Name, uiPath, uiOptedIn); err != nil {
@@ -231,6 +285,10 @@ func migrateLegacyProviderBinding(
 		if err := applyBinding(ctx, providerClient, providerFgaPlatformMeshIOExport, providerFgaPlatformMeshIOExport, "root:platform-mesh-system", nil); err != nil {
 			return gcerrors.Wrap(err, "Failed to apply %s binding for provider workspace %s", providerFgaPlatformMeshIOExport, providerName)
 		}
+	}
+
+	if err := ensureUIBindingClaims(ctx, providerClient, bindings); err != nil {
+		return gcerrors.Wrap(err, "Failed to accept the %s claims for provider workspace %s", uiPlatformMeshIOExport, providerName)
 	}
 
 	legacyBinding := findLegacyBinding(bindings, "contentconfigurations")
@@ -282,7 +340,7 @@ func migrateLegacyProviderBinding(
 	if err := applyBinding(ctx, providerClient, "core.platform-mesh.io", corePlatformMeshIOExport, "root:platform-mesh-system", legacyClaims); err != nil {
 		return gcerrors.Wrap(err, "Failed to apply core.platform-mesh.io binding for provider workspace %s", providerName)
 	}
-	if err := applyBinding(ctx, providerClient, "ui.platform-mesh.io", "ui.platform-mesh.io", uiPath, nil); err != nil {
+	if err := applyBinding(ctx, providerClient, uiPlatformMeshIOExport, uiPlatformMeshIOExport, uiPath, uiBindingClaims()); err != nil {
 		return gcerrors.Wrap(err, "Failed to apply ui.platform-mesh.io binding for provider workspace %s", providerName)
 	}
 	if err := deleteWithSuccessorWait(ctx, providerClient, legacyBinding); err != nil {

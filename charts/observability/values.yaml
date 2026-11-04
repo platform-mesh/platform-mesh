@@ -15,6 +15,11 @@ prometheus:
     # to false separately to disable the bundled deployment.
     url: ""
   server:
+    # image is set explicitly for ocm aggregate build to reference
+    image:
+      repository: quay.io/prometheus/prometheus
+      tag: v3.15.1
+      digest: ""
     persistentVolume:
       # -- Disable persistence for local development
       enabled: false
@@ -25,6 +30,13 @@ prometheus:
       - web.enable-lifecycle
     service:
       type: ClusterIP
+  configmapReload:
+    prometheus:
+      # image is set explicitly for ocm aggregate build to reference
+      image:
+        repository: quay.io/prometheus-operator/prometheus-config-reloader
+        tag: v0.94.2
+        digest: ""
   # -- Disable components not needed for this POC
   alertmanager:
     enabled: false
@@ -53,7 +65,7 @@ otelCollector:
     # -- Collector image repository (without registry)
     repository: open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib
     # -- Collector image tag
-    tag: "0.153.0"
+    tag: "0.164.0"
     # -- Collector image digest (when set, appended to tag as repo:tag@digest)
     digest: ""
   config:
@@ -129,7 +141,7 @@ serviceMonitors:
         # -- cert-extractor job image tag (cosmetic; digest pins the image)
         tag: "latest"
         # -- cert-extractor job image digest (pins the mutable :latest tag)
-        digest: "sha256:a67b11e95e953f550f020a41970185ccc5f83d78b86b8c575d02c904aa0f9cd7"
+        digest: "sha256:bedd34c910e2a5ce9836813d16444af449d7fe07a29136d59f34e861e8e660c5"
     # -- Kubeconfig configuration for kcp authentication
     # The kcp-operator creates a kubeconfig with client certificates
     kubeconfig:

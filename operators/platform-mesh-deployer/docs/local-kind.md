@@ -1,15 +1,11 @@
-# Installing the deployer into a kind cluster without Tilt
+# Installing the deployer into a kind cluster
 
-The same single-cluster environment [`contrib/tilt`](../../../contrib/tilt) builds
-and [`test/e2e`](../test/e2e)'s `TestSingleCluster` asserts on, stood up with
-nothing but `kubectl`, `helm` and `kind`. One cluster acts as its own config
-plane and workload cluster.
+The single-cluster environment [`test/e2e`](../test/e2e)'s `TestSingleCluster`
+asserts on, stood up with nothing but `kubectl`, `helm` and `kind`. One
+cluster acts as its own config plane and workload cluster.
 
-Use this when you want the installation without a Tilt session owning it — a
-long-lived scratch cluster, a CI-like reproduction, or to see exactly which
-objects the environment consists of. For hot-reload development use
-`tilt up -f contrib/tilt/Tiltfile` instead; it deploys the same
-[`config/default`](../config/default) plus a live rebuild loop.
+Use this for a long-lived scratch cluster, a CI-like reproduction, or to see
+exactly which objects the environment consists of.
 
 Every command below runs from the repository root, and every `kubectl` is
 explicit about `--context` so a stray current-context cannot redirect the
@@ -353,7 +349,7 @@ EOF
 
 No `auth.oidc` block, so the only identities are the operator's own
 certificates. Add one under `RootShardTemplate.spec.auth` if you need human
-logins; `contrib/tilt` renders it from the same dict dex is configured from.
+logins.
 
 Watch it build (a minute or two from `Provisioning` to `Running`):
 

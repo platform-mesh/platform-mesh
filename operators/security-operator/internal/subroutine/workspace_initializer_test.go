@@ -19,8 +19,10 @@ package subroutine
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
@@ -28,6 +30,9 @@ import (
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/subroutines"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
@@ -72,6 +77,63 @@ func TestWorkspaceInitializer_TerminateRequiresWorkspaceName(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, subroutines.OK(), result)
+}
+
+func TestWorkspaceInitializer_InitializeWaitsForAccountInfo(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		getErr  error
+		wantErr bool
+	}{
+		"missing AccountInfo requeues": {
+			getErr: apierrors.NewNotFound(
+				schema.GroupResource{Group: "core.platform-mesh.io", Resource: "accountinfos"},
+				"account",
+			),
+		},
+		// A no-match error is what an unbound workspace answers; it is not a reconcile failure.
+		"unbound core.platform-mesh.io APIs requeue": {
+			getErr: &meta.NoKindMatchError{
+				GroupKind:        schema.GroupKind{Group: "core.platform-mesh.io", Kind: "AccountInfo"},
+				SearchedVersions: []string{"v1alpha1"},
+			},
+		},
+		"other errors are reported": {
+			getErr:  assert.AnError,
+			wantErr: true,
+		},
+	}
+
+	for title, cas := range cases {
+		t.Run(title, func(t *testing.T) {
+			t.Parallel()
+
+			mgr := mocks.NewMockManager(t)
+			cluster := mocks.NewMockCluster(t)
+			clusterClient := mocks.NewMockClient(t)
+			mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+			cluster.EXPECT().GetClient().Return(clusterClient)
+			clusterClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(cas.getErr)
+
+			sub := &workspaceInitializer{
+				mgr:             mgr,
+				kcpClientGetter: mocks.NewMockKCPClientGetter(t),
+			}
+
+			result, err := sub.Initialize(context.Background(), logicalClusterForOrg(orgTerminateTestOrg))
+
+			if cas.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, subroutines.OK(), result)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.True(t, result.IsStopWithRequeue(), "the chain must wait for AccountInfo instead of failing")
+			assert.Equal(t, 5*time.Second, result.Requeue())
+		})
+	}
 }
 
 func newWorkspaceInitializerTerminateSubroutine(t *testing.T, objs ...ctrlruntimeclient.Object) (*workspaceInitializer, ctrlruntimeclient.Client) {

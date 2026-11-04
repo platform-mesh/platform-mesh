@@ -241,7 +241,7 @@ jobs:
         run: |
           # hostAliases is intentionally not set: the operator reaches
           # kcp via the in-cluster front-proxy Service, and component pods get their
-          # host aliases from the kind profile keyed on gateway.traefikClusterIP.
+          # host aliases from the kind profile keyed on gateway.clusterIP.
           #
           # No --wait here: the chart applies the PlatformMesh resource, then the
           # dedicated "Wait for Platform Mesh" step gates readiness with a 30m budget.
@@ -262,7 +262,7 @@ jobs:
             --set image.tag="v${PM_VERSION}" \
             --set gateway.baseDomain="${BASE_DOMAIN}" \
             --set gateway.port=8443 \
-            --set gateway.traefikClusterIP="${TRAEFIK_CLUSTER_IP}" \
+            --set gateway.clusterIP="${TRAEFIK_CLUSTER_IP}" \
             --set kcp.frontProxyPort=8443 \
             --set certificates.selfSigned.enabled=true \
             --set-string ocm.version="${PM_VERSION}"
@@ -304,19 +304,9 @@ jobs:
 
       - name: Dump cluster diagnostics
         if: failure()
-        run: |
-          mkdir -p runtime-artifacts
-          kubectl get platformmesh -n platform-mesh-system -o yaml > runtime-artifacts/platformmesh.yaml 2>&1 || true
-          kubectl describe platformmesh platform-mesh -n platform-mesh-system > runtime-artifacts/platformmesh-describe.txt 2>&1 || true
-          kubectl get component,resources.delivery.ocm.software -n platform-mesh-system -o yaml > runtime-artifacts/ocm.yaml 2>&1 || true
-          kubectl get pods -A -o wide > runtime-artifacts/pods.txt 2>&1 || true
-          kubectl describe node > runtime-artifacts/node-describe.txt 2>&1 || true
-          kubectl get events -A --sort-by=.lastTimestamp > runtime-artifacts/events.txt 2>&1 || true
-          kubectl get helmreleases,ocirepositories -A > runtime-artifacts/flux.txt 2>&1 || true
-          for p in $(kubectl get pods -n platform-mesh-system -o name 2>/dev/null); do
-            safe="${p//\//_}"
-            kubectl logs -n platform-mesh-system "$p" --all-containers --tail=500 > "runtime-artifacts/platform-mesh-system_${safe}.log" 2>&1 || true
-          done
+        env:
+          ADMIN_KUBECONFIG: .secret/kcp/admin.kubeconfig
+        run: hack/dump-cluster-diagnostics.bash runtime-artifacts
 
       - name: Upload runtime artifacts
         if: failure()

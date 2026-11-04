@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
@@ -189,6 +190,28 @@ func (s *MigrationTestSuite) Test_providerAPIExportSplit_SkipsSystemWorkspace() 
 	s.helperMock.AssertNotCalled(s.T(), "NewKcpClient", mock.Anything, "root:providers:system")
 }
 
+// Locks in the race where the migration applied provider-fga.platform-mesh.io into a workspace
+// the system:apibindings initializer was still populating, colliding with its default binding.
+func (s *MigrationTestSuite) Test_providerAPIExportSplit_SkipsInitializingWorkspace() {
+	ctx := context.WithValue(context.Background(), keys.LoggerCtxKey, s.log)
+
+	providersClientMock := new(mocks.Client)
+	s.helperMock.EXPECT().NewKcpClient(mock.Anything, "root:providers").Return(providersClientMock, nil)
+	providersClientMock.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
+			list := ol.(*kcptenancyv1alpha1.WorkspaceList)
+			list.Items = []kcptenancyv1alpha1.Workspace{{
+				ObjectMeta: metav1.ObjectMeta{Name: "wildwest"},
+				Status:     kcptenancyv1alpha1.WorkspaceStatus{Phase: kcpcorev1alpha1.LogicalClusterPhaseInitializing},
+			}}
+			return nil
+		})
+
+	err := providerAPIExportSplit{}.Run(ctx, Deps{KcpHelper: s.helperMock, Config: &rest.Config{}, Instance: &pmcorev1alpha1.PlatformMesh{}})
+	s.Assert().NoError(err)
+	s.helperMock.AssertNotCalled(s.T(), "NewKcpClient", mock.Anything, "root:providers:wildwest")
+}
+
 func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_MigratesWithoutUIOptIn() {
 	ctx := context.WithValue(context.Background(), keys.LoggerCtxKey, s.log)
 
@@ -276,6 +299,14 @@ func providerBindingTo(export string) unstructured.Unstructured {
 	return b
 }
 
+// providerUIBinding is a ui.platform-mesh.io binding that already accepts the apiexports claim.
+func providerUIBinding() unstructured.Unstructured {
+	b := providerBindingTo("ui.platform-mesh.io")
+	_ = unstructured.SetNestedField(b.Object, "root:platform-mesh-system", "spec", "reference", "export", "path")
+	_ = unstructured.SetNestedSlice(b.Object, uiBindingClaims(), "spec", "permissionClaims")
+	return b
+}
+
 func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_AddsProviderFgaToMigratedProvider() {
 	ctx := context.WithValue(context.Background(), keys.LoggerCtxKey, s.log)
 
@@ -285,7 +316,7 @@ func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_AddsProviderFgaTo
 	providerClientMock.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 		func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
 			list := ol.(*unstructured.UnstructuredList)
-			list.Items = []unstructured.Unstructured{providerBindingTo("core.platform-mesh.io"), providerBindingTo("ui.platform-mesh.io")}
+			list.Items = []unstructured.Unstructured{providerBindingTo("core.platform-mesh.io"), providerUIBinding()}
 			return nil
 		}).Once()
 
@@ -314,7 +345,7 @@ func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_LeavesFullyMigrat
 		func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
 			list := ol.(*unstructured.UnstructuredList)
 			list.Items = []unstructured.Unstructured{
-				providerBindingTo("core.platform-mesh.io"), providerBindingTo("ui.platform-mesh.io"), providerBindingTo("provider-fga.platform-mesh.io"),
+				providerBindingTo("core.platform-mesh.io"), providerUIBinding(), providerBindingTo("provider-fga.platform-mesh.io"),
 			}
 			return nil
 		}).Once()
@@ -322,6 +353,77 @@ func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_LeavesFullyMigrat
 	err := migrateLegacyProviderBinding(ctx, s.helperMock, &rest.Config{}, "wildwest", "root:platform-mesh-system", true)
 	s.Assert().NoError(err)
 	providerClientMock.AssertNotCalled(s.T(), "Apply", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	providerClientMock.AssertNotCalled(s.T(), "Delete", mock.Anything, mock.Anything)
+}
+
+// A binding that accepts only part of the export's claims is patched to the full set.
+func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_CompletesPartialUIClaims() {
+	ctx := context.WithValue(context.Background(), keys.LoggerCtxKey, s.log)
+
+	providerClientMock := new(mocks.Client)
+	s.helperMock.EXPECT().NewKcpClient(mock.Anything, "root:providers:wildwest").Return(providerClientMock, nil)
+
+	uiBinding := providerUIBinding()
+	_ = unstructured.SetNestedSlice(uiBinding.Object, uiBindingClaims()[:1], "spec", "permissionClaims")
+
+	providerClientMock.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
+			ol.(*unstructured.UnstructuredList).Items = []unstructured.Unstructured{uiBinding, providerBindingTo("provider-fga.platform-mesh.io")}
+			return nil
+		}).Once()
+
+	var appliedClaims []any
+	providerClientMock.EXPECT().Apply(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, obj runtime.ApplyConfiguration, opts ...ctrlruntimeclient.ApplyOption) error {
+			u, ok := obj.(runtime.Unstructured)
+			s.Require().True(ok)
+			appliedClaims, _, _ = unstructured.NestedSlice(u.UnstructuredContent(), "spec", "permissionClaims")
+			return nil
+		}).Once()
+
+	err := migrateLegacyProviderBinding(ctx, s.helperMock, &rest.Config{}, "wildwest", "root:platform-mesh-system", true)
+	s.Require().NoError(err)
+	s.Assert().Equal(uiBindingClaims(), appliedClaims)
+}
+
+// The apiexports claim was added to ui.platform-mesh.io after the split; kcp only copies
+// claims into default bindings at creation, so earlier provider bindings must be patched.
+func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_AcceptsUIClaimsOnExistingBinding() {
+	ctx := context.WithValue(context.Background(), keys.LoggerCtxKey, s.log)
+
+	providerClientMock := new(mocks.Client)
+	s.helperMock.EXPECT().NewKcpClient(mock.Anything, "root:providers:wildwest").Return(providerClientMock, nil)
+
+	uiBinding := providerBindingTo("ui.platform-mesh.io")
+	uiBinding.SetName("ui.platform-mesh.io-abcde")
+	_ = unstructured.SetNestedField(uiBinding.Object, "root:platform-mesh-system", "spec", "reference", "export", "path")
+
+	providerClientMock.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
+			list := ol.(*unstructured.UnstructuredList)
+			list.Items = []unstructured.Unstructured{
+				providerBindingTo("core.platform-mesh.io"), uiBinding, providerBindingTo("provider-fga.platform-mesh.io"),
+			}
+			return nil
+		}).Once()
+
+	var applied *unstructured.Unstructured
+	providerClientMock.EXPECT().Apply(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, obj runtime.ApplyConfiguration, opts ...ctrlruntimeclient.ApplyOption) error {
+			u, ok := obj.(runtime.Unstructured)
+			s.Require().True(ok)
+			applied = &unstructured.Unstructured{Object: u.UnstructuredContent()}
+			return nil
+		}).Once()
+
+	err := migrateLegacyProviderBinding(ctx, s.helperMock, &rest.Config{}, "wildwest", "root:platform-mesh-system", true)
+	s.Require().NoError(err)
+	s.Require().NotNil(applied)
+	s.Assert().Equal("ui.platform-mesh.io-abcde", applied.GetName(), "the existing default binding is patched, not a new one created")
+	path, _, _ := unstructured.NestedString(applied.Object, "spec", "reference", "export", "path")
+	s.Assert().Equal("root:platform-mesh-system", path)
+	claims, _, _ := unstructured.NestedSlice(applied.Object, "spec", "permissionClaims")
+	s.Assert().Equal(uiBindingClaims(), claims)
 	providerClientMock.AssertNotCalled(s.T(), "Delete", mock.Anything, mock.Anything)
 }
 
@@ -361,6 +463,6 @@ func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_KeepsAcceptedClai
 	err := migrateLegacyProviderBinding(ctx, s.helperMock, &rest.Config{}, "wildwest", "root:platform-mesh-system", true)
 	s.Assert().NoError(err)
 	s.Assert().Equal(claims, appliedClaims["core.platform-mesh.io"])
-	s.Assert().Empty(appliedClaims["ui.platform-mesh.io"])
+	s.Assert().Equal(uiBindingClaims(), appliedClaims["ui.platform-mesh.io"])
 	s.Assert().Empty(appliedClaims["provider-fga.platform-mesh.io"])
 }

@@ -21,13 +21,24 @@ You are welcome to contribute with your pull requests. These steps explain the c
 
 ## Development setup
 
-subroutines uses [Task](https://taskfile.dev) for build automation:
+Platform Mesh uses [Task](https://taskfile.dev) for build automation:
 
 ```bash
 task lint       # Format and lint (golangci-lint)
 task test       # Run unit tests
 task cover      # Run tests with coverage
 task validate   # Run lint + test
+```
+
+### Development Setup
+
+Platform Mesh uses [tilt](https://tilt.dev/) to deploy a full Platform
+Mesh in kind for development:
+
+```bash
+task tilt:up  # deploys the tilt setup and hot-reloads on changes, offers a webui
+task tilt:ci  # deploys the tilt setup once and exits
+task tilt:e2e # run the full e2e test suite against the running tilt instance
 ```
 
 ### Code style

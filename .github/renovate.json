@@ -1,0 +1,81 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "security:only-security-updates",
+    ":gitSignOff"
+  ],
+  "dependencyDashboard": true,
+  "rebaseWhen": "conflicted",
+  "description": "ignoreDeps: k8s.io and controller-runtime libraries are updated automatically via kcp",
+  "ignoreDeps": [
+    "github.com/kcp-dev/multicluster-provider",
+    "github.com/kcp-dev/multicluster-provider/client",
+    "k8s.io/api",
+    "k8s.io/apiextensions-apiserver",
+    "k8s.io/apimachinery",
+    "k8s.io/apiserver",
+    "k8s.io/client-go",
+    "k8s.io/component-base",
+    "k8s.io/klog/v2",
+    "k8s.io/kube-openapi",
+    "k8s.io/utils",
+    "sigs.k8s.io/controller-runtime",
+    "sigs.k8s.io/gateway-api",
+    "sigs.k8s.io/kustomize/api",
+    "sigs.k8s.io/kustomize/kyaml",
+    "sigs.k8s.io/multicluster-runtime"
+  ],
+  "packageRules": [
+    {
+      "description": "Local component image tags in chart values are stamped by the release process.",
+      "matchManagers": [
+        "helm-values"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/platform-mesh/**",
+        "platform-mesh/**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "capped at the last k8s-0.36-era release; raise when the kcp train moves. Vulnerability fixes above the cap stay held and appear on the dashboard.",
+      "matchPackageNames": [
+        "github.com/openfga/openfga"
+      ],
+      "allowedVersions": "<1.22.0"
+    },
+    {
+      "matchPackageNames": [
+        "github.com/fluxcd/helm-controller/api"
+      ],
+      "allowedVersions": "<1.7.0"
+    },
+    {
+      "description": "cel-go v0.32+ renamed its module to cel.dev/cel-go; switching is a code migration.",
+      "matchPackageNames": [
+        "github.com/google/cel-go"
+      ],
+      "allowedVersions": "<0.32.0"
+    },
+    {
+      "matchPackageNames": [
+        "github.com/fluxcd/source-controller/api"
+      ],
+      "allowedVersions": "<1.10.0"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": [
+      "security",
+      "vulnerability"
+    ],
+    "assignees": [
+      "team:platform-mesh/security"
+    ],
+    "reviewers": [
+      "team:platform-mesh/security"
+    ],
+    "prConcurrentLimit": 3,
+    "automerge": true
+  }
+}

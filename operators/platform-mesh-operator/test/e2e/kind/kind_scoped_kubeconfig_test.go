@@ -43,7 +43,7 @@ import (
 
 // Matches suite_kind_test runOperator KCP.Url and Kind object keys used elsewhere in this package.
 const (
-	kcpLocalFrontProxyURL = "https://root.kcp.localhost:8443"
+	kcpLocalFrontProxyURL = "https://kcp.api.portal.localhost:8443"
 
 	e2ePlatformMeshNamespace = "platform-mesh-system"
 	e2ePlatformMeshName      = "platform-mesh"
@@ -577,12 +577,12 @@ func normalizeScopedKubeconfigServerForLocalRun(kubeconfigBytes []byte) ([]byte,
 	server := cluster.Server
 
 	// provider2: in-cluster front-proxy DNS is not resolvable from host-run kubectl.
-	server = strings.Replace(server, "frontproxy-front-proxy.platform-mesh-system:8443", "root.kcp.localhost:8443", 1)
+	server = strings.Replace(server, "frontproxy-front-proxy.platform-mesh-system:8443", "kcp.api.portal.localhost:8443", 1)
 
 	// provider1: virtual workspace URL from endpoint slice is flaky for create/get in host-run kubectl.
 	// For this fixed fixture, use the concrete provider1 workspace cluster URL.
 	if strings.Contains(server, "/services/apiexport/") {
-		server = "https://root.kcp.localhost:8443/clusters/" + e2eScopedKubeconfigProvider1Path
+		server = "https://kcp.api.portal.localhost:8443/clusters/" + e2eScopedKubeconfigProvider1Path
 	}
 
 	cluster.Server = server

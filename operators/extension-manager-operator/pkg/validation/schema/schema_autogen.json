@@ -411,9 +411,6 @@
         "id": {
           "type": "string"
         },
-        "hideGlobalSearch": {
-          "type": "boolean"
-        },
         "hideFromBreadcrumb": {
           "type": "boolean"
         }
@@ -613,6 +610,9 @@
           "$ref": "#/$defs/Url"
         },
         "author": {
+          "$ref": "#/$defs/Url"
+        },
+        "namespace": {
           "$ref": "#/$defs/Url"
         }
       },

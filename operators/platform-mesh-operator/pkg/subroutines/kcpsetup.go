@@ -194,7 +194,7 @@ func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *res
 		templateData[k] = v
 	}
 
-	for k, v := range getExposureParams(inst).templateVars(r.cfg.KCP) {
+	for k, v := range getExposureParams(inst, r.cfg.Exposure).templateVars(r.cfg.KCP) {
 		templateData[k] = v
 	}
 	templateData["featureDisableEmailVerification"] = HasFeatureToggle(inst, "feature-disable-email-verification")

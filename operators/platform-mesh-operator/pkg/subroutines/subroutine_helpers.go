@@ -419,21 +419,19 @@ func MergeValuesAndServices(inst *pmcorev1alpha1.PlatformMesh, templateVars apie
 }
 
 type exposureParams struct {
-	baseDomain             string
-	baseDomainPort         string
-	port                   int
-	protocol               string
-	traefikClusterIP       string
-	kcpFrontProxyClusterIP string
+	baseDomain              string
+	baseDomainPort          string
+	port                    int
+	protocol                string
+	gatewayServiceClusterIP string
 }
 
-func getExposureParams(inst *pmcorev1alpha1.PlatformMesh) exposureParams {
+func getExposureParams(inst *pmcorev1alpha1.PlatformMesh, exposure config.ExposureConfig) exposureParams {
 	p := exposureParams{
-		port:                   8443,
-		baseDomain:             "portal.localhost",
-		protocol:               "https",
-		traefikClusterIP:       "10.96.188.4",
-		kcpFrontProxyClusterIP: "10.96.0.100",
+		port:                    8443,
+		baseDomain:              "portal.localhost",
+		protocol:                "https",
+		gatewayServiceClusterIP: exposure.GatewayServiceClusterIP,
 	}
 
 	if inst.Spec.Exposure != nil {
@@ -445,12 +443,6 @@ func getExposureParams(inst *pmcorev1alpha1.PlatformMesh) exposureParams {
 		}
 		if inst.Spec.Exposure.Protocol != "" {
 			p.protocol = inst.Spec.Exposure.Protocol
-		}
-		if inst.Spec.Exposure.TraefikClusterIP != "" {
-			p.traefikClusterIP = inst.Spec.Exposure.TraefikClusterIP
-		}
-		if inst.Spec.Exposure.KcpFrontProxyClusterIP != "" {
-			p.kcpFrontProxyClusterIP = inst.Spec.Exposure.KcpFrontProxyClusterIP
 		}
 	}
 
@@ -479,20 +471,19 @@ func (p exposureParams) internalFrontProxyURL(kcp config.KCPConfig) string {
 
 func (p exposureParams) templateVars(kcp config.KCPConfig) map[string]any {
 	return map[string]any{
-		"baseDomain":             p.baseDomain,
-		"baseDomainPort":         p.baseDomainPort,
-		"port":                   p.portString(),
-		"protocol":               p.protocol,
-		"traefikClusterIP":       p.traefikClusterIP,
-		"kcpFrontProxyClusterIP": p.kcpFrontProxyClusterIP,
-		"internalFrontProxyUrl":  p.internalFrontProxyURL(kcp),
+		"baseDomain":              p.baseDomain,
+		"baseDomainPort":          p.baseDomainPort,
+		"port":                    p.portString(),
+		"protocol":                p.protocol,
+		"gatewayServiceClusterIP": p.gatewayServiceClusterIP,
+		"internalFrontProxyUrl":   p.internalFrontProxyURL(kcp),
 	}
 }
 
 func TemplateVars(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh, cl ctrlruntimeclient.Client) (apiextensionsv1.JSON, error) {
 	operatorCfg := pmconfig.LoadConfigFromContext(ctx).(config.OperatorConfig)
 
-	values := getExposureParams(inst).templateVars(operatorCfg.KCP)
+	values := getExposureParams(inst, operatorCfg.Exposure).templateVars(operatorCfg.KCP)
 	values["helmReleaseNamespace"] = inst.Namespace
 
 	result := apiextensionsv1.JSON{}

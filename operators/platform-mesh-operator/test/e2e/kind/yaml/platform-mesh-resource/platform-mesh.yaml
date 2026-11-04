@@ -22,8 +22,6 @@ spec:
     port: 8443
     baseDomain: "portal.localhost"
     protocol: "https"
-    traefikClusterIP: "10.96.188.4"
-    kcpFrontProxyClusterIP: "10.96.0.100"
   ocm:
     repo:
       name: platform-mesh

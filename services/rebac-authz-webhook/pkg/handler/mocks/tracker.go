@@ -30,10 +30,19 @@ func NewTracker[K comparable](t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *Tracker[K] {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &Tracker[K]{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -64,7 +73,7 @@ type Tracker_Retried_Call[K comparable] struct {
 
 // Retried is a helper method to define mock.On call
 //   - key K
-func (_e *Tracker_Expecter[K]) Retried(key interface{}) *Tracker_Retried_Call[K] {
+func (_e *Tracker_Expecter[K]) Retried(key any) *Tracker_Retried_Call[K] {
 	return &Tracker_Retried_Call[K]{Call: _e.mock.On("Retried", key)}
 }
 
@@ -115,7 +124,7 @@ type Tracker_ShouldRetry_Call[K comparable] struct {
 
 // ShouldRetry is a helper method to define mock.On call
 //   - key K
-func (_e *Tracker_Expecter[K]) ShouldRetry(key interface{}) *Tracker_ShouldRetry_Call[K] {
+func (_e *Tracker_Expecter[K]) ShouldRetry(key any) *Tracker_ShouldRetry_Call[K] {
 	return &Tracker_ShouldRetry_Call[K]{Call: _e.mock.On("ShouldRetry", key)}
 }
 
