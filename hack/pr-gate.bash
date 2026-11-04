@@ -45,6 +45,18 @@ merge_group_checks() {
                     end
                 )
             }'
+    # combined status carries the latest status per context
+    gh api --paginate "repos/$GH_REPO/commits/$MERGE_GROUP_SHA/status?per_page=100" \
+        --jq '.statuses[]
+            | {
+                name: .context,
+                bucket: (
+                    if .state == "pending" then "pending"
+                    elif .state == "success" then "pass"
+                    else "fail"
+                    end
+                )
+            }'
 }
 
 # drops this job and renovate/ checks (e.g. stability-days)
