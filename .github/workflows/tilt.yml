@@ -101,13 +101,15 @@ jobs:
         run: task tests:portal-e2e:setup
 
       - name: Bring up the Tilt environment
-        run: task tilt:ci
+        run: |
+          task tilt:ci -- --debug --output-snapshot-on-exit="$GITHUB_WORKSPACE/contrib/tilt/.cache/tilt-snapshot.json" |& tee tilt-ci.log
 
       - name: Run portal e2e
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Single-node kind: the shards compete for CPU, workspace provisioning is slower.
           ORG_READY_TIMEOUT_SECONDS: "600"
+          ACCOUNT_READY_TIMEOUT_SECONDS: "600"
         run: task tilt:e2e
 
       - name: Dump cluster diagnostics
@@ -122,7 +124,10 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runtime-artifacts
-          path: runtime-artifacts/
+          path: |
+            runtime-artifacts/
+            tilt-ci.log
+            contrib/tilt/.cache/tilt-snapshot.json
           retention-days: 5
 
       - name: Upload Playwright artefacts

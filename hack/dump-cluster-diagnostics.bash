@@ -57,6 +57,7 @@ dump flux.json get helmreleases,ocirepositories -A -o json
 dump kcp-operator.json -n "$ns" get rootshard,shard,frontproxy,cacheserver,kubeconfig,etcd -o json
 dump cert-manager.json -n "$ns" get certificate,issuer -o json
 dump gateway.json -n "$ns" get gateway,httproute -o json
+dump gateway-all.json get gatewayclass,gateway,httproute,tlsroute,tcproute -A -o json
 dump databases.json -n "$ns" get cluster.postgresql.cnpg.io,database.postgresql.cnpg.io,keycloak -o json
 
 log "previous logs in $ns"
