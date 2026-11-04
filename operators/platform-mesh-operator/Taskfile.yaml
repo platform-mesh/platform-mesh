@@ -116,7 +116,6 @@ tasks:
           --namespace platform-mesh-system \
           --set flux2.imageAutomationController.create=false \
           --set flux2.imageReflectionController.create=false \
-          --set keycloak-operator.enabled=false \
           --create-namespace \
           --wait \
           --timeout 15m
@@ -129,7 +128,6 @@ tasks:
           --reset-values \
           --set flux2.imageAutomationController.create=false \
           --set flux2.imageReflectionController.create=false \
-          --set keycloak-operator.enabled=false \
           --set traefik.enabled=true \
           --set traefik.service.type=NodePort \
           --set traefik.service.spec.type=NodePort \

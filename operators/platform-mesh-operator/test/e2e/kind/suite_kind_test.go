@@ -573,7 +573,7 @@ func (s *KindTestSuite) SetupSuite() {
 	}
 	s.logger.Info().Msg("resources.delivery.ocm.software CRD established")
 
-	if err = s.waitForDeploymentReady(ctx, "ocm-system", "ocm-k8s-toolkit-controller-manager", 5*time.Minute); err != nil {
+	if err = s.waitForDeploymentReady(ctx, "platform-mesh-system", "platform-mesh-prerequisites-ocm-k8s-toolkit-controller-manager", 5*time.Minute); err != nil {
 		s.FailNow("OCM controller manager deployment not ready in time")
 	}
 	s.logger.Info().Msg("OCM controller manager ready")
