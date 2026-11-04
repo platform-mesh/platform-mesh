@@ -261,8 +261,6 @@ data:
                   enabled: true
               frontProxy:
                 port: 8443
-              image:
-                tag: 550ab5751
               rootShard:
                 hostname: "root.kcp.{{ .baseDomain }}"
                 shardBaseURL: https://root.kcp.{{ .baseDomain }}:8443/
