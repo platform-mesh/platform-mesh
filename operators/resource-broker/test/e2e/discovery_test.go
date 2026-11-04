@@ -66,7 +66,7 @@ func TestExportViaRefPath(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, frame.HomeClient.Create(t.Context(), slice))
+	createBound(t, frame.HomeClient, slice)
 
 	frame.StartBroker(t)
 

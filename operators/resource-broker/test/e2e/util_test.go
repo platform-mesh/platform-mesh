@@ -430,10 +430,7 @@ func createBinding(tb testing.TB, cl ctrlruntimeclient.Client, exportName, expor
 		Name: exportName,
 	}
 	binding.Spec.PermissionClaims = claims
-	err := cl.Create(tb.Context(), binding)
-	if !apierrors.IsAlreadyExists(err) {
-		require.NoError(tb, err)
-	}
+	createBound(tb, cl, binding)
 	envtest.Eventually(tb, func() (bool, string) {
 		current := &kcpapisv1alpha2.APIBinding{}
 		if err := cl.Get(tb.Context(), ctrlruntimeclient.ObjectKey{Name: exportName}, current); err != nil {
@@ -444,6 +441,23 @@ func createBinding(tb testing.TB, cl ctrlruntimeclient.Client, exportName, expor
 		}
 		return true, ""
 	}, wait.ForeverTestTimeout, 200*time.Millisecond, "APIBinding %s should be bound", exportName)
+}
+
+// createBound creates an object that binds to an APIExport, retrying while admission still denies the bind.
+// the bind is authorized against an informer that lags the APIExport create.
+func createBound(tb testing.TB, cl ctrlruntimeclient.Client, obj ctrlruntimeclient.Object) {
+	tb.Helper()
+	envtest.Eventually(tb, func() (bool, string) {
+		err := cl.Create(tb.Context(), obj)
+		if err == nil || apierrors.IsAlreadyExists(err) {
+			return true, ""
+		}
+		if apierrors.IsForbidden(err) {
+			return false, fmt.Sprintf("creating %T %s: %v", obj, obj.GetName(), err)
+		}
+		require.NoError(tb, err)
+		return false, ""
+	}, wait.ForeverTestTimeout, 200*time.Millisecond, "%T %s should be created", obj, obj.GetName())
 }
 
 // toYAML renders x for failure messages.
