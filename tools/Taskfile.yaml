@@ -41,7 +41,8 @@ vars:
   # bumping golangci-lint, run `UGET_UPDATE=true task lint`.
 
   # the same version is re-used for all kcp components
-  KCP_VERSION: 0.33.1
+  KCP_VERSION:
+    sh: 'awk -F\" "/^KCP_VERSION:/ { print \$2 }" {{.TOPLEVEL}}/ocm/versions.yaml | cut -dv -f2'
   APIGEN: '{{.BIN}}/apigen-v{{.KCP_VERSION}}'
 
   CONTROLLER_GEN_VERSION: v0.21.0
@@ -60,12 +61,9 @@ vars:
   GO_TEST_COVERAGE_VERSION: v2.18.9
   GO_TEST_COVERAGE: '{{.BIN}}/go-test-coverage-{{.GO_TEST_COVERAGE_VERSION}}'
 
-  # TEMPORARY: kcp image of an unreleased kcp-dev/kcp commit with kcp-dev/kcp#4384, used by the
-  # operators' envtest suites (see component test-e2e). Go back to the KCP_VERSION release once it has the fix.
-  KCP_IMAGE_TAG: 4ac7658dd
-  CACHE_SERVER: '{{.BIN}}/cache-server-{{.KCP_IMAGE_TAG}}'
-  KCP: '{{.BIN}}/kcp-{{.KCP_IMAGE_TAG}}'
-  KCP_FRONT_PROXY: '{{.BIN}}/kcp-front-proxy-{{.KCP_IMAGE_TAG}}'
+  CACHE_SERVER: '{{.BIN}}/cache-server-{{.KCP_VERSION}}'
+  KCP: '{{.BIN}}/kcp-{{.KCP_VERSION}}'
+  KCP_FRONT_PROXY: '{{.BIN}}/kcp-front-proxy-{{.KCP_VERSION}}'
   SHARDED_TEST_SERVER: '{{.BIN}}/sharded-test-server-{{.KCP_VERSION}}'
 
   KIND_VERSION: v0.29.0
@@ -183,7 +181,7 @@ tasks:
       # v0.33.x release has kcp-dev/kcp#4384; then remove this step.
       - |
         [ -x {{.KCP}} ] && [ -x {{.KCP_FRONT_PROXY}} ] && [ -x {{.CACHE_SERVER}} ] && exit 0
-        container=$(docker create ghcr.io/kcp-dev/kcp:{{.KCP_IMAGE_TAG}})
+        container=$(docker create ghcr.io/kcp-dev/kcp:{{.KCP_VERSION}})
         docker cp $container:/kcp {{.KCP}}
         docker cp $container:/kcp-front-proxy {{.KCP_FRONT_PROXY}}
         docker cp $container:/cache-server {{.CACHE_SERVER}}
