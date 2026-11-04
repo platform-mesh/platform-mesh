@@ -6,8 +6,9 @@ externalSecrets:
 
 kcp:
   image:
-    repository: ""
-    tag: ""
+    repository: ghcr.io/kcp-dev/kcp
+    # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp
+    tag: v0.33.6
   namespace: platform-mesh-system
   certificates:
     # -- Existing Issuer/ClusterIssuer that signs the kcp certificate chain. It must be able to issue CA certificates. Mutually exclusive with caSecretRef.
