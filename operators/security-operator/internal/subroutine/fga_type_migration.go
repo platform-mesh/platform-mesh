@@ -135,18 +135,31 @@ func (a *authorizationModelSubroutine) migrateRenamedTypes(ctx context.Context, 
 		finalTypes[td.GetType()] = td
 	}
 
-	// An old name that is the current type of another API is not left over.
+	currentTypes := map[string]*openfgav1.TypeDefinition{}
+	for _, td := range current.GetTypeDefinitions() {
+		currentTypes[td.GetType()] = td
+	}
+
+	// A migrated model defines no old name unless it is another API's type.
+	migrated := !slices.ContainsFunc(slices.Collect(maps.Keys(renames)), func(legacy string) bool {
+		return currentTypes[legacy] != nil && finalTypes[legacy] == nil
+	})
+
+	// An old name that is another API's type holds that API's tuples only if a
+	// migrated model defined it from the same module. Otherwise planTypeMigration
+	// refuses to move them.
 	renames = maps.Clone(renames)
 	maps.DeleteFunc(renames, func(legacy string, _ []string) bool {
-		return finalTypes[legacy] != nil
+		if finalTypes[legacy] == nil {
+			return false
+		}
+		file := sourceFile(finalTypes[legacy])
+		return currentTypes[legacy] == nil || migrated && file != "" && sourceFile(currentTypes[legacy]) == file
 	})
 
 	// Any model written before the migration finished still defines an old
 	// type, at least the built-in ones present in every org store.
-	if !slices.ContainsFunc(current.GetTypeDefinitions(), func(td *openfgav1.TypeDefinition) bool {
-		_, ok := renames[td.GetType()]
-		return ok
-	}) {
+	if !slices.ContainsFunc(slices.Collect(maps.Keys(renames)), func(legacy string) bool { return currentTypes[legacy] != nil }) {
 		return nil
 	}
 
@@ -196,15 +209,16 @@ func (a *authorizationModelSubroutine) migrateRenamedTypes(ctx context.Context, 
 func planTypeMigration(tuples []pmcorev1alpha1.Tuple, renames typeRenames, finalTypes map[string]*openfgav1.TypeDefinition, log *logger.Logger) ([]pmcorev1alpha1.Tuple, []pmcorev1alpha1.Tuple, error) {
 	var errs []error
 	var copies, originals []pmcorev1alpha1.Tuple
+	failed := map[string]bool{}
 	for _, t := range tuples {
 		legacy := referencedLegacyType(t, renames)
-		targets := renames[legacy]
-		switch {
-		case len(targets) > 1:
-			errs = append(errs, fmt.Errorf("type %s was shared by %s, cannot attribute its tuples", legacy, strings.Join(targets, " and ")))
+		if failed[legacy] {
 			continue
-		case finalTypes[targets[0]] == nil:
-			errs = append(errs, fmt.Errorf("type %s is not defined by the model, cannot move the tuples of %s", targets[0], legacy))
+		}
+		targets := renames[legacy]
+		if err := checkRenameTarget(legacy, targets, finalTypes); err != nil {
+			errs = append(errs, err)
+			failed[legacy] = true
 			continue
 		}
 
@@ -233,6 +247,19 @@ func planTypeMigration(tuples []pmcorev1alpha1.Tuple, renames typeRenames, final
 		return nil, nil, fmt.Errorf("migrating renamed FGA types (%s): %w", legacyTypeRemoveIssue, errors.Join(errs...))
 	}
 	return copies, originals, nil
+}
+
+// checkRenameTarget reports why the tuples of legacy cannot be moved.
+func checkRenameTarget(legacy string, targets []string, finalTypes map[string]*openfgav1.TypeDefinition) error {
+	switch {
+	case len(targets) > 1:
+		return fmt.Errorf("type %s was shared by %s, cannot attribute its tuples; delete them to continue", legacy, strings.Join(targets, " and "))
+	case finalTypes[legacy] != nil:
+		return fmt.Errorf("type %s is the old name of %s and the type of another API, cannot attribute its tuples; delete them to continue", legacy, targets[0])
+	case finalTypes[targets[0]] == nil:
+		return fmt.Errorf("type %s is not defined by the model, cannot move the tuples of %s", targets[0], legacy)
+	}
+	return nil
 }
 
 func (a *authorizationModelSubroutine) writeTransitionModel(ctx context.Context, storeID string, final *openfgav1.AuthorizationModel, finalTypes map[string]*openfgav1.TypeDefinition, renames typeRenames, originals []pmcorev1alpha1.Tuple) (string, error) {
@@ -292,6 +319,10 @@ func renameKey(key string, renames typeRenames) string {
 		return renames[old][0] + strings.TrimPrefix(key, old)
 	}
 	return rolePrefix + renames[old][0] + strings.TrimPrefix(key, rolePrefix+old)
+}
+
+func sourceFile(td *openfgav1.TypeDefinition) string {
+	return td.GetMetadata().GetSourceInfo().GetFile()
 }
 
 func objectType(key string) string {
