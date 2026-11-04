@@ -8,7 +8,7 @@ require (
 	github.com/fluxcd/helm-controller/api v1.5.5
 	github.com/fluxcd/source-controller/api v1.8.5
 	github.com/go-logr/logr v1.4.4
-	github.com/kcp-dev/multicluster-provider v0.8.1-0.20260714141811-833f063357f8
+	github.com/kcp-dev/multicluster-provider v0.9.0
 	github.com/kcp-dev/sdk v0.33.1
 	github.com/mandelsoft/goutils v0.0.0-20260507153918-c39bb4bb4b7b
 	github.com/mitchellh/copystructure v1.2.0
@@ -23,10 +23,10 @@ require (
 	go.platform-mesh.io/golang-commons v0.19.0
 	go.platform-mesh.io/subroutines v0.7.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.36.3
+	k8s.io/api v0.36.4
 	k8s.io/apiextensions-apiserver v0.36.3
-	k8s.io/apimachinery v0.36.3
-	k8s.io/client-go v0.36.3
+	k8s.io/apimachinery v0.36.4
+	k8s.io/client-go v0.36.4
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/kustomize/api v0.21.1
