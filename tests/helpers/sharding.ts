@@ -84,6 +84,7 @@ function waitForWorkspaceOnShard(
   const server = kcpClusterServer(parentPath);
   const startTime = Date.now();
   const timeoutMs = timeoutSeconds * 1000;
+  let lastState = 'no observation';
 
   while (Date.now() - startTime < timeoutMs) {
     try {
@@ -94,6 +95,7 @@ function waitForWorkspaceOnShard(
       ]);
 
       const [phase, currentShard] = result.split(',');
+      lastState = `phase=${phase} shard=${currentShard}`;
 
       if (phase === 'Ready' && currentShard === expectedShard) {
         logStep(`waitForWorkspaceOnShard:done workspace=${workspaceName} shard=${currentShard}`);
@@ -101,12 +103,13 @@ function waitForWorkspaceOnShard(
       }
 
       execFileSync('sleep', ['2']);
-    } catch {
+    } catch (error) {
+      lastState = `kubectl failed: ${error instanceof Error ? error.message : String(error)}`;
       execFileSync('sleep', ['2']);
     }
   }
 
-  throw new Error(`Workspace ${workspaceName} did not become ready on shard=${expectedShard} within ${timeoutSeconds}s`);
+  throw new Error(`Workspace ${workspaceName} did not become ready on shard=${expectedShard} within ${timeoutSeconds}s (last: ${lastState})`);
 }
 
 function waitForAccountReadyInOrg(accountName: string, orgName: string, timeoutSeconds = 180): void {
