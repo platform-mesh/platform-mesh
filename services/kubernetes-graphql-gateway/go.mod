@@ -17,7 +17,7 @@ require (
 	github.com/graphql-go/graphql v0.8.1
 	github.com/graphql-go/handler v0.2.4
 	github.com/jellydator/ttlcache/v3 v3.4.1
-	github.com/kcp-dev/multicluster-provider v0.8.1-0.20260714141811-833f063357f8
+	github.com/kcp-dev/multicluster-provider v0.9.0
 	github.com/kcp-dev/sdk v0.33.4
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/client_model v0.6.3

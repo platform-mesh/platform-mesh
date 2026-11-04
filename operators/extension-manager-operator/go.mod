@@ -10,8 +10,8 @@ require (
 	github.com/invopop/jsonschema v0.14.0
 	github.com/jarcoal/httpmock v1.4.2
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.8.1-0.20260714141811-833f063357f8
-	github.com/kcp-dev/multicluster-provider/client v0.8.0
+	github.com/kcp-dev/multicluster-provider v0.9.0
+	github.com/kcp-dev/multicluster-provider/client v0.9.0
 	github.com/kcp-dev/sdk v0.33.4
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.25.0

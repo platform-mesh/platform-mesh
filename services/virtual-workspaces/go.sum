@@ -191,8 +191,8 @@ github.com/kcp-dev/kubernetes/staging/src/k8s.io/streaming v0.0.0-20260602065202
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/streaming v0.0.0-20260602065202-e006560fc76a/go.mod h1:9sXYRxV6dk0iOTol8hn0L/nfV42D5q/zcF2TOvoamfg=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
-github.com/kcp-dev/multicluster-provider v0.8.1-0.20260714141811-833f063357f8 h1:IGFbH0CwjWYGocSWYYfrog46OYolS0L2nA0Ti86lEzg=
-github.com/kcp-dev/multicluster-provider v0.8.1-0.20260714141811-833f063357f8/go.mod h1:7LkQot2Ljmsv1w5ZjfHpjVEbQwtFQiA6LAWHbiHCGUI=
+github.com/kcp-dev/multicluster-provider v0.9.0 h1:LpjZaQH7c2HrVADtm1OtuptHj8hZAGsor8T5VC/lvTM=
+github.com/kcp-dev/multicluster-provider v0.9.0/go.mod h1:DHaeprSRpuSGgzW0QJyY67IaKiCtpm2WtsT8n5Ird3o=
 github.com/kcp-dev/sdk v0.33.4 h1:kIxIAMEXaBlXAw/Zy2L2anI+BJbwp82gsQcT0j8Bi8w=
 github.com/kcp-dev/sdk v0.33.4/go.mod h1:x2kZQzrMd5+P8ZyUS5Fv2WeyGqN3rNPbJCkVVMX1c3g=
 github.com/kcp-dev/virtual-workspace-framework v0.33.4 h1:Il+BK0DaDLoFLyjGlcF0+PCCdECxiCgyJ6fFh8BQ9co=
