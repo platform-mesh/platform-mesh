@@ -19,6 +19,7 @@ package subroutine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -216,6 +217,26 @@ func (e *migrationEnv) process(client openfgav1.OpenFGAServiceClient) error {
 	ctx := mccontext.WithCluster(context.Background(), config.StoreClusterName(logicalcluster.Name(migrationCluster).String()))
 	_, err := sub.Process(ctx, e.store)
 	return err
+}
+
+func (e *migrationEnv) writeModel(modules ...language.ModuleFile) {
+	model, err := language.TransformModuleFilesToModel(modules, schemaVersion)
+	require.NoError(e.t, err)
+	res, err := e.fga.WriteAuthorizationModel(context.Background(), &openfgav1.WriteAuthorizationModelRequest{
+		StoreId: e.storeID, TypeDefinitions: model.TypeDefinitions, SchemaVersion: schemaVersion,
+	})
+	require.NoError(e.t, err)
+	e.store.Status.AuthorizationModelID = res.GetAuthorizationModelId()
+}
+
+func (e *migrationEnv) write(tuples []string) {
+	for _, tuple := range tuples {
+		_, err := e.fga.Write(context.Background(), &openfgav1.WriteRequest{
+			StoreId: e.storeID,
+			Writes:  &openfgav1.WriteRequestWrites{TupleKeys: []*openfgav1.TupleKey{parseTuple(e.t, tuple)}},
+		})
+		require.NoError(e.t, err, tuple)
+	}
 }
 
 func (e *migrationEnv) tuples() []string {
@@ -431,38 +452,116 @@ func TestMigrateRenamedTypes(t *testing.T) {
 		require.ErrorContains(t, err, "type "+policyOld+" was shared by")
 		assert.ElementsMatch(t, grantsOnOldTypes, e.tuples())
 	})
+}
 
-	t.Run("old name of one API is the current type of another", func(t *testing.T) {
-		const subGroup, group = "sub.inventory.platform-mesh.example.io", "inventory.platform-mesh.example.io"
-		legacy, renamed := legacyRename(subGroup, "toolkits", "toolkit")
-		require.True(t, renamed)
-		sub, err := newModelInput(subGroup, "toolkits", "toolkit", "Cluster")
-		require.NoError(t, err)
-		toolkit, err := newModelInput(group, "toolkits", "toolkit", "Cluster")
-		require.NoError(t, err)
-		require.Equal(t, toolkit.TypeName, legacy)
+// sub.inventory toolkits were cut to the type inventory toolkits have now.
+func TestMigrateOldNameOfAnotherAPI(t *testing.T) {
+	const subGroup, group = "sub.inventory.platform-mesh.example.io", "inventory.platform-mesh.example.io"
+	legacy, renamed := legacyRename(subGroup, "toolkits", "toolkit")
+	require.True(t, renamed)
+	sub, err := newModelInput(subGroup, "toolkits", "toolkit", "Cluster")
+	require.NoError(t, err)
+	toolkit, err := newModelInput(group, "toolkits", "toolkit", "Cluster")
+	require.NoError(t, err)
+	require.Equal(t, toolkit.TypeName, legacy)
 
+	ref := pmcorev1alpha1.WorkspaceStoreRef{Name: "org", Cluster: migrationCluster}
+	subModel := pmcorev1alpha1.AuthorizationModel{
+		ObjectMeta: metav1.ObjectMeta{Name: "sub", Annotations: map[string]string{legacyTypeAnnotation: legacy}},
+		Spec:       pmcorev1alpha1.AuthorizationModelSpec{Model: render(t, modelTpl, sub), StoreRef: ref},
+	}
+	toolkitModel := pmcorev1alpha1.AuthorizationModel{
+		ObjectMeta: metav1.ObjectMeta{Name: "toolkits"},
+		Spec:       pmcorev1alpha1.AuthorizationModelSpec{Model: render(t, modelTpl, toolkit), StoreRef: ref},
+	}
+
+	obj, role := legacy+":c/t1", "role:"+legacy+"/c/t1/owner"
+	grants := []string{obj + "#owner@" + role + "#assignee", role + "#assignee@user:alice"}
+	crbGrants := []string{crbOldObj + "#owner@" + crbOldRole + "#assignee", crbOldRole + "#assignee@user:bob"}
+
+	// The model an operator before #436 built with the toolkit module of
+	// either API, which both had the type legacy.
+	writeOldModel := func(e *migrationEnv, module pmcorev1alpha1.AuthorizationModel) {
+		e.writeModel(
+			language.ModuleFile{Name: "core.fga", Contents: migrationCoreModule},
+			language.ModuleFile{Name: "crb.fga", Contents: render(t, privilegedTemplate, legacyModelInput(t, crbGroup, "clusterrolebindings", "clusterrolebinding"))},
+			language.ModuleFile{
+				Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(&module)),
+				Contents: render(t, modelTpl, legacyModelInput(t, subGroup, "toolkits", "toolkit")),
+			},
+		)
+	}
+
+	t.Run("both bound after the store migrated", func(t *testing.T) {
 		e := newMigrationEnv(t, nil)
-		ref := pmcorev1alpha1.WorkspaceStoreRef{Name: "org", Cluster: migrationCluster}
-		e.models = []pmcorev1alpha1.AuthorizationModel{
-			{ObjectMeta: metav1.ObjectMeta{Name: "sub", Annotations: map[string]string{legacyTypeAnnotation: legacy}}, Spec: pmcorev1alpha1.AuthorizationModelSpec{Model: render(t, modelTpl, sub), StoreRef: ref}},
-			{ObjectMeta: metav1.ObjectMeta{Name: "toolkits"}, Spec: pmcorev1alpha1.AuthorizationModelSpec{Model: render(t, modelTpl, toolkit), StoreRef: ref}},
-		}
+		e.models = []pmcorev1alpha1.AuthorizationModel{subModel, toolkitModel}
 		require.NoError(t, e.process(e.fga))
-
-		obj, role := toolkit.TypeName+":c/t1", "role:"+toolkit.TypeName+"/c/t1/owner"
-		grants := []string{obj + "#owner@" + role + "#assignee", role + "#assignee@user:alice"}
-		for _, tuple := range grants {
-			_, err := e.fga.Write(context.Background(), &openfgav1.WriteRequest{
-				StoreId: e.storeID,
-				Writes:  &openfgav1.WriteRequestWrites{TupleKeys: []*openfgav1.TupleKey{parseTuple(t, tuple)}},
-			})
-			require.NoError(t, err, tuple)
-		}
+		e.write(grants)
 
 		require.NoError(t, e.process(e.fga))
 		assert.ElementsMatch(t, grants, e.tuples())
 		assert.True(t, e.allowed("user:alice", "owner", obj))
+	})
+
+	t.Run("sub bound after the store migrated", func(t *testing.T) {
+		e := newMigrationEnv(t, nil)
+		e.models = []pmcorev1alpha1.AuthorizationModel{toolkitModel}
+		require.NoError(t, e.process(e.fga))
+		e.write(grants)
+
+		e.models = []pmcorev1alpha1.AuthorizationModel{subModel, toolkitModel}
+		require.NoError(t, e.process(e.fga))
+		assert.ElementsMatch(t, grants, e.tuples())
+		assert.True(t, e.allowed("user:alice", "owner", obj))
+	})
+
+	// Before #436 grants on both APIs were written to legacy, so its tuples
+	// cannot be attributed whichever API the old model was built from.
+	for _, before := range []pmcorev1alpha1.AuthorizationModel{subModel, toolkitModel} {
+		t.Run("bound before the store migrated, old model from "+before.Name, func(t *testing.T) {
+			e := newMigrationEnv(t, nil)
+			writeOldModel(e, before)
+			oldModelID := e.store.Status.AuthorizationModelID
+			e.write(append(slices.Clone(grants), crbGrants...))
+			tuples := e.tuples()
+
+			e.models = []pmcorev1alpha1.AuthorizationModel{subModel, toolkitModel}
+			err := e.process(e.fga)
+			require.ErrorContains(t, err, "type "+legacy+" is the old name of "+sub.TypeName)
+			assert.ErrorContains(t, err, "delete them to continue")
+			assert.Equal(t, oldModelID, e.store.Status.AuthorizationModelID)
+			assert.Equal(t, tuples, e.tuples())
+		})
+	}
+
+	t.Run("migrated before the generator renamed sub", func(t *testing.T) {
+		e := newMigrationEnv(t, nil)
+		oldSub := subModel
+		oldSub.Annotations = nil
+		oldSub.Spec.Model = render(t, modelTpl, legacyModelInput(t, subGroup, "toolkits", "toolkit"))
+		e.models = []pmcorev1alpha1.AuthorizationModel{oldSub}
+		require.NoError(t, e.process(e.fga))
+		e.write(grants)
+		tuples := e.tuples()
+
+		e.models = []pmcorev1alpha1.AuthorizationModel{subModel, toolkitModel}
+		err := e.process(e.fga)
+		require.ErrorContains(t, err, "type "+legacy+" is the old name of "+sub.TypeName)
+		assert.Equal(t, 1, strings.Count(err.Error(), legacy+" is the old name"), "reported once")
+		assert.Equal(t, tuples, e.tuples())
+	})
+
+	t.Run("bound before the store migrated, no tuples on the old name", func(t *testing.T) {
+		e := newMigrationEnv(t, nil)
+		writeOldModel(e, subModel)
+		e.write(crbGrants)
+
+		e.models = []pmcorev1alpha1.AuthorizationModel{subModel, toolkitModel}
+		require.NoError(t, e.process(e.fga))
+		assert.ElementsMatch(t, []string{crbNewObj + "#owner@" + crbNewRole + "#assignee", crbNewRole + "#assignee@user:bob"}, e.tuples())
+		types := e.currentTypes()
+		assert.Subset(t, types, []string{legacy, sub.TypeName, crbNew})
+		assert.NotContains(t, types, crbOld)
 	})
 }
 
