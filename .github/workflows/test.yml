@@ -107,6 +107,8 @@ jobs:
       - name: Local hostnames used by the kind-based suites
         run: |
           echo "127.0.0.1 portal.localhost" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 kcp.api.portal.localhost" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 root.kcp.portal.localhost" | sudo tee -a /etc/hosts
           echo "127.0.0.1 root.kcp.localhost" | sudo tee -a /etc/hosts
       - name: E2E tests
         run: task test-e2e-${COMPONENT}
