@@ -38,7 +38,8 @@ type StaticThenExponentialRateLimiter[T comparable] struct {
 }
 
 // NewStaticThenExponentialRateLimiter returns a limiter that tracks backoff per key.
-// Pointer keys are rejected as they should not be used in controller context.
+// Keys that compare by identity, such as pointers or client.Object, are rejected:
+// a controller gets a fresh object every reconcile, and the key never matches.
 //
 // Use the reconcile request as the key, or NewObjectRateLimiter for API objects.
 func NewStaticThenExponentialRateLimiter[T comparable](cfg Config) (*StaticThenExponentialRateLimiter[T], error) {
