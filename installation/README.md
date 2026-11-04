@@ -278,7 +278,7 @@ The fixed `10.96.188.4` ClusterIP assumes Kind's default Service CIDR and must
 be unused. It makes the Kind profile's in-cluster host aliases deterministic.
 If it conflicts with an existing Service or the cluster uses another Service
 CIDR, choose an unused address in that Service CIDR, then pass the actual
-gateway service ClusterIP to `gateway.ClusterIP` in the next step.
+gateway service ClusterIP to `gateway.clusterIP` in the next step.
 
 </details>
 

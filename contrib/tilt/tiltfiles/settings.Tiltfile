@@ -58,12 +58,13 @@ KCP_URL = "https://kcp.api." + BASE_DOMAIN_PORT
 KCP_FRONT_PROXY_URL = "https://frontproxy-front-proxy.{}:{}".format(NAMESPACE, PORT)
 
 # Values the kind-profile templates with (pkg/subroutines/subroutine_helpers.go
-# getExposureParams). traefikClusterIP only feeds hostAliases, which are dropped.
+# getExposureParams), plus the __PLACEHOLDER__ tokens the PMO chart replaces.
+# gatewayClusterIP only feeds hostAliases, which are dropped.
 TEMPLATE_VARS = {
     "baseDomain": BASE_DOMAIN,
     "baseDomainPort": BASE_DOMAIN_PORT,
     "port": str(PORT),
-    "traefikClusterIP": "",
+    "gatewayClusterIP": "",
     "internalFrontProxyUrl": KCP_FRONT_PROXY_URL,
     "gatewayClassName": "traefik",
 }

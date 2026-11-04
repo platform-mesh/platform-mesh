@@ -172,3 +172,33 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+  - it: renders the gateway ClusterIP into the kind profile host aliases
+    template: installation-profile.yaml
+    set:
+      ocm:
+        enabled: true
+        profile: kind
+      gateway:
+        baseDomain: platform.example.com
+        clusterIP: 10.96.188.4
+    asserts:
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'ip: "10\.96\.188\.4"'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: '__GATEWAY_SERVICE_CLUSTER_IP__'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?i)traefik(ClusterIP|CRDs)?:'
+  - it: requires the gateway ClusterIP for the kind profile
+    template: installation.yaml
+    set:
+      ocm:
+        enabled: true
+        profile: kind
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - failedTemplate:
+          errorMessage: gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind profile
