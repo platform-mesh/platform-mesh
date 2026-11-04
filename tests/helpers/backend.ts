@@ -47,7 +47,7 @@ function waitForAccountExists(orgName?: string, accountName?: string): void {
     'wait',
     '--server',
     kcpClusterServer(`root:orgs:${org}`),
-    '--for=jsonpath={.metadata.name}',
+    '--for=create',
     `--timeout=${accountReadyTimeoutSeconds}s`,
     `accounts.core.platform-mesh.io/${account}`,
   ]);
