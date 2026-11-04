@@ -44,9 +44,11 @@ kcp:
       name: etcd-kcp-client
       port: 2379
     image:
-      # pinned for ocm inventory
+      # Pinned for the OCM inventory. Keep in sync with the etcd-wrapper-next
+      # image of the deployed etcd-druid (etcd 3.5, UpgradeEtcdVersion is on by
+      # default); an older wrapper would downgrade etcd.
       repository: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper
-      tag: v0.6.2
+      tag: v0.8.4
     defragmentationSchedule: "0 */24 * * *"
     resources:
       limits:
@@ -59,9 +61,9 @@ kcp:
     quota: 8Gi
     backup:
       image:
-        # pinned for ocm inventory
+        # Keep in sync with etcd-druid's etcd-backup-restore-next image, see etcd.image.
         repository: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl
-        tag: v0.41.2
+        tag: v0.45.3
       port: 8080
       fullSnapshotSchedule: "0 */24 * * *"
       resources:
