@@ -6,7 +6,7 @@ Gateway API enabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: traefik
+      gatewayClassName: null
       listeners:
         - name: terminate
           port: 443
@@ -678,7 +678,7 @@ Istio disabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: traefik
+      gatewayClassName: null
       listeners:
         - name: terminate
           port: 443
@@ -1350,7 +1350,7 @@ Istio enabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: traefik
+      gatewayClassName: null
       listeners:
         - name: terminate
           port: 443
@@ -2360,7 +2360,7 @@ match snapshots:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: traefik
+      gatewayClassName: null
       listeners:
         - name: terminate
           port: 443
@@ -3032,7 +3032,7 @@ match snapshots w. hostAliases enabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: traefik
+      gatewayClassName: null
       listeners:
         - name: terminate
           port: 443
@@ -3712,7 +3712,7 @@ match snapshots w. kcp version:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: traefik
+      gatewayClassName: null
       listeners:
         - name: terminate
           port: 443
@@ -4384,7 +4384,7 @@ match snapshots with mailpit enabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: traefik
+      gatewayClassName: null
       listeners:
         - name: terminate
           port: 443

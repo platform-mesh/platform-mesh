@@ -17,5 +17,4 @@ kind: Kustomization
 
 resources:
   - namespaces
-  - ocm-k8s-toolkit
   - crds

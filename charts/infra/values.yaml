@@ -406,7 +406,7 @@ gatewayApi:
   # -- Name of the Gateway resource
   name: k8sapi-gateway
   # -- GatewayClass name
-  gatewayClassName: traefik
+  gatewayClassName: ""
   # -- HTTPS Terminate configuration
   infrastructure: {}
   # -- Gateway listeners. The HTTPS listener is hostname-less so all route hostnames share one listener (needed for HTTP/2 connection reuse on Istio).

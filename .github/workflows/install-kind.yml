@@ -237,6 +237,7 @@ jobs:
           HELM: ${{ steps.helm.outputs.path }}
           PM_VERSION: ${{ steps.version.outputs.version }}
           TRAEFIK_CLUSTER_IP: ${{ steps.traefik.outputs.cluster_ip }}
+          GATEWAY_CLASS_NAME: traefik
           OWNER: ${{ github.repository_owner }}
         run: |
           # hostAliases is intentionally not set: the operator reaches
@@ -261,6 +262,7 @@ jobs:
             --set image.repository="${OWNER}/platform-mesh/platform-mesh-operator" \
             --set image.tag="v${PM_VERSION}" \
             --set gateway.baseDomain="${BASE_DOMAIN}" \
+            --set gateway.className="${GATEWAY_CLASS_NAME}" \
             --set gateway.port=8443 \
             --set gateway.clusterIP="${TRAEFIK_CLUSTER_IP}" \
             --set kcp.frontProxyPort=8443 \

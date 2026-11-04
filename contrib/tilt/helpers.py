@@ -97,7 +97,7 @@ def profile_values(service, tvars, overrides={}):
         fail('{} is not a service in {}'.format(service, KIND_PROFILE))
     values = services[service].get('values', {})
     # Every hostname resolves to the node via sslip.io; the profile's aliases
-    # would pin kcp names to a traefik ClusterIP instead.
+    # would pin kcp names to a gateway service ClusterIP instead.
     if 'hostAliases' in values:
         values['hostAliases'] = {'enabled': False}
     return _deep_merge(values, overrides)

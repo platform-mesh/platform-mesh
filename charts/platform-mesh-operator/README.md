@@ -15,12 +15,11 @@ A Helm chart to automate bootstrapping of new environment
 | crds.enabled | bool | `true` |  |
 | deployment.replicas | int | `1` |  |
 | extraArgs[0] | string | `"--subroutines-feature-toggles-enabled=true"` |  |
-| gateway | object | `{"baseDomain":"","className":"traefik","clusterIP":"","port":8443,"traefikClusterIP":""}` | Gateway/exposure configuration (used when ocm.enabled=true). |
+| gateway | object | `{"baseDomain":"","className":"","clusterIP":"","port":8443}` | Gateway/exposure configuration (used when ocm.enabled=true). |
 | gateway.baseDomain | string | `""` | Public DNS name used for Platform Mesh endpoints. |
-| gateway.className | string | `"traefik"` | Name of the GatewayClass the Platform Mesh Gateway attaches to. Defaults to `traefik` (the bundled controller). Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation. |
-| gateway.clusterIP | string | `""` | ClusterIP of the gateway controller Service. Required when ocm.profile=kind; production uses public DNS. Controller-agnostic replacement for gateway.traefikClusterIP. |
+| gateway.className | string | `""` | Name of the GatewayClass the Platform Mesh Gateway attaches to. Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation. |
+| gateway.clusterIP | string | `""` | ClusterIP of the gateway controller Service. Required when ocm.profile=kind; production uses public DNS. |
 | gateway.port | int | `8443` | External HTTPS port exposed by the Gateway. |
-| gateway.traefikClusterIP | string | `""` | Deprecated alias for gateway.clusterIP. Still the wire field consumed by the operator reconciler; prefer gateway.clusterIP. |
 | idp.registrationAllowed | bool | `false` |  |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |

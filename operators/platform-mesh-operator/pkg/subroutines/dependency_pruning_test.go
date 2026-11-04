@@ -167,7 +167,6 @@ func Test_disabledHelmReleases(t *testing.T) {
 		},
 		"certManager":           map[string]any{"enabled": false, "name": "cert-manager"},
 		"opentelemetryOperator": map[string]any{"enabled": true, "name": "opentelemetry-operator"},
-		"traefikCRDs":           map[string]any{"name": "traefik-crds"}, // enabled absent == off
 	}
 	services := map[string]any{
 		"observability":     map[string]any{"enabled": true},
@@ -178,13 +177,12 @@ func Test_disabledHelmReleases(t *testing.T) {
 	disabled := disabledHelmReleases(infraProfile, services, "infra-ns", "components-ns")
 
 	assert.Contains(t, disabled, "infra-ns/cert-manager")
-	assert.Contains(t, disabled, "infra-ns/traefik-crds", "a component without an enabled flag is not rendered")
 	assert.Contains(t, disabled, "components-ns/keycloak-operator")
 	assert.Contains(t, disabled, "components-ns/cnpg-operator", "skipHelmRelease means no HelmRelease is rendered")
 
 	assert.NotContains(t, disabled, "infra-ns/opentelemetry-operator")
 	assert.NotContains(t, disabled, "components-ns/observability")
-	assert.Len(t, disabled, 4)
+	assert.Len(t, disabled, 3)
 }
 
 func Test_pruneDisabledDependencies(t *testing.T) {

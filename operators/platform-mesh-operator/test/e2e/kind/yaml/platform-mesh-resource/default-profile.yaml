@@ -30,7 +30,7 @@ data:
           name: platform-mesh
         skipVerify: true
       certManager:
-        enabled: true
+        enabled: false
         interval: 1m
         name: cert-manager
         ocmResourceName: chart
@@ -41,62 +41,19 @@ data:
         syncOptions:
         - ServerSideApply=true
         - SkipCRDs=false
-        enabled: true
+        enabled: false
         interval: 1m
         name: gateway-api-crds
         ocmResourceName: chart
         targetNamespace: default
-      traefik:
-        skipCrds: true
-        syncOptions:
-        - SkipCRDs=true
-        syncWave: 1
-        chart:
-          name: traefik
-        enabled: true
-        interval: 1m
-        name: traefik
-        ocmResourceName: chart
-        targetNamespace: default
-        values:
-          experimental:
-            kubernetesGateway:
-              enabled: true
-          gateway:
-            enabled: false
-          gatewayClass:
-            enabled: true
-          ports:
-            websecure:
-              exposedPort: 8443
-              nodePort: 31000
-          providers:
-            kubernetesGateway:
-              enabled: true
-              experimentalChannel: true
-          service:
-            spec:
-              clusterIP: "{{ .gatewayServiceClusterIP }}"
-            type: NodePort
       etcdDruid:
-        enabled: true
+        enabled: false
         interval: 1m
         name: etcd-druid
         ocmResourceName: etcd-druid
         ocmImageResourceName: image
         targetNamespace: etcd-druid-system
         values: {}
-      traefikCRDs:
-        chart:
-          name: traefik-crds
-        enabled: true
-        interval: 1m
-        name: traefik-crds
-        ocmComponentName: traefik
-        ocmResourceName: crds
-        targetNamespace: default
-        values:
-          gatewayAPI: false
       prometheusOperatorCRDs:
         enabled: false
         interval: 1m
@@ -393,15 +350,6 @@ data:
               shards: []
               webhook:
                 enabled: true
-            traefik:
-              accessControlAllowOriginList:
-              - http://localhost:4200
-              - http://localhost:4300
-              - http://*.localhost:4200
-              - http://*.localhost:4300
-              - http://sub.localhost:4300
-              - https://portal.localhost:8443
-              - https://*.portal.localhost:8443
         iam-ui:
           enabled: true
           syncWave: 4
@@ -499,8 +447,9 @@ data:
               artifact: image
               for: keycloak-operator
               path: image.tag
-          enabled: true
+          enabled: false
           external: true
+          skipHelmRelease: true
           syncWave: 0
           absoluteReferencePath:
             - name: keycloak-operator
@@ -520,8 +469,9 @@ data:
               artifact: image
               for: cnpg-operator
               image-ref: combined
-          enabled: true
+          enabled: false
           external: true
+          skipHelmRelease: true
           syncWave: 0
           targetNamespace: platform-mesh-system
           absoluteReferencePath:

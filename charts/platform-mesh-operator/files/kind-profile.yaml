@@ -20,12 +20,8 @@ data:
         enabled: false
       gatewayApi:
         enabled: false
-      traefik:
-        enabled: false
       etcdDruid:
         # Installed by platform-mesh-prerequisites.
-        enabled: false
-      traefikCRDs:
         enabled: false
       prometheusOperatorCRDs:
         enabled: false
@@ -35,7 +31,7 @@ data:
       # -- Change hostaliases here and all involved components will get the same hostaliases
       hostAliasesEntries: &hostAliasesEntries
         # REQUIRED: set the host aliases for kcp shards
-        - ip: "{{ .traefikClusterIP }}"
+        - ip: "__GATEWAY_SERVICE_CLUSTER_IP__"
           hostnames:
             - "{{ .baseDomain }}"
             - "kcp.api.{{ .baseDomain }}"
@@ -224,17 +220,9 @@ data:
                       - kind: Secret
                         name: domain-certificate
                         namespace: platform-mesh-system
-                - name: passthrough
-                  port: 8443
-                  protocol: TLS
-                  tls:
-                    mode: Passthrough
-                  allowedRoutes:
-                    namespaces:
-                      from: All
-              # Traefik accepts the hostname-less passthrough listener above, so keep it instead of the generated ones.
               passthrough:
-                enabled: false
+                enabled: true
+                port: 8443
               listenersExtra:
                 - name: terminate-services
                   hostname: "*.services.{{ .baseDomain }}"
@@ -324,7 +312,7 @@ data:
             hostAliases:
               enabled: true
               values:
-                - ip: "{{ .traefikClusterIP }}"
+                - ip: "__GATEWAY_SERVICE_CLUSTER_IP__"
                   hostnames:
                     - "kcp.api.{{ .baseDomain }}"
         kcp:
