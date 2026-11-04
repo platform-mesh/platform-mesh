@@ -1,0 +1,75 @@
+{{- $tag := default .Chart.AppVersion .Values.image.tag -}}
+{{- $imageRef := printf "%s/%s:%s" .Values.image.registry .Values.image.repository $tag -}}
+{{- if .Values.image.digest -}}
+{{- $imageRef = printf "%s/%s@%s" .Values.image.registry .Values.image.repository .Values.image.digest -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "common.labelMatcher" . | indent 6 }}
+  replicas: {{ .Values.deployment.replicas }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+        {{- with .Values.deployment.specTemplate.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        control-plane: access-sdk-server
+      annotations:
+        {{- with .Values.deployment.specTemplate.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "common.entity.name" . }}
+      {{- include "common.imagePullSecret" . | indent 6 }}
+      automountServiceAccountToken: {{ .Values.security.mountServiceAccountToken }}
+      containers:
+        - name: server
+          image: {{ $imageRef }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/sdk/platform-mesh-access-server"]
+          ports:
+            - name: access
+              containerPort: {{ .Values.accessPort }}
+              protocol: TCP
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+          args:
+            {{- with .Values.pathPrefix }}
+            - --path-prefix={{ . }}
+            {{- end }}
+            {{- if .Values.tls.enabled }}
+            - --tls-cert-file=/tls/tls.crt
+            - --tls-key-file=/tls/tls.key
+            {{- end }}
+            - --access-listen=:{{ .Values.accessPort }}
+          {{- if .Values.tls.enabled }}
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+          {{- end }}
+      {{- if .Values.tls.enabled }}
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+      {{- end }}

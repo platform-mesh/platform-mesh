@@ -26,6 +26,9 @@ components:
           repository: ${REPO_URL}
           commit: ${COMMIT}
     componentReferences:
+      - name: access-operator
+        componentName: github.com/platform-mesh/access-operator
+        version: ${PM_VERSION}
       - name: account-operator
         componentName: github.com/platform-mesh/account-operator
         version: ${PM_VERSION}
@@ -71,6 +74,15 @@ components:
         version: ${PM_VERSION}
       - name: platform-mesh-operator
         componentName: github.com/platform-mesh/platform-mesh-operator
+        version: ${PM_VERSION}
+      - name: platform-mesh-sdk-access-crds
+        componentName: github.com/platform-mesh/platform-mesh-sdk-access-crds
+        version: ${PM_VERSION}
+      - name: platform-mesh-sdk-access-controller
+        componentName: github.com/platform-mesh/platform-mesh-sdk-access-controller
+        version: ${PM_VERSION}
+      - name: platform-mesh-sdk-access-server
+        componentName: github.com/platform-mesh/platform-mesh-sdk-access-server
         version: ${PM_VERSION}
       - name: portal
         componentName: github.com/platform-mesh/portal

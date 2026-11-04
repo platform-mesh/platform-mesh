@@ -1,0 +1,14 @@
+apiVersion: v2
+name: platform-mesh-sdk-access-controller
+description: A Helm chart to deploy the Platform Mesh access SDK AccessIdentity controller on a user-side cluster.
+type: application
+version: 0.0.0
+appVersion: "0.0.0"
+dependencies:
+  - name: common
+    version: 0.0.0
+    repository: file://../common
+  - name: platform-mesh-sdk-access-crds
+    version: 0.0.0
+    repository: file://../platform-mesh-sdk-access-crds
+    condition: crds.enabled

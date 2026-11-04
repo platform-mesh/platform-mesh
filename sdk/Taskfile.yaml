@@ -1,0 +1,68 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: "3"
+
+# Standard component Taskfile for the shared sdk module.
+# Exposes the repo-standard targets: lint, test, test-e2e, generate, build.
+#
+# Shared tools (controller-gen, golangci-lint) come from the repository-root
+# bin/ — installed by the root `tools:` tasks, referenced here via ROOT_BIN.
+
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../tools/Taskfile.yaml
+    dir: .
+
+vars:
+  # User-side (access SDK) CRDs land in a sibling Helm chart alongside
+  # the PM-side chart under charts/. The chart ships to user-side
+  # clusters where the access SDK runs.
+  ACCESS_SDK_CRDS: /charts/platform-mesh-sdk-access-crds/templates
+
+tasks:
+  build:
+    desc: Build the sdk module.
+    cmds:
+      - go build ./...
+  fmt:
+    cmds:
+      - go fmt ./...
+  lint:
+    desc: Lint the sdk module.
+    cmds:
+      - task: fmt
+      - task: tools:lint
+  generate:
+    desc: Regenerate deepcopy code and CRD manifests for the sdk types.
+    cmds:
+      - task: tools:generate-deepcopy
+        vars:
+          BASEDIR: '{{.TOPLEVEL}}/sdk'
+          PATH: /...
+      - task: tools:generate-crds
+        vars:
+          BASEDIR: '{{.TOPLEVEL}}/sdk'
+          PATH: /access/...
+          OUTPUT: '{{.TOPLEVEL}}{{.ACCESS_SDK_CRDS}}'
+  test:
+    desc: Run sdk unit tests.
+    cmds:
+      - go test -count=1 ./...
+  test-e2e:
+    desc: No e2e tests for the sdk module.
+    cmds:
+      - 'echo "sdk: no e2e tests"'

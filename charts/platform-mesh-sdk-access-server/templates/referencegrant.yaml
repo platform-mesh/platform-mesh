@@ -1,0 +1,19 @@
+{{- if and .Values.httpRoute.enabled .Values.httpRoute.referenceGrant.enabled -}}
+# Permits HTTPRoutes in a different namespace to backendRef the Service
+# created by this chart. Only needed when the HTTPRoute lives in a
+# different namespace than this release.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: {{ required "httpRoute.referenceGrant.fromNamespace is required when httpRoute.referenceGrant.enabled is true" .Values.httpRoute.referenceGrant.fromNamespace }}
+  to:
+    - group: ""
+      kind: Service
+      name: {{ include "common.entity.name" . }}
+{{- end }}

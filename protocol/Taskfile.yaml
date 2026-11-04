@@ -1,0 +1,57 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: "3"
+
+# Standard component Taskfile for the shared protocol module.
+# Exposes the repo-standard targets: lint, test, test-e2e, generate, build.
+#
+# No CRDs or generated code live here; generate is a no-op kept so the
+# root fan-out targets stay uniform across components.
+#
+# Shared tools (golangci-lint) come from the repository-root bin/ -
+# installed by the root `tools:` tasks.
+
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../tools/Taskfile.yaml
+    dir: .
+
+tasks:
+  build:
+    desc: Build the protocol module.
+    cmds:
+      - go build ./...
+  fmt:
+    cmds:
+      - go fmt ./...
+  lint:
+    desc: Lint the protocol module.
+    cmds:
+      - task: fmt
+      - task: tools:lint
+  generate:
+    desc: No generated code in the protocol module.
+    cmds:
+      - 'echo "protocol: no generated code"'
+  test:
+    desc: Run protocol unit tests.
+    cmds:
+      - go test -count=1 ./...
+  test-e2e:
+    desc: No e2e tests for the protocol module.
+    cmds:
+      - 'echo "protocol: no e2e tests"'
