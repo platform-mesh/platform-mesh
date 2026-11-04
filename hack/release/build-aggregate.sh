@@ -259,6 +259,10 @@ while IFS= read -r chart; do
 
   if [[ "$(jq -r .hasRefs <<<"$chart")" == "true" ]]; then
     refs="$("$YQ" -o=json '.extraReferences' "$settings" | envsubst)"
+    # envsubst turns an unset variable into an empty version, which the
+    # "not built here" checks below can only report as an unpublished component.
+    unversioned="$(jq -r '[.[] | select(.version == "") | .componentName] | join(", ")' <<<"$refs")"
+    [[ -z "$unversioned" ]] || die "$settings: extraReferences without a version (unset variable): $unversioned"
     service="$(jq --argjson refs "$refs" '.componentReferences += $refs' <<<"$service")"
   fi
 
