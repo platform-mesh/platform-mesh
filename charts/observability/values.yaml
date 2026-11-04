@@ -18,8 +18,7 @@ prometheus:
     # image is set explicitly for ocm aggregate build to reference
     image:
       repository: quay.io/prometheus/prometheus
-      # subchart 29.19.0 appVersion, pinned so the inventory cannot drift
-      tag: v3.13.1
+      tag: v3.15.1
       digest: ""
     persistentVolume:
       # -- Disable persistence for local development
@@ -36,8 +35,7 @@ prometheus:
       # image is set explicitly for ocm aggregate build to reference
       image:
         repository: quay.io/prometheus-operator/prometheus-config-reloader
-        # subchart 29.19.0 default, pinned so the inventory cannot drift
-        tag: v0.92.1
+        tag: v0.94.2
         digest: ""
   # -- Disable components not needed for this POC
   alertmanager:
@@ -67,7 +65,7 @@ otelCollector:
     # -- Collector image repository (without registry)
     repository: open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib
     # -- Collector image tag
-    tag: "0.153.0"
+    tag: "0.164.0"
     # -- Collector image digest (when set, appended to tag as repo:tag@digest)
     digest: ""
   config:

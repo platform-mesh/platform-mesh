@@ -68,8 +68,8 @@ OPENFGA_VERSION: "0.2.62"
 # renovate: datasource=docker depName=docker.io/openfga/openfga
 OPENFGA_IMAGE_VERSION: "v1.22.1"
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/upstream-images/postgresql
-OPENFGA_POSTGRESQL_IMAGE_VERSION: "17.9.0-debian-12-r3"
-PM_OPENFGA_VERSION: "0.0.2"
+OPENFGA_POSTGRESQL_IMAGE_VERSION: "17.6.0-debian-12-r10"
+PM_OPENFGA_VERSION: "0.0.3"
 
 # --- ingress / certificates ---------------------------------------------------
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/charts/traefik
@@ -87,10 +87,12 @@ PM_CERT_MANAGER_VERSION: "0.0.2"
 
 # --- storage ------------------------------------------------------------------
 # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/charts/cloudnative-pg
-CNPG_OPERATOR_CHART_VERSION: "0.28.0"
+CNPG_OPERATOR_CHART_VERSION: "0.29.1"
+# The UBI 9 variant only: the default variant still ships the compromised
+# eMudhra intermediate CAs (platform-mesh/platform-mesh#469).
 # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/cloudnative-pg
-CNPG_OPERATOR_IMAGE_VERSION: "1.29.0"
-PM_CNPG_OPERATOR_VERSION: "0.0.1"
+CNPG_OPERATOR_IMAGE_VERSION: "1.30.1-ubi9"
+PM_CNPG_OPERATOR_VERSION: "0.0.2"
 
 # Published as an OCM component by Gardener; copied into our registry as-is.
 # renovate: datasource=docker depName=europe-docker.pkg.dev/gardener-project/releases/component-descriptors/github.com/gardener/etcd-druid

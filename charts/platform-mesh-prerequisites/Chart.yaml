@@ -31,7 +31,7 @@ dependencies:
     repository: oci://ghcr.io/platform-mesh/ocm/charts
     condition: traefik-crds.enabled
   - name: cloudnative-pg
-    version: 0.28.0
+    version: 0.29.1
     repository: oci://ghcr.io/cloudnative-pg/charts
     condition: cnpg.enabled
   - name: keycloak-operator

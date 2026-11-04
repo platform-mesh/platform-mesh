@@ -494,7 +494,7 @@ data:
               image:
                 registry: ghcr.io/platform-mesh
                 repository: upstream-images/postgresql
-                tag: 17.6.0-debian-12-r4
+                tag: 17.6.0-debian-12-r10
               nameOverride: postgres
             replicaCount: 1
             telemetry:
