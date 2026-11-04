@@ -9,7 +9,7 @@ require (
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.9.0
 	github.com/kcp-dev/multicluster-provider/client v0.9.0
-	github.com/kcp-dev/sdk v0.33.1
+	github.com/kcp-dev/sdk v0.33.5
 	github.com/oapi-codegen/runtime v1.4.1
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/prometheus/client_golang v1.23.2

@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	github.com/kcp-dev/multicluster-provider v0.9.0
-	github.com/kcp-dev/sdk v0.33.1
+	github.com/kcp-dev/sdk v0.33.5
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1

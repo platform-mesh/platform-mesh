@@ -9,7 +9,7 @@ require (
 	github.com/fluxcd/source-controller/api v1.8.5
 	github.com/go-logr/logr v1.4.4
 	github.com/kcp-dev/multicluster-provider v0.9.0
-	github.com/kcp-dev/sdk v0.33.1
+	github.com/kcp-dev/sdk v0.33.5
 	github.com/mandelsoft/goutils v0.0.0-20260507153918-c39bb4bb4b7b
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/opencontainers/go-digest v1.0.0
