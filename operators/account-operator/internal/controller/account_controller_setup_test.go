@@ -246,6 +246,6 @@ func (s *AccountTestSuite) setupDefaultOrg() {
 			return false
 		}
 		return defaultWs.Status.Phase == "Ready"
-	}, 15*time.Second, 500*time.Millisecond, "default workspace should be ready")
+	}, 30*time.Second, 500*time.Millisecond, "default workspace should be ready")
 	s.rootOrgsDefaultClient = s.kcpClient.Cluster(s.orgsClusterPath.Join(defaultWorkspace))
 }

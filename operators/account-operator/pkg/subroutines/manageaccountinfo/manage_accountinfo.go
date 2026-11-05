@@ -86,6 +86,12 @@ func (r *ManageAccountInfoSubroutine) Process(ctx context.Context, obj ctrlrunti
 
 	accountWorkspace := &kcptenancyv1alpha1.Workspace{}
 	if err := clusterClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: instance.Name}, accountWorkspace); err != nil {
+		// workspace subroutine creates the workspace in the same
+		// reconcile, a busy informer will lag behind.
+		// hence requeue instead of erroring.
+		if apierrors.IsNotFound(err) {
+			return subroutines.StopWithRequeue(r.limiter.When(instance), "Workspace not found yet"), nil
+		}
 		return subroutines.OK(), fmt.Errorf("getting Account's Workspace: %w", err)
 	}
 

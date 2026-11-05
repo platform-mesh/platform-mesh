@@ -293,6 +293,22 @@ func TestManageAccountInfoProcess(t *testing.T) {
 			expectError: true,
 		},
 		{
+			name: "workspace not found yet requeues",
+			clusters: map[string]cluster.Cluster{
+				"test-cluster": func() cluster.Cluster {
+					c := mocks.NewCluster(t)
+					cl := mocks.NewClient(t)
+					cl.EXPECT().
+						Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+						Return(apierrors.NewNotFound(schema.GroupResource{}, "acc")).Once()
+					c.EXPECT().GetClient().Return(cl)
+					return c
+				}(),
+			},
+			obj:           accountObj(pmcorev1alpha1.AccountTypeAccount),
+			expectRequeue: true,
+		},
+		{
 			name: "parent account info not found requeues",
 			clusters: map[string]cluster.Cluster{
 				"test-cluster": func() cluster.Cluster {

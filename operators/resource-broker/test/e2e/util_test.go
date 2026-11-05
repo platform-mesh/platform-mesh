@@ -36,6 +36,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -420,7 +421,7 @@ func applyCRDs(tb testing.TB, cl ctrlruntimeclient.Client, files ...string) {
 }
 
 // createBinding creates an APIBinding to the given export and waits for it
-// to be bound.
+// to be bound and its resources to be served.
 func createBinding(tb testing.TB, cl ctrlruntimeclient.Client, exportName, exportPath string, claims []kcpapisv1alpha2.AcceptablePermissionClaim) {
 	tb.Helper()
 	binding := &kcpapisv1alpha2.APIBinding{}
@@ -430,12 +431,9 @@ func createBinding(tb testing.TB, cl ctrlruntimeclient.Client, exportName, expor
 		Name: exportName,
 	}
 	binding.Spec.PermissionClaims = claims
-	err := cl.Create(tb.Context(), binding)
-	if !apierrors.IsAlreadyExists(err) {
-		require.NoError(tb, err)
-	}
+	createBound(tb, cl, binding)
+	current := &kcpapisv1alpha2.APIBinding{}
 	envtest.Eventually(tb, func() (bool, string) {
-		current := &kcpapisv1alpha2.APIBinding{}
 		if err := cl.Get(tb.Context(), ctrlruntimeclient.ObjectKey{Name: exportName}, current); err != nil {
 			return false, fmt.Sprintf("getting APIBinding: %v", err)
 		}
@@ -444,6 +442,33 @@ func createBinding(tb testing.TB, cl ctrlruntimeclient.Client, exportName, expor
 		}
 		return true, ""
 	}, wait.ForeverTestTimeout, 200*time.Millisecond, "APIBinding %s should be bound", exportName)
+
+	envtest.Eventually(tb, func() (bool, string) {
+		for _, res := range current.Status.BoundResources {
+			gvr := schema.GroupVersionResource{Group: res.Group, Resource: res.Resource}
+			if _, err := cl.RESTMapper().KindFor(gvr); err != nil {
+				return false, fmt.Sprintf("resolving %s: %v", gvr, err)
+			}
+		}
+		return true, ""
+	}, wait.ForeverTestTimeout, 200*time.Millisecond, "APIBinding %s resources should be served", exportName)
+}
+
+// createBound creates an object that binds to an APIExport, retrying while admission still denies the bind.
+// the bind is authorized against an informer that lags the APIExport create.
+func createBound(tb testing.TB, cl ctrlruntimeclient.Client, obj ctrlruntimeclient.Object) {
+	tb.Helper()
+	envtest.Eventually(tb, func() (bool, string) {
+		err := cl.Create(tb.Context(), obj)
+		if err == nil || apierrors.IsAlreadyExists(err) {
+			return true, ""
+		}
+		if apierrors.IsForbidden(err) {
+			return false, fmt.Sprintf("creating %T %s: %v", obj, obj.GetName(), err)
+		}
+		require.NoError(tb, err)
+		return false, ""
+	}, wait.ForeverTestTimeout, 200*time.Millisecond, "%T %s should be created", obj, obj.GetName())
 }
 
 // toYAML renders x for failure messages.
