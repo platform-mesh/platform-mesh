@@ -18,14 +18,17 @@ package subroutine_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/errors"
@@ -607,4 +610,87 @@ func TestAuthorizationModelSelfSubjectReviewCreateOverride(t *testing.T) {
 	assert.Contains(t, dsl, "define create_uthorization_k8s_io_selfsubjectrulesreviews: member")
 	// non-overridden cluster-scoped resource keeps the owner-only default
 	assert.Contains(t, dsl, "define create_authorization_k8s_io_subjectaccessreviews: owner")
+}
+
+// Reordered module lists must not create new immutable models, while permission
+// changes must still publish a new model.
+func TestAuthorizationModelProcessModuleOrder(t *testing.T) {
+	const firstModule = "module first\n\ntype first_resource\n"
+	const secondModule = "module second\n\ntype second_resource\n"
+	for _, changed := range []bool{false, true} {
+		name := "unchanged permissions"
+		if changed {
+			name = "changed permissions"
+		}
+		t.Run(name, func(t *testing.T) {
+			store := &pmcorev1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{Name: "orgs"},
+				Spec:       pmcorev1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     pmcorev1alpha1.StoreStatus{StoreID: "store-id", AuthorizationModelID: "current-id"},
+			}
+			current, err := language.TransformModuleFilesToModel([]language.ModuleFile{
+				{Name: "/orgs.fga", Contents: coreModule},
+				{Name: "/first.fga", Contents: firstModule},
+				{Name: "/second.fga", Contents: secondModule},
+			}, "1.2")
+			require.NoError(t, err)
+			current.Id = "current-id"
+			slices.Reverse(current.TypeDefinitions)
+			if changed {
+				for _, td := range current.TypeDefinitions {
+					if td.Type == "core_platform-mesh_io_account" {
+						// The stored owner permission differs from the desired role assignment.
+						td.Relations["owner"] = &openfgav1.Userset{Userset: &openfgav1.Userset_ComputedUserset{
+							ComputedUserset: &openfgav1.ObjectRelation{Relation: "member"},
+						}}
+					}
+				}
+			}
+			fga := mocks.NewMockOpenFGAServiceClient(t)
+			fga.EXPECT().ReadAuthorizationModel(mock.Anything, mock.Anything).RunAndReturn(
+				func(context.Context, *openfgav1.ReadAuthorizationModelRequest, ...grpc.CallOption) (*openfgav1.ReadAuthorizationModelResponse, error) {
+					return &openfgav1.ReadAuthorizationModelResponse{AuthorizationModel: proto.Clone(current).(*openfgav1.AuthorizationModel)}, nil
+				},
+			).Twice()
+			if changed {
+				fga.EXPECT().WriteAuthorizationModel(mock.Anything, mock.Anything).RunAndReturn(
+					func(_ context.Context, request *openfgav1.WriteAuthorizationModelRequest, _ ...grpc.CallOption) (*openfgav1.WriteAuthorizationModelResponse, error) {
+						current = &openfgav1.AuthorizationModel{
+							Id: "new-id", SchemaVersion: request.SchemaVersion,
+							TypeDefinitions: request.TypeDefinitions, Conditions: request.Conditions,
+						}
+						return &openfgav1.WriteAuthorizationModelResponse{AuthorizationModelId: "new-id"}, nil
+					},
+				).Once()
+			}
+			lister := mocks.NewMockLister(t)
+			calls := 0
+			lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+				func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+					models := []pmcorev1alpha1.AuthorizationModel{
+						{ObjectMeta: metav1.ObjectMeta{Name: "first"}, Spec: pmcorev1alpha1.AuthorizationModelSpec{Model: firstModule, StoreRef: pmcorev1alpha1.WorkspaceStoreRef{Name: "orgs", Cluster: "path"}}},
+						{ObjectMeta: metav1.ObjectMeta{Name: "second"}, Spec: pmcorev1alpha1.AuthorizationModelSpec{Model: secondModule, StoreRef: pmcorev1alpha1.WorkspaceStoreRef{Name: "orgs", Cluster: "path"}}},
+					}
+					if calls%2 == 1 {
+						slices.Reverse(models)
+					}
+					calls++
+					list.(*pmcorev1alpha1.AuthorizationModelList).Items = models
+					return nil
+				},
+			).Twice()
+			processor := subroutine.NewAuthorizationModelSubroutine(fga, nil, lister, nil, testlogger.New().Logger)
+			ctx := mccontext.WithCluster(context.Background(), config.StoreClusterName("path"))
+			for range 2 {
+				_, err = processor.Process(ctx, store)
+				require.NoError(t, err)
+			}
+			if changed {
+				assert.Equal(t, "new-id", store.Status.AuthorizationModelID)
+			} else {
+				fga.AssertNotCalled(t, "WriteAuthorizationModel", mock.Anything, mock.Anything)
+				assert.Equal(t, "current-id", store.Status.AuthorizationModelID)
+			}
+		})
+	}
 }
