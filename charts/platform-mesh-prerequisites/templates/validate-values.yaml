@@ -13,5 +13,6 @@ because the cluster already provides them, set instead:
 
   traefik-crds:
     gatewayAPI: false
+    gatewayAPIExperimental: false
 ` }}
 {{- end }}
