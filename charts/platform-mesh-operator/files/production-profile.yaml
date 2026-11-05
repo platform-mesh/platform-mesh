@@ -421,6 +421,9 @@ data:
             - name: cnpg-ca
               secret:
                 secretName: platform-mesh-pg-ca
+                items:
+                  - key: ca.crt
+                    path: ca.crt
             image:
               tag: v1.11.2
             log:
