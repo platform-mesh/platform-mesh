@@ -18,15 +18,17 @@ package subroutine
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"text/template"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
-	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -206,19 +208,15 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 
 		res.AuthorizationModel.Id = ""
 
-		currentRaw, err := protojson.Marshal(res.AuthorizationModel)
-		if err != nil {
-			log.Error().Err(err).Msg("unable to marshal current model")
-			return subroutines.OK(), err
+		// Module list order does not affect permissions. Compare models in a
+		// canonical type order instead of relying on JSON serialization.
+		compareTypes := func(a, b *openfgav1.TypeDefinition) int {
+			return cmp.Compare(a.GetType(), b.GetType())
 		}
+		slices.SortFunc(res.AuthorizationModel.TypeDefinitions, compareTypes)
+		slices.SortFunc(authorizationModel.TypeDefinitions, compareTypes)
 
-		desiredRaw, err := protojson.Marshal(authorizationModel)
-		if err != nil {
-			log.Error().Err(err).Msg("unable to marshal desired model")
-			return subroutines.OK(), err
-		}
-
-		if string(currentRaw) == string(desiredRaw) {
+		if proto.Equal(res.AuthorizationModel, authorizationModel) {
 			return subroutines.OK(), nil
 		}
 	}
