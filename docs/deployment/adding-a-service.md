@@ -156,13 +156,12 @@ github.com/platform-mesh/my-service:X.Y.Z
                                                        :<appVersion>  (built elsewhere; omitted when 0.0.0)
 ```
 
-If the chart deploys third-party images (like `infra` or `keycloak-operator`),
-needs additional component references, or must not get an OCM component at all
-(library charts), create `ocm/charts/my-service.yaml` — see
-[`ocm/charts/README.md`](../../ocm/charts/README.md).
+The chart publishes its OCM component versions from
+`charts/my-service/component-constructor.yaml`. The details are
+documented in `charts/README.md`.
 
 To make the service part of a Platform Mesh release, add a reference to the
-aggregate in [`ocm/component-constructor.yaml`](../../ocm/component-constructor.yaml):
+aggregate in [`component-constructor.yaml`](../../component-constructor.yaml):
 
 ```yaml
       - name: my-service
@@ -309,7 +308,7 @@ kubectl get pods -n platform-mesh-system | grep my-service
 
 - [ ] **Chart** under `charts/my-service/` (`version: 0.0.0`), `README.md.gotmpl`, tests, docs generated (`task charts:docs`)
 - [ ] **Component registered** in `ocm/components.yaml` (if built here), or **`appVersion`** pointing at an existing `github.com/platform-mesh/images/my-service` version (if built elsewhere)
-- [ ] **Aggregate reference** added to `ocm/component-constructor.yaml`
-- [ ] **`ocm/charts/my-service.yaml`** if the chart deviates from the default shape
+- [ ] **Aggregate reference** added to `component-constructor.yaml`
+- [ ] **`charts/my-service/component-constructor.yaml`** with the component versions the chart publishes (no file for a chart that publishes none)
 - [ ] **Profile entry** in the PlatformMesh default profile with the matching `referencePath`
 - [ ] **Tested locally** (see `installation/README.md` for the kind setup)
