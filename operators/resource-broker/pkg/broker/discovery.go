@@ -79,10 +79,6 @@ func (d *discovery) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, fmt.Errorf("getting APIExportEndpointSlice %q: %w", req.Name, err)
 	}
 
-	if err := d.ensureProvider(slice.Name); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	infos, err := d.resolve(ctx, slice.Spec.APIExport)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -112,6 +108,10 @@ func (d *discovery) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		if !current[gvr] {
 			d.log.Info("brokered resource removed from APIExport, restart required to stop its controller", "slice", slice.Name, "gvr", gvr)
 		}
+	}
+
+	if err := d.ensureProvider(slice.Name); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
