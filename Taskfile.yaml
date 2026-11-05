@@ -151,6 +151,10 @@ tasks:
       - task: lint
       - task: boilerplate
       - task: tidy-check
+  verify-release-note:
+    desc: 'The PR description needs a release-note block with NONE or a note (PR=<number> to check another PR).'
+    cmds:
+      - hack/verify-release-note.sh {{.PR}}
   dco:
     desc: 'Every commit on this branch needs a Signed-off-by matching its author (BASE=<ref> to override the comparison point).'
     vars:

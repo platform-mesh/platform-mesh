@@ -23,6 +23,7 @@ on:
   pull_request:
     types:
       - opened
+      - edited # re-evaluate after the release-note check re-runs on a description edit
       - synchronize
       - reopened
 
