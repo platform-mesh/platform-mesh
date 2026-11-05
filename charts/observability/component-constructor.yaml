@@ -26,32 +26,32 @@ components:
     resources:
       - name: otel-collector-image
         type: ociImage
-        version: 0.153.0
+        relation: external
+        version: "${OTEL_COLLECTOR_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.153.0
-        relation: external
+          imageReference: ${OTEL_COLLECTOR_IMAGE_REGISTRY}/${OTEL_COLLECTOR_IMAGE_REPOSITORY}:${OTEL_COLLECTOR_IMAGE_TAG}
       - name: kubectl-image
         type: ociImage
-        version: 1.0.0
+        relation: external
+        version: "${KUBECTL_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: docker.io/bitnami/kubectl:latest@sha256:a67b11e95e953f550f020a41970185ccc5f83d78b86b8c575d02c904aa0f9cd7
-        relation: external
-      - name: prometheus-server-image
+          imageReference: ${KUBECTL_IMAGE_REGISTRY}/${KUBECTL_IMAGE_REPOSITORY}:${KUBECTL_IMAGE_TAG}@${KUBECTL_IMAGE_DIGEST}
+      - name: prometheus-image
         type: ociImage
-        version: v3.11.3
+        relation: external
+        version: "${PROMETHEUS_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: quay.io/prometheus/prometheus:v3.11.3@sha256:c0b857aead0d5793aa566adb8f49a9983d6f6031652098759d521a330cfa050f
-        relation: external
+          imageReference: ${PROMETHEUS_IMAGE_REPOSITORY}:${PROMETHEUS_IMAGE_TAG}
       - name: prometheus-config-reloader-image
         type: ociImage
-        version: v0.91.0
+        relation: external
+        version: "${CONFIG_RELOADER_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: quay.io/prometheus-operator/prometheus-config-reloader:v0.91.0@sha256:7d9e4eea5f1139e602508871f422b0116c60e87c662f3dcd234d5ab60cd0d8c1
-        relation: external
+          imageReference: ${CONFIG_RELOADER_IMAGE_REPOSITORY}:${CONFIG_RELOADER_IMAGE_TAG}
   - name: github.com/platform-mesh/observability
     version: ${PM_VERSION}
     provider:

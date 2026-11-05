@@ -1,0 +1,25 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+envsubst:
+  OTEL_COLLECTOR_IMAGE_REGISTRY: otelCollector.image.registry
+  OTEL_COLLECTOR_IMAGE_REPOSITORY: otelCollector.image.repository
+  OTEL_COLLECTOR_IMAGE_TAG: otelCollector.image.tag
+  KUBECTL_IMAGE_REGISTRY: serviceMonitors.kcp.certExtractor.image.registry
+  KUBECTL_IMAGE_REPOSITORY: serviceMonitors.kcp.certExtractor.image.repository
+  KUBECTL_IMAGE_TAG: serviceMonitors.kcp.certExtractor.image.tag
+  KUBECTL_IMAGE_DIGEST: serviceMonitors.kcp.certExtractor.image.digest
+  PROMETHEUS_IMAGE_REPOSITORY: prometheus.server.image.repository
+  PROMETHEUS_IMAGE_TAG: prometheus.server.image.tag
+  CONFIG_RELOADER_IMAGE_REPOSITORY: prometheus.configmapReload.prometheus.image.repository
+  CONFIG_RELOADER_IMAGE_TAG: prometheus.configmapReload.prometheus.image.tag

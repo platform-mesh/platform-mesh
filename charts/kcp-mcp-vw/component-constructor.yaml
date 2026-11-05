@@ -24,13 +24,13 @@ components:
     provider:
       name: The Platform Mesh Team
     resources:
-      - name: mcp-vw-image
+      - name: image
         type: ociImage
-        version: 0.1.1
+        relation: external
+        version: ${APP_VERSION}
         access:
           type: ociArtifact
-          imageReference: ghcr.io/kcp-dev/contrib-virtual-workspaces/mcp-vw:0.1.1@sha256:0d937ac6644a26a215b59f5dc5352ccb0ec9a6522bb9cc79695bba3fb1b1fda5
-        relation: external
+          imageReference: ${VW_IMAGE_REGISTRY}/${VW_IMAGE_REPOSITORY}:${APP_VERSION}
   - name: github.com/platform-mesh/kcp-mcp-vw
     version: ${PM_VERSION}
     provider:

@@ -26,46 +26,46 @@ components:
     resources:
       - name: keycloak-image
         type: ociImage
-        version: v26.8.1
+        relation: external
+        version: "${KEYCLOAK_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: ghcr.io/platform-mesh/custom-images/keycloak:v26.8.1
-        relation: external
+          imageReference: ${KEYCLOAK_IMAGE_REGISTRY}/${KEYCLOAK_IMAGE_REPOSITORY}:${KEYCLOAK_IMAGE_TAG}
       - name: busybox-image
         type: ociImage
-        version: "1.37"
+        relation: external
+        version: "${BUSYBOX_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: docker.io/library/busybox:1.37
-        relation: external
+          imageReference: ${BUSYBOX_IMAGE_REGISTRY}/${BUSYBOX_IMAGE_REPOSITORY}:${BUSYBOX_IMAGE_TAG}
       - name: postgres-image
         type: ociImage
-        version: "18.3"
+        relation: external
+        version: "${POSTGRES_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: ghcr.io/cloudnative-pg/postgresql:18.3
-        relation: external
+          imageReference: ${POSTGRES_IMAGE_REGISTRY}/${POSTGRES_IMAGE_REPOSITORY}:${POSTGRES_IMAGE_TAG}
       - name: dex-image
         type: ociImage
-        version: v2.42.0
+        relation: external
+        version: "${DEX_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: ghcr.io/dexidp/dex:v2.42.0@sha256:1b4a6eee8550240b0faedad04d984ca939513650e1d9bd423502c67355e3822f
-        relation: external
+          imageReference: ${DEX_IMAGE_REGISTRY}/${DEX_IMAGE_REPOSITORY}:${DEX_IMAGE_TAG}@${DEX_IMAGE_DIGEST}
       - name: etcd-wrapper-image
         type: ociImage
-        version: v0.6.2
+        relation: external
+        version: "${ETCD_WRAPPER_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: europe-docker.pkg.dev/gardener-project/public/gardener/etcd-wrapper:v0.6.2@sha256:3992f1aedaae733acdd5794ba02cf1beb311c7a24269accd790885cecacdd3f9
-        relation: external
+          imageReference: ${ETCD_WRAPPER_IMAGE_REPOSITORY}:${ETCD_WRAPPER_IMAGE_TAG}
       - name: etcdbrctl-image
         type: ociImage
-        version: v0.41.2
+        relation: external
+        version: "${ETCDBRCTL_IMAGE_TAG}"
         access:
           type: ociArtifact
-          imageReference: europe-docker.pkg.dev/gardener-project/public/gardener/etcdbrctl:v0.41.2@sha256:b21f0d7aeaa275bad9bf616fba9ae29092ac39a391a88b2659eba5981b4650a1
-        relation: external
+          imageReference: ${ETCDBRCTL_IMAGE_REPOSITORY}:${ETCDBRCTL_IMAGE_TAG}
   - name: github.com/platform-mesh/infra
     version: ${PM_VERSION}
     provider:
