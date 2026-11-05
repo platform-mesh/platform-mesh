@@ -57,12 +57,15 @@
     },
     {
       "customType": "regex",
-      "description": "Third-party versions shipped with Platform Mesh (ocm/versions.yaml)",
+      "description": "Third-party versions shipped with Platform Mesh (third_party/*/component-constructor.yaml, aggregate references)",
       "managerFilePatterns": [
-        "/(^|/)ocm/versions\\.yaml$/"
+        "/(^|/)third_party/[^/]+/component-constructor\\.yaml$/",
+        "/^component-constructor\\.yaml$/"
       ],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n[A-Z0-9_]+:\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*version:\\s*\"?(?<currentValue>[^\"\\s]+)\"?",
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*imageReference:\\s*\"?\\S+?:(?<currentValue>[^\"@\\s]+)",
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*helmChart:\\s*[^:\\s]+:(?<currentValue>\\S+)"
       ],
       "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
     },
