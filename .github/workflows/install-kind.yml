@@ -56,10 +56,7 @@ env:
 
 jobs:
   install:
-    # The stack does not fit on the 4-vCPU default runner (kcp, security-operator
-    # and rebac-authz-webhook stay Pending with "Insufficient cpu"); this is the
-    # organisation's 8-vCPU runner. Forks without it cannot run this workflow.
-    runs-on: ubuntu-latest-large
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
       contents: read

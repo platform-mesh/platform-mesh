@@ -234,6 +234,13 @@ data:
                   - op: add
                     path: /spec/replicas
                     value: 1
+              - target:
+                  kind: RootShard
+                  name: root
+                patch: |
+                  - op: add
+                    path: /spec/proxy/replicas
+                    value: 1
           values:
             cnpg:
               enabled: true
@@ -343,11 +350,23 @@ data:
                 # throttled into failing its probes on a contended node.
                 resources:
                   requests:
-                    cpu: 500m
+                    cpu: 200m
                     memory: 512Mi
                   limits:
                     memory: 3Gi
               shards: []
+              # Helper defaults are 100m + 23m per etcd; two etcds (kcp, cache) on
+              # the default CI runner.
+              etcd:
+                resources:
+                  requests:
+                    cpu: 20m
+                    memory: 200Mi
+                backup:
+                  resources:
+                    requests:
+                      cpu: 5m
+                      memory: 128Mi
               webhook:
                 enabled: true
         iam-ui:
@@ -592,6 +611,11 @@ data:
                 repository: upstream-images/postgresql
                 tag: 17.6.0-debian-12-r4
               nameOverride: postgres
+              primary:
+                resources:
+                  requests:
+                    cpu: 50m
+                    memory: 256Mi
             replicaCount: 1
             telemetry:
               trace:
@@ -689,6 +713,11 @@ data:
           syncWave: 4
           enabled: true
           values:
+            deployment:
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 128Mi
             baseDomain: '{{ .baseDomainPort }}'
             caSecret: domain-certificate
             crds:

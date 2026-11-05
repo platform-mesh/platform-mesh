@@ -85,9 +85,7 @@ jobs:
   e2e:
     needs: changes
     if: needs.changes.outputs.e2eComponents != '[]'
-    # The platform-mesh-operator suite brings up the whole stack on kind, which
-    # does not fit on the 4-vCPU default runner; the envtest suites do.
-    runs-on: ${{ matrix.component == 'platform-mesh-operator' && 'ubuntu-latest-large' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 75
     strategy:
       fail-fast: false
