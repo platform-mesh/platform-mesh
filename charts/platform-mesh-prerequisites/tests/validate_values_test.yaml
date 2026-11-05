@@ -1,0 +1,15 @@
+suite: removed values
+templates:
+  - validate-values.yaml
+tests:
+  - it: fails early when the removed gateway-api-crds values are set
+    set:
+      gateway-api-crds:
+        enabled: false
+    asserts:
+      - failedTemplate:
+          errorPattern: 'gateway-api-crds was removed'
+  - it: renders nothing by default
+    asserts:
+      - hasDocuments:
+          count: 0

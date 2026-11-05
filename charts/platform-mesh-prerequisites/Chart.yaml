@@ -18,17 +18,13 @@ dependencies:
     version: v1.21.3
     repository: oci://quay.io/jetstack/charts
     condition: cert-manager.enabled
-  - name: gateway-api-crds
-    version: 0.0.0
-    repository: file://../gateway-api-crds
-    condition: gateway-api-crds.enabled
   - name: traefik
     version: 42.2.0
     repository: oci://ghcr.io/traefik/helm
     condition: traefik.enabled
   - name: traefik-crds
-    version: 1.14.0
-    repository: oci://ghcr.io/platform-mesh/ocm/charts
+    version: 1.18.0
+    repository: oci://ghcr.io/traefik/helm
     condition: traefik-crds.enabled
   - name: cloudnative-pg
     version: 0.29.1

@@ -18,9 +18,6 @@ data:
       certManager:
         # Installed or supplied by the target cluster.
         enabled: false
-      gatewayApi:
-        # Installed or supplied by the target cluster.
-        enabled: false
       etcdDruid:
         # Installed or supplied by the target cluster.
         enabled: false

@@ -94,7 +94,7 @@ spec:
   replicas: {{ .etcd.replicas | default 1 }}
 {{- end -}}
 {{- define "kcp.tlsroute" -}}
-apiVersion: gateway.networking.k8s.io/v1alpha2
+apiVersion: gateway.networking.k8s.io/v1
 kind: TLSRoute
 metadata:
   name: {{ .name }}

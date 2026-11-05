@@ -18,8 +18,6 @@ data:
       certManager:
         # Installed by platform-mesh-prerequisites.
         enabled: false
-      gatewayApi:
-        enabled: false
       etcdDruid:
         # Installed by platform-mesh-prerequisites.
         enabled: false
