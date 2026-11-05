@@ -342,6 +342,8 @@ tasks:
       TILT_OS: { sh: 'uname -s | sed "s/Darwin/mac/;s/Linux/linux/"' }
     cmds:
       - "UNCOMPRESSED={{ .uncompressed }} GO_MODULE={{ .goModule }} {{.HACK}}/uget.sh {{ .source }} {{ .tool }} {{ .version }} '{{ .extractArg }}'"
+      # Version-less name for callers that put bin/ on PATH.
+      - 'ln -sf {{.BIN}}/{{ .tool }}-{{ .version }} {{.BIN}}/{{ .tool }}'
 
   lint:
     desc: Lint all Go code in the repository using golangci-lint.
