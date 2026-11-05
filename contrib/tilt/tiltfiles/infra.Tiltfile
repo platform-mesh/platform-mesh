@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Infra: external dependencies managed here. kcp-operator, openfga, init-agent
+# Infra: external dependencies managed here. kcp-operator, openfga
 # (charts the kind-profile marks external) and the infra chart (kcp
 # RootShard/FrontProxy, postgres, keycloak, gateway).
 
@@ -59,21 +59,6 @@ k8s_resource(
     "openfga-postgres",
     objects=select_objects(openfga, lambda o: o["metadata"]["name"].startswith("openfga-postgres")),
     resource_deps=["namespace"],
-    labels=["infra"],
-)
-
-init_agent = remote_chart(
-    "init-agent",
-    "oci://ghcr.io/platform-mesh/ocm/charts",
-    VERSIONS["INIT_AGENT_CHART_VERSION"],
-    NAMESPACE,
-    values=[profile_values_file("init-agent", TEMPLATE_VARS)],
-)
-k8s_yaml(init_agent)
-k8s_resource(
-    "init-agent",
-    objects=select_objects(init_agent, lambda o: True),
-    resource_deps=["platform-mesh-operator"],
     labels=["infra"],
 )
 

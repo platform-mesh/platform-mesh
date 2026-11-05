@@ -44,11 +44,6 @@ KCP_OPERATOR_IMAGE_VERSION: "v0.10.3"
 KCP_VERSION: "v0.33.6"
 # TODO(ntnn): Keep in sync with .kcp.image.tag in charts/infra/values.yaml
 
-# renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/init-agent
-INIT_AGENT_CHART_VERSION: "0.2.0"
-# renovate: datasource=docker depName=ghcr.io/kcp-dev/init-agent
-INIT_AGENT_IMAGE_VERSION: "v0.5.0"
-
 # renovate: datasource=docker depName=ghcr.io/platform-mesh/ocm/charts/api-syncagent
 API_SYNCAGENT_CHART_VERSION: "0.6.1"
 # renovate: datasource=docker depName=ghcr.io/kcp-dev/api-syncagent

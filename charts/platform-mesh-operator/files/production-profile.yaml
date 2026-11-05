@@ -302,8 +302,6 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-        init-agent:
-          enabled: false
         kcp:
           external: true
           dependsOn: []
