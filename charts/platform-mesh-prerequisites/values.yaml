@@ -28,19 +28,22 @@ traefik:
   enabled: false
   gatewayClass:
     enabled: true
+  # Platform Mesh brings its own Gateway (k8sapi-gateway, infra chart); the
+  # chart's default Gateway would only sit unused next to it.
+  gateway:
+    enabled: false
   providers:
     kubernetesGateway:
       enabled: true
-      experimentalChannel: true
 traefik-crds:
   enabled: true
   # Traefik's own CRDs (Middleware, ...). Set to false when not using Traefik.
   traefik: true
-  # Gateway API CRDs (experimental channel, needed for TLSRoute). The upstream
-  # Gateway API project publishes no Helm chart; Traefik's CRD chart bundles
-  # the upstream release unmodified. Set to false when the cluster already
-  # provides the Gateway API CRDs.
-  gatewayAPIExperimental: true
+  # Gateway API CRDs, standard channel (Gateway, HTTPRoute, TLSRoute v1, ...).
+  # The upstream Gateway API project publishes no Helm chart; Traefik's CRD
+  # chart bundles the upstream release unmodified. Set to false when the
+  # cluster already provides the Gateway API CRDs.
+  gatewayAPI: true
 cnpg:
   enabled: true
 keycloak-operator:

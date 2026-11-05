@@ -35,7 +35,7 @@ components:
         version: ${TRAEFIK_CHART_VERSION}
         access:
           type: ociArtifact
-          imageReference: ghcr.io/platform-mesh/charts/traefik:${TRAEFIK_CHART_VERSION}
+          imageReference: ghcr.io/traefik/helm/traefik:${TRAEFIK_CHART_VERSION}
       - name: crds
         type: helmChart
         relation: local
@@ -304,9 +304,6 @@ components:
         version: ${VERSION}
       - name: marketplace-ui
         componentName: github.com/platform-mesh/marketplace-ui
-        version: ${VERSION}
-      - name: gateway-api-crds
-        componentName: github.com/platform-mesh/gateway-api-crds
         version: ${VERSION}
       - name: traefik
         componentName: github.com/traefik/traefik

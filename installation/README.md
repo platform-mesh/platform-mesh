@@ -33,8 +33,8 @@ Platform Mesh requires the following cluster components at the listed versions:
 | Flux | 2.17.2 |
 | OCM controller (ocm-k8s-toolkit) | 0.13.0 |
 | cert-manager | v1.20.5 |
-| Gateway API CRDs | 1.5.1 |
-| Traefik | 42.1.3 |
+| Gateway API CRDs | 1.5.1, standard channel or later |
+| Traefik | 42.2.0 |
 | Traefik CRDs | 1.18.0 |
 | CloudNativePG | 0.28.0 |
 | Keycloak operator | 0.10.0 |
@@ -45,6 +45,16 @@ versions and is the simplest way to satisfy this requirement. Any other
 installation method that provides compatible versions — including cluster-managed
 controllers or separately installed operators — works equally well. The cluster
 must also expose a `GatewayClass`.
+
+Platform Mesh only uses standard-channel Gateway API kinds (`Gateway`,
+`HTTPRoute`, and `TLSRoute` v1), so the experimental channel is not required.
+
+> **Upgrading from an experimental-channel install:** the prerequisites chart
+> used to install the experimental channel. Upgrading it removes the
+> experimental-only CRDs (`TCPRoute`, `UDPRoute`, `XBackendTrafficPolicy`,
+> `XMesh`) together with any objects of those kinds. Platform Mesh does not use
+> them; if other workloads on the cluster do, install the experimental CRDs
+> yourself and set `traefik-crds.gatewayAPI=false`.
 
 ### Production
 

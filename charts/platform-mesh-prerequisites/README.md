@@ -22,12 +22,12 @@ Optional infrastructure prerequisites for Platform Mesh
 | localCertificates.namespace | string | `"platform-mesh-system"` |  |
 | ocm-k8s-toolkit.enabled | bool | `true` |  |
 | traefik-crds.enabled | bool | `true` |  |
-| traefik-crds.gatewayAPIExperimental | bool | `true` |  |
+| traefik-crds.gatewayAPI | bool | `true` |  |
 | traefik-crds.traefik | bool | `true` |  |
 | traefik.enabled | bool | `false` |  |
+| traefik.gateway.enabled | bool | `false` |  |
 | traefik.gatewayClass.enabled | bool | `true` |  |
 | traefik.providers.kubernetesGateway.enabled | bool | `true` |  |
-| traefik.providers.kubernetesGateway.experimentalChannel | bool | `true` |  |
 
 ## Overriding Values
 
@@ -86,10 +86,10 @@ Optional infrastructure prerequisites for Platform Mesh
 | localCertificates.namespace | string | `"platform-mesh-system"` |  |
 | ocm-k8s-toolkit.enabled | bool | `true` |  |
 | traefik-crds.enabled | bool | `true` |  |
-| traefik-crds.gatewayAPIExperimental | bool | `true` |  |
+| traefik-crds.gatewayAPI | bool | `true` |  |
 | traefik-crds.traefik | bool | `true` |  |
 | traefik.enabled | bool | `false` |  |
+| traefik.gateway.enabled | bool | `false` |  |
 | traefik.gatewayClass.enabled | bool | `true` |  |
 | traefik.providers.kubernetesGateway.enabled | bool | `true` |  |
-| traefik.providers.kubernetesGateway.experimentalChannel | bool | `true` |  |
 

@@ -12,6 +12,6 @@ To fix it, drop gateway-api-crds from your values. To skip the Gateway API CRDs
 because the cluster already provides them, set instead:
 
   traefik-crds:
-    gatewayAPIExperimental: false
+    gatewayAPI: false
 ` }}
 {{- end }}

@@ -344,7 +344,7 @@ Gateway API enabled:
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-root-shard-tlsroute
@@ -476,7 +476,7 @@ Gateway API enabled:
           name: root
       shardBaseURL: https://nereus.kcp.localhost:8443/
   13: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-nereus-tlsroute
@@ -608,7 +608,7 @@ Gateway API enabled:
           name: root
       shardBaseURL: https://triton.kcp.localhost:8443/
   16: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-triton-tlsroute
@@ -629,7 +629,7 @@ Gateway API enabled:
               namespace: platform-mesh-system
               port: 6443
   17: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-front-proxy-tlsroute
@@ -1016,7 +1016,7 @@ Istio disabled:
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-root-shard-tlsroute
@@ -1148,7 +1148,7 @@ Istio disabled:
           name: root
       shardBaseURL: https://nereus.kcp.localhost:8443/
   13: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-nereus-tlsroute
@@ -1280,7 +1280,7 @@ Istio disabled:
           name: root
       shardBaseURL: https://triton.kcp.localhost:8443/
   16: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-triton-tlsroute
@@ -1301,7 +1301,7 @@ Istio disabled:
               namespace: platform-mesh-system
               port: 6443
   17: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-front-proxy-tlsroute
@@ -1688,7 +1688,7 @@ Istio enabled:
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-root-shard-tlsroute
@@ -1820,7 +1820,7 @@ Istio enabled:
           name: root
       shardBaseURL: https://nereus.kcp.localhost:8443/
   13: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-nereus-tlsroute
@@ -1952,7 +1952,7 @@ Istio enabled:
           name: root
       shardBaseURL: https://triton.kcp.localhost:8443/
   16: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-triton-tlsroute
@@ -1973,7 +1973,7 @@ Istio enabled:
               namespace: platform-mesh-system
               port: 6443
   17: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-front-proxy-tlsroute
@@ -2139,7 +2139,7 @@ configure etcd backup store:
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   3: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-root-shard-tlsroute
@@ -2332,7 +2332,7 @@ configure rootshard resources:
           memory: 256Mi
       shardBaseURL: https://root.kcp.localhost:8443/
   3: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-root-shard-tlsroute
@@ -2698,7 +2698,7 @@ match snapshots:
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-root-shard-tlsroute
@@ -2830,7 +2830,7 @@ match snapshots:
           name: root
       shardBaseURL: https://nereus.kcp.localhost:8443/
   13: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-nereus-tlsroute
@@ -2962,7 +2962,7 @@ match snapshots:
           name: root
       shardBaseURL: https://triton.kcp.localhost:8443/
   16: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-triton-tlsroute
@@ -2983,7 +2983,7 @@ match snapshots:
               namespace: platform-mesh-system
               port: 6443
   17: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-front-proxy-tlsroute
@@ -3374,7 +3374,7 @@ match snapshots w. hostAliases enabled:
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-root-shard-tlsroute
@@ -3508,7 +3508,7 @@ match snapshots w. hostAliases enabled:
           name: root
       shardBaseURL: https://nereus.kcp.localhost:8443/
   13: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-nereus-tlsroute
@@ -3642,7 +3642,7 @@ match snapshots w. hostAliases enabled:
           name: root
       shardBaseURL: https://triton.kcp.localhost:8443/
   16: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-triton-tlsroute
@@ -3663,7 +3663,7 @@ match snapshots w. hostAliases enabled:
               namespace: platform-mesh-system
               port: 6443
   17: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-front-proxy-tlsroute
@@ -4050,7 +4050,7 @@ match snapshots w. kcp version:
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-root-shard-tlsroute
@@ -4182,7 +4182,7 @@ match snapshots w. kcp version:
           name: root
       shardBaseURL: https://nereus.kcp.localhost:8443/
   13: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-nereus-tlsroute
@@ -4314,7 +4314,7 @@ match snapshots w. kcp version:
           name: root
       shardBaseURL: https://triton.kcp.localhost:8443/
   16: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-triton-tlsroute
@@ -4335,7 +4335,7 @@ match snapshots w. kcp version:
               namespace: platform-mesh-system
               port: 6443
   17: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-front-proxy-tlsroute
@@ -4722,7 +4722,7 @@ match snapshots with mailpit enabled:
       replicas: 1
       shardBaseURL: https://root.kcp.localhost:8443/
   10: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-root-shard-tlsroute
@@ -4854,7 +4854,7 @@ match snapshots with mailpit enabled:
           name: root
       shardBaseURL: https://nereus.kcp.localhost:8443/
   13: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-nereus-tlsroute
@@ -4986,7 +4986,7 @@ match snapshots with mailpit enabled:
           name: root
       shardBaseURL: https://triton.kcp.localhost:8443/
   16: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-triton-tlsroute
@@ -5007,7 +5007,7 @@ match snapshots with mailpit enabled:
               namespace: platform-mesh-system
               port: 6443
   17: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-front-proxy-tlsroute
@@ -5161,7 +5161,7 @@ render additional shard with explicit hostname:
           name: root
       shardBaseURL: https://shard-1.kcp.localhost:8443/
   3: |
-    apiVersion: gateway.networking.k8s.io/v1alpha2
+    apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
       name: kcp-shard-1-tlsroute

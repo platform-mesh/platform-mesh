@@ -43,15 +43,16 @@ prereq = chart(
 k8s_yaml(prereq)
 
 PREREQ_RELEASE = "platform-mesh-prerequisites-"
-is_traefik_gateway = kind_in(["Gateway", "GatewayClass"])
+is_gateway_crd = lambda o: o["kind"] == "CustomResourceDefinition" and (
+    named(".gateway.networking.")(o) or suffixed("traefik.io")(o)
+)
+is_gatewayclass = kind_in(["GatewayClass"])
 is_traefik = lambda o: (
-    (named("traefik")(o) and not suffixed("traefik.io")(o) and not is_traefik_gateway(o)) or o["kind"] == "IngressClass"
-)
+    named("traefik")(o) and not is_gateway_crd(o) and not is_gatewayclass(o)
+) or o["kind"] == "IngressClass"
 is_cnpg = lambda o: named("cnpg")(o) or named("cloudnative-pg")(o)
-k8s_resource(
-    new_name="gateway-api-crds", objects=select_objects(prereq, named(".gateway.networking.")), labels=["prereq"]
-)
-k8s_resource(new_name="traefik-crds", objects=select_objects(prereq, suffixed("traefik.io")), labels=["prereq"])
+# Gateway API and Traefik CRDs, both from the traefik-crds subchart.
+k8s_resource(new_name="gateway-crds", objects=select_objects(prereq, is_gateway_crd), labels=["prereq"])
 k8s_resource(
     PREREQ_RELEASE + "cert-manager",
     new_name="cert-manager",
@@ -81,14 +82,14 @@ k8s_resource(
     PREREQ_RELEASE + "traefik",
     new_name="traefik",
     objects=select_objects(prereq, is_traefik),
-    resource_deps=["namespace", "gateway-api-crds", "traefik-crds"],
+    resource_deps=["namespace", "gateway-crds"],
     labels=["prereq"],
 )
-# Applied once traefik is up: right after gateway-api-crds the Gateway kinds are
+# Applied once traefik is up: right after gateway-crds the Gateway kinds are
 # not always discoverable yet and the apply fails with "no matches for kind".
 k8s_resource(
-    new_name="traefik-gateway",
-    objects=select_objects(prereq, is_traefik_gateway),
+    new_name="gatewayclass",
+    objects=select_objects(prereq, is_gatewayclass),
     resource_deps=["traefik"],
     labels=["prereq"],
 )

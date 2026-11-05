@@ -187,6 +187,6 @@ k8s_resource(
 k8s_resource(
     new_name="gateway",
     objects=select_objects(infra, kind_in(["Gateway", "HTTPRoute", "TLSRoute"])),
-    resource_deps=["traefik-gateway", "domain-certificate-ready"],
+    resource_deps=["gatewayclass", "domain-certificate-ready"],
     labels=["infra"],
 )
