@@ -49,16 +49,12 @@ openfga = remote_chart(
     values=[profile_values_file("openfga", TEMPLATE_VARS)],
 )
 k8s_yaml(openfga)
+# openfga now uses the shared CNPG postgres (see the openfga-cnpg migration);
+# it no longer ships its own postgres, so wait on the "postgres" resource.
 k8s_resource(
     "openfga",
-    objects=select_objects(openfga, lambda o: not o["metadata"]["name"].startswith("openfga-postgres")),
-    resource_deps=["namespace", "openfga-postgres"],
-    labels=["infra"],
-)
-k8s_resource(
-    "openfga-postgres",
-    objects=select_objects(openfga, lambda o: o["metadata"]["name"].startswith("openfga-postgres")),
-    resource_deps=["namespace"],
+    objects=select_objects(openfga, lambda o: True),
+    resource_deps=["namespace", "postgres"],
     labels=["infra"],
 )
 

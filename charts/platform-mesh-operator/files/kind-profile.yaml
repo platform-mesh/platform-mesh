@@ -200,6 +200,7 @@ data:
                   password: openfga-password
             gatewayApi:
               enabled: true
+              gatewayClassName: __GATEWAY_CLASS_NAME__
               listeners:
                 - name: terminate
                   hostname: "{{ .baseDomain }}"
