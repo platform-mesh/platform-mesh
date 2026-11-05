@@ -1,0 +1,33 @@
+suite: removed values
+templates:
+  - validate-values.yaml
+tests:
+  - it: fails early when the removed gateway.traefikClusterIP is set
+    set:
+      gateway:
+        traefikClusterIP: 10.96.188.4
+    asserts:
+      - failedTemplate:
+          errorPattern: 'gateway\.traefikClusterIP was removed'
+      - failedTemplate:
+          errorPattern: '--set gateway\.clusterIP=10\.96\.188\.4'
+  - it: fails even when OCM installation is disabled
+    set:
+      ocm:
+        enabled: false
+      gateway:
+        traefikClusterIP: 10.96.188.4
+    asserts:
+      - failedTemplate:
+          errorPattern: 'gateway\.traefikClusterIP was removed'
+  - it: renders nothing when only gateway.clusterIP is set
+    set:
+      ocm:
+        enabled: true
+        profile: kind
+      gateway:
+        baseDomain: platform.example.com
+        clusterIP: 10.96.188.4
+    asserts:
+      - hasDocuments:
+          count: 0

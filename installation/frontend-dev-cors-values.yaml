@@ -1,0 +1,60 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Local development only: allow a portal (or any other frontend) that runs
+# outside the cluster, e.g. `npm start` on https://portal.localhost:4300, to
+# call the in-cluster APIs (iam-service, kubernetes-graphql-gateway,
+# Keycloak, ...) from the browser.
+#
+# Use it as an extra values file on the second, Traefik-enabled
+# platform-mesh-prerequisites pass:
+#
+#   helm upgrade platform-mesh-prerequisites ... --set traefik.enabled=true ... \
+#     -f installation/frontend-dev-cors-values.yaml
+#
+# Tilt applies it with: task tilt:up -- --frontend-cors
+#
+# Why here and not on the HTTPRoutes: Gateway API has a standard CORS filter,
+# but Traefik (v3.7) does not implement it and fails the route with
+# "unsupported filter CORS". This file therefore configures Traefik itself: it
+# creates a headers Middleware and attaches it to the HTTPS entrypoint, so it
+# covers every HTTPRoute on the Gateway and the Platform Mesh charts stay
+# controller-agnostic. With another Gateway API controller, configure CORS
+# there instead (or use the HTTPRoute CORS filter if it supports it).
+#
+# Do not use this in production: it allows credentialed cross-origin requests.
+# The Middleware is expected in the platform-mesh-system namespace; adjust both
+# references below when installing elsewhere.
+traefik:
+  ports:
+    websecure:
+      http:
+        middlewares:
+          - platform-mesh-system-traefik-frontend-dev-cors@kubernetescrd
+  extraObjects:
+    - apiVersion: traefik.io/v1alpha1
+      kind: Middleware
+      metadata:
+        name: traefik-frontend-dev-cors
+        namespace: platform-mesh-system
+      spec:
+        headers:
+          accessControlAllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+          accessControlAllowHeaders: ["*"]
+          # localhost, portal.localhost and its subdomains, on any port.
+          accessControlAllowOriginListRegex:
+            - '^https?://(localhost|([a-z0-9-]+\.)*portal\.localhost)(:[0-9]+)?$'
+          accessControlAllowCredentials: true
+          accessControlMaxAge: 100
+          addVaryHeader: true

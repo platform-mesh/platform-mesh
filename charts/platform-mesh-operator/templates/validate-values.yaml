@@ -1,0 +1,22 @@
+{{- /*
+Fails rendering when values removed from the chart are still set, so helm
+install/upgrade/template stop before anything is applied to the cluster.
+*/}}
+{{- if .Values.gateway.traefikClusterIP }}
+{{- fail (printf `
+
+gateway.traefikClusterIP was removed: the gateway is no longer tied to Traefik.
+
+To fix it, move the value to gateway.clusterIP and drop the old key:
+
+  gateway:
+    clusterIP: %q   # was gateway.traefikClusterIP
+
+or on the command line:
+
+  --set gateway.clusterIP=%s
+
+gateway.clusterIP is the ClusterIP of your gateway controller Service. It is only
+needed with ocm.profile=kind. The GatewayClass is selected with gateway.className.
+` (toString .Values.gateway.traefikClusterIP) (toString .Values.gateway.traefikClusterIP)) }}
+{{- end }}

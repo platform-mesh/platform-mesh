@@ -27,7 +27,7 @@ gateway:
   port: 8443
   # -- Name of the GatewayClass the Platform Mesh Gateway attaches to. Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation.
   className: ""
-  # -- ClusterIP of the gateway controller Service. Required when ocm.profile=kind; production uses public DNS.
+  # -- ClusterIP of the gateway controller Service. Required when ocm.profile=kind, where component pods resolve the Platform Mesh hostnames to it through host aliases; production uses public DNS.
   clusterIP: ""
 
 # -- KCP connectivity configuration (used when ocm.enabled=true).

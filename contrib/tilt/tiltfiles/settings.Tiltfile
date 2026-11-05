@@ -25,11 +25,16 @@ config.define_string(
     "httpbin-namespace", usage="HTTPBin provider runtime namespace (default {})".format(DEFAULT_HTTPBIN_NAMESPACE)
 )
 config.define_string("cluster-id", usage="dashed node IP used in hostnames (default: InternalIP of the first node)")
+config.define_bool(
+    "frontend-cors",
+    usage="allow browser calls from a frontend run outside the cluster (see installation/frontend-dev-cors-values.yaml)",
+)
 cfg = config.parse()
 
 CONTEXT = cfg.get("context", DEFAULT_CONTEXT)
 NAMESPACE = "platform-mesh-system"
 HTTPBIN_NAMESPACE = cfg.get("httpbin-namespace", DEFAULT_HTTPBIN_NAMESPACE)
+FRONTEND_CORS = cfg.get("frontend-cors", False)
 KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
 GO_DEPS = ["apis", "subroutines", "golang-commons"]
 VERSIONS = read_yaml(os.path.join(REPO, "ocm/versions.yaml"))
@@ -58,12 +63,13 @@ KCP_URL = "https://kcp.api." + BASE_DOMAIN_PORT
 KCP_FRONT_PROXY_URL = "https://frontproxy-front-proxy.{}:{}".format(NAMESPACE, PORT)
 
 # Values the kind-profile templates with (pkg/subroutines/subroutine_helpers.go
-# getExposureParams). traefikClusterIP only feeds hostAliases, which are dropped.
+# getExposureParams), plus the __PLACEHOLDER__ tokens the PMO chart replaces.
+# gatewayClusterIP only feeds hostAliases, which are dropped.
 TEMPLATE_VARS = {
     "baseDomain": BASE_DOMAIN,
     "baseDomainPort": BASE_DOMAIN_PORT,
     "port": str(PORT),
-    "traefikClusterIP": "",
+    "gatewayClusterIP": "",
     "internalFrontProxyUrl": KCP_FRONT_PROXY_URL,
     "gatewayClassName": "traefik",
 }

@@ -98,7 +98,7 @@ k8s_yaml(pmo)
 k8s_resource(
     "platform-mesh-operator",
     objects=select_objects(pmo, lambda o: True),
-    resource_deps=["kcp-operator", "domain-certificate", "ocm-crds"],
+    resource_deps=["kcp-operator", "domain-certificate-ready", "ocm-crds"],
     labels=["platform-mesh"],
 )
 

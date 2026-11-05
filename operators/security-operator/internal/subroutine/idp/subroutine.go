@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc"
@@ -111,6 +112,34 @@ func (s *subroutine) newOIDCClient(realmName string) (clientreg.Client, *keycloa
 	return oidcClient, adminClient
 }
 
+// registrationClientURI is the RFC 7592 client configuration endpoint of a
+// client, as served under the configured Keycloak base URL.
+func (s *subroutine) registrationClientURI(realmName, clientID string) string {
+	return fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", strings.TrimSuffix(s.keycloakBaseURL, "/"), realmName, clientID)
+}
+
+// refreshRegistrationClientURIs rewrites status registration client URIs that
+// do not match the configured Keycloak base URL, e.g. after the base URL flag
+// changed. The stored URIs would otherwise point at the old Keycloak address
+// forever: they are only refreshed after a successful update, which the old
+// address prevents. It reports whether any URI changed.
+func (s *subroutine) refreshRegistrationClientURIs(idpConfig *pmcorev1alpha1.IdentityProviderConfiguration) bool {
+	changed := false
+	for clientName, managedClient := range idpConfig.Status.ManagedClients {
+		if managedClient.ClientID == "" {
+			continue
+		}
+		uri := s.registrationClientURI(idpConfig.Name, managedClient.ClientID)
+		if managedClient.RegistrationClientURI == uri {
+			continue
+		}
+		managedClient.RegistrationClientURI = uri
+		idpConfig.Status.ManagedClients[clientName] = managedClient
+		changed = true
+	}
+	return changed
+}
+
 func (s *subroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	result, err := s.finalize(ctx, obj)
 	if res, ok := pendingIfClusterNotReady(ctx, err); ok {
@@ -125,6 +154,8 @@ func (s *subroutine) finalize(ctx context.Context, obj ctrlruntimeclient.Object)
 	realmName := idpToDelete.Name
 
 	oidcClient, adminClient := s.newOIDCClient(realmName)
+
+	s.refreshRegistrationClientURIs(idpToDelete)
 
 	for _, clientToDelete := range idpToDelete.Spec.Clients {
 		registrationAccessToken, err := s.readRegistrationAccessToken(ctx, clientToDelete.SecretRef)
@@ -207,6 +238,14 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 		return subroutines.OK(), err
 	}
 
+	original := idpConfig.DeepCopy()
+	if s.refreshRegistrationClientURIs(idpConfig) {
+		log.Info().Str("keycloakBaseURL", s.keycloakBaseURL).Msg("Keycloak base URL changed, updating registration client URIs in status")
+		if err := kcpClient.Status().Patch(ctx, idpConfig, ctrlruntimeclient.MergeFrom(original)); err != nil {
+			return subroutines.OK(), fmt.Errorf("failed to patch IDP status: %w", err)
+		}
+	}
+
 	if err := s.deleteRemovedClients(ctx, idpConfig, oidcClient, log); err != nil {
 		return subroutines.OK(), err
 	}
@@ -224,15 +263,18 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 			return subroutines.OK(), fmt.Errorf("failed to create or update kubernetes secret: %w", err)
 		}
 
+		// Store the URI derived from the configured base URL rather than the
+		// one Keycloak returns, which carries Keycloak's own hostname and would
+		// be rewritten by refreshRegistrationClientURIs on every reconcile.
 		managedClients[clientConfig.ClientName] = pmcorev1alpha1.ManagedClient{
 			ClientID:              clientInfo.ClientID,
-			RegistrationClientURI: clientInfo.RegistrationClientURI,
+			RegistrationClientURI: s.registrationClientURI(realmName, clientInfo.ClientID),
 			SecretRef:             clientConfig.SecretRef,
 		}
 	}
 
 	// Update status
-	original := idpConfig.DeepCopy()
+	original = idpConfig.DeepCopy()
 	idpConfig.Status.ManagedClients = managedClients
 	if err := kcpClient.Status().Patch(ctx, idpConfig, ctrlruntimeclient.MergeFrom(original)); err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to patch IDP status: %w", err)
@@ -360,7 +402,7 @@ func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *pmcorev1al
 
 	registrationClientURI := ipc.Status.ManagedClients[clientConfig.ClientName].RegistrationClientURI
 	if registrationClientURI == "" {
-		registrationClientURI = fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", s.keycloakBaseURL, realmName, existingClient.ClientID)
+		registrationClientURI = s.registrationClientURI(realmName, existingClient.ClientID)
 	}
 
 	metadata.ClientID = ipc.Status.ManagedClients[clientConfig.ClientName].ClientID
