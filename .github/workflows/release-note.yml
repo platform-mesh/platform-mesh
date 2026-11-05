@@ -15,7 +15,7 @@
 name: release-note
 
 # Every PR description needs a ```release-note block holding NONE or the note
-# (see .github/pull_request_template.md). Locally: `task verify-release-note`.
+# (see .github/pull_request_template.md).
 
 on:
   pull_request:
