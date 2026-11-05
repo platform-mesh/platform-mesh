@@ -17,7 +17,7 @@ name: test
 # Unit tests and component e2e suites for the changed components, as per
 # ocm/components.yaml. Unit tests are one job; the e2e suites are a matrix
 # (one entry per component) because each takes minutes and brings up its own
-# kcp or kind. The full-platform install on kind is e2e.yml.
+# kcp or kind. The full-platform e2e on kind is tilt.yml.
 
 on:
   pull_request:
