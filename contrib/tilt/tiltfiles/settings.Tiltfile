@@ -37,7 +37,16 @@ HTTPBIN_NAMESPACE = cfg.get("httpbin-namespace", DEFAULT_HTTPBIN_NAMESPACE)
 FRONTEND_CORS = cfg.get("frontend-cors", False)
 KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
 GO_DEPS = ["apis", "subroutines", "golang-commons"]
-VERSIONS = read_yaml(os.path.join(REPO, "ocm/versions.yaml"))
+
+
+def third_party_version(name, resource):
+    """Version of a resource of the wrapper third_party/<name>/component-constructor.yaml."""
+    constructor = read_yaml(os.path.join(REPO, "third_party", name, "component-constructor.yaml"))
+    for r in constructor["components"][0]["resources"]:
+        if r["name"] == resource:
+            return r["version"]
+    fail("third_party/{}: no resource {}".format(name, resource))
+
 
 # Every hostname is <x>.pm.<node-ip-dashed>.sslip.io, reaching the kind
 # node's traefik NodePort from host, pods and kcp alike.

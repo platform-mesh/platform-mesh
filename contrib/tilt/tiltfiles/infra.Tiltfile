@@ -24,13 +24,13 @@ load(
     "NAMESPACE",
     "PORT",
     "TEMPLATE_VARS",
-    "VERSIONS",
+    "third_party_version",
 )
 
 kcp_operator = remote_chart(
     "kcp-operator",
     "oci://ghcr.io/platform-mesh/helm-charts/charts/mirrored",
-    VERSIONS["KCP_OPERATOR_CHART_VERSION"],
+    third_party_version("kcp-operator", "chart"),
     NAMESPACE,
 )
 k8s_yaml(kcp_operator)
@@ -44,7 +44,7 @@ k8s_resource(
 openfga = remote_chart(
     "openfga",
     "oci://ghcr.io/platform-mesh/ocm/charts",
-    VERSIONS["OPENFGA_VERSION"],
+    third_party_version("openfga", "chart"),
     NAMESPACE,
     values=[profile_values_file("openfga", TEMPLATE_VARS)],
 )

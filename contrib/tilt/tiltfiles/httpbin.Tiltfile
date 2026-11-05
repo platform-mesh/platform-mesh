@@ -18,7 +18,7 @@
 
 load("ext://namespace", "namespace_create")
 load("../helpers.py", "TILT_DIR", "chart", "kind_in", "remote_chart", "select_objects", "write_values")
-load("./settings.Tiltfile", "BASE_DOMAIN", "CONTEXT", "HTTPBIN_NAMESPACE", "KCP_URL", "NAMESPACE", "PORT", "VERSIONS")
+load("./settings.Tiltfile", "BASE_DOMAIN", "CONTEXT", "HTTPBIN_NAMESPACE", "KCP_URL", "NAMESPACE", "PORT", "third_party_version")
 
 namespace_create(HTTPBIN_NAMESPACE)
 k8s_resource(new_name="httpbin-namespace", objects=[HTTPBIN_NAMESPACE + ":namespace"], labels=["e2e"])
@@ -26,7 +26,7 @@ k8s_resource(new_name="httpbin-namespace", objects=[HTTPBIN_NAMESPACE + ":namesp
 api_syncagent = remote_chart(
     "api-syncagent",
     "oci://ghcr.io/platform-mesh/ocm/charts",
-    VERSIONS["API_SYNCAGENT_CHART_VERSION"],
+    third_party_version("api-syncagent", "chart"),
     HTTPBIN_NAMESPACE,
     values=[
         write_values(
@@ -35,7 +35,7 @@ api_syncagent = remote_chart(
                 "apiExportEndpointSliceName": "orchestrate.platform-mesh.io",
                 "agentName": "kcp-api-syncagent",
                 "kcpKubeconfig": "httpbin-kubeconfig",
-                "image": {"tag": VERSIONS["API_SYNCAGENT_IMAGE_VERSION"]},
+                "image": {"tag": third_party_version("api-syncagent", "image")},
             },
         )
     ],
