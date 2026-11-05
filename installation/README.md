@@ -46,16 +46,6 @@ installation method that provides compatible versions — including cluster-mana
 controllers or separately installed operators — works equally well. The cluster
 must also expose a `GatewayClass`.
 
-Platform Mesh only uses standard-channel Gateway API kinds (`Gateway`,
-`HTTPRoute`, and `TLSRoute` v1), so the experimental channel is not required.
-
-> **Upgrading from an experimental-channel install:** the prerequisites chart
-> used to install the experimental channel. Upgrading it removes the
-> experimental-only CRDs (`TCPRoute`, `UDPRoute`, `XBackendTrafficPolicy`,
-> `XMesh`) together with any objects of those kinds. Platform Mesh does not use
-> them; if other workloads on the cluster do, install the experimental CRDs
-> yourself and set `traefik-crds.gatewayAPI=false`.
-
 ### Production
 
 - A working LoadBalancer integration for the gateway API controller.
