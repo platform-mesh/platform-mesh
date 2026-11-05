@@ -40,11 +40,6 @@ vars:
   # command that uses the tool, but with UGET_UPDATE=true set, for example for
   # bumping golangci-lint, run `UGET_UPDATE=true task lint`.
 
-  # the same version is re-used for all kcp components
-  KCP_VERSION:
-    sh: 'awk -F\" "/^KCP_VERSION:/ { print \$2 }" {{.TOPLEVEL}}/ocm/versions.yaml | cut -dv -f2'
-  APIGEN: '{{.BIN}}/apigen-v{{.KCP_VERSION}}'
-
   CONTROLLER_GEN_VERSION: v0.21.0
   CONTROLLER_GEN: '{{.BIN}}/controller-gen-{{.CONTROLLER_GEN_VERSION}}'
 
@@ -96,6 +91,11 @@ vars:
   # renovate: datasource=github-releases depName=mikefarah/yq
   YQ_VERSION: v4.54.1
   YQ: '{{.BIN}}/yq-{{.YQ_VERSION}}'
+
+  # the same version is re-used for all kcp components.
+  KCP_VERSION:
+    sh: "sed -n 's/^ *version: v\\([0-9][^ ]*\\)$/\\1/p' {{.TOPLEVEL}}/third_party/kcp/component-constructor.yaml | head -1"
+  APIGEN: '{{.BIN}}/apigen-v{{.KCP_VERSION}}'
 
   OPENAPI_GEN_VERSION: d427ff9ee9ad05f5da435abbb7c5929cb713ac56 # most recent commit as of writing this
   OPENAPI_GEN: '{{.BIN}}/openapi-gen-{{.OPENAPI_GEN_VERSION}}'
