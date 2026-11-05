@@ -15,9 +15,8 @@
 # Playwright end-to-end tests against a running Platform Mesh (tests/*.test.ts).
 # Included from the root Taskfile as `tests:`; the tasks keep the names they
 # had in the helm-charts repository minus the `test:` prefix, e.g.
-# `task tests:portal-e2e:remote`. The installation they run against is
-# described in installation/README.md; .github/workflows/install-kind.yml
-# runs them in CI.
+# `task tests:portal-e2e`. They run against the Tilt environment
+# (`task tilt:e2e`); .github/workflows/tilt.yml runs them in CI.
 
 version: '3'
 
@@ -144,15 +143,6 @@ tasks:
         vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
       - task: portal-e2e:shard:triton
         vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
-
-  portal-e2e:remote:
-    desc: Run portal e2e tests for remote setup (only root shard; tests requiring example-data providers are skipped)
-    vars:
-      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
-      HEADED: '{{.HEADED | default ""}}'
-    cmds:
-      - task: portal-e2e:sharding-setup
-        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', SHARDING_ORG_SHARD: 'root', SHARDING_ACCOUNT_SHARDS: 'root', SKIP_INVITE: 'true', HEADED: '{{.HEADED}}' }
 
   portal-e2e:shard:root:
     desc: Run portal e2e tests with org on root shard

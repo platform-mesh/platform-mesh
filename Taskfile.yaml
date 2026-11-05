@@ -42,7 +42,7 @@ includes:
     taskfile: charts/Taskfile.yaml
     dir: .
   # Playwright end-to-end tests against a running Platform Mesh:
-  # `task tests:portal-e2e:setup`, `task tests:portal-e2e:remote`, ...
+  # `task tests:portal-e2e:setup`, `task tests:portal-e2e`, ...
   tests:
     taskfile: tests/Taskfile.yaml
     dir: .
