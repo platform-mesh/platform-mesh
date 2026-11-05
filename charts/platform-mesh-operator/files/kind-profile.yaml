@@ -289,32 +289,6 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-        init-agent:
-          absoluteReferencePath:
-          - name: init-agent
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: init-agent
-              image-ref: combined
-            absoluteReferencePath:
-            - name: init-agent
-          syncWave: 4
-          enabled: true
-          dependsOn: []
-          values:
-            configWorkspace: root:platform-mesh-system
-            kcpKubeconfig: init-agent-kubeconfig
-            replicas: 1
-            leaderElection:
-              enabled: true
-            hostAliases:
-              enabled: true
-              values:
-                - ip: "__GATEWAY_SERVICE_CLUSTER_IP__"
-                  hostnames:
-                    - "kcp.api.{{ .baseDomain }}"
         kcp:
           external: true
           dependsOn: []

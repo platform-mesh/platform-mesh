@@ -140,25 +140,6 @@ components:
         access:
           type: ociArtifact
           imageReference: "ghcr.io/kcp-dev/kcp:${KCP_VERSION}"
-  - name: github.com/kcp-dev/init-agent
-    version: ${VERSION}
-    provider:
-      name: kcp
-    resources:
-      - name: chart
-        type: helmChart
-        relation: local
-        version: ${INIT_AGENT_CHART_VERSION}
-        access:
-          type: ociArtifact
-          imageReference: ghcr.io/platform-mesh/ocm/charts/init-agent:${INIT_AGENT_CHART_VERSION}
-      - name: image
-        type: ociImage
-        relation: local
-        version: ${INIT_AGENT_IMAGE_VERSION}
-        access:
-          type: ociArtifact
-          imageReference: "ghcr.io/kcp-dev/init-agent:${INIT_AGENT_IMAGE_VERSION}"
   - name: github.com/platform-mesh/api-syncagent
     version: ${VERSION}
     provider:
@@ -293,9 +274,6 @@ components:
         version: ${VERSION}
       - name: kcp
         componentName: github.com/kcp-dev/kcp
-        version: ${VERSION}
-      - name: init-agent
-        componentName: github.com/kcp-dev/init-agent
         version: ${VERSION}
       - name: kubernetes-graphql-gateway
         componentName: github.com/platform-mesh/kubernetes-graphql-gateway
