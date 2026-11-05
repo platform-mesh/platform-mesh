@@ -440,6 +440,9 @@ data:
               - name: cnpg-ca
                 secret:
                   secretName: platform-mesh-pg-ca
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
             podAnnotations:
               traffic.sidecar.istio.io/excludeInboundPorts: "2112"
             postgresql:
