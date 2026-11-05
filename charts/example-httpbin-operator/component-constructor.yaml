@@ -1,0 +1,46 @@
+components:
+  - name: github.com/platform-mesh/helm-charts/example-httpbin-operator
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: chart
+        type: helmChart
+        relation: external
+        version: ${PM_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ${CHART_REPO}/example-httpbin-operator:${PM_VERSION}
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+  - name: github.com/platform-mesh/example-httpbin-operator
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+    componentReferences:
+      - name: chart
+        componentName: github.com/platform-mesh/helm-charts/example-httpbin-operator
+        version: ${PM_VERSION}
+      - name: image
+        componentName: github.com/platform-mesh/images/example-httpbin-operator
+        version: ${APP_VERSION}
+      - name: api-syncagent
+        componentName: github.com/platform-mesh/api-syncagent
+        version: ${PM_VERSION}
+      - name: ingress-nginx
+        componentName: github.com/kubernetes/ingress-nginx
+        version: 4.11.3

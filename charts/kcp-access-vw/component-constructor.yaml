@@ -1,0 +1,52 @@
+components:
+  - name: github.com/platform-mesh/helm-charts/kcp-access-vw
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: chart
+        type: helmChart
+        relation: external
+        version: ${PM_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ${CHART_REPO}/kcp-access-vw:${PM_VERSION}
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+  - name: github.com/platform-mesh/images/kcp-access-vw
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: access-vw-image
+        type: ociImage
+        version: 0.1.1
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/kcp-dev/contrib-virtual-workspaces/access-vw:0.1.1@sha256:2e84f6d28d949b8a55beae449b6a13af8fe13ecf324b03be15379993a0515e55
+        relation: external
+  - name: github.com/platform-mesh/kcp-access-vw
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+    componentReferences:
+      - name: chart
+        componentName: github.com/platform-mesh/helm-charts/kcp-access-vw
+        version: ${PM_VERSION}
+      - name: image
+        componentName: github.com/platform-mesh/images/kcp-access-vw
+        version: ${PM_VERSION}

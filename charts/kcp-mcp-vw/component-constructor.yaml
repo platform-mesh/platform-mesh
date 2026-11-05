@@ -1,0 +1,52 @@
+components:
+  - name: github.com/platform-mesh/helm-charts/kcp-mcp-vw
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: chart
+        type: helmChart
+        relation: external
+        version: ${PM_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ${CHART_REPO}/kcp-mcp-vw:${PM_VERSION}
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+  - name: github.com/platform-mesh/images/kcp-mcp-vw
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: mcp-vw-image
+        type: ociImage
+        version: 0.1.1
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/kcp-dev/contrib-virtual-workspaces/mcp-vw:0.1.1@sha256:0d937ac6644a26a215b59f5dc5352ccb0ec9a6522bb9cc79695bba3fb1b1fda5
+        relation: external
+  - name: github.com/platform-mesh/kcp-mcp-vw
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+    componentReferences:
+      - name: chart
+        componentName: github.com/platform-mesh/helm-charts/kcp-mcp-vw
+        version: ${PM_VERSION}
+      - name: image
+        componentName: github.com/platform-mesh/images/kcp-mcp-vw
+        version: ${PM_VERSION}
