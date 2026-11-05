@@ -14,93 +14,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Waits for all other checks on a pull request or merge queue commit and
-# fails if any of them failed.
+# Waits for the other workflows on a commit and fails if any of them failed.
 #
 # Environment:
-#   GH_TOKEN         token for the gh cli
-#   GH_REPO          owner/repo
-#   PR               pull request number (pull_request events)
-#   MERGE_GROUP_SHA  queue commit (merge_group events), takes precedence over PR
-#   SELF_JOB         name of the gate job, excluded from the checks
+#   GH_TOKEN       token for the gh cli
+#   GH_REPO        owner/repo
+#   SHA            commit under test (PR head or merge queue commit)
+#   SELF_WORKFLOW  name of the gate workflow, excluded
 
 set -euo pipefail
 
-# checks on the PR as a stream of {name, bucket}
-pr_checks() {
-    gh pr checks "$PR" --json bucket,name --jq '.[]'
-}
-
-# checks on the merge queue commit as a stream of {name, bucket}, like pr_checks
-merge_group_checks() {
-    gh api --paginate "repos/$GH_REPO/commits/$MERGE_GROUP_SHA/check-runs?per_page=100" \
-        --jq '.check_runs[]
+# latest run per workflow on the commit as a stream of {name, bucket}
+#
+# 1. Take the newest of each job (including concurrency-cancelled ore rerun)
+# 2. Filter the pr-gate job out
+# 3. Set the bukcet value pending/pass/fail
+runs() {
+    gh run list --commit "$SHA" --limit 100 --json name,status,conclusion,createdAt,databaseId \
+        --jq '
+            group_by(.name)
+            | map(max_by([.createdAt, .databaseId]))
+            | .[]
+            | select(.name != env.SELF_WORKFLOW)
             | {
                 name,
                 bucket: (
                     if .status != "completed" then "pending"
-                    elif .conclusion == "success" then "pass"
-                    elif .conclusion == "skipped" or .conclusion == "neutral" then "skipping"
+                    elif .conclusion == "success" or .conclusion == "skipped" or .conclusion == "neutral" then "pass"
                     else "fail"
                     end
                 )
             }'
-    # combined status carries the latest status per context
-    gh api --paginate "repos/$GH_REPO/commits/$MERGE_GROUP_SHA/status?per_page=100" \
-        --jq '.statuses[]
-            | {
-                name: .context,
-                bucket: (
-                    if .state == "pending" then "pending"
-                    elif .state == "success" then "pass"
-                    else "fail"
-                    end
-                )
-            }'
-}
-
-# drops this job and renovate/ checks (e.g. stability-days)
-filter_checks() {
-    jq 'select(.name != env.SELF_JOB) | select(.name | startswith("renovate/") | not)'
-}
-
-relevant_checks() {
-    if [[ -n "${MERGE_GROUP_SHA:-}" ]]; then
-        merge_group_checks
-    else
-        pr_checks
-    fi | filter_checks
-}
-
-# the predicates read the {name, bucket} stream from stdin
-pending_checks() {
-    jq 'select(.bucket as $val | ["pass", "skipping", "fail"] | index($val) | not)'
-}
-
-are_checks_pending() {
-    [[ "$(pending_checks | wc -l)" -gt 0 ]]
-}
-
-failed_checks() {
-    jq 'select(.bucket == "fail")'
-}
-
-are_any_failed() {
-    [[ "$(failed_checks | wc -l)" -gt 0 ]]
 }
 
 while true; do
-    checks="$(relevant_checks)"
-    if are_any_failed <<< "$checks"; then
-        echo Some jobs failed, reporting failure
+    runs="$(runs)"
+    if jq -e 'select(.bucket == "fail")' <<< "$runs" > /dev/null; then
+        echo Failed workflows:
+        jq -r 'select(.bucket == "fail") | "  \(.name)"' <<< "$runs"
         exit 1
     fi
-    if are_checks_pending <<< "$checks"; then
-        echo Some jobs are still running, sleeping
-        sleep 1
+    if jq -e 'select(.bucket == "pending")' <<< "$runs" > /dev/null; then
+        echo Waiting for:
+        jq -r 'select(.bucket == "pending") | "  \(.name)"' <<< "$runs"
+        sleep 5
         continue
     fi
     break
 done
 
-echo No jobs failed, success!
+echo All workflows passed

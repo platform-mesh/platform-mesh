@@ -29,9 +29,7 @@ on:
 
 permissions:
   contents: read # Needed for actions/checkout
-  checks: read # Needed to read check-run results for the gate
-  pull-requests: read # Needed to read PR metadata
-  statuses: read # Needed to read commit statuses for the gate
+  actions: read # Needed to list workflow runs for the gate
 
 concurrency:
   group: pr-gate-${{ github.ref }}
@@ -44,10 +42,8 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
-      PR: ${{ github.event.pull_request.number }}
-      # for merge group checks are looked up by the hash
-      MERGE_GROUP_SHA: ${{ github.event.merge_group.head_sha }}
-      SELF_JOB: ${{ github.job }}
+      SHA: ${{ github.event.merge_group.head_sha || github.event.pull_request.head.sha }}
+      SELF_WORKFLOW: ${{ github.workflow }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
