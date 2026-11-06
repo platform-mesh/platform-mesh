@@ -7,7 +7,6 @@ externalSecrets:
 kcp:
   image:
     repository: ghcr.io/kcp-dev/kcp
-    # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp
     tag: v0.33.6
   namespace: platform-mesh-system
   certificates:
