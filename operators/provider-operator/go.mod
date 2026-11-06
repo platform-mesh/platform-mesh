@@ -3,6 +3,8 @@ module go.platform-mesh.io/provider-operator
 go 1.26.0
 
 require (
+	github.com/mandelsoft/goutils v0.0.0-20260802101738-162cd2928e3c
+	github.com/opencontainers/go-digest v1.0.0
 	github.com/spf13/cobra v1.10.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
 	go.platform-mesh.io/apis v0.1.0
@@ -71,7 +73,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.platform-mesh.io/subroutines v0.6.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
