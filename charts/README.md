@@ -49,8 +49,7 @@ available and expanded by ocm:
 | Variable | Value |
 |---|---|
 | `${PM_VERSION}` | the Platform Mesh version being released, every chart and every component built here carries it |
-| `${CHART_VERSION}`, `${APP_VERSION}` | `version` and `appVersion` of the chart as published |
-| `${DEP_<NAME>_VERSION}` | the version of each `Chart.yaml` dependency, `DEP_PROMETHEUS_VERSION` for `prometheus` |
+| `${APP_VERSION}` | `appVersion` of the chart as published: `APP_VERSION` from the environment, else `Chart.yaml`'s, where `0.0.0` becomes `v${PM_VERSION}` |
 | `${CHART_REPO}` | the OCI repository charts are pushed to, usually `ghcr.io/platform-mesh/helm-charts` |
 | `${REPO_URL}`, `${COMMIT}` | the repository and commit, recorded as the component's source |
 | anything in `charts/<chart>/ocm.yaml` | a value of the chart's `values.yaml`, see below |
@@ -62,9 +61,9 @@ in the charts `values.yaml` to retrieve its value from:
 
 ```yaml
 envsubst:
-  DEX_IMAGE_REGISTRY: .dex.image.registry
-  DEX_IMAGE_REPOSITORY: .dex.image.repository
-  DEX_IMAGE_TAG: .dex.image.tag
+  DEX_IMAGE_REGISTRY: dex.image.registry
+  DEX_IMAGE_REPOSITORY: dex.image.repository
+  DEX_IMAGE_TAG: dex.image.tag
 ```
 
 Each key is exported with the value at the path before ocm runs on that

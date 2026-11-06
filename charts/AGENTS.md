@@ -29,7 +29,7 @@ This is a deployment and packaging repo, not a service runtime.
 
 ### Installation and OCM model
 - `installation/README.md` is the supported path for installing Platform Mesh, on kind as well as on a real cluster: the prerequisites chart, then the operator chart with `ocm.enabled=true` and an `ocm.version`.
-- `hack/release/build-aggregate.sh` builds the OCM component graph for releases and prereleases.
+- The Go commands under `hack/release/` (`ocm-build-chart`, `ocm-build-image`, `ocm-build-third-party`, `ocm-build-aggregate`) build the OCM component graph for releases and prereleases, one `component-constructor.yaml` each.
 - Charts are published by every Platform Mesh release/prerelease, all at the release's version. There is no per-chart release and nothing to bump.
 - Workflow changes can affect chart publishing and full platform bootstrap behavior.
 
@@ -44,7 +44,7 @@ This is a deployment and packaging repo, not a service runtime.
 - `task charts:validate` — run test, docs, dependency update, lint, and OCI packaging checks.
 - `task charts:vulnerability` — run kube-linter against charts.
 - `task charts:oci` — package charts into the local `oci/` output directory.
-- `hack/release/build-aggregate.sh --version X --generate-only` — write the OCM constructor for the current tree without publishing.
+- `PM_VERSION=X OCM_REPO=ctf::/tmp/pm.ctf go run ./hack/release/ocm-build-chart charts/<chart>` — build a chart's component versions into a local archive; see `docs/release/process.md`.
 
 ## Code Conventions
 - Bump the chart version for any chart whose rendered behavior changes.
@@ -65,7 +65,7 @@ This is a deployment and packaging repo, not a service runtime.
 - Hand-edit generated chart documentation as a substitute for changing chart metadata or values.
 - Commit local secrets from `.secret/`, generated binaries from `bin/`, or local OCI output.
 - Introduce new chart publishing or local setup paths when existing `task` targets cover the workflow.
-- Change OCM signing or release behavior casually; treat `.github/workflows/release.yml`, `hack/release/build-aggregate.sh`, `component-constructor.yaml` and `third_party/*/component-constructor.yaml` as production changes. Component and reference names in the OCM graph are a contract.
+- Change OCM signing or release behavior casually; treat `.github/workflows/release.yml`, `hack/release/`, `component-constructor.yaml` and `third_party/*/component-constructor.yaml` as production changes. Component and reference names in the OCM graph are a contract.
 
 ## Hard Boundaries
 - Ask before changing chart publishing, OCM packaging, or local setup bootstrap semantics.
