@@ -276,17 +276,21 @@ tasks:
     desc: "Verify one module is self-contained (e.g. task tidy-check-apis)."
     env:
       GOWORK: "off"
+    vars:
+      YQ: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:yq' }
     cmds:
       - |
         comp='{{index .MATCH 0}}'
-        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
+        dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         cd "$dir" && go mod tidy -diff && go list -m all >/dev/null
   "boilerplate-*":
     desc: "Verify boilerplate for one component (e.g. task boilerplate-apis)."
+    vars:
+      YQ: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:yq' }
     cmds:
       - |
         comp='{{index .MATCH 0}}'
-        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
+        dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         root=$PWD
         # --skip args from hack/boilerplate/skip.txt, ignoring blank lines and '#' comment lines.
         skip_args=$(grep -vE '^[[:space:]]*(#|$)' "$root/hack/boilerplate/skip.txt" | sed 's/^/--skip /' | tr '\n' ' ')
@@ -325,10 +329,12 @@ tasks:
   _run:
     internal: true
     silent: true
+    vars:
+      YQ: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:yq' }
     cmds:
       - |
         comp='{{.COMPONENT}}'; target='{{.TARGET}}'
-        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
+        dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         # The root module's Taskfile is this one; its own targets live in Taskfile.root.yaml.
         if [ "$dir" = . ]; then
           task --taskfile Taskfile.root.yaml "$target"
@@ -342,11 +348,13 @@ tasks:
   _image:
     internal: true
     silent: true
+    vars:
+      YQ: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:yq' }
     cmds:
       - |
         set -eu
         comp='{{.COMPONENT}}'
-        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
+        dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         # apis and other code-only modules ship no Dockerfile — skip, don't fail,
         # so the `images` fan-out can iterate every component.
         if [ ! -f "$dir/Dockerfile" ]; then
@@ -394,6 +402,8 @@ tasks:
       GOWORK: "off"   # resolve the published version from the proxy, not the local workspace copy.
       GOSUMDB: "" # skip resolving on gosumbdb
       GOPROXY: "direct" # skip module proxy, get from source
+    vars:
+      YQ: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:yq' }
     cmds:
       - |
         set -eu
@@ -403,7 +413,7 @@ tasks:
           echo "usage: task bump-deps -- <component> <version>   e.g. task bump-deps -- apis v0.0.1" >&2
           exit 1
         fi
-        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
+        dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         module=$(go mod edit -json "$dir/go.mod" | jq -r '.Module.Path')
         echo ">> bumping consumers of $module to $version"
         # Trailing space pins the require line for exactly this module, not a
@@ -457,10 +467,12 @@ tasks:
     desc: "Tidy one module's go.mod (e.g. task tidy-apis)."
     env:
       GOWORK: "off"
+    vars:
+      YQ: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:yq' }
     cmds:
       - |
         comp='{{index .MATCH 0}}'
-        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
+        dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         # Forward version-pin replaces from go.work into the module's go.mod so
         # it resolves standalone, e.g. in docker builds.
         replaces=$(GOWORK= go work edit -json | jq -r '.Replace[] | "\(.Old.Path)=\(.New.Path)@\(.New.Version)"')
