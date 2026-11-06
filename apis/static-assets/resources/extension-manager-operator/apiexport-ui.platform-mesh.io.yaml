@@ -17,15 +17,35 @@ kind: APIExport
 metadata:
   name: ui.platform-mesh.io
 spec:
+  identity:
+    secretRef:
+      namespace: kcp-system
+      name: core.platform-mesh.io
+  permissionClaims:
+    # Copied from apis/static-assets/kcp/01-platform-mesh-system/apiexport-ui.platform-mesh.io.yaml by hack/sync-export-claims.sh (task generate). Do not edit here.
+    - resource: apiexports
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+        - get
+        - list
+        - watch
+    - resource: apibindings
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+        - get
+        - list
+        - watch
   resources:
-  - group: ui.platform-mesh.io
-    name: contentconfigurations
-    schema: v250704-6d57f16.contentconfigurations.ui.platform-mesh.io
-    storage:
-      crd: {}
-  - group: ui.platform-mesh.io
-    name: providermetadatas
-    schema: v260916-a4904d7c.providermetadatas.ui.platform-mesh.io
-    storage:
-      crd: {}
+    - group: ui.platform-mesh.io
+      name: contentconfigurations
+      schema: v250704-6d57f16.contentconfigurations.ui.platform-mesh.io
+      storage:
+        crd: {}
+    - group: ui.platform-mesh.io
+      name: providermetadatas
+      schema: v260916-a4904d7c.providermetadatas.ui.platform-mesh.io
+      storage:
+        crd: {}
 status: {}

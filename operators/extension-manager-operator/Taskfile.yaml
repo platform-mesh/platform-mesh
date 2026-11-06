@@ -44,7 +44,7 @@ tasks:
           PATH: /ui/...
           OUTPUT: '{{.CRD_DIRECTORY}}'
   generate:
-    deps: [tools:apigen]
+    deps: [tools:apigen, tools:yq]
     cmds:
       - task: manifests
       - task: tools:generate-deepcopy
@@ -52,6 +52,9 @@ tasks:
           PATH: /ui/...
       - task: schemagen
       - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/extension-manager-operator --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      # The deployed export's permission claims and identity, copied so the
+      # generated export matches what the platform-mesh-operator installs.
+      - YQ={{.YQ}} {{.HACK}}/sync-export-claims.sh {{.TOPLEVEL}}/apis/static-assets/resources/extension-manager-operator/apiexport-ui.platform-mesh.io.yaml {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiexport-ui.platform-mesh.io.yaml
   build:
     cmds:
       - go build ./...

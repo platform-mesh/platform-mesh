@@ -54,6 +54,7 @@ tasks:
           OUTPUT: '{{.PROVIDER_CRD_DIRECTORY}}'
       - cp '{{.PROVIDER_CRD_DIRECTORY}}/providers.platform-mesh.io_providerpermissions.yaml' '{{.CRD_DIRECTORY}}/'
   generate:
+    deps: [tools:yq]
     cmds:
       - task: manifests
       - task: mockery
@@ -61,6 +62,10 @@ tasks:
         vars:
           PATH: /core/...
       - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/security-operator --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      # The deployed export's permission claims and identity, copied so the
+      # generated export matches what the platform-mesh-operator installs.
+      - YQ={{.YQ}} {{.HACK}}/sync-export-claims.sh {{.TOPLEVEL}}/apis/static-assets/resources/security-operator/apiexport-core.platform-mesh.io.yaml {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiexport-core.platform-mesh.io.yaml
+      - YQ={{.YQ}} {{.HACK}}/sync-export-claims.sh {{.TOPLEVEL}}/apis/static-assets/resources/security-operator/apiexport-providers.platform-mesh.io.yaml {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiexport-providers.platform-mesh.io.yaml
   build:
     cmds:
       - go build ./...
