@@ -27,9 +27,6 @@ services/kubernetes-graphql-gateway/sdk/schemahandler_grpc.pb.go
 contrib/tilt/bin
 contrib/tilt/.cache
 
-# The generated OCM component graph (gitignored build output of ocmbuild)
-ocm/.generated
-
 # Derived from the kcp project, keeps the upstream copyright
 operators/platform-mesh-operator/hack/download-tool.sh
 
