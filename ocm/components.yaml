@@ -117,3 +117,9 @@ components:
     image: virtual-workspaces
     chart: charts/virtual-workspaces
     e2e: false # no e2e suite; test-e2e is a no-op
+
+  # --- tests -----------------------------------------------------------------
+  # The tests module (tests/): integration and e2e tests, no image, no chart.
+  tests:
+    path: tests
+    e2e: false # tests/e2e runs from the tests module, not per component

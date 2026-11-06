@@ -14,8 +14,8 @@
 - `charts/.docs-templates/`: templates used by `helm-docs` to generate chart documentation.
 - `component-constructor.yaml` The OCM constructor for the main published OCM CV.
 - `ocm/`: `component-constructor.yaml` (aggregate + third-party wrappers), `charts/<chart>.yaml` (per-chart OCM settings), `versions.yaml` (third-party pins), `components.yaml` (components built in this repo). The full graph is built by the Go commands under `hack/release/`.
-- `installation/`: Helm values files for frontend development CORS configuration.
-- `tests/`: Playwright end-to-end tests run against an installed Platform Mesh.
+- `installation/`: how to install Platform Mesh (production and kind) with the `platform-mesh-prerequisites` and `platform-mesh-operator` charts; no scripts.
+- `tests/e2e/portal/`: Playwright end-to-end tests run against an installed Platform Mesh.
 - `.github/workflows/`: `helm-lint.yml` (chart lint/unittest), `verify.yml` (chart docs and CRD copies committed), `release.yml` + `job-publish.yml`, `prerelease.yml`.
 - `charts/Taskfile.yaml` (`task charts:*`): automation entrypoints.
 - `third_party/`: Files related to external dependencies, primarily constructors to build OCM CVs for external projects that do not publish OCM CVs on their own.
