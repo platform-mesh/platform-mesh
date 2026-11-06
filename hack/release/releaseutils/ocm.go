@@ -95,14 +95,16 @@ func (repo OCMRepository) Exists(ctx context.Context, cv string) bool {
 }
 
 // Transfer copies a component version from the repository to target.
-func (repo OCMRepository) Transfer(ctx context.Context, cv, target string) error {
+// flags are passed to ocm transfer as given, e.g. --recursive.
+func (repo OCMRepository) Transfer(ctx context.Context, cv, target string, flags ...string) error {
+	args := append([]string{"transfer", "component-version", repo.Repo + "//" + cv, target}, flags...)
 	err := Retry(ctx, transferAttempts, transferRetryDelay, func() error {
-		cmd := exec.CommandContext(ctx, "ocm", "transfer", "component-version", repo.Repo+"//"+cv, target)
+		cmd := exec.CommandContext(ctx, "ocm", args...)
 		cmd.Stderr = os.Stderr
 		return cmd.Run()
 	})
 	if err != nil {
-		return fmt.Errorf("publishing %s to %s: %w", cv, target, err)
+		return fmt.Errorf("transferring %s to %s: %w", cv, target, err)
 	}
 	return nil
 }
