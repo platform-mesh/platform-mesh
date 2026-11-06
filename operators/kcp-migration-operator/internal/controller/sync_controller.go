@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -195,7 +196,9 @@ func (s *SyncController) prepareTargetResource(source *unstructured.Unstructured
 		annotations = make(map[string]any)
 	}
 	annotations["migration.platform-mesh.io/source-uid"] = string(source.GetUID())
-	annotations["migration.platform-mesh.io/source-generation"] = source.GetGeneration()
+	// Annotation values must be strings; an int64 here makes the API server
+	// reject the object.
+	annotations["migration.platform-mesh.io/source-generation"] = strconv.FormatInt(source.GetGeneration(), 10)
 	metadata["annotations"] = annotations
 
 	return target, nil
