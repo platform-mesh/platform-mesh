@@ -19,7 +19,7 @@
 # repository-root go.work file, so the workspace and those module sources
 # must be present in the build:
 #   docker build -f operators/provider-operator/Dockerfile .
-FROM --platform=$BUILDPLATFORM golang:1.26.7@sha256:dc2521c2a906db43073b8b4d99f491b6341cf15610b6ebbab187c45153f9959e AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.3@sha256:2920bb124f1a2e12a1d39f0cab756ae0068441ee1da7655dec7f5e374944095b AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
