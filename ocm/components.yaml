@@ -36,6 +36,12 @@
 #   e2e          whether `task test-e2e-<name>` exists (default true)
 
 components:
+  # --- root module -----------------------------------------------------------
+  # Tooling such as the release commands under hack/release.
+  root:
+    path: .
+    e2e: false
+
   # --- libraries -------------------------------------------------------------
   golang-commons:
     path: golang-commons

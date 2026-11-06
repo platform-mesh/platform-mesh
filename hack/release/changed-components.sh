@@ -58,7 +58,13 @@ else
   else
     for c in $all_components; do
       path=$(yq ".components.\"$c\".path" "$registry")
-      if grep -qE "^$path/" <<<"$changed"; then
+      if [ "$path" = . ]; then
+        # The root module owns the Go files outside every other component.
+        other_re=$(yq '.components[].path | select(. != ".")' "$registry" | sed 's|^|^|; s|$|/|' | paste -sd'|')
+        if { grep -E '^go\.(mod|sum)$|\.go$' <<<"$changed" || true; } | grep -qvE "$other_re"; then
+          selected_components+="$c"$'\n'
+        fi
+      elif grep -qE "^$path/" <<<"$changed"; then
         selected_components+="$c"$'\n'
       fi
     done

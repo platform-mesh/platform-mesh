@@ -49,6 +49,9 @@ includes:
 
 vars:
   COMPONENTS:
+    # the root module
+    - root
+
     # shared
     - apis
     - subroutines
@@ -276,22 +279,14 @@ tasks:
     cmds:
       - |
         comp='{{index .MATCH 0}}'
-        dir=$(ls -d "$comp" "operators/$comp" "services/$comp" 2>/dev/null | head -1)
-        if [ -z "$dir" ]; then
-          echo "unknown component '$comp' (not under ./, ./operators/ or ./services/)" >&2
-          exit 1
-        fi
+        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         cd "$dir" && go mod tidy -diff && go list -m all >/dev/null
   "boilerplate-*":
     desc: "Verify boilerplate for one component (e.g. task boilerplate-apis)."
     cmds:
       - |
         comp='{{index .MATCH 0}}'
-        dir=$(ls -d "$comp" "operators/$comp" "services/$comp" 2>/dev/null | head -1)
-        if [ -z "$dir" ]; then
-          echo "unknown component '$comp' (not under ./, ./operators/ or ./services/)" >&2
-          exit 1
-        fi
+        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         root=$PWD
         # --skip args from hack/boilerplate/skip.txt, ignoring blank lines and '#' comment lines.
         skip_args=$(grep -vE '^[[:space:]]*(#|$)' "$root/hack/boilerplate/skip.txt" | sed 's/^/--skip /' | tr '\n' ' ')
@@ -325,22 +320,21 @@ tasks:
           CONTEXT: "{{.CONTEXT}}"
           METADATA_FILE: "{{.METADATA_FILE}}"
 
-  # Resolve a component name to its directory and delegate to its Taskfile.
+  # Resolve a component name to its directory (ocm/components.yaml) and
+  # delegate to its Taskfile.
   _run:
     internal: true
     silent: true
     cmds:
       - |
         comp='{{.COMPONENT}}'; target='{{.TARGET}}'
-        dir=''
-        for p in "$comp" "operators/$comp" "services/$comp"; do
-          if [ -f "$p/Taskfile.yaml" ] || [ -f "$p/Taskfile.yml" ]; then dir="$p"; break; fi
-        done
-        if [ -z "$dir" ]; then
-          echo "unknown component '$comp' (no Taskfile under ./, ./operators/ or ./services/)" >&2
-          exit 1
+        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
+        # The root module's Taskfile is this one; its own targets live in Taskfile.root.yaml.
+        if [ "$dir" = . ]; then
+          task --taskfile Taskfile.root.yaml "$target"
+        else
+          task --dir "$dir" "$target"
         fi
-        task --dir "$dir" "$target"
 
   # Build (and optionally push) a single component image. Mirrors how the release
   # workflows build the operator images (root context + shared go.work), so a
@@ -352,14 +346,7 @@ tasks:
       - |
         set -eu
         comp='{{.COMPONENT}}'
-        dir=''
-        for p in "$comp" "operators/$comp" "services/$comp"; do
-          if [ -d "$p" ]; then dir="$p"; break; fi
-        done
-        if [ -z "$dir" ]; then
-          echo "unknown component '$comp' (not under ./, ./operators/ or ./services/)" >&2
-          exit 1
-        fi
+        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         # apis and other code-only modules ship no Dockerfile — skip, don't fail,
         # so the `images` fan-out can iterate every component.
         if [ ! -f "$dir/Dockerfile" ]; then
@@ -416,11 +403,7 @@ tasks:
           echo "usage: task bump-deps -- <component> <version>   e.g. task bump-deps -- apis v0.0.1" >&2
           exit 1
         fi
-        dir=$(ls -d "$comp" "operators/$comp" "services/$comp" 2>/dev/null | head -1)
-        if [ -z "$dir" ]; then
-          echo "unknown component '$comp' (not under ./, ./operators/ or ./services/)" >&2
-          exit 1
-        fi
+        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         module=$(go mod edit -json "$dir/go.mod" | jq -r '.Module.Path')
         echo ">> bumping consumers of $module to $version"
         # Trailing space pins the require line for exactly this module, not a
@@ -477,11 +460,7 @@ tasks:
     cmds:
       - |
         comp='{{index .MATCH 0}}'
-        dir=$(ls -d "$comp" "operators/$comp" "services/$comp" 2>/dev/null | head -1)
-        if [ -z "$dir" ]; then
-          echo "unknown component '$comp' (not under ./, ./operators/ or ./services/)" >&2
-          exit 1
-        fi
+        dir=$(yq -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         # Forward version-pin replaces from go.work into the module's go.mod so
         # it resolves standalone, e.g. in docker builds.
         replaces=$(GOWORK= go work edit -json | jq -r '.Replace[] | "\(.Old.Path)=\(.New.Path)@\(.New.Version)"')
