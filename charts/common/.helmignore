@@ -1,1 +1,4 @@
 test-chart
+# Build configuration, not part of what a chart ships.
+component-constructor.yaml
+ocm.yaml

@@ -75,4 +75,3 @@ tests/*.png
 ocm/.ocmconfig
 /runtime-artifacts
 docs/deployment/migration-0.3/kcp-exports
-ocm/.generated/

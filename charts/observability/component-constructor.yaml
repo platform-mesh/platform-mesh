@@ -1,0 +1,73 @@
+components:
+  - name: github.com/platform-mesh/helm-charts/observability
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: chart
+        type: helmChart
+        relation: external
+        version: ${PM_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ${CHART_REPO}/observability:${PM_VERSION}
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+  - name: github.com/platform-mesh/images/observability
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: otel-collector-image
+        type: ociImage
+        relation: external
+        version: "${OTEL_COLLECTOR_IMAGE_TAG}"
+        access:
+          type: ociArtifact
+          imageReference: ${OTEL_COLLECTOR_IMAGE_REGISTRY}/${OTEL_COLLECTOR_IMAGE_REPOSITORY}:${OTEL_COLLECTOR_IMAGE_TAG}
+      - name: kubectl-image
+        type: ociImage
+        relation: external
+        version: "${KUBECTL_IMAGE_TAG}"
+        access:
+          type: ociArtifact
+          imageReference: ${KUBECTL_IMAGE_REGISTRY}/${KUBECTL_IMAGE_REPOSITORY}:${KUBECTL_IMAGE_TAG}@${KUBECTL_IMAGE_DIGEST}
+      - name: prometheus-image
+        type: ociImage
+        relation: external
+        version: "${PROMETHEUS_IMAGE_TAG}"
+        access:
+          type: ociArtifact
+          imageReference: ${PROMETHEUS_IMAGE_REPOSITORY}:${PROMETHEUS_IMAGE_TAG}
+      - name: prometheus-config-reloader-image
+        type: ociImage
+        relation: external
+        version: "${CONFIG_RELOADER_IMAGE_TAG}"
+        access:
+          type: ociArtifact
+          imageReference: ${CONFIG_RELOADER_IMAGE_REPOSITORY}:${CONFIG_RELOADER_IMAGE_TAG}
+  - name: github.com/platform-mesh/observability
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+    componentReferences:
+      - name: chart
+        componentName: github.com/platform-mesh/helm-charts/observability
+        version: ${PM_VERSION}
+      - name: image
+        componentName: github.com/platform-mesh/images/observability
+        version: ${PM_VERSION}

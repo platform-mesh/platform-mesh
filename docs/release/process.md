@@ -15,15 +15,17 @@ component is released on its own. The reasoning is in
 | Helm charts and their OCM components | `YY.MM.P` | packaged from the tagged commit (`0.0.0` in git, see below) |
 | The aggregate `github.com/platform-mesh/platform-mesh` | `YY.MM.P` | |
 | Components from other repositories (portal, iam-ui, marketplace-ui, example-httpbin-operator) | their own | `appVersion` in `charts/<name>/Chart.yaml` |
-| Third-party software (kcp, OpenFGA, Traefik, …) | their own | [`ocm/versions.yaml`](../../ocm/versions.yaml) |
+| Third-party software (kcp, OpenFGA, Traefik, …) | their own | `third_party/<name>/component-constructor.yaml` |
 | Go modules other projects import (`apis`, `golang-commons`, `subroutines`) | their own SemVer | git tag `<module>/vX.Y.Z` on demand, nothing is built ([why](#go-modules)) |
 
 ## Versions live in tags, not in files
 
 Every `charts/*/Chart.yaml` says `version: 0.0.0`, and the charts of components
-built here also `appVersion: 0.0.0`. The real version is written in at build
-time by [`hack/release/stage-charts.sh`](../../hack/release/stage-charts.sh)
-(into a copy under `ocm/.generated/charts/`, the working tree stays clean).
+built here also `appVersion: 0.0.0`. The real version is passed at build time:
+[`hack/release/ocm-build-chart`](../../hack/release/ocm-build-chart/main.go)
+runs `helm package --version YY.MM.P` on the chart directory, with
+`--app-version vYY.MM.P` where the chart says `0.0.0` (that is the image tag
+the chart defaults to). Nothing is copied or rewritten.
 Chart dependencies on `common` and the `*-crds` charts are `file://` references
 into this directory, pinned to the same version.
 
@@ -89,20 +91,28 @@ git tag v26.11.1 && git push origin v26.11.1
 from the tag:
 
 1. **images** – every component in [`ocm/components.yaml`](../../ocm/components.yaml)
-   is built for amd64 and arm64, pushed as
+   with an image is built for amd64 and arm64, together with the images under
+   `<component>/images/<name>/`, pushed as
    `ghcr.io/platform-mesh/platform-mesh/<image>:vYY.MM.P` (image tags keep the
    `v`, like before; OCM component versions never had one), cosign-signed, its
-   SBOMs attested, and published as the signed OCM component
-   `github.com/platform-mesh/images/<component>:YY.MM.P`
-   ([`hack/release/build-image-component.sh`](../../hack/release/build-image-component.sh)).
-2. **aggregate** – [`hack/release/build-aggregate.sh`](../../hack/release/build-aggregate.sh)
-   packages the charts at `YY.MM.P`, pushes them to
-   `ghcr.io/platform-mesh/helm-charts/<chart>` (where they always were), builds the OCM graph (chart
-   components, service components, third-party wrappers, aggregate), signs
-   the new component versions and publishes them to `ghcr.io/platform-mesh`.
+   SBOMs attested, and published by
+   [`hack/release/ocm-build-image`](../../hack/release/ocm-build-image/main.go)
+   as the signed OCM component declared in the component's
+   `component-constructor.yaml`, `github.com/platform-mesh/images/<component>:YY.MM.P`.
+2. **aggregate** – one command per directory, each building the directory's
+   `component-constructor.yaml` into `ghcr.io/platform-mesh` and signing what
+   it built:
+   [`ocm-build-third-party`](../../hack/release/ocm-build-third-party/main.go)
+   for every `third_party/<name>/`,
+   [`ocm-build-chart`](../../hack/release/ocm-build-chart/main.go) for every
+   `charts/<chart>/` (packages the chart at `YY.MM.P`, pushes it to
+   `ghcr.io/platform-mesh/helm-charts/<chart>`, then the chart and service
+   components), and
+   [`ocm-build-aggregate`](../../hack/release/ocm-build-aggregate/main.go)
+   for the root constructor (copies etcd-druid from Gardener's registry first).
    Every referenced component must exist: the images from step 1, the
    components from other repositories at their `appVersion`, the third-party
-   wrappers from `ocm/versions.yaml`. The run fails with a list otherwise.
+   wrappers. ocm fails on the first missing reference and names it.
 3. **verify** – resolves the published graph, checks every signature of this
    version, pulls and templates charts.
 4. **trivy** – scans the images and SBOMs.
@@ -136,9 +146,10 @@ Prerelease versions older than two weeks are deleted by
 - **A component from another repository** (portal, …): that repository
   releases its image and OCM component `github.com/platform-mesh/images/<name>`
   as before; then bump `appVersion` in `charts/<name>/Chart.yaml` here.
-- **Third-party software**: change the pin in `ocm/versions.yaml` (Renovate
-  proposes these). Wrapper components are versioned with the PM version
-  and are immutable like everything else.
+- **Third-party software**: change the pin in
+  `third_party/<name>/component-constructor.yaml` (Renovate proposes these).
+  Wrapper components are versioned with the PM version and are immutable like
+  everything else.
 - **A new component**: see [adding a service](../deployment/adding-a-service.md).
 - **A Go module** (`apis`, …): see below.
 
@@ -183,24 +194,28 @@ github.com/platform-mesh/platform-mesh:X.Y.Z
 
 The names of the components and of the references are a contract with the
 platform-mesh-operator and with everyone installing from our registry; do not
-rename them. The graph is generated from
-[`ocm/component-constructor.yaml`](../../ocm/component-constructor.yaml)
-(aggregate and third-party wrappers), `ocm/components.yaml` (which charts
-belong to components built here) and
-[`ocm/charts/<chart>.yaml`](../../ocm/charts/README.md) (per-chart deviations
-from the default shape).
+rename them. The graph is declared in constructors next to what they
+describe: the aggregate in [`component-constructor.yaml`](../../component-constructor.yaml)
+at the repository root, chart and service components in
+`charts/<chart>/component-constructor.yaml` (with `charts/<chart>/ocm.yaml`
+mapping values of `values.yaml` to variables, see
+[`charts/README.md`](../../charts/README.md)), image components in
+`operators/<name>/component-constructor.yaml` and
+`services/<name>/component-constructor.yaml`, third-party wrappers in
+`third_party/<name>/component-constructor.yaml`. ocm expands the `${VAR}`
+placeholders from the environment the commands set.
 
 ## Tooling
 
-The release scripts need `ocm` (the CLI from
-[open-component-model/open-component-model](https://github.com/open-component-model/open-component-model)),
-`helm` and `yq`. Their versions are pinned in `tools/Taskfile.yaml`
-(`task tools:ocm` etc. install them into `bin/`). Scripts source
-`hack/release/tools.sh` and call `require_tools ocm helm`, which installs the
-tools they need and exports their paths as `$OCM`, `$HELM`, ...; the workflows
-do the same via `UGET_PRINT_PATH=absolute task tools:<tool>`. So one pin
-serves developers and CI. Set `RELEASE_TOOLS_FROM_PATH=true` to use whatever
-is on `PATH` instead.
+The release commands are Go programs under `hack/release/` (part of the root
+module, component `root` in `ocm/components.yaml`). They call `ocm` (the CLI
+from [open-component-model/open-component-model](https://github.com/open-component-model/open-component-model))
+and `helm` from `PATH`. Their versions are pinned in `tools/Taskfile.yaml`:
+`task tools:ocm tools:helm` installs them into `bin/`, which the workflows put
+on `PATH`. So one pin serves developers and CI. The remaining shell scripts
+(`hack/charts/*.sh`) source `hack/release/tools.sh` and call
+`require_tools`, which does the same install; set
+`RELEASE_TOOLS_FROM_PATH=true` to use whatever is on `PATH` instead.
 
 ## Verifying a release
 
@@ -221,20 +236,30 @@ cosign verify ghcr.io/platform-mesh/platform-mesh/account-operator:v26.11.0 \
 | repository secret | `OCM_SIGNING_PRIVATE_KEY`, `OCM_SIGNING_CERT` | RSA key and certificate for OCM signatures. The signature name must equal the certificate's CN. |
 | repository secret | `PM_PUBLISHER_PRIVATE_KEY` (planned) | private key of the "PM Publisher" GitHub App, to push to the `helm-charts/*` packages created by the former helm-charts repository. The fork uses `GITHUB_TOKEN`; see `cutover.md`. |
 | repository variable | `OCM_SIGNATURE_NAME` | signature name, default `platform-mesh.platform-mesh` |
-| repository variable | `OCM_MIRROR_FROM` | test setups only: OCM repository to copy components from other repositories from |
 
 Image signing uses keyless cosign (GitHub OIDC); no secret.
 
 ## Building the graph locally
 
 The workflows have no logic of their own; it is all in `hack/release/`, so it
-can be run from a checkout:
+can be run from a checkout. The commands take their configuration from the
+environment (`PM_VERSION` is required; `OCM_REPO` defaults to
+`ghcr.io/platform-mesh`, a `ctf::<path>` value builds into a local archive
+instead; `SIGNATURE` signs; the header comment of each `main.go` lists the
+rest) and one directory argument where one is needed:
 
 ```sh
-hack/release/build-aggregate.sh --version 26.11.0 --generate-only   # stage charts, write ocm/.generated/constructor.yaml
-hack/release/build-aggregate.sh --help
-hack/release/next-version.sh                                       # what the next release would be
+export PATH=$PWD/bin:$PATH PM_VERSION=26.11.0 OCM_REPO=ctf::/tmp/pm.ctf
+go run ./hack/release/ocm-build-third-party third_party/kcp
+SKIP_PUSH=true go run ./hack/release/ocm-build-chart charts/account-operator   # SKIP_PUSH: the chart archive is already published
+go run ./hack/release/ocm-build-aggregate
+ocm get component-version "$OCM_REPO//github.com/platform-mesh/platform-mesh:$PM_VERSION" --recursive
+hack/release/next-version.sh                                                    # what the next release would be
 ```
 
-`--image-version` lets a build reuse the images of an existing release (the
-charts are then packaged from the working tree, the images are not rebuilt).
+A chart's component references the image component at the same version, so a
+local build of a chart needs the image component in `OCM_REPO` first
+(`ocm-build-image <component dir> <sbom dir>`, with
+`<sbom dir>/<image>/sbom-{cyclonedx,spdx}.json`), and the components
+published by other repositories (portal, iam-ui, …) exist only in
+`ghcr.io/platform-mesh`.

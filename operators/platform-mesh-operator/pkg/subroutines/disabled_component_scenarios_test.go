@@ -213,7 +213,6 @@ func Test_ShippedProfile_HasNoDanglingDependencies(t *testing.T) {
 	assert.NotContains(t, graph, helmReleaseKey(ns, "observability"),
 		"the shipped profile keeps observability off so the e2e fits the default runner")
 
-
 	sub, inst = newSubroutineForProfile(t, withObservabilityStack(t, shipped), ns)
 	graph = renderHelmReleaseGraph(t, sub, inst)
 	assertNoDanglingDependencies(t, graph)

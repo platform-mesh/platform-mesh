@@ -29,16 +29,19 @@
 #                ghcr.io/<owner>/platform-mesh/<image>:<version>, built with
 #                `task images-<name>` (repo root as build context, see the
 #                root Taskfile). Omit for libraries.
-#   extraImages  additional images built from a plain Dockerfile context:
-#                - name:    image name (same registry namespace)
-#                  context: build context directory
 #   chart        the component's Helm chart, if any (charts/<name>). Marks the
 #                chart as one whose appVersion is the Platform Mesh version
-#                (hack/release/stage-charts.sh); charts not listed here wrap
-#                components from other repositories or third parties.
+#                charts not listed here wrap components from other repositories
+#                or third parties.
 #   e2e          whether `task test-e2e-<name>` exists (default true)
 
 components:
+  # --- root module -----------------------------------------------------------
+  # Tooling such as the release commands under hack/release.
+  root:
+    path: .
+    e2e: false
+
   # --- libraries -------------------------------------------------------------
   golang-commons:
     path: golang-commons
@@ -92,9 +95,6 @@ components:
     image: terminal-controller-manager
     chart: charts/terminal-controller-manager
     e2e: false # no e2e suite; test-e2e is a no-op
-    extraImages:
-      - name: terminal
-        context: operators/terminal-controller-manager/images/terminal
 
   # --- services --------------------------------------------------------------
   iam-service:

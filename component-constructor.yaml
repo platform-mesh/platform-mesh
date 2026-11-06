@@ -1,0 +1,110 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+components:
+  - name: github.com/platform-mesh/platform-mesh
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    sources:
+      - name: source
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+    componentReferences:
+      - name: account-operator
+        componentName: github.com/platform-mesh/account-operator
+        version: ${PM_VERSION}
+      - name: etcd-druid
+        componentName: github.com/gardener/etcd-druid
+        # renovate: datasource=docker depName=europe-docker.pkg.dev/gardener-project/releases/component-descriptors/github.com/gardener/etcd-druid
+        version: v0.39.2
+      - name: extension-manager-operator
+        componentName: github.com/platform-mesh/extension-manager-operator
+        version: ${PM_VERSION}
+      - name: example-httpbin-operator
+        componentName: github.com/platform-mesh/example-httpbin-operator
+        version: ${PM_VERSION}
+      - name: kro-composition-operator
+        componentName: github.com/platform-mesh/kro-composition-operator
+        version: ${PM_VERSION}
+      - name: infra
+        componentName: github.com/platform-mesh/infra
+        version: ${PM_VERSION}
+      - name: keycloak-operator
+        componentName: github.com/platform-mesh/keycloak-operator
+        version: ${PM_VERSION}
+      - name: kcp-operator
+        componentName: github.com/kcp-dev/kcp-operator
+        version: ${PM_VERSION}
+      - name: kcp
+        componentName: github.com/kcp-dev/kcp
+        version: ${PM_VERSION}
+      - name: kubernetes-graphql-gateway
+        componentName: github.com/platform-mesh/kubernetes-graphql-gateway
+        version: ${PM_VERSION}
+      - name: rebac-authz-webhook
+        componentName: github.com/platform-mesh/rebac-authz-webhook
+        version: ${PM_VERSION}
+      - name: security-operator
+        componentName: github.com/platform-mesh/security-operator
+        version: ${PM_VERSION}
+      - name: openfga
+        componentName: github.com/openfga/openfga
+        version: ${PM_VERSION}
+      - name: platform-mesh-operator
+        componentName: github.com/platform-mesh/platform-mesh-operator
+        version: ${PM_VERSION}
+      - name: portal
+        componentName: github.com/platform-mesh/portal
+        version: ${PM_VERSION}
+      - name: virtual-workspaces
+        componentName: github.com/platform-mesh/virtual-workspaces
+        version: ${PM_VERSION}
+      - name: iam-service
+        componentName: github.com/platform-mesh/iam-service
+        version: ${PM_VERSION}
+      - name: iam-ui
+        componentName: github.com/platform-mesh/iam-ui
+        version: ${PM_VERSION}
+      - name: marketplace-ui
+        componentName: github.com/platform-mesh/marketplace-ui
+        version: ${PM_VERSION}
+      - name: traefik
+        componentName: github.com/traefik/traefik
+        version: ${PM_VERSION}
+      - name: terminal-controller-manager
+        componentName: github.com/platform-mesh/terminal-controller-manager
+        version: ${PM_VERSION}
+      - name: cert-manager
+        componentName: github.com/cert-manager/cert-manager
+        version: ${PM_VERSION}
+      - name: observability
+        componentName: github.com/platform-mesh/observability
+        version: ${PM_VERSION}
+      - name: cnpg-operator
+        componentName: github.com/cloudnative-pg/cloudnative-pg
+        version: ${PM_VERSION}
+      - name: prometheus-operator-crds
+        componentName: github.com/prometheus-community/prometheus-operator-crds
+        version: ${PM_VERSION}
+      - name: kube-prometheus-stack
+        componentName: github.com/prometheus-community/kube-prometheus-stack
+        version: ${PM_VERSION}
+      - name: opentelemetry-operator
+        componentName: github.com/open-telemetry/opentelemetry-operator
+        version: ${PM_VERSION}

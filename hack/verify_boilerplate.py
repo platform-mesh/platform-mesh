@@ -153,8 +153,8 @@ def has_ignored_header(pathname):
 
 def is_skipped(pathname):
     """--skip entries match anywhere in the path; entries starting with '/'
-    match only from the root directory ('/charts/' skips charts/ but not
-    ocm/charts/)."""
+    match only from the root directory ('/hack/' skips hack/ but not
+    operators/account-operator/hack/)."""
     relpath = os.path.relpath(pathname, ARGS.rootdir)
     for x in ARGS.skip:
         if x.startswith('/'):

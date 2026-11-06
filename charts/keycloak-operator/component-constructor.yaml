@@ -1,0 +1,59 @@
+components:
+  - name: github.com/platform-mesh/helm-charts/keycloak-operator
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: chart
+        type: helmChart
+        relation: external
+        version: ${PM_VERSION}
+        access:
+          type: ociArtifact
+          imageReference: ${CHART_REPO}/keycloak-operator:${PM_VERSION}
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+  - name: github.com/platform-mesh/images/keycloak-operator
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: keycloak-image
+        type: ociImage
+        relation: external
+        version: "${KEYCLOAK_IMAGE_TAG}"
+        access:
+          type: ociArtifact
+          imageReference: ${KEYCLOAK_IMAGE_REGISTRY}/${KEYCLOAK_IMAGE_REPOSITORY}:${KEYCLOAK_IMAGE_TAG}
+      - name: keycloak-operator-image
+        type: ociImage
+        relation: external
+        version: "${KEYCLOAK_OPERATOR_IMAGE_TAG}"
+        access:
+          type: ociArtifact
+          imageReference: ${KEYCLOAK_OPERATOR_IMAGE_REGISTRY}/${KEYCLOAK_OPERATOR_IMAGE_REPOSITORY}:${KEYCLOAK_OPERATOR_IMAGE_TAG}
+  - name: github.com/platform-mesh/keycloak-operator
+    version: ${PM_VERSION}
+    provider:
+      name: The Platform Mesh Team
+    sources:
+      - name: chart
+        type: git
+        version: ${PM_VERSION}
+        access:
+          type: gitHub
+          repoUrl: ${REPO_URL}
+          commit: ${COMMIT}
+    componentReferences:
+      - name: chart
+        componentName: github.com/platform-mesh/helm-charts/keycloak-operator
+        version: ${PM_VERSION}
+      - name: image
+        componentName: github.com/platform-mesh/images/keycloak-operator
+        version: ${PM_VERSION}

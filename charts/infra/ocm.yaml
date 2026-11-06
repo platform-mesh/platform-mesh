@@ -1,0 +1,31 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+envsubst:
+  KEYCLOAK_IMAGE_REGISTRY: keycloak.operator.image.registry
+  KEYCLOAK_IMAGE_REPOSITORY: keycloak.operator.image.repository
+  KEYCLOAK_IMAGE_TAG: keycloak.operator.image.tag
+  BUSYBOX_IMAGE_REGISTRY: keycloak.operator.waitForDb.image.registry
+  BUSYBOX_IMAGE_REPOSITORY: keycloak.operator.waitForDb.image.repository
+  BUSYBOX_IMAGE_TAG: keycloak.operator.waitForDb.image.tag
+  POSTGRES_IMAGE_REGISTRY: cnpg.cluster.image.registry
+  POSTGRES_IMAGE_REPOSITORY: cnpg.cluster.image.repository
+  POSTGRES_IMAGE_TAG: cnpg.cluster.image.tag
+  DEX_IMAGE_REGISTRY: dex.image.registry
+  DEX_IMAGE_REPOSITORY: dex.image.repository
+  DEX_IMAGE_TAG: dex.image.tag
+  DEX_IMAGE_DIGEST: dex.image.digest
+  ETCD_WRAPPER_IMAGE_REPOSITORY: kcp.etcd.image.repository
+  ETCD_WRAPPER_IMAGE_TAG: kcp.etcd.image.tag
+  ETCDBRCTL_IMAGE_REPOSITORY: kcp.etcd.backup.image.repository
+  ETCDBRCTL_IMAGE_TAG: kcp.etcd.backup.image.tag
