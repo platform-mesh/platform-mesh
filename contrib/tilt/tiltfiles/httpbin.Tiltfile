@@ -25,7 +25,7 @@ k8s_resource(new_name="httpbin-namespace", objects=[HTTPBIN_NAMESPACE + ":namesp
 
 api_syncagent = remote_chart(
     "api-syncagent",
-    "oci://ghcr.io/platform-mesh/ocm/charts",
+    "https://kcp-dev.github.io/helm-charts",
     third_party_version("api-syncagent", "chart"),
     HTTPBIN_NAMESPACE,
     values=[

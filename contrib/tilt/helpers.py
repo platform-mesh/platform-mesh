@@ -234,14 +234,19 @@ def profile_chart(name, namespace, tvars, overrides={}):
 def remote_chart(name, repo, version, namespace, values=[], set=[]):
     """Render a third-party chart pulled once into .cache/charts; returns a blob.
 
-    repo:    oci:// repository holding the chart
+    repo:    oci:// repository or https:// chart repository holding the chart,
+             the same source the chart's third_party constructor names
     version: exact chart version
     """
     cache = os.path.join(TILT_DIR, '.cache/charts/{}-{}'.format(name, version))
     path = '{}/{}'.format(cache, name)
     if not os.path.exists(path + '/Chart.yaml'):
-        local('rm -rf {c} && mkdir -p {c} && helm pull {r}/{n} --version {v} --untar --untardir {c}'.format(
-            c=cache, r=repo, n=name, v=version), quiet=True)
+        if repo.startswith('oci://'):
+            ref = '{}/{}'.format(repo, name)
+        else:
+            ref = '{} --repo {}'.format(name, repo)
+        local('rm -rf {c} && mkdir -p {c} && helm pull {ref} --version {v} --untar --untardir {c}'.format(
+            c=cache, ref=ref, v=version), quiet=True)
     return _release(helm(path, name=name, namespace=namespace, values=values, set=set), namespace)
 
 
