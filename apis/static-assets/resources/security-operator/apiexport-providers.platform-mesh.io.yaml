@@ -17,10 +17,62 @@ kind: APIExport
 metadata:
   name: providers.platform-mesh.io
 spec:
+  permissionClaims:
+    # Copied from apis/static-assets/kcp/01-platform-mesh-system/apiexport-providers.platform-mesh.io.yaml by hack/sync-export-claims.sh (task generate). Do not edit here.
+    - group: ""
+      resource: namespaces
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - group: ""
+      resource: serviceaccounts
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - group: ""
+      resource: secrets
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - group: rbac.authorization.k8s.io
+      resource: roles
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - group: rbac.authorization.k8s.io
+      resource: rolebindings
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
   resources:
-  - group: providers.platform-mesh.io
-    name: providerpermissions
-    schema: v261029-3c474365.providerpermissions.providers.platform-mesh.io
-    storage:
-      crd: {}
+    - group: providers.platform-mesh.io
+      name: providerpermissions
+      schema: v261029-3c474365.providerpermissions.providers.platform-mesh.io
+      storage:
+        crd: {}
 status: {}

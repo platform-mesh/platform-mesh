@@ -17,45 +17,91 @@ kind: APIExport
 metadata:
   name: core.platform-mesh.io
 spec:
+  permissionClaims:
+    # Copied from apis/static-assets/kcp/01-platform-mesh-system/apiexport-core.platform-mesh.io.yaml by hack/sync-export-claims.sh (task generate). Do not edit here.
+    - group: tenancy.kcp.io
+      identityHash: '{{ .apiExportRootTenancyKcpIoIdentityHash }}'
+      resource: workspaces
+      verbs:
+        - '*'
+    - group: tenancy.kcp.io
+      identityHash: '{{ .apiExportRootTenancyKcpIoIdentityHash }}'
+      resource: workspacetypes
+      verbs:
+        - '*'
+    - resource: apibindings
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+        - '*'
+    - resource: apiexports
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+        - '*'
+    - resource: apiresourceschemas
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+        - '*'
+    - resource: logicalclusters
+      group: core.kcp.io
+      identityHash: ""
+      verbs:
+        - '*'
+    - resource: secrets
+      group: ""
+      identityHash: ""
+      verbs:
+        - get
+        - create
+        - update
+        - delete
+      defaultSelector:
+        matchExpressions:
+          - key: core.platform-mesh.io/idp-name
+            operator: Exists
+          - key: core.platform-mesh.io/client-name
+            operator: Exists
   resources:
-  - group: core.platform-mesh.io
-    name: accountinfos
-    schema: v260622-69fb9437.accountinfos.core.platform-mesh.io
-    storage:
-      crd: {}
-  - group: core.platform-mesh.io
-    name: accounts
-    schema: v260622-69fb9437.accounts.core.platform-mesh.io
-    storage:
-      crd: {}
-  - group: core.platform-mesh.io
-    name: apiexportpolicies
-    schema: v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
-    storage:
-      crd: {}
-  - group: core.platform-mesh.io
-    name: authorizationmodels
-    schema: v260112-5925c7e.authorizationmodels.core.platform-mesh.io
-    storage:
-      crd: {}
-  - group: core.platform-mesh.io
-    name: identityproviderconfigurations
-    schema: v260217-2c67392.identityproviderconfigurations.core.platform-mesh.io
-    storage:
-      crd: {}
-  - group: core.platform-mesh.io
-    name: invites
-    schema: v260213-fbdf981.invites.core.platform-mesh.io
-    storage:
-      crd: {}
-  - group: core.platform-mesh.io
-    name: platformmeshes
-    schema: v261102-f1aff4b1.platformmeshes.core.platform-mesh.io
-    storage:
-      crd: {}
-  - group: core.platform-mesh.io
-    name: stores
-    schema: v250718-a64f278.stores.core.platform-mesh.io
-    storage:
-      crd: {}
+    - group: core.platform-mesh.io
+      name: accountinfos
+      schema: v260622-69fb9437.accountinfos.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: accounts
+      schema: v260622-69fb9437.accounts.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: apiexportpolicies
+      schema: v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: authorizationmodels
+      schema: v260112-5925c7e.authorizationmodels.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: identityproviderconfigurations
+      schema: v260217-2c67392.identityproviderconfigurations.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: invites
+      schema: v260213-fbdf981.invites.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: platformmeshes
+      schema: v261102-f1aff4b1.platformmeshes.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: stores
+      schema: v250718-a64f278.stores.core.platform-mesh.io
+      storage:
+        crd: {}
 status: {}
