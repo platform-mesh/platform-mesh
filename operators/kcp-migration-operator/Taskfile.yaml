@@ -78,24 +78,11 @@ tasks:
   test:
     cmds:
       - go test ./...
-  test-e2e:
-    deps: [tools:envtest]
-    cmds:
-      - |
-        set -ex
-        export KUBEBUILDER_ASSETS=$({{.ENVTEST}} use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
-        go test -tags integration ./... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
     cmds:
       - task: test
         vars:
           ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
-  cover-e2e:
-    cmds:
-      - task: test-e2e
-        vars:
-          ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
-
   ## Run
   run:
     desc: Run the operator locally
@@ -127,3 +114,8 @@ tasks:
         echo "Restarting all kcp-migration-operator deployments..."
         kubectl get deployments -n {{.DEPLOYMENT_NAMESPACE}} -o name | grep kcp-migration-operator | xargs -I {} kubectl rollout restart {} -n {{.DEPLOYMENT_NAMESPACE}}
       - echo "Image loaded and deployments restarted"
+
+  test-e2e:
+    desc: Ported to tests/integration/kcpmigration (task test-integration PKG=./integration/kcpmigration/...).
+    cmds:
+      - 'echo "kcp-migration-operator: integration tests live in tests/integration/kcpmigration"'

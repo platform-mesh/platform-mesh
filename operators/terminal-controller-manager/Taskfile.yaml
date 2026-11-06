@@ -34,13 +34,16 @@ tasks:
           OUTPUT: '{{.CRD_DIRECTORY}}'
 
   generate:
-    deps: [tools:apigen]
+    deps: [tools:apigen, tools:yq]
     cmds:
       - task: manifests
       - task: tools:generate-deepcopy
         vars:
           PATH: /terminal/...
       - "{{.APIGEN}} --input-dir config/crd/bases --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/terminal-controller-manager --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      # The deployed export's permission claims and identity, copied so the
+      # generated export matches what the platform-mesh-operator installs.
+      - YQ={{.YQ}} {{.HACK}}/sync-export-claims.sh {{.TOPLEVEL}}/apis/static-assets/resources/terminal-controller-manager/apiexport-terminal.platform-mesh.io.yaml {{.TOPLEVEL}}/apis/static-assets/features/feature-enable-terminal-controller-manager/01-platform-mesh-system/apiexport-terminal.platform-mesh.io.yaml
 
   build:
     cmds:

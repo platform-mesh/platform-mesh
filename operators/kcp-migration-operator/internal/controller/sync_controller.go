@@ -24,9 +24,9 @@ import (
 	"github.com/rs/zerolog"
 
 	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/kcp-migration-operator/internal/config"
 	"go.platform-mesh.io/kcp-migration-operator/internal/kcp"
 	"go.platform-mesh.io/kcp-migration-operator/internal/transform"
+	"go.platform-mesh.io/kcp-migration-operator/pkg/config"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

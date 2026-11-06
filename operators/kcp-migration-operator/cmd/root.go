@@ -19,14 +19,13 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	pmmigrationv1alpha1 "go.platform-mesh.io/apis/migration/v1alpha1"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/kcp-migration-operator/internal/config"
+	"go.platform-mesh.io/kcp-migration-operator/pkg/app"
+	"go.platform-mesh.io/kcp-migration-operator/pkg/config"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -43,8 +42,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(pmmigrationv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(app.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 
 	rootCmd.AddCommand(operatorCmd)

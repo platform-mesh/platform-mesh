@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.platform-mesh.io/kcp-migration-operator/internal/config"
+	"go.platform-mesh.io/kcp-migration-operator/pkg/config"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
