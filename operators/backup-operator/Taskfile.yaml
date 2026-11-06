@@ -55,7 +55,6 @@ tasks:
       - task: fmt
       - task: tools:lint
   test:
-    deps: [tools:kcp]
     cmds:
       - go test ./...
   test-e2e:

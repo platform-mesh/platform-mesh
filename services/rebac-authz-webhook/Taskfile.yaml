@@ -55,8 +55,9 @@ tasks:
     cmds:
       - go test -count=1 ./... {{.ADDITIONAL_COMMAND_ARGS}}
   test-e2e:
+    desc: No e2e tests for rebac-authz-webhook.
     cmds:
-      - task: test
+      - 'echo "rebac-authz-webhook: no e2e tests"'
   cover:
     cmds:
       - task: test

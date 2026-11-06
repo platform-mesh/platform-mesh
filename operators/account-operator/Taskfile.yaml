@@ -23,7 +23,6 @@ includes:
 
 vars:
   CRD_DIRECTORY: config/crd
-  TEST_SETUP_DIRECTORY: test/setup/01-platform-mesh-system
 
 tasks:
   ## Development
@@ -41,7 +40,6 @@ tasks:
         vars:
           PATH: /core/...
       - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
-      - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{ .TEST_SETUP_DIRECTORY }} --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
   generate:mocks:
     desc: Generate mocks using mockery
     deps: [tools:mockery]

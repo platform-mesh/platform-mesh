@@ -91,6 +91,7 @@ components:
     path: operators/terminal-controller-manager
     image: terminal-controller-manager
     chart: charts/terminal-controller-manager
+    e2e: false # no e2e suite; test-e2e is a no-op
     extraImages:
       - name: terminal
         context: operators/terminal-controller-manager/images/terminal
@@ -100,15 +101,19 @@ components:
     path: services/iam-service
     image: iam-service
     chart: charts/iam-service
+    e2e: false # no e2e suite; test-e2e is a no-op
   kubernetes-graphql-gateway:
     path: services/kubernetes-graphql-gateway
     image: kubernetes-graphql-gateway
     chart: charts/kubernetes-graphql-gateway
+    e2e: false # the envtest-backed tests run under test; test-e2e is a no-op
   rebac-authz-webhook:
     path: services/rebac-authz-webhook
     image: rebac-authz-webhook
     chart: charts/rebac-authz-webhook
+    e2e: false # no e2e suite; test-e2e is a no-op
   virtual-workspaces:
     path: services/virtual-workspaces
     image: virtual-workspaces
     chart: charts/virtual-workspaces
+    e2e: false # no e2e suite; test-e2e is a no-op

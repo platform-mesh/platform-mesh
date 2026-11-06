@@ -87,9 +87,10 @@ tasks:
       - task: envtest
         vars:
           ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
-  test-e2e: # alias to appease the global taskfile
+  test-e2e:
+    desc: No separate e2e suite; the envtest-backed tests run under test.
     cmds:
-      - task: test
+      - 'echo "kubernetes-graphql-gateway: no e2e tests (envtest-backed tests run under test)"'
   cover:
     deps: [tools:go-test-coverage]
     cmds:
