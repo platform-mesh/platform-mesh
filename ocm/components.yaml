@@ -31,8 +31,8 @@
 #                root Taskfile). Omit for libraries.
 #   chart        the component's Helm chart, if any (charts/<name>). Marks the
 #                chart as one whose appVersion is the Platform Mesh version
-#                (hack/release/stage-charts.sh); charts not listed here wrap
-#                components from other repositories or third parties.
+#                charts not listed here wrap components from other repositories
+#                or third parties.
 #   e2e          whether `task test-e2e-<name>` exists (default true)
 
 components:
