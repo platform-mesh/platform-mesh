@@ -123,7 +123,11 @@ func copyEtcdDruid(ctx context.Context, repo releaseutils.OCMRepository) error {
 
 	// when copying from registry to registry ocm overwrites silently,
 	// so check first if etcd-druid is already present.
-	if repo.Exists(ctx, cv) {
+	exists, err := repo.Exists(ctx, cv)
+	if err != nil {
+		return err
+	}
+	if exists {
 		log.Printf("%s already present", cv)
 		return nil
 	}

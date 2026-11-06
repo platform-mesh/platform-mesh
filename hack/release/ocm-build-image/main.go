@@ -113,7 +113,11 @@ func run(ctx context.Context) error {
 		return err
 	}
 	for _, cv := range cvs {
-		if target.Exists(ctx, cv) {
+		exists, err := target.Exists(ctx, cv)
+		if err != nil {
+			return err
+		}
+		if exists {
 			return fmt.Errorf("%s already exists in %s; published versions are immutable", cv, ocmRepo)
 		}
 	}

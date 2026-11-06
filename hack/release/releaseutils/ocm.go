@@ -17,20 +17,15 @@ limitations under the License.
 package releaseutils
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"time"
-)
-
-const (
-	transferAttempts = 3
-	// GHCR occasionally answers "not found" right after an upload to a
-	// freshly created package; the second attempt succeeds.
-	transferRetryDelay = 10 * time.Second
+	"strings"
 )
 
 // OCMRepository is the OCM repository the constructors are built into.
@@ -88,17 +83,35 @@ func (repo OCMRepository) Add(ctx context.Context, constructor, workingDir strin
 // transferring a signed CV from a CTF to a remote registry to prevent
 // check before accidentally overriding an existing tag in the remote
 // registry.
+// Any failure other than "not found" is returned, so a flaky registry
+// cannot read as "absent".
 // TODO(ntnn): Would be nice to have a flag in ocm for this.
-func (repo OCMRepository) Exists(ctx context.Context, cv string) bool {
+func (repo OCMRepository) Exists(ctx context.Context, cv string) (bool, error) {
+	// An archive that is not there yet holds nothing; ocm reports that as
+	// an unreadable repository, not as a missing version.
+	if path, ok := strings.CutPrefix(repo.Repo, CTFPrefix); ok {
+		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+	}
 	get := exec.CommandContext(ctx, "ocm", "get", "component-version", repo.Repo+"//"+cv, "-o", "json")
-	return get.Run() == nil
+	var stderr bytes.Buffer
+	get.Stderr = &stderr
+	err := get.Run()
+	if err == nil {
+		return true, nil
+	}
+	if strings.Contains(stderr.String(), "component version not found") {
+		return false, nil
+	}
+	return false, fmt.Errorf("checking for %s in %s: %w\n%s", cv, repo.Repo, err, stderr.String())
 }
 
 // Transfer copies a component version from the repository to target.
 // flags are passed to ocm transfer as given, e.g. --recursive.
 func (repo OCMRepository) Transfer(ctx context.Context, cv, target string, flags ...string) error {
 	args := append([]string{"transfer", "component-version", repo.Repo + "//" + cv, target}, flags...)
-	err := Retry(ctx, transferAttempts, transferRetryDelay, func() error {
+	err := RetryRegistry(ctx, func() error {
 		cmd := exec.CommandContext(ctx, "ocm", args...)
 		cmd.Stderr = os.Stderr
 		return cmd.Run()

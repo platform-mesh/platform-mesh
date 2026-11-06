@@ -53,8 +53,11 @@ func (archive helmArchive) publish(ctx context.Context) error {
 	name := filepath.Base(archive.Dir)
 	ref := fmt.Sprintf("oci://%s/%s", archive.Repo, name)
 
-	show := exec.CommandContext(ctx, "helm", "show", "chart", ref, "--version", archive.Version)
-	if err := show.Run(); err == nil {
+	published, err := archive.published(ctx, ref)
+	if err != nil {
+		return err
+	}
+	if published {
 		log.Printf("chart %s:%s already published", name, archive.Version)
 		return nil
 	}
@@ -89,6 +92,23 @@ func (archive helmArchive) publish(ctx context.Context) error {
 		return fmt.Errorf("pushing %s to %s: %w", filepath.Base(tgz), archive.Repo, err)
 	}
 	return nil
+}
+
+// published reports whether CHART_REPO already holds the archive.
+// helm has one exit code for every failure, so only a "not found" on stderr
+// reads as absent; anything else is returned, as GHCR accepts re-pushes.
+func (archive helmArchive) published(ctx context.Context, ref string) (bool, error) {
+	show := exec.CommandContext(ctx, "helm", "show", "chart", ref, "--version", archive.Version)
+	var stderr bytes.Buffer
+	show.Stderr = &stderr
+	err := show.Run()
+	if err == nil {
+		return true, nil
+	}
+	if strings.Contains(stderr.String(), "not found") {
+		return false, nil
+	}
+	return false, fmt.Errorf("checking for %s:%s: %w\n%s", ref, archive.Version, err, stderr.String())
 }
 
 func (archive helmArchive) resolveDependencies(ctx context.Context) error {
