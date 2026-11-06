@@ -15,10 +15,6 @@ envsubst:
   OTEL_COLLECTOR_IMAGE_REGISTRY: otelCollector.image.registry
   OTEL_COLLECTOR_IMAGE_REPOSITORY: otelCollector.image.repository
   OTEL_COLLECTOR_IMAGE_TAG: otelCollector.image.tag
-  KUBECTL_IMAGE_REGISTRY: serviceMonitors.kcp.certExtractor.image.registry
-  KUBECTL_IMAGE_REPOSITORY: serviceMonitors.kcp.certExtractor.image.repository
-  KUBECTL_IMAGE_TAG: serviceMonitors.kcp.certExtractor.image.tag
-  KUBECTL_IMAGE_DIGEST: serviceMonitors.kcp.certExtractor.image.digest
   PROMETHEUS_IMAGE_REPOSITORY: prometheus.server.image.repository
   PROMETHEUS_IMAGE_TAG: prometheus.server.image.tag
   CONFIG_RELOADER_IMAGE_REPOSITORY: prometheus.configmapReload.prometheus.image.repository

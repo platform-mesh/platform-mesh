@@ -1,7 +1,7 @@
 suite: image localization
 templates:
   - templates/otel-collector.yaml
-  - templates/kcp-metrics-cert-job.yaml
+  - templates/servicemonitors/kcp.yaml
 release:
   name: observability
   namespace: observability
@@ -23,13 +23,21 @@ tests:
       - equal:
           path: spec.image
           value: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:9.9.9-test@sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-  - it: renders the cert-extractor image digest-pinned
-    template: templates/kcp-metrics-cert-job.yaml
-    documentIndex: 5
+  - it: scrapes kcp with the kcp-operator client certificate
+    template: templates/servicemonitors/kcp.yaml
     asserts:
       - equal:
-          path: kind
-          value: Job
-      - matchRegex:
-          path: spec.template.spec.containers[0].image
-          pattern: ^docker\.io/bitnami/kubectl@sha256:[a-f0-9]{64}$
+          path: metadata.namespace
+          value: platform-mesh-system
+      - equal:
+          path: spec.endpoints[0].tlsConfig.cert.secret.name
+          value: kubeconfig-cert-metrics-viewer
+      - equal:
+          path: spec.endpoints[0].tlsConfig.cert.secret.key
+          value: tls.crt
+      - equal:
+          path: spec.endpoints[0].tlsConfig.keySecret.name
+          value: kubeconfig-cert-metrics-viewer
+      - equal:
+          path: spec.endpoints[0].tlsConfig.keySecret.key
+          value: tls.key

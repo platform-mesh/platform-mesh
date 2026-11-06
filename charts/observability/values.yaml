@@ -128,20 +128,6 @@ serviceMonitors:
     # Pod in the target Service using its IP, which is never part of the
     # certificate's SANs.
     tlsInsecureSkipVerify: true
-    # -- Name of the TLS secret containing client cert/key for authentication
-    # This secret is created by the kcp-metrics-cert-job from the kubeconfig
-    tlsSecretName: kcp-metrics-client-cert
-    # -- cert-extractor Job image (kubectl); localizable for air-gap
-    certExtractor:
-      image:
-        # -- cert-extractor job image registry
-        registry: docker.io
-        # -- cert-extractor job image repository (without registry)
-        repository: bitnami/kubectl
-        # -- cert-extractor job image tag
-        tag: "1.37.2"
-        # -- cert-extractor job image digest (the image is pulled by digest)
-        digest: "sha256:bedd34c910e2a5ce9836813d16444af449d7fe07a29136d59f34e861e8e660c5"
     # -- Kubeconfig configuration for kcp authentication
     # The kcp-operator creates a kubeconfig with client certificates
     kubeconfig:

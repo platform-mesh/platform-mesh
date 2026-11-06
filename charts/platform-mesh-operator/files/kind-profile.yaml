@@ -700,14 +700,6 @@ data:
               artifact: image
               for: observability
               path: otelCollector.image.tag
-          - name: kubectl-image
-            resource: kubectl-image
-            resourceName: kubectl-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: serviceMonitors.kcp.certExtractor.image.tag
           - name: prometheus-server-image
             resource: prometheus-server-image
             annotations:

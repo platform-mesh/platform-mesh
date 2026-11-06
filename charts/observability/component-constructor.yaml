@@ -31,13 +31,6 @@ components:
         access:
           type: ociArtifact
           imageReference: ${OTEL_COLLECTOR_IMAGE_REGISTRY}/${OTEL_COLLECTOR_IMAGE_REPOSITORY}:${OTEL_COLLECTOR_IMAGE_TAG}
-      - name: kubectl-image
-        type: ociImage
-        relation: external
-        version: "${KUBECTL_IMAGE_TAG}"
-        access:
-          type: ociArtifact
-          imageReference: ${KUBECTL_IMAGE_REGISTRY}/${KUBECTL_IMAGE_REPOSITORY}:${KUBECTL_IMAGE_TAG}@${KUBECTL_IMAGE_DIGEST}
       - name: prometheus-image
         type: ociImage
         relation: external

@@ -3,6 +3,9 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: kcp
+  # prometheus-operator resolves tlsConfig secrets in the ServiceMonitor's own
+  # namespace, so the monitor sits where the client certificate is issued.
+  namespace: {{ .Values.serviceMonitors.kcp.namespace }}
   labels:
     {{- include "observability.labels" . | nindent 4 }}
 spec:
@@ -20,13 +23,13 @@ spec:
       {{- end }}
       tlsConfig:
         insecureSkipVerify: {{ .Values.serviceMonitors.kcp.tlsInsecureSkipVerify | default false }}
-        {{- if .Values.serviceMonitors.kcp.tlsSecretName }}
+        # kcp-operator issues the client certificate of a Kubeconfig into a
+        # secret named "kubeconfig-cert-<Kubeconfig name>".
         cert:
           secret:
-            name: {{ .Values.serviceMonitors.kcp.tlsSecretName }}
+            name: kubeconfig-cert-{{ .Values.serviceMonitors.kcp.kubeconfig.name }}
             key: tls.crt
         keySecret:
-          name: {{ .Values.serviceMonitors.kcp.tlsSecretName }}
+          name: kubeconfig-cert-{{ .Values.serviceMonitors.kcp.kubeconfig.name }}
           key: tls.key
-        {{- end }}
 {{- end }}
