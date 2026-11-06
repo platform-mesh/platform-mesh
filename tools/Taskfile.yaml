@@ -40,19 +40,29 @@ vars:
   # command that uses the tool, but with UGET_UPDATE=true set, for example for
   # bumping golangci-lint, run `UGET_UPDATE=true task lint`.
 
-  CONTROLLER_GEN_VERSION: v0.21.0
+  # the codegen tools follow the kcp kube train
+  CONTROLLER_GEN_VERSION:
+    sh: "go list -m sigs.k8s.io/controller-tools | cut -d' ' -f2"
   CONTROLLER_GEN: '{{.BIN}}/controller-gen-{{.CONTROLLER_GEN_VERSION}}'
 
+  # renovate: datasource=github-releases depName=docker/compose
   DOCKER_COMPOSE_VERSION: v5.4.0
   DOCKER_COMPOSE: '{{.BIN}}/docker-compose-{{.DOCKER_COMPOSE_VERSION}}'
 
-  ENVTEST_K8S_VERSION: "1.36.0"
-  ENVTEST_VERSION: v0.24.1
+  # envtest assets are published and updated without that patch level
+  ENVTEST_K8S_VERSION:
+    sh: "go list -m k8s.io/apimachinery | cut -d' ' -f2 | sed 's|^v0|1|; s|\\.[0-9]*$||'"
+  # setup-envtest version follows controller-runtime
+  # TODO(ntnn): Does envtest need to follow ctrl-runtime? Do we even need envtest when we have kcp?
+  ENVTEST_VERSION:
+    sh: "go list -m sigs.k8s.io/controller-runtime | cut -d' ' -f2"
   ENVTEST: '{{.BIN}}/setup-envtest-{{.ENVTEST_VERSION}}'
 
+  # renovate: datasource=github-releases depName=golangci/golangci-lint
   GOLANGCI_LINT_VERSION: 2.15.0
   GOLANGCI_LINT: '{{.BIN}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}'
 
+  # renovate: datasource=github-releases depName=vladopajic/go-test-coverage
   GO_TEST_COVERAGE_VERSION: v2.18.9
   GO_TEST_COVERAGE: '{{.BIN}}/go-test-coverage-{{.GO_TEST_COVERAGE_VERSION}}'
 
@@ -61,6 +71,7 @@ vars:
   KCP_FRONT_PROXY: '{{.BIN}}/kcp-front-proxy-{{.KCP_VERSION}}'
   SHARDED_TEST_SERVER: '{{.BIN}}/sharded-test-server-{{.KCP_VERSION}}'
 
+  # renovate: datasource=github-releases depName=kubernetes-sigs/kind
   KIND_VERSION: v0.33.0
   KIND: '{{.BIN}}/kind-{{.KIND_VERSION}}'
 
@@ -68,15 +79,19 @@ vars:
   TILT_VERSION: 0.37.8
   TILT: '{{.BIN}}/tilt-{{.TILT_VERSION}}'
 
+  # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
   KUSTOMIZE_VERSION: v5.4.3
   KUSTOMIZE: '{{.BIN}}/kustomize-{{.KUSTOMIZE_VERSION}}'
 
+  # renovate: datasource=github-releases depName=FiloSottile/mkcert
   MKCERT_VERSION: v1.4.4
   MKCERT: '{{.BIN}}/mkcert-{{.MKCERT_VERSION}}'
 
+  # renovate: datasource=github-releases depName=vektra/mockery
   MOCKERY_VERSION: 3.9.0
   MOCKERY: '{{.BIN}}/mockery-{{.MOCKERY_VERSION}}'
 
+  # renovate: datasource=go depName=github.com/oapi-codegen/oapi-codegen/v2
   OAPI_CODEGEN_VERSION: v2.7.1
   OAPI_CODEGEN: '{{.BIN}}/oapi-codegen-{{.OAPI_CODEGEN_VERSION}}'
 
@@ -100,9 +115,12 @@ vars:
   # content instead of the HEAD commit. Call it exactly like apigen.
   APIGEN: 'APIGEN_BIN={{.APIGEN_BIN}} YQ={{.YQ}} {{.HACK}}/apigen.sh'
 
-  OPENAPI_GEN_VERSION: d427ff9ee9ad05f5da435abbb7c5929cb713ac56 # most recent commit as of writing this
+  # openapi-gen comes from kube-openapi, which is independent from kube but determined by kcp
+  OPENAPI_GEN_VERSION:
+    sh: "go list -m k8s.io/kube-openapi | cut -d' ' -f2"
   OPENAPI_GEN: '{{.BIN}}/openapi-gen-{{.OPENAPI_GEN_VERSION}}'
 
+  # renovate: datasource=go depName=github.com/pivotal-cf/yaml-patch
   YAML_PATCH_VERSION: v0.0.11
   YAML_PATCH: '{{.BIN}}/yaml-patch-{{.YAML_PATCH_VERSION}}'
 
