@@ -114,8 +114,3 @@ tasks:
         echo "Restarting all kcp-migration-operator deployments..."
         kubectl get deployments -n {{.DEPLOYMENT_NAMESPACE}} -o name | grep kcp-migration-operator | xargs -I {} kubectl rollout restart {} -n {{.DEPLOYMENT_NAMESPACE}}
       - echo "Image loaded and deployments restarted"
-
-  test-e2e:
-    desc: Ported to tests/integration/kcpmigration (task test-integration PKG=./integration/kcpmigration/...).
-    cmds:
-      - 'echo "kcp-migration-operator: integration tests live in tests/integration/kcpmigration"'

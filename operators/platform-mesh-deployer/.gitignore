@@ -1,4 +1,3 @@
 certs
 Dockerfile.cross
 pkg/ocm/testdata/.cache/
-test/e2e/testdata/.cache/

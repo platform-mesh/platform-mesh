@@ -84,11 +84,6 @@ tasks:
     desc: Run unit tests (nothing in this module uses envtest or kcp).
     cmds:
       - go test -count=1 ./... {{.ADDITIONAL_COMMAND_ARGS}}
-  test-e2e:
-    desc: No e2e tests for terminal-controller-manager.
-    cmds:
-      - 'echo "terminal-controller-manager: no e2e tests"'
-
   cover:
     cmds:
       - task: test

@@ -58,10 +58,6 @@ tasks:
     cmds:
       - go test -count=1 . ./pkg/... ./cmd/...
 
-  test-e2e:
-    cmds:
-      - go test -count=1 -timeout 40m ./test/e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
-
   cover:
     cmds:
       - go test -count=1 . ./pkg/... ./cmd/... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...

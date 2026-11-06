@@ -4,7 +4,6 @@ go 1.26.3
 
 require (
 	github.com/cert-manager/cert-manager v1.21.3
-	github.com/creasty/defaults v1.11.0
 	github.com/fluxcd/helm-controller/api v1.6.5
 	github.com/fluxcd/source-controller/api v1.9.6
 	github.com/go-logr/logr v1.4.4

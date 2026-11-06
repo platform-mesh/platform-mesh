@@ -13,7 +13,8 @@
 # limitations under the License.
 
 # The tests module (go.platform-mesh.io/tests): integration tests against a
-# kcp test server (tests/integration, build tag `integration`) and the
+# kcp test server (tests/integration, build tag `integration`), e2e tests
+# against a deployed Platform Mesh (tests/e2e, build tag `e2e`) and the
 # Playwright portal suite (tests/e2e/portal, included below as `portal-e2e:`).
 # Included from the root Taskfile as `tests:`.
 #
@@ -97,3 +98,28 @@ tasks:
         [ -f "$work/.kcp/ready-to-test" ] || { echo "sharded-test-server not ready, see $work/sharded-test-server.log" >&2; exit 1; }
         KCP_KUBECONFIG="$work/.kcp/admin.kubeconfig" go test -tags integration -count=1 -p 1 -timeout 40m {{.PKG}} {{.ADDITIONAL_COMMAND_ARGS}}
         EOF
+
+  # --- e2e: against a deployed Platform Mesh (KUBECONFIG, ADMIN_KUBECONFIG) --
+  e2e:
+    desc: 'Run tests/e2e Go suites against the cluster KUBECONFIG points at, then the portal suite (TEST_RUN_ID= for the sharded portal run).'
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
+    cmds:
+      - go test -tags e2e -count=1 -timeout 60m ./e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
+      - task: portal-e2e:default
+        vars: {TEST_RUN_ID: '{{.TEST_RUN_ID}}'}
+  e2e:go:
+    desc: 'Only the Go e2e suites (no Playwright).'
+    cmds:
+      - go test -tags e2e -count=1 -timeout 60m ./e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
+  e2e:deployer:
+    desc: 'Multi-cluster platform-mesh-deployer suite (tests/e2e/deployer): creates its own kind clusters via hack/kind.sh, local and nightly (e2e-deployer.yml). Needs docker, kubectl, helm; E2E_KEEP=1 keeps the clusters.'
+    deps: [tools:kind]
+    env:
+      # hack/kind.sh and the suite's `kind load` use this binary.
+      KIND: '{{.KIND}}'
+      # The suite skips itself without this, so e2e:go against a Tilt cluster
+      # does not also bring up the deployer's clusters.
+      E2E_DEPLOYER: "true"
+    cmds:
+      - go test -tags e2e -count=1 -timeout 60m ./e2e/deployer/... {{.ADDITIONAL_COMMAND_ARGS}}

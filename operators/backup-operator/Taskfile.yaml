@@ -85,8 +85,3 @@ tasks:
         fi
       - kubectl rollout restart deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}}
       - echo "Image loaded and deployment restarted"
-
-  test-e2e:
-    desc: Ported to tests/integration/backup (task test-integration PKG=./integration/backup/...).
-    cmds:
-      - 'echo "backup-operator: integration tests live in tests/integration/backup"'

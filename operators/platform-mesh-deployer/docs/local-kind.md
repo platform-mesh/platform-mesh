@@ -1,6 +1,6 @@
 # Installing the deployer into a kind cluster
 
-The single-cluster environment [`test/e2e`](../test/e2e)'s `TestSingleCluster`
+The single-cluster environment [`tests/e2e/deployer`](../../../tests/e2e/deployer)'s `TestSingleCluster`
 asserts on, stood up with nothing but `kubectl`, `helm` and `kind`. One
 cluster acts as its own config plane and workload cluster.
 
@@ -104,7 +104,7 @@ intersect simply never attach, with no error on either object.
 
 `config/bases/etcd-tls` carries no namespace of its own, so pass `-n`. The
 server certificate and the TLSRoute embed `$CLUSTER_ID` and are therefore
-generated here rather than checked in — the same two objects `test/e2e`
+generated here rather than checked in — the same two objects `tests/e2e/deployer`
 templates at runtime.
 
 ```bash
@@ -421,7 +421,7 @@ kind delete cluster --name pm-manual
 - **Tilt** deploys this same `config/default`, minus the Namespace (the base env
   owns it) and plus `--log-level=debug`, and rebuilds the binary on change. It
   also brings dex and the rest of the platform; this doc stops at kcp.
-- **`test/e2e`** applies the same bases but runs the deployer **on the host**,
+- **`tests/e2e/deployer`** applies the same bases but runs the deployer **on the host**,
   in-process, with a custom `KcpDial` — the sslip.io front-proxy hostname is
   blocked by DNS rebind protection on the host. In-cluster, as here, that
   workaround is unnecessary.
