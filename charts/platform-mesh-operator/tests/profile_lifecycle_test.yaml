@@ -1,0 +1,113 @@
+suite: install-only profile lifecycle
+templates:
+  - installation-profile.yaml
+release:
+  name: platform-mesh-operator
+  namespace: platform-mesh-system
+set:
+  ocm.enabled: true
+  gateway.baseDomain: platform.example.com
+  gateway.clusterIP: 10.96.188.4
+kubernetesProvider:
+  scheme:
+    v1/ConfigMap:
+      gvr:
+        version: v1
+        resource: configmaps
+      namespaced: true
+tests:
+  - it: does not create a profile during an upgrade even if it is missing
+    release:
+      upgrade: true
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: does not apply the kind profile on upgrade
+    release:
+      upgrade: true
+    set:
+      ocm.profile: kind
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: does not create a profile when installation resources are disabled
+    set:
+      ocm.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: preserves an existing externally managed profile on install
+    kubernetesProvider:
+      objects:
+        - &externalProfile
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: platform-mesh-profile
+            namespace: platform-mesh-system
+          data:
+            profile.yaml: custom profile configuration
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: leaves an externally managed profile alone on an operator-only upgrade
+    release:
+      upgrade: true
+    set:
+      ocm.enabled: false
+    kubernetesProvider:
+      objects:
+        - *externalProfile
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: omits a protected profile on upgrade even when installation values change
+    release:
+      upgrade: true
+    set:
+      ocm.profile: kind
+      gateway.port: 443
+    kubernetesProvider:
+      objects:
+        - apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: platform-mesh-profile
+            namespace: platform-mesh-system
+            annotations:
+              meta.helm.sh/release-name: platform-mesh-operator
+              meta.helm.sh/release-namespace: platform-mesh-system
+              helm.sh/resource-policy: keep
+          data:
+            profile.yaml: custom profile configuration
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: blocks deleting a legacy profile owned by this release on upgrade
+    release:
+      upgrade: true
+    kubernetesProvider:
+      objects:
+        - &legacyProfile
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: platform-mesh-profile
+            namespace: platform-mesh-system
+            annotations:
+              meta.helm.sh/release-name: platform-mesh-operator
+              meta.helm.sh/release-namespace: platform-mesh-system
+    asserts:
+      - failedTemplate:
+          errorMessage: &preservationError 'the existing platform-mesh-profile is managed by this Helm release without deletion protection; before upgrading, run: kubectl annotate configmap platform-mesh-profile -n platform-mesh-system helm.sh/resource-policy=keep --overwrite'
+  - it: also blocks deleting a legacy profile when installation resources are disabled
+    release:
+      upgrade: true
+    set:
+      ocm.enabled: false
+    kubernetesProvider:
+      objects:
+        - *legacyProfile
+    asserts:
+      - failedTemplate:
+          errorMessage: *preservationError

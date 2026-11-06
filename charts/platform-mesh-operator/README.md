@@ -3,6 +3,30 @@
 A Helm chart to automate bootstrapping of new environment
 
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+## Profile lifecycle
+
+With `ocm.enabled=true`, Helm creates `platform-mesh-profile` once during install,
+if the ConfigMap does not already exist. Upgrades do not create or update it, even
+when `ocm.profile`, gateway values, or the bundled profile contents change. Maintain
+the profile explicitly in your own configuration or GitOps source after installation.
+
+The profile has `helm.sh/resource-policy: keep`, so it survives Helm upgrades and
+uninstall. Remove it explicitly when decommissioning the installation. Keep
+`ocm.enabled=true` on upgrades if this release manages the OCM and PlatformMesh
+resources; the install-only behavior applies specifically to the profile.
+
+Before upgrading a release that already manages the profile without this
+annotation, preserve it once:
+
+```shell
+kubectl annotate configmap platform-mesh-profile -n platform-mesh-system \
+  helm.sh/resource-policy=keep --overwrite
+```
+
+The chart blocks an upgrade of an unprotected profile owned by the same release.
+This check uses Helm's live cluster lookup; use `--dry-run=server` when previewing
+an upgrade. Offline `helm template` cannot inspect existing resources. Tools that
+repeatedly apply install-mode renders must manage the profile separately.
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -29,9 +53,10 @@ A Helm chart to automate bootstrapping of new environment
 | kcp | object | `{"frontProxyPort":443}` | KCP connectivity configuration (used when ocm.enabled=true). |
 | kcp.frontProxyPort | int | `443` | Internal port of the KCP front-proxy Service. Production Services expose 443; the kind profile uses 8443. |
 | log.level | string | `"info"` | log level. Permissible values: debug, info, warn, error |
-| ocm | object | `{"enabled":false,"installSigningCertificate":true,"profile":"production","repository":"ghcr.io/platform-mesh","signatureName":"platform-mesh.platform-mesh","version":"0.5.2"}` | When enabled, installs the OCM Repository/Component CRs, the PlatformMesh CR, and the profile ConfigMap alongside the operator. Disable to deploy only the operator binary and supply PlatformMesh resources from a separate GitOps source. |
-| ocm.installSigningCertificate | bool | `true` | Set to false when the OCM component is signed by a different trusted key. Then provide a Secret `ocm-signing-public-cert` with the certificate in the release namespace yourself. |
-| ocm.profile | string | `"production"` | Installation profile. `production` assumes the infrastructure prerequisites already exist. |
+| ocm | object | `{"enabled":false,"installSigningCertificate":true,"profile":"production","repository":"ghcr.io/platform-mesh","signatureName":"platform-mesh.platform-mesh","version":"0.5.2"}` | When enabled, manages the OCM Repository/Component CRs and the PlatformMesh CR, and creates the profile ConfigMap once on Helm install if absent. Helm upgrades preserve the existing profile. Disable to supply PlatformMesh resources from a separate GitOps source. |
+| ocm.enabled | bool | `false` | Enable the bundled installation resources. Keep enabled on upgrades to continue managing the OCM and PlatformMesh resources. |
+| ocm.installSigningCertificate | bool | `true` | Set to false when the OCM component is signed by a different trusted key. |
+| ocm.profile | string | `"production"` | Initial profile, applied only on Helm install when no profile ConfigMap exists. Changes on upgrade do not update the profile. `production` assumes the infrastructure prerequisites already exist. |
 | ocm.repository | string | `"ghcr.io/platform-mesh"` | OCI registry (and optional path) the Platform Mesh OCM components are read from. Point this at a mirror, or at a fork's registry, to install from there. |
 | ocm.signatureName | string | `"platform-mesh.platform-mesh"` | Name of the OCM signature the components are verified against. |
 | ocm.version | string | `"0.5.2"` | Platform Mesh OCM component version to reconcile. |

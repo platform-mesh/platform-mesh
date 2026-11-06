@@ -1,0 +1,24 @@
+## Profile lifecycle
+
+With `ocm.enabled=true`, Helm creates `platform-mesh-profile` once during install,
+if the ConfigMap does not already exist. Upgrades do not create or update it, even
+when `ocm.profile`, gateway values, or the bundled profile contents change. Maintain
+the profile explicitly in your own configuration or GitOps source after installation.
+
+The profile has `helm.sh/resource-policy: keep`, so it survives Helm upgrades and
+uninstall. Remove it explicitly when decommissioning the installation. Keep
+`ocm.enabled=true` on upgrades if this release manages the OCM and PlatformMesh
+resources; the install-only behavior applies specifically to the profile.
+
+Before upgrading a release that already manages the profile without this
+annotation, preserve it once:
+
+```shell
+kubectl annotate configmap platform-mesh-profile -n platform-mesh-system \
+  helm.sh/resource-policy=keep --overwrite
+```
+
+The chart blocks an upgrade of an unprotected profile owned by the same release.
+This check uses Helm's live cluster lookup; use `--dry-run=server` when previewing
+an upgrade. Offline `helm template` cannot inspect existing resources. Tools that
+repeatedly apply install-mode renders must manage the profile separately.

@@ -42,3 +42,4 @@ operators/platform-mesh-operator/test/e2e/kind/kustomize/base/crds/druid.gardene
 /charts/
 /tests/
 /docs/deployment/migration-
+/docs/migration-openfga-cnpg/

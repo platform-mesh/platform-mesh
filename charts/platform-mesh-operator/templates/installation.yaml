@@ -63,7 +63,6 @@ spec:
     port: {{ .Values.gateway.port }}
     baseDomain: {{ .Values.gateway.baseDomain | quote }}
     protocol: https
-
   ocm:
     repo:
       name: platform-mesh
