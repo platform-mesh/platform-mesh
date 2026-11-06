@@ -31,6 +31,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | [backup-operator](operators/backup-operator) | Orchestrates Velero, CloudNativePG, and etcd-druid to back up and restore a Platform Mesh deployment. |
 | [extension-manager-operator](operators/extension-manager-operator) | Lifecycle management of `ContentConfiguration` resources for Micro Frontends. |
 | [kcp-migration-operator](operators/kcp-migration-operator) | Synchronizes custom resources from existing Kubernetes clusters into kcp workspaces. |
+| [provider-operator](operators/provider-operator) | Onboards providers: creates their kcp workspace and scoped kubeconfig, and deploys `ManagedProvider` runtime components with Flux. |
 | [resource-sharding-operator](operators/resource-sharding-operator) | Assigns resources to shards via labels so downstream operator replicas filter their watches by shard. |
 | [security-operator](operators/security-operator) | Manages security-related configuration (authorization models, identity providers, tuples, stores, invites). |
 | [terminal-controller-manager](operators/terminal-controller-manager) | Manages browser-based terminal sessions (ephemeral pods) to kcp workspaces. |

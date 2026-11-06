@@ -83,6 +83,9 @@ components:
     path: operators/platform-mesh-operator
     image: platform-mesh-operator
     chart: charts/platform-mesh-operator
+  provider-operator:
+    path: operators/provider-operator
+    e2e: false # scaffold only, no e2e suite yet
   resource-broker:
     path: operators/resource-broker
     image: resource-broker
