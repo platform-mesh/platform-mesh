@@ -51,8 +51,7 @@ tasks:
         vars:
           PATH: /ui/...
       - task: schemagen
-      - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
-      - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir ./test/setup --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/extension-manager-operator --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
   build:
     cmds:
       - go build ./...

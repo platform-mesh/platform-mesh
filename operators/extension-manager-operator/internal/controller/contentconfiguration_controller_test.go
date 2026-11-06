@@ -21,6 +21,7 @@ package controller
 import (
 	"context"
 	"crypto/tls"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,6 +33,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	resources "go.platform-mesh.io/apis/static-assets/resources/extension-manager-operator"
 	"go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/extension-manager-operator/internal/config"
 	commonTesting "go.platform-mesh.io/extension-manager-operator/pkg/util/testing"
@@ -127,9 +129,9 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 	suite.consumerWS, suite.consumer = envtest.NewWorkspaceFixture(suite.T(), suite.cli, core.RootCluster.Path(), envtest.WithNamePrefix("consumer"))
 
 	// Prepare apiexports and resource schema
-	suite.loadFromFile(ctx, "../../test/setup/apiresourceschema-providermetadatas.ui.platform-mesh.io.yaml", suite.provider)
-	suite.loadFromFile(ctx, "../../test/setup/apiresourceschema-contentconfigurations.ui.platform-mesh.io.yaml", suite.provider)
-	suite.loadFromFile(ctx, "../../test/setup/apiexport-ui.platform-mesh.io.yaml", suite.provider)
+	suite.loadFromFile(ctx, "apiresourceschema-providermetadatas.ui.platform-mesh.io.yaml", suite.provider)
+	suite.loadFromFile(ctx, "apiresourceschema-contentconfigurations.ui.platform-mesh.io.yaml", suite.provider)
+	suite.loadFromFile(ctx, "apiexport-ui.platform-mesh.io.yaml", suite.provider)
 
 	// Create apiexportendpointslice
 	aes := &apisv1alpha1.APIExportEndpointSlice{
@@ -237,8 +239,9 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 	go mgr.Start(ctx)
 }
 
+// loadFromFile creates the manifest at filePath in the embedded config/resources in workspace.
 func (suite *ContentConfigurationTestSuite) loadFromFile(ctx context.Context, filePath string, workspace logicalcluster.Path) {
-	data, err := os.ReadFile(filePath)
+	data, err := fs.ReadFile(resources.Resources, filePath)
 	require.NoError(suite.T(), err, "failed to read file %s", filePath)
 
 	var u unstructured.Unstructured

@@ -20,11 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	resources "go.platform-mesh.io/apis/static-assets/resources/account-operator"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,14 +49,14 @@ import (
 )
 
 var (
+	// The APIResourceSchemas come from the generated config/resources
+	// (resources.Resources). The APIExport below is test-specific: it is a
+	// v1alpha1 export with broad permission claims (apibindings, apiexports,
+	// logicalclusters, ...) the suite needs, not a copy of the generated one.
 	//go:embed test/setup/01-platform-mesh-system/apiexport-core.platform-mesh.io.yaml
 	apiexportCorePlatformMeshIoYAML []byte
 	//go:embed test/setup/01-platform-mesh-system/apibinding-core.platform-mesh.org.yaml
 	apiexportendpointsliceCorePlatformMeshOrgYAML []byte
-	//go:embed test/setup/01-platform-mesh-system/apiresourceschema-accountinfos.core.platform-mesh.io.yaml
-	apiresourceschemaAccountinfosCorePlatformMeshIoYAML []byte
-	//go:embed test/setup/01-platform-mesh-system/apiresourceschema-accounts.core.platform-mesh.io.yaml
-	apiresourceschemaAccountsCorePlatformMeshIoYAML []byte
 
 	//go:embed test/setup/02-orgs/account-root-org.yaml
 	accountRootOrgYAML []byte
@@ -106,7 +108,12 @@ func (s *AccountTestSuite) setupKCP() {
 	platformMeshSystemClient := s.kcpClient.Cluster(s.platformMeshSysPath)
 
 	// register api-resource schemas
-	for _, schemaYAML := range [][]byte{apiresourceschemaAccountinfosCorePlatformMeshIoYAML, apiresourceschemaAccountsCorePlatformMeshIoYAML} {
+	for _, file := range []string{
+		"apiresourceschema-accountinfos.core.platform-mesh.io.yaml",
+		"apiresourceschema-accounts.core.platform-mesh.io.yaml",
+	} {
+		schemaYAML, err := fs.ReadFile(resources.Resources, file)
+		s.Require().NoError(err)
 		var schema kcpapisv1alpha1.APIResourceSchema
 		s.Require().NoError(yaml.Unmarshal(schemaYAML, &schema))
 		err = platformMeshSystemClient.Create(s.ctx, &schema)

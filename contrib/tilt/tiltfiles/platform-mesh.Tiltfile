@@ -44,10 +44,6 @@ component_binary(
     "operators/platform-mesh-operator",
     deps=GO_DEPS,
     image="ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator",
-    extra_dirs={
-        "operators/platform-mesh-operator/manifests": "workspace/manifests",
-        "operators/platform-mesh-operator/gotemplates": "workspace/gotemplates",
-    },
     labels=["platform-mesh"],
 )
 
@@ -67,8 +63,6 @@ pmo = chart(
                     "--subroutines-feature-toggles-enabled=true",
                     "--kcp-front-proxy-port={}".format(PORT),
                     "--kcp-url=" + KCP_FRONT_PROXY_URL,
-                    # manifests/ and gotemplates/ are synced next to the binary (extra_dirs above)
-                    "--workspace-dir=/app/workspace/",
                 ],
                 "extraEnvs": [{"name": "SSL_CERT_FILE", "value": "/etc/platform-mesh-ca/ca.crt"}],
                 "extraVolumeMounts": [

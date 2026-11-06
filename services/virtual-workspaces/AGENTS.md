@@ -18,7 +18,7 @@
 - `pkg/contentconfiguration`, `pkg/marketplace`: domain handlers for exposed resources.
 - `pkg/proxy`, `pkg/storage`, `pkg/path`: request routing and backend access helpers.
 - `pkg/config`: runtime configuration handling.
-- `config/crd`, `config/resources`: generated resource output.
+- `config/crd`, `apis/static-assets/resources/virtual-workspaces`: generated resource output.
 
 ## Architecture
 This repo is a kcp virtual workspace server. Most changes affect request routing, authn/authz, or storage-backed API behavior.
@@ -57,11 +57,11 @@ This repo is a kcp virtual workspace server. Most changes affect request routing
 
 ## Generated Artifacts
 - Run `task generate` after changing API types or CRD shape.
-- Review changes in `config/crd` and `config/resources`.
+- Review changes in `config/crd` and `apis/static-assets/resources/virtual-workspaces`.
 - Do not mix unrelated manual edits into generated files.
 
 ## Do Not
-- Edit generated CRD or resource output in `config/crd` or `config/resources` without running `task generate`.
+- Edit generated CRD or resource output in `config/crd` or `apis/static-assets/resources/virtual-workspaces` without running `task generate`.
 - Treat broad authn/authz or proxy changes as routine refactors; verify them explicitly.
 
 ## Hard Boundaries

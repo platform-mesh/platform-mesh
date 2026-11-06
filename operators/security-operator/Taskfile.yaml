@@ -60,7 +60,7 @@ tasks:
       - task: tools:generate-deepcopy
         vars:
           PATH: /core/...
-      - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/security-operator --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
   build:
     cmds:
       - go build ./...

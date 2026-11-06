@@ -80,7 +80,7 @@ jobs:
       - name: Generated files must be committed
         run: |
           set -euo pipefail
-          hint="Generated files are out of date. Run 'task generate' and 'task charts:docs', then commit the result (a changed *-crds chart also needs 'task charts:update-changed' for the snapshots). Renames of APIResourceSchemas (v<date>-<commit>.*) alone are ignored and need no commit."
+          hint="Generated files are out of date. Run 'task generate' and 'task charts:docs', then commit the result (a changed *-crds chart also needs 'task charts:update-changed' for the snapshots). Renames of APIResourceSchemas (v<date>-<hash>.*) alone are ignored and need no commit."
           untracked="$(git ls-files --others --exclude-standard)"
           if [ -n "$untracked" ]; then
             echo "generated files that are not committed:" >&2
@@ -88,10 +88,11 @@ jobs:
             echo "::error title=verify::$hint"
             exit 1
           fi
-          # apigen stamps every APIResourceSchema name with the date and HEAD
-          # commit (v261030-566cb8a8.<resource>, 7+ hex chars), so those lines
-          # churn on every run even when the schema is unchanged; `-I` drops
-          # hunks made only of such lines. go.work.sum is rewritten by the Go
+          # APIResourceSchema names carry a date and a hash of the schema
+          # (v261030-566cb8a8.<resource>, 7+ hex chars; hack/apigen.sh). Names
+          # written before that wrapper hash the HEAD commit instead and get
+          # renamed once when their schema next regenerates; `-I` drops hunks
+          # made only of such lines. go.work.sum is rewritten by the Go
           # toolchain as a side effect of running the generators (see `task
           # tidy`) and is not generator output.
           if ! git diff --exit-code -I 'v[0-9]{6}-[0-9a-f]{7,}\.' -- . ':!go.work.sum'; then

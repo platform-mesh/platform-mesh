@@ -95,7 +95,10 @@ vars:
   # the same version is re-used for all kcp components.
   KCP_VERSION:
     sh: "sed -n 's/^ *version: v\\([0-9][^ ]*\\)$/\\1/p' {{.TOPLEVEL}}/third_party/kcp/component-constructor.yaml | head -1"
-  APIGEN: '{{.BIN}}/apigen-v{{.KCP_VERSION}}'
+  APIGEN_BIN: '{{.BIN}}/apigen-v{{.KCP_VERSION}}'
+  # hack/apigen.sh wraps apigen so APIResourceSchema names hash the schema
+  # content instead of the HEAD commit. Call it exactly like apigen.
+  APIGEN: 'APIGEN_BIN={{.APIGEN_BIN}} YQ={{.YQ}} {{.HACK}}/apigen.sh'
 
   OPENAPI_GEN_VERSION: d427ff9ee9ad05f5da435abbb7c5929cb713ac56 # most recent commit as of writing this
   OPENAPI_GEN: '{{.BIN}}/openapi-gen-{{.OPENAPI_GEN_VERSION}}'
@@ -156,9 +159,10 @@ tasks:
           version: '{{ .MOCKERY_VERSION }}'
           extractArg: mockery
   apigen:
-    desc: Install kcp apigen into the root bin.
+    desc: Install kcp apigen (and yq, used by its hack/apigen.sh wrapper) into the root bin.
     internal: true
     cmds:
+      - task: yq
       - task: uget
         vars:
           tool: apigen

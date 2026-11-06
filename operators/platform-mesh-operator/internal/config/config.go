@@ -122,7 +122,6 @@ type SubroutinesConfig struct {
 
 // OperatorConfig struct to hold the app config
 type OperatorConfig struct {
-	WorkspaceDir  string
 	KCP           KCPConfig
 	Exposure      ExposureConfig
 	IDP           IDPConfig
@@ -134,7 +133,6 @@ type OperatorConfig struct {
 
 func NewOperatorConfig() OperatorConfig {
 	return OperatorConfig{
-		WorkspaceDir: "/operator/",
 		KCP: KCPConfig{
 			Namespace:              "platform-mesh-system",
 			RootShardName:          "root",
@@ -187,8 +185,6 @@ func NewOperatorConfig() OperatorConfig {
 }
 
 func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&c.WorkspaceDir, "workspace-dir", c.WorkspaceDir, "Set workspace directory")
-
 	fs.StringVar(&c.KCP.Url, "kcp-url", c.KCP.Url, "Set KCP URL")
 	fs.StringVar(&c.KCP.Namespace, "kcp-namespace", c.KCP.Namespace, "Set KCP namespace")
 	fs.StringVar(&c.KCP.RootShardName, "kcp-root-shard-name", c.KCP.RootShardName, "Set KCP root shard name")

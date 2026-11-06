@@ -22,13 +22,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines"
+	e2eyaml "go.platform-mesh.io/platform-mesh-operator/test/e2e/kind/yaml"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -65,7 +68,7 @@ const (
 	e2eScopedKubeconfigProvider1Path = "root:providers:provider1"
 	e2eScopedKubeconfigProvider2Path = "root:providers:provider2"
 
-	e2eKcpProviderWorkspacesYAMLDir = "../../../test/e2e/kind/yaml/kcp-provider-workspaces"
+	e2eKcpProviderWorkspacesYAMLDir = "kcp-provider-workspaces"
 )
 
 // scopedE2EKcpAdminCertSecretNamespace is set by waitForKcpClusterAdminClientCert in this file only.
@@ -428,7 +431,7 @@ func (s *KindTestSuite) ensureScopedE2EKcpProviderWorkspaces(ctx context.Context
 	rootClient, err := s.kcpClientForWorkspace(ctx, "root")
 	s.Require().NoError(err, "kcp client for root")
 	s.Require().NoError(
-		ApplyManifestFromFile(ctx, filepath.Join(e2eKcpProviderWorkspacesYAMLDir, "workspace-providers.yaml"), rootClient, emptyTmpl),
+		ApplyManifestFromFile(ctx, kcpmanifests.Resources, "workspace-providers.yaml", rootClient, emptyTmpl),
 		"apply workspace-providers.yaml",
 	)
 	s.logWorkspaceObservedAfterApply(ctx, rootClient, "providers")
@@ -436,7 +439,7 @@ func (s *KindTestSuite) ensureScopedE2EKcpProviderWorkspaces(ctx context.Context
 	providersClient, err := s.kcpClientForWorkspace(ctx, "root:providers")
 	s.Require().NoError(err, "kcp client for root:providers")
 	s.Require().NoError(
-		ApplyManifestFromFile(ctx, filepath.Join(e2eKcpProviderWorkspacesYAMLDir, "workspace-provider1-provider2.yaml"), providersClient, emptyTmpl),
+		ApplyManifestFromFile(ctx, e2eyaml.Resources, path.Join(e2eKcpProviderWorkspacesYAMLDir, "workspace-provider1-provider2.yaml"), providersClient, emptyTmpl),
 		"apply workspace-provider1-provider2.yaml",
 	)
 	s.logWorkspaceObservedAfterApply(ctx, providersClient, "provider1")
@@ -447,7 +450,7 @@ func (s *KindTestSuite) ensureScopedE2EKcpProviderWorkspaces(ctx context.Context
 	provider1Client, err := s.kcpClientForWorkspace(ctx, e2eScopedKubeconfigProvider1Path)
 	s.Require().NoError(err, "kcp client for provider1")
 	s.Require().NoError(
-		ApplyManifestFromFile(ctx, filepath.Join(e2eKcpProviderWorkspacesYAMLDir, "provider1-kind-e2e-scoped-provider-export.yaml"), provider1Client, emptyTmpl),
+		ApplyManifestFromFile(ctx, e2eyaml.Resources, path.Join(e2eKcpProviderWorkspacesYAMLDir, "provider1-kind-e2e-scoped-provider-export.yaml"), provider1Client, emptyTmpl),
 		"apply root:providers:provider1 "+e2eKindScopedProviderExportName+" export manifests",
 	)
 	s.ensureProvider1EndpointSliceBootstrapAPIBinding(ctx, provider1Client)
@@ -455,7 +458,7 @@ func (s *KindTestSuite) ensureScopedE2EKcpProviderWorkspaces(ctx context.Context
 	provider2Client, err := s.kcpClientForWorkspace(ctx, e2eScopedKubeconfigProvider2Path)
 	s.Require().NoError(err, "kcp client for provider2")
 	s.Require().NoError(
-		ApplyManifestFromFile(ctx, filepath.Join(e2eKcpProviderWorkspacesYAMLDir, "provider2-kind-e2e-scoped-provider-export.yaml"), provider2Client, emptyTmpl),
+		ApplyManifestFromFile(ctx, e2eyaml.Resources, path.Join(e2eKcpProviderWorkspacesYAMLDir, "provider2-kind-e2e-scoped-provider-export.yaml"), provider2Client, emptyTmpl),
 		"apply root:providers:provider2 "+e2eKindScopedProviderExportName+" export manifests",
 	)
 	s.ensureProvider2ExportBootstrapAPIBindingReady(ctx, provider2Client)

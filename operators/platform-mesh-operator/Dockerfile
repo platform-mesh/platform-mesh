@@ -58,9 +58,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENV USER_UID=1001
 ENV GROUP_UID=1001
-COPY --from=builder --chown=${USER_UID}:${GROUP_UID} /workspace/manager                                      /operator/manager
-COPY --from=builder --chown=${USER_UID}:${GROUP_UID} /workspace/operators/platform-mesh-operator/manifests   /operator/manifests
-COPY --from=builder --chown=${USER_UID}:${GROUP_UID} /workspace/operators/platform-mesh-operator/gotemplates /operator/gotemplates
+COPY --from=builder --chown=${USER_UID}:${GROUP_UID} /workspace/manager /operator/manager
 
 USER ${USER_UID}:${GROUP_UID}
 ENTRYPOINT ["/operator/manager"]

@@ -19,13 +19,14 @@ package subroutines
 import (
 	"context"
 	"errors"
-	"os"
+	"io/fs"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
@@ -42,7 +43,9 @@ import (
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
-var ManifestStructureTest = "../../manifests/kcp"
+// ManifestStructureTest is the kcp manifest tree the kcpsetup tests apply: the
+// embedded manifests/kcp, i.e. what the operator applies at runtime.
+var ManifestStructureTest = kcpmanifests.Resources
 
 func defaultTestOperatorConfig() *config.OperatorConfig {
 	cfg := &config.OperatorConfig{}
@@ -136,7 +139,7 @@ func (s *KcpsetupTestSuite) Test_applyDirStructure() {
 			return nil
 		})
 
-	err := ApplyDirStructure(ctx, "../../manifests/kcp", "root", &rest.Config{}, inventory, &pmcorev1alpha1.PlatformMesh{}, s.helperMock, nil)
+	err := ApplyDirStructure(ctx, kcpmanifests.Resources, ".", "root", &rest.Config{}, inventory, &pmcorev1alpha1.PlatformMesh{}, s.helperMock, nil)
 
 	s.Assert().Nil(err)
 }
@@ -743,7 +746,7 @@ func (s *KcpsetupTestSuite) TestCreateWorkspaces() {
 	mockedKcpHelper.EXPECT().NewKcpClient(mock.Anything, mock.Anything).Return(nil, errors.New("failed to create client"))
 	s.testObj = NewKcpsetupSubroutine(s.clientMock, mockedKcpHelper, defaultTestOperatorConfig(), ManifestStructureTest, "")
 
-	err := s.testObj.CreateKcpResources(context.Background(), &rest.Config{}, ManifestStructureTest, &pmcorev1alpha1.PlatformMesh{})
+	err := s.testObj.CreateKcpResources(context.Background(), &rest.Config{}, &pmcorev1alpha1.PlatformMesh{})
 	s.Assert().Error(err)
 	s.Assert().Contains(err.Error(), "Failed to get APIExport hash inventory")
 
@@ -854,7 +857,7 @@ func (s *KcpsetupTestSuite) TestCreateWorkspaces() {
 
 	// Mock apply calls for applying manifests (flexible count)
 	mockKcpClient.EXPECT().Apply(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	err = s.testObj.CreateKcpResources(context.Background(), &rest.Config{}, ManifestStructureTest, &pmcorev1alpha1.PlatformMesh{})
+	err = s.testObj.CreateKcpResources(context.Background(), &rest.Config{}, &pmcorev1alpha1.PlatformMesh{})
 	s.Assert().Nil(err)
 
 	// test err2 - expect error when Apply fails
@@ -948,7 +951,7 @@ func (s *KcpsetupTestSuite) TestCreateWorkspaces() {
 
 	// Mock apply calls for applying manifests (flexible count) - but they should fail
 	mockKcpClient.EXPECT().Apply(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("apply failed"))
-	err = s.testObj.CreateKcpResources(context.Background(), &rest.Config{}, ManifestStructureTest, &pmcorev1alpha1.PlatformMesh{})
+	err = s.testObj.CreateKcpResources(context.Background(), &rest.Config{}, &pmcorev1alpha1.PlatformMesh{})
 	s.Assert().Error(err)
 	s.Assert().Contains(err.Error(), "Failed to apply")
 }
@@ -1122,7 +1125,7 @@ func (s *KcpsetupTestSuite) Test_HasFeatureToggle() {
 }
 
 func (s *KcpsetupTestSuite) Test_WorkspaceAuthConfigTemplate_FeatureDisableEmailVerification() {
-	templateBytes, err := os.ReadFile("../../manifests/kcp/workspace-authentication-configuration.yaml")
+	templateBytes, err := fs.ReadFile(kcpmanifests.Resources, "workspace-authentication-configuration.yaml")
 	s.Require().NoError(err, "Failed to read workspace-authentication-configuration.yaml")
 
 	tests := []struct {
@@ -1209,17 +1212,17 @@ func (s *KcpsetupTestSuite) Test_ApplyManifestFromFile_SkipsContentConfiguration
 				"featureDisableContentConfigurations": tc.featureToggleValue,
 			}
 
-			path := "../../manifests/kcp/01-platform-mesh-system/contentconfiguration-main-home.yaml"
+			path := "01-platform-mesh-system/contentconfiguration-main-home.yaml"
 
 			if tc.expectSkipped {
-				err := ApplyManifestFromFile(ctx, path, kcpClientMock, templateData, "root:platform-mesh-system", &pmcorev1alpha1.PlatformMesh{}, nil)
+				err := ApplyManifestFromFile(ctx, kcpmanifests.Resources, path, kcpClientMock, templateData, "root:platform-mesh-system", &pmcorev1alpha1.PlatformMesh{}, nil)
 				s.Assert().NoError(err)
 				kcpClientMock.AssertNotCalled(s.T(), "Get", mock.Anything, mock.Anything, mock.Anything)
 				kcpClientMock.AssertNotCalled(s.T(), "Apply", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			} else {
 				kcpClientMock.EXPECT().Apply(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
-				err := ApplyManifestFromFile(ctx, path, kcpClientMock, templateData, "root:platform-mesh-system", &pmcorev1alpha1.PlatformMesh{}, nil)
+				err := ApplyManifestFromFile(ctx, kcpmanifests.Resources, path, kcpClientMock, templateData, "root:platform-mesh-system", &pmcorev1alpha1.PlatformMesh{}, nil)
 				s.Assert().NoError(err)
 			}
 		})
@@ -1236,11 +1239,11 @@ func (s *KcpsetupTestSuite) Test_ApplyManifestFromFile_DoesNotSkipNonContentConf
 	}
 
 	// Use a non-ContentConfiguration file (e.g., a workspace file)
-	path := "../../manifests/kcp/workspace-platform-mesh-system.yaml"
+	path := "workspace-platform-mesh-system.yaml"
 
 	// Even with toggle enabled, non-ContentConfiguration files should be applied
 	kcpClientMock.EXPECT().Apply(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
-	err := ApplyManifestFromFile(ctx, path, kcpClientMock, templateData, "root", &pmcorev1alpha1.PlatformMesh{}, nil)
+	err := ApplyManifestFromFile(ctx, kcpmanifests.Resources, path, kcpClientMock, templateData, "root", &pmcorev1alpha1.PlatformMesh{}, nil)
 	s.Assert().NoError(err)
 }

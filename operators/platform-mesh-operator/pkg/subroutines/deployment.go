@@ -21,8 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -30,9 +30,11 @@ import (
 	"github.com/rs/zerolog/log"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	k8smanifests "go.platform-mesh.io/apis/static-assets/k8s"
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/platform-mesh-operator/gotemplates"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 	"go.platform-mesh.io/platform-mesh-operator/internal/metrics"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/merge"
@@ -59,14 +61,17 @@ const (
 )
 
 type DeploymentSubroutine struct {
-	clientInfra              ctrlruntimeclient.Client
-	clientRuntime            ctrlruntimeclient.Client
-	cfg                      *pmconfig.CommonServiceConfig
-	workspaceDirectory       string
-	gotemplatesInfraDir      string
-	gotemplatesComponentsDir string
-	cfgOperator              *config.OperatorConfig
-	imageVersionStore        *ImageVersionStore
+	clientInfra   ctrlruntimeclient.Client
+	clientRuntime ctrlruntimeclient.Client
+	cfg           *pmconfig.CommonServiceConfig
+	// k8sManifests is the manifest tree applied to the runtime cluster,
+	// usually the embedded manifests/k8s.
+	k8sManifests fs.FS
+	// gotemplates is the template tree rendered by this subroutine, usually
+	// the embedded gotemplates/ directory.
+	gotemplates       fs.FS
+	cfgOperator       *config.OperatorConfig
+	imageVersionStore *ImageVersionStore
 }
 
 const (
@@ -77,19 +82,13 @@ const (
 )
 
 func NewDeploymentSubroutine(clientRuntime ctrlruntimeclient.Client, clientInfra ctrlruntimeclient.Client, cfg *pmconfig.CommonServiceConfig, operatorCfg *config.OperatorConfig) *DeploymentSubroutine {
-	workspaceDir := filepath.Join(operatorCfg.WorkspaceDir, "/manifests/k8s/")
-	// gotemplates is at the root level, relative to WorkspaceDir
-	gotemplatesInfraDir := filepath.Join(operatorCfg.WorkspaceDir, "gotemplates/infra")
-	gotemplatesComponentsDir := filepath.Join(operatorCfg.WorkspaceDir, "gotemplates/components")
-
 	sub := &DeploymentSubroutine{
-		cfg:                      cfg,
-		clientInfra:              clientInfra,
-		clientRuntime:            clientRuntime,
-		workspaceDirectory:       workspaceDir,
-		gotemplatesInfraDir:      gotemplatesInfraDir,
-		gotemplatesComponentsDir: gotemplatesComponentsDir,
-		cfgOperator:              operatorCfg,
+		cfg:           cfg,
+		clientInfra:   clientInfra,
+		clientRuntime: clientRuntime,
+		k8sManifests:  k8smanifests.Resources,
+		gotemplates:   gotemplates.Resources,
+		cfgOperator:   operatorCfg,
 	}
 
 	return sub
@@ -1078,7 +1077,7 @@ func (r *DeploymentSubroutine) renderAndApplyInfraTemplates(ctx context.Context,
 	skipFile := deploymentTechFileFilter(deploymentTech, log)
 	postProcess := r.infraManifestPostProcess(ctx, log)
 
-	return r.renderAndApplyTemplates(ctx, r.gotemplatesInfraDir+"/infra", tmplVars, r.clientInfra, log, "infra", skipFile, postProcess)
+	return r.renderAndApplyTemplates(ctx, "infra/infra", tmplVars, r.clientInfra, log, "infra", skipFile, postProcess)
 }
 
 // renderAndApplyRuntimeTemplates renders all templates in gotemplates/infra/runtime and applies them.
@@ -1111,7 +1110,7 @@ func (r *DeploymentSubroutine) renderAndApplyRuntimeTemplates(ctx context.Contex
 
 	// Use clientInfra as default (it will be overridden per-object by routingPostProcess).
 	// We pass a no-op postProcessObj and handle the actual Apply inside routingPostProcess.
-	return r.renderAndApplyTemplatesWithRouter(ctx, r.gotemplatesInfraDir+"/runtime", tmplVars, log, "runtime", nil, routingPostProcess)
+	return r.renderAndApplyTemplatesWithRouter(ctx, "infra/runtime", tmplVars, log, "runtime", nil, routingPostProcess)
 }
 
 // renderAndApplyComponentsInfraTemplates renders gotemplates/components/infra with profile-components.yaml
@@ -1131,7 +1130,7 @@ func (r *DeploymentSubroutine) renderAndApplyComponentsInfraTemplates(ctx contex
 	skipFile := deploymentTechFileFilter(deploymentTech, log)
 	postProcess := r.infraManifestPostProcess(ctx, log)
 
-	return disabled, r.renderAndApplyTemplates(ctx, r.gotemplatesComponentsDir+"/infra", tmplVars, r.clientInfra, log, "components-infra", skipFile, postProcess)
+	return disabled, r.renderAndApplyTemplates(ctx, "components/infra", tmplVars, r.clientInfra, log, "components-infra", skipFile, postProcess)
 }
 
 // renderAndApplyComponentsRuntimeTemplates renders gotemplates/components/runtime with profile-components.yaml
@@ -1145,7 +1144,7 @@ func (r *DeploymentSubroutine) renderAndApplyComponentsRuntimeTemplates(ctx cont
 		return err
 	}
 
-	return r.renderAndApplyTemplates(ctx, r.gotemplatesComponentsDir+"/runtime", tmplVars, r.clientRuntime, log, "components-runtime", nil, nil)
+	return r.renderAndApplyTemplates(ctx, "components/runtime", tmplVars, r.clientRuntime, log, "components-runtime", nil, nil)
 }
 
 func mergeOCMConfig(mapValues map[string]any, inst *pmcorev1alpha1.PlatformMesh) {
@@ -1191,7 +1190,7 @@ func (r *DeploymentSubroutine) createKCPWebhookSecret(ctx context.Context, inst 
 	}
 
 	// Continue to create the secret
-	obj, err := unstructuredFromFile(fmt.Sprintf("%s/rebac-auth-webhook/kcp-webhook-secret.yaml", r.workspaceDirectory), map[string]any{}, log)
+	obj, err := unstructuredFromFS(r.k8sManifests, "rebac-auth-webhook/kcp-webhook-secret.yaml", map[string]any{}, log)
 	if err != nil {
 		return err
 	}
@@ -1442,8 +1441,7 @@ func (r *DeploymentSubroutine) hasIstioProxyInjected(ctx context.Context, labelS
 func (r *DeploymentSubroutine) manageAuthorizationWebhookSecrets(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh) (subroutines.Result, error) {
 	// The serving certificate is signed by a long-lived CA, so renewing it keeps the CA that kcp trusts.
 	for _, file := range []string{"selfsigned-issuer.yaml", "ca-cert.yaml", "ca-issuer.yaml", "webhook-cert.yaml"} {
-		path := fmt.Sprintf("%s/rebac-auth-webhook/%s", r.workspaceDirectory, file)
-		if err := r.ApplyManifestFromFileWithMergedValues(ctx, path, r.clientRuntime, map[string]any{}); err != nil {
+		if err := applyManifestFromFileWithMergedValues(ctx, r.k8sManifests, "rebac-auth-webhook/"+file, r.clientRuntime, map[string]any{}); err != nil {
 			return subroutines.OK(), err
 		}
 	}
@@ -1458,10 +1456,10 @@ func (r *DeploymentSubroutine) manageAuthorizationWebhookSecrets(ctx context.Con
 	return r.updateKcpWebhookSecret(ctx, inst)
 }
 
-func applyManifestFromFileWithMergedValues(ctx context.Context, path string, k8sClient ctrlruntimeclient.Client, templateData map[string]any) error {
+func applyManifestFromFileWithMergedValues(ctx context.Context, fsys fs.FS, path string, k8sClient ctrlruntimeclient.Client, templateData map[string]any) error {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	obj, err := unstructuredFromFile(path, templateData, log)
+	obj, err := unstructuredFromFS(fsys, path, templateData, log)
 	if err != nil {
 		return err
 	}

@@ -18,9 +18,10 @@ package marketplace
 
 import (
 	"context"
+	"io/fs"
 	"path"
 
-	"go.platform-mesh.io/virtual-workspaces/config/resources"
+	resources "go.platform-mesh.io/apis/static-assets/resources/virtual-workspaces"
 	"go.platform-mesh.io/virtual-workspaces/pkg/apidefinition"
 	"go.platform-mesh.io/virtual-workspaces/pkg/authorization"
 	"go.platform-mesh.io/virtual-workspaces/pkg/config"
@@ -78,9 +79,12 @@ func BuildVirtualWorkspace(
 			),
 			ReadyChecker: framework.ReadyFunc(func() error { return nil }),
 			BootstrapAPISetManagement: func(mainConfig genericapiserver.CompletedConfig) (kcpapidefinition.APIDefinitionSetGetter, error) {
-				var resourceSchema kcpapisv1alpha1.APIResourceSchema
-				err := yaml.Unmarshal([]byte(resources.ResourceSchema), &resourceSchema)
+				raw, err := fs.ReadFile(resources.Resources, "apiresourceschema-marketplaceentries.marketplace.platform-mesh.io.yaml")
 				if err != nil {
+					return nil, err
+				}
+				var resourceSchema kcpapisv1alpha1.APIResourceSchema
+				if err := yaml.Unmarshal(raw, &resourceSchema); err != nil {
 					return nil, err
 				}
 

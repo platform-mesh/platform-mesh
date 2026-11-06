@@ -30,6 +30,7 @@ import (
 	pmbrokerv1alpha1 "go.platform-mesh.io/apis/broker/v1alpha1"
 	pmcoordbrokerv1alpha1 "go.platform-mesh.io/apis/coordbroker/v1alpha1"
 	examplev1alpha1 "go.platform-mesh.io/resource-broker/api/example/v1alpha1"
+	coordbrokercrds "go.platform-mesh.io/resource-broker/config/coordbroker/crd"
 	"go.platform-mesh.io/resource-broker/pkg/broker"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -192,10 +193,10 @@ func NewFrame(tb testing.TB) *Frame {
 	_, f.CoordinationPath = envtest.NewWorkspaceFixture(tb, kcpClient, core.RootCluster.Path(), envtest.WithNamePrefix("coordination"))
 	f.CoordinationClient = kcpClient.Cluster(f.CoordinationPath)
 	applyCRDs(tb, f.CoordinationClient,
-		"../../config/coordbroker/crd/coord.broker.platform-mesh.io_assignments.yaml",
-		"../../config/coordbroker/crd/coord.broker.platform-mesh.io_migrationconfigurations.yaml",
-		"../../config/coordbroker/crd/coord.broker.platform-mesh.io_migrations.yaml",
-		"../../config/coordbroker/crd/coord.broker.platform-mesh.io_stagingworkspaces.yaml",
+		"coord.broker.platform-mesh.io_assignments.yaml",
+		"coord.broker.platform-mesh.io_migrationconfigurations.yaml",
+		"coord.broker.platform-mesh.io_migrations.yaml",
+		"coord.broker.platform-mesh.io_stagingworkspaces.yaml",
 	)
 
 	_, f.ComputePath = envtest.NewWorkspaceFixture(tb, kcpClient, core.RootCluster.Path(), envtest.WithNamePrefix("compute"))
@@ -392,12 +393,12 @@ func waitEndpointSlice(tb testing.TB, cl ctrlruntimeclient.Client, name string) 
 	}, wait.ForeverTestTimeout, 200*time.Millisecond, "endpoint slice %s should have endpoints", name)
 }
 
-// applyCRDs creates the CRDs from the given files and waits until they are
-// served.
+// applyCRDs creates the CRDs from the given files of the embedded
+// config/coordbroker/crd and waits until they are served.
 func applyCRDs(tb testing.TB, cl ctrlruntimeclient.Client, files ...string) {
 	tb.Helper()
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := coordbrokercrds.Resources.ReadFile(file)
 		require.NoError(tb, err)
 		crd := &apiextensionsv1.CustomResourceDefinition{}
 		require.NoError(tb, yaml.Unmarshal(data, crd))

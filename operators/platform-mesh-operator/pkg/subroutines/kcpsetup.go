@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/fs"
 	"strings"
 	"time"
 
@@ -45,10 +46,12 @@ import (
 )
 
 type KcpsetupSubroutine struct {
-	client       ctrlruntimeclient.Client
-	kcpHelper    KcpHelper
-	helm         HelmGetter
-	kcpDirectory string
+	client    ctrlruntimeclient.Client
+	kcpHelper KcpHelper
+	helm      HelmGetter
+	// manifests is the kcp manifest tree applied during setup, usually the
+	// embedded manifests/kcp (see ApplyDirStructure for its layout).
+	manifests fs.FS
 	// Cache for CA bundles to avoid redundant secret lookups
 	caBundleCache map[string]string
 	cfg           *config.OperatorConfig
@@ -62,10 +65,10 @@ const (
 	fieldManagerKcpSetup        = "platform-mesh-kcp-setup"
 )
 
-func NewKcpsetupSubroutine(client ctrlruntimeclient.Client, helper KcpHelper, cfg *config.OperatorConfig, kcpdir string, kcpUrl string) *KcpsetupSubroutine {
+func NewKcpsetupSubroutine(client ctrlruntimeclient.Client, helper KcpHelper, cfg *config.OperatorConfig, manifests fs.FS, kcpUrl string) *KcpsetupSubroutine {
 	return &KcpsetupSubroutine{
 		client:        client,
-		kcpDirectory:  kcpdir,
+		manifests:     manifests,
 		kcpHelper:     helper,
 		helm:          DefaultHelmGetter{},
 		caBundleCache: make(map[string]string),
@@ -131,7 +134,7 @@ func (r *KcpsetupSubroutine) Process(ctx context.Context, runtimeObj ctrlruntime
 	}
 
 	// Must run before the legacy-binding migrations below: they rebind onto exports this step creates.
-	err = r.createKcpResources(ctx, cfg, r.kcpDirectory, inst)
+	err = r.createKcpResources(ctx, cfg, inst)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create kcp workspaces")
 		return subroutines.OK(), gcerrors.Wrap(err, "Failed to create kcp workspaces")
@@ -169,7 +172,7 @@ func (r *KcpsetupSubroutine) Process(ctx context.Context, runtimeObj ctrlruntime
 	return subroutines.OK(), nil
 }
 
-func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *rest.Config, dir string, inst *pmcorev1alpha1.PlatformMesh) error {
+func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *rest.Config, inst *pmcorev1alpha1.PlatformMesh) error {
 	log := logger.LoadLoggerFromContext(ctx).ChildLogger("subroutine", r.GetName())
 	// Get API export hashes
 	apiExportHashes, err := r.getAPIExportHashInventory(ctx, config)
@@ -247,7 +250,7 @@ func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *res
 		}
 	}
 
-	err = ApplyDirStructure(ctx, dir, "root", config, templateData, inst, r.kcpHelper, r.cfg.Subroutines.Deployment.IgnoredResources)
+	err = ApplyDirStructure(ctx, r.manifests, ".", "root", config, templateData, inst, r.kcpHelper, r.cfg.Subroutines.Deployment.IgnoredResources)
 	if err != nil {
 		log.Err(err).Msg("Failed to apply dir structure")
 		return gcerrors.Wrap(err, "Failed to apply dir structure")

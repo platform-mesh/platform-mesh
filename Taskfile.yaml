@@ -265,8 +265,6 @@ tasks:
     cmds:
       - task: _run
         vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: generate}
-      # The *-crds charts ship copies of the generated CRDs; keep them in step.
-      - task: charts:sync-crds
   "build-*":
     desc: "Build one component (e.g. task build-account-operator)."
     cmds:

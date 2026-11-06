@@ -18,8 +18,8 @@ package subroutines
 
 import (
 	"context"
-	"os"
-	"path/filepath"
+	"io/fs"
+	"path"
 	"sort"
 	"testing"
 
@@ -28,6 +28,7 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
+	e2eyaml "go.platform-mesh.io/platform-mesh-operator/test/e2e/kind/yaml"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -40,7 +41,7 @@ import (
 
 // shippedProfilePath is what the kind e2e suite applies — the closest thing in-tree to a
 // production config.
-const shippedProfilePath = "../../test/e2e/kind/yaml/platform-mesh-resource/default-profile.yaml"
+const shippedProfilePath = "platform-mesh-resource/default-profile.yaml"
 
 // platformMeshNamespace is where the CR lives in a real install. The shipped profile writes
 // explicit "namespace: platform-mesh-system" dependsOn entries, so this has to match.
@@ -48,7 +49,7 @@ const platformMeshNamespace = "platform-mesh-system"
 
 func loadShippedProfile(t *testing.T) string {
 	t.Helper()
-	raw, err := os.ReadFile(shippedProfilePath)
+	raw, err := fs.ReadFile(e2eyaml.Resources, shippedProfilePath)
 	require.NoError(t, err)
 
 	var cm corev1.ConfigMap
@@ -163,28 +164,28 @@ func renderHelmReleaseGraph(t *testing.T, sub *DeploymentSubroutine, inst *pmcor
 	require.NoError(t, err)
 	skipFile := deploymentTechFileFilter(deploymentTechFluxCD, log)
 
-	infraDir := filepath.Join("..", "..", "gotemplates", "infra", "infra")
-	components, err := os.ReadDir(infraDir)
+	infraDir := "infra/infra"
+	components, err := fs.ReadDir(sub.gotemplates, infraDir)
 	require.NoError(t, err)
 	for _, component := range components {
 		if !component.IsDir() {
 			continue
 		}
-		componentDir := filepath.Join(infraDir, component.Name())
-		files, err := ListFiles(componentDir)
+		componentDir := path.Join(infraDir, component.Name())
+		files, err := ListFiles(sub.gotemplates, componentDir)
 		require.NoError(t, err)
 		for _, file := range files {
 			if skipFile(file) {
 				continue
 			}
-			collect(filepath.Join(componentDir, file), infraVars)
+			collect(path.Join(componentDir, file), infraVars)
 		}
 	}
 
 	// Component services: gotemplates/components/infra/helmreleases.yaml
 	componentVars, _, err := sub.buildComponentsTemplateVars(ctx, inst, apiextensionsv1.JSON{})
 	require.NoError(t, err)
-	collect(filepath.Join("..", "..", "gotemplates", "components", "infra", "helmreleases.yaml"), componentVars)
+	collect("components/infra/helmreleases.yaml", componentVars)
 
 	return graph
 }

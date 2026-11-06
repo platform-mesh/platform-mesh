@@ -43,7 +43,7 @@ tasks:
       - task: tools:generate-deepcopy
         vars:
           PATH: /marketplace/...
-      - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/virtual-workspaces --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
   build:
     cmds:
       - go build ./...

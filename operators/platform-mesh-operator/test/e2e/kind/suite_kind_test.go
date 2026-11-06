@@ -39,11 +39,13 @@ import (
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/platform-mesh-operator/config/crd"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 	"go.platform-mesh.io/platform-mesh-operator/internal/controller"
 	providerscontroller "go.platform-mesh.io/platform-mesh-operator/internal/controller/providers"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/kapply"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines"
+	e2eyaml "go.platform-mesh.io/platform-mesh-operator/test/e2e/kind/yaml"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -461,7 +463,7 @@ func (s *KindTestSuite) createSecrets(ctx context.Context, dirRootPath []byte) e
 }
 
 func (s *KindTestSuite) createReleases(ctx context.Context) error {
-	if err := ApplyManifestFromFile(ctx, "../../../test/e2e/kind/yaml/flux2-v2.6.4/flux2-install.yaml", s.client, make(map[string]string)); err != nil {
+	if err := ApplyManifestFromFile(ctx, e2eyaml.Resources, "flux2-v2.6.4/flux2-install.yaml", s.client, make(map[string]string)); err != nil {
 		return err
 	}
 	// The image automation controllers are part of the stock install manifest but nothing in
@@ -545,7 +547,7 @@ func (s *KindTestSuite) SetupSuite() {
 		s.logger.Error().Err(err).Msg("Failed to create certificates")
 		s.T().FailNow()
 	}
-	if err = ApplyManifestFromFile(ctx, "../../../test/e2e/kind/yaml/namespaces.yaml", s.client, make(map[string]string)); err != nil {
+	if err = ApplyManifestFromFile(ctx, e2eyaml.Resources, "namespaces.yaml", s.client, make(map[string]string)); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to apply namespaces.yaml manifest")
 		s.T().FailNow()
 	}
@@ -588,12 +590,12 @@ func (s *KindTestSuite) SetupSuite() {
 	s.logger.Info().Msg("OCM Component ready")
 
 	// add Platform Mesh profile ConfigMap
-	if err = ApplyManifestFromFile(ctx, "../../../test/e2e/kind/yaml/platform-mesh-resource/default-profile.yaml", s.client, make(map[string]string)); err != nil {
+	if err = ApplyManifestFromFile(ctx, e2eyaml.Resources, "platform-mesh-resource/default-profile.yaml", s.client, make(map[string]string)); err != nil {
 		s.FailNow("Failed to apply PlatformMesh profile ConfigMap manifest", err)
 	}
 
 	// add Platform Mesh resource
-	if err = ApplyManifestFromFile(ctx, "../../../test/e2e/kind/yaml/platform-mesh-resource/platform-mesh.yaml", s.client, make(map[string]string)); err != nil {
+	if err = ApplyManifestFromFile(ctx, e2eyaml.Resources, "platform-mesh-resource/platform-mesh.yaml", s.client, make(map[string]string)); err != nil {
 		s.FailNow("Failed to apply PlatformMesh resource manifest", err)
 	}
 
@@ -863,13 +865,13 @@ func isPodReady(pod *corev1.Pod) bool {
 }
 
 func (s *KindTestSuite) InstallCRDs(ctx context.Context) error {
-	err := ApplyManifestFromFile(ctx, "../../../config/crd/core.platform-mesh.io_platformmeshes.yaml", s.client, make(map[string]string))
+	err := ApplyManifestFromFile(ctx, crd.Resources, "core.platform-mesh.io_platformmeshes.yaml", s.client, make(map[string]string))
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to apply PlatformMesh CRD manifest")
 		return err
 	}
 
-	if err := ApplyManifestFromFile(ctx, "../../../config/crd/providers.platform-mesh.io_managedproviders.yaml", s.client, make(map[string]string)); err != nil {
+	if err := ApplyManifestFromFile(ctx, crd.Resources, "providers.platform-mesh.io_managedproviders.yaml", s.client, make(map[string]string)); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to apply ManagedProvider CRD manifest")
 		return err
 	}
@@ -898,7 +900,6 @@ func (s *KindTestSuite) runPlatformMeshOperator(ctx context.Context) {
 	appConfig.Subroutines.ManagedProvider.Deploy.Enabled = true
 	appConfig.Subroutines.Provider.Workspace.Enabled = true
 	appConfig.Subroutines.Provider.Kubeconfig.Enabled = true
-	appConfig.WorkspaceDir = "../../../"
 	appConfig.KCP = defaultKcpOperatorConfig
 
 	commonConfig := &pmconfig.CommonServiceConfig{}
@@ -920,7 +921,7 @@ func (s *KindTestSuite) runPlatformMeshOperator(ctx context.Context) {
 	}
 
 	imageVersionStore := subroutines.NewImageVersionStore()
-	pmReconciler, err := controller.NewPlatformMeshReconciler(mgr, &appConfig, commonConfig, "../../../", mgr.GetLocalManager().GetClient(), imageVersionStore)
+	pmReconciler, err := controller.NewPlatformMeshReconciler(mgr, &appConfig, commonConfig, mgr.GetLocalManager().GetClient(), imageVersionStore)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to create PlatformMesh reconciler")
 		return
