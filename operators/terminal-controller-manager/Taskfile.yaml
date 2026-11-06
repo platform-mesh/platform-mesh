@@ -77,28 +77,18 @@ tasks:
       - task: fmt
       - task: tools:lint
 
-  envtest:
-    internal: true
-    deps: [tools:kcp, tools:envtest]
-    env:
-      # Shared kcp installed by tools:kcp into the root bin.
-      TEST_KCP_ASSETS: '{{.BIN}}'
-    cmds:
-      - |
-        set -ex
-        export KUBEBUILDER_ASSETS=$({{.ENVTEST}} use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
-        go test -count=1 {{.TEST_PACKAGES | default "./..."}} {{.ADDITIONAL_COMMAND_ARGS}}
-
   test:
+    desc: Run unit tests (nothing in this module uses envtest or kcp).
     cmds:
-      - task: envtest
-  test-e2e: # alias to appease the global taskfile
+      - go test -count=1 ./... {{.ADDITIONAL_COMMAND_ARGS}}
+  test-e2e:
+    desc: No e2e tests for terminal-controller-manager.
     cmds:
-      - task: test
+      - 'echo "terminal-controller-manager: no e2e tests"'
 
   cover:
     cmds:
-      - task: envtest
+      - task: test
         vars:
           ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
 

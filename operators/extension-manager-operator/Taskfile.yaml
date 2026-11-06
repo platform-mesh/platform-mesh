@@ -121,7 +121,6 @@ tasks:
       - task: fmt
       - task: tools:lint
   test:
-    deps: [tools:kcp]
     cmds:
       - go test -race -count=1 ./...
   test-e2e:

@@ -26,7 +26,6 @@ dotenv: ['.taskenv', '.secret/.env', '{{.HOME}}/.env' ]
 vars:
   CRD_DIRECTORY: config/crd
   RBAC_DIRECTORY: config/rbac
-  TEST_SETUP_DIRECTORY: setup/01-platform-mesh-system
 
 tasks:
   ## Development
@@ -36,10 +35,7 @@ tasks:
       - "{{.MOCKERY}}"
 
   test:
-    deps: [mockery, tools:kind, tools:mkcert]
-    env:
-      KIND_BINARY: '{{.KIND}}'
-      MKCERT_BINARY: '{{.MKCERT}}'
+    deps: [mockery]
     cmds:
       - cmd: |
           if [ "$GITHUB_WORKFLOW" = "ci" ]; then

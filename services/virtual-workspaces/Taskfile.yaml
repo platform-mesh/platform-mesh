@@ -83,12 +83,10 @@ tasks:
       - task: fmt
       - task: tools:lint
   test:
-    deps: [tools:envtest]
+    desc: Run unit tests (nothing in this module uses envtest).
     cmds:
-      - |
-        set -ex
-        export KUBEBUILDER_ASSETS=$({{.ENVTEST}} use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
-        go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
-  test-e2e: # alias to appease the global taskfile
+      - go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
+  test-e2e:
+    desc: No e2e tests for virtual-workspaces.
     cmds:
-      - task: test
+      - 'echo "virtual-workspaces: no e2e tests"'
