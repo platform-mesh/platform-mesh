@@ -61,9 +61,9 @@ func (ids identities) patch(obj *unstructured.Unstructured) {
 		if hash, ok := ids[resource+"."+group]; ok {
 			claim["identityHash"] = hash
 		}
-		// apigen writes `verbs: null` into config/resources, which kcp
-		// rejects; the deployed manifests (platform-mesh-operator
-		// manifests/kcp) claim all verbs.
+		// apigen writes `verbs: null` into apis/static-assets/resources,
+		// which kcp rejects; the deployed manifests (apis/static-assets/kcp)
+		// claim all verbs.
 		if claim["verbs"] == nil {
 			claim["verbs"] = []any{"*"}
 		}

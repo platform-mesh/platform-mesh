@@ -1,6 +1,6 @@
 module go.platform-mesh.io/tests
 
-go 1.26.5
+go 1.26.3
 
 // Never published: the integration and e2e tests import the workspace modules
 // directly. The replaces keep the module self-contained without go.work
