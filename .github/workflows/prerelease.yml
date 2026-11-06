@@ -24,7 +24,7 @@ name: prerelease
 #     prefer release candidates and releases over these builds,
 #   - without a GitHub release.
 #
-# Install it like a release (installation/README.md), with the version as
+# Install it like a release (https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh), with the version as
 # `ocm.version` of the platform-mesh-operator chart.
 #
 # Old prerelease versions are removed by prerelease-cleanup.yml.
@@ -71,7 +71,7 @@ jobs:
           {
             echo "Publishing prerelease $version from $(git rev-parse HEAD)."
             echo
-            echo "Install it like a release (installation/README.md) with \`--set-string ocm.version=$version\`."
+            echo "Install it like a release (https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with \`--set-string ocm.version=$version\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
