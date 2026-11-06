@@ -3,7 +3,7 @@
 The `go.platform-mesh.io/tests` module holds the tests that need a control
 plane: integration tests against a kcp test server and e2e tests against a
 deployed Platform Mesh. Unit tests stay next to the code they test
-(`task test`, `task test-<component>`). Design: RFC 011 (test consolidation).
+(`task test`, `task test-<component>`).
 
 ## Two environments
 
@@ -108,14 +108,16 @@ serving the whole group. On a shared kcp where one of those ran first, the
 security suite fails at once and says so. Run it on a private server
 (`task test-integration PKG=./integration/security/...`).
 
-Exports and schemas always come from the operator's `config/resources`
-(apigen output, which keeps an export's permission claims when it
-regenerates); bindings are derived from the export they bind
+Exports and schemas always come from the operator's apigen output in
+`apis/static-assets/resources/<operator>` (`fixtures.WithResources` on its
+embedded `Resources`; apigen reads the existing APIExport back and replaces
+only its resources, so hand-written permission claims and identity survive
+`task generate`); bindings are derived from the export they bind
 (`fixtures.BindingFor`, `fixtures.WithBindings(exportName)`); WorkspaceTypes
-come from the platform-mesh-operator's deployed manifests
-(`manifests/kcp/embed.go`), with bindings to exports and extends of types
-that are not installed dropped, plus `fixtures.WithDefaultBindings` for what
-a suite needs on top. Suites keep copies of none of these.
+come from the deployed kcp manifests in `apis/static-assets/kcp`, with
+bindings to exports and extends of types that are not installed dropped,
+plus `fixtures.WithDefaultBindings` for what a suite needs on top. Suites
+keep copies of none of these.
 
 ## Logs and work dirs
 

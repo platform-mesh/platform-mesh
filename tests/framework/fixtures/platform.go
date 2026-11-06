@@ -114,7 +114,7 @@ func WithResources(fsys fs.FS, glob string) Option {
 // WithExport creates the APIExport name in :root:platform-mesh-system serving
 // the named resources of the APIExport from (one of WithResources), which
 // stops serving them, and sharing from's identity. This is how the deployed
-// manifests (platform-mesh-operator manifests/kcp) split stores and
+// manifests (apis/static-assets/kcp) split stores and
 // authorizationmodels out of core.platform-mesh.io into fga.platform-mesh.io
 // and provider-fga.platform-mesh.io, while apigen puts every resource of the
 // group into one export.
@@ -247,7 +247,7 @@ func Install(t testing.TB, env *kcp.Env, opts ...Option) *Platform {
 // path: named after the export, accepting every permission claim it makes
 // with the claim's defaultSelector or matchAll, the way kcp does for a
 // WorkspaceType's defaultAPIBindings. This is the binding the deployed
-// manifests (platform-mesh-operator manifests/kcp) write out by hand.
+// manifests (apis/static-assets/kcp) write out by hand.
 func BindingFor(export *kcpapisv1alpha2.APIExport, path logicalcluster.Path) *kcpapisv1alpha2.APIBinding {
 	claims := make([]kcpapisv1alpha2.AcceptablePermissionClaim, 0, len(export.Spec.PermissionClaims))
 	for _, claim := range export.Spec.PermissionClaims {
