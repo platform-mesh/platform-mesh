@@ -292,7 +292,7 @@ untouched and are resolved by the portal per organization at request time. Leave
 
 ## Step 6: Testing
 
-Install Platform Mesh on kind as described in [`installation/README.md`](../../installation/README.md),
+Install Platform Mesh on kind as described in the [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh),
 with the `platform-mesh-operator` chart from your working tree
 (`helm upgrade --install platform-mesh-operator charts/platform-mesh-operator ...`) so the profile
 change is picked up, and `ocm.version` set to a published version that contains your chart — a
@@ -311,4 +311,4 @@ kubectl get pods -n platform-mesh-system | grep my-service
 - [ ] **Aggregate reference** added to `component-constructor.yaml`
 - [ ] **`charts/my-service/component-constructor.yaml`** with the component versions the chart publishes (no file for a chart that publishes none)
 - [ ] **Profile entry** in the PlatformMesh default profile with the matching `referencePath`
-- [ ] **Tested locally** (see `installation/README.md` for the kind setup)
+- [ ] **Tested locally** (see the [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) for the kind setup)

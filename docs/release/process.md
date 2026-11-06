@@ -49,8 +49,8 @@ the next full version from it and from the tags reachable from `HEAD`.
    git tag v26.11.0-rc.1 && git push origin v26.11.0-rc.1
    ```
 
-2. Test the candidate: install it as described in
-   [`installation/README.md`](../../installation/README.md) with
+2. Test the candidate: install it as described in the
+   [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with
    `--set-string ocm.version=26.11.0-rc.1` (and the operator chart at the same
    version). Fixes land on `main`; cut further candidates as needed (`-rc.2`, …).
 3. Promote: tag the same version without the `-rc.N`:
@@ -133,7 +133,7 @@ prerelease → Run workflow). It runs the same `job-publish.yml` with the versio
 `<next>-dev.<run>.g<sha>`, e.g. `26.11.0-dev.42.g1a2b3c4` (`dev` sorts below
 `rc`), and creates no GitHub release. The version is in the run's summary:
 
-Install it like a release ([`installation/README.md`](../../installation/README.md))
+Install it like a release ([installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh))
 with `--set-string ocm.version=26.11.0-dev.42.g1a2b3c4`.
 
 Prerelease versions older than two weeks are deleted by

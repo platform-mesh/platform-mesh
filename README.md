@@ -67,7 +67,7 @@ The modules are linked through the root [`go.work`](go.work), so cross-module ch
 
 ## Development
 
-For the development loop, [Tilt](https://tilt.dev) replaces the OCM/Flux delivery pipeline: the kind installation from [installation/README.md](installation/README.md) is rendered straight from [`charts/`](charts), and the operators and services you are working on are compiled on the host and hot-reloaded into their pods in seconds.
+For the development loop, [Tilt](https://tilt.dev) replaces the OCM/Flux delivery pipeline: the kind installation from the [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) is rendered straight from [`charts/`](charts), and the operators and services you are working on are compiled on the host and hot-reloaded into their pods in seconds.
 
 `helm` needs to be authenticated with ghcr.io to pull the charts:
 

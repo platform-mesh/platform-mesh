@@ -13,7 +13,8 @@
 - `charts/`: Helm charts, values, templates, tests, chart locks, chart READMEs, as well as per-chart OCM constructors with version coordinate files.
 - `charts/.docs-templates/`: templates used by `helm-docs` to generate chart documentation.
 - `component-constructor.yaml` The OCM constructor for the main published OCM CV.
-- `installation/`: how to install Platform Mesh (production and kind) with the `platform-mesh-prerequisites` and `platform-mesh-operator` charts; no scripts.
+- `ocm/`: `component-constructor.yaml` (aggregate + third-party wrappers), `charts/<chart>.yaml` (per-chart OCM settings), `versions.yaml` (third-party pins), `components.yaml` (components built in this repo). The full graph is built by the Go commands under `hack/release/`.
+- `installation/`: Helm values files for frontend development CORS configuration.
 - `tests/`: Playwright end-to-end tests run against an installed Platform Mesh.
 - `.github/workflows/`: `helm-lint.yml` (chart lint/unittest), `verify.yml` (chart docs and CRD copies committed), `release.yml` + `job-publish.yml`, `prerelease.yml`.
 - `charts/Taskfile.yaml` (`task charts:*`): automation entrypoints.
@@ -28,7 +29,7 @@ This is a deployment and packaging repo, not a service runtime.
 - `helm-docs` generates chart README content from chart metadata, values, and templates.
 
 ### Installation and OCM model
-- `installation/README.md` is the supported path for installing Platform Mesh, on kind as well as on a real cluster: the prerequisites chart, then the operator chart with `ocm.enabled=true` and an `ocm.version`.
+- The [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) is the supported path for installing Platform Mesh, on kind as well as on a real cluster: the prerequisites chart, then the operator chart with `ocm.enabled=true` and an `ocm.version`.
 - The Go commands under `hack/release/` (`ocm-build-chart`, `ocm-build-image`, `ocm-build-third-party`, `ocm-build-aggregate`) build the OCM component graph for releases and prereleases, one `component-constructor.yaml` each.
 - Charts are published by every Platform Mesh release/prerelease, all at the release's version. There is no per-chart release and nothing to bump.
 - Workflow changes can affect chart publishing and full platform bootstrap behavior.
