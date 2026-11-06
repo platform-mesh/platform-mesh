@@ -39,19 +39,12 @@ import (
 	"log"
 	"maps"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 
 	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
-)
-
-const (
-	defaultOCMRepo = "ghcr.io/platform-mesh"
-	defaultRepoURL = "https://github.com/platform-mesh/platform-mesh"
-	ctfPrefix      = "ctf::"
 )
 
 func main() {
@@ -84,30 +77,19 @@ func run(ctx context.Context) error {
 		return errors.New("PM_VERSION must be set")
 	}
 
-	ocmRepo := envOr("OCM_REPO", defaultOCMRepo)
-
-	// An archive target still mirrors the published registries.
-	base := ocmRepo
-	if strings.HasPrefix(base, ctfPrefix) {
-		base = defaultOCMRepo
-	}
-
-	chartRepo := envOr("CHART_REPO", base+"/helm-charts")
+	ocmRepo := releaseutils.OCMRepo()
+	chartRepo := releaseutils.EnvOr("CHART_REPO", releaseutils.BaseRegistry(ocmRepo)+"/helm-charts")
 	appVersion := appVersion(os.Getenv("APP_VERSION"), meta.AppVersion, version)
-
-	commit := os.Getenv("COMMIT")
-	if commit == "" {
-		commit, err = gitHead(ctx)
-		if err != nil {
-			return err
-		}
+	commit, err := releaseutils.Commit(ctx)
+	if err != nil {
+		return err
 	}
 
 	env := map[string]string{
 		"PM_VERSION":  version,
 		"CHART_REPO":  chartRepo,
 		"APP_VERSION": appVersion,
-		"REPO_URL":    envOr("REPO_URL", defaultRepoURL),
+		"REPO_URL":    releaseutils.EnvOr("REPO_URL", releaseutils.DefaultRepoURL),
 		"COMMIT":      commit,
 	}
 	chartEnv, err := readChartEnv(dir)
@@ -156,19 +138,4 @@ func run(ctx context.Context) error {
 
 	log.Printf("done: %s", strings.Join(cvs, " "))
 	return nil
-}
-
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
-}
-
-func gitHead(ctx context.Context) (string, error) {
-	out, err := exec.CommandContext(ctx, "git", "rev-parse", "HEAD").Output()
-	if err != nil {
-		return "", fmt.Errorf("reading git HEAD: %w", err)
-	}
-	return strings.TrimSpace(string(out)), nil
 }

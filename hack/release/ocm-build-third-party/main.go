@@ -42,8 +42,6 @@ import (
 	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
-const defaultOCMRepo = "ghcr.io/platform-mesh"
-
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix(">>> ")
@@ -72,10 +70,7 @@ func run(ctx context.Context) error {
 	if version == "" {
 		return errors.New("PM_VERSION must be set")
 	}
-	ocmRepo := os.Getenv("OCM_REPO")
-	if ocmRepo == "" {
-		ocmRepo = defaultOCMRepo
-	}
+	ocmRepo := releaseutils.OCMRepo()
 
 	repo := releaseutils.OCMRepository{
 		Repo:      ocmRepo,

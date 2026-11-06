@@ -41,19 +41,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 
 	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
-)
-
-const (
-	defaultOCMRepo = "ghcr.io/platform-mesh"
-	defaultRepoURL = "https://github.com/platform-mesh/platform-mesh"
-	ctfPrefix      = "ctf::"
 )
 
 func main() {
@@ -89,26 +82,16 @@ func run(ctx context.Context) error {
 		return errors.New("PM_VERSION must be set")
 	}
 
-	ocmRepo := envOr("OCM_REPO", defaultOCMRepo)
-	// An archive target still mirrors the published registry.
-	base := ocmRepo
-	if strings.HasPrefix(base, ctfPrefix) {
-		base = defaultOCMRepo
-	}
-
-	commit := os.Getenv("COMMIT")
-	if commit == "" {
-		var err error
-		commit, err = gitHead(ctx)
-		if err != nil {
-			return err
-		}
+	ocmRepo := releaseutils.OCMRepo()
+	commit, err := releaseutils.Commit(ctx)
+	if err != nil {
+		return err
 	}
 
 	env := map[string]string{
 		"PM_VERSION": version,
-		"IMAGE_REPO": envOr("IMAGE_REPO", base+"/platform-mesh"),
-		"REPO_URL":   envOr("REPO_URL", defaultRepoURL),
+		"IMAGE_REPO": releaseutils.EnvOr("IMAGE_REPO", releaseutils.BaseRegistry(ocmRepo)+"/platform-mesh"),
+		"REPO_URL":   releaseutils.EnvOr("REPO_URL", releaseutils.DefaultRepoURL),
 		"COMMIT":     commit,
 	}
 
@@ -119,7 +102,7 @@ func run(ctx context.Context) error {
 	defer func() { _ = os.RemoveAll(tmp) }()
 
 	transport := releaseutils.OCMRepository{
-		Repo:      ctfPrefix + filepath.Join(tmp, "transport.ctf"),
+		Repo:      releaseutils.CTFPrefix + filepath.Join(tmp, "transport.ctf"),
 		Signature: os.Getenv("SIGNATURE"),
 	}
 	target := releaseutils.OCMRepository{Repo: ocmRepo}
@@ -146,19 +129,4 @@ func run(ctx context.Context) error {
 
 	log.Printf("done: %s", strings.Join(cvs, " "))
 	return nil
-}
-
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
-}
-
-func gitHead(ctx context.Context) (string, error) {
-	out, err := exec.CommandContext(ctx, "git", "rev-parse", "HEAD").Output()
-	if err != nil {
-		return "", fmt.Errorf("reading git HEAD: %w", err)
-	}
-	return strings.TrimSpace(string(out)), nil
 }
