@@ -14,9 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resources
+package virtualworkspaces
 
-import _ "embed"
+import "embed"
 
-//go:embed apiresourceschema-marketplaceentries.marketplace.platform-mesh.io.yaml
-var ResourceSchema string
+// Resources holds the APIExports and APIResourceSchemas apigen generates for
+// virtual-workspaces (`task generate` in that component writes here).
+//
+//go:embed *.yaml
+var Resources embed.FS

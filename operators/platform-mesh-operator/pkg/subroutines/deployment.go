@@ -30,13 +30,13 @@ import (
 	"github.com/rs/zerolog/log"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	k8smanifests "go.platform-mesh.io/apis/static-assets/k8s"
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/gotemplates"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 	"go.platform-mesh.io/platform-mesh-operator/internal/metrics"
-	k8smanifests "go.platform-mesh.io/platform-mesh-operator/manifests/k8s"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/merge"
 	"go.platform-mesh.io/subroutines"
 

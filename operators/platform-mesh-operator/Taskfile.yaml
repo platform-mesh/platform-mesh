@@ -162,9 +162,9 @@ tasks:
             )
             apigen_dest=(
                 # Add your apigen output paths below.
-                ./manifests/kcp/01-platform-mesh-system/apiexport-providers.platform-mesh.io.yaml
-                ./manifests/kcp/01-platform-mesh-system/apiresourceschema-providers.providers.platform-mesh.io.yaml
-                ./manifests/kcp/01-platform-mesh-system/apiresourceschema-providerpermissions.providers.platform-mesh.io.yaml
+                {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiexport-providers.platform-mesh.io.yaml
+                {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiresourceschema-providers.providers.platform-mesh.io.yaml
+                {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiresourceschema-providerpermissions.providers.platform-mesh.io.yaml
             )
 
             # NOTE: this script also applies yaml-patch files from {{.CRD_DIRECTORY}}/apigen/patches onto {{.CRD_DIRECTORY}}/apigen/out.

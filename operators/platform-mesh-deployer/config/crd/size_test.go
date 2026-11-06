@@ -18,12 +18,13 @@ package crd_test
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
+	"io/fs"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"go.platform-mesh.io/platform-mesh-deployer/config/crd"
 
 	"sigs.k8s.io/yaml"
 )
@@ -38,17 +39,18 @@ const lastAppliedMax = 262144
 func TestCRDsFitLastAppliedAnnotation(t *testing.T) {
 	t.Parallel()
 
-	files, err := filepath.Glob("*.yaml")
+	entries, err := fs.ReadDir(crd.Resources, ".")
 	require.NoError(t, err)
-	require.NotEmpty(t, files)
+	require.NotEmpty(t, entries)
 
-	for _, file := range files {
-		if filepath.Base(file) == "kustomization.yaml" {
+	for _, entry := range entries {
+		file := entry.Name()
+		if file == "kustomization.yaml" {
 			continue
 		}
 		t.Run(file, func(t *testing.T) {
 			t.Parallel()
-			raw, err := os.ReadFile(file)
+			raw, err := crd.Resources.ReadFile(file)
 			require.NoError(t, err)
 			// The annotation holds the applied object as JSON, not YAML.
 			var obj any

@@ -24,10 +24,10 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	featuremanifests "go.platform-mesh.io/apis/static-assets/features"
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
-	featuremanifests "go.platform-mesh.io/platform-mesh-operator/manifests/features"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/mocks"
 	"go.platform-mesh.io/subroutines"
 

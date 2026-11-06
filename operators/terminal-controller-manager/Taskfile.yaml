@@ -40,7 +40,7 @@ tasks:
       - task: tools:generate-deepcopy
         vars:
           PATH: /terminal/...
-      - "{{.APIGEN}} --input-dir config/crd/bases --output-dir ./config/resources --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      - "{{.APIGEN}} --input-dir config/crd/bases --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/terminal-controller-manager --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
 
   build:
     cmds:

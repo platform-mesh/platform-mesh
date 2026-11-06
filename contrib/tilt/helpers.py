@@ -306,7 +306,7 @@ def component_binary(name, path, deps, image, extra_dirs={}, labels=['platform-m
     deps:       extra repo-root-relative source dirs that trigger a rebuild
     image:      image ref the chart renders; Tilt rewrites its tag
     extra_dirs: {repo-root-relative dir: path under /app} payload the binary
-                reads at runtime (PMO's manifests/ and gotemplates/)
+                reads at runtime (none today; manifests and templates are embedded)
     """
     # Each component gets its own context directory holding a single file named
     # `entrypoint`, rather than one shared bin/ filtered with only=[name]. The

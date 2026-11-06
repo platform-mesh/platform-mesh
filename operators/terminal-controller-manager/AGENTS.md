@@ -15,7 +15,7 @@
 - `internal/controller`: reconciliation logic.
 - `internal/config`: runtime configuration.
 - `pkg/subroutines`: reusable reconciliation helpers.
-- `config/crd`, `config/resources`: generated Kubernetes and API resources.
+- `config/crd`, `apis/static-assets/resources/terminal-controller-manager`: generated Kubernetes and API resources.
 - `images/terminal`: terminal pod image sources and Docker context.
 - `docs/CONCEPT.md`: architecture and design context.
 - `test-ui`: local browser UI for websocket testing.
@@ -68,11 +68,11 @@ This service splits responsibility between kcp-backed `Terminal` resources and r
 
 ## Generated Artifacts
 - Run `task generate` after changing API types or CRD shape.
-- Review changes in `config/crd` and `config/resources`.
+- Review changes in `config/crd` and `apis/static-assets/resources/terminal-controller-manager`.
 - Keep generated changes separate from unrelated manual edits when possible.
 
 ## Do Not
-- Edit generated CRD or resource output in `config/crd` or `config/resources` without running `task generate`.
+- Edit generated CRD or resource output in `config/crd` or `apis/static-assets/resources/terminal-controller-manager` without running `task generate`.
 - Change both the controller and terminal image behavior unless the task actually requires both.
 
 ## Hard Boundaries

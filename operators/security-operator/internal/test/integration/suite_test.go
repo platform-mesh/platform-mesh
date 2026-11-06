@@ -20,9 +20,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +35,8 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
+	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
+	resources "go.platform-mesh.io/apis/static-assets/resources/security-operator"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -62,37 +68,12 @@ import (
 	_ "embed"
 )
 
+// The APIResourceSchemas and the core/providers APIExports come from the
+// generated config/resources (embedded as resources.Resources), so the suite
+// tests the API that apigen actually produced. The fga split exports are the
+// ones platform-mesh-operator deploys (embedded apis/static-assets/kcp). Only
+// hand-written fixtures (bindings, workspace types) live in yaml/.
 var (
-	//go:embed yaml/apiresourceschema-accountinfos.core.platform-mesh.io.yaml
-	AccountInfoSchemaYAML []byte
-
-	//go:embed yaml/apiresourceschema-accounts.core.platform-mesh.io.yaml
-	AccountSchemaYAML []byte
-
-	//go:embed yaml/apiresourceschema-authorizationmodels.core.platform-mesh.io.yaml
-	AuthorizationModelSchemaYAML []byte
-
-	//go:embed yaml/apiresourceschema-stores.core.platform-mesh.io.yaml
-	StoreSchemaYAML []byte
-
-	//go:embed yaml/apiresourceschema-invites.core.platform-mesh.io.yaml
-	InviteSchemaYAML []byte
-
-	//go:embed yaml/apiresourceschema-providerpermissions.providers.platform-mesh.io.yaml
-	ProviderPermissionsSchemaYAML []byte
-
-	//go:embed yaml/apiexport-core.platform-mesh.io.yaml
-	ApiExportPlatformMeshSystemYAML []byte
-
-	//go:embed yaml/apiexport-providers.platform-mesh.io.yaml
-	ApiExportProvidersYAML []byte
-
-	//go:embed yaml/apiexport-fga.platform-mesh.io.yaml
-	ApiExportFgaYAML []byte
-
-	//go:embed yaml/apiexport-provider-fga.platform-mesh.io.yaml
-	ApiExportProviderFgaYAML []byte
-
 	//go:embed yaml/apibinding-provider-fga-platform-mesh.io.yaml
 	ApiBindingProviderFgaPlatformMeshYAML []byte
 
@@ -190,33 +171,51 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	suite.platformMeshSysPath = platformMeshSystemClusterPath
 	suite.platformMeshSystemClient = cli.Cluster(platformMeshSystemClusterPath)
 
-	// register api-resource schemas
-	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML, InviteSchemaYAML, ProviderPermissionsSchemaYAML}
-	for _, schemaYAML := range schemas {
-		var schema kcpapisv1alpha1.APIResourceSchema
-		suite.Require().NoError(yaml.Unmarshal(schemaYAML, &schema))
-		err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &schema)
+	// register every generated APIResourceSchema
+	schemaNames := map[string]string{} // "<resource>.<group>" -> APIResourceSchema name
+	for _, schema := range suite.generatedSchemas() {
+		schemaNames[strings.TrimPrefix(schema.Name, strings.SplitN(schema.Name, ".", 2)[0]+".")] = schema.Name
+		err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, schema)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
 			suite.Require().NoError(err)
 		}
 		suite.T().Logf("created APIResourceSchema: %s", schema.Name)
 	}
-	suite.Require().NoError(err)
 
-	var apiExport kcpapisv1alpha1.APIExport
-	suite.Require().NoError(yaml.Unmarshal(ApiExportPlatformMeshSystemYAML, &apiExport))
+	// The generated core export lists every core resource; production
+	// (apis/static-assets/kcp) serves stores and
+	// authorizationmodels through the fga exports below instead, and claims the
+	// kcp resources the operator reads through the virtual workspace.
+	apiExport := suite.generatedExport("apiexport-core.platform-mesh.io.yaml")
+	apiExport.Spec.Resources = slices.DeleteFunc(apiExport.Spec.Resources, func(r kcpapisv1alpha2.ResourceSchema) bool {
+		return r.Name == "stores" || r.Name == "authorizationmodels"
+	})
+	for _, gr := range []kcpapisv1alpha2.GroupResource{
+		{Group: "apis.kcp.io", Resource: "apibindings"},
+		{Group: "apis.kcp.io", Resource: "apiexports"},
+		{Group: "apis.kcp.io", Resource: "apiresourceschemas"},
+		{Group: "core.kcp.io", Resource: "logicalclusters"},
+	} {
+		apiExport.Spec.PermissionClaims = append(apiExport.Spec.PermissionClaims, kcpapisv1alpha2.PermissionClaim{GroupResource: gr, Verbs: []string{"*"}})
+	}
 
-	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &apiExport)
+	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, apiExport)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
 	t.Log("created APIExport 'core.platform-mesh.io' in platform-mesh-system workspace")
 
-	// Same split as production: stores in fga.platform-mesh.io, authorizationmodels in provider-fga.platform-mesh.io.
-	for _, exportYAML := range [][]byte{ApiExportFgaYAML, ApiExportProviderFgaYAML} {
-		var splitExport kcpapisv1alpha1.APIExport
-		suite.Require().NoError(yaml.Unmarshal(exportYAML, &splitExport))
-		err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &splitExport)
+	// The split exports platform-mesh-operator deploys: stores in fga.platform-mesh.io,
+	// authorizationmodels in provider-fga.platform-mesh.io. They reference the schema
+	// names of the deployed manifests; point them at the generated schemas registered above.
+	for _, file := range []string{"apiexport-fga.platform-mesh.io.yaml", "apiexport-provider-fga.platform-mesh.io.yaml"} {
+		splitExport := suite.deployedExport(file)
+		for i, r := range splitExport.Spec.Resources {
+			name, ok := schemaNames[r.Name+"."+r.Group]
+			suite.Require().True(ok, "no generated APIResourceSchema for %s.%s referenced by APIExport %s", r.Name, r.Group, splitExport.Name)
+			splitExport.Spec.Resources[i].Schema = name
+		}
+		err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, splitExport)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
 			suite.Require().NoError(err)
 		}
@@ -224,10 +223,9 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	}
 
 	// Create providers.platform-mesh.io APIExport
-	var providersApiExport kcpapisv1alpha1.APIExport
-	suite.Require().NoError(yaml.Unmarshal(ApiExportProvidersYAML, &providersApiExport))
+	providersApiExport := suite.generatedExport("apiexport-providers.platform-mesh.io.yaml")
 
-	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &providersApiExport)
+	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, providersApiExport)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		suite.Require().NoError(err)
 	}
@@ -465,4 +463,42 @@ func (suite *IntegrationSuite) getPlatformMeshSystemConfig(cfg *rest.Config) (*r
 	providerConfig.Host = parsed.String()
 
 	return providerConfig, nil
+}
+
+// generatedSchemas decodes every APIResourceSchema apigen wrote to config/resources.
+func (suite *IntegrationSuite) generatedSchemas() []*kcpapisv1alpha1.APIResourceSchema {
+	entries, err := fs.ReadDir(resources.Resources, ".")
+	suite.Require().NoError(err)
+	var schemas []*kcpapisv1alpha1.APIResourceSchema
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), "apiresourceschema-") {
+			continue
+		}
+		raw, err := fs.ReadFile(resources.Resources, entry.Name())
+		suite.Require().NoError(err)
+		schema := &kcpapisv1alpha1.APIResourceSchema{}
+		suite.Require().NoError(yaml.Unmarshal(raw, schema), "decoding %s", entry.Name())
+		schemas = append(schemas, schema)
+	}
+	suite.Require().NotEmpty(schemas, "config/resources holds no APIResourceSchemas; run `task generate`")
+	return schemas
+}
+
+// generatedExport decodes one of the APIExports apigen wrote to config/resources.
+func (suite *IntegrationSuite) generatedExport(file string) *kcpapisv1alpha2.APIExport {
+	return suite.decodeExport(resources.Resources, file)
+}
+
+// deployedExport decodes one of the APIExports platform-mesh-operator applies to
+// root:platform-mesh-system from the embedded apis/static-assets/kcp.
+func (suite *IntegrationSuite) deployedExport(file string) *kcpapisv1alpha2.APIExport {
+	return suite.decodeExport(kcpmanifests.Resources, path.Join("01-platform-mesh-system", file))
+}
+
+func (suite *IntegrationSuite) decodeExport(fsys fs.FS, file string) *kcpapisv1alpha2.APIExport {
+	raw, err := fs.ReadFile(fsys, file)
+	suite.Require().NoError(err)
+	export := &kcpapisv1alpha2.APIExport{}
+	suite.Require().NoError(yaml.Unmarshal(raw, export), "decoding %s", file)
+	return export
 }

@@ -19,6 +19,7 @@ package subroutines
 import (
 	"context"
 	"encoding/pem"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,11 +30,12 @@ import (
 	"gopkg.in/yaml.v3"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
-	kcpmanifests "go.platform-mesh.io/platform-mesh-operator/manifests/kcp"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/mocks"
+	testfixtures "go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/test"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -96,7 +98,7 @@ func countPEMCertificateBlocks(t *testing.T, b []byte) int {
 
 func TestAppendPEMCertsDedupe(t *testing.T) {
 	t.Parallel()
-	raw, err := os.ReadFile("test/kubeconfig.yaml")
+	raw, err := fs.ReadFile(testfixtures.Resources, "kubeconfig.yaml")
 	require.NoError(t, err)
 	kc, err := clientcmd.Load(raw)
 	require.NoError(t, err)
@@ -116,7 +118,7 @@ func TestIDPSecretPermissionClaims(t *testing.T) {
 
 	readManifest := func(t *testing.T, path string) permissionClaimsManifest {
 		t.Helper()
-		raw, err := os.ReadFile(path)
+		raw, err := fs.ReadFile(kcpmanifests.Resources, path)
 		require.NoError(t, err)
 		rendered, err := ReplaceTemplate(map[string]any{
 			"apiExportRootTenancyKcpIoIdentityHash": "test-hash",
@@ -146,23 +148,23 @@ func TestIDPSecretPermissionClaims(t *testing.T) {
 		}, got.MatchExpressions)
 	}
 
-	coreExport := readManifest(t, "../../manifests/kcp/01-platform-mesh-system/apiexport-core.platform-mesh.io.yaml")
+	coreExport := readManifest(t, "01-platform-mesh-system/apiexport-core.platform-mesh.io.yaml")
 	require.Equal(t, "apis.kcp.io/v1alpha2", coreExport.APIVersion)
 	coreExportSecret := findSecretClaim(coreExport)
 	require.NotNil(t, coreExportSecret)
 	require.ElementsMatch(t, []string{"get", "create", "update", "delete"}, coreExportSecret.Verbs)
 	assertIDPSelector(t, coreExportSecret.DefaultSelector)
 
-	coreBinding := readManifest(t, "../../manifests/kcp/01-platform-mesh-system/apibinding-core.platform-mesh.io.yaml")
+	coreBinding := readManifest(t, "01-platform-mesh-system/apibinding-core.platform-mesh.io.yaml")
 	coreBindingSecret := findSecretClaim(coreBinding)
 	require.NotNil(t, coreBindingSecret)
 	require.ElementsMatch(t, []string{"get", "create", "update", "delete"}, coreBindingSecret.Verbs)
 	assertIDPSelector(t, coreBindingSecret.Selector)
 
-	systemExport := readManifest(t, "../../manifests/kcp/01-platform-mesh-system/apiexport-system.platform-mesh.io.yaml")
+	systemExport := readManifest(t, "01-platform-mesh-system/apiexport-system.platform-mesh.io.yaml")
 	require.Nil(t, findSecretClaim(systemExport))
 
-	systemBinding := readManifest(t, "../../manifests/kcp/01-platform-mesh-system/apibinding-system.platform-mesh.io.yaml")
+	systemBinding := readManifest(t, "01-platform-mesh-system/apibinding-system.platform-mesh.io.yaml")
 	require.Nil(t, findSecretClaim(systemBinding))
 }
 

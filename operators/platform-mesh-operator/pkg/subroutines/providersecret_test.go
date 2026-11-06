@@ -20,8 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 
@@ -33,6 +33,7 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/mocks"
+	testfixtures "go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/test"
 	"go.platform-mesh.io/subroutines"
 
 	corev1 "k8s.io/api/core/v1"
@@ -51,7 +52,7 @@ import (
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
-var secretKubeconfigData, _ = os.ReadFile("test/kubeconfig.yaml")
+var secretKubeconfigData, _ = fs.ReadFile(testfixtures.Resources, "kubeconfig.yaml")
 
 type fakeHelm struct{ ready bool }
 

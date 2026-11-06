@@ -18,7 +18,7 @@
 - `pkg/validation`: content configuration validation logic.
 - `pkg/transformer`: schema and transformation helpers.
 - `pkg/subroutines`, `pkg/util`: reusable operator helpers.
-- `config/crd`, `config/resources`: generated manifests. The chart copy of the CRD is written by `hack/charts/sync-crds.sh` as part of `task generate`.
+- `config/crd`, `apis/static-assets/resources/extension-manager-operator`: generated manifests. The chart copy of the CRD is written by `hack/charts/sync-crds.sh` as part of `task generate`.
 - `docs` and `docs/development`: product and developer documentation.
 
 ## Architecture
@@ -40,7 +40,7 @@ This is a multicluster `ContentConfiguration` operator with a thin controller an
 
 ### Configuration and tests
 - `internal/config/config.go` defines the operator flags, including whether the content configuration subroutine is enabled.
-- Controller tests use envtest; generated artifacts under `config/resources` and CRD output must stay in sync with API changes.
+- Controller tests use envtest; generated artifacts under `apis/static-assets/resources/extension-manager-operator` and CRD output must stay in sync with API changes.
 
 ## Commands
 - `task fmt` — format Go code.
@@ -68,11 +68,11 @@ This is a multicluster `ContentConfiguration` operator with a thin controller an
 ## Generated Artifacts
 - Run `task generate` after API, schema, or CRD changes.
 - Run `task mockery` after interface changes that affect generated mocks.
-- Review changes in `config/crd`, `config/resources`, and generated Go files.
+- Review changes in `config/crd`, `apis/static-assets/resources/extension-manager-operator`, and generated Go files.
 - Do not hand-edit generated output unless the file is clearly maintained as source.
 
 ## Do Not
-- Edit generated CRD or resource output in `config/crd` or `config/resources` without regeneration.
+- Edit generated CRD or resource output in `config/crd` or `apis/static-assets/resources/extension-manager-operator` without regeneration.
 - Hand-edit generated mocks after interface changes; run `task mockery` instead.
 - Update `.testcoverage.yml` unless the task explicitly requires it.
 

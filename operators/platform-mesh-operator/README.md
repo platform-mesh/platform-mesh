@@ -300,7 +300,7 @@ The operator uses a subroutine-based architecture (`go.platform-mesh.io/subrouti
 The subroutines run in the following order on every reconcile:
 
 1. **Deployment** — renders Go templates and applies infra/component resources (HelmReleases, ArgoCD Applications, OCM Resources)
-2. **KcpSetup** — creates KCP workspaces and applies `manifests/kcp/` (embedded in the binary) to them
+2. **KcpSetup** — creates KCP workspaces and applies `apis/static-assets/kcp/` (embedded in the binary) to them
 3. **ProviderSecret** — creates workspace-scoped kubeconfig secrets for all `providerConnections`
 4. **FeatureToggles** — applies feature-gated KCP manifests
 5. **Wait** — waits for deployment resources (e.g., HelmReleases) to reach a ready state
@@ -662,7 +662,7 @@ The Deployment subroutine manages the deployment of platform-mesh components:
 The KcpSetup subroutine handles initialization of the KCP environment:
 
 - Creates workspaces based on paths in `providerConnections`
-- Applies KCP manifests (APIExports, APIResourceSchemas, ContentConfigurations, etc.) from `manifests/kcp/`, which is embedded into the binary via the `embed.go` files in that tree
+- Applies KCP manifests (APIExports, APIResourceSchemas, ContentConfigurations, etc.) from `apis/static-assets/kcp/`, which is embedded into the binary via the `embed.go` files in that tree
 - Sets up API bindings as specified in `extraDefaultAPIBindings`
 - Creates extra workspaces specified in `spec.kcp.extraWorkspaces`
 
@@ -677,7 +677,7 @@ The ProviderSecret subroutine manages kubeconfig secrets for provider connection
 
 The FeatureToggles subroutine applies or removes KCP manifests based on enabled feature toggles:
 
-- Reads manifests from `manifests/features/<feature-name>/` (embedded in the binary)
+- Reads manifests from `apis/static-assets/features/<feature-name>/` (embedded in the binary)
 - Applies them to the appropriate KCP workspace paths
 - Supports parameterized features via `parameters` map
 

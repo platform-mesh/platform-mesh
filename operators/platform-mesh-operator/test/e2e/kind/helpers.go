@@ -23,7 +23,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
-	"os"
+	"io/fs"
 	"strings"
 	"time"
 
@@ -46,13 +46,15 @@ func dynamicClientForKubeconfig(kubeconfigBytes []byte) (dynamic.Interface, erro
 	return dynamic.NewForConfig(cfg)
 }
 
+// ApplyManifestFromFile renders the (possibly multi-document) manifest at path
+// in fsys with templateData and server-side applies every object in it.
 func ApplyManifestFromFile(
 	ctx context.Context,
-	path string, k8sClient ctrlruntimeclient.Client, templateData map[string]string,
+	fsys fs.FS, path string, k8sClient ctrlruntimeclient.Client, templateData map[string]string,
 ) error {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	objs, err := unstructuredsFromFile(path, templateData, log)
+	objs, err := unstructuredsFromFile(fsys, path, templateData, log)
 	if err != nil {
 		return err
 	}
@@ -71,10 +73,10 @@ func ApplyManifestFromFile(
 	return errRet
 }
 
-func unstructuredsFromFile(path string, templateData map[string]string, log *logger.Logger) ([]unstructured.Unstructured, error) {
-	manifestBytes, err := os.ReadFile(path)
+func unstructuredsFromFile(fsys fs.FS, path string, templateData map[string]string, log *logger.Logger) ([]unstructured.Unstructured, error) {
+	manifestBytes, err := fs.ReadFile(fsys, path)
 	if err != nil {
-		return []unstructured.Unstructured{}, errors.Wrap(err, "Failed to read file, pwd: %s", path)
+		return []unstructured.Unstructured{}, errors.Wrap(err, "Failed to read file: %s", path)
 	}
 	log.Debug().Str("file", path).Str("template", string(manifestBytes)).Str("templateData", fmt.Sprintf("%+v", templateData)).Msg("Replacing template")
 

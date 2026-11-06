@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"embed"
 	"fmt"
 	"os"
 	"testing"
@@ -47,6 +48,9 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
+
+//go:embed setup/*.yaml
+var setupFixtures embed.FS
 
 var (
 	kcpConfig  *rest.Config
@@ -133,7 +137,7 @@ func newConsumer(tb testing.TB, name string) *consumer {
 
 func applyCRD(tb testing.TB, cl ctrlruntimeclient.Client, path string) {
 	tb.Helper()
-	raw, err := os.ReadFile(path)
+	raw, err := setupFixtures.ReadFile(path)
 	require.NoError(tb, err, "read %s", path)
 	crd := &apiextensionsv1.CustomResourceDefinition{}
 	require.NoError(tb, yaml.Unmarshal(raw, crd), "decode %s", path)

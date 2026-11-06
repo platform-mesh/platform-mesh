@@ -19,17 +19,17 @@ package subroutines
 import (
 	"context"
 	"errors"
-	"os"
+	"io/fs"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
-	kcpmanifests "go.platform-mesh.io/platform-mesh-operator/manifests/kcp"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/mocks"
 	"go.platform-mesh.io/subroutines"
 
@@ -1125,7 +1125,7 @@ func (s *KcpsetupTestSuite) Test_HasFeatureToggle() {
 }
 
 func (s *KcpsetupTestSuite) Test_WorkspaceAuthConfigTemplate_FeatureDisableEmailVerification() {
-	templateBytes, err := os.ReadFile("../../manifests/kcp/workspace-authentication-configuration.yaml")
+	templateBytes, err := fs.ReadFile(kcpmanifests.Resources, "workspace-authentication-configuration.yaml")
 	s.Require().NoError(err, "Failed to read workspace-authentication-configuration.yaml")
 
 	tests := []struct {

@@ -51,7 +51,7 @@ Providers:
 - `internal/test/`: integration tests
 - `internal/webhook/`: validating webhook
 - `pkg/`: HTTP client configuration for OAuth dynamic client registration
-- `config/resources/`: kcp API resources
+- `apis/static-assets/resources/security-operator/`: kcp API resources
 - `bin/`
 - `main.go`
 - `go.mod`
@@ -82,7 +82,7 @@ Providers:
 
 ## Do Not
 - Edit `api/v1alpha1/zz_generated.deepcopy.go` directly.
-- Edit generated files in `config/crd` or `config/resources` without running `task generate`.
+- Edit generated files in `config/crd` or `apis/static-assets/resources/security-operator` without running `task generate`.
 - Skip regeneration after changing API types or CRD schema.
 
 ## Human-facing guidelines

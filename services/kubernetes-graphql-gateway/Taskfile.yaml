@@ -32,7 +32,7 @@ tasks:
         vars:
           PATH: /gateway/...
           OUTPUT: config/crd
-      - "{{.APIGEN}} --output-dir config/kcp --input-dir config/crd --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      - "{{.APIGEN}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/kubernetes-graphql-gateway --input-dir config/crd --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
 
   ## Development
   build:
