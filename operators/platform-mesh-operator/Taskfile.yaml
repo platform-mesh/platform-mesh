@@ -177,6 +177,11 @@ tasks:
             for manifest in "${apigen_crds[@]}"; do
                 cp "${manifest}" {{.CRD_DIRECTORY}}/apigen/crds
             done
+            # Seed the output dir with the committed manifests so apigen can keep
+            # the name of every APIResourceSchema whose spec did not change.
+            for dest in "${apigen_dest[@]}"; do
+                [[ -f "${dest}" ]] && cp "${dest}" {{.CRD_DIRECTORY}}/apigen/out/
+            done
 
             BOILERPLATE={{.HACK}}/boilerplate/boilerplate.yaml.txt
 
