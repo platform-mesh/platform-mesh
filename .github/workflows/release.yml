@@ -20,7 +20,7 @@ name: release
 # that version, then a GitHub release with generated notes is created.
 #
 # There is nothing to prepare before tagging: charts carry no versions in git
-# (RFC 015), third-party versions come from ocm/versions.yaml.
+# (RFC 015), third-party versions live in third_party/*/component-constructor.yaml.
 #
 # Builds of main between releases use prerelease.yml.
 
@@ -86,9 +86,6 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0 # release notes compare against the previous tag
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: ocm-${{ needs.version.outputs.version }}
       - name: Release notes
         run: hack/release/release-notes.sh "$TAG" > release-notes.md
       - name: Create GitHub release
@@ -96,5 +93,4 @@ jobs:
           set -euo pipefail
           flags=(--title "Platform Mesh $VERSION" --notes-file release-notes.md --verify-tag)
           [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
-          mv constructor.yaml component-constructor.yaml
-          gh release create "$TAG" "${flags[@]}" component-constructor.yaml
+          gh release create "$TAG" "${flags[@]}"
