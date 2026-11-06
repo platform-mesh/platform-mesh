@@ -25,6 +25,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
 const (
@@ -78,7 +80,7 @@ func (archive helmArchive) publish(ctx context.Context) error {
 	}
 
 	tgz := filepath.Join(dest, fmt.Sprintf("%s-%s.tgz", name, archive.Version))
-	err = retry(ctx, pushAttempts, pushRetryDelay, func() error {
+	err = releaseutils.Retry(ctx, pushAttempts, pushRetryDelay, func() error {
 		push := exec.CommandContext(ctx, "helm", "push", tgz, "oci://"+archive.Repo)
 		push.Stderr = os.Stderr
 		return push.Run()
