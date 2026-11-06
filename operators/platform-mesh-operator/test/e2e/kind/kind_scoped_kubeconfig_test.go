@@ -29,6 +29,7 @@ import (
 	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines"
 	e2eyaml "go.platform-mesh.io/platform-mesh-operator/test/e2e/kind/yaml"
 
@@ -430,7 +431,7 @@ func (s *KindTestSuite) ensureScopedE2EKcpProviderWorkspaces(ctx context.Context
 	rootClient, err := s.kcpClientForWorkspace(ctx, "root")
 	s.Require().NoError(err, "kcp client for root")
 	s.Require().NoError(
-		ApplyManifestFromFile(ctx, e2eyaml.Resources, path.Join(e2eKcpProviderWorkspacesYAMLDir, "workspace-providers.yaml"), rootClient, emptyTmpl),
+		ApplyManifestFromFile(ctx, kcpmanifests.Resources, "workspace-providers.yaml", rootClient, emptyTmpl),
 		"apply workspace-providers.yaml",
 	)
 	s.logWorkspaceObservedAfterApply(ctx, rootClient, "providers")
