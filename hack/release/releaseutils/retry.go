@@ -22,6 +22,14 @@ import (
 	"time"
 )
 
+// Retry policy for registry uploads. GHCR occasionally answers "not found"
+// right after an upload to a freshly created package; the second attempt
+// succeeds.
+const (
+	RegistryAttempts   = 3
+	RegistryRetryDelay = 10 * time.Second
+)
+
 // Retry runs fn up to attempts times, pausing delay between failures.
 func Retry(ctx context.Context, attempts int, delay time.Duration, fn func() error) error {
 	var err error

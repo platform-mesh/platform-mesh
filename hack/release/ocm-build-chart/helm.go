@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -24,16 +25,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
+	"strings"
 
 	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
-)
-
-const (
-	pushAttempts = 3
-	// GHCR occasionally answers "tag: not found" right after an upload to a
-	// freshly created package, the second attempt succeeds.
-	pushRetryDelay = 10 * time.Second
 )
 
 // helmArchive packages one chart directory and pushes it to an OCI registry.
@@ -83,7 +77,7 @@ func (archive helmArchive) publish(ctx context.Context) error {
 	}
 
 	tgz := filepath.Join(dest, fmt.Sprintf("%s-%s.tgz", name, archive.Version))
-	err = releaseutils.Retry(ctx, pushAttempts, pushRetryDelay, func() error {
+	err = releaseutils.Retry(ctx, releaseutils.RegistryAttempts, releaseutils.RegistryRetryDelay, func() error {
 		push := exec.CommandContext(ctx, "helm", "push", tgz, "oci://"+archive.Repo)
 		push.Stderr = os.Stderr
 		return push.Run()

@@ -111,7 +111,7 @@ func (repo OCMRepository) Exists(ctx context.Context, cv string) (bool, error) {
 // flags are passed to ocm transfer as given, e.g. --recursive.
 func (repo OCMRepository) Transfer(ctx context.Context, cv, target string, flags ...string) error {
 	args := append([]string{"transfer", "component-version", repo.Repo + "//" + cv, target}, flags...)
-	err := RetryRegistry(ctx, func() error {
+	err := Retry(ctx, RegistryAttempts, RegistryRetryDelay, func() error {
 		cmd := exec.CommandContext(ctx, "ocm", args...)
 		cmd.Stderr = os.Stderr
 		return cmd.Run()
