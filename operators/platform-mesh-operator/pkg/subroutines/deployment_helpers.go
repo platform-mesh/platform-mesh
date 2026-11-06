@@ -21,7 +21,6 @@ import (
 	"context"
 	stderrors "errors"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -63,7 +62,7 @@ func updateObjectMetadata(existing, desired *unstructured.Unstructured) {
 	}
 }
 
-// renderAndApplyTemplates renders and applies all YAML templates in a directory.
+// renderAndApplyTemplates renders and applies all YAML templates under dir of r.gotemplates.
 // skipFile, if non-nil, is called for each file; returning true skips that file.
 // postProcessObj, if non-nil, is called on each rendered object before applying.
 func (r *DeploymentSubroutine) renderAndApplyTemplates(
@@ -76,7 +75,7 @@ func (r *DeploymentSubroutine) renderAndApplyTemplates(
 	skipFile func(fileName string) bool,
 	postProcessObj func(ctx context.Context, obj *unstructured.Unstructured) error,
 ) error {
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(r.gotemplates, dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -133,7 +132,7 @@ func (r *DeploymentSubroutine) renderAndApplyTemplatesWithRouter(
 	skipFile func(fileName string) bool,
 	applyFunc func(ctx context.Context, obj *unstructured.Unstructured) error,
 ) error {
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(r.gotemplates, dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -168,11 +167,11 @@ func (r *DeploymentSubroutine) renderAndApplyTemplatesWithRouter(
 	return nil
 }
 
-// renderTemplateFile reads a template file, renders it, and returns all unstructured objects.
-// Supports multi-document YAML (documents separated by "---").
+// renderTemplateFile reads the template at path in r.gotemplates, renders it, and returns all
+// unstructured objects. Supports multi-document YAML (documents separated by "---").
 // Returns an empty slice if the template renders empty.
 func (r *DeploymentSubroutine) renderTemplateFile(path string, tmplVars map[string]any, log *logger.Logger) ([]*unstructured.Unstructured, error) {
-	templateBytes, err := os.ReadFile(path)
+	templateBytes, err := fs.ReadFile(r.gotemplates, path)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read template file")
 	}

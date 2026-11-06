@@ -387,7 +387,7 @@ func (s *NewPlatformMeshReconcilerTestSuite) Test_allSubroutinesDisabled_returns
 	}
 	commonCfg := &pmconfig.CommonServiceConfig{}
 
-	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, "/tmp", fakeClient, subroutines.NewImageVersionStore())
+	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, fakeClient, subroutines.NewImageVersionStore())
 	s.Require().NoError(err)
 	s.NotNil(r)
 	s.NotNil(r.lifecycle)
@@ -404,7 +404,7 @@ func (s *NewPlatformMeshReconcilerTestSuite) Test_deploymentSubroutineEnabled_re
 	}
 	commonCfg := &pmconfig.CommonServiceConfig{}
 
-	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, "/tmp", fakeClient, subroutines.NewImageVersionStore())
+	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, fakeClient, subroutines.NewImageVersionStore())
 	s.Require().NoError(err)
 	s.NotNil(r)
 	s.NotNil(r.lifecycle)
@@ -420,7 +420,7 @@ func (s *NewPlatformMeshReconcilerTestSuite) Test_kcpSetupSubroutineEnabled_retu
 	}
 	commonCfg := &pmconfig.CommonServiceConfig{}
 
-	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, "/tmp", fakeClient, nil)
+	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, fakeClient, nil)
 	s.Require().NoError(err)
 	s.NotNil(r)
 	s.NotNil(r.lifecycle)
@@ -436,7 +436,7 @@ func (s *NewPlatformMeshReconcilerTestSuite) Test_waitSubroutineEnabled_returnsV
 	}
 	commonCfg := &pmconfig.CommonServiceConfig{}
 
-	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, "/tmp", fakeClient, nil)
+	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, fakeClient, nil)
 	s.Require().NoError(err)
 	s.NotNil(r)
 	s.NotNil(r.lifecycle)
@@ -452,7 +452,7 @@ func (s *NewPlatformMeshReconcilerTestSuite) Test_providerSecretSubroutineEnable
 	}
 	commonCfg := &pmconfig.CommonServiceConfig{}
 
-	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, "/tmp", fakeClient, nil)
+	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, fakeClient, nil)
 	s.Require().NoError(err)
 	s.NotNil(r)
 	s.NotNil(r.lifecycle)
@@ -468,7 +468,7 @@ func (s *NewPlatformMeshReconcilerTestSuite) Test_featureTogglesSubroutineEnable
 	}
 	commonCfg := &pmconfig.CommonServiceConfig{}
 
-	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, "/tmp", fakeClient, nil)
+	r, err := NewPlatformMeshReconciler(mgr, cfg, commonCfg, fakeClient, nil)
 	s.Require().NoError(err)
 	s.NotNil(r)
 	s.NotNil(r.lifecycle)

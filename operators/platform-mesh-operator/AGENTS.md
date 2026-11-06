@@ -17,7 +17,7 @@
 - `pkg/subroutines`: installation and bootstrap subroutines such as deployment, KCP setup, defaults, waiting, and provider secrets.
 - `pkg/kapply`, `pkg/merge`, `pkg/ocm`: supporting helpers for applying manifests, merging values, and OCM integration.
 - `config/`: operator deployment manifests, CRDs, RBAC, and local runtime config.
-- `manifests/k8s`, `manifests/kcp`, `manifests/features`: templated or curated installation assets applied by the operator.
+- `manifests/k8s`, `manifests/kcp`, `manifests/features`: templated or curated installation assets applied by the operator. All three are embedded into the binary: an `embed.go` per directory exposes a `Resources` `embed.FS`, so a manifest change needs a rebuild. `gotemplates/` is embedded the same way through its single `gotemplates/embed.go`; the operator reads nothing from disk at runtime.
 - `test/e2e/kind`: kind-based end-to-end tests.
 - `kind-config.yaml`: local kind setup for e2e scenarios.
 

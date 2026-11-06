@@ -18,8 +18,9 @@ package subroutines
 
 import (
 	"context"
+	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"sort"
 	"testing"
 
@@ -163,28 +164,28 @@ func renderHelmReleaseGraph(t *testing.T, sub *DeploymentSubroutine, inst *pmcor
 	require.NoError(t, err)
 	skipFile := deploymentTechFileFilter(deploymentTechFluxCD, log)
 
-	infraDir := filepath.Join("..", "..", "gotemplates", "infra", "infra")
-	components, err := os.ReadDir(infraDir)
+	infraDir := "infra/infra"
+	components, err := fs.ReadDir(sub.gotemplates, infraDir)
 	require.NoError(t, err)
 	for _, component := range components {
 		if !component.IsDir() {
 			continue
 		}
-		componentDir := filepath.Join(infraDir, component.Name())
-		files, err := ListFiles(componentDir)
+		componentDir := path.Join(infraDir, component.Name())
+		files, err := ListFiles(sub.gotemplates, componentDir)
 		require.NoError(t, err)
 		for _, file := range files {
 			if skipFile(file) {
 				continue
 			}
-			collect(filepath.Join(componentDir, file), infraVars)
+			collect(path.Join(componentDir, file), infraVars)
 		}
 	}
 
 	// Component services: gotemplates/components/infra/helmreleases.yaml
 	componentVars, _, err := sub.buildComponentsTemplateVars(ctx, inst, apiextensionsv1.JSON{})
 	require.NoError(t, err)
-	collect(filepath.Join("..", "..", "gotemplates", "components", "infra", "helmreleases.yaml"), componentVars)
+	collect("components/infra/helmreleases.yaml", componentVars)
 
 	return graph
 }

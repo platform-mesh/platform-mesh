@@ -205,7 +205,6 @@ The operator binary accepts the following CLI flags (defined in `internal/config
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--workspace-dir` | `/operator/` | Root directory for templates and manifests |
 | `--kcp-url` | _(none)_ | KCP cluster URL |
 | `--kcp-namespace` | `platform-mesh-system` | KCP namespace |
 | `--kcp-root-shard-name` | `root` | KCP root shard name |
@@ -301,7 +300,7 @@ The operator uses a subroutine-based architecture (`go.platform-mesh.io/subrouti
 The subroutines run in the following order on every reconcile:
 
 1. **Deployment** — renders Go templates and applies infra/component resources (HelmReleases, ArgoCD Applications, OCM Resources)
-2. **KcpSetup** — creates KCP workspaces and applies `manifests/kcp/` to them
+2. **KcpSetup** — creates KCP workspaces and applies `manifests/kcp/` (embedded in the binary) to them
 3. **ProviderSecret** — creates workspace-scoped kubeconfig secrets for all `providerConnections`
 4. **FeatureToggles** — applies feature-gated KCP manifests
 5. **Wait** — waits for deployment resources (e.g., HelmReleases) to reach a ready state
@@ -327,7 +326,7 @@ The operator supports two deployment technologies (configured per-section in the
 
 ### Templating
 
-The operator uses Go's `text/template` package to render Kubernetes manifests from YAML template files. Templates are located under `gotemplates/` (relative to `--workspace-dir`).
+The operator uses Go's `text/template` package to render Kubernetes manifests from YAML template files. Templates are located under `gotemplates/` and compiled into the binary via `gotemplates/embed.go`, so a template change needs a rebuild.
 
 #### Template Directory Structure
 
@@ -663,7 +662,7 @@ The Deployment subroutine manages the deployment of platform-mesh components:
 The KcpSetup subroutine handles initialization of the KCP environment:
 
 - Creates workspaces based on paths in `providerConnections`
-- Applies KCP manifests (APIExports, APIResourceSchemas, ContentConfigurations, etc.) from `manifests/kcp/`
+- Applies KCP manifests (APIExports, APIResourceSchemas, ContentConfigurations, etc.) from `manifests/kcp/`, which is embedded into the binary via the `embed.go` files in that tree
 - Sets up API bindings as specified in `extraDefaultAPIBindings`
 - Creates extra workspaces specified in `spec.kcp.extraWorkspaces`
 
@@ -678,7 +677,7 @@ The ProviderSecret subroutine manages kubeconfig secrets for provider connection
 
 The FeatureToggles subroutine applies or removes KCP manifests based on enabled feature toggles:
 
-- Reads manifests from `manifests/features/<feature-name>/`
+- Reads manifests from `manifests/features/<feature-name>/` (embedded in the binary)
 - Applies them to the appropriate KCP workspace paths
 - Supports parameterized features via `parameters` map
 

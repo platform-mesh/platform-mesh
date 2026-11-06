@@ -496,9 +496,7 @@ func (s *DeploymentHelpersTestSuite) Test_preserveExistingArgoSourceFields() {
 			}
 
 			cfg := pmconfig.CommonServiceConfig{}
-			operatorCfg := config.OperatorConfig{
-				WorkspaceDir: "../../",
-			}
+			operatorCfg := config.OperatorConfig{}
 
 			sub := &DeploymentSubroutine{
 				clientInfra: fakeClient,
@@ -530,9 +528,7 @@ func (s *DeploymentHelpersTestSuite) Test_preserveExistingArgoSourceFields_GetEr
 	fakeClient := fake.NewClientBuilder().Build()
 
 	cfg := pmconfig.CommonServiceConfig{}
-	operatorCfg := config.OperatorConfig{
-		WorkspaceDir: "../../",
-	}
+	operatorCfg := config.OperatorConfig{}
 
 	sub := &DeploymentSubroutine{
 		clientInfra: fakeClient,
@@ -595,7 +591,7 @@ func (s *DeploymentHelpersTestSuite) Test_mergeImageVersionsIntoHelmReleaseValue
 			sub := &DeploymentSubroutine{
 				imageVersionStore: store,
 				cfg:               &pmconfig.CommonServiceConfig{},
-				cfgOperator:       &config.OperatorConfig{WorkspaceDir: "../../"},
+				cfgOperator:       &config.OperatorConfig{},
 			}
 
 			spec := map[string]any{"values": map[string]any{}}

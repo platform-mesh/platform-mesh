@@ -27,6 +27,7 @@ import (
 	"go.platform-mesh.io/golang-commons/context/keys"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
+	featuremanifests "go.platform-mesh.io/platform-mesh-operator/manifests/features"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/mocks"
 	"go.platform-mesh.io/subroutines"
 
@@ -60,9 +61,7 @@ func (s *FeaturesTestSuite) SetupTest() {
 	cfg.NoJSON = true
 	cfg.Name = "FeaturesTestSuite"
 	s.log, _ = logger.New(cfg)
-	s.testObj = NewFeatureToggleSubroutine(s.clientMock, s.helperMock, &config.OperatorConfig{
-		WorkspaceDir: "../..",
-	}, "https://kcp.example.com")
+	s.testObj = NewFeatureToggleSubroutine(s.clientMock, s.helperMock, featuremanifests.Resources, "https://kcp.example.com")
 }
 
 func (s *FeaturesTestSuite) TearDownTest() {
@@ -74,9 +73,7 @@ func (s *FeaturesTestSuite) TearDownTest() {
 func (s *FeaturesTestSuite) resetFeatureToggleTest() {
 	s.clientMock = new(mocks.Client)
 	s.helperMock = new(mocks.KcpHelper)
-	s.testObj = NewFeatureToggleSubroutine(s.clientMock, s.helperMock, &config.OperatorConfig{
-		WorkspaceDir: "../..",
-	}, "https://kcp.example.com")
+	s.testObj = NewFeatureToggleSubroutine(s.clientMock, s.helperMock, featuremanifests.Resources, "https://kcp.example.com")
 }
 
 // setupFeatureToggleApplyMocks configures clients for one or more

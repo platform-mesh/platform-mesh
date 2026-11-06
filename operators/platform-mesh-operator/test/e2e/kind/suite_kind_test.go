@@ -898,7 +898,6 @@ func (s *KindTestSuite) runPlatformMeshOperator(ctx context.Context) {
 	appConfig.Subroutines.ManagedProvider.Deploy.Enabled = true
 	appConfig.Subroutines.Provider.Workspace.Enabled = true
 	appConfig.Subroutines.Provider.Kubeconfig.Enabled = true
-	appConfig.WorkspaceDir = "../../../"
 	appConfig.KCP = defaultKcpOperatorConfig
 
 	commonConfig := &pmconfig.CommonServiceConfig{}
@@ -920,7 +919,7 @@ func (s *KindTestSuite) runPlatformMeshOperator(ctx context.Context) {
 	}
 
 	imageVersionStore := subroutines.NewImageVersionStore()
-	pmReconciler, err := controller.NewPlatformMeshReconciler(mgr, &appConfig, commonConfig, "../../../", mgr.GetLocalManager().GetClient(), imageVersionStore)
+	pmReconciler, err := controller.NewPlatformMeshReconciler(mgr, &appConfig, commonConfig, mgr.GetLocalManager().GetClient(), imageVersionStore)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to create PlatformMesh reconciler")
 		return

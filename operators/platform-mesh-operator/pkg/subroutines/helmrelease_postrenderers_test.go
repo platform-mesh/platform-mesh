@@ -18,7 +18,6 @@ package subroutines
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,7 +36,7 @@ func renderServiceHelmReleases(t *testing.T, profileYAML string) map[string]*uns
 	vars, _, err := sub.buildComponentsTemplateVars(context.Background(), inst, apiextensionsv1.JSON{})
 	require.NoError(t, err)
 
-	objs, err := sub.renderTemplateFile(filepath.Join("..", "..", "gotemplates", "components", "infra", "helmreleases.yaml"), vars, testLogger(t))
+	objs, err := sub.renderTemplateFile("components/infra/helmreleases.yaml", vars, testLogger(t))
 	require.NoError(t, err)
 
 	releases := map[string]*unstructured.Unstructured{}
