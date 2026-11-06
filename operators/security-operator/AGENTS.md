@@ -25,8 +25,8 @@ Providers:
 ## Commands
 - `task fmt` — format Go code.
 - `task lint` — run formatting plus golangci-lint. For fixing lint issues use `golangci-lint run --fix`
-- `task test` — run the standard local test path with required tooling (kcp).
-- `task cover` — envtest with coverage; thresholds in `.testcoverage.yml`
+- `task test` — unit tests. Integration tests: `task test-integration PKG=./integration/security/...` from the repo root.
+- `task cover` — unit tests with coverage; thresholds in `.testcoverage.yml`
 - `task manifests` — regenerate CRDs.
 - `task generate` — regenerate deepcopy code and API resource output after API changes
 - `task docker:kind` — build image with the tag currently deployed, load into kind cluster override restart all pods related to `security-operator` deployments in `platform-mesh-system` namespace.
@@ -41,16 +41,16 @@ Providers:
 - `api/`: API definitions (CRDs)
 - `cmd/`: Command entry points
 - `internal/client/`: kcp client helpers
-- `internal/config/`: operator config
 - `internal/controller/`: kubernetes controllers
 - `internal/fga/`: tuples and storeID management for OpenFGA
 - `internal/platformmesh/`: platform mesh utilities
 - `internal/predicates/`: controller predicates
 - `internal/subroutine/`: package with all subroutines
 - `internal/terminatingworkspaces/`: workspace termination provider
-- `internal/test/`: integration tests
 - `internal/webhook/`: validating webhook
-- `pkg/`: HTTP client configuration for OAuth dynamic client registration
+- `pkg/app/`: public controller wiring used by `cmd/` and the integration tests in `tests/integration/security` (repo root)
+- `pkg/clientreg/`: HTTP client configuration for OAuth dynamic client registration
+- `pkg/config/`: operator config
 - `apis/static-assets/resources/security-operator/`: kcp API resources
 - `bin/`
 - `main.go`

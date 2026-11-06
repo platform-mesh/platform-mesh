@@ -110,6 +110,10 @@ func (d *discovery) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		}
 	}
 
+	// Add the provider only after the controllers are registered: the
+	// manager engages a cluster with the runnables registered at that
+	// moment, so a controller added after the provider engaged a consumer
+	// cluster would never reconcile that cluster.
 	if err := d.ensureProvider(slice.Name); err != nil {
 		return ctrl.Result{}, err
 	}

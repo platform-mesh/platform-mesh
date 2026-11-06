@@ -25,17 +25,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"go.platform-mesh.io/kcp-migration-operator/internal/config"
-	"go.platform-mesh.io/kcp-migration-operator/internal/controller"
-	"go.platform-mesh.io/kcp-migration-operator/internal/kcp"
+	"go.platform-mesh.io/kcp-migration-operator/pkg/app"
+	"go.platform-mesh.io/kcp-migration-operator/pkg/config"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/yaml"
 )
 
@@ -177,66 +174,8 @@ func runSingleSync(ctx context.Context) {
 		log.Fatal().Msg("migration-name, source-api-version, and source-kind are required")
 	}
 
-	// Get REST config - use source kubeconfig if provided, otherwise use in-cluster config
-	var restConfig *rest.Config
-	var err error
-	if syncCfg.SourceKubeconfigPath != "" {
-		restConfig, err = clientcmd.BuildConfigFromFlags("", syncCfg.SourceKubeconfigPath)
-		if err != nil {
-			log.Fatal().Err(err).Str("path", syncCfg.SourceKubeconfigPath).Msg("failed to load source kubeconfig")
-		}
-		log.Info().Str("path", syncCfg.SourceKubeconfigPath).Msg("using source kubeconfig for watching resources")
-	} else {
-		restConfig = ctrl.GetConfigOrDie()
-		log.Info().Msg("using in-cluster config for watching resources")
-	}
-
-	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme: scheme,
-		Metrics: server.Options{
-			BindAddress: ":9090",
-		},
-		HealthProbeBindAddress: ":8090",
-		Logger:                 log.ComponentLogger("sync-controller-runtime").Logr(),
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to create manager")
-	}
-
-	// Create workspace client factory if kcp kubeconfig is configured
-	var workspaceFactory kcp.WorkspaceClientFactory
-	if syncCfg.KCPKubeconfigPath != "" {
-		var err error
-		workspaceFactory, err = kcp.NewWorkspaceClientFactory(syncCfg.KCPKubeconfigPath, scheme)
-		if err != nil {
-			log.Fatal().Err(err).Str("path", syncCfg.KCPKubeconfigPath).Msg("failed to create kcp workspace client factory")
-		}
-		log.Info().Str("path", syncCfg.KCPKubeconfigPath).Msg("kcp workspace client factory created")
-	} else {
-		log.Warn().Msg("no kcp kubeconfig path configured, sync to kcp will be disabled")
-	}
-
-	syncController := controller.NewSyncController(
-		mgr.GetClient(),
-		log,
-		&syncCfg,
-		workspaceFactory,
-	)
-
-	if err := syncController.SetupWithManager(mgr); err != nil {
-		log.Fatal().Err(err).Msg("unable to setup sync controller")
-	}
-
-	// Add health checks
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up health check")
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up ready check")
-	}
-
-	log.Info().Msg("starting sync manager")
-	if err := mgr.Start(ctx); err != nil {
+	deps := app.Deps{Log: log, KCPConfig: loadKCPConfig(syncCfg.KCPKubeconfigPath)}
+	if err := app.RunSync(ctx, loadSourceConfig(syncCfg.SourceKubeconfigPath), []*config.SyncConfig{&syncCfg}, deps); err != nil {
 		log.Fatal().Err(err).Msg("problem running sync manager")
 	}
 }
@@ -268,83 +207,44 @@ func runMultiSync(ctx context.Context, configPath string) {
 		Int("resourceCount", len(multiCfg.Resources)).
 		Msg("loaded multi-sync config")
 
-	// Get REST config - use source kubeconfig if provided, otherwise use in-cluster config
-	var restConfig *rest.Config
-	if multiCfg.SourceKubeconfigPath != "" {
-		var err error
-		restConfig, err = clientcmd.BuildConfigFromFlags("", multiCfg.SourceKubeconfigPath)
-		if err != nil {
-			log.Fatal().Err(err).Str("path", multiCfg.SourceKubeconfigPath).Msg("failed to load source kubeconfig")
-		}
-		log.Info().Str("path", multiCfg.SourceKubeconfigPath).Msg("using source kubeconfig for watching resources")
-	} else {
-		restConfig = ctrl.GetConfigOrDie()
-		log.Info().Msg("using in-cluster config for watching resources")
-	}
-
-	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme: scheme,
-		Metrics: server.Options{
-			BindAddress: ":9090",
-		},
-		HealthProbeBindAddress: ":8090",
-		Logger:                 log.ComponentLogger("sync-controller-runtime").Logr(),
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to create manager")
-	}
-
-	// Create workspace client factory if kcp kubeconfig is configured
-	var workspaceFactory kcp.WorkspaceClientFactory
-	if multiCfg.KCPKubeconfigPath != "" {
-		var err error
-		workspaceFactory, err = kcp.NewWorkspaceClientFactory(multiCfg.KCPKubeconfigPath, scheme)
-		if err != nil {
-			log.Fatal().Err(err).Str("path", multiCfg.KCPKubeconfigPath).Msg("failed to create kcp workspace client factory")
-		}
-		log.Info().Str("path", multiCfg.KCPKubeconfigPath).Msg("kcp workspace client factory created")
-	} else {
-		log.Warn().Msg("no kcp kubeconfig path configured, sync to kcp will be disabled")
-	}
-
-	// Setup a sync controller for each resource configuration
+	cfgs := make([]*config.SyncConfig, 0, len(multiCfg.Resources))
 	for _, resCfg := range multiCfg.Resources {
-		// Convert ResourceSyncConfig to SyncConfig
-		cfg := resourceSyncConfigToSyncConfig(resCfg, multiCfg.TemplatesDir)
-
-		log.Info().
-			Str("name", resCfg.Name).
-			Str("sourceAPIVersion", cfg.Source.APIVersion).
-			Str("sourceKind", cfg.Source.Kind).
-			Str("sourceNamespace", cfg.Source.Namespace).
-			Strs("sourceLabelSelectors", cfg.Source.LabelSelectors).
-			Int("maxWorkers", cfg.Performance.MaxWorkers).
-			Msg("setting up sync controller for resource")
-
-		syncController := controller.NewSyncController(
-			mgr.GetClient(),
-			log,
-			cfg,
-			workspaceFactory,
-		)
-
-		if err := syncController.SetupWithManager(mgr); err != nil {
-			log.Fatal().Err(err).Str("name", resCfg.Name).Msg("unable to setup sync controller")
-		}
+		cfgs = append(cfgs, resourceSyncConfigToSyncConfig(resCfg, multiCfg.TemplatesDir))
 	}
 
-	// Add health checks
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up health check")
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up ready check")
-	}
-
-	log.Info().Int("resourceCount", len(multiCfg.Resources)).Msg("starting sync manager with multiple resources")
-	if err := mgr.Start(ctx); err != nil {
+	deps := app.Deps{Log: log, KCPConfig: loadKCPConfig(multiCfg.KCPKubeconfigPath)}
+	if err := app.RunSync(ctx, loadSourceConfig(multiCfg.SourceKubeconfigPath), cfgs, deps); err != nil {
 		log.Fatal().Err(err).Msg("problem running sync manager")
 	}
+}
+
+// loadSourceConfig returns the source cluster config: the kubeconfig at path if
+// set, otherwise the in-cluster config.
+func loadSourceConfig(path string) *rest.Config {
+	if path == "" {
+		log.Info().Msg("using in-cluster config for watching resources")
+		return ctrl.GetConfigOrDie()
+	}
+	restConfig, err := clientcmd.BuildConfigFromFlags("", path)
+	if err != nil {
+		log.Fatal().Err(err).Str("path", path).Msg("failed to load source kubeconfig")
+	}
+	log.Info().Str("path", path).Msg("using source kubeconfig for watching resources")
+	return restConfig
+}
+
+// loadKCPConfig returns the kcp config from the kubeconfig at path, or nil
+// (sync to kcp disabled) if path is empty.
+func loadKCPConfig(path string) *rest.Config {
+	if path == "" {
+		return nil
+	}
+	restConfig, err := clientcmd.BuildConfigFromFlags("", path)
+	if err != nil {
+		log.Fatal().Err(err).Str("path", path).Msg("failed to load kcp kubeconfig")
+	}
+	log.Info().Str("path", path).Msg("kcp workspace client factory configured")
+	return restConfig
 }
 
 // resourceSyncConfigToSyncConfig converts a ResourceSyncConfig to a SyncConfig

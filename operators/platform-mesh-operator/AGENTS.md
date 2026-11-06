@@ -18,8 +18,8 @@
 - `pkg/kapply`, `pkg/merge`, `pkg/ocm`: supporting helpers for applying manifests, merging values, and OCM integration.
 - `config/`: operator deployment manifests, CRDs, RBAC, and local runtime config.
 - `apis/static-assets/k8s`, `apis/static-assets/kcp`, `apis/static-assets/features`: templated or curated installation assets applied by the operator. All three are embedded into the binary: an `embed.go` per directory exposes a `Resources` `embed.FS`, so a manifest change needs a rebuild. `gotemplates/` is embedded the same way through its single `gotemplates/embed.go`; the operator reads nothing from disk at runtime.
-- `test/e2e/kind`: kind-based end-to-end tests.
-- `kind-config.yaml`: local kind setup for e2e scenarios.
+- `pkg/subroutines/testdata/default-profile.yaml`: the shipped profile the disabled-component tests render.
+- End-to-end scenarios are black-box tests in `tests/e2e/operator` (repository root) against the Tilt cluster.
 
 ## Architecture
 This operator is the bootstrap and installation orchestrator for Platform Mesh. Most changes affect the full platform bring-up path, not just a single controller.
@@ -27,7 +27,7 @@ This operator is the bootstrap and installation orchestrator for Platform Mesh. 
 ### Runtime model
 - The manager is a standard controller-runtime manager, not a multicluster-runtime manager.
 - `cmd/operator.go` starts the operator with `platformmeshcontext.StartContext(...)`, controller-runtime logging, and a single `PlatformMesh` reconciler.
-- Local development uses `.env` through `task run`; tests and e2e flows rely on kind, mkcert, and local helper binaries from `bin/`.
+- Local development uses `.env` through `task run`; e2e scenarios run against the Tilt cluster (`task tilt:ci`, then `task tilt:e2e` from the repository root).
 
 ### Reconciliation model
 - The core reconciler lives under `internal/controller` and delegates most real work into subroutines in `pkg/subroutines`.
@@ -40,8 +40,8 @@ This operator is the bootstrap and installation orchestrator for Platform Mesh. 
 - Feature toggles and manifest selections are part of the product behavior, not just deployment details.
 
 ### Testing and local execution
-- `task test` runs the main local test flow and uses kind + mkcert setup.
-- `task kindtest` runs the dedicated kind e2e suite under `test/e2e/kind`.
+- `task test` runs the unit tests.
+- `tests/e2e/operator` (repository root) holds the e2e scenarios; run them with `task tilt:e2e` against a Tilt cluster.
 - `task cover` enforces thresholds from `.testcoverage.yml`.
 - If tests fail in CI, the Taskfile already contains extra diagnostics for HelmReleases, pods, OpenFGA, and related bootstrap resources.
 
@@ -49,7 +49,7 @@ This operator is the bootstrap and installation orchestrator for Platform Mesh. 
 - `task fmt` — format Go code.
 - `task lint` — run formatting plus golangci-lint.
 - `task test` — run the standard local test flow.
-- `task kindtest` — run the kind-specific e2e test suite.
+- `task tilt:e2e` (repository root) — run the e2e scenarios against the Tilt cluster.
 - `task cover` — enforce coverage thresholds from `.testcoverage.yml`.
 - `task validate` — run lint and tests together.
 - `task manifests` — regenerate CRDs.

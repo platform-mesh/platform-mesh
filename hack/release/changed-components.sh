@@ -18,9 +18,11 @@
 # Prints GitHub Actions output lines (key=<json array>):
 #
 #   components       components (including libraries) to verify/test
-#   e2eComponents    subset with e2e tests
 #   imageComponents  subset that produce an image
 #   charts           chart names (directories under charts/) that changed
+#   integration      true when the tests module (tests/integration, tests/e2e)
+#                    is affected: any change under tests/, operators/,
+#                    services/, hack/ or a shared path (not a JSON array)
 #
 # Usage:
 #   changed-components.sh "<newline separated changed files>"
@@ -44,15 +46,22 @@ all_charts=$(for f in charts/*/Chart.yaml; do [ -f "$f" ] && basename "$(dirname
 selected_components=""
 selected_charts=""
 
+# Paths that affect every Go component.
+shared_re='^(go\.work|go\.work\.sum|ocm/components\.yaml|\.github/|Taskfile\.yaml|tools/)'
+lib_paths=$(yq '.components | to_entries | map(select(.value.library == true)) | .[].value.path' "$registry")
+for p in $lib_paths; do shared_re="$shared_re|^$p/"; done
+
+# The tests module (tests/integration against kcp, tests/e2e against a deployed
+# stack) imports every operator, so any Go change selects it.
+integration=false
+if [ -z "$changed" ] || grep -qE "$shared_re|^(tests|operators|services|hack)/" <<<"$changed"; then
+  integration=true
+fi
+
 if [ -z "$changed" ]; then
   selected_components="$all_components"
   selected_charts="$all_charts"
 else
-  # Paths that affect every Go component.
-  shared_re='^(go\.work|go\.work\.sum|ocm/components\.yaml|\.github/|Taskfile\.yaml|tools/)'
-  lib_paths=$(yq '.components | to_entries | map(select(.value.library == true)) | .[].value.path' "$registry")
-  for p in $lib_paths; do shared_re="$shared_re|^$p/"; done
-
   if grep -qE "$shared_re" <<<"$changed"; then
     selected_components="$all_components"
   else
@@ -81,14 +90,12 @@ fi
 
 to_json() { { grep -v '^$' || true; } | sort -u | jq -R . | jq -s -c .; }
 
-e2e=""
 images=""
 for c in $selected_components; do
-  [ "$(yq ".components.\"$c\".e2e != false" "$registry")" = "true" ] && e2e+="$c"$'\n'
   [ "$(yq ".components.\"$c\".image // \"\"" "$registry")" != "" ] && images+="$c"$'\n'
 done
 
 echo "components=$(to_json <<<"$selected_components")"
-echo "e2eComponents=$(to_json <<<"$e2e")"
 echo "imageComponents=$(to_json <<<"$images")"
 echo "charts=$(to_json <<<"$selected_charts")"
+echo "integration=$integration"

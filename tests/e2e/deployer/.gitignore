@@ -1,0 +1,2 @@
+# CTFs the suite builds, cached by content between runs (suite/ocm.go).
+testdata/.cache/

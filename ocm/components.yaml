@@ -33,28 +33,23 @@
 #                chart as one whose appVersion is the Platform Mesh version
 #                charts not listed here wrap components from other repositories
 #                or third parties.
-#   e2e          whether `task test-e2e-<name>` exists (default true)
 
 components:
   # --- root module -----------------------------------------------------------
   # Tooling such as the release commands under hack/release.
   root:
     path: .
-    e2e: false
 
   # --- libraries -------------------------------------------------------------
   golang-commons:
     path: golang-commons
     library: true
-    e2e: false
   subroutines:
     path: subroutines
     library: true
-    e2e: false
   apis: # imports golang-commons and subroutines
     path: apis
     library: true
-    e2e: false
 
   # --- operators -------------------------------------------------------------
   account-operator:
@@ -78,7 +73,6 @@ components:
   platform-mesh-deployer:
     path: operators/platform-mesh-deployer
     image: platform-mesh-deployer
-    e2e: false # builds real kcp installations on kind; does not fit a hosted runner
   platform-mesh-operator:
     path: operators/platform-mesh-operator
     image: platform-mesh-operator
@@ -94,26 +88,26 @@ components:
     path: operators/terminal-controller-manager
     image: terminal-controller-manager
     chart: charts/terminal-controller-manager
-    e2e: false # no e2e suite; test-e2e is a no-op
 
   # --- services --------------------------------------------------------------
   iam-service:
     path: services/iam-service
     image: iam-service
     chart: charts/iam-service
-    e2e: false # no e2e suite; test-e2e is a no-op
   kubernetes-graphql-gateway:
     path: services/kubernetes-graphql-gateway
     image: kubernetes-graphql-gateway
     chart: charts/kubernetes-graphql-gateway
-    e2e: false # the envtest-backed tests run under test; test-e2e is a no-op
   rebac-authz-webhook:
     path: services/rebac-authz-webhook
     image: rebac-authz-webhook
     chart: charts/rebac-authz-webhook
-    e2e: false # no e2e suite; test-e2e is a no-op
   virtual-workspaces:
     path: services/virtual-workspaces
     image: virtual-workspaces
     chart: charts/virtual-workspaces
-    e2e: false # no e2e suite; test-e2e is a no-op
+
+  # --- tests -----------------------------------------------------------------
+  # The tests module (tests/): integration and e2e tests, no image, no chart.
+  tests:
+    path: tests

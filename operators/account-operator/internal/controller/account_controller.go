@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"go.platform-mesh.io/account-operator/internal/config"
 	"go.platform-mesh.io/account-operator/internal/metrics"
+	"go.platform-mesh.io/account-operator/pkg/config"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspace"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspaceready"

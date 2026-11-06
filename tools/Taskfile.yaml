@@ -25,10 +25,9 @@ version: "3"
 # the binaries from the root bin (see each component's ROOT_BIN var) and depend
 # on these tasks via the root's per-component targets.
 #
-# kcp is shared here too: the operators' envtest suites resolve the kcp binary
-# via the TEST_KCP_ASSETS env var (which overrides each suite's per-config
-# BinaryAssetsDirectory), so the component test-e2e targets point that at the
-# root bin and depend on `tools:kcp`.
+# kcp is shared here too: the tests module (tests/framework/kcp) resolves the
+# kcp binaries via the TEST_KCP_ASSETS env var, which `task test-integration`
+# points at the root bin after depending on `tools:kcp`.
 
 vars:
   TOPLEVEL:
@@ -45,10 +44,6 @@ vars:
 
   DOCKER_COMPOSE_VERSION: v5.4.0
   DOCKER_COMPOSE: '{{.BIN}}/docker-compose-{{.DOCKER_COMPOSE_VERSION}}'
-
-  ENVTEST_K8S_VERSION: "1.36.0"
-  ENVTEST_VERSION: v0.24.1
-  ENVTEST: '{{.BIN}}/setup-envtest-{{.ENVTEST_VERSION}}'
 
   GOLANGCI_LINT_VERSION: 2.15.0
   GOLANGCI_LINT: '{{.BIN}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}'
@@ -70,9 +65,6 @@ vars:
 
   KUSTOMIZE_VERSION: v5.4.3
   KUSTOMIZE: '{{.BIN}}/kustomize-{{.KUSTOMIZE_VERSION}}'
-
-  MKCERT_VERSION: v1.4.4
-  MKCERT: '{{.BIN}}/mkcert-{{.MKCERT_VERSION}}'
 
   MOCKERY_VERSION: 3.9.0
   MOCKERY: '{{.BIN}}/mockery-{{.MOCKERY_VERSION}}'
@@ -170,7 +162,7 @@ tasks:
           version: 'v{{ .KCP_VERSION }}' # yes, re-use the shared kcp version for apigen
           goModule: true
   kcp:
-    desc: Install kcp into the root bin (shared by the operators' envtest suites).
+    desc: Install kcp into the root bin (used by the tests module, task test-integration).
     internal: true
     cmds:
       - task: uget
@@ -191,21 +183,11 @@ tasks:
         docker cp $container:/cache-server {{.CACHE_SERVER}}
         docker rm $container
 
-      # kcp's sharded envtest needs binaries without any suffixes
+      # the kcp test framework (sharded-test-server) needs binaries without any suffixes
       - 'ln -sf {{.CACHE_SERVER}} {{.BIN}}/cache-server'
       - 'ln -sf {{.KCP}} {{.BIN}}/kcp'
       - 'ln -sf {{.KCP_FRONT_PROXY}} {{.BIN}}/kcp-front-proxy'
       - 'ln -sf {{.SHARDED_TEST_SERVER}} {{.BIN}}/sharded-test-server'
-  envtest:
-    internal: true
-    cmds:
-      - task: uget
-        vars:
-          tool: setup-envtest
-          source: 'https://github.com/kubernetes-sigs/controller-runtime/releases/download/{VERSION}/setup-envtest-{GOOS}-{GOARCH}'
-          version: '{{ .ENVTEST_VERSION }}'
-          extractArg: 'setup-envtest-*'
-          uncompressed: true
   go-test-coverage:
     internal: true
     cmds:
@@ -285,18 +267,8 @@ tasks:
           uncompressed: true
           extractArg: 'yq_*'
 
-  mkcert:
-    internal: true
-    cmds:
-      - task: uget
-        vars:
-          tool: mkcert
-          source: 'https://github.com/FiloSottile/mkcert/releases/download/{VERSION}/mkcert-{VERSION}-{GOOS}-{GOARCH}'
-          version: '{{ .MKCERT_VERSION }}'
-          extractArg: 'mkcert-*'
-          uncompressed: true
   kind:
-    desc: Install kind into the root bin (used by the operator e2e tests and Tilt).
+    desc: Install kind into the root bin (used by hack/kind.sh via the tilt:* tasks and the deployer e2e suite).
     cmds:
       - task: uget
         vars:
@@ -306,7 +278,7 @@ tasks:
           extractArg: 'kind-*'
           uncompressed: true
   tilt:
-    desc: Install tilt into the root bin (used by the tilt:* tasks and tilt.yml).
+    desc: Install tilt into the root bin (used by the tilt:* tasks and e2e.yml).
     cmds:
       - task: uget
         vars:

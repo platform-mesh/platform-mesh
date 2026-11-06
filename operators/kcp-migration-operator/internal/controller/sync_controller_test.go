@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/kcp-migration-operator/internal/config"
+	"go.platform-mesh.io/kcp-migration-operator/pkg/config"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -26,7 +26,7 @@ Key commands:
 
 - `task lint` — run formatting and golangci-lint
 - `task test` — run the standard local test flow
-- `task kindtest` — run kind-based end-to-end tests
+- `task tilt:e2e` (repository root) — run the end-to-end scenarios in `tests/e2e/operator` against a Tilt cluster
 - `task cover` — run coverage checks
 - `task validate` — run lint and tests
 - `task manifests` — regenerate CRDs

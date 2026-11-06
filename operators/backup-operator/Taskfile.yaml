@@ -57,24 +57,11 @@ tasks:
   test:
     cmds:
       - go test ./...
-  test-e2e:
-    deps: [tools:kcp, tools:envtest]
-    cmds:
-      - |
-        set -ex
-        export KUBEBUILDER_ASSETS=$({{.ENVTEST}} use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
-        go test -tags integration ./... {{.ADDITIONAL_COMMAND_ARGS}}
   cover:
     cmds:
       - task: test
         vars:
           ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
-  cover-e2e:
-    cmds:
-      - task: test-e2e
-        vars:
-          ADDITIONAL_COMMAND_ARGS: -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
-
   docker:kind:
     desc: "Build container image with current tag from kind cluster and load it"
     vars:

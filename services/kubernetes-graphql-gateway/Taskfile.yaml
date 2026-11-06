@@ -75,28 +75,13 @@ tasks:
     cmds:
       - task: fmt
       - task: tools:lint
-  envtest:
-    deps: [tools:envtest]
-    cmds:
-      - |
-        set -ex
-        export KUBEBUILDER_ASSETS=$({{.ENVTEST}} use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
-        go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
   test:
     cmds:
-      - task: envtest
-        vars:
-          ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
-  test-e2e:
-    desc: No separate e2e suite; the envtest-backed tests run under test.
-    cmds:
-      - 'echo "kubernetes-graphql-gateway: no e2e tests (envtest-backed tests run under test)"'
+      - go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
   cover:
     deps: [tools:go-test-coverage]
     cmds:
-      - task: envtest
-        vars:
-          ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+      - task: test
       - "{{.GO_TEST_COVERAGE}} --profile cover.out --config ./.testcoverage.yml"
   cover-html:
     desc: "Generate and open HTML coverage report"

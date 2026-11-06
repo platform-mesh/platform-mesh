@@ -109,16 +109,12 @@ github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
 github.com/kcp-dev/multicluster-provider v0.9.0 h1:LpjZaQH7c2HrVADtm1OtuptHj8hZAGsor8T5VC/lvTM=
 github.com/kcp-dev/multicluster-provider v0.9.0/go.mod h1:DHaeprSRpuSGgzW0QJyY67IaKiCtpm2WtsT8n5Ird3o=
-github.com/kcp-dev/multicluster-provider/client v0.9.0 h1:/+i9rPb3ArnUMe6VTx3PZ5Cay9ZYtmtHZdbQIM4mZjQ=
-github.com/kcp-dev/multicluster-provider/client v0.9.0/go.mod h1:kK9CSLmECoRiOU+xKOhIE4tHpQBcBbBvWOgKORC/eqI=
 github.com/kcp-dev/sdk v0.33.5 h1:sl/PWTQkmpQPKyd6apufw+M9KBx/ckbvk0VwweKpr1Q=
 github.com/kcp-dev/sdk v0.33.5/go.mod h1:sOOWJIiyYIBcM9y+4b/0mUz5dnZN0mIrh4l+fZqpY1s=
 github.com/klauspost/compress v1.20.1 h1:T7kKElXUMXrUJ2E9QhQhxFtcK5rPyLdsGZvdbLMPdiQ=
 github.com/klauspost/compress v1.20.1/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
-github.com/martinlindhe/base36 v1.1.1 h1:1F1MZ5MGghBXDZ2KJ3QfxmiydlWOGB8HCEtkap5NkVg=
-github.com/martinlindhe/base36 v1.1.1/go.mod h1:vMS8PaZ5e/jV9LwFKlm0YLnXl/hpOihiBxKkIoc3g08=
 github.com/mattn/go-colorable v0.1.16 h1:+2YjeAe7xP1OQbZW1jERPWWCDLlNqFNCvjiqGiAt84A=
 github.com/mattn/go-colorable v0.1.16/go.mod h1:6LmQG8QLFO4G5z1gPvYEzlUgJ2wF+stgPZH1UqBm1s8=
 github.com/mattn/go-isatty v0.0.24 h1:tGZZoVgT/KiqK1c8ocVLeDS8BSWMRd47J3Lbz7vsReI=
@@ -162,7 +158,6 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/objx v0.5.3 h1:jmXUvGomnU1o3W/V5h2VEradbpJDwGrzugQQvL0POH4=
 github.com/stretchr/objx v0.5.3/go.mod h1:rDQraq+vQZU7Fde9LOZLr8Tax6zZvy4kuNKF+QYS+U0=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
-github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
@@ -243,7 +238,6 @@ gopkg.in/evanphx/json-patch.v4 v4.13.0 h1:czT3CmqEaQ1aanPc5SdlgQrrEIb8w/wwCvWWnf
 gopkg.in/evanphx/json-patch.v4 v4.13.0/go.mod h1:p8EYWUEYMpynmqDbY58zCKCFZw8pRWMG4EsWvDvM72M=
 gopkg.in/inf.v0 v0.9.1 h1:73M5CoZyi3ZLMOyDlQh031Cx6N9NDJ2Vvfl76EDAgDc=
 gopkg.in/inf.v0 v0.9.1/go.mod h1:cWUDdTG/fYaXco+Dcufb5Vnc6Gp2YChqWtbxRZE0mXw=
-gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 k8s.io/api v0.36.4 h1:RxrvqCL6vgH5/+UnTeu1IIFqYmGfy0hnyrod1rn35Oo=
 k8s.io/api v0.36.4/go.mod h1:S2B3orCFBDhrgyWbLeuKcT2QdHIpQesBkCYSlWtwUOw=
 k8s.io/apiextensions-apiserver v0.36.4 h1:SfvCVt+4CqKWvzuVytYDT5g9hyb9MztoiYELIkPVrFc=

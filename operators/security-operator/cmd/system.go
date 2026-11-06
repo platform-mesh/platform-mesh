@@ -27,9 +27,9 @@ import (
 
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/controller"
 	"go.platform-mesh.io/security-operator/internal/fga"
+	"go.platform-mesh.io/security-operator/pkg/config"
 
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"

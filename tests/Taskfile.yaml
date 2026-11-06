@@ -12,192 +12,114 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Playwright end-to-end tests against a running Platform Mesh (tests/*.test.ts).
-# Included from the root Taskfile as `tests:`; the tasks keep the names they
-# had in the helm-charts repository minus the `test:` prefix, e.g.
-# `task tests:portal-e2e`. They run against the Tilt environment
-# (`task tilt:e2e`); .github/workflows/tilt.yml runs them in CI.
+# The tests module (go.platform-mesh.io/tests): integration tests against a
+# kcp test server (tests/integration, build tag `integration`), e2e tests
+# against a deployed Platform Mesh (tests/e2e, build tag `e2e`) and the
+# Playwright portal suite (tests/e2e/portal, included below as `portal-e2e:`).
+# Included from the root Taskfile as `tests:`.
+#
+# The Playwright tasks keep the names they had in the helm-charts repository
+# minus the `test:` prefix, e.g. `task tests:portal-e2e:httpbins`.
 
 version: '3'
 
-tasks:
-  portal-e2e:run:
+includes:
+  tools:
+    taskfile: ../tools/Taskfile.yaml
+    dir: ..
     internal: true
-    vars:
-      ORG_NAME: '{{.ORG_NAME | default "default"}}'
-      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
-      HEADED: '{{.HEADED | default ""}}'
-    cmds:
-      - task: portal-e2e:marketplace-ui
-        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
-      - task: portal-e2e:httpbins
-        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
-      - task: portal-e2e:account-kubeconfig
-        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
-      - task: portal-e2e:authorization
-        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
-      - task: portal-e2e:deletion
-        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
-
-  portal-e2e:setup:
-    run: once
-    dir: tests
-    cmds:
-      - npm ci
-      - npx playwright install chromium ffmpeg
-
-  portal-e2e:httpbins:
-    desc: Run the portal HTTPBin provider end-to-end tests
-    vars:
-      ORG_NAME: '{{.ORG_NAME | default "default"}}'
-      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
-      HEADED: '{{.HEADED | default ""}}'
-    deps: [portal-e2e:setup]
-    dir: tests
-    cmds:
-      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-httpbins.test.ts {{if .HEADED}}--headed{{end}}
-
-  portal-e2e:marketplace:
-    desc: Run the portal marketplace end-to-end tests
-    vars:
-      ORG_NAME: '{{.ORG_NAME | default "default"}}'
-      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
-      HEADED: '{{.HEADED | default ""}}'
-    cmds:
-      - task: portal-e2e:marketplace-ui
-        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: '{{.HEADED}}' }
-
-  portal-e2e:marketplace-ui:
-    desc: Run the marketplace availability and provider lifecycle UI tests
-    vars:
-      ORG_NAME: '{{.ORG_NAME | default "default"}}'
-      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
-      HEADED: '{{.HEADED | default ""}}'
-    deps: [portal-e2e:setup]
-    dir: tests
-    cmds:
-      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-marketplace-ui.test.ts {{if .HEADED}}--headed{{end}}
-
-  portal-e2e:account-kubeconfig:
-    desc: Run the account kubeconfig download and access tests
-    vars:
-      ORG_NAME: '{{.ORG_NAME | default "default"}}'
-      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
-      HEADED: '{{.HEADED | default ""}}'
-    deps: [portal-e2e:setup]
-    dir: tests
-    cmds:
-      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-account-kubeconfig.test.ts {{if .HEADED}}--headed{{end}}
-
-  portal-e2e:authorization:
-    desc: Run the portal authorization end-to-end tests
-    vars:
-      ORG_NAME: '{{.ORG_NAME | default "default"}}'
-      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
-      HEADED: '{{.HEADED | default ""}}'
-    deps: [portal-e2e:setup]
-    dir: tests
-    cmds:
-      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-authorization.test.ts {{if .HEADED}}--headed{{end}}
-
-  portal-e2e:headed:
-    desc: Run portal e2e tests with browser visible
-    vars:
-      ORG_NAME: '{{.ORG_NAME | default ""}}'
-      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
-    cmds:
-      - task: portal-e2e
-        vars: { ORG_NAME: '{{.ORG_NAME}}', TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME}}', HEADED: 'true' }
-
-  portal-e2e:video:
-    desc: Run portal e2e tests with video recording (sharded, sequential)
-    vars:
-      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
-    deps: [portal-e2e:setup]
-    dir: tests
-    cmds:
-      - VIDEO=true SKIP_INVITE=true TEST_RUN_ID={{.TEST_RUN_ID}} SHARDING_ORG_SHARD=root npx playwright test test-register-and-navigate.test.ts
-      - VIDEO=true SKIP_INVITE=true TEST_RUN_ID={{.TEST_RUN_ID}} SHARDING_ORG_SHARD=triton npx playwright test test-register-and-navigate.test.ts
-      - VIDEO=true ORG_NAME=org-root-{{.TEST_RUN_ID}} TEST_ACCOUNT_NAME=acc-root-{{.TEST_RUN_ID}} npx playwright test portal-*.test.ts --workers=1
-      - VIDEO=true ORG_NAME=org-triton-{{.TEST_RUN_ID}} TEST_ACCOUNT_NAME=acc-triton-{{.TEST_RUN_ID}} npx playwright test portal-*.test.ts --workers=1
-
-  portal-e2e:deletion:
-    desc: Run the account deletion end-to-end tests
-    vars:
-      ORG_NAME: '{{.ORG_NAME | default "default"}}'
-      TEST_ACCOUNT_NAME: '{{.TEST_ACCOUNT_NAME | default ""}}'
-      HEADED: '{{.HEADED | default ""}}'
-    deps: [portal-e2e:setup]
-    dir: tests
-    cmds:
-      - ORG_NAME={{.ORG_NAME}} {{if .TEST_ACCOUNT_NAME}}TEST_ACCOUNT_NAME={{.TEST_ACCOUNT_NAME}}{{end}} npx playwright test portal-account-deletion.test.ts {{if .HEADED}}--headed{{end}}
-
-
+  # Playwright portal suite: `task tests:portal-e2e`, `tests:portal-e2e:httpbins`, ...
   portal-e2e:
-    desc: Run portal e2e tests with workspaces on different shards (2 orgs in parallel, 2 accounts each)
-    vars:
-      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
-      HEADED: '{{.HEADED | default ""}}'
-    deps:
-      - task: portal-e2e:shard:root
-        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
-      - task: portal-e2e:shard:triton
-        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+    taskfile: e2e/portal/Taskfile.yaml
+    dir: e2e/portal
 
-  portal-e2e:shard:root:
-    desc: Run portal e2e tests with org on root shard
-    vars:
-      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
-      HEADED: '{{.HEADED | default ""}}'
+vars:
+  TOPLEVEL:
+    sh: git rev-parse --show-toplevel
+  BIN: '{{.TOPLEVEL}}/bin'
+  TESTS_DIR: '{{.TOPLEVEL}}/tests'
+  # Narrow a run to one area, e.g. PKG=./integration/resourcebroker/...
+  PKG: '{{.PKG | default "./integration/..."}}'
+  # Test packages run in parallel; each boots its own kcp test server.
+  P: '{{.P | default "2"}}'
+
+tasks:
+  # --- Go: standard component targets (root `task <target>-tests`) ---------
+  test:
+    desc: Unit tests of the test framework itself (no kcp, no cluster).
     cmds:
-      - task: portal-e2e:sharding-setup
-        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', SHARDING_ORG_SHARD: 'root', SKIP_INVITE: 'true', HEADED: '{{.HEADED}}' }
-      - task: portal-e2e:shard:root:accounts
-        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
-
-  portal-e2e:shard:root:accounts:
-    internal: true
+      - go test -count=1 ./framework/...
+  build:
+    desc: Compile every test package, including the tagged ones.
+    cmds:
+      - go vet -tags integration,e2e ./...
+  generate:
+    desc: No code generation in the tests module.
+    cmds:
+      - 'echo "tests: nothing to generate"'
+  lint:
     vars:
-      TEST_RUN_ID: '{{.TEST_RUN_ID}}'
-      HEADED: '{{.HEADED | default ""}}'
-    deps:
-      - task: portal-e2e:run
-        vars: { ORG_NAME: 'org-root-{{.TEST_RUN_ID}}', TEST_ACCOUNT_NAME: 'acc-triton-{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
-      - task: portal-e2e:run
-        vars: { ORG_NAME: 'org-root-{{.TEST_RUN_ID}}', TEST_ACCOUNT_NAME: 'acc-root-{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
+      GOLANGCI_LINT:
+        sh: 'UGET_DIRECTORY={{.BIN}} UGET_CHECKSUMS={{.TOPLEVEL}}/hack/tools.checksums UGET_PRINT_PATH=absolute task --dir {{.TOPLEVEL}} tools:golangci-lint'
+    cmds:
+      - '{{.GOLANGCI_LINT}} run --config {{.TOPLEVEL}}/.golangci.yaml --build-tags integration,e2e --timeout 15m ./...'
+  # --- integration: components in-process against a kcp test server --------
+  integration:
+    desc: 'Run tests/integration (PKG=./integration/<area>/... narrows, P= parallel packages, ADDITIONAL_COMMAND_ARGS= extra go test flags).'
+    deps: [tools:kcp]
+    env:
+      # The framework resolves kcp, kcp-front-proxy, cache-server and
+      # sharded-test-server from this directory (installed by tools:kcp).
+      TEST_KCP_ASSETS: '{{.BIN}}'
+      NO_GORUN: "true"
+    cmds:
+      # The framework's own server lifecycle tests need the kcp binaries too.
+      - go test -count=1 -run 'TestStopLeavesNoProcesses|TestReapsOrphanedServer' ./framework/kcp/
+      - go test -tags integration -count=1 -p {{.P}} -timeout 40m {{.PKG}} {{.ADDITIONAL_COMMAND_ARGS}}
+  integration:shared:
+    desc: 'Like integration, but one sharded kcp for the whole run (packages run sequentially and attach to it).'
+    deps: [tools:kcp]
+    env:
+      TEST_KCP_ASSETS: '{{.BIN}}'
+      NO_GORUN: "true"
+      KCP_ASSET_KCP: '{{.BIN}}/kcp'
+      KCP_ASSET_KCP_FRONT_PROXY: '{{.BIN}}/kcp-front-proxy'
+      KCP_ASSET_CACHE_SERVER: '{{.BIN}}/cache-server'
+      KCP_ASSET_SHARDED_TEST_SERVER: '{{.BIN}}/sharded-test-server'
+    cmds:
+      - |
+        bash -euo pipefail <<'EOF'
+        work="{{.TESTS_DIR}}/.test/shared-kcp"
+        rm -rf "$work" && mkdir -p "$work"
+        (cd "$work" && exec {{.BIN}}/sharded-test-server -number-of-shards 2 -work-dir-path "$work" -quiet >"$work/sharded-test-server.log" 2>&1) &
+        pid=$!
+        trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true' EXIT
+        for _ in $(seq 1 180); do [ -f "$work/.kcp/ready-to-test" ] && break; kill -0 "$pid" || { echo "sharded-test-server exited, see $work/sharded-test-server.log" >&2; exit 1; }; sleep 1; done
+        [ -f "$work/.kcp/ready-to-test" ] || { echo "sharded-test-server not ready, see $work/sharded-test-server.log" >&2; exit 1; }
+        KCP_KUBECONFIG="$work/.kcp/admin.kubeconfig" go test -tags integration -count=1 -p 1 -timeout 40m {{.PKG}} {{.ADDITIONAL_COMMAND_ARGS}}
+        EOF
 
-  portal-e2e:shard:triton:
-    desc: Run portal e2e tests with org on triton shard
+  # --- e2e: against a deployed Platform Mesh (KUBECONFIG, ADMIN_KUBECONFIG) --
+  e2e:
+    desc: 'Run tests/e2e Go suites against the cluster KUBECONFIG points at, then the portal suite (TEST_RUN_ID= for the sharded portal run).'
     vars:
       TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
-      HEADED: '{{.HEADED | default ""}}'
     cmds:
-      - task: portal-e2e:sharding-setup
-        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', SHARDING_ORG_SHARD: 'triton', SKIP_INVITE: 'true', HEADED: '{{.HEADED}}' }
-      - task: portal-e2e:shard:triton:accounts
-        vars: { TEST_RUN_ID: '{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
-
-  portal-e2e:shard:triton:accounts:
-    internal: true
-    vars:
-      TEST_RUN_ID: '{{.TEST_RUN_ID}}'
-      HEADED: '{{.HEADED | default ""}}'
-    deps:
-      - task: portal-e2e:run
-        vars: { ORG_NAME: 'org-triton-{{.TEST_RUN_ID}}', TEST_ACCOUNT_NAME: 'acc-triton-{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
-      - task: portal-e2e:run
-        vars: { ORG_NAME: 'org-triton-{{.TEST_RUN_ID}}', TEST_ACCOUNT_NAME: 'acc-root-{{.TEST_RUN_ID}}', HEADED: '{{.HEADED}}' }
-
-  portal-e2e:sharding-setup:
-    desc: Setup sharded org and accounts for e2e tests
-    vars:
-      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
-      SHARDING_ORG_SHARD: '{{.SHARDING_ORG_SHARD | default "triton"}}'
-      SHARDING_ACCOUNT_SHARDS: '{{.SHARDING_ACCOUNT_SHARDS | default ""}}'
-      SKIP_INVITE: '{{.SKIP_INVITE | default ""}}'
-      HEADED: '{{.HEADED | default ""}}'
-    deps: [portal-e2e:setup]
-    dir: tests
+      - go test -tags e2e -count=1 -timeout 60m ./e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
+      - task: portal-e2e:default
+        vars: {TEST_RUN_ID: '{{.TEST_RUN_ID}}'}
+  e2e:go:
+    desc: 'Only the Go e2e suites (no Playwright).'
     cmds:
-      - TEST_RUN_ID={{.TEST_RUN_ID}} SHARDING_ORG_SHARD={{.SHARDING_ORG_SHARD}} {{if .SHARDING_ACCOUNT_SHARDS}}SHARDING_ACCOUNT_SHARDS={{.SHARDING_ACCOUNT_SHARDS}} {{end}}{{if .SKIP_INVITE}}SKIP_INVITE={{.SKIP_INVITE}} {{end}}npx playwright test test-register-and-navigate.test.ts {{if .HEADED}}--headed{{end}}
-
+      - go test -tags e2e -count=1 -timeout 60m ./e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
+  e2e:deployer:
+    desc: 'Multi-cluster platform-mesh-deployer suite (tests/e2e/deployer): creates its own kind clusters via hack/kind.sh, local and nightly (e2e-deployer.yml). Needs docker, kubectl, helm; E2E_KEEP=1 keeps the clusters.'
+    deps: [tools:kind]
+    env:
+      # hack/kind.sh and the suite's `kind load` use this binary.
+      KIND: '{{.KIND}}'
+      # The suite skips itself without this, so e2e:go against a Tilt cluster
+      # does not also bring up the deployer's clusters.
+      E2E_DEPLOYER: "true"
+    cmds:
+      - go test -tags e2e -count=1 -timeout 60m ./e2e/deployer/... {{.ADDITIONAL_COMMAND_ARGS}}
