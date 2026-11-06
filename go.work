@@ -23,6 +23,7 @@ use (
 	./services/rebac-authz-webhook
 	./services/virtual-workspaces
 	./subroutines
+	./tests
 )
 
 // Force to use a newer version that is compatible with the newer genproto multi-module approach;

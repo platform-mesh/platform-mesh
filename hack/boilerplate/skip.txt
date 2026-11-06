@@ -40,6 +40,8 @@ operators/platform-mesh-operator/test/e2e/kind/kustomize/base/crds/druid.gardene
 # Imported from the helm-charts repository without headers; to be added
 # chart by chart. (A leading / anchors the entry at the repository root.)
 /charts/
-/tests/
+/tests/e2e/portal/
 /docs/deployment/migration-
 /docs/migration-openfga-cnpg/
+# kcp test server work dirs (tests/.test), gitignored
+.test
