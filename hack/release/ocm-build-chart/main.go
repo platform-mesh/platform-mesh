@@ -44,6 +44,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
 const (
@@ -139,16 +141,16 @@ func run(ctx context.Context) error {
 		return nil
 	}
 
-	repo := ocmRepository{
+	repo := releaseutils.OCMRepository{
 		Repo:      ocmRepo,
 		Signature: os.Getenv("SIGNATURE"),
 	}
 	log.Printf("building %s into %s", constructor, ocmRepo)
-	cvs, err := repo.add(ctx, constructor, "", env)
+	cvs, err := repo.Add(ctx, constructor, "", env)
 	if err != nil {
 		return err
 	}
-	if err := repo.sign(ctx, cvs); err != nil {
+	if err := repo.Sign(ctx, cvs); err != nil {
 		return err
 	}
 

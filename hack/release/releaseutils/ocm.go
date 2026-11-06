@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package releaseutils
 
 import (
 	"context"
@@ -23,18 +23,28 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"time"
 )
 
-// ocmRepository is the OCM repository the constructors are built into.
-type ocmRepository struct {
+const (
+	transferAttempts = 3
+	// GHCR occasionally answers "not found" right after an upload to a
+	// freshly created package; the second attempt succeeds.
+	transferRetryDelay = 10 * time.Second
+)
+
+// OCMRepository is the OCM repository the constructors are built into.
+type OCMRepository struct {
 	Repo string
 	// Signature is the signature name to sign with; empty skips signing.
 	Signature string
 }
 
-// add builds a constructor into the repository.
+// Add builds a constructor into the repository.
+// workingDir resolves the constructor's file inputs, empty keeps ocm's default.
+// env is a map of ENV_VAR=VALUE pairs to set in the environment for ocm, primarily for ocm to expand in constructors.
 // Returns the component versions ocm reports, built or skipped, as name:version.
-func (repo ocmRepository) add(ctx context.Context, constructor, workingDir string, env map[string]string) ([]string, error) {
+func (repo OCMRepository) Add(ctx context.Context, constructor, workingDir string, env map[string]string) ([]string, error) {
 	args := []string{
 		"add", "component-versions",
 		"--repository", repo.Repo,
@@ -73,7 +83,33 @@ func (repo ocmRepository) add(ctx context.Context, constructor, workingDir strin
 	return cvs, nil
 }
 
-func (repo ocmRepository) sign(ctx context.Context, cvs []string) error {
+// Exists reports whether the repository holds the component version.
+// This is primarily for transferring between registries, e.g. when
+// transferring a signed CV from a CTF to a remote registry to prevent
+// check before accidentally overriding an existing tag in the remote
+// registry.
+// TODO(ntnn): Would be nice to have a flag in ocm for this.
+func (repo OCMRepository) Exists(ctx context.Context, cv string) bool {
+	get := exec.CommandContext(ctx, "ocm", "get", "component-version", repo.Repo+"//"+cv, "-o", "json")
+	return get.Run() == nil
+}
+
+// Transfer copies a component version from the repository to target.
+func (repo OCMRepository) Transfer(ctx context.Context, cv, target string) error {
+	err := Retry(ctx, transferAttempts, transferRetryDelay, func() error {
+		cmd := exec.CommandContext(ctx, "ocm", "transfer", "component-version", repo.Repo+"//"+cv, target)
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	})
+	if err != nil {
+		return fmt.Errorf("publishing %s to %s: %w", cv, target, err)
+	}
+	return nil
+}
+
+// Sign signs each component version that does not already verify with the signature.
+// An empty Signature skips signing.
+func (repo OCMRepository) Sign(ctx context.Context, cvs []string) error {
 	if repo.Signature == "" {
 		return nil
 	}
