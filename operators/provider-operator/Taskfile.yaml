@@ -32,7 +32,15 @@ tasks:
       - go fmt ./...
 
   generate:
-    cmds: []
+    desc: Generate code (mocks)
+    cmds:
+      - task: mockery
+
+  mockery:
+    desc: Generate mocks using mockery
+    deps: [tools:mockery]
+    cmds:
+      - "{{.MOCKERY}}"
 
   lint:
     desc: Run linter
