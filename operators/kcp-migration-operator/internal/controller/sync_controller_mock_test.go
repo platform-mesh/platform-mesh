@@ -149,6 +149,7 @@ func TestPrepareTargetResource_PassThrough(t *testing.T) {
 			annotations := metadata["annotations"].(map[string]any)
 			assert.Contains(t, annotations, "migration.platform-mesh.io/source-uid")
 			assert.Contains(t, annotations, "migration.platform-mesh.io/source-generation")
+			assert.IsType(t, "", annotations["migration.platform-mesh.io/source-generation"], "annotation values must be strings")
 
 			// If source had existing annotations, check they're preserved
 			if tt.name == "should preserve existing annotations" {
