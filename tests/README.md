@@ -136,7 +136,6 @@ rm -rf tests/.test                      # all logs
 | `integration/account` | account-operator in-process: Accounts reconciled into Workspaces and AccountInfos. |
 | `integration/extensionmanager` | extension-manager-operator ContentConfiguration controller. |
 | `integration/graphqlgateway` | kubernetes-graphql-gateway listener controllers (ClusterAccess, resource) and the gateway serving GraphQL from kcp workspaces. |
-| `integration/kcpmigration` | kcp-migration-operator wired through its `pkg/app`: KCPMigration phases and object sync between workspaces. |
 | `integration/krocomposition` | kro-composition-operator engine: compositions, schema changes, type conflicts, pruning, consumers. |
 | `integration/resourcebroker` | resource-broker across broker, coordination, compute, consumer and provider workspaces: assignment, copy, conditions, deletion, migration. |
 | `integration/security` | security-operator: authorization model generation and invite validation. |
