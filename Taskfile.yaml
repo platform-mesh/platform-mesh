@@ -156,6 +156,7 @@ tasks:
     desc: Run the e2e suites (tests/e2e Go, then the portal) against the Tilt environment.
     cmds:
       - |
+        kubectl oidc-login --version &>/dev/null || echo "e2e tests need kubectl oidc-login installed: https://github.com/int128/kubelogin#setup"
         . contrib/tilt/env.sh || exit 1
         # tests/e2e reads the kind cluster from KUBECONFIG (context KIND_CONTEXT).
         export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
