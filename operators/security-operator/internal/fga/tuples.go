@@ -81,14 +81,6 @@ func ReferencingAccountTupleKey(objectType, accountOriginClusterID, accountName 
 	}
 }
 
-// ReferencingOwnerRoleTupleKey returns a key that can be used to List tuples
-// that reference the owner role of a given account.
-func ReferencingOwnerRoleTupleKey(objectType, accountOriginClusterID, accountName string) *openfgav1.ReadRequestTupleKey {
-	return &openfgav1.ReadRequestTupleKey{
-		Object: renderOwnerRole(objectType, accountOriginClusterID, accountName),
-	}
-}
-
 func baseTuples(in BaseTuplesInput) ([]pmcorev1alpha1.Tuple, error) {
 	if in.Creator == "" {
 		return nil, errors.New("account creator is empty")

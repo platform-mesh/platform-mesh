@@ -153,40 +153,6 @@ func (c *Client) getProjectFields(ctx context.Context, projectID string) ([]mode
 	return allFields, nil
 }
 
-type fieldNode struct {
-	Typename graphql.String `graphql:"__typename"`
-
-	ProjectV2Field struct {
-		ID       graphql.String
-		Name     graphql.String
-		DataType graphql.String
-	} `graphql:"... on ProjectV2Field"`
-
-	ProjectV2SingleSelectField struct {
-		ID      graphql.String
-		Name    graphql.String
-		Options []struct {
-			ID          graphql.String
-			Name        graphql.String
-			Description graphql.String
-			Color       graphql.String
-		}
-	} `graphql:"... on ProjectV2SingleSelectField"`
-
-	ProjectV2IterationField struct {
-		ID            graphql.String
-		Name          graphql.String
-		Configuration struct {
-			Iterations []struct {
-				ID        graphql.String
-				Title     graphql.String
-				StartDate graphql.String
-				Duration  graphql.Int
-			}
-		}
-	} `graphql:"... on ProjectV2IterationField"`
-}
-
 func convertFieldNode(node struct {
 	Typename graphql.String `graphql:"__typename"`
 

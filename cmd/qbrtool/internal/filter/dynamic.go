@@ -89,15 +89,6 @@ func ParseFieldFilter(expr string) (*DynamicFieldFilter, error) {
 	return nil, fmt.Errorf("invalid filter expression: %q (expected format: Field=Value, Field!=Value, Field~Value, or Field=Value1,Value2)", expr)
 }
 
-// NewDynamicFieldFilter creates a new dynamic field filter
-func NewDynamicFieldFilter(fieldName string, op Operator, value string) *DynamicFieldFilter {
-	return &DynamicFieldFilter{
-		FieldName: fieldName,
-		Operator:  op,
-		Value:     value,
-	}
-}
-
 // Matches checks if the item's field value matches the filter criteria
 func (f *DynamicFieldFilter) Matches(item *models.ProjectItem) bool {
 	// Get the field value from the item
@@ -198,15 +189,6 @@ type OrgFilter struct {
 	Orgs       []string      // Specific orgs to include (for OrgFilterSpecific mode)
 }
 
-// NewOrgFilter creates a new org filter
-func NewOrgFilter(projectOrg string, mode OrgFilterMode, orgs []string) *OrgFilter {
-	return &OrgFilter{
-		ProjectOrg: projectOrg,
-		Mode:       mode,
-		Orgs:       orgs,
-	}
-}
-
 // NewInternalOrgFilter creates a filter for items from the project's org only
 func NewInternalOrgFilter(projectOrg string) *OrgFilter {
 	return &OrgFilter{
@@ -269,9 +251,4 @@ func (f *OrgFilter) Name() string {
 	default:
 		return "org:all"
 	}
-}
-
-// IsExternal returns true if the item is from an external org
-func IsExternal(item *models.ProjectItem, projectOrg string) bool {
-	return !strings.EqualFold(item.Repository.Owner, projectOrg)
 }

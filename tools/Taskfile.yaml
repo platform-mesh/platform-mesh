@@ -43,9 +43,6 @@ vars:
   CONTROLLER_GEN_VERSION: v0.21.0
   CONTROLLER_GEN: '{{.BIN}}/controller-gen-{{.CONTROLLER_GEN_VERSION}}'
 
-  DOCKER_COMPOSE_VERSION: v5.4.0
-  DOCKER_COMPOSE: '{{.BIN}}/docker-compose-{{.DOCKER_COMPOSE_VERSION}}'
-
   ENVTEST_K8S_VERSION: "1.36.0"
   ENVTEST_VERSION: v0.24.1
   ENVTEST: '{{.BIN}}/setup-envtest-{{.ENVTEST_VERSION}}'
@@ -215,16 +212,6 @@ tasks:
           source: 'https://github.com/vladopajic/go-test-coverage/releases/download/{VERSION}/go-test-coverage_{VERSION}_{GOOS}_{GOARCH}.tar.gz'
           version: '{{ .GO_TEST_COVERAGE_VERSION }}'
           extractArg: 'go-test-coverage'
-  docker-compose:
-    internal: true
-    cmds:
-      - task: uget
-        vars:
-          tool: docker-compose
-          source: 'https://github.com/docker/compose/releases/download/{VERSION}/docker-compose-{UOS}-{UARCH}'
-          version: '{{ .DOCKER_COMPOSE_VERSION }}'
-          extractArg: 'docker-compose-*'
-          uncompressed: true
   oapi-codegen:
     internal: true
     cmds:

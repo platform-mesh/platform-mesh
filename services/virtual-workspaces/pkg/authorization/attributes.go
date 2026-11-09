@@ -19,7 +19,6 @@ package authorization
 import (
 	"context"
 
-	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 )
 
@@ -38,15 +37,6 @@ const attributeHolderCtxKey attributeHolderCtxKeyType = iota
 
 func WithAttributeHolder(parent context.Context) context.Context {
 	return context.WithValue(parent, attributeHolderCtxKey, &attributeHolder{})
-}
-
-func AttributesFromContext(ctx context.Context) authorizer.Attributes {
-	holder, ok := ctx.Value(attributeHolderCtxKey).(*attributeHolder)
-	if !ok {
-		panic("Expected auth attributes to be present in context, but is not.")
-	}
-
-	return holder.Attributes
 }
 
 func UpdateAttributes(ctx context.Context, attributes authorizer.Attributes) {
@@ -75,26 +65,4 @@ func (w *contextualAuthorizationWrapper) Authorize(ctx context.Context, attr aut
 	UpdateAttributes(ctx, attr)
 
 	return w.delegate.Authorize(ctx, attr)
-}
-
-// DeepCopyAttributes creates a copy of the given attributes, returned as a raw
-// record to allow further modifications.
-func DeepCopyAttributes(attr authorizer.Attributes) authorizer.AttributesRecord {
-	return authorizer.AttributesRecord{
-		User: &user.DefaultInfo{
-			Name:   attr.GetUser().GetName(),
-			UID:    attr.GetUser().GetUID(),
-			Groups: attr.GetUser().GetGroups(),
-			Extra:  attr.GetUser().GetExtra(),
-		},
-		Verb:            attr.GetVerb(),
-		Namespace:       attr.GetNamespace(),
-		APIGroup:        attr.GetAPIGroup(),
-		APIVersion:      attr.GetAPIVersion(),
-		Resource:        attr.GetResource(),
-		Subresource:     attr.GetSubresource(),
-		Name:            attr.GetName(),
-		ResourceRequest: attr.IsResourceRequest(),
-		Path:            attr.GetPath(),
-	}
 }

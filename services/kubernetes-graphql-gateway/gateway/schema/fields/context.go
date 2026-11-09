@@ -33,7 +33,3 @@ type ResourceContext struct {
 	PluralName     string
 	SanitizedGroup string
 }
-
-func (r *ResourceContext) IsNamespaceScoped() bool {
-	return r.Scope == apiextensionsv1.NamespaceScoped
-}

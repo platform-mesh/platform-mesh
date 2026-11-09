@@ -47,12 +47,6 @@ tasks:
         vars:
           PATH: /migration/...
 
-  generate:mocks:
-    desc: Generate mocks using mockery
-    deps: [tools:mockery]
-    cmds:
-      - "{{.MOCKERY}}"
-
   build:
     desc: Build the operator binary
     cmds:
