@@ -22,16 +22,30 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
 )
 
-func TestWorkDir(t *testing.T) {
-	dir, err := workDir()
-	require.NoError(t, err)
-
+func TestLogDir(t *testing.T) {
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
-	root := filepath.Dir(filepath.Dir(cwd)) // tests/framework/kcp -> tests
-	require.Equal(t, filepath.Join(root, ".test", "go.platform-mesh.io_tests_framework_kcp"), dir)
+	root := filepath.Dir(filepath.Dir(filepath.Dir(cwd))) // tests/framework/kcp -> repo root
+
+	dir, err := logDir("unit")
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(root, "tests", ".test", "unit"), dir)
+	require.DirExists(t, dir)
+	require.NoError(t, os.Remove(dir))
+}
+
+func TestAdvertise(t *testing.T) {
+	req := &testcontainers.GenericContainerRequest{ContainerRequest: testcontainers.ContainerRequest{
+		Cmd: []string{"start", "--shard-name=root", "--shard-external-url=https://front-proxy:6443", "--shard-base-url=https://root:6444"},
+	}}
+	require.NoError(t, advertise("https://localhost:16443", "https://localhost:16444")(req))
+	require.Equal(t, []string{
+		"start", "--shard-name=root", "--shard-external-url=https://localhost:16443", "--shard-base-url=https://root:6444",
+		"--shard-virtual-workspace-url=https://localhost:16444",
+	}, req.Cmd)
 }
 
 func TestLoadKubeconfig(t *testing.T) {

@@ -22,25 +22,28 @@ limitations under the License.
 package framework_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	accountresources "go.platform-mesh.io/apis/static-assets/resources/account-operator"
-	"go.platform-mesh.io/tests/framework/fixtures"
-	"go.platform-mesh.io/tests/framework/kcp"
-	"go.platform-mesh.io/tests/framework/scheme"
-	"go.platform-mesh.io/tests/framework/wait"
+	"go.platform-mesh.io/platform-mesh/tests/framework/fixtures"
+	"go.platform-mesh.io/platform-mesh/tests/framework/kcp"
+	"go.platform-mesh.io/platform-mesh/tests/framework/scheme"
+	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/discovery"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kcp-dev/multicluster-provider/envtest"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	kcptesting "github.com/kcp-dev/sdk/testing"
 )
 
 const widgetCRD = `
@@ -80,7 +83,7 @@ func TestWorkspace(t *testing.T) {
 	require.NotEmpty(t, env.ShardNames(), "kcp should report its shards")
 	t.Logf("shards: %v", env.ShardNames())
 
-	ws, path := env.Workspace(t, core.RootCluster.Path(), envtest.WithNamePrefix("framework"))
+	ws, path := env.Workspace(t, core.RootCluster.Path(), kcptesting.WithNamePrefix("framework"))
 	require.Equal(t, kcpcorev1alpha1.LogicalClusterPhaseReady, ws.Status.Phase)
 	require.Equal(t, core.RootCluster.Path().Join(ws.Name), path)
 
@@ -91,7 +94,7 @@ func TestWorkspace(t *testing.T) {
 
 func TestCRDRoundTrip(t *testing.T) {
 	env := kcp.Server(t)
-	_, path := env.Workspace(t, core.RootCluster.Path(), envtest.WithNamePrefix("crd"))
+	_, path := env.Workspace(t, core.RootCluster.Path(), kcptesting.WithNamePrefix("crd"))
 	cl := env.Client(t, path, scheme.New(t))
 
 	objs := fixtures.Decode(t, []byte(widgetCRD))
@@ -152,4 +155,33 @@ func TestInstallPlatform(t *testing.T) {
 		fixtures.WithOrgs(),
 	)
 	require.Equal(t, p.Orgs, again.Orgs)
+}
+
+// The operators follow the virtual workspace URLs kcp advertises in
+// APIExportEndpointSlices. In Docker those point at the shards, which the
+// framework publishes on the host: every advertised URL must answer from here.
+func TestVirtualWorkspaceReachable(t *testing.T) {
+	env := kcp.Server(t)
+	p := fixtures.Install(t, env,
+		fixtures.WithResources(accountresources.Resources, "*.yaml"),
+		fixtures.WithBindings("core.platform-mesh.io"),
+	)
+	slice := &kcpapisv1alpha1.APIExportEndpointSlice{}
+	require.NoError(t, p.SystemClient.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: "core.platform-mesh.io"}, slice))
+	require.NotEmpty(t, slice.Status.APIExportEndpoints, "the endpoint slice should advertise virtual workspace URLs")
+
+	for _, endpoint := range slice.Status.APIExportEndpoints {
+		cfg := env.Config()
+		cfg.Host = endpoint.URL
+		dc, err := discovery.NewDiscoveryClientForConfig(cfg)
+		require.NoError(t, err)
+		wait.Eventually(t, func() (bool, string) {
+			_, err := dc.RESTClient().Get().AbsPath("clusters", "*", "apis", "core.platform-mesh.io").DoRaw(t.Context())
+			if err != nil {
+				return false, fmt.Sprintf("discovery on %s: %v", endpoint.URL, err)
+			}
+			return true, ""
+		}, wait.Timeout, wait.Tick, "virtual workspace %s should serve discovery", endpoint.URL)
+		t.Logf("virtual workspace %s reachable", endpoint.URL)
+	}
 }

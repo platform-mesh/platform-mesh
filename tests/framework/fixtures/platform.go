@@ -28,9 +28,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
-	"go.platform-mesh.io/tests/framework/kcp"
-	"go.platform-mesh.io/tests/framework/scheme"
-	"go.platform-mesh.io/tests/framework/wait"
+	"go.platform-mesh.io/platform-mesh/tests/framework/kcp"
+	"go.platform-mesh.io/platform-mesh/tests/framework/scheme"
+	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -444,7 +444,7 @@ func exportExists(t testing.TB, cl ctrlruntimeclient.Client, name string) bool {
 
 // ensureWorkspace creates the workspace name of type root:<typeName> under
 // parent unless it exists, and waits until it is Ready and reachable by path.
-// Unlike envtest.NewWorkspaceFixture it uses a fixed name and never deletes
+// Unlike kcptesting.NewWorkspaceFixture it uses a fixed name and never deletes
 // the workspace, so packages sharing a kcp share it.
 func ensureWorkspace(t testing.TB, cluster clusterclient.ClusterClient, parent logicalcluster.Path, name, typeName string) {
 	t.Helper()

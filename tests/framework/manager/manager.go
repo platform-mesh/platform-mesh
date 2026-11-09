@@ -27,7 +27,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.platform-mesh.io/tests/framework/kcp"
+	"go.platform-mesh.io/platform-mesh/tests/framework/kcp"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"

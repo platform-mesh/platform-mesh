@@ -21,7 +21,7 @@
 #   e2eComponents    subset with e2e tests
 #   imageComponents  subset that produce an image
 #   charts           chart names (directories under charts/) that changed
-#   integration      true when the tests module (tests/integration) is
+#   integration      true when the integration tests (tests/integration) are
 #                    affected: any change under tests/, operators/,
 #                    services/, hack/ or a shared path (not a JSON array)
 #
@@ -52,7 +52,7 @@ shared_re='^(go\.work|go\.work\.sum|ocm/components\.yaml|\.github/|Taskfile\.yam
 lib_paths=$(yq '.components | to_entries | map(select(.value.library == true)) | .[].value.path' "$registry")
 for p in $lib_paths; do shared_re="$shared_re|^$p/"; done
 
-# The tests module (tests/integration against kcp) imports every operator, so
+# The integration tests (tests/integration against kcp) import every operator, so
 # any Go change selects it.
 integration=false
 if [ -z "$changed" ] || grep -qE "$shared_re|^(tests|operators|services|hack)/" <<<"$changed"; then

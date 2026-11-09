@@ -66,6 +66,6 @@ jobs:
             echo "::error title=go-lint::Failed for: ${failed[*]}. Reproduce with 'task verify-<component>' (lint, tidy-check, boilerplate)."
             exit 1
           fi
-      - name: Lint, tidy, boilerplate (tests module)
+      - name: Lint, tidy, boilerplate (root module, holds the integration tests)
         if: steps.changes.outputs.integration == 'true'
-        run: task verify-tests
+        run: task verify-root

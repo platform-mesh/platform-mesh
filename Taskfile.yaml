@@ -24,8 +24,8 @@ version: "3"
 #
 # Every component (module/service) must expose the standard targets in its own
 # Taskfile: lint, test, test-e2e, generate, build. The root simply fans out to
-# them. Integration tests live in the tests module: `task test-integration`
-# (components in-process against kcp test servers); see tests/README.md.
+# them. Integration tests live under tests/ in the root module: `task test-integration`
+# (components in-process against a kcp in Docker); see tests/README.md.
 #
 # The components below are linked locally through the repository-root go.work
 # file. Add a component by listing its name here; its directory is discovered
@@ -41,7 +41,7 @@ includes:
   charts:
     taskfile: charts/Taskfile.yaml
     dir: .
-  # The tests module: `task tests:integration` (kcp test servers) and the
+  # The integration tests: `task tests:integration` (kcp in Docker) and the
   # Playwright portal suite (`task tests:portal-e2e:setup`,
   # `task tests:portal-e2e:httpbins`, ...).
   tests:
@@ -76,8 +76,6 @@ vars:
     - rebac-authz-webhook
     - virtual-workspaces
 
-    # integration tests (tests/)
-    - tests
 
   LIBRARIES:
     - apis
@@ -217,7 +215,7 @@ tasks:
       - for: {var: COMPONENTS}
         cmd: task test-{{.ITEM}}
   test-integration:
-    desc: Run the integration tests (tests/integration) against kcp test servers.
+    desc: Run the integration tests (tests/integration) against a kcp in Docker.
     cmds:
       - task: tests:integration
         vars: {PKG: '{{.PKG}}', P: '{{.P}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}

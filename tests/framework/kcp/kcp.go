@@ -14,15 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package kcp is the kcp environment of the integration tests: a private
-// sharded-test-server per test binary (front-proxy, cache server, two
-// shards), or an existing kcp named by --kcp-kubeconfig / KCP_KUBECONFIG.
+// Package kcp is the kcp environment of the integration tests: a sharded kcp
+// (front-proxy, cache server, two shards) in Docker via kcp-testcontainers,
+// shared by every test binary of the run, or an existing kcp named by
+// --kcp-kubeconfig / KCP_KUBECONFIG.
 //
 //	func TestMain(m *testing.M) { os.Exit(kcp.Main(m)) }
 //
 //	func TestSomething(t *testing.T) {
 //		env := kcp.Server(t)
-//		_, path := env.Workspace(t, core.RootCluster.Path(), envtest.WithNamePrefix("something"))
+//		_, path := env.Workspace(t, core.RootCluster.Path(), kcptesting.WithNamePrefix("something"))
 //		cl := env.Client(t, path, scheme.New(t))
 //		...
 //	}
@@ -34,20 +35,20 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
 
-	"go.platform-mesh.io/tests/framework/wait"
+	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -57,44 +58,39 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	kcptc "github.com/kcp-dev/kcp-testcontainers"
 	"github.com/kcp-dev/logicalcluster/v3"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
-	"github.com/kcp-dev/multicluster-provider/envtest"
 	"github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	kcptesting "github.com/kcp-dev/sdk/testing"
 )
 
 const (
 	// KubeconfigEnv names an existing kcp to attach to, like --kcp-kubeconfig.
 	KubeconfigEnv = "KCP_KUBECONFIG"
-	// AssetsEnv is the directory holding kcp, kcp-front-proxy, cache-server
-	// and sharded-test-server.
-	AssetsEnv = "TEST_KCP_ASSETS"
+	// ImageEnv is the kcp image (with tag) to run; defaults to
+	// kcp-testcontainers' default (ghcr.io/kcp-dev/kcp at its kcp version).
+	ImageEnv = "KCP_IMAGE"
+	// DefaultInstance is the name of the shared kcp unless WithInstance says
+	// otherwise. Test binaries naming the same instance share one kcp.
+	DefaultInstance = "platform-mesh"
 
-	baseContext     = "base"
-	logTailLines    = 50
-	portWaitTimeout = time.Minute
-	// pidFile in the work dir holds the pid of the package's
-	// sharded-test-server (also its process group id).
-	pidFile = "server.pid"
+	baseContext    = "base"
+	startupTimeout = 5 * time.Minute
+
+	// The container ports of kcp-testcontainers' components.
+	frontProxyPort = "6443"
+	shardPort      = "6444"
 )
 
-var kubeconfigFlag = flag.String("kcp-kubeconfig", "", "kubeconfig of an existing kcp to run against instead of starting a sharded-test-server (also "+KubeconfigEnv+"); uses context \"base\" if present, else the current context")
-
-// assets maps the variables sharded-test-server and envtest read to the
-// binary names under TEST_KCP_ASSETS.
-var assets = []struct{ env, binary string }{
-	{"KCP_ASSET_KCP", "kcp"},
-	{"KCP_ASSET_KCP_FRONT_PROXY", "kcp-front-proxy"},
-	{"KCP_ASSET_CACHE_SERVER", "cache-server"},
-	{"KCP_ASSET_SHARDED_TEST_SERVER", "sharded-test-server"},
-}
+var kubeconfigFlag = flag.String("kcp-kubeconfig", "", "kubeconfig of an existing kcp to run against instead of starting one in Docker (also "+KubeconfigEnv+"); uses context \"base\" if present, else the current context")
 
 // current is the package's kcp, set by Main.
 var current *Env
 
-// Env is a running kcp, private to the test binary or attached to.
+// Env is a running kcp, started in Docker or attached to.
 type Env struct {
 	config     *rest.Config
 	shardNames []string
@@ -104,20 +100,50 @@ type Env struct {
 	cluster clusterclient.ClusterClient
 }
 
+// Option configures Main.
+type Option func(*options)
+
+type options struct {
+	instance     string
+	featureGates []string
+}
+
+// WithInstance names the shared kcp this package runs against. Packages
+// that need a kcp of their own (because their fixtures clash with the
+// others') pick a name nobody else uses.
+func WithInstance(name string) Option {
+	return func(o *options) { o.instance = name }
+}
+
+// WithFeatureGates enables kcp feature gates on the instance. Every package
+// sharing the instance must ask for the same gates: whoever starts it wins.
+func WithFeatureGates(gates ...string) Option {
+	return func(o *options) { o.featureGates = append(o.featureGates, gates...) }
+}
+
 // Main is the TestMain of every integration package:
 //
 //	func TestMain(m *testing.M) { os.Exit(kcp.Main(m)) }
 //
-// It starts a private sharded-test-server unless --kcp-kubeconfig or
-// KCP_KUBECONFIG names an existing kcp, runs the tests and stops the server.
-func Main(m *testing.M) int {
+// It starts (or joins) the shared kcp in Docker unless --kcp-kubeconfig or
+// KCP_KUBECONFIG names an existing kcp, then runs the tests. The containers
+// belong to the go test session and are removed by testcontainers' reaper
+// once the last test binary of the run has exited.
+func Main(m *testing.M, opts ...Option) int {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
 	if os.Getenv("TEST_QUIET") != "1" {
 		ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	}
-	setDefaultEnv()
+	// Keep workspace fixtures until the server goes away unless told otherwise.
+	if _, ok := os.LookupEnv("PRESERVE"); !ok {
+		_ = os.Setenv("PRESERVE", "true")
+	}
+	o := options{instance: DefaultInstance}
+	for _, opt := range opts {
+		opt(&o)
+	}
 
 	kubeconfig := *kubeconfigFlag
 	if kubeconfig == "" {
@@ -125,9 +151,8 @@ func Main(m *testing.M) int {
 	}
 
 	var (
-		cfg  *rest.Config
-		stop = func() {}
-		err  error
+		cfg *rest.Config
+		err error
 	)
 	if kubeconfig != "" {
 		cfg, err = loadKubeconfig(kubeconfig)
@@ -137,13 +162,12 @@ func Main(m *testing.M) int {
 		}
 		fmt.Fprintf(os.Stderr, "kcp: attached to %s (%s)\n", cfg.Host, kubeconfig)
 	} else {
-		cfg, stop, err = startSharded()
+		cfg, err = start(o)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "kcp: %v\n", err)
 			return 1
 		}
 	}
-	defer stop()
 
 	current, err = newEnv(cfg, kubeconfig != "")
 	if err != nil {
@@ -191,29 +215,28 @@ func (e *Env) Client(t testing.TB, path logicalcluster.Path, s *runtime.Scheme) 
 	return cl
 }
 
-// ShardNames returns the names of the kcp shards ("root", "shard-1", ...).
+// ShardNames returns the names of the kcp shards ("root", "shard-b", ...).
 func (e *Env) ShardNames() []string {
 	return append([]string(nil), e.shardNames...)
 }
 
 // Attached reports whether the kcp was given by --kcp-kubeconfig /
-// KCP_KUBECONFIG (and is possibly shared with other test packages).
+// KCP_KUBECONFIG rather than started by this framework.
 func (e *Env) Attached() bool {
 	return e.attached
 }
 
 // Workspace creates a workspace under parent (type root:universal and name
-// prefix "e2e-workspace-" unless opts say otherwise) and waits until it is
-// Ready and reachable by cluster name and by path. The workspace is deleted
-// when t ends unless PRESERVE is set, which Main sets by default.
+// prefix "e2e-workspace-" unless opts say otherwise; kcptesting.WithNamePrefix,
+// WithType, WithShard, ... apply) and waits until it is Ready and reachable
+// by cluster name and by path. The workspace is deleted when t ends unless
+// PRESERVE is set, which Main sets by default.
 //
-// It does what envtest.NewWorkspaceFixture does, but polls with
-// wait.Eventually: envtest's waits run their condition (with require calls)
-// in a goroutine that can outlive a failed test.
-func (e *Env) Workspace(t testing.TB, parent logicalcluster.Path, opts ...envtest.WorkspaceOption) (*kcptenancyv1alpha1.Workspace, logicalcluster.Path) {
+// It does what kcptesting.NewWorkspaceFixture does, but polls with
+// wait.Eventually and fails t instead of requiring from a goroutine.
+func (e *Env) Workspace(t testing.TB, parent logicalcluster.Path, opts ...kcptesting.UnprivilegedWorkspaceOption) (*kcptenancyv1alpha1.Workspace, logicalcluster.Path) {
 	t.Helper()
 	ws := &kcptenancyv1alpha1.Workspace{
-		ObjectMeta: metav1.ObjectMeta{GenerateName: "e2e-workspace-"},
 		Spec: kcptenancyv1alpha1.WorkspaceSpec{
 			Type: &kcptenancyv1alpha1.WorkspaceTypeReference{
 				Name: "universal",
@@ -223,6 +246,9 @@ func (e *Env) Workspace(t testing.TB, parent logicalcluster.Path, opts ...envtes
 	}
 	for _, opt := range opts {
 		opt(ws)
+	}
+	if ws.Name == "" && ws.GenerateName == "" {
+		ws.GenerateName = "e2e-workspace-"
 	}
 	parentClient := e.cluster.Cluster(parent)
 
@@ -279,236 +305,202 @@ func (e *Env) Workspace(t testing.TB, parent logicalcluster.Path, opts ...envtes
 	return ws, path
 }
 
-// setDefaultEnv points the kcp asset variables at TEST_KCP_ASSETS and sets
-// NO_GORUN (run the binaries, not `go run`) and PRESERVE (keep workspace
-// fixtures until the server goes away) unless they are set already.
-func setDefaultEnv() {
-	if dir := os.Getenv(AssetsEnv); dir != "" {
-		for _, a := range assets {
-			setDefault(a.env, filepath.Join(dir, a.binary))
-		}
-	}
-	setDefault("NO_GORUN", "true")
-	setDefault("PRESERVE", "true")
-}
+// start starts the shared kcp named o.instance in Docker, or joins it when
+// another test binary of this go test session started it already, and
+// returns the unscoped admin config.
+//
+// kcp-testcontainers wires the components over a Docker network and makes
+// the shards advertise themselves under their network aliases, which the
+// host cannot resolve. The tests run the operators in-process on the host,
+// and those follow the URLs kcp advertises (workspace URLs, the APIExport
+// virtual workspace URLs in APIExportEndpointSlices), so the front-proxy and
+// both shards get a fixed host port each and the shards advertise the host
+// side: --shard-external-url for workspace URLs, --shard-virtual-workspace-url
+// for virtual workspaces. Every serving certificate carries "localhost", so
+// the configs verify against the URL's host instead of the alias.
+func start(o options) (*rest.Config, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), startupTimeout)
+	defer cancel()
 
-func setDefault(key, value string) {
-	if _, ok := os.LookupEnv(key); !ok {
-		_ = os.Setenv(key, value)
-	}
-}
-
-// startSharded takes the host-wide test server lock, starts
-// sharded-test-server in a fresh work dir and returns its admin config and a
-// stop function that stops the server, makes sure no process of it survives
-// and releases the lock. SIGINT/SIGTERM stop the server too, so an
-// interrupted run does not leave kcp processes behind.
-func startSharded() (*rest.Config, func(), error) {
-	dir, err := workDir()
+	host, err := daemonHost(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	unlock, err := acquireServerLock()
+	ports, err := freePorts(3)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	started := false
-	defer func() {
-		if !started {
-			unlock()
-		}
-	}()
-	if err := freePorts(filepath.Dir(dir) + string(filepath.Separator)); err != nil {
-		return nil, nil, err
-	}
-	if err := os.RemoveAll(dir); err != nil {
-		return nil, nil, fmt.Errorf("wiping work dir %s: %w", dir, err)
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, nil, fmt.Errorf("creating work dir %s: %w", dir, err)
+	frontProxy, shardA, shardB := ports[0], ports[1], ports[2]
+	external := "https://" + net.JoinHostPort(host, strconv.Itoa(frontProxy))
+
+	logDir, err := logDir(o.instance)
+	if err != nil {
+		return nil, err
 	}
 
-	fmt.Fprintf(os.Stderr, "kcp: starting sharded-test-server, work dir %s\n", dir)
-	server := &envtest.Sharded{WorkDir: dir, StopTimeout: 30 * time.Second}
+	image := os.Getenv(ImageEnv)
+	if image == "" {
+		image = kcptc.DefaultTag
+	}
+	fmt.Fprintf(os.Stderr, "kcp: starting or joining instance %q (%s), logs in %s\n", o.instance, image, logDir)
 	startedAt := time.Now()
-	if err := startIn(dir, server); err != nil {
-		printLogTail(filepath.Join(dir, ".kcp-sharded-test-server", "envtest.log"))
-		return nil, nil, fmt.Errorf("starting sharded-test-server (work dir %s): %w", dir, err)
-	}
-	fmt.Fprintf(os.Stderr, "kcp: ready after %s\n", time.Since(startedAt).Round(100*time.Millisecond))
-
-	// envtest.Sharded starts the server in a process group of its own
-	// (pgid = its pid); remember it so Stop can make sure the whole group,
-	// kcp shards and cache server included, is gone.
-	pgid := 0
-	if procs, err := listProcs(); err == nil {
-		if p, ok := childServer(procs, os.Getpid()); ok {
-			pgid = p.pgid
-			if err := os.WriteFile(filepath.Join(dir, pidFile), []byte(strconv.Itoa(p.pid)+"\n"), 0o644); err != nil { //nolint:gosec // not secret
-				fmt.Fprintf(os.Stderr, "kcp: writing %s: %v\n", pidFile, err)
-			}
-		}
-	}
-
-	stopServer := func() {
-		if err := server.Stop(); err != nil {
-			fmt.Fprintf(os.Stderr, "kcp: stopping sharded-test-server: %v\n", err)
-		}
-		if err := killServerGroup(pgid); err != nil {
-			fmt.Fprintf(os.Stderr, "kcp: %v\n", err)
-		}
+	instance, err := kcptc.Shared(ctx, o.instance, kcptc.Options{
+		Image:          image,
+		StartupTimeout: startupTimeout,
+		FeatureGates:   o.featureGates,
+		Cache: []testcontainers.ContainerCustomizer{
+			logTo(logDir, kcptc.AliasCache),
+		},
+		FrontProxy: []testcontainers.ContainerCustomizer{
+			publish(frontProxy, frontProxyPort),
+			logTo(logDir, kcptc.AliasFrontProxy),
+		},
+		ShardA: []testcontainers.ContainerCustomizer{
+			publish(shardA, shardPort),
+			advertise(external, "https://"+net.JoinHostPort(host, strconv.Itoa(shardA))),
+			logTo(logDir, kcptc.ShardA),
+		},
+		ShardB: []testcontainers.ContainerCustomizer{
+			publish(shardB, shardPort),
+			advertise(external, "https://"+net.JoinHostPort(host, strconv.Itoa(shardB))),
+			logTo(logDir, kcptc.ShardB),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("starting kcp %q in Docker: %w", o.instance, err)
 	}
 
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	done := make(chan struct{})
-	go func() {
-		select {
-		case sig := <-signals:
-			fmt.Fprintf(os.Stderr, "kcp: %s, stopping sharded-test-server\n", sig)
-			stopServer()
-			unlock()
-			os.Exit(1)
-		case <-done:
-		}
-	}()
-
-	stop := func() {
-		signal.Stop(signals)
-		close(done)
-		stopServer()
-		unlock()
+	cfg := instance.Config()
+	if i := strings.Index(cfg.Host, "/clusters/"); i >= 0 {
+		cfg.Host = cfg.Host[:i]
 	}
-	started = true
-	return server.Config(), stop, nil
+	// Verify against the host in the URL ("localhost" is in every serving
+	// cert), not the component's network alias: the virtual workspace URLs
+	// point at the shards, whose certs do not carry the front-proxy's name.
+	cfg.ServerName = ""
+	fmt.Fprintf(os.Stderr, "kcp: %s ready after %s\n", cfg.Host, time.Since(startedAt).Round(100*time.Millisecond))
+	return cfg, nil
 }
 
-// freePorts makes sure serverPorts are free before a server starts. The
-// caller holds the server lock, so a server of this framework still holding
-// them was left behind by a test binary that died (go test's timeout, a
-// panic in a goroutine, SIGKILL): such orphans, recognised by a work dir
-// under testDir and a dead parent, are killed. Otherwise it waits up to
-// portWaitTimeout (the previous lock holder's processes may still be
-// shutting down, or a server not started by this framework is running) and
-// then fails naming whatever holds the ports.
-func freePorts(testDir string) error {
-	if len(busyPorts()) > 0 {
-		reapOrphanedServers(testDir)
-	}
-	busy := waitForPorts()
-	if len(busy) == 0 {
+// publish binds containerPort to hostPort on the Docker host (testcontainers
+// keeps the binding and maps the other exposed ports randomly).
+func publish(hostPort int, containerPort string) testcontainers.CustomizeRequestOption {
+	return testcontainers.WithHostConfigModifier(func(hc *container.HostConfig) {
+		hc.PortBindings = network.PortMap{
+			network.MustParsePort(containerPort + "/tcp"): {{HostPort: strconv.Itoa(hostPort)}},
+		}
+	})
+}
+
+// advertise makes a shard tell clients to reach it (and its virtual
+// workspaces) at host-side URLs instead of its Docker network alias.
+func advertise(externalURL, virtualWorkspaceURL string) testcontainers.CustomizeRequestOption {
+	return func(req *testcontainers.GenericContainerRequest) error {
+		cmd := make([]string, 0, len(req.Cmd)+1)
+		for _, arg := range req.Cmd {
+			switch {
+			case strings.HasPrefix(arg, "--shard-external-url="):
+				arg = "--shard-external-url=" + externalURL
+			case strings.HasPrefix(arg, "--shard-virtual-workspace-url="):
+				continue
+			}
+			cmd = append(cmd, arg)
+		}
+		req.Cmd = append(cmd, "--shard-virtual-workspace-url="+virtualWorkspaceURL)
 		return nil
 	}
-	return fmt.Errorf("ports %v still busy after %s, a kcp test server not started by this framework is probably running:\n%s", busy, portWaitTimeout, portHolders(busy))
 }
 
-// startIn starts server with dir as the working directory: sharded-test-server
-// writes the cache server's kcp.log to ./.kcp-cache relative to its working
-// directory, whatever -work-dir-path says. Main calls this before any test
-// runs, so changing the process's directory briefly is safe.
-func startIn(dir string, server *envtest.Sharded) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	if err := os.Chdir(dir); err != nil {
-		return err
-	}
-	startErr := server.Start(context.Background())
-	if err := os.Chdir(cwd); err != nil {
-		return fmt.Errorf("returning to %s: %w", cwd, err)
-	}
-	return startErr
-}
-
-// serverPorts are the fixed ports of sharded-test-server with two shards:
-// front-proxy, shards, the shards' embedded etcd (client, peer), cache
-// server etcd (client, peer) and cache server.
-var serverPorts = []int{6443, 6444, 6445, 2379, 2380, 2381, 2382, 8010, 8011, 8012}
-
-// waitForPorts waits up to portWaitTimeout for serverPorts to be free and
-// returns those still busy.
-func waitForPorts() []int {
-	deadline := time.Now().Add(portWaitTimeout)
-	logged := false
-	for {
-		busy := busyPorts()
-		if len(busy) == 0 || time.Now().After(deadline) {
-			return busy
-		}
-		if !logged {
-			fmt.Fprintf(os.Stderr, "kcp: waiting for ports %v to be free:\n%s\n", busy, portHolders(busy))
-			logged = true
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-}
-
-func busyPorts() []int {
-	var busy []int
-	for _, port := range serverPorts {
-		l, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+// logTo streams the container's output to <dir>/<component>.log.
+func logTo(dir, component string) testcontainers.CustomizeRequestOption {
+	return func(req *testcontainers.GenericContainerRequest) error {
+		f, err := os.Create(filepath.Join(dir, component+".log"))
 		if err != nil {
-			busy = append(busy, port)
-			continue
+			return fmt.Errorf("creating log file for %s: %w", component, err)
 		}
-		_ = l.Close()
+		req.LogConsumerCfg = &testcontainers.LogConsumerConfig{Consumers: []testcontainers.LogConsumer{fileLog{f}}}
+		return nil
 	}
-	return busy
 }
 
-// workDir is <tests module root>/.test/<package import path, / replaced by _>.
-func workDir() (string, error) {
+// fileLog writes container output to a file; it is never closed, the
+// process's exit does that.
+type fileLog struct{ f *os.File }
+
+func (l fileLog) Accept(entry testcontainers.Log) {
+	_, _ = l.f.Write(entry.Content)
+}
+
+// daemonHost is the host under which the Docker daemon publishes container
+// ports ("localhost" for a local daemon).
+func daemonHost(ctx context.Context) (string, error) {
+	provider, err := testcontainers.NewDockerProvider()
+	if err != nil {
+		return "", fmt.Errorf("connecting to Docker: %w", err)
+	}
+	host, err := provider.DaemonHost(ctx)
+	if err != nil {
+		_ = provider.Close()
+		return "", fmt.Errorf("resolving the Docker host: %w", err)
+	}
+	return host, provider.Close()
+}
+
+// freePorts picks n free TCP ports on the host. They are released again
+// before Docker binds them, so another process could grab one in between;
+// the start then fails and the run is simply repeated.
+func freePorts(n int) ([]int, error) {
+	listeners := make([]net.Listener, 0, n)
+	defer func() {
+		for _, l := range listeners {
+			_ = l.Close()
+		}
+	}()
+	ports := make([]int, 0, n)
+	for range n {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return nil, fmt.Errorf("picking a free port: %w", err)
+		}
+		listeners = append(listeners, l)
+		ports = append(ports, l.Addr().(*net.TCPAddr).Port)
+	}
+	return ports, nil
+}
+
+// logDir is <repo>/tests/.test/<instance>, created if needed.
+func logDir(instance string) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
-	root, module, err := findModule(cwd)
+	root, err := findModuleRoot(cwd)
 	if err != nil {
 		return "", err
 	}
-	pkg := module
-	if rel, err := filepath.Rel(root, cwd); err == nil && rel != "." {
-		pkg += "/" + filepath.ToSlash(rel)
+	dir := filepath.Join(root, "tests", ".test", instance)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("creating log dir %s: %w", dir, err)
 	}
-	return filepath.Join(root, ".test", strings.ReplaceAll(pkg, "/", "_")), nil
+	return dir, nil
 }
 
-// findModule walks up from dir to the closest go.mod and returns its
-// directory and module path.
-func findModule(dir string) (string, string, error) {
+// findModuleRoot walks up from dir to the closest go.mod and returns its
+// directory.
+func findModuleRoot(dir string) (string, error) {
 	for d := dir; ; d = filepath.Dir(d) {
-		data, err := os.ReadFile(filepath.Join(d, "go.mod"))
-		if err == nil {
-			for line := range strings.Lines(string(data)) {
-				if module, ok := strings.CutPrefix(strings.TrimSpace(line), "module "); ok {
-					return d, strings.Trim(strings.TrimSpace(module), `"`), nil
-				}
-			}
-			return "", "", fmt.Errorf("no module line in %s", filepath.Join(d, "go.mod"))
+		if _, err := os.Stat(filepath.Join(d, "go.mod")); err == nil {
+			return d, nil
 		}
 		if filepath.Dir(d) == d {
-			return "", "", fmt.Errorf("no go.mod above %s", dir)
+			return "", fmt.Errorf("no go.mod above %s", dir)
 		}
 	}
-}
-
-func printLogTail(path string) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "kcp: reading %s: %v\n", path, err)
-		return
-	}
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	if len(lines) > logTailLines {
-		lines = lines[len(lines)-logTailLines:]
-	}
-	fmt.Fprintf(os.Stderr, "kcp: last %d lines of %s:\n%s\n", len(lines), path, strings.Join(lines, "\n"))
 }
 
 // loadKubeconfig loads the "base" context if the kubeconfig has one, else
 // the current context. A /clusters/<path> suffix on the server is dropped so
-// the config is unscoped like the private server's.
+// the config is unscoped like the Docker instance's.
 func loadKubeconfig(path string) (*rest.Config, error) {
 	raw, err := clientcmd.LoadFromFile(path)
 	if err != nil {

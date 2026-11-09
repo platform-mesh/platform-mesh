@@ -17,7 +17,7 @@ coverage.html
 # Dependency directories
 vendor/
 
-# kcp test server work dirs (tests/framework/kcp)
+# kcp container logs of the integration tests (tests/framework/kcp)
 .kcp-*/
 .test/
 

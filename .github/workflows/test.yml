@@ -116,9 +116,9 @@ jobs:
         env:
           COMPONENT: ${{ matrix.component }}
 
-  # tests/integration: every package boots a kcp sharded test server (the
-  # server binds fixed ports, so packages run one at a time) and runs the
-  # components in-process. `task test-integration` locally.
+  # tests/integration: the packages share one sharded kcp in Docker
+  # (kcp-testcontainers) and run the components in-process.
+  # `task test-integration` locally.
   integration:
     needs: changes
     if: needs.changes.outputs.integration == 'true'
@@ -135,14 +135,14 @@ jobs:
       - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Test framework unit tests
-        run: task test-tests
+      - name: Root module unit tests (test framework)
+        run: task test-root
       - name: Integration tests
         run: task test-integration
       - name: Upload kcp test server logs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: kcp-test-server-logs
+          name: kcp-logs
           path: tests/.test/**/*.log
           retention-days: 5
