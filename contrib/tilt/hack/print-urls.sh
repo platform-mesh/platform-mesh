@@ -16,8 +16,10 @@
 
 # Prints the URLs of the Tilt environment.
 #
-# Hostnames are derived like tiltfiles/settings.Tiltfile does: the kind
-# node's InternalIP, dashed, under sslip.io, on the traefik NodePort.
+# Hostnames are <x>.pm.127-0-0-1.sslip.io, as in tiltfiles/settings.Tiltfile:
+# sslip.io answers the host loopback, where kind publishes the traefik
+# NodePort. The deployed PlatformMesh records what is actually running and is
+# preferred once Tilt has deployed it, so this also works before `tilt up`.
 #
 # Also writes the kind cluster's kubeconfig to .secret/kind.kubeconfig and
 # prints the Keycloak admin credentials (secret keycloak-admin), once
@@ -31,13 +33,18 @@
 die() { echo "$@" >&2; exit 1; }
 
 ctx="kind-${KIND_CLUSTER_NAME:-platform-mesh}"
-port="${PORT:-31000}"
 
-ip="$(kubectl --context "$ctx" get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')" \
-    || die "reading the node InternalIP of $ctx failed"
-test -n "$ip" || die "node of $ctx has no InternalIP"
+_pm_kubectl() {
+    kubectl --context "$ctx" -n "${PLATFORM_NAMESPACE:-platform-mesh-system}" "$@"
+}
 
-base="pm.$(echo "$ip" | tr . -).sslip.io:$port"
+base="$(_pm_kubectl get platformmesh platform-mesh -o jsonpath='{.spec.exposure.baseDomain}' 2> /dev/null)"
+test -n "$base" || base="pm.127-0-0-1.sslip.io"
+
+port="${PORT:-$(_pm_kubectl get platformmesh platform-mesh -o jsonpath='{.spec.exposure.port}' 2> /dev/null)}"
+test -n "$port" || port=31000
+
+base="$base:$port"
 secret="$(git rev-parse --show-toplevel)/contrib/tilt/.secret"
 
 # A kubeconfig holding only the kind cluster, read-write only for the user.
