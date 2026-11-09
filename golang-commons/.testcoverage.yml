@@ -16,6 +16,4 @@ exclude:
   paths:
     - ^controller/testSupport	# exclude test support files
     - mocks	# exclude generated mock files
-    - ^test/
     - ^logger/testlogger
-    - middleware/test_support

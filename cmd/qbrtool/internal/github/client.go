@@ -18,7 +18,6 @@ package github
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
@@ -39,16 +38,4 @@ func NewClient(token string) *Client {
 	return &Client{
 		gql: graphql.NewClient("https://api.github.com/graphql", httpClient),
 	}
-}
-
-// NewClientWithHTTP creates a new GitHub GraphQL client with a custom HTTP client
-func NewClientWithHTTP(httpClient *http.Client) *Client {
-	return &Client{
-		gql: graphql.NewClient("https://api.github.com/graphql", httpClient),
-	}
-}
-
-// Query executes a GraphQL query
-func (c *Client) Query(ctx context.Context, q any, variables map[string]any) error {
-	return c.gql.Query(ctx, q, variables)
 }

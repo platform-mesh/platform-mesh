@@ -74,11 +74,6 @@ func (c *Chain) Matches(item *models.ProjectItem) bool {
 	return false
 }
 
-// Name returns the name of the chain
-func (c *Chain) Name() string {
-	return "chain"
-}
-
 // Apply applies the filter chain to a slice of items
 func (c *Chain) Apply(items []*models.ProjectItem) []*models.ProjectItem {
 	result := make([]*models.ProjectItem, 0, len(items))

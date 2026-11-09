@@ -72,29 +72,6 @@ func (q Quarter) Contains(t time.Time) bool {
 	return (t.Equal(start) || t.After(start)) && (t.Equal(end) || t.Before(end))
 }
 
-// QuarterMonths returns the months covered by each quarter
-func QuarterMonths(q int) []time.Month {
-	switch q {
-	case 1:
-		return []time.Month{time.January, time.February, time.March}
-	case 2:
-		return []time.Month{time.April, time.May, time.June}
-	case 3:
-		return []time.Month{time.July, time.August, time.September}
-	case 4:
-		return []time.Month{time.October, time.November, time.December}
-	default:
-		return nil
-	}
-}
-
-// CurrentQuarter returns the current quarter
-func CurrentQuarter() Quarter {
-	now := time.Now()
-	q := (int(now.Month())-1)/3 + 1
-	return Quarter{Year: now.Year(), Quarter: q}
-}
-
 // PreviousQuarter returns the previous quarter
 func (q Quarter) PreviousQuarter() Quarter {
 	if q.Quarter == 1 {

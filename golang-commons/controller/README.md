@@ -3,9 +3,6 @@
 The controllers folder contains several packages related to writing kubernetes operators/controllers and their lifecycle management.
 
 Packages:
-- client
-- conditions
-- errors
 - filter
 - lifecycle
 

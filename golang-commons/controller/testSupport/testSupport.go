@@ -25,7 +25,6 @@ import (
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/runtimeobject"
 	"go.platform-mesh.io/golang-commons/errors"
 
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -128,36 +127,6 @@ func (c ChangeStatusSubroutine) GetName() string {
 
 func (c ChangeStatusSubroutine) Finalizers(instance runtimeobject.RuntimeObject) []string {
 	return []string{"changestatus"}
-}
-
-type AddConditionSubroutine struct {
-	Ready metav1.ConditionStatus
-}
-
-func (c AddConditionSubroutine) Process(_ context.Context, runtimeObj runtimeobject.RuntimeObject) (controllerruntime.Result, errors.OperatorError) {
-	if instance, ok := runtimeObj.(*ImplementConditions); ok {
-		instance.Status.Some = "other string"
-		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
-			Type:    "test",
-			Status:  c.Ready,
-			Reason:  "test",
-			Message: "test",
-		})
-	}
-
-	return controllerruntime.Result{}, nil
-}
-
-func (c AddConditionSubroutine) Finalize(_ context.Context, _ runtimeobject.RuntimeObject) (controllerruntime.Result, errors.OperatorError) {
-	return controllerruntime.Result{}, nil
-}
-
-func (c AddConditionSubroutine) GetName() string {
-	return "addCondition"
-}
-
-func (c AddConditionSubroutine) Finalizers(instance runtimeobject.RuntimeObject) []string {
-	return []string{}
 }
 
 type FailureScenarioSubroutine struct {

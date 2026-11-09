@@ -81,11 +81,6 @@ func GetToken() string {
 	return os.Getenv("GITHUB_TOKEN")
 }
 
-// IsVerbose returns whether verbose mode is enabled
-func IsVerbose() bool {
-	return verbose
-}
-
 // Log prints a message if verbose mode is enabled
 func Log(format string, args ...any) {
 	if verbose {

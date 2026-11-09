@@ -657,7 +657,6 @@ func (r *DeploymentSubroutine) buildComponentsTemplateVars(ctx context.Context, 
 			specServices = services
 		} else {
 			// If no "services" key, treat the entire specValues as services (flat structure)
-			// This matches the behavior in MergeValuesAndServices
 			specServices = specValues
 		}
 
@@ -1145,35 +1144,6 @@ func (r *DeploymentSubroutine) renderAndApplyComponentsRuntimeTemplates(ctx cont
 	}
 
 	return r.renderAndApplyTemplates(ctx, "components/runtime", tmplVars, r.clientRuntime, log, "components-runtime", nil, nil)
-}
-
-func mergeOCMConfig(mapValues map[string]any, inst *pmcorev1alpha1.PlatformMesh) {
-	if inst.Spec.OCM != nil {
-		repoConfig := map[string]any{}
-		compConfig := map[string]any{}
-
-		if inst.Spec.OCM.Repo != nil {
-			repoConfig = map[string]any{
-				"name": inst.Spec.OCM.Repo.Name,
-			}
-		}
-
-		if inst.Spec.OCM.Component != nil {
-			compConfig = map[string]any{
-				"name": inst.Spec.OCM.Component.Name,
-			}
-		}
-		referencePath := make([]any, 0, len(inst.Spec.OCM.ReferencePath))
-		for _, element := range inst.Spec.OCM.ReferencePath {
-			referencePath = append(referencePath, map[string]any{"name": element.Name})
-		}
-		ocmConfig := map[string]any{
-			"repo":          repoConfig,
-			"component":     compConfig,
-			"referencePath": referencePath,
-		}
-		mapValues["ocm"] = ocmConfig
-	}
 }
 
 func (r *DeploymentSubroutine) createKCPWebhookSecret(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh) error {

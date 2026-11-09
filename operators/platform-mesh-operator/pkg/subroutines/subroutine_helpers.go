@@ -370,55 +370,6 @@ func ListFiles(fsys fs.FS, dir string) ([]string, error) {
 	return files, nil
 }
 
-func MergeValuesAndServices(inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON, config config.OperatorConfig) (apiextensionsv1.JSON, error) {
-	services := inst.Spec.Values
-	var mapValues map[string]any
-	if len(templateVars.Raw) > 0 {
-		if err := json.Unmarshal(templateVars.Raw, &mapValues); err != nil {
-			return apiextensionsv1.JSON{}, err
-		}
-	} else {
-		mapValues = map[string]any{}
-	}
-	// Unmarshal 'services'
-	var mapServices map[string]any
-	if len(services.Raw) > 0 {
-		if err := json.Unmarshal(services.Raw, &mapServices); err != nil {
-			return apiextensionsv1.JSON{}, err
-		}
-	} else {
-		mapServices = map[string]any{}
-	}
-
-	// Create 'services' key in 'values' if it doesn't exist
-	if _, ok := mapValues["services"]; !ok {
-		mapValues["services"] = map[string]any{}
-	}
-
-	// add 'services' to mapValues["services"]
-	if _, ok := mapValues["services"].(map[string]any); !ok {
-		return apiextensionsv1.JSON{}, fmt.Errorf("services is not a map")
-	}
-	for k, v := range mapServices {
-		mapValues["services"].(map[string]any)[k] = v
-	}
-
-	mergeOCMConfig(mapValues, inst)
-
-	mapValues["kubeConfigEnabled"] = config.RemoteRuntime.IsEnabled()
-	if config.RemoteRuntime.IsEnabled() {
-		mapValues["kubeConfigSecretName"] = config.RemoteRuntime.InfraSecretName
-		mapValues["kubeConfigSecretKey"] = config.RemoteRuntime.InfraSecretKey
-	}
-
-	// Marshal back to apiextensionsv1.JSON
-	mergedRaw, err := json.Marshal(mapValues)
-	if err != nil {
-		return apiextensionsv1.JSON{}, err
-	}
-	return apiextensionsv1.JSON{Raw: mergedRaw}, nil
-}
-
 type exposureParams struct {
 	baseDomain              string
 	baseDomainPort          string

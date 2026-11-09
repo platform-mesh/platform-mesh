@@ -39,22 +39,6 @@ type ExportResult struct {
 	Items    []*models.ProjectItem `json:"items"`
 }
 
-// NewExportResult creates a new export result with metadata
-func NewExportResult(org string, projectNumber int, quarter string, itemTypes []string, includeArchived bool, items []*models.ProjectItem) *ExportResult {
-	return &ExportResult{
-		Metadata: Metadata{
-			Organization:    org,
-			ProjectNumber:   projectNumber,
-			Quarter:         quarter,
-			ItemTypes:       itemTypes,
-			IncludeArchived: includeArchived,
-			TotalItems:      len(items),
-			ExportedAt:      time.Now(),
-		},
-		Items: items,
-	}
-}
-
 // Summary returns a summary of the export result
 type Summary struct {
 	TotalItems    int            `json:"total_items"`
