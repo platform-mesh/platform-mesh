@@ -65,9 +65,6 @@ components:
     path: operators/extension-manager-operator
     image: extension-manager-operator
     chart: charts/extension-manager-operator
-  kcp-migration-operator:
-    path: operators/kcp-migration-operator
-    image: kcp-migration-operator
   kro-composition-operator:
     path: operators/kro-composition-operator
     image: kro-composition-operator
