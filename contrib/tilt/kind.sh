@@ -59,6 +59,50 @@ test -n "$(published_port)" || die \
 "$kind" export kubeconfig --name "$cluster_name" || die "kind export kubeconfig failed"
 ctx="kind-$cluster_name"
 
+# Local image registry. Tilt pushes to localhost:${registry_port}; each kind
+# node resolves that via /etc/containerd/certs.d/localhost:${registry_port}/hosts.toml
+# to the kind-registry container on the kind network.
+# See https://kind.sigs.k8s.io/docs/user/local-registry/.
+registry_name="kind-registry"
+registry_port=5001
+registry_runtime=""
+for rt in docker podman; do
+    installed "$rt" && "$rt" info > /dev/null 2>&1 && registry_runtime="$rt" && break
+done
+test -n "$registry_runtime" || die "need docker or podman for the local registry"
+
+if ! "$registry_runtime" inspect -f '{{.State.Running}}' "$registry_name" 2> /dev/null | grep -qx true; then
+    log "starting local registry $registry_name on localhost:$registry_port"
+    "$registry_runtime" rm -f "$registry_name" > /dev/null 2>&1 || true
+    "$registry_runtime" run -d --restart=always \
+        -p "127.0.0.1:${registry_port}:5000" \
+        --network kind \
+        --name "$registry_name" docker.io/library/registry:2 > /dev/null \
+        || die "starting $registry_name failed"
+fi
+
+# Write the per-node hosts.toml once per `kind.sh` run. The directory name must
+# match the registry host:port Tilt pushes to so containerd picks it up.
+for node in $("$kind" get nodes --name "$cluster_name"); do
+    "$registry_runtime" exec "$node" sh -c "
+        mkdir -p /etc/containerd/certs.d/localhost:${registry_port} &&
+        printf '[host.\"http://%s:5000\"]\n' '${registry_name}' > /etc/containerd/certs.d/localhost:${registry_port}/hosts.toml
+    " || die "writing hosts.toml on node $node failed"
+done
+
+# Advertise the registry endpoint per the local-registry discovery KEP (https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry).
+kubectl --context "$ctx" apply -f - > /dev/null <<EOF || die "applying local-registry-hosting configmap failed"
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    host: "localhost:${registry_port}"
+    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+EOF
+
 node_ip="$(kubectl --context "$ctx" get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')" \
     || die "reading the node InternalIP of $cluster_name failed"
 case "$node_ip" in
