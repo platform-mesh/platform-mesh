@@ -84,6 +84,10 @@ vars:
   # taskfile are not visible.
   RENOVATE_IMAGE: ghcr.io/renovatebot/renovate:44.202.1
 
+  # to disable BUILDKIT for tilt when on podman
+  BUILDKIT:
+    sh: 'docker -v 2>/dev/null | grep -q "^Docker version" && echo 1 || echo 0'
+
 tasks:
   default:
     cmds:
@@ -91,6 +95,10 @@ tasks:
 
   tilt:up:
     desc: Start the Tilt development environment on kind.
+    env:
+      DOCKER_BUILDKIT: '{{.BUILDKIT}}'
+      DOCKER_HOST:
+        sh: ./contrib/tilt/hack/docker-host.bash
     vars:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
@@ -102,6 +110,10 @@ tasks:
 
   tilt:ci:
     desc: Bring up the Tilt development environment and wait for readiness.
+    env:
+      DOCKER_BUILDKIT: '{{.BUILDKIT}}'
+      DOCKER_HOST:
+        sh: ./contrib/tilt/hack/docker-host.bash
     vars:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
@@ -141,6 +153,7 @@ tasks:
     desc: Run the portal e2e suite against the Tilt environment.
     cmds:
       - |
+        kubectl oidc-login --version &>/dev/null || echo "e2e tests need kubectl oidc-login installed: https://github.com/int128/kubelogin#setup"
         . contrib/tilt/env.sh || exit 1
         task tests:portal-e2e TEST_RUN_ID="$(date +%s)"
 

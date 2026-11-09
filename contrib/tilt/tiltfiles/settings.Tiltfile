@@ -24,7 +24,7 @@ config.define_string("context", usage="kube context to deploy into (default {}, 
 config.define_string(
     "httpbin-namespace", usage="HTTPBin provider runtime namespace (default {})".format(DEFAULT_HTTPBIN_NAMESPACE)
 )
-config.define_string("cluster-id", usage="dashed node IP used in hostnames (default: InternalIP of the first node)")
+config.define_string("cluster-id", usage="dashed IP in the hostnames (default 127-0-0-1, the host loopback)")
 config.define_bool(
     "frontend-cors",
     usage="allow browser calls from a frontend run outside the cluster (see installation/frontend-dev-cors-values.yaml)",
@@ -48,22 +48,12 @@ def third_party_version(name, resource):
     fail("third_party/{}: no resource {}".format(name, resource))
 
 
-# Every hostname is <x>.pm.<node-ip-dashed>.sslip.io, reaching the kind
-# node's traefik NodePort from host, pods and kcp alike.
-# kind.sh makes CoreDNS answer sslip.io in-cluster.
-CLUSTER_ID = cfg.get("cluster-id", "") or str(
-    local(
-        "kubectl --context {} get nodes -o jsonpath='{{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}}'".format(
-            CONTEXT
-        ),
-        quiet=True,
-        echo_off=True,
-    )
-).strip().replace(".", "-")
-if not CLUSTER_ID:
-    fail("could not determine the node InternalIP; run contrib/tilt/kind.sh or pass --cluster-id")
+# Hostnames are <x>.pm.127-0-0-1.sslip.io: sslip.io answers the host loopback,
+# where contrib/tilt/kind.yaml publishes the gateway NodePort. contrib/tilt/kind.sh
+# answers the node address for the same names, in-cluster.
+CLUSTER_ID = cfg.get("cluster-id", "127-0-0-1")
 BASE_DOMAIN = "pm.{}.sslip.io".format(CLUSTER_ID)
-PORT = 31000
+PORT = 31000 # the same port as mapped by the kind config
 BASE_DOMAIN_PORT = "{}:{}".format(BASE_DOMAIN, PORT)
 KCP_URL = "https://kcp.api." + BASE_DOMAIN_PORT
 

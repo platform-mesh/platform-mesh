@@ -19,6 +19,8 @@ allow_k8s_contexts(CONTEXT)
 if config.tilt_subcommand in ("up", "ci") and k8s_context() != CONTEXT:
     fail("kube context is {}, expected {}; run contrib/tilt/kind.sh first".format(k8s_context(), CONTEXT))
 
+default_registry("localhost:5001")
+
 watch_settings(ignore=[".cache/**", ".secret/**"])
 
 # kind pulls third-party images on first apply; the default 30s is too short.
