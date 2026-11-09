@@ -13,6 +13,7 @@ use (
 	./operators/kcp-migration-operator
 	./operators/kro-composition-operator
 	./operators/platform-mesh-operator
+	./operators/provider-operator
 	./operators/resource-broker
 	./operators/security-operator
 	./operators/terminal-controller-manager

@@ -64,6 +64,7 @@ vars:
     - kcp-migration-operator
     - kro-composition-operator
     - platform-mesh-operator
+    - provider-operator
     - resource-broker
     - security-operator
     - terminal-controller-manager
