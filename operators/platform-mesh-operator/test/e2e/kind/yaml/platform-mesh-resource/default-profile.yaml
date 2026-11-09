@@ -509,14 +509,6 @@ data:
               # openfga's values.schema.json accepts only image.repository +
               # image.tag (rejects registry/digest), so fold the registry into it.
               image-ref: combined
-          - name: openfga-postgresql-image
-            resource: postgresql-image
-            resourceName: postgresql-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: openfga
-              path: postgresql.image.tag
               unsuspend: "true"
           values:
             autoscaling:
@@ -528,6 +520,7 @@ data:
             datastore:
               applyMigrations: true
               engine: postgres
+              existingSecret: cnpg-openfga-user
               maxOpenConns: 30
               migrationType: initContainer
               migrations:
@@ -535,10 +528,24 @@ data:
                   pullPolicy: Always
                   repository: groundnuty/k8s-wait-for
                   tag: v2.0
-              uri: postgres://postgres:password@openfga-postgres.platform-mesh-system.svc.cluster.local:5432/postgres?sslmode=disable
+              secretKeys:
+                passwordKey: password
+                usernameKey: username
+              uri: postgres://platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local:5432/openfga?sslmode=verify-full&sslrootcert=/etc/openfga/cnpg-ca/ca.crt
             extraEnvVars:
             - name: OPENFGA_EXPERIMENTALS
               value: enable-list-users
+            extraVolumeMounts:
+            - mountPath: /etc/openfga/cnpg-ca
+              name: cnpg-ca
+              readOnly: true
+            extraVolumes:
+            - name: cnpg-ca
+              secret:
+                secretName: platform-mesh-pg-ca
+                items:
+                  - key: ca.crt
+                    path: ca.crt
             image:
               tag: v1.11.2
             log:
@@ -547,17 +554,21 @@ data:
               repository: openfga/openfga
               annotations:
                 sidecar.istio.io/inject: "false"
+              extraVolumeMounts:
+              - mountPath: /etc/openfga/cnpg-ca
+                name: cnpg-ca
+                readOnly: true
+              extraVolumes:
+              - name: cnpg-ca
+                secret:
+                  secretName: platform-mesh-pg-ca
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
             podAnnotations:
               traffic.sidecar.istio.io/excludeInboundPorts: "2112"
             postgresql:
-              enabled: true
-              auth:
-                password: password
-              image:
-                registry: ghcr.io/platform-mesh
-                repository: upstream-images/postgresql
-                tag: 17.6.0-debian-12-r4
-              nameOverride: postgres
+              enabled: false
             replicaCount: 1
             telemetry:
               trace:
