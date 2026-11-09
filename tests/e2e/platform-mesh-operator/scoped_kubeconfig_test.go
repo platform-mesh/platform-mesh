@@ -42,9 +42,10 @@ import (
 
 const (
 	// Operator-written secrets for the extraProviderConnections below.
-	scopedProvider1Secret = "kind-e2e-provider1-scoped-kubeconfig"
-	scopedProvider2Secret = "kind-e2e-provider2-scoped-kubeconfig"
-	adminProvider3Secret  = "kind-e2e-provider3-admin-kubeconfig"
+	scopedProvider1Secret   = "kind-e2e-provider1-scoped-kubeconfig"
+	scopedProvider2Secret   = "kind-e2e-provider2-scoped-kubeconfig"
+	adminProvider3Secret    = "kind-e2e-provider3-admin-kubeconfig"
+	readOnlyProvider2Secret = "kind-e2e-provider2-readonly-scoped-kubeconfig"
 
 	// APIExport and APIExportEndpointSlice in testdata/kcp-provider-workspaces.
 	scopedExportName       = "kind-e2e-scoped-provider.platform-mesh.io"
@@ -59,7 +60,8 @@ const (
 // get operator-written, scoped (non-admin) kubeconfigs through
 // extraProviderConnections, by endpoint slice (provider1) and by APIExport
 // name (provider2); those kubeconfigs can create objects of the export. An
-// AdminAuth connection (provider3) points at the front-proxy.
+// AdminAuth connection (provider3) points at the front-proxy. A readOnly
+// connection (provider2) only reads, and readOnly with adminAuth is rejected.
 func TestScopedKubeconfig(t *testing.T) {
 	cl := kubeClient(t)
 	waitPlatformMeshReady(t, cl)
@@ -84,9 +86,15 @@ func TestScopedKubeconfig(t *testing.T) {
 			EndpointSliceName: ptr.To("core.platform-mesh.io"),
 			AdminAuth:         ptr.To(true),
 		},
+		pmcorev1alpha1.ProviderConnection{
+			Path:           scopedProvider2Path,
+			Secret:         readOnlyProvider2Secret,
+			APIExportNames: []string{scopedExportName},
+			ReadOnly:       true,
+		},
 	)
 	kubeconfigs := map[string][]byte{}
-	for _, secret := range []string{scopedProvider1Secret, scopedProvider2Secret, adminProvider3Secret} {
+	for _, secret := range []string{scopedProvider1Secret, scopedProvider2Secret, adminProvider3Secret, readOnlyProvider2Secret} {
 		kubeconfigs[secret] = waitKubeconfigSecret(t, cl, ctrlruntimeclient.ObjectKey{Name: secret, Namespace: platformMeshNamespace}, 6*time.Minute)
 	}
 	waitPlatformMeshReady(t, cl)
@@ -108,6 +116,22 @@ func TestScopedKubeconfig(t *testing.T) {
 		cluster := cfg.Clusters[kctx.Cluster]
 		require.NotNil(t, cluster, "kubeconfig must contain the current cluster")
 		require.Contains(t, cluster.Server, "front-proxy", "admin provider kubeconfig should use the front-proxy host")
+	})
+	t.Run("provider2 read-only kubeconfig only reads", func(t *testing.T) {
+		checkReadOnlyKubeconfig(t, kubeconfigs[readOnlyProvider2Secret], scopedProvider2Path)
+	})
+	t.Run("readOnly with adminAuth is rejected", func(t *testing.T) {
+		err := updatePlatformMesh(t.Context(), cl, func(pm *pmcorev1alpha1.PlatformMesh) {
+			pm.Spec.Kcp.ExtraProviderConnections = append(pm.Spec.Kcp.ExtraProviderConnections, pmcorev1alpha1.ProviderConnection{
+				Path:              "root:platform-mesh-system",
+				Secret:            "kind-e2e-readonly-admin-rejected",
+				EndpointSliceName: ptr.To("core.platform-mesh.io"),
+				AdminAuth:         ptr.To(true),
+				ReadOnly:          true,
+			})
+		}, ctrlruntimeclient.DryRunAll)
+		require.True(t, apierrors.IsInvalid(err), "readOnly with adminAuth must be rejected, got %v", err)
+		require.ErrorContains(t, err, "readOnly cannot be combined with adminAuth")
 	})
 }
 
@@ -175,26 +199,64 @@ func createProviderConfigWithKubeconfig(t *testing.T, kubeconfig []byte, workspa
 	note := "scoped-kubeconfig-" + prefix + "-e2e"
 	scoped := kubeconfigClient(t, kubeconfig, workspacePath)
 
+	obj := providerConfig(t, name, note)
+	require.NoError(t, scoped.Create(t.Context(), obj), "creating %s with the %s kubeconfig", scopedConfigKind, prefix)
+	deleteProviderConfigOnCleanup(t, workspacePath, name)
+
+	got := providerConfig(t, name, "")
+	require.NoError(t, scoped.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: name}, got), "reading back %s %s", scopedConfigKind, name)
+	gotNote, _, _ := unstructured.NestedString(got.Object, "spec", "note")
+	require.Equal(t, note, gotNote)
+}
+
+// checkReadOnlyKubeconfig checks that a readOnly kubeconfig reads an
+// E2EProviderConfig created by the kcp admin, but cannot create, change or
+// delete one.
+func checkReadOnlyKubeconfig(t *testing.T, kubeconfig []byte, workspacePath string) {
+	t.Helper()
+	name := fmt.Sprintf("e2e-readonly-%d", time.Now().UnixNano())
+	require.NoError(t, kcpClient(t, workspacePath).Create(t.Context(), providerConfig(t, name, "readonly")), "creating %s as kcp admin", scopedConfigKind)
+	deleteProviderConfigOnCleanup(t, workspacePath, name)
+
+	readOnly := kubeconfigClient(t, kubeconfig, workspacePath)
+	got := providerConfig(t, name, "")
+	require.NoError(t, readOnly.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: name}, got), "reading %s with the read-only kubeconfig", name)
+	gotNote, _, _ := unstructured.NestedString(got.Object, "spec", "note")
+	require.Equal(t, "readonly", gotNote)
+	list := &unstructured.UnstructuredList{}
+	list.SetAPIVersion(scopedConfigAPIVersion)
+	list.SetKind(scopedConfigKind + "List")
+	require.NoError(t, readOnly.List(t.Context(), list), "listing with the read-only kubeconfig")
+
+	labeled := got.DeepCopy()
+	labeled.SetLabels(map[string]string{"e2e-readonly": "denied"})
+	err := readOnly.Patch(t.Context(), labeled, ctrlruntimeclient.MergeFrom(got))
+	require.True(t, apierrors.IsForbidden(err), "patch must be forbidden, got %v", err)
+	err = readOnly.Delete(t.Context(), got.DeepCopy())
+	require.True(t, apierrors.IsForbidden(err), "delete must be forbidden, got %v", err)
+	err = readOnly.Create(t.Context(), providerConfig(t, name+"-denied", "denied"))
+	require.True(t, apierrors.IsForbidden(err), "create must be forbidden, got %v", err)
+}
+
+func providerConfig(t *testing.T, name, note string) *unstructured.Unstructured {
+	t.Helper()
 	obj := &unstructured.Unstructured{}
 	obj.SetAPIVersion(scopedConfigAPIVersion)
 	obj.SetKind(scopedConfigKind)
 	obj.SetName(name)
-	require.NoError(t, unstructured.SetNestedField(obj.Object, note, "spec", "note"))
-	require.NoError(t, scoped.Create(t.Context(), obj), "creating %s with the %s kubeconfig", scopedConfigKind, prefix)
+	if note != "" {
+		require.NoError(t, unstructured.SetNestedField(obj.Object, note, "spec", "note"))
+	}
+	return obj
+}
+
+// deleteProviderConfigOnCleanup deletes the E2EProviderConfig with the kcp
+// admin client when t finishes.
+func deleteProviderConfigOnCleanup(t *testing.T, workspacePath, name string) {
+	t.Helper()
 	t.Cleanup(func() {
-		del := &unstructured.Unstructured{}
-		del.SetAPIVersion(scopedConfigAPIVersion)
-		del.SetKind(scopedConfigKind)
-		del.SetName(name)
-		if err := kcpClient(t, workspacePath).Delete(context.Background(), del); err != nil && !apierrors.IsNotFound(err) {
+		if err := kcpClient(t, workspacePath).Delete(context.Background(), providerConfig(t, name, "")); err != nil && !apierrors.IsNotFound(err) {
 			t.Logf("cleanup: deleting %s %s in %s: %v", scopedConfigKind, name, workspacePath, err)
 		}
 	})
-
-	got := &unstructured.Unstructured{}
-	got.SetAPIVersion(scopedConfigAPIVersion)
-	got.SetKind(scopedConfigKind)
-	require.NoError(t, scoped.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: name}, got), "reading back %s %s", scopedConfigKind, name)
-	gotNote, _, _ := unstructured.NestedString(got.Object, "spec", "note")
-	require.Equal(t, note, gotNote)
 }
