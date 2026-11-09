@@ -22,11 +22,11 @@ components:
         type: helmChart
         relation: local
         # renovate: datasource=docker depName=ghcr.io/openfga/helm-charts/openfga
-        version: 0.2.62
+        version: 0.4.1
         access:
           type: ociArtifact
           # renovate: datasource=docker depName=ghcr.io/openfga/helm-charts/openfga
-          imageReference: ghcr.io/openfga/helm-charts/openfga:0.2.62
+          imageReference: ghcr.io/openfga/helm-charts/openfga:0.4.1
       - name: image
         type: ociImage
         relation: local
