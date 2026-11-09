@@ -72,7 +72,7 @@ func (h *BatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close() //nolint:errcheck
 
-	body, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err != nil {
 		h.log.Error(err, "failed to read request body")
 		h.writeError(w, http.StatusBadRequest, "failed to read request body")
