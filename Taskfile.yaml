@@ -151,6 +151,7 @@ tasks:
     desc: Run the portal e2e suite against the Tilt environment.
     cmds:
       - |
+        kubectl oidc-login --version &>/dev/null || echo "e2e tests need kubectl oidc-login installed: https://github.com/int128/kubelogin#setup"
         . contrib/tilt/env.sh || exit 1
         task tests:portal-e2e TEST_RUN_ID="$(date +%s)"
 
