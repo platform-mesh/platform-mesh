@@ -61,9 +61,6 @@ components:
     path: operators/account-operator
     image: account-operator
     chart: charts/account-operator
-  backup-operator:
-    path: operators/backup-operator
-    image: backup-operator
   extension-manager-operator:
     path: operators/extension-manager-operator
     image: extension-manager-operator

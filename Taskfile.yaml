@@ -60,7 +60,6 @@ vars:
 
     # operators
     - account-operator
-    - backup-operator
     - extension-manager-operator
     - kcp-migration-operator
     - kro-composition-operator

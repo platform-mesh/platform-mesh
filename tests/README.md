@@ -134,7 +134,6 @@ rm -rf tests/.test                      # all logs
 |---|---|
 | `integration/framework` | Smoke test of `tests/framework`: the shared kcp starts, fixtures land in workspaces, `fixtures.Install` builds the platform-mesh-system tree, advertised virtual workspace URLs answer from the host. |
 | `integration/account` | account-operator in-process: Accounts reconciled into Workspaces and AccountInfos. |
-| `integration/backup` | backup-operator topology projector against a kcp workspace. |
 | `integration/extensionmanager` | extension-manager-operator ContentConfiguration controller. |
 | `integration/graphqlgateway` | kubernetes-graphql-gateway listener controllers (ClusterAccess, resource) and the gateway serving GraphQL from kcp workspaces. |
 | `integration/kcpmigration` | kcp-migration-operator wired through its `pkg/app`: KCPMigration phases and object sync between workspaces. |
