@@ -28,6 +28,9 @@ outputs:
   charts:
     description: JSON array of changed chart names (directories under charts/)
     value: ${{ steps.c.outputs.charts }}
+  integration:
+    description: "true when the integration tests (tests/integration) are affected"
+    value: ${{ steps.c.outputs.integration }}
 
 runs:
   using: composite

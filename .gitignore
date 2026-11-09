@@ -17,7 +17,7 @@ coverage.html
 # Dependency directories
 vendor/
 
-# kcp sharded envtest
+# kcp container logs of the integration tests (tests/framework/kcp)
 .kcp-*/
 .test/
 
@@ -68,9 +68,9 @@ charts/common/test-chart/Chart.lock
 charts/common/test-chart/charts/
 *.webm
 *.pid
-tests/test-results/
-tests/node_modules/
-tests/*.png
+tests/e2e/portal/test-results/
+tests/e2e/portal/node_modules/
+tests/e2e/portal/*.png
 *.kubeconfig
 ocm/.ocmconfig
 /runtime-artifacts

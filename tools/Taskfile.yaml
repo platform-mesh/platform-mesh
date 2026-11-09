@@ -25,10 +25,10 @@ version: "3"
 # the binaries from the root bin (see each component's ROOT_BIN var) and depend
 # on these tasks via the root's per-component targets.
 #
-# kcp is shared here too: the operators' envtest suites resolve the kcp binary
-# via the TEST_KCP_ASSETS env var (which overrides each suite's per-config
-# BinaryAssetsDirectory), so the component test-e2e targets point that at the
-# root bin and depend on `tools:kcp`.
+# kcp is shared here too: the operators' remaining envtest suites resolve the
+# kcp binaries via the TEST_KCP_ASSETS env var, which the component test-e2e
+# targets point at the root bin after depending on `tools:kcp`. The integration
+# tests (tests/) run kcp in Docker instead and need none of this.
 
 vars:
   TOPLEVEL:
@@ -170,7 +170,7 @@ tasks:
           version: 'v{{ .KCP_VERSION }}' # yes, re-use the shared kcp version for apigen
           goModule: true
   kcp:
-    desc: Install kcp into the root bin (shared by the operators' envtest suites).
+    desc: Install kcp into the root bin (used by the operators' envtest suites).
     internal: true
     cmds:
       - task: uget
@@ -191,7 +191,7 @@ tasks:
         docker cp $container:/cache-server {{.CACHE_SERVER}}
         docker rm $container
 
-      # kcp's sharded envtest needs binaries without any suffixes
+      # the kcp test framework (sharded-test-server) needs binaries without any suffixes
       - 'ln -sf {{.CACHE_SERVER}} {{.BIN}}/cache-server'
       - 'ln -sf {{.KCP}} {{.BIN}}/kcp'
       - 'ln -sf {{.KCP_FRONT_PROXY}} {{.BIN}}/kcp-front-proxy'

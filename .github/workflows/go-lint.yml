@@ -42,16 +42,16 @@ jobs:
       - uses: ./.github/actions/changes
         id: changes
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        if: steps.changes.outputs.components != '[]'
+        if: steps.changes.outputs.components != '[]' || steps.changes.outputs.integration == 'true'
         with:
           go-version-file: go.work
           cache: true # zizmor: ignore[cache-poisoning]
       - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
-        if: steps.changes.outputs.components != '[]'
+        if: steps.changes.outputs.components != '[]' || steps.changes.outputs.integration == 'true'
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Lint, tidy, boilerplate
-        if: steps.changes.outputs.components != '[]'
+        if: steps.changes.outputs.components != '[]' || steps.changes.outputs.integration == 'true'
         env:
           COMPONENTS: ${{ steps.changes.outputs.components }}
         run: |
@@ -66,3 +66,6 @@ jobs:
             echo "::error title=go-lint::Failed for: ${failed[*]}. Reproduce with 'task verify-<component>' (lint, tidy-check, boilerplate)."
             exit 1
           fi
+      - name: Lint, tidy, boilerplate (root module, holds the integration tests)
+        if: steps.changes.outputs.integration == 'true'
+        run: task verify-root
