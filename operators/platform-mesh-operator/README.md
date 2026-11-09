@@ -78,13 +78,19 @@ spec:
     - endpointSliceName: core.platform-mesh.io   # APIExportEndpointSlice name (for admin auth)
       path: root:platform-mesh-system            # Path in KCP workspace hierarchy
       secret: provider-kubeconfig                # Secret to store kubeconfig
-      adminAuth: true                            # Use admin cert-based auth (default: true)
+      adminAuth: true                            # Use admin cert-based auth (default: false)
 
     # Scoped provider connections (uses ServiceAccount token + RBAC from APIExport)
-    - apiExportName: core.platform-mesh.io       # APIExport name (for scoped auth)
+    - apiExportNames: [core.platform-mesh.io]    # APIExport names (for scoped auth)
       path: root:platform-mesh-system
       secret: scoped-kubeconfig
       adminAuth: false                           # Use scoped kubeconfig
+
+    # Read-only scoped connection: get, list and watch only
+    - apiExportNames: [core.platform-mesh.io]
+      path: root:platform-mesh-system
+      secret: scoped-readonly-kubeconfig
+      readOnly: true                             # Not allowed together with adminAuth: true
 
     # Additional provider connections
     extraProviderConnections:
@@ -672,6 +678,7 @@ The ProviderSecret subroutine manages kubeconfig secrets for provider connection
 
 - **Admin auth mode** (`adminAuth: true`): Reads the admin kubeconfig from the `kubeconfig-kcp-admin` secret in the configured KCP namespace, resolves the endpoint URL from the APIExportEndpointSlice, appends the root CA, and writes the kubeconfig secret
 - **Scoped auth mode** (`adminAuth: false`): Creates a ServiceAccount, ClusterRole, ClusterRoleBinding in the target workspace, generates a scoped kubeconfig with a bound token
+- **Read-only scoped mode** (`readOnly: true`): Same as scoped mode, but the ClusterRole only allows `get`, `list` and `watch` on the exported resources and on `apiexports/content`, and leaves out the permission claims. Writes through the workspace or the APIExport virtual workspace are denied
 
 ### FeatureToggles
 

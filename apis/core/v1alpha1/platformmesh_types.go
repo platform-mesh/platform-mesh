@@ -134,6 +134,7 @@ type SecretReference struct {
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 }
 
+// +kubebuilder:validation:XValidation:rule="!(has(self.readOnly) && self.readOnly && has(self.adminAuth) && self.adminAuth)",message="readOnly cannot be combined with adminAuth"
 type ProviderConnection struct {
 	EndpointSliceName *string `json:"endpointSliceName,omitempty"`
 	// APIExportNames lists APIExport names in the workspace specified by Path.
@@ -151,6 +152,10 @@ type ProviderConnection struct {
 	// Scoped mode requires exactly one of endpointSliceName (virtual workspace server from slice) or apiExportNames (workspace server for Path).
 	// +optional
 	AdminAuth *bool `json:"adminAuth,omitempty"`
+	// ReadOnly limits a scoped kubeconfig to get, list and watch. Not allowed together with adminAuth.
+	// Permission claims are not granted in the connection's workspace; claimed resources stay readable through the virtual workspace.
+	// +optional
+	ReadOnly bool `json:"readOnly,omitempty"`
 }
 
 // PlatformMeshStatus defines the observed state of PlatformMesh

@@ -39,12 +39,14 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
 
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
 func TestVirtualWorkspacePathFromSlice(t *testing.T) {
@@ -788,4 +790,83 @@ func TestBuildScopedKubeconfigReloadsTokenFromFile(t *testing.T) {
 	cfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	require.NoError(t, err)
 	assert.Equal(t, "inline-token", cfg.BearerToken)
+}
+
+func TestGetPolicyRulesFromAPIExport(t *testing.T) {
+	t.Parallel()
+	export := &kcpapisv1alpha2.APIExport{
+		ObjectMeta: metav1.ObjectMeta{Name: "core.platform-mesh.io"},
+		Spec: kcpapisv1alpha2.APIExportSpec{
+			Resources: []kcpapisv1alpha2.ResourceSchema{
+				{Group: "core.platform-mesh.io", Name: "accounts"},
+				{Group: "core.platform-mesh.io", Name: ""},
+			},
+			PermissionClaims: []kcpapisv1alpha2.PermissionClaim{
+				{GroupResource: kcpapisv1alpha2.GroupResource{Group: "tenancy.kcp.io", Resource: "workspaces"}},
+				{GroupResource: kcpapisv1alpha2.GroupResource{Resource: "secrets"}, Verbs: []string{"get", "create"}},
+				{GroupResource: kcpapisv1alpha2.GroupResource{Resource: "configmaps"}, Verbs: []string{"get", "update"}},
+			},
+		},
+	}
+	commonRules := []rbacv1.PolicyRule{
+		{APIGroups: []string{"apis.kcp.io"}, Resources: []string{"apiexportendpointslices"}, Verbs: []string{"get", "list", "watch"}},
+		{APIGroups: []string{"apis.kcp.io"}, Resources: []string{"apibindings"}, Verbs: []string{"get", "list", "watch"}},
+		{
+			NonResourceURLs: []string{"/api", "/api/*", "/apis", "/apis/*", "/clusters/*", "/services", "/services/*"},
+			Verbs:           []string{"get"},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		readOnly bool
+		want     []rbacv1.PolicyRule
+	}{
+		{
+			name: "default grants full access to resources, claims and content",
+			want: append([]rbacv1.PolicyRule{
+				{APIGroups: []string{"core.platform-mesh.io"}, Resources: []string{"accounts"}, Verbs: []string{"*"}},
+				{APIGroups: []string{"core.platform-mesh.io"}, Resources: []string{"accounts/status"}, Verbs: []string{"get", "update", "patch"}},
+				{APIGroups: []string{"tenancy.kcp.io"}, Resources: []string{"workspaces"}, Verbs: []string{"*"}},
+				{APIGroups: []string{"tenancy.kcp.io"}, Resources: []string{"workspaces/status"}, Verbs: []string{"get", "update", "patch"}},
+				{APIGroups: []string{""}, Resources: []string{"secrets"}, Verbs: []string{"get", "create"}},
+				{APIGroups: []string{""}, Resources: []string{"configmaps"}, Verbs: []string{"get", "update"}},
+				{APIGroups: []string{""}, Resources: []string{"configmaps/status"}, Verbs: []string{"get", "update", "patch"}},
+				{
+					APIGroups: []string{"apis.kcp.io"}, Resources: []string{"apiexports/content"},
+					ResourceNames: []string{"core.platform-mesh.io"}, Verbs: []string{"*"},
+				},
+			}, commonRules...),
+		},
+		{
+			name:     "readOnly grants only reads and drops claims",
+			readOnly: true,
+			want: append([]rbacv1.PolicyRule{
+				{APIGroups: []string{"core.platform-mesh.io"}, Resources: []string{"accounts"}, Verbs: []string{"get", "list", "watch"}},
+				{
+					APIGroups: []string{"apis.kcp.io"}, Resources: []string{"apiexports/content"},
+					ResourceNames: []string{"core.platform-mesh.io"}, Verbs: []string{"get", "list", "watch"},
+				},
+			}, commonRules...),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rules, err := getPolicyRulesFromAPIExport(export, tt.readOnly)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, rules)
+			if !tt.readOnly {
+				return
+			}
+			for _, rule := range rules {
+				for _, verb := range rule.Verbs {
+					assert.Contains(t, []string{"get", "list", "watch"}, verb, "rule %+v", rule)
+				}
+				for _, resource := range rule.Resources {
+					assert.False(t, strings.HasSuffix(resource, "/status"), "rule %+v", rule)
+				}
+			}
+		})
+	}
 }

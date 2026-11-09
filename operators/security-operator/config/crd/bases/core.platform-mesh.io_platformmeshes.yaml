@@ -159,11 +159,20 @@ spec:
                           type: string
                         rawPath:
                           type: string
+                        readOnly:
+                          description: |-
+                            ReadOnly limits a scoped kubeconfig to get, list and watch. Not allowed together with adminAuth.
+                            Permission claims are not granted in the connection's workspace; claimed resources stay readable through the virtual workspace.
+                          type: boolean
                         secret:
                           type: string
                       required:
                       - secret
                       type: object
+                      x-kubernetes-validations:
+                      - message: readOnly cannot be combined with adminAuth
+                        rule: '!(has(self.readOnly) && self.readOnly && has(self.adminAuth)
+                          && self.adminAuth)'
                     type: array
                   extraWorkspaces:
                     items:
@@ -212,11 +221,20 @@ spec:
                           type: string
                         rawPath:
                           type: string
+                        readOnly:
+                          description: |-
+                            ReadOnly limits a scoped kubeconfig to get, list and watch. Not allowed together with adminAuth.
+                            Permission claims are not granted in the connection's workspace; claimed resources stay readable through the virtual workspace.
+                          type: boolean
                         secret:
                           type: string
                       required:
                       - secret
                       type: object
+                      x-kubernetes-validations:
+                      - message: readOnly cannot be combined with adminAuth
+                        rule: '!(has(self.readOnly) && self.readOnly && has(self.adminAuth)
+                          && self.adminAuth)'
                     type: array
                 type: object
               ocm:
