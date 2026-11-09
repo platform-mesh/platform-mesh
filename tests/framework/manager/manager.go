@@ -14,14 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package manager builds multicluster managers over kcp APIExport providers,
-// the way the operators wire themselves in cmd/.
+// Package manager builds multicluster managers over kcp APIExport providers.
 package manager
 
 import (
 	"context"
 	"errors"
+	"os"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,27 +31,28 @@ import (
 	"go.platform-mesh.io/platform-mesh/tests/framework/kcp"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/providers/multi"
 
+	kcptc "github.com/kcp-dev/kcp-testcontainers"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 )
 
 const stopTimeout = 30 * time.Second
 
-// Providers builds one apiexport provider per export, each watching the
-// APIExportEndpointSlice of the same name in the workspace at path (usually
-// :root:platform-mesh-system). The map is keyed by export name.
-//
-// The account-operator uses golang-commons' path-aware provider instead;
-// build that from env.RESTConfig(path) and pass it to mcmanager.New.
-func Providers(t testing.TB, env *kcp.Env, path logicalcluster.Path, s *runtime.Scheme, exports ...string) map[string]*apiexport.Provider {
+var setLogger sync.Once
+
+// Providers builds one apiexport provider per export, watching the
+// APIExportEndpointSlice of that name in the workspace at path.
+func Providers(t testing.TB, instance *kcptc.Instance, path logicalcluster.Path, s *runtime.Scheme, exports ...string) map[string]*apiexport.Provider {
 	t.Helper()
 	providers := make(map[string]*apiexport.Provider, len(exports))
 	for _, export := range exports {
-		p, err := apiexport.New(env.RESTConfig(path), export, apiexport.Options{Scheme: s})
+		p, err := apiexport.New(kcp.RESTConfig(instance, path), export, apiexport.Options{Scheme: s})
 		require.NoError(t, err, "building provider for %s", export)
 		providers[export] = p
 	}
@@ -58,10 +60,15 @@ func Providers(t testing.TB, env *kcp.Env, path logicalcluster.Path, s *runtime.
 }
 
 // New builds a multicluster manager on the workspace at path over a multi
-// provider holding providers under their map keys. Metrics are disabled
-// (bind address "0") and BaseContext is t's context.
-func New(t testing.TB, env *kcp.Env, path logicalcluster.Path, s *runtime.Scheme, providers map[string]*apiexport.Provider) (mcmanager.Manager, *multi.Provider) {
+// provider of providers. The first call sets controller-runtime's logger
+// (TEST_QUIET=1 keeps it silent).
+func New(t testing.TB, instance *kcptc.Instance, path logicalcluster.Path, s *runtime.Scheme, providers map[string]*apiexport.Provider) (mcmanager.Manager, *multi.Provider) {
 	t.Helper()
+	setLogger.Do(func() {
+		if os.Getenv("TEST_QUIET") != "1" {
+			ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+		}
+	})
 	provider := multi.New(multi.Options{})
 	names := make([]string, 0, len(providers))
 	for name := range providers {
@@ -72,7 +79,7 @@ func New(t testing.TB, env *kcp.Env, path logicalcluster.Path, s *runtime.Scheme
 		require.NoError(t, provider.AddProvider(name, providers[name]), "adding provider %s", name)
 	}
 
-	mgr, err := mcmanager.New(env.RESTConfig(path), provider, mcmanager.Options{
+	mgr, err := mcmanager.New(kcp.RESTConfig(instance, path), provider, mcmanager.Options{
 		Scheme:      s,
 		Metrics:     metricsserver.Options{BindAddress: "0"},
 		BaseContext: t.Context,
@@ -81,9 +88,8 @@ func New(t testing.TB, env *kcp.Env, path logicalcluster.Path, s *runtime.Scheme
 	return mgr, provider
 }
 
-// Start runs mgr until t ends and waits for its cache to sync. It returns
-// the manager's context, which is cancelled in t.Cleanup; the cleanup waits
-// for the manager to stop and fails t if it returned an error.
+// Start runs mgr until t ends, waits for its cache to sync and returns its
+// context.
 func Start(t testing.TB, mgr mcmanager.Manager) context.Context {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())

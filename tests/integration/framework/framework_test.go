@@ -16,14 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package framework_test is the smoke test of tests/framework: it proves the
-// kcp environment starts (or attaches), that fixtures land in workspaces and
-// that fixtures.Install builds the platform-mesh-system tree.
+// Package framework_test is the smoke test of tests/framework.
 package framework_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,12 +35,13 @@ import (
 	"k8s.io/client-go/discovery"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	kcptc "github.com/kcp-dev/kcp-testcontainers"
+	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	kcptesting "github.com/kcp-dev/sdk/testing"
 )
 
 const widgetCRD = `
@@ -74,28 +72,44 @@ spec:
                 type: integer
 `
 
-func TestMain(m *testing.M) {
-	os.Exit(kcp.Main(m))
+// workspace creates a workspace under root with a generated name and waits
+// until the front-proxy routes to it (CreateWorkspace only waits for Ready).
+func workspace(t *testing.T, instance *kcptc.Instance, prefix string) (logicalcluster.Path, ctrlruntimeclient.Client) {
+	t.Helper()
+	path, err := instance.CreateWorkspace(t.Context(), core.RootCluster.String()+":"+prefix+"-")
+	require.NoError(t, err)
+	cl, err := instance.Client(path.String(), ctrlruntimeclient.Options{Scheme: scheme.New(t)})
+	require.NoError(t, err)
+	wait.Eventually(t, func() (bool, string) {
+		lc := &kcpcorev1alpha1.LogicalCluster{}
+		if err := cl.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: kcpcorev1alpha1.LogicalClusterName}, lc); err != nil {
+			return false, err.Error()
+		}
+		return true, ""
+	}, wait.Timeout, wait.Tick, "workspace %s should be reachable through the front-proxy", path)
+	return path, cl
 }
 
 func TestWorkspace(t *testing.T) {
-	env := kcp.Server(t)
-	require.NotEmpty(t, env.ShardNames(), "kcp should report its shards")
-	t.Logf("shards: %v", env.ShardNames())
+	instance, err := kcp.Default(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, instance.ShardNames(), "kcp should report its shards")
+	t.Logf("shards: %v", instance.ShardNames())
 
-	ws, path := env.Workspace(t, core.RootCluster.Path(), kcptesting.WithNamePrefix("framework"))
-	require.Equal(t, kcpcorev1alpha1.LogicalClusterPhaseReady, ws.Status.Phase)
-	require.Equal(t, core.RootCluster.Path().Join(ws.Name), path)
+	path, cl := workspace(t, instance, "framework")
+	parent, ok := path.Parent()
+	require.True(t, ok)
+	require.Equal(t, core.RootCluster.Path(), parent)
 
-	cl := env.Client(t, path, scheme.New(t))
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	require.NoError(t, cl.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: kcpcorev1alpha1.LogicalClusterName}, lc))
+	require.Equal(t, kcpcorev1alpha1.LogicalClusterPhaseReady, lc.Status.Phase)
 }
 
 func TestCRDRoundTrip(t *testing.T) {
-	env := kcp.Server(t)
-	_, path := env.Workspace(t, core.RootCluster.Path(), kcptesting.WithNamePrefix("crd"))
-	cl := env.Client(t, path, scheme.New(t))
+	instance, err := kcp.Default(t.Context())
+	require.NoError(t, err)
+	_, cl := workspace(t, instance, "crd")
 
 	objs := fixtures.Decode(t, []byte(widgetCRD))
 	require.Len(t, objs, 1)
@@ -108,7 +122,7 @@ func TestCRDRoundTrip(t *testing.T) {
 		"metadata":   map[string]any{"name": "w1", "namespace": "default"},
 		"spec":       map[string]any{"size": int64(3)},
 	}}
-	// The CRD's REST mapping can lag behind Established; retry the create.
+	// The REST mapping can lag behind Established.
 	wait.Eventually(t, func() (bool, string) {
 		if err := cl.Create(t.Context(), widget.DeepCopy()); err != nil {
 			return false, err.Error()
@@ -126,8 +140,9 @@ func TestCRDRoundTrip(t *testing.T) {
 }
 
 func TestInstallPlatform(t *testing.T) {
-	env := kcp.Server(t)
-	p := fixtures.Install(t, env,
+	instance, err := kcp.Default(t.Context())
+	require.NoError(t, err)
+	p := fixtures.Install(t, instance,
 		fixtures.WithResources(accountresources.Resources, "*.yaml"),
 		fixtures.WithBindings("core.platform-mesh.io"),
 		fixtures.WithOrgs(),
@@ -149,7 +164,7 @@ func TestInstallPlatform(t *testing.T) {
 	require.Equal(t, kcpcorev1alpha1.LogicalClusterPhaseReady, orgs.Status.Phase)
 
 	// Install is idempotent: a second call reuses the tree.
-	again := fixtures.Install(t, env,
+	again := fixtures.Install(t, instance,
 		fixtures.WithResources(accountresources.Resources, "*.yaml"),
 		fixtures.WithBindings("core.platform-mesh.io"),
 		fixtures.WithOrgs(),
@@ -157,12 +172,11 @@ func TestInstallPlatform(t *testing.T) {
 	require.Equal(t, p.Orgs, again.Orgs)
 }
 
-// The operators follow the virtual workspace URLs kcp advertises in
-// APIExportEndpointSlices. In Docker those point at the shards, which the
-// framework publishes on the host: every advertised URL must answer from here.
+// Every virtual workspace URL kcp advertises must answer from the host.
 func TestVirtualWorkspaceReachable(t *testing.T) {
-	env := kcp.Server(t)
-	p := fixtures.Install(t, env,
+	instance, err := kcp.Default(t.Context())
+	require.NoError(t, err)
+	p := fixtures.Install(t, instance,
 		fixtures.WithResources(accountresources.Resources, "*.yaml"),
 		fixtures.WithBindings("core.platform-mesh.io"),
 	)
@@ -171,7 +185,7 @@ func TestVirtualWorkspaceReachable(t *testing.T) {
 	require.NotEmpty(t, slice.Status.APIExportEndpoints, "the endpoint slice should advertise virtual workspace URLs")
 
 	for _, endpoint := range slice.Status.APIExportEndpoints {
-		cfg := env.Config()
+		cfg := kcp.Config(instance)
 		cfg.Host = endpoint.URL
 		dc, err := discovery.NewDiscoveryClientForConfig(cfg)
 		require.NoError(t, err)

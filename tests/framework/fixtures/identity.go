@@ -26,11 +26,9 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// identities maps the resources of kcp's own exports (tenancy.kcp.io,
-// topology.kcp.io, ...) to their identity hash, keyed by "<resource>.<group>",
-// so manifests written with a placeholder or empty identityHash can be
-// applied to any kcp. Matching is by resource, not group: core.kcp.io, for
-// example, has exported (shards) and built-in (logicalclusters) resources.
+// identities maps the resources of kcp's own exports to their identity hash,
+// keyed by "<resource>.<group>" (core.kcp.io mixes exported and built-in
+// resources, so the group alone is not enough).
 type identities map[string]string
 
 func (ids identities) add(group, resource, hash string) {
@@ -39,10 +37,8 @@ func (ids identities) add(group, resource, hash string) {
 	}
 }
 
-// patch fills spec.permissionClaims[].identityHash of an APIExport or
-// APIBinding for every claim on a resource ids knows (claims on built-in
-// types, apis.kcp.io and core.kcp.io keep theirs) and defaults missing verbs
-// to "*". Other objects are left alone.
+// patch fills the identityHash of an APIExport's or APIBinding's permission
+// claims on resources ids knows and defaults missing verbs to "*".
 func (ids identities) patch(obj *unstructured.Unstructured) {
 	if obj.GroupVersionKind().Group != apisGroup || (obj.GetKind() != "APIExport" && obj.GetKind() != "APIBinding") {
 		return
@@ -61,9 +57,7 @@ func (ids identities) patch(obj *unstructured.Unstructured) {
 		if hash, ok := ids[resource+"."+group]; ok {
 			claim["identityHash"] = hash
 		}
-		// apigen writes `verbs: null` into apis/static-assets/resources,
-		// which kcp rejects; the deployed manifests (apis/static-assets/kcp)
-		// claim all verbs.
+		// apigen writes `verbs: null`, which kcp rejects.
 		if claim["verbs"] == nil {
 			claim["verbs"] = []any{"*"}
 		}

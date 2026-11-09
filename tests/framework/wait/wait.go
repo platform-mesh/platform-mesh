@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package wait holds the conditions integration tests wait for. The clients
-// passed in must know the kcp and apiextensions types (scheme.New).
+// Package wait holds the conditions integration tests wait for.
 package wait
 
 import (
@@ -35,24 +34,16 @@ import (
 )
 
 const (
-	// Timeout is the default for the helpers below. Workspace
-	// initialisation alone can take most of a minute on a busy CI runner.
+	// Timeout is the default for the helpers below.
 	Timeout = 60 * time.Second
 	// Tick is the default poll interval.
 	Tick = 200 * time.Millisecond
 )
 
-// Eventually fails t (FailNow) unless cond returns true within timeout,
-// polling every tick. The reason cond returns is logged when it changes
-// (after a fifth of the timeout), so a failing wait says what it last saw.
-//
-// Unlike require.Eventually, cond runs in the calling goroutine and nothing
-// is left running when Eventually returns: no goroutine can log to t after
-// the test has finished. When t's context is cancelled (the test is over,
-// e.g. Eventually was called from a goroutine the test does not join),
-// Eventually stops polling and ends the calling goroutine without touching
-// t. cond should use t.Context() for its requests, so a slow request does
-// not outlive the timeout by much.
+// Eventually fails t unless cond returns true within timeout, polling every
+// tick and logging the reason when it changes. Unlike require.Eventually,
+// cond runs in the calling goroutine, so nothing logs to t after the test
+// ended; when t's context is done, polling stops without touching t.
 func Eventually(t testing.TB, cond func() (bool, string), timeout, tick time.Duration, msg string, args ...any) {
 	t.Helper()
 	ctx := t.Context()
@@ -94,11 +85,7 @@ func Eventually(t testing.TB, cond func() (bool, string), timeout, tick time.Dur
 	}
 }
 
-// Until is require.Eventually(t, cond, timeout, tick, msg, args...) that,
-// like Eventually, polls in the calling goroutine and stops when t's context
-// is done. require.Eventually runs cond in a goroutine it does not wait for
-// after a timeout, so a cond that calls t.Log or require.* can panic the
-// test binary ("Log in goroutine after Test... has completed").
+// Until is Eventually for a cond returning only bool.
 func Until(t testing.TB, cond func() bool, timeout, tick time.Duration, msg string, args ...any) {
 	t.Helper()
 	Eventually(t, func() (bool, string) { return cond(), "" }, timeout, tick, msg, args...)
@@ -153,8 +140,7 @@ func CRDEstablished(t testing.TB, cl ctrlruntimeclient.Client, name string) {
 }
 
 // EndpointSliceServed waits until the APIExportEndpointSlice name in cl's
-// workspace lists at least one endpoint URL. kcp only lists a shard's
-// endpoint once a binding to the export exists on that shard.
+// workspace lists an endpoint URL (kcp lists none for an unbound export).
 func EndpointSliceServed(t testing.TB, cl ctrlruntimeclient.Client, name string) {
 	t.Helper()
 	Eventually(t, func() (bool, string) {

@@ -9,30 +9,35 @@ stay next to the code they test (`task test`, `task test-<component>`).
 
 | Environment | Used by | What it is |
 |---|---|---|
-| **kcp** | `integration/<area>` (build tag `integration`) | A sharded kcp (front-proxy, cache server, two shards) in Docker via [kcp-testcontainers](https://github.com/kcp-dev/kcp-testcontainers), shared by every test binary of the run, or an existing kcp given by `--kcp-kubeconfig` / `KCP_KUBECONFIG`. Components run in-process; tests isolate by workspace. |
+| **kcp** | `integration/<area>` (build tag `integration`) | A sharded kcp (front-proxy, cache server, two shards) in Docker via [kcp-testcontainers](https://github.com/kcp-dev/kcp-testcontainers), shared by every test of the run. Components run in-process; tests isolate by workspace. |
 | **kind** | `e2e/<area>` (build tag `e2e`) | One kind cluster with the stack deployed by Tilt. Tests are black-box against `KUBECONFIG` (and `ADMIN_KUBECONFIG` for kcp). |
 
 Everything else is a helper in `framework/`:
 
-- `framework/kcp`: `kcp.Main` (the `TestMain` of every integration package), `kcp.Server(t)`, clients, workspaces.
+- `framework/kcp`: `kcp.Default(ctx)`, the shared kcp as a kcp-testcontainers `*Instance` (`CreateWorkspace`, `Client`, `RESTConfig`, ...), plus `kcp.Config`/`kcp.RESTConfig` for clients that follow the URLs kcp advertises.
 - `framework/fixtures`: apply manifests (`Decode`, `Apply`, `ApplyFS`) and `Install` the platform-mesh-system tree (operator resources, bindings, WorkspaceTypes, `:root:orgs`).
 - `framework/manager`: multicluster managers over kcp APIExport providers.
 - `framework/wait`, `framework/scheme`: the waits and scheme every suite needs.
 
-A new integration package:
+A test, the way [kcp-testcontainers' own tests](https://github.com/kcp-dev/kcp-testcontainers/tree/main/tests/e2e) are written:
 
 ```go
 //go:build integration
 
-func TestMain(m *testing.M) { os.Exit(kcp.Main(m)) }
-
 func TestSomething(t *testing.T) {
-	env := kcp.Server(t)
-	_, path := env.Workspace(t, core.RootCluster.Path(), kcptesting.WithNamePrefix("something"))
-	cl := env.Client(t, path, scheme.New(t))
+	instance, err := kcp.Default(t.Context())
+	require.NoError(t, err)
+	path, err := instance.CreateWorkspace(t.Context(), "root:something-") // trailing "-": GenerateName
+	require.NoError(t, err)
+	cl, err := instance.Client(path.String(), client.Options{Scheme: scheme.New(t)})
+	require.NoError(t, err)
 	// ...
 }
 ```
+
+`CreateWorkspace` returns when the workspace is Ready on its shard; the
+front-proxy's routing index can trail by a moment, so retry the first
+request (`wait.Eventually`) or use `fixtures.Install`, which does.
 
 ## Running the integration tests
 
@@ -41,22 +46,24 @@ task test-integration                                   # all of tests/integrati
 task test-integration PKG=./integration/framework/...   # one area
 task test-integration P=4                               # more packages at once (default 2)
 task test-integration ADDITIONAL_COMMAND_ARGS=-v        # extra go test flags
-task test-integration KCP_IMAGE=ghcr.io/kcp-dev/kcp:main # another kcp
+task test-integration KCP_VERSION=v0.34.0               # another kcp release
 ```
 
 Docker is all that is needed. The task runs the repository's kcp version
-(`third_party/kcp`, the one Tilt deploys) unless `KCP_IMAGE` says otherwise.
-From an IDE, run the package with `-tags integration`; without `KCP_IMAGE`
-the framework uses kcp-testcontainers' default image.
+(`third_party/kcp`, the one Tilt deploys) unless `KCP_VERSION` says
+otherwise; the image is `ghcr.io/kcp-dev/kcp:<version>`. From an IDE, run
+the package with `-tags integration`; without `KCP_VERSION` the framework
+uses kcp-testcontainers' default release.
 
 ### One kcp per run, in Docker
 
-Every integration package's `TestMain` is `kcp.Main`. The first test binary
-of a `go test` run starts the kcp named `platform-mesh` (front-proxy, cache
-server, shards `root` and `shard-b`, about 20s); the others find it by name
-and join. So `P=` (`go test -p`) really runs packages concurrently, all on
-one kcp. The containers belong to the go test session and testcontainers'
-reaper removes them a few seconds after the last test binary has exited
+`kcp.Default(ctx)` is `kcptc.Shared` with the instance name `platform-mesh`.
+The first test of a `go test` run to call it starts the kcp (front-proxy,
+cache server, shards `root` and `shard-b`, about 20s); every later call, in
+the same or another test binary, finds the containers by name and joins. So
+`P=` (`go test -p`) really runs packages concurrently, all on one kcp. The
+containers belong to the go test session and testcontainers' reaper removes
+them a few seconds after the last test binary has exited
 (`TESTCONTAINERS_RYUK_DISABLED=true` keeps them).
 
 Containers talk to each other over a Docker network, but the operators run
@@ -67,28 +74,19 @@ ports and makes the shards advertise the host side
 (`--shard-external-url`, `--shard-virtual-workspace-url`), so a URL from
 kcp works from the test as it would for a deployed operator
 (`integration/framework` checks this). Ports are picked per run; nothing
-needs 6443.
+needs 6443. The shards' certificates do not carry the front-proxy's name,
+which `instance.Config()` pins as TLS server name, so anything that follows
+advertised URLs (the multicluster managers, a client on a virtual workspace
+URL) takes its config from `kcp.Config(instance)` / `kcp.RESTConfig`.
 
 A package whose fixtures cannot share a kcp with the others (see below)
-names its own instance: `kcp.Main(m, kcp.WithInstance("security"))`.
-`kcp.WithFeatureGates(...)` enables kcp feature gates on an instance; every
-package naming the instance must ask for the same ones.
-
-### Attaching to a running kcp
-
-To run against a kcp you already have (e.g. the Tilt cluster's kcp), point
-`KCP_KUBECONFIG` (or `-args --kcp-kubeconfig=<path>`) at its admin
-kubeconfig; the framework uses the `base` context if present, else the
-current one, and starts nothing:
-
-```sh
-. contrib/tilt/env.sh   # exports ADMIN_KUBECONFIG for the Tilt cluster's kcp
-KCP_KUBECONFIG=$ADMIN_KUBECONFIG go test -tags integration -count=1 ./tests/integration/account/...
-```
+gets a function next to `Default` with an instance name of its own, like
+`Second` in kcp-testcontainers' tests; kcp feature gates go into that
+function's options.
 
 ### Sharing a kcp
 
-Packages sharing a kcp isolate by workspace (`env.Workspace` generates
+Packages sharing a kcp isolate by workspace (`instance.CreateWorkspace` generates
 names), and `fixtures.Install` reuses `:root:platform-mesh-system` and
 `:root:orgs`. Install keeps objects that already exist, so packages that
 bring different definitions of the same object cannot share a kcp in any
@@ -118,10 +116,9 @@ The test binary that starts an instance streams the containers' output to
 `shard-b.log` and `cache.log`. CI uploads them when the job fails.
 Controller logs go to the test output; `TEST_QUIET=1` silences them.
 
-Workspace fixtures are not deleted after a test (`PRESERVE=true` is the
-default); the kcp and its state go away with the run, so to inspect a
-failure, keep the containers (`TESTCONTAINERS_RYUK_DISABLED=true`) or run
-against a kcp of your own via `KCP_KUBECONFIG`.
+Workspaces are not deleted after a test; the kcp and its state go away with
+the run, so to inspect a failure, keep the containers
+(`TESTCONTAINERS_RYUK_DISABLED=true`).
 
 ## Cleaning up
 
@@ -135,7 +132,7 @@ rm -rf tests/.test                      # all logs
 
 | Package | What it covers |
 |---|---|
-| `integration/framework` | Smoke test of `tests/framework`: the kcp environment starts or attaches, fixtures land in workspaces, `fixtures.Install` builds the platform-mesh-system tree. |
+| `integration/framework` | Smoke test of `tests/framework`: the shared kcp starts, fixtures land in workspaces, `fixtures.Install` builds the platform-mesh-system tree, advertised virtual workspace URLs answer from the host. |
 | `integration/account` | account-operator in-process: Accounts reconciled into Workspaces and AccountInfos. |
 | `integration/backup` | backup-operator topology projector against a kcp workspace. |
 | `integration/extensionmanager` | extension-manager-operator ContentConfiguration controller. |

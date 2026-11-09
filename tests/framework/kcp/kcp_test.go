@@ -19,11 +19,19 @@ package kcp
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
+
+	kcptc "github.com/kcp-dev/kcp-testcontainers"
 )
+
+func TestImage(t *testing.T) {
+	t.Logf("Image: %s", Image)
+	require.True(t, strings.HasPrefix(Image, kcptc.DefaultImage+":v"), "Image should be kcp-testcontainers' image at a kcp release, got %q", Image)
+}
 
 func TestLogDir(t *testing.T) {
 	cwd, err := os.Getwd()
@@ -46,29 +54,4 @@ func TestAdvertise(t *testing.T) {
 		"start", "--shard-name=root", "--shard-external-url=https://localhost:16443", "--shard-base-url=https://root:6444",
 		"--shard-virtual-workspace-url=https://localhost:16444",
 	}, req.Cmd)
-}
-
-func TestLoadKubeconfig(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "admin.kubeconfig")
-	require.NoError(t, os.WriteFile(path, []byte(`apiVersion: v1
-kind: Config
-clusters:
-- name: root
-  cluster: {server: https://localhost:6443/clusters/root}
-- name: base
-  cluster: {server: https://localhost:6443}
-users:
-- name: admin
-  user: {token: t}
-contexts:
-- name: root
-  context: {cluster: root, user: admin}
-- name: base
-  context: {cluster: base, user: admin}
-current-context: root
-`), 0o600))
-
-	cfg, err := loadKubeconfig(path)
-	require.NoError(t, err)
-	require.Equal(t, "https://localhost:6443", cfg.Host, "the base context wins over the current one")
 }

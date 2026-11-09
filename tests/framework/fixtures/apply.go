@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 // Package fixtures loads manifests into kcp workspaces and installs the
-// platform-mesh-system tree the operator suites need (Install).
+// platform-mesh-system tree (Install).
 package fixtures
 
 import (
@@ -69,11 +69,9 @@ func Apply(t testing.TB, cl ctrlruntimeclient.Client, objs ...ctrlruntimeclient.
 	}
 }
 
-// ApplyFS applies every file in fsys matching glob (e.g. "resources/*.yaml")
-// into cl's workspace, APIResourceSchemas first, then APIExports, then the
-// rest. Permission claims of APIExports and APIBindings get their
-// identityHash filled from the APIBindings of cl's workspace (every
-// universal workspace binds tenancy.kcp.io and topology.kcp.io).
+// ApplyFS applies every file in fsys matching glob into cl's workspace,
+// schemas first, then exports, then the rest, with permission claim
+// identity hashes filled in from the workspace's bindings.
 func ApplyFS(t testing.TB, cl ctrlruntimeclient.Client, fsys fs.FS, glob string) {
 	t.Helper()
 	objs := readFS(t, fsys, glob)

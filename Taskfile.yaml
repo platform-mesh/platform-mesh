@@ -218,7 +218,7 @@ tasks:
     desc: Run the integration tests (tests/integration) against a kcp in Docker.
     cmds:
       - task: tests:integration
-        vars: {PKG: '{{.PKG}}', P: '{{.P}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}
+        vars: {PKG: '{{.PKG}}', P: '{{.P}}', KCP_VERSION: '{{.KCP_VERSION}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}
   test-e2e:
     desc: Run e2e/integration tests for every component.
     cmds:

@@ -38,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	kcptc "github.com/kcp-dev/kcp-testcontainers"
 	"github.com/kcp-dev/logicalcluster/v3"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
@@ -56,28 +57,23 @@ const (
 	workspaceTypeTimeout = 30 * time.Second
 )
 
-// workspaceTypeFiles are the WorkspaceTypes of :root the suites need, in
-// creation order, as the platform-mesh-operator deploys them.
+// workspaceTypeFiles are the WorkspaceTypes of :root, in creation order.
 var workspaceTypeFiles = []string{
 	"02-root/workspace-type-org.yaml",
 	"02-root/01-workspace-type-orgs.yaml",
 	"02-root/workspace-type-account.yaml",
 }
 
-// manifestData is what the WorkspaceType templates are rendered with: no
-// optional feature is enabled.
+// manifestData renders the WorkspaceType templates with every feature off.
 var manifestData = map[string]any{
 	"featureEnableTerminalControllerManager": "false",
 }
 
-// Platform is a platform-mesh-system tree in a kcp, what the account,
-// security and extension-manager suites each built by hand.
+// Platform is a platform-mesh-system tree in a kcp.
 type Platform struct {
-	// Root, System and Orgs are :root, :root:platform-mesh-system and
-	// :root:orgs. Orgs is empty unless WithOrgs.
-	Root, System, Orgs logicalcluster.Path
-	Cluster            clusterclient.ClusterClient
-	// OrgsClient is nil unless WithOrgs.
+	// Orgs and OrgsClient are set only with WithOrgs.
+	Root, System, Orgs                   logicalcluster.Path
+	Cluster                              clusterclient.ClusterClient
 	RootClient, SystemClient, OrgsClient ctrlruntimeclient.Client
 }
 
@@ -105,43 +101,33 @@ type exportSplit struct {
 }
 
 // WithResources applies the files in fsys matching glob into
-// :root:platform-mesh-system, e.g. WithResources(accountresources.Resources,
-// "resources/*.yaml"). Repeatable; an object that already exists is kept.
+// :root:platform-mesh-system. Existing objects are kept.
 func WithResources(fsys fs.FS, glob string) Option {
 	return func(o *options) { o.resources = append(o.resources, resourceGlob{fsys: fsys, glob: glob}) }
 }
 
-// WithExport creates the APIExport name in :root:platform-mesh-system serving
-// the named resources of the APIExport from (one of WithResources), which
-// stops serving them, and sharing from's identity. This is how the deployed
-// manifests (apis/static-assets/kcp) split stores and
-// authorizationmodels out of core.platform-mesh.io into fga.platform-mesh.io
-// and provider-fga.platform-mesh.io, while apigen puts every resource of the
-// group into one export.
+// WithExport moves the named resources of the APIExport from into a new
+// APIExport name sharing from's identity, the way the deployed manifests
+// split fga.platform-mesh.io out of core.platform-mesh.io.
 func WithExport(name, from string, resources ...string) Option {
 	return func(o *options) {
 		o.exports = append(o.exports, exportSplit{name: name, from: from, resources: resources})
 	}
 }
 
-// WithBindings binds the named APIExports of :root:platform-mesh-system in
-// that same workspace, accepting every permission claim they make (see
-// BindingFor), and waits for the bindings to be Bound.
+// WithBindings binds the named APIExports in :root:platform-mesh-system
+// (see BindingFor) and waits for them to be Bound.
 func WithBindings(exports ...string) Option {
 	return func(o *options) { o.bindings = append(o.bindings, exports...) }
 }
 
-// WithWorkspaceTypes creates the org, orgs and account WorkspaceTypes in
-// :root from the platform-mesh-operator's manifests (see
-// installWorkspaceTypes for what is dropped when it is not installed).
+// WithWorkspaceTypes creates the org, orgs and account WorkspaceTypes in :root.
 func WithWorkspaceTypes() Option {
 	return func(o *options) { o.workspaceTypes = true }
 }
 
-// WithDefaultBindings adds default bindings to the named exports of
-// :root:platform-mesh-system to the WorkspaceType typeName, on top of its
-// manifest; for what a workspace gets from an operator that does not run in
-// the suite. It implies WithWorkspaceTypes.
+// WithDefaultBindings adds default bindings to the named exports to the
+// WorkspaceType typeName. It implies WithWorkspaceTypes.
 func WithDefaultBindings(typeName string, exports ...string) Option {
 	return func(o *options) {
 		o.workspaceTypes = true
@@ -152,32 +138,21 @@ func WithDefaultBindings(typeName string, exports ...string) Option {
 	}
 }
 
-// WithOrgs creates :root:orgs of type root:orgs and waits for it to be
-// Ready. It implies WithWorkspaceTypes.
+// WithOrgs creates :root:orgs. It implies WithWorkspaceTypes.
 func WithOrgs() Option {
 	return func(o *options) { o.workspaceTypes, o.orgs = true, true }
 }
 
-// WithScheme sets the scheme of the returned clients. It must contain what
-// scheme.New registers; the default is scheme.New(t).
+// WithScheme sets the scheme of the returned clients (default scheme.New).
 func WithScheme(s *runtime.Scheme) Option {
 	return func(o *options) { o.scheme = s }
 }
 
-// Install creates :root:platform-mesh-system (fixed name, an existing one is
-// reused) and applies the options in this order: APIResourceSchemas,
-// APIExports (after WithExport splits), APIBindings (waited for Bound), the
-// remaining resources, WorkspaceTypes, :root:orgs.
-//
-// Permission claims of APIExports and APIBindings on resources served by a
-// kcp export in :root (tenancy.kcp.io, topology.kcp.io, ...) get that
-// export's status.identityHash. WorkspaceType creation is retried for 30s,
-// since the bind permission check can lag behind a new APIExport on another
-// shard. Finally Install waits until the APIExportEndpointSlice of every
-// export something was bound to (WithBindings, and the orgs workspace's
-// default bindings) has an endpoint URL; kcp lists no endpoints for an
-// export nothing is bound to.
-func Install(t testing.TB, env *kcp.Env, opts ...Option) *Platform {
+// Install creates :root:platform-mesh-system (reusing an existing one) and
+// applies the options: schemas, exports, bindings, other resources,
+// WorkspaceTypes, :root:orgs. It waits until every bound export's
+// APIExportEndpointSlice has a URL.
+func Install(t testing.TB, instance *kcptc.Instance, opts ...Option) *Platform {
 	t.Helper()
 	o := &options{}
 	for _, opt := range opts {
@@ -187,8 +162,10 @@ func Install(t testing.TB, env *kcp.Env, opts ...Option) *Platform {
 		o.scheme = scheme.New(t)
 	}
 
+	cluster, err := clusterclient.New(kcp.Config(instance), ctrlruntimeclient.Options{Scheme: o.scheme})
+	require.NoError(t, err, "building kcp cluster client")
 	root := core.RootCluster.Path()
-	p := &Platform{Root: root, System: root.Join(SystemWorkspace), Cluster: env.ClusterClient(t, o.scheme)}
+	p := &Platform{Root: root, System: root.Join(SystemWorkspace), Cluster: cluster}
 	p.RootClient = p.Cluster.Cluster(root)
 	ensureWorkspace(t, p.Cluster, root, SystemWorkspace, "universal")
 	p.SystemClient = p.Cluster.Cluster(p.System)
@@ -215,8 +192,7 @@ func Install(t testing.TB, env *kcp.Env, opts ...Option) *Platform {
 
 	served := map[string]bool{} // exports in platform-mesh-system something binds to
 	for _, name := range o.bindings {
-		// Read the export back rather than using the manifest: an existing
-		// export is kept as it is, and its claims carry the identity hashes.
+		// The export in kcp, not the manifest: existing ones are kept as is.
 		export := &kcpapisv1alpha2.APIExport{}
 		require.NoError(t, p.SystemClient.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: name}, export), "getting APIExport %s", name)
 		Apply(t, p.SystemClient, BindingFor(export, p.System))
@@ -243,11 +219,8 @@ func Install(t testing.TB, env *kcp.Env, opts ...Option) *Platform {
 	return p
 }
 
-// BindingFor returns the APIBinding a workspace creates to bind export by
-// path: named after the export, accepting every permission claim it makes
-// with the claim's defaultSelector or matchAll, the way kcp does for a
-// WorkspaceType's defaultAPIBindings. This is the binding the deployed
-// manifests (apis/static-assets/kcp) write out by hand.
+// BindingFor returns an APIBinding to export, accepting every permission
+// claim it makes (defaultSelector or matchAll).
 func BindingFor(export *kcpapisv1alpha2.APIExport, path logicalcluster.Path) *kcpapisv1alpha2.APIBinding {
 	claims := make([]kcpapisv1alpha2.AcceptablePermissionClaim, 0, len(export.Spec.PermissionClaims))
 	for _, claim := range export.Spec.PermissionClaims {
@@ -278,10 +251,8 @@ func BindingFor(export *kcpapisv1alpha2.APIExport, path logicalcluster.Path) *kc
 	}
 }
 
-// splitExport moves the resources named in s out of the APIExport s.from in
-// objs into a new APIExport s.name that shares s.from's identity secret
-// (kcp-system/<from>, the secret kcp creates for an export without
-// spec.identity), and returns objs with the new export appended.
+// splitExport moves s.resources from APIExport s.from into a new APIExport
+// s.name sharing s.from's identity secret (kcp-system/<from>).
 func splitExport(t testing.TB, objs []*unstructured.Unstructured, s exportSplit) []*unstructured.Unstructured {
 	t.Helper()
 	var from *unstructured.Unstructured
@@ -323,9 +294,7 @@ func splitExport(t testing.TB, objs []*unstructured.Unstructured, s exportSplit)
 	return append(objs, export)
 }
 
-// Render executes raw as a Go text/template with data, the way the
-// platform-mesh-operator renders its manifests (subroutines.ReplaceTemplate);
-// a key the template needs but data lacks is an error.
+// Render executes raw as a text/template with data; missing keys are errors.
 func Render(t testing.TB, raw []byte, data map[string]any) []byte {
 	t.Helper()
 	funcs := template.FuncMap{
@@ -347,14 +316,9 @@ func Render(t testing.TB, raw []byte, data map[string]any) []byte {
 	return out.Bytes()
 }
 
-// installWorkspaceTypes creates the WorkspaceTypes of workspaceTypeFiles in
-// :root as the platform-mesh-operator deploys them, plus extra default
-// bindings (WithDefaultBindings). Two things are dropped when not installed,
-// otherwise workspaces of the type would never finish initialising: a default
-// binding to an export in :root:platform-mesh-system that does not exist
-// there, and an extended WorkspaceType in :root that does not exist (the
-// deployed org and account types extend `security`, whose initializer the
-// security-operator clears).
+// installWorkspaceTypes creates workspaceTypeFiles in :root plus extra
+// default bindings, dropping default bindings and extends that refer to
+// things not installed (their workspaces would never initialise).
 func installWorkspaceTypes(t testing.TB, p *Platform, extra map[string][]string) {
 	t.Helper()
 	for _, file := range workspaceTypeFiles {
@@ -404,8 +368,7 @@ func installWorkspaceTypes(t testing.TB, p *Platform, extra map[string][]string)
 	}
 }
 
-// systemDefaultBindings returns the exports in :root:platform-mesh-system the
-// WorkspaceType name in :root binds by default.
+// systemDefaultBindings returns the platform-mesh-system exports WorkspaceType name binds by default.
 func systemDefaultBindings(t testing.TB, p *Platform, name string) []string {
 	t.Helper()
 	wst := &kcptenancyv1alpha1.WorkspaceType{}
@@ -442,10 +405,8 @@ func exportExists(t testing.TB, cl ctrlruntimeclient.Client, name string) bool {
 	return true
 }
 
-// ensureWorkspace creates the workspace name of type root:<typeName> under
-// parent unless it exists, and waits until it is Ready and reachable by path.
-// Unlike kcptesting.NewWorkspaceFixture it uses a fixed name and never deletes
-// the workspace, so packages sharing a kcp share it.
+// ensureWorkspace creates workspace name of type root:<typeName> under parent
+// unless it exists and waits until it is Ready and reachable by path.
 func ensureWorkspace(t testing.TB, cluster clusterclient.ClusterClient, parent logicalcluster.Path, name, typeName string) {
 	t.Helper()
 	parentClient := cluster.Cluster(parent)

@@ -32,11 +32,10 @@ includes:
 vars:
   TOPLEVEL:
     sh: git rev-parse --show-toplevel
-  # The repository's kcp version (third_party/kcp), also what Tilt deploys.
-  KCP_VERSION:
+  # The repository's kcp version (third_party/kcp, also what Tilt deploys),
+  # the release the framework runs unless KCP_VERSION=... says otherwise.
+  REPO_KCP_VERSION:
     sh: "sed -n 's/^ *version: v\\([0-9][^ ]*\\)$/\\1/p' {{.TOPLEVEL}}/third_party/kcp/component-constructor.yaml | head -1"
-  # The kcp image the framework runs; KCP_IMAGE=... overrides.
-  KCP_IMAGE: '{{.KCP_IMAGE | default (printf "ghcr.io/kcp-dev/kcp:v%s" .KCP_VERSION)}}'
   # Narrow a run to one area, e.g. PKG=./integration/resourcebroker/...
   PKG: '{{.PKG | default "./integration/..."}}'
   # Test packages run in parallel; they share one kcp (see tests/README.md).
@@ -44,8 +43,9 @@ vars:
 
 tasks:
   integration:
-    desc: 'Run tests/integration against kcp in Docker (PKG=./integration/<area>/... narrows, P= parallel packages, KCP_IMAGE= another kcp image, ADDITIONAL_COMMAND_ARGS= extra go test flags).'
+    desc: 'Run tests/integration against kcp in Docker (PKG=./integration/<area>/... narrows, P= parallel packages, KCP_VERSION= another kcp release, ADDITIONAL_COMMAND_ARGS= extra go test flags).'
     env:
-      KCP_IMAGE: '{{.KCP_IMAGE}}'
+      # Read by tests/framework/kcp; with or without the leading v.
+      KCP_VERSION: 'v{{.KCP_VERSION | default .REPO_KCP_VERSION | trimPrefix "v"}}'
     cmds:
       - go test -tags integration -count=1 -p {{.P}} -timeout 40m {{.PKG}} {{.ADDITIONAL_COMMAND_ARGS}}
