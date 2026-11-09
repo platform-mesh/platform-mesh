@@ -87,8 +87,6 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
-github.com/kcp-dev/kcp-operator/sdk v0.10.2 h1:dIlYddjj/OnruhG1Km731HNq/3hLLCpCYUQS2AT+4Sk=
-github.com/kcp-dev/kcp-operator/sdk v0.10.2/go.mod h1:58muK/c6gOJv3cjtwhed9Mbscr6RbXZJjIj1RlLT6ng=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
 github.com/kcp-dev/sdk v0.33.5 h1:sl/PWTQkmpQPKyd6apufw+M9KBx/ckbvk0VwweKpr1Q=

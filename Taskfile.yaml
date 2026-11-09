@@ -64,7 +64,6 @@ vars:
     - extension-manager-operator
     - kcp-migration-operator
     - kro-composition-operator
-    - platform-mesh-deployer
     - platform-mesh-operator
     - resource-broker
     - security-operator
