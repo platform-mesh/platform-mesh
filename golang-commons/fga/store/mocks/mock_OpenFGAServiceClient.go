@@ -23,7 +23,7 @@ package mocks
 import (
 	"context"
 
-	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	"github.com/openfga/api/proto/openfga/v1"
 	mock "github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 )
