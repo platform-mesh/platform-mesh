@@ -3,10 +3,9 @@ module go.platform-mesh.io/kro-composition-operator
 go 1.26.3
 
 require (
+	github.com/go-logr/logr v1.4.4
 	github.com/gobuffalo/flect v1.0.3
-	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.9.0
-	github.com/kcp-dev/multicluster-provider/client v0.9.0
 	github.com/kcp-dev/sdk v0.33.5
 	github.com/kubernetes-sigs/kro v0.9.4
 	github.com/stretchr/testify v1.12.1
@@ -16,7 +15,6 @@ require (
 	k8s.io/client-go v0.36.4
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
-	sigs.k8s.io/yaml v1.6.0
 )
 
 // kcp-dev/multicluster-provider/client carries an internal replace directive that
@@ -37,7 +35,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
-	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v1.0.1 // indirect
 	github.com/go-openapi/jsonreference v1.0.1 // indirect
@@ -63,7 +60,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kcp-dev/apimachinery/v2 v2.33.5 // indirect
-	github.com/martinlindhe/base36 v1.1.1 // indirect
+	github.com/kcp-dev/logicalcluster/v3 v3.0.5 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -107,4 +104,5 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/release-utils v0.12.4 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
+	sigs.k8s.io/yaml v1.6.0 // indirect
 )

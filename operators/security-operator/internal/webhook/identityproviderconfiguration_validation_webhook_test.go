@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/security-operator/internal/config"
+	"go.platform-mesh.io/security-operator/pkg/config"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

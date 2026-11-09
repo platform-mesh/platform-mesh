@@ -28,9 +28,9 @@ import (
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/metrics"
 	"go.platform-mesh.io/security-operator/internal/subroutine/idp"
+	"go.platform-mesh.io/security-operator/pkg/config"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
 

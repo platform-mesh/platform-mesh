@@ -13,7 +13,10 @@ components and their tests embed from here instead of keeping copies.
 - `k8s/`: Kubernetes manifests the operator applies to the runtime cluster.
 - `resources/<component>/`: apigen output (APIExport + APIResourceSchemas) of
   each component, written by `task generate` in that component. The deployed
-  copies under `kcp/` are curated by hand from these.
+  copies under `kcp/` are curated by hand from these; their permission claims
+  and identity are copied back into the generated export by
+  `hack/sync-export-claims.sh` (also from `task generate`), so the two never
+  drift. Edit claims only in the deployed copy.
 
 Schema names are `v<yymmdd>-<hash>` where `<hash>` is derived from the schema
 content (see `hack/apigen.sh`), so an unchanged API keeps its name.

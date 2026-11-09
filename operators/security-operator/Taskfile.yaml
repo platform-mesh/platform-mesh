@@ -54,6 +54,7 @@ tasks:
           OUTPUT: '{{.PROVIDER_CRD_DIRECTORY}}'
       - cp '{{.PROVIDER_CRD_DIRECTORY}}/providers.platform-mesh.io_providerpermissions.yaml' '{{.CRD_DIRECTORY}}/'
   generate:
+    deps: [tools:yq]
     cmds:
       - task: manifests
       - task: mockery
@@ -61,6 +62,10 @@ tasks:
         vars:
           PATH: /core/...
       - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/security-operator --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      # The deployed export's permission claims and identity, copied so the
+      # generated export matches what the platform-mesh-operator installs.
+      - YQ={{.YQ}} {{.HACK}}/sync-export-claims.sh {{.TOPLEVEL}}/apis/static-assets/resources/security-operator/apiexport-core.platform-mesh.io.yaml {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiexport-core.platform-mesh.io.yaml
+      - YQ={{.YQ}} {{.HACK}}/sync-export-claims.sh {{.TOPLEVEL}}/apis/static-assets/resources/security-operator/apiexport-providers.platform-mesh.io.yaml {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiexport-providers.platform-mesh.io.yaml
   build:
     cmds:
       - go build ./...
@@ -78,39 +83,13 @@ tasks:
     cmds:
       - task: fmt
       - task: tools:lint
-  envtest:
-    internal: true
-    deps: [tools:kcp, tools:envtest, clean]
-    env:
-      KCP_ASSET_KCP: '{{.BIN}}/kcp'
-      KCP_ASSET_SHARDED_TEST_SERVER: '{{.BIN}}/sharded-test-server'
-      KCP_ASSET_KCP_FRONT_PROXY: '{{.BIN}}/kcp-front-proxy'
-      KCP_ASSET_CACHE_SERVER: '{{.BIN}}/cache-server'
-      NO_GORUN: "true"
-      COMPONENT_DIRECTORY:
-        sh: 'realpath .'
-    cmds:
-      - |
-        set -ex
-        export KUBEBUILDER_ASSETS=$({{.ENVTEST}} use {{.ENVTEST_K8S_VERSION}} --bin-dir {{.BIN}} -p path)
-        go test -count=1 {{.TEST_PACKAGES | default "./..."}} {{.ADDITIONAL_COMMAND_ARGS}}
-
-  # Integration (envtest) lives in ./internal/test/integration; everything else is unit.
   test:
-    desc: Run unit tests (no kcp/envtest).
+    desc: Run unit tests.
     cmds:
-      - go test -count=1 $(go list ./... | grep -v '/internal/test/integration$')
-  test-e2e:
-    desc: Run envtest integration tests (uses the shared kcp from the root bin).
-    cmds:
-      - task: envtest
-        vars:
-          TEST_PACKAGES: ./internal/test/integration/...
+      - go test -count=1 ./...
   cover:
     cmds:
-      - task: envtest
-        vars:
-          ADDITIONAL_COMMAND_ARGS: -coverprofile=./cover.out -covermode=atomic
+      - go test -count=1 -coverprofile=./cover.out -covermode=atomic ./...
   validate:
     cmds:
       - task: lint
@@ -194,3 +173,8 @@ tasks:
       - task: docker:kind:restart
         vars:
           DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
+
+  test-e2e:
+    desc: Ported to tests/integration/security (task test-integration PKG=./integration/security/...).
+    cmds:
+      - 'echo "security-operator: integration tests live in tests/integration/security"'

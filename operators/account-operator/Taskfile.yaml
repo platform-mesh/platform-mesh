@@ -33,13 +33,16 @@ tasks:
           PATH: /core/...
           OUTPUT: '{{.CRD_DIRECTORY}}'
   generate:
-    deps: [tools:apigen]
+    deps: [tools:apigen, tools:yq]
     cmds:
       - task: manifests
       - task: tools:generate-deepcopy
         vars:
           PATH: /core/...
       - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/account-operator --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      # The deployed export's permission claims and identity, copied so the
+      # generated export matches what the platform-mesh-operator installs.
+      - YQ={{.YQ}} {{.HACK}}/sync-export-claims.sh {{.TOPLEVEL}}/apis/static-assets/resources/account-operator/apiexport-core.platform-mesh.io.yaml {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiexport-core.platform-mesh.io.yaml
   generate:mocks:
     desc: Generate mocks using mockery
     deps: [tools:mockery]
@@ -63,28 +66,12 @@ tasks:
     cmds:
       - task: fmt
       - task: tools:lint
-  # Integration (envtest) lives in ./internal/controller; everything else is unit.
   test:
-    desc: Run unit tests (no kcp/envtest).
+    desc: Run unit tests.
     cmds:
-      - go test -count=1 $(go list ./... | grep -v '/internal/controller$')
-  test-e2e:
-    desc: Run envtest integration tests (uses the shared kcp from the root bin).
-    deps: [tools:kcp, clean]
-    env:
-      KCP_ASSET_KCP: '{{.BIN}}/kcp'
-      KCP_ASSET_SHARDED_TEST_SERVER: '{{.BIN}}/sharded-test-server'
-      KCP_ASSET_KCP_FRONT_PROXY: '{{.BIN}}/kcp-front-proxy'
-      KCP_ASSET_CACHE_SERVER: '{{.BIN}}/cache-server'
-      NO_GORUN: "true"
-      COMPONENT_DIRECTORY:
-        sh: 'realpath .'
-    cmds:
-      - go test -count=1 ./internal/controller/... {{.ADDITIONAL_COMMAND_ARGS}}
+      - go test -count=1 ./...
   cover:
-    deps: [tools:kcp]
-    env:
-      TEST_KCP_ASSETS: '{{.BIN}}'
+    desc: Run unit tests with coverage.
     cmds:
       - go test -count=1 ./... -v -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
   start-kcp:
@@ -125,3 +112,8 @@ tasks:
         fi
       - kubectl rollout restart deployment/{{.DEPLOYMENT_NAME}} -n {{.DEPLOYMENT_NAMESPACE}}
       - echo "Image loaded and deployment restarted"
+
+  test-e2e:
+    desc: Ported to tests/integration/account (task test-integration PKG=./integration/account/...).
+    cmds:
+      - 'echo "account-operator: integration tests live in tests/integration/account"'

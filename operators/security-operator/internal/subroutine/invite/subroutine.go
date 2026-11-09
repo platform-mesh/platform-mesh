@@ -31,7 +31,7 @@ import (
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/config"
+	"go.platform-mesh.io/security-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
 
 	"k8s.io/client-go/util/workqueue"

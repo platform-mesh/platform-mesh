@@ -26,9 +26,9 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/pkg/clientreg"
 	"go.platform-mesh.io/security-operator/pkg/clientreg/keycloak"
+	"go.platform-mesh.io/security-operator/pkg/config"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"

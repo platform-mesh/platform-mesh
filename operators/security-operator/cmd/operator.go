@@ -26,20 +26,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/sentry"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/config"
 	"go.platform-mesh.io/security-operator/internal/controller"
 	fga2 "go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/security-operator/internal/predicates"
 	internalwebhook "go.platform-mesh.io/security-operator/internal/webhook"
+	"go.platform-mesh.io/security-operator/pkg/app"
+	"go.platform-mesh.io/security-operator/pkg/config"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,16 +48,12 @@ import (
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var (
-	scheme = runtime.NewScheme()
+	scheme = app.NewScheme()
 )
 
 const (
@@ -295,15 +287,4 @@ var operatorCmd = &cobra.Command{
 		}
 		return nil
 	},
-}
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(pmprovidersv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme))
-	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
-	// +kubebuilder:scaffold:scheme
 }
