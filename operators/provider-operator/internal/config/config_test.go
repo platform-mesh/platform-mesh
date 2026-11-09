@@ -27,7 +27,6 @@ func TestNewOperatorConfig(t *testing.T) {
 	cfg := NewOperatorConfig()
 
 	assert.Equal(t, "platform-mesh-system", cfg.KCP.Namespace)
-	assert.Equal(t, "root", cfg.KCP.RootShardName)
 	assert.Equal(t, "frontproxy", cfg.KCP.FrontProxyName)
 	assert.Equal(t, "8443", cfg.KCP.FrontProxyPort)
 	assert.Equal(t, "kcp-cluster-admin-client-cert", cfg.KCP.ClusterAdminSecretName)
@@ -41,7 +40,6 @@ func TestOperatorConfigAddFlags(t *testing.T) {
 	err := fs.Parse([]string{
 		"--kcp-url=https://kcp.example.local",
 		"--kcp-namespace=custom-ns",
-		"--kcp-root-shard-name=custom-root",
 		"--kcp-front-proxy-name=custom-proxy",
 		"--kcp-front-proxy-port=7443",
 		"--kcp-cluster-admin-secret-name=custom-admin-secret",
@@ -50,7 +48,6 @@ func TestOperatorConfigAddFlags(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "https://kcp.example.local", cfg.KCP.Url)
 	assert.Equal(t, "custom-ns", cfg.KCP.Namespace)
-	assert.Equal(t, "custom-root", cfg.KCP.RootShardName)
 	assert.Equal(t, "custom-proxy", cfg.KCP.FrontProxyName)
 	assert.Equal(t, "7443", cfg.KCP.FrontProxyPort)
 	assert.Equal(t, "custom-admin-secret", cfg.KCP.ClusterAdminSecretName)

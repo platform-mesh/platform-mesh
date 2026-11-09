@@ -23,7 +23,6 @@ import (
 type KCPConfig struct {
 	Url                    string
 	Namespace              string
-	RootShardName          string
 	FrontProxyName         string
 	FrontProxyPort         string
 	ClusterAdminSecretName string
@@ -54,7 +53,6 @@ func NewOperatorConfig() OperatorConfig {
 	return OperatorConfig{
 		KCP: KCPConfig{
 			Namespace:              "platform-mesh-system",
-			RootShardName:          "root",
 			FrontProxyName:         "frontproxy",
 			FrontProxyPort:         "8443",
 			ClusterAdminSecretName: "kcp-cluster-admin-client-cert",
@@ -73,7 +71,6 @@ func NewOperatorConfig() OperatorConfig {
 func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.KCP.Url, "kcp-url", c.KCP.Url, "Set KCP URL")
 	fs.StringVar(&c.KCP.Namespace, "kcp-namespace", c.KCP.Namespace, "Set KCP namespace")
-	fs.StringVar(&c.KCP.RootShardName, "kcp-root-shard-name", c.KCP.RootShardName, "Set KCP root shard name")
 	fs.StringVar(&c.KCP.FrontProxyName, "kcp-front-proxy-name", c.KCP.FrontProxyName, "Set KCP front-proxy name")
 	fs.StringVar(&c.KCP.FrontProxyPort, "kcp-front-proxy-port", c.KCP.FrontProxyPort, "Set KCP front-proxy port")
 	fs.StringVar(&c.KCP.ClusterAdminSecretName, "kcp-cluster-admin-secret-name", c.KCP.ClusterAdminSecretName, "Set cluster-admin secret name")

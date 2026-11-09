@@ -6,8 +6,10 @@
 - Read the org-wide [AGENTS.md](https://github.com/platform-mesh/.github/blob/main/AGENTS.md) for general conventions.
 
 ## Status
-- Scaffold only. Both controllers still live in `platform-mesh-operator` (`internal/controller/providers`, `pkg/subroutines/providers`) and move here next.
-- Until the cutover, `platform-mesh-operator` runs the controllers in production. Never run both against the same cluster.
+- The `ManagedProvider` controller and its subroutines (`ProviderResource`, `WaitProvider`, `KubeconfigCopy`, `Deploy`) are copied from `platform-mesh-operator` and registered in `cmd/operator.go`. platform-mesh-operator's `WaitPlatformMesh` subroutine is not copied.
+- The `Provider` controller still lives only in `platform-mesh-operator` (`internal/controller/providers`, `pkg/subroutines/providers`).
+- Nothing deploys this operator yet (no image, no chart). `platform-mesh-operator` runs both controllers in production. Never run both operators against the same cluster: both would reconcile every `ManagedProvider`.
+- The code under `internal/` and `pkg/` is a copy of `platform-mesh-operator`'s, with only import paths changed. Until that copy is removed, a bug fix belongs in both operators.
 
 ## Core Principles
 - Keep changes small and local. Provider onboarding spans the runtime cluster, kcp workspaces and Flux deployments.
@@ -17,8 +19,14 @@
 
 ## Project Structure
 - `main.go`: entry point, calls `cmd.Execute()`.
-- `cmd`: cobra root command, common flags and the `operator` subcommand that wires the manager.
-- `config`: kustomize manifests for local use (manager, RBAC, metrics). Production deploys through the Helm chart.
+- `cmd`: cobra root command, common flags and the `operator` subcommand that wires the manager and registers the controllers.
+- `internal/config`: operator configuration and its flags (`--kcp-*`, `--subroutines-managed-provider-*`).
+- `internal/controller/providers`: the `ManagedProvider` controller; it only builds the subroutine chain.
+- `internal/ociref`, `pkg/ocm`: OCI and OCM reference parsing used by the `Deploy` subroutine.
+- `pkg/subroutines`: the kcp client helper (`KcpHelper`) and admin kubeconfig building.
+- `pkg/subroutines/providers`: the subroutines, one file each, with their tests.
+- `pkg/subroutines/mocks`: generated mockery mocks; `pkg/subroutines/test`: test fixtures.
+- `config`: kustomize manifests for local use (manager, RBAC, metrics). `config/rbac/role.yaml` is generated. Production deploys through the Helm chart.
 
 ## Architecture
 This is not a plain single-cluster controller-runtime operator.
@@ -38,6 +46,7 @@ Run from this directory:
 - `task test`: run unit tests.
 - `task cover`: run tests with coverage output.
 - `task build`: compile all packages.
+- `task generate`: regenerate `config/rbac/role.yaml` from the RBAC markers and the mocks from `.mockery.yaml`.
 - `task docker-build`: build the image (build context is the repository root).
 
 Run from the repository root:
