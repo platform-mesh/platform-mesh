@@ -23,6 +23,15 @@ template: testify
 template-data:
   boilerplate-file: ../../hack/boilerplate/boilerplate.go.txt
 packages:
+  go.platform-mesh.io/provider-operator/pkg/subroutines:
+    config:
+      dir: pkg/subroutines/mocks
+      pkgname: mocks
+      filename: mock_KcpHelper.go
+    interfaces:
+      KcpHelper:
+        config:
+          structname: KcpHelper
   sigs.k8s.io/controller-runtime/pkg/client:
     config:
       dir: pkg/subroutines/mocks
