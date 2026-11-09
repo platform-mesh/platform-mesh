@@ -11,15 +11,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    app.kubernetes.io/name: provider-operator
-    app.kubernetes.io/managed-by: kustomize
   name: manager-role
 rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - providers.platform-mesh.io
+  resources:
+  - managedproviders
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - providers.platform-mesh.io
+  resources:
+  - managedproviders/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - providers.platform-mesh.io
+  resources:
+  - managedproviders/status
+  verbs:
+  - get
+  - patch
+  - update

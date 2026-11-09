@@ -26,6 +26,7 @@ import (
 
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/traces"
+	"go.platform-mesh.io/provider-operator/internal/controller/providers"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -48,7 +49,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	log.Info().Msg("Starting provider-operator")
 	defer log.Info().Msg("Shutting down provider-operator")
 
-	ctx, _, shutdown := pmcontext.StartContext(log, nil, defaultCfg.ShutdownTimeout)
+	ctx, _, shutdown := pmcontext.StartContext(log, operatorCfg, defaultCfg.ShutdownTimeout)
 	defer shutdown()
 
 	disableHTTP2 := func(c *tls.Config) {
@@ -97,6 +98,14 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create manager")
+	}
+
+	managedProvidersReconciler, err := providers.NewManagedProviderReconciler(mgr, &operatorCfg, defaultCfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to create ManagedProvider reconciler")
+	}
+	if err := managedProvidersReconciler.SetupWithManager(mgr, defaultCfg); err != nil {
+		log.Fatal().Err(err).Str("controller", "ManagedProvider").Msg("unable to create controller")
 	}
 
 	// +kubebuilder:scaffold:builder

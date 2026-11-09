@@ -20,6 +20,9 @@ includes:
     taskfile: ../../tools/Taskfile.yaml
     dir: .
 
+vars:
+  RBAC_DIRECTORY: config/rbac
+
 tasks:
   build:
     desc: Build the module
@@ -31,9 +34,18 @@ tasks:
     cmds:
       - go fmt ./...
 
-  generate:
-    desc: Generate code (mocks)
+  manifests:
+    desc: Generate RBAC manifests
     cmds:
+      - task: tools:generate-rbac
+        vars:
+          PATHS: ./...
+          OUTPUT: '{{.RBAC_DIRECTORY}}'
+
+  generate:
+    desc: Generate code (RBAC manifests, mocks)
+    cmds:
+      - task: manifests
       - task: mockery
 
   mockery:

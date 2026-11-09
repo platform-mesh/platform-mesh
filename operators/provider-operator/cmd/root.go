@@ -22,6 +22,7 @@ import (
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
+	"go.platform-mesh.io/provider-operator/internal/config"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -29,9 +30,10 @@ import (
 )
 
 var (
-	scheme     = runtime.NewScheme()
-	defaultCfg *pmconfig.CommonServiceConfig
-	log        *logger.Logger
+	scheme      = runtime.NewScheme()
+	defaultCfg  *pmconfig.CommonServiceConfig
+	operatorCfg config.OperatorConfig
+	log         *logger.Logger
 )
 
 var rootCmd = &cobra.Command{
@@ -47,7 +49,9 @@ func init() {
 	rootCmd.AddCommand(operatorCmd)
 
 	defaultCfg = pmconfig.NewDefaultConfig()
+	operatorCfg = config.NewOperatorConfig()
 	defaultCfg.AddFlags(rootCmd.PersistentFlags())
+	operatorCfg.AddFlags(operatorCmd.Flags())
 
 	cobra.OnInitialize(initLog)
 }
