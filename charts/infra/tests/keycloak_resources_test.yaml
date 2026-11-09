@@ -1,0 +1,31 @@
+suite: Keycloak server resource contract
+templates:
+  - templates/keycloak/keycloak.yaml
+set:
+  keycloak.operator.enabled: true
+tests:
+  - it: preserves the operator's effective default memory budget
+    asserts:
+      - equal:
+          path: spec.resources
+          value:
+            requests:
+              memory: 1700Mi
+            limits:
+              memory: 2Gi
+      - notExists:
+          path: spec.unsupported.podTemplate.spec.containers[0].resources
+  - it: sets resources through the supported field for optimized installations
+    set:
+      keycloak.operator.resources:
+        requests:
+          memory: 1Gi
+        limits:
+          memory: 2Gi
+    asserts:
+      - equal:
+          path: spec.resources.requests.memory
+          value: 1Gi
+      - equal:
+          path: spec.resources.limits.memory
+          value: 2Gi

@@ -1,3 +1,29 @@
+## Installation profiles
+
+`production` uses public DNS and the production topology. `kind` includes the
+frontend and its supporting services for local evaluation. `kind-optimized` is
+a third, backend-only alternative for local Kubernetes, IAM, and authorization
+experiments with a smaller resource budget.
+
+Select `ocm.profile=kind-optimized` when installing the operator chart. Use
+the optimized Helm options documented in the prerequisites chart README in both
+prerequisite installation passes; they work with OCI charts without a separate
+values-file download. The optimized profile is merged into the regular Kind profile
+so gateway, database, certificate, and backend configuration stay consistent.
+
+The optimized profile omits portal, IAM UI/service, marketplace UI, GraphQL gateway
+and listener, extension-manager-operator, and virtual-workspaces. It retains
+account-operator, security-operator, Keycloak, OpenFGA, KCP, and delivery controllers.
+Cache-server and the internal root proxy run at one replica. Root KCP requests
+1Gi/250m to accommodate the measured backend footprint. Keycloak keeps a 2Gi
+memory limit while requesting 1Gi through its supported resource field.
+The pinned kcp-operator does not support cache-server container resource overrides,
+so its default request is retained for the remaining replica.
+
+This profile is intended for backend development, not a highly available production
+installation. Resource measurements and verification are recorded in
+`docs/deployment/resource-savings/`.
+
 ## Profile lifecycle
 
 With `ocm.enabled=true`, Helm creates `platform-mesh-profile` once during install,

@@ -10,6 +10,13 @@
 {{- if and .Values.ocm.enabled .Release.IsInstall (not $existing) }}
 {{- $profile := .Files.Get (printf "files/%s-profile.yaml" .Values.ocm.profile) }}
 {{- $profile = required (printf "unknown ocm.profile %q: no files/%s-profile.yaml exists" .Values.ocm.profile .Values.ocm.profile) $profile }}
+{{- if eq .Values.ocm.profile "kind-optimized" }}
+{{- $base := .Files.Get "files/kind-profile.yaml" | fromYaml }}
+{{- $baseValues := index $base.data "profile.yaml" | fromYaml }}
+{{- $optimized := mustMergeOverwrite $baseValues (fromYaml $profile) }}
+{{- $_ := set $base.data "profile.yaml" (toYaml $optimized) }}
+{{- $profile = toYaml $base }}
+{{- end }}
 {{- $profile = replace "__EXTERNAL_PORT__" (printf "%v" .Values.gateway.port) $profile }}
 {{- $profile = replace "__GATEWAY_SERVICE_CLUSTER_IP__" (.Values.gateway.clusterIP | default "") $profile }}
 {{- $profile = replace "__GATEWAY_CLASS_NAME__" (.Values.gateway.className | default "traefik") $profile }}
