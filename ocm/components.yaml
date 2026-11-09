@@ -72,9 +72,6 @@ components:
     path: operators/kro-composition-operator
     image: kro-composition-operator
     chart: charts/kro-composition-operator
-  platform-mesh-deployer:
-    path: operators/platform-mesh-deployer
-    image: platform-mesh-deployer
     e2e: false # builds real kcp installations on kind; does not fit a hosted runner
   platform-mesh-operator:
     path: operators/platform-mesh-operator

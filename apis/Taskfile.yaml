@@ -61,6 +61,3 @@ tasks:
     cmds:
       - go test ./terminal/... -run=^$ -fuzz=FuzzTerminalRoundTrip -fuzztime={{.FUZZTIME}} -count=1
       - go test ./marketplace/... -run=^$ -fuzz=FuzzMarketplaceEntryRoundTrip -fuzztime={{.FUZZTIME}} -count=1
-      - go test ./deploy/v1alpha1/ -run=^$ -fuzz=FuzzPlatformMeshRoundTrip -fuzztime={{.FUZZTIME}} -count=1
-      - go test ./deploy/v1alpha1/ -run=^$ -fuzz='FuzzModuleRoundTrip$' -fuzztime={{.FUZZTIME}} -count=1
-      - go test ./deploy/v1alpha1/ -run=^$ -fuzz=FuzzModuleSetupRoundTrip -fuzztime={{.FUZZTIME}} -count=1
