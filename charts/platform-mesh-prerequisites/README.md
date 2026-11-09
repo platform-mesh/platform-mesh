@@ -3,6 +3,30 @@
 Optional infrastructure prerequisites for Platform Mesh
 
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+## Optimized Kind prerequisites
+
+For the operator's `kind-optimized` profile, add these Helm options to
+both prerequisite installation passes, including when using the published OCI
+chart. No separate values file is required:
+
+```shell
+--set flux2.kustomizeController.create=false \
+--set flux2.notificationController.create=false \
+--set keycloak-operator.deployment.resources.requests.memory=384Mi \
+--set ocm-k8s-toolkit.manager.resources.requests.memory=128Mi
+```
+
+These settings omit the unused Flux Kustomize and notification controllers and
+reduce the Keycloak operator and OCM manager memory requests while retaining
+their memory limits. Keep the usual certificate, gateway, and component settings
+for each installation pass.
+
+Flux image scanning and update controllers are disabled by default for all
+profiles because Platform Mesh selects images through OCM component versions.
+Enable `flux2.imageReflectionController.create` and
+`flux2.imageAutomationController.create` when using Flux image automation.
+Keep Kustomize or notification controllers enabled when an installation uses
+Flux Kustomizations, Alerts, Providers, or Receivers.
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -13,6 +37,8 @@ Optional infrastructure prerequisites for Platform Mesh
 | etcd-druid.enabled | bool | `true` |  |
 | flux2.enabled | bool | `true` |  |
 | flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=10"` |  |
+| flux2.imageAutomationController.create | bool | `false` | Enable Flux image updates when using ImageUpdateAutomation resources. Platform Mesh uses OCM component versions instead. |
+| flux2.imageReflectionController.create | bool | `false` | Enable Flux image scanning when using ImageRepository or ImagePolicy resources. |
 | flux2.policies.create | bool | `false` |  |
 | keycloak-operator.enabled | bool | `true` |  |
 | localCertificates.caSecretName | string | `"domain-certificate-ca"` |  |
@@ -48,50 +74,3 @@ Example
 3) .Values.deployment.resources.limits.memory = 1024MB
 4) .Values.common.defaults.deployment.resources.limits.memory = default 512MB
 ```
-# platform-mesh-prerequisites
-
-![Version: 0.0.0](https://img.shields.io/badge/Version-0.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
-
-Optional infrastructure prerequisites for Platform Mesh
-
-## Requirements
-
-| Repository | Name | Version |
-|------------|------|---------|
-| file://../keycloak-operator | keycloak-operator | 0.0.0 |
-| oci://europe-docker.pkg.dev/gardener-project/releases/charts/gardener | etcd-druid | v0.39.2 |
-| oci://ghcr.io/cloudnative-pg/charts | cloudnative-pg | 0.29.1 |
-| oci://ghcr.io/fluxcd-community/charts | flux2 | 2.17.2 |
-| oci://ghcr.io/open-component-model/kubernetes/controller | ocm-k8s-toolkit(chart) | 0.17.0 |
-| oci://ghcr.io/traefik/helm | traefik | 42.2.0 |
-| oci://ghcr.io/traefik/helm | traefik-crds | 1.18.0 |
-| oci://quay.io/jetstack/charts | cert-manager | v1.21.3 |
-
-## Values
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| cert-manager.crds.enabled | bool | `true` |  |
-| cert-manager.enabled | bool | `true` |  |
-| cert-manager.webhook.timeoutSeconds | int | `15` |  |
-| cnpg.enabled | bool | `true` |  |
-| etcd-druid.enabled | bool | `true` |  |
-| flux2.enabled | bool | `true` |  |
-| flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=10"` |  |
-| flux2.policies.create | bool | `false` |  |
-| keycloak-operator.enabled | bool | `true` |  |
-| localCertificates.caSecretName | string | `"domain-certificate-ca"` |  |
-| localCertificates.certificateSecretName | string | `"domain-certificate"` |  |
-| localCertificates.dnsNames | list | `[]` |  |
-| localCertificates.enabled | bool | `false` |  |
-| localCertificates.namespace | string | `"platform-mesh-system"` |  |
-| ocm-k8s-toolkit.enabled | bool | `true` |  |
-| traefik-crds.enabled | bool | `true` |  |
-| traefik-crds.gatewayAPI | bool | `false` |  |
-| traefik-crds.gatewayAPIExperimental | bool | `true` |  |
-| traefik-crds.traefik | bool | `true` |  |
-| traefik.enabled | bool | `false` |  |
-| traefik.gateway.enabled | bool | `false` |  |
-| traefik.gatewayClass.enabled | bool | `true` |  |
-| traefik.providers.kubernetesGateway.enabled | bool | `true` |  |
-

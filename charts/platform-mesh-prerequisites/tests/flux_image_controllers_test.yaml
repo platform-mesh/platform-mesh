@@ -1,0 +1,16 @@
+suite: Optional Flux image controllers
+templates:
+  - charts/flux2/templates/image-automation-controller.yaml
+  - charts/flux2/templates/image-reflector-controller.yaml
+tests:
+  - it: omits image controllers by default
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: allows an installation to opt into image controllers
+    set:
+      flux2.imageAutomationController.create: true
+      flux2.imageReflectionController.create: true
+    asserts:
+      - isKind:
+          of: Deployment
