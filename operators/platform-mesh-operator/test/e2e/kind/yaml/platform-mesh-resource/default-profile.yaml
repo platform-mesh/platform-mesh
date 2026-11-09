@@ -509,14 +509,6 @@ data:
               # openfga's values.schema.json accepts only image.repository +
               # image.tag (rejects registry/digest), so fold the registry into it.
               image-ref: combined
-          - name: openfga-postgresql-image
-            resource: postgresql-image
-            resourceName: postgresql-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: openfga
-              path: postgresql.image.tag
               unsuspend: "true"
           values:
             autoscaling:

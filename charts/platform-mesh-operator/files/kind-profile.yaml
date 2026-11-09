@@ -409,14 +409,6 @@ data:
               artifact: image
               for: openfga
               image-ref: combined
-          - name: openfga-postgresql-image
-            resource: postgresql-image
-            resourceName: postgresql-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: openfga
-              path: postgresql.image.tag
               unsuspend: "true"
           values:
             autoscaling:
