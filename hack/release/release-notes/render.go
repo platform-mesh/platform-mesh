@@ -34,13 +34,16 @@ type notes struct {
 	Version string
 	// OCMVersion is the release without the leading v, as OCM and charts use it.
 	OCMVersion string
-	// StartOCMVersion is the release the notes start after, without the leading v.
+	// StartVersion is the release the notes start after, as vYY.MM.P[-pre].
+	StartVersion string
+	// StartOCMVersion is StartVersion without the leading v.
 	StartOCMVersion string
 	// RepoURL is the GitHub repository pull requests and commits link to.
-	RepoURL         string
-	ReleaseNotes    []releaseNote
-	Contributors    []author
-	Components      []versionRow
+	RepoURL      string
+	ReleaseNotes []releaseNote
+	Contributors []author
+	// Components are built from this repository, all at OCMVersion.
+	Components      []string
 	OtherComponents []versionRow
 	ThirdParty      []versionRow
 	Changes         []componentChanges

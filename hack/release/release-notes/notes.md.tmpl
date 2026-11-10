@@ -4,6 +4,8 @@
 
 To install see the [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with `--set-string ocm.version={{.OCMVersion}}`.
 
+Changes below are recorded since [{{.StartVersion}}]({{.RepoURL}}/releases/tag/{{.StartVersion}}).
+
 ## Release Notes
 {{range .ReleaseNotes}}
 - {{join .Lines "\n  "}} ([#{{.PR}}]({{$.RepoURL}}/pull/{{.PR}}))
@@ -21,7 +23,13 @@ No contributors.
 _{{len .Contributors}} contributor(s)_
 
 ## Components built from this repository
-{{template "table" (dict "Rows" .Components "Header" "Component" "From" .StartOCMVersion "To" .OCMVersion "Empty" "No components.")}}
+
+All at version `{{.OCMVersion}}`:
+{{range .Components}}
+- {{.}}
+{{- else}}
+No components.
+{{- end}}
 
 ## Components built from other repositories
 {{template "table" (dict "Rows" .OtherComponents "Header" "Component" "From" .StartOCMVersion "To" .OCMVersion "Empty" "No components from other repositories.")}}

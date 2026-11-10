@@ -131,21 +131,17 @@ func thirdPartyVersions(ctx context.Context, commit string) (map[string]string, 
 	return versions, nil
 }
 
-// componentRows lists the components with an image at the two versions.
-func componentRows(comps []component, from, to string) []versionRow {
-	var rows []versionRow
+// shippedComponents names the components built and published from this
+// repository, all at the release version.
+func shippedComponents(comps []component) []string {
+	var names []string
 	for _, c := range comps {
 		if c.Library || c.Image == "" {
 			continue
 		}
-		rows = append(rows, versionRow{
-			Name:    c.Name,
-			From:    from,
-			To:      to,
-			Changed: from != to,
-		})
+		names = append(names, c.Name)
 	}
-	return rows
+	return names
 }
 
 // otherComponentRows lists the charts of components built in other

@@ -51,7 +51,7 @@ func TestThirdPartyRows(t *testing.T) {
 	assert.Nil(t, thirdPartyRows(from, from))
 }
 
-func TestComponentRows(t *testing.T) {
+func TestShippedComponents(t *testing.T) {
 	t.Parallel()
 
 	comps := []component{
@@ -60,10 +60,7 @@ func TestComponentRows(t *testing.T) {
 		{Name: "provider-operator", Path: "operators/provider-operator"},
 		{Name: "root", Path: "."},
 	}
-	want := []versionRow{
-		{Name: "account-operator", From: "26.10.0", To: "26.11.0", Changed: true},
-	}
-	assert.Equal(t, want, componentRows(comps, "26.10.0", "26.11.0"), "libraries and components without an image are not shipped")
+	assert.Equal(t, []string{"account-operator"}, shippedComponents(comps), "libraries and components without an image are not shipped")
 }
 
 // TestVersionsAtCommits reads charts and third-party pins at two commits.

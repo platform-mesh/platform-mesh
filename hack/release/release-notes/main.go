@@ -123,11 +123,12 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	n := notes{
 		Version:         end.version.String(),
 		OCMVersion:      end.ocmVersion(),
+		StartVersion:    start.version.String(),
 		StartOCMVersion: start.ocmVersion(),
 		RepoURL:         repoURL,
 		ReleaseNotes:    releaseNotes(changes, prs),
 		Contributors:    contributors(prAuthors(prs), upstreamAuthors(other)),
-		Components:      componentRows(comps, start.ocmVersion(), end.ocmVersion()),
+		Components:      shippedComponents(comps),
 		OtherComponents: otherComponents,
 		ThirdParty:      thirdPartyRows(thirdPartyFrom, thirdPartyTo),
 		Changes:         mergeUpstream(grouped, other),
