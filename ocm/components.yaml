@@ -107,8 +107,8 @@ components:
     path: services/kubernetes-graphql-gateway
     image: kubernetes-graphql-gateway
     chart: charts/kubernetes-graphql-gateway
-  rebac-authz-webhook:
-    path: services/rebac-authz-webhook
+  pm-openfga-authz-webhook:
+    path: services/pm-openfga-authz-webhook
     image: rebac-authz-webhook
     chart: charts/rebac-authz-webhook
   virtual-workspaces:

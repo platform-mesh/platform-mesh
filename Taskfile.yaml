@@ -74,7 +74,7 @@ vars:
     # services
     - iam-service
     - kubernetes-graphql-gateway
-    - rebac-authz-webhook
+    - pm-openfga-authz-webhook
     - virtual-workspaces
 
 
@@ -131,7 +131,7 @@ tasks:
                                                run outside the cluster (localhost, *.portal.localhost)
           task tilt:ci                         start and wait until everything is ready
           task tilt:up -- --without=keycloak   leave Keycloak (and iam-service, iam-ui, pm-keycloak-operator) out
-          task tilt:up -- --without=openfga    leave OpenFGA (and rebac-authz-webhook, pm-openfga-operator) out
+          task tilt:up -- --without=openfga    leave OpenFGA (and pm-openfga-authz-webhook, pm-openfga-operator) out
           task tilt:e2e                        run the e2e suites (Go, then portal) against Tilt
           . contrib/tilt/env.sh                export the URLs and credentials for tests
 

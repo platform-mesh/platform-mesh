@@ -39,7 +39,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 |---------|-------------|
 | [iam-service](services/iam-service) | GraphQL API for user and role management, driving OpenFGA and the identity provider (Keycloak). |
 | [virtual-workspaces](services/virtual-workspaces) | Custom kcp-based virtual workspaces that expose tailored data to UIs. |
-| [rebac-authz-webhook](services/rebac-authz-webhook) | Kubernetes authorization webhook backed by OpenFGA (ReBAC). |
+| [pm-openfga-authz-webhook](services/pm-openfga-authz-webhook) | kcp authorization webhook backed by OpenFGA (ReBAC). |
 | [kubernetes-graphql-gateway](services/kubernetes-graphql-gateway) | Exposes Kubernetes resources as a GraphQL API for UIs and tools. |
 
 ## Getting started
