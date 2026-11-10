@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The integration tests (tests/integration, build tag `integration`) against a
-# kcp in Docker, and the Playwright portal suite (tests/e2e/portal, included
-# below as `portal-e2e:`). The Go code under tests/ belongs to the root module:
-# `task test-root`, `lint-root`, `build-root`, ... cover its unit tests and lint.
+# The integration tests (tests/integration) against a kcp in Docker, the e2e
+# tests (tests/e2e) against a deployed Platform Mesh, and the Playwright
+# portal suite (tests/e2e/portal, included below as `portal-e2e:`). The Go
+# code under tests/ belongs to the root module: `task test-root`, `lint-root`,
+# `build-root`, ... cover its unit tests and lint; test-root leaves integration/
+# and e2e/ out, they only run through the tasks here.
 # Included from the root Taskfile as `tests:`.
 #
 # The Playwright tasks keep the names they had in the helm-charts repository
@@ -48,4 +50,17 @@ tasks:
       # Read by tests/framework/kcp; with or without the leading v.
       KCP_VERSION: 'v{{.KCP_VERSION | default .REPO_KCP_VERSION | trimPrefix "v"}}'
     cmds:
-      - go test -tags integration -count=1 -p {{.P}} -timeout 40m {{.PKG}} {{.ADDITIONAL_COMMAND_ARGS}}
+      - go test -count=1 -p {{.P}} -timeout 40m {{.PKG}} {{.ADDITIONAL_COMMAND_ARGS}}
+  # --- e2e: against a deployed Platform Mesh (KUBECONFIG, ADMIN_KUBECONFIG) --
+  e2e:
+    desc: 'Run tests/e2e Go suites against the cluster KUBECONFIG points at, then the portal suite (TEST_RUN_ID= for the sharded portal run).'
+    vars:
+      TEST_RUN_ID: '{{.TEST_RUN_ID | default (now | unixEpoch | printf "%.8s")}}'
+    cmds:
+      - go test -count=1 -timeout 60m ./e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
+      - task: portal-e2e:default
+        vars: {TEST_RUN_ID: '{{.TEST_RUN_ID}}'}
+  e2e:go:
+    desc: 'Only the Go e2e suites (no Playwright).'
+    cmds:
+      - go test -count=1 -timeout 60m ./e2e/... {{.ADDITIONAL_COMMAND_ARGS}}

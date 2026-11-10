@@ -76,7 +76,7 @@ jobs:
 
   publish:
     needs: version
-    uses: ./.github/workflows/job-publish.yml
+    uses: $/.github/workflows/job-publish.yml
     permissions:
       contents: read
       packages: write # push images, charts and OCM components

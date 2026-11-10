@@ -39,19 +39,19 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0 # changes diffs against the base commit
-      - uses: ./.github/actions/changes
+      - uses: $/.github/actions/changes
         id: changes
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        if: steps.changes.outputs.components != '[]' || steps.changes.outputs.integration == 'true'
+        if: steps.changes.outputs.components != '[]' || steps.changes.outputs.tests == 'true'
         with:
           go-version-file: go.work
           cache: true # zizmor: ignore[cache-poisoning]
       - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
-        if: steps.changes.outputs.components != '[]' || steps.changes.outputs.integration == 'true'
+        if: steps.changes.outputs.components != '[]' || steps.changes.outputs.tests == 'true'
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Lint, tidy, boilerplate
-        if: steps.changes.outputs.components != '[]' || steps.changes.outputs.integration == 'true'
+        if: steps.changes.outputs.components != '[]' || steps.changes.outputs.tests == 'true'
         env:
           COMPONENTS: ${{ steps.changes.outputs.components }}
         run: |
@@ -67,5 +67,5 @@ jobs:
             exit 1
           fi
       - name: Lint, tidy, boilerplate (root module, holds the integration tests)
-        if: steps.changes.outputs.integration == 'true'
+        if: steps.changes.outputs.tests == 'true'
         run: task verify-root

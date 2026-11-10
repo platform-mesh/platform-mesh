@@ -62,6 +62,24 @@ task images-iam-service VERSION=v0.1.0 PUSH=false
 
 The modules are linked through the root [`go.work`](go.work), so cross-module changes resolve against local source during development.
 
+### Tests
+
+There are three tiers. Unit tests live next to the code; everything that needs a control plane lives under [`tests`](tests) in the root module (see [tests/README.md](tests/README.md)):
+
+```sh
+task test                # unit tests of every component (no kcp, no cluster)
+task test-integration    # tests/integration: components in-process against a kcp in Docker
+task tests:integration PKG=./integration/security/...   # one integration area
+task test-e2e            # tests/e2e: Go suites, then the Playwright portal suite, against a deployed stack (KUBECONFIG)
+```
+
+```
+tests/
+  framework/    shared helpers: the kcp in Docker, fixtures, managers, waits, scheme
+  integration/  one package per area (account, security, resourcebroker, ...)
+  e2e/          platform-mesh-operator (Go, against Tilt), portal (Playwright)
+```
+
 ## Development
 
 For the development loop, [Tilt](https://tilt.dev) replaces the OCM/Flux delivery pipeline: the kind installation from the [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) is rendered straight from [`charts/`](charts), and the operators and services you are working on are compiled on the host and hot-reloaded into their pods in seconds.
@@ -77,7 +95,7 @@ Then bring up the kind cluster and tilt:
 ```sh
 task tilt:up  # brings up tilt with a webinterface
 task tilt:ci  # bring up tilt until all resources are green, then exits
-task tilt:e2e # runs the portal sharded e2e tests against the running tilt PM instance
+task tilt:e2e # runs the tests/e2e Go suites, then the portal e2e tests, against the running tilt PM instance
 ```
 
 Everything is addressed as `<name>.pm.<node-ip>.sslip.io:31000`; `platformmesh-ready` turning green means the installation is usable. Chart changes are picked up live, service values come from the operator's [kind profile](charts/platform-mesh-operator/files/kind-profile.yaml).

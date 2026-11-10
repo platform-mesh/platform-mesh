@@ -135,8 +135,3 @@ tasks:
     desc: "Start the listener server (kills existing process on port 8090 if needed)"
     cmds:
       - go run main.go listener --apiexport-endpoint-slice-name gateway.platform-mesh.io --multicluster-runtime-provider kcp --kubeconfig=.secret/cc-d2-kcp.yaml
-
-  test-e2e:
-    desc: Ported to tests/integration/graphqlgateway (task test-integration PKG=./integration/graphqlgateway/...).
-    cmds:
-      - 'echo "kubernetes-graphql-gateway: integration tests live in tests/integration/graphqlgateway"'

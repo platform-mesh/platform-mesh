@@ -18,11 +18,10 @@
 # Prints GitHub Actions output lines (key=<json array>):
 #
 #   components       components (including libraries) to verify/test
-#   e2eComponents    subset with e2e tests
 #   imageComponents  subset that produce an image
 #   charts           chart names (directories under charts/) that changed
-#   integration      true when the integration tests (tests/integration) are
-#                    affected: any change under tests/, operators/,
+#   tests            true when the integration or e2e tests (tests/integration,
+#                    tests/e2e) are affected: any change under tests/, operators/,
 #                    services/, hack/ or a shared path (not a JSON array)
 #
 # Usage:
@@ -52,11 +51,11 @@ shared_re='^(go\.work|go\.work\.sum|ocm/components\.yaml|\.github/|Taskfile\.yam
 lib_paths=$(yq '.components | to_entries | map(select(.value.library == true)) | .[].value.path' "$registry")
 for p in $lib_paths; do shared_re="$shared_re|^$p/"; done
 
-# The integration tests (tests/integration against kcp) import every operator, so
-# any Go change selects it.
-integration=false
+# The integration and e2e tests (tests/integration against kcp, tests/e2e against
+# a deployed stack) import every operator, so any Go change selects it.
+tests=false
 if [ -z "$changed" ] || grep -qE "$shared_re|^(tests|operators|services|hack)/" <<<"$changed"; then
-  integration=true
+  tests=true
 fi
 
 if [ -z "$changed" ]; then
@@ -91,15 +90,12 @@ fi
 
 to_json() { { grep -v '^$' || true; } | sort -u | jq -R . | jq -s -c .; }
 
-e2e=""
 images=""
 for c in $selected_components; do
-  [ "$(yq ".components.\"$c\".e2e != false" "$registry")" = "true" ] && e2e+="$c"$'\n'
   [ "$(yq ".components.\"$c\".image // \"\"" "$registry")" != "" ] && images+="$c"$'\n'
 done
 
 echo "components=$(to_json <<<"$selected_components")"
-echo "e2eComponents=$(to_json <<<"$e2e")"
 echo "imageComponents=$(to_json <<<"$images")"
 echo "charts=$(to_json <<<"$selected_charts")"
-echo "integration=$integration"
+echo "tests=$tests"

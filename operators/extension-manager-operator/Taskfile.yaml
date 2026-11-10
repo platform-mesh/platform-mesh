@@ -146,8 +146,3 @@ tasks:
   run:
     cmds:
       - go run ./main.go operator
-
-  test-e2e:
-    desc: Ported to tests/integration/extensionmanager (task test-integration PKG=./integration/extensionmanager/...).
-    cmds:
-      - 'echo "extension-manager-operator: integration tests live in tests/integration/extensionmanager"'

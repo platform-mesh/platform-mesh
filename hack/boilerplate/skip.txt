@@ -30,13 +30,6 @@ contrib/tilt/.cache
 # Derived from the kcp project, keeps the upstream copyright
 operators/platform-mesh-operator/hack/download-tool.sh
 
-# Vendored upstream install manifests and CRDs (flux, kro, ocm, gardener etcd-druid, kcp)
-operators/platform-mesh-operator/test/e2e/kind/yaml/flux2-v2.6.4
-operators/platform-mesh-operator/test/e2e/kind/kustomize/base/kro/kro.yaml
-operators/platform-mesh-operator/test/e2e/kind/yaml/ocm-controller/ocm-controller.yaml
-operators/platform-mesh-operator/test/e2e/kind/kustomize/base/crds/druid.gardener.cloud_etcds.yaml
-operators/platform-mesh-operator/test/e2e/kind/kustomize/base/crds/druid.gardener.cloud_etcdcopybackupstasks.yaml
-
 # Imported from the helm-charts repository without headers; to be added
 # chart by chart. (A leading / anchors the entry at the repository root.)
 /charts/

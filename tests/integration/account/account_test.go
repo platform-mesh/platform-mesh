@@ -1,5 +1,3 @@
-//go:build integration
-
 /*
 Copyright The Platform Mesh Authors.
 
@@ -270,6 +268,24 @@ func testWorkspaceFinalizerRemovesWorkspace(t *testing.T, e *env) {
 
 	require.NoError(t, e.defaultOrg.Delete(ctx, account))
 
+	// The operator's part: its finalizer deletes the Workspace.
+	wait.Eventually(t, func() (bool, string) {
+		ws := &kcptenancyv1alpha1.Workspace{}
+		err := e.defaultOrg.Get(ctx, ctrlruntimeclient.ObjectKey{Name: accountName}, ws)
+		switch {
+		case apierrors.IsNotFound(err):
+			return true, ""
+		case err != nil:
+			return false, err.Error()
+		case ws.DeletionTimestamp != nil:
+			return true, ""
+		default:
+			return false, "Workspace not being deleted"
+		}
+	}, defaultTestTimeout, defaultTickInterval, "Workspace %s should be deleted by the finalizer", accountName)
+
+	// kcp's part: tearing the logical cluster down takes longer on the kcp
+	// shared with the other suites.
 	wait.Eventually(t, func() (bool, string) {
 		err := e.defaultOrg.Get(ctx, ctrlruntimeclient.ObjectKey{Name: accountName}, &kcptenancyv1alpha1.Workspace{})
 		switch {
@@ -280,5 +296,5 @@ func testWorkspaceFinalizerRemovesWorkspace(t *testing.T, e *env) {
 		default:
 			return false, "Workspace still exists"
 		}
-	}, defaultTestTimeout, defaultTickInterval, "Workspace %s should be deleted", accountName)
+	}, wait.Timeout, defaultTickInterval, "Workspace %s should be gone", accountName)
 }

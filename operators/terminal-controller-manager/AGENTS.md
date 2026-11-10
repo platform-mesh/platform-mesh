@@ -47,8 +47,7 @@ This service splits responsibility between kcp-backed `Terminal` resources and r
 - `task run` — run the controller locally.
 - `task fmt` — format Go code.
 - `task lint` — run formatting plus golangci-lint.
-- `task envtest` — run Go tests.
-- `task test` — run the standard local test flow.
+- `task test` — run the unit tests.
 - `task validate` — run lint and tests together.
 - `task manifests` — regenerate CRDs.
 - `task generate` — regenerate deepcopy code and API resources.

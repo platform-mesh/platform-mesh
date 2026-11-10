@@ -43,11 +43,6 @@ tasks:
     cmds:
       - go test -count=1 -short ./...
 
-  test-e2e:
-    desc: No e2e tests for the subroutines module.
-    cmds:
-      - 'echo "subroutines: no e2e tests"'
-
   cover:
     desc: Run tests with coverage
     cmds:

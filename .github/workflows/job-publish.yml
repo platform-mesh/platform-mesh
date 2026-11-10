@@ -312,7 +312,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJson(needs.components.outputs.images) }}
-    uses: ./.github/workflows/job-trivy-image.yml
+    uses: $/.github/workflows/job-trivy-image.yml
     permissions:
       contents: read
       packages: read # pull the image to scan
@@ -326,7 +326,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJson(needs.components.outputs.images) }}
-    uses: ./.github/workflows/job-trivy-sbom.yml
+    uses: $/.github/workflows/job-trivy-sbom.yml
     permissions:
       contents: read
       packages: read # read the SBOM from the component

@@ -64,10 +64,6 @@ tasks:
   test:
     deps:
       - task: unittest
-  test-e2e:
-    desc: No e2e tests for iam-service.
-    cmds:
-      - 'echo "iam-service: no e2e tests"'
   fuzz:
     desc: "Run fuzz tests with a configurable duration (default 30s per target)"
     vars:

@@ -173,8 +173,3 @@ tasks:
       - task: docker:kind:restart
         vars:
           DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
-
-  test-e2e:
-    desc: Ported to tests/integration/security (task test-integration PKG=./integration/security/...).
-    cmds:
-      - 'echo "security-operator: integration tests live in tests/integration/security"'

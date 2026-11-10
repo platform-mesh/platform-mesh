@@ -30,6 +30,11 @@ export PLATFORM_NAMESPACE
 _pm_kubectl() {
     kubectl --context "$KIND_CONTEXT" -n "$PLATFORM_NAMESPACE" "$@"
 }
+# Fail early, with a hint, when there is no Tilt environment to talk to.
+if ! _pm_kubectl get platformmesh platform-mesh > /dev/null 2>&1; then
+    echo "Tilt environment not detected: no PlatformMesh platform-mesh in $PLATFORM_NAMESPACE of context $KIND_CONTEXT; run 'task tilt:up' or 'task tilt:ci'" >&2
+    return 1
+fi
 
 BASE_DOMAIN="$(_pm_kubectl get platformmesh platform-mesh -o jsonpath='{.spec.exposure.baseDomain}')" || return 1
 export BASE_DOMAIN
@@ -61,6 +66,13 @@ export KEYCLOAK_BASE_URL
 KCP_URL="https://kcp.api.$BASE_DOMAIN:$_tilt_port"
 export KCP_URL
 
+# Re-export the kcp admin kubeconfig and root CA from the cluster: Tilt
+# exports them once, but the cluster's address (the kind node IP) can change
+# between runs and the copies go stale.
+KUBE_CONTEXT="$KIND_CONTEXT" NAMESPACE="$PLATFORM_NAMESPACE" \
+    "$_tilt_repo/contrib/tilt/hack/export-secret.sh" kubeconfig-kcp-admin kubeconfig "$_tilt_secret/kcp-admin.kubeconfig" || return 1
+KUBE_CONTEXT="$KIND_CONTEXT" NAMESPACE="$PLATFORM_NAMESPACE" \
+    "$_tilt_repo/contrib/tilt/hack/export-secret.sh" root-ca tls.crt "$_tilt_secret/kcp-root-ca.crt" || return 1
 ADMIN_KUBECONFIG="$_tilt_secret/kcp-admin.kubeconfig"
 export ADMIN_KUBECONFIG
 
