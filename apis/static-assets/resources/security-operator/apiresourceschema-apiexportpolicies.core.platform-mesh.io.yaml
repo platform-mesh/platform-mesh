@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
+  name: v261111-e939e08c.apiexportpolicies.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
