@@ -21,7 +21,7 @@ spec:
       initContainers:
         {{- if and .Values.caSecret .Values.webhookCaSecret }}
         - name: combine-ca
-          image: busybox:1.36
+          image: busybox:1.36 # image-schema:allow third-party utility image for CA concatenation, not a first-party component
           command:
           - sh
           - -c

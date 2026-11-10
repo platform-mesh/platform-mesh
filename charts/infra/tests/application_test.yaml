@@ -75,21 +75,12 @@ tests:
   set:
     gatewayApi:
       enabled: true
-      listeners:
-        - name: terminate
-          hostname: portal.localhost
-          port: 8443
-          protocol: HTTPS
-          tls:
-            mode: Terminate
-            certificateRefs:
-              - kind: Secret
-                name: domain-certificate
-                namespace: default2
+      baseDomain: portal.localhost
+      port: 8443
   asserts:
   - equal:
       path: spec.listeners[0].tls.certificateRefs[0].namespace
-      value: default2
+      value: platform-mesh-system
 - it: configure frontproxy resources
   templates:
     - kcp/front-proxy.yaml
