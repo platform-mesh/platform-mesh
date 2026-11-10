@@ -1,12 +1,12 @@
-# rebac-authz-webhook
+# pm-openfga-authz-webhook
 
-A Helm chart for Kubernetes
+kcp authorization webhook of a Platform Mesh installation, backed by OpenFGA
 
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| certManager.caSecretName | string | `"rebac-authz-webhook-webhook-ca"` |  |
+| certManager.caSecretName | string | `"pm-openfga-authz-webhook-webhook-ca"` |  |
 | certManager.dnsNames | list | `[]` |  |
 | certManager.enabled | bool | `true` |  |
 | certManager.ipAddresses | list | `[]` |  |
@@ -20,12 +20,12 @@ A Helm chart for Kubernetes
 | healthProbeBindAddress | string | `":8081"` |  |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
-| image.repository | string | `"platform-mesh/platform-mesh/rebac-authz-webhook"` | The image repository path (without registry) |
+| image.repository | string | `"platform-mesh/platform-mesh/pm-openfga-authz-webhook"` | The image repository path (without registry) |
 | image.tag | string | `""` |  |
 | istio.dnsNames | list | `[]` |  |
 | istio.enabled | bool | `false` |  |
 | kcp.apiExportEndpointSliceName | string | `""` | kcp APIExportEndpointSliceName to watch. Empty string means auto-discover all slices |
-| kcp.kubeconfig.secret | string | `"rebac-authz-webhook-kubeconfig"` |  |
+| kcp.kubeconfig.secret | string | `"pm-openfga-authz-webhook-kubeconfig"` |  |
 | openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` |  |
 | service.annotations | object | `{}` |  |
 | service.clusterIP | string | `""` |  |

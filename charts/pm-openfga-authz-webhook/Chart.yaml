@@ -1,6 +1,6 @@
 apiVersion: v2
-name: rebac-authz-webhook
-description: A Helm chart for Kubernetes
+name: pm-openfga-authz-webhook
+description: kcp authorization webhook of a Platform Mesh installation, backed by OpenFGA
 type: application
 version: 0.0.0
 appVersion: "0.0.0"

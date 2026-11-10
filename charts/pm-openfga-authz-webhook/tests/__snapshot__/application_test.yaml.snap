@@ -3,7 +3,7 @@ it should render the application manifests:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     rules:
       - apiGroups:
           - core.platform-mesh.io
@@ -34,29 +34,29 @@ it should render the application manifests:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRoleBinding
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     subjects:
       - kind: ServiceAccount
-        name: rebac-authz-webhook
+        name: pm-openfga-authz-webhook
         namespace: platform-mesh-system
   3: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
       namespace: platform-mesh-system
     spec:
       selector:
         matchLabels:
-          app: rebac-authz-webhook
+          app: pm-openfga-authz-webhook
       template:
         metadata:
           labels:
-            app: rebac-authz-webhook
+            app: pm-openfga-authz-webhook
         spec:
           containers:
             - args:
@@ -70,7 +70,7 @@ it should render the application manifests:
               env:
                 - name: KUBECONFIG
                   value: /api-kubeconfig/kubeconfig
-              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-authz-webhook:0.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -78,7 +78,7 @@ it should render the application manifests:
                   path: /healthz
                   port: 8081
                 periodSeconds: 10
-              name: rebac-authz-webhook
+              name: pm-openfga-authz-webhook
               ports:
                 - containerPort: 9443
                 - containerPort: 8080
@@ -107,19 +107,19 @@ it should render the application manifests:
                 - mountPath: /api-kubeconfig
                   name: api-kubeconfig
                   readOnly: true
-          serviceAccountName: rebac-authz-webhook
+          serviceAccountName: pm-openfga-authz-webhook
           volumes:
             - name: certs
               secret:
-                secretName: rebac-authz-webhook-cert
+                secretName: pm-openfga-authz-webhook-cert
             - name: api-kubeconfig
               secret:
-                secretName: rebac-authz-webhook-kubeconfig
+                secretName: pm-openfga-authz-webhook-kubeconfig
   4: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-ca-issuer
+      name: pm-openfga-authz-webhook-ca-issuer
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
@@ -127,65 +127,65 @@ it should render the application manifests:
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-ca
+      name: pm-openfga-authz-webhook-ca
       namespace: platform-mesh-system
     spec:
-      commonName: rebac-authz-webhook-ca
+      commonName: pm-openfga-authz-webhook-ca
       isCA: true
       issuerRef:
         group: cert-manager.io
         kind: Issuer
-        name: rebac-authz-webhook-ca-issuer
-      secretName: rebac-authz-webhook-webhook-ca
+        name: pm-openfga-authz-webhook-ca-issuer
+      secretName: pm-openfga-authz-webhook-webhook-ca
   6: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-issuer
+      name: pm-openfga-authz-webhook-issuer
       namespace: platform-mesh-system
     spec:
       ca:
-        secretName: rebac-authz-webhook-webhook-ca
+        secretName: pm-openfga-authz-webhook-webhook-ca
   7: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-cert
+      name: pm-openfga-authz-webhook-cert
       namespace: platform-mesh-system
     spec:
       dnsNames: []
       ipAddresses: []
       issuerRef:
-        name: rebac-authz-webhook-issuer
-      secretName: rebac-authz-webhook-cert
+        name: pm-openfga-authz-webhook-issuer
+      secretName: pm-openfga-authz-webhook-cert
   8: |
     apiVersion: v1
     kind: Service
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     spec:
       ports:
-        - name: rebac-authz-webhook
+        - name: pm-openfga-authz-webhook
           port: 9443
           targetPort: 9443
         - name: metrics
           port: 8080
           targetPort: 8080
       selector:
-        app: rebac-authz-webhook
+        app: pm-openfga-authz-webhook
       type: ClusterIP
   9: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
 it should render the application manifests with service account:
   1: |
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     rules:
       - apiGroups:
           - core.platform-mesh.io
@@ -216,29 +216,29 @@ it should render the application manifests with service account:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRoleBinding
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     subjects:
       - kind: ServiceAccount
-        name: rebac-authz-webhook
+        name: pm-openfga-authz-webhook
         namespace: platform-mesh-system
   3: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
       namespace: platform-mesh-system
     spec:
       selector:
         matchLabels:
-          app: rebac-authz-webhook
+          app: pm-openfga-authz-webhook
       template:
         metadata:
           labels:
-            app: rebac-authz-webhook
+            app: pm-openfga-authz-webhook
         spec:
           containers:
             - args:
@@ -252,7 +252,7 @@ it should render the application manifests with service account:
               env:
                 - name: KUBECONFIG
                   value: /api-kubeconfig/kubeconfig
-              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-authz-webhook:0.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -260,7 +260,7 @@ it should render the application manifests with service account:
                   path: /healthz
                   port: 8081
                 periodSeconds: 10
-              name: rebac-authz-webhook
+              name: pm-openfga-authz-webhook
               ports:
                 - containerPort: 9443
                 - containerPort: 8080
@@ -289,19 +289,19 @@ it should render the application manifests with service account:
                 - mountPath: /api-kubeconfig
                   name: api-kubeconfig
                   readOnly: true
-          serviceAccountName: rebac-authz-webhook
+          serviceAccountName: pm-openfga-authz-webhook
           volumes:
             - name: certs
               secret:
-                secretName: rebac-authz-webhook-cert
+                secretName: pm-openfga-authz-webhook-cert
             - name: api-kubeconfig
               secret:
-                secretName: rebac-authz-webhook-kubeconfig
+                secretName: pm-openfga-authz-webhook-kubeconfig
   4: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-ca-issuer
+      name: pm-openfga-authz-webhook-ca-issuer
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
@@ -309,65 +309,65 @@ it should render the application manifests with service account:
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-ca
+      name: pm-openfga-authz-webhook-ca
       namespace: platform-mesh-system
     spec:
-      commonName: rebac-authz-webhook-ca
+      commonName: pm-openfga-authz-webhook-ca
       isCA: true
       issuerRef:
         group: cert-manager.io
         kind: Issuer
-        name: rebac-authz-webhook-ca-issuer
-      secretName: rebac-authz-webhook-webhook-ca
+        name: pm-openfga-authz-webhook-ca-issuer
+      secretName: pm-openfga-authz-webhook-webhook-ca
   6: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-issuer
+      name: pm-openfga-authz-webhook-issuer
       namespace: platform-mesh-system
     spec:
       ca:
-        secretName: rebac-authz-webhook-webhook-ca
+        secretName: pm-openfga-authz-webhook-webhook-ca
   7: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-cert
+      name: pm-openfga-authz-webhook-cert
       namespace: platform-mesh-system
     spec:
       dnsNames: []
       ipAddresses: []
       issuerRef:
-        name: rebac-authz-webhook-issuer
-      secretName: rebac-authz-webhook-cert
+        name: pm-openfga-authz-webhook-issuer
+      secretName: pm-openfga-authz-webhook-cert
   8: |
     apiVersion: v1
     kind: Service
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     spec:
       ports:
-        - name: rebac-authz-webhook
+        - name: pm-openfga-authz-webhook
           port: 9443
           targetPort: 9443
         - name: metrics
           port: 8080
           targetPort: 8080
       selector:
-        app: rebac-authz-webhook
+        app: pm-openfga-authz-webhook
       type: ClusterIP
   9: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
 it should render the application manifests with service monitor:
   1: |
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     rules:
       - apiGroups:
           - core.platform-mesh.io
@@ -398,29 +398,29 @@ it should render the application manifests with service monitor:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRoleBinding
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     subjects:
       - kind: ServiceAccount
-        name: rebac-authz-webhook
+        name: pm-openfga-authz-webhook
         namespace: platform-mesh-system
   3: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
       namespace: platform-mesh-system
     spec:
       selector:
         matchLabels:
-          app: rebac-authz-webhook
+          app: pm-openfga-authz-webhook
       template:
         metadata:
           labels:
-            app: rebac-authz-webhook
+            app: pm-openfga-authz-webhook
         spec:
           containers:
             - args:
@@ -434,7 +434,7 @@ it should render the application manifests with service monitor:
               env:
                 - name: KUBECONFIG
                   value: /api-kubeconfig/kubeconfig
-              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-authz-webhook:0.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -442,7 +442,7 @@ it should render the application manifests with service monitor:
                   path: /healthz
                   port: 8081
                 periodSeconds: 10
-              name: rebac-authz-webhook
+              name: pm-openfga-authz-webhook
               ports:
                 - containerPort: 9443
                 - containerPort: 8080
@@ -471,19 +471,19 @@ it should render the application manifests with service monitor:
                 - mountPath: /api-kubeconfig
                   name: api-kubeconfig
                   readOnly: true
-          serviceAccountName: rebac-authz-webhook
+          serviceAccountName: pm-openfga-authz-webhook
           volumes:
             - name: certs
               secret:
-                secretName: rebac-authz-webhook-cert
+                secretName: pm-openfga-authz-webhook-cert
             - name: api-kubeconfig
               secret:
-                secretName: rebac-authz-webhook-kubeconfig
+                secretName: pm-openfga-authz-webhook-kubeconfig
   4: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-ca-issuer
+      name: pm-openfga-authz-webhook-ca-issuer
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
@@ -491,65 +491,65 @@ it should render the application manifests with service monitor:
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-ca
+      name: pm-openfga-authz-webhook-ca
       namespace: platform-mesh-system
     spec:
-      commonName: rebac-authz-webhook-ca
+      commonName: pm-openfga-authz-webhook-ca
       isCA: true
       issuerRef:
         group: cert-manager.io
         kind: Issuer
-        name: rebac-authz-webhook-ca-issuer
-      secretName: rebac-authz-webhook-webhook-ca
+        name: pm-openfga-authz-webhook-ca-issuer
+      secretName: pm-openfga-authz-webhook-webhook-ca
   6: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-issuer
+      name: pm-openfga-authz-webhook-issuer
       namespace: platform-mesh-system
     spec:
       ca:
-        secretName: rebac-authz-webhook-webhook-ca
+        secretName: pm-openfga-authz-webhook-webhook-ca
   7: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-cert
+      name: pm-openfga-authz-webhook-cert
       namespace: platform-mesh-system
     spec:
       dnsNames: []
       ipAddresses: []
       issuerRef:
-        name: rebac-authz-webhook-issuer
-      secretName: rebac-authz-webhook-cert
+        name: pm-openfga-authz-webhook-issuer
+      secretName: pm-openfga-authz-webhook-cert
   8: |
     apiVersion: v1
     kind: Service
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     spec:
       ports:
-        - name: rebac-authz-webhook
+        - name: pm-openfga-authz-webhook
           port: 9443
           targetPort: 9443
         - name: metrics
           port: 8080
           targetPort: 8080
       selector:
-        app: rebac-authz-webhook
+        app: pm-openfga-authz-webhook
       type: ClusterIP
   9: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
 it should render the application manifests with useInClusterClient:
   1: |
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     rules:
       - apiGroups:
           - core.platform-mesh.io
@@ -580,29 +580,29 @@ it should render the application manifests with useInClusterClient:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRoleBinding
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     subjects:
       - kind: ServiceAccount
-        name: rebac-authz-webhook
+        name: pm-openfga-authz-webhook
         namespace: platform-mesh-system
   3: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
       namespace: platform-mesh-system
     spec:
       selector:
         matchLabels:
-          app: rebac-authz-webhook
+          app: pm-openfga-authz-webhook
       template:
         metadata:
           labels:
-            app: rebac-authz-webhook
+            app: pm-openfga-authz-webhook
         spec:
           containers:
             - args:
@@ -616,7 +616,7 @@ it should render the application manifests with useInClusterClient:
               env:
                 - name: KUBECONFIG
                   value: /api-kubeconfig/kubeconfig
-              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-authz-webhook:0.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -624,7 +624,7 @@ it should render the application manifests with useInClusterClient:
                   path: /healthz
                   port: 8081
                 periodSeconds: 10
-              name: rebac-authz-webhook
+              name: pm-openfga-authz-webhook
               ports:
                 - containerPort: 9443
                 - containerPort: 8080
@@ -653,19 +653,19 @@ it should render the application manifests with useInClusterClient:
                 - mountPath: /api-kubeconfig
                   name: api-kubeconfig
                   readOnly: true
-          serviceAccountName: rebac-authz-webhook
+          serviceAccountName: pm-openfga-authz-webhook
           volumes:
             - name: certs
               secret:
-                secretName: rebac-authz-webhook-cert
+                secretName: pm-openfga-authz-webhook-cert
             - name: api-kubeconfig
               secret:
-                secretName: rebac-authz-webhook-kubeconfig
+                secretName: pm-openfga-authz-webhook-kubeconfig
   4: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-ca-issuer
+      name: pm-openfga-authz-webhook-ca-issuer
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
@@ -673,65 +673,65 @@ it should render the application manifests with useInClusterClient:
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-ca
+      name: pm-openfga-authz-webhook-ca
       namespace: platform-mesh-system
     spec:
-      commonName: rebac-authz-webhook-ca
+      commonName: pm-openfga-authz-webhook-ca
       isCA: true
       issuerRef:
         group: cert-manager.io
         kind: Issuer
-        name: rebac-authz-webhook-ca-issuer
-      secretName: rebac-authz-webhook-webhook-ca
+        name: pm-openfga-authz-webhook-ca-issuer
+      secretName: pm-openfga-authz-webhook-webhook-ca
   6: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-issuer
+      name: pm-openfga-authz-webhook-issuer
       namespace: platform-mesh-system
     spec:
       ca:
-        secretName: rebac-authz-webhook-webhook-ca
+        secretName: pm-openfga-authz-webhook-webhook-ca
   7: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-cert
+      name: pm-openfga-authz-webhook-cert
       namespace: platform-mesh-system
     spec:
       dnsNames: []
       ipAddresses: []
       issuerRef:
-        name: rebac-authz-webhook-issuer
-      secretName: rebac-authz-webhook-cert
+        name: pm-openfga-authz-webhook-issuer
+      secretName: pm-openfga-authz-webhook-cert
   8: |
     apiVersion: v1
     kind: Service
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     spec:
       ports:
-        - name: rebac-authz-webhook
+        - name: pm-openfga-authz-webhook
           port: 9443
           targetPort: 9443
         - name: metrics
           port: 8080
           targetPort: 8080
       selector:
-        app: rebac-authz-webhook
+        app: pm-openfga-authz-webhook
       type: ClusterIP
   9: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
 it should render the cert-manager manifests with certManager enabled:
   1: |
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     rules:
       - apiGroups:
           - core.platform-mesh.io
@@ -762,29 +762,29 @@ it should render the cert-manager manifests with certManager enabled:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRoleBinding
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     subjects:
       - kind: ServiceAccount
-        name: rebac-authz-webhook
+        name: pm-openfga-authz-webhook
         namespace: platform-mesh-system
   3: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
       namespace: platform-mesh-system
     spec:
       selector:
         matchLabels:
-          app: rebac-authz-webhook
+          app: pm-openfga-authz-webhook
       template:
         metadata:
           labels:
-            app: rebac-authz-webhook
+            app: pm-openfga-authz-webhook
         spec:
           containers:
             - args:
@@ -798,7 +798,7 @@ it should render the cert-manager manifests with certManager enabled:
               env:
                 - name: KUBECONFIG
                   value: /api-kubeconfig/kubeconfig
-              image: ghcr.io/platform-mesh/platform-mesh/rebac-authz-webhook:0.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-authz-webhook:0.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -806,7 +806,7 @@ it should render the cert-manager manifests with certManager enabled:
                   path: /healthz
                   port: 8081
                 periodSeconds: 10
-              name: rebac-authz-webhook
+              name: pm-openfga-authz-webhook
               ports:
                 - containerPort: 9443
                 - containerPort: 8080
@@ -835,19 +835,19 @@ it should render the cert-manager manifests with certManager enabled:
                 - mountPath: /api-kubeconfig
                   name: api-kubeconfig
                   readOnly: true
-          serviceAccountName: rebac-authz-webhook
+          serviceAccountName: pm-openfga-authz-webhook
           volumes:
             - name: certs
               secret:
-                secretName: rebac-authz-webhook-cert
+                secretName: pm-openfga-authz-webhook-cert
             - name: api-kubeconfig
               secret:
-                secretName: rebac-authz-webhook-kubeconfig
+                secretName: pm-openfga-authz-webhook-kubeconfig
   4: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-ca-issuer
+      name: pm-openfga-authz-webhook-ca-issuer
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
@@ -855,65 +855,65 @@ it should render the cert-manager manifests with certManager enabled:
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-ca
+      name: pm-openfga-authz-webhook-ca
       namespace: platform-mesh-system
     spec:
-      commonName: rebac-authz-webhook-ca
+      commonName: pm-openfga-authz-webhook-ca
       isCA: true
       issuerRef:
         group: cert-manager.io
         kind: Issuer
-        name: rebac-authz-webhook-ca-issuer
-      secretName: rebac-authz-webhook-webhook-ca
+        name: pm-openfga-authz-webhook-ca-issuer
+      secretName: pm-openfga-authz-webhook-webhook-ca
   6: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
-      name: rebac-authz-webhook-issuer
+      name: pm-openfga-authz-webhook-issuer
       namespace: platform-mesh-system
     spec:
       ca:
-        secretName: rebac-authz-webhook-webhook-ca
+        secretName: pm-openfga-authz-webhook-webhook-ca
   7: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
-      name: rebac-authz-webhook-cert
+      name: pm-openfga-authz-webhook-cert
       namespace: platform-mesh-system
     spec:
       dnsNames: []
       ipAddresses: []
       issuerRef:
-        name: rebac-authz-webhook-issuer
-      secretName: rebac-authz-webhook-cert
+        name: pm-openfga-authz-webhook-issuer
+      secretName: pm-openfga-authz-webhook-cert
   8: |
     apiVersion: v1
     kind: Service
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
     spec:
       clusterIP: 10.96.86.219
       ports:
-        - name: rebac-authz-webhook
+        - name: pm-openfga-authz-webhook
           port: 9443
           targetPort: 9443
         - name: metrics
           port: 8080
           targetPort: 8080
       selector:
-        app: rebac-authz-webhook
+        app: pm-openfga-authz-webhook
       type: ClusterIP
   9: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
   10: |
     apiVersion: networking.istio.io/v1beta1
     kind: VirtualService
     metadata:
-      name: rebac-authz-webhook
+      name: pm-openfga-authz-webhook
       namespace: platform-mesh-system
     spec:
       gateways:
@@ -926,6 +926,6 @@ it should render the cert-manager manifests with certManager enabled:
                 - webhook.portal.cc.showroom.apeirora.eu
           route:
             - destination:
-                host: rebac-authz-webhook.platform-mesh-system.svc.cluster.local
+                host: pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local
                 port:
                   number: 9443
