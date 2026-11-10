@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package releasenotes
 
 import (
 	"context"
@@ -66,8 +66,8 @@ type upstreamCommit struct {
 	Author author
 }
 
-// repoOwnerName splits a GitHub repository URL into owner and name.
-func repoOwnerName(repoURL string) (string, string, error) {
+// RepoOwnerName splits a GitHub repository URL into owner and name.
+func RepoOwnerName(repoURL string) (string, string, error) {
 	path := strings.TrimPrefix(strings.TrimSuffix(repoURL, ".git"), "https://github.com/")
 	owner, name, ok := strings.Cut(path, "/")
 	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
@@ -76,11 +76,11 @@ func repoOwnerName(repoURL string) (string, string, error) {
 	return owner, name, nil
 }
 
-// newGitHub returns a client authenticated with GH_TOKEN or GITHUB_TOKEN
+// NewGitHub returns a client authenticated with GH_TOKEN or GITHUB_TOKEN
 // when either is set, anonymous otherwise.
 // apiTimeout bounds every request; go-github's default client has none,
 // and a hung connection would otherwise stall the release job.
-func newGitHub() *github.Client {
+func NewGitHub() *github.Client {
 	client := github.NewClient(&http.Client{Timeout: apiTimeout})
 	for _, key := range []string{"GH_TOKEN", "GITHUB_TOKEN"} {
 		if token := os.Getenv(key); token != "" {

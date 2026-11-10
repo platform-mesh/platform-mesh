@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package releasenotes
 
 import (
 	"testing"
@@ -54,7 +54,7 @@ func TestReleaseNoteOf(t *testing.T) {
 func TestReleaseNotes(t *testing.T) {
 	t.Parallel()
 
-	changes := []change{
+	changes := []Change{
 		{SHA: "a", Title: "newest", PR: 3},
 		{SHA: "b", Title: "direct"},
 		{SHA: "c", Title: "none", PR: 2},
@@ -116,7 +116,7 @@ func TestRepoOwnerName(t *testing.T) {
 	for title, cas := range cases {
 		t.Run(title, func(t *testing.T) {
 			t.Parallel()
-			owner, name, err := repoOwnerName(cas.url)
+			owner, name, err := RepoOwnerName(cas.url)
 			if cas.wantErr {
 				assert.Error(t, err)
 				return

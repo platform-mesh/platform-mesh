@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package releasenotes
 
 import (
 	"context"
@@ -31,16 +31,16 @@ import (
 const (
 	// unversioned is the Chart.yaml appVersion of charts built from this repository.
 	unversioned = "0.0.0"
-	// absent marks a version that did not exist at one end of the range.
-	absent = "–"
+	// Absent marks a version that did not exist at one end of the range.
+	Absent = "–"
 	// removed marks a version that was dropped by the end of the range.
 	removed = "removed"
 	// constructorFile declares a third-party component and its pinned resources.
 	constructorFile = "component-constructor.yaml"
 )
 
-// versionRow is one line of a version table.
-type versionRow struct {
+// VersionRow is one line of a version table.
+type VersionRow struct {
 	Name    string
 	From    string
 	To      string
@@ -50,14 +50,14 @@ type versionRow struct {
 	Source string
 }
 
-// chartMeta is the part of Chart.yaml the notes read.
-type chartMeta struct {
+// ChartMeta is the part of Chart.yaml the notes read.
+type ChartMeta struct {
 	AppVersion string   `yaml:"appVersion"`
 	Sources    []string `yaml:"sources"`
 }
 
-// showFile returns a file at a commit, and false when it does not exist there.
-func showFile(ctx context.Context, commit, path string) ([]byte, bool, error) {
+// ShowFile returns a file at a commit, and false when it does not exist there.
+func ShowFile(ctx context.Context, commit, path string) ([]byte, bool, error) {
 	entry, err := releaseutils.Git(ctx, "ls-tree", commit, "--", path)
 	if err != nil {
 		return nil, false, fmt.Errorf("looking up %s at %s: %w", path, commit, err)
@@ -72,8 +72,8 @@ func showFile(ctx context.Context, commit, path string) ([]byte, bool, error) {
 	return []byte(out), true, nil
 }
 
-// chartNames lists the charts under charts/ at a commit.
-func chartNames(ctx context.Context, commit string) ([]string, error) {
+// ChartNames lists the charts under charts/ at a commit.
+func ChartNames(ctx context.Context, commit string) ([]string, error) {
 	return dirsWithFile(ctx, commit, "charts", "Chart.yaml")
 }
 
@@ -94,16 +94,16 @@ func dirsWithFile(ctx context.Context, commit, dir, file string) ([]string, erro
 	return names, nil
 }
 
-// readChart returns Chart.yaml of a chart at a commit,
+// ReadChart returns Chart.yaml of a chart at a commit,
 // and false when the chart does not exist there.
-func readChart(ctx context.Context, commit, chart string) (chartMeta, bool, error) {
-	data, ok, err := showFile(ctx, commit, "charts/"+chart+"/Chart.yaml")
+func ReadChart(ctx context.Context, commit, chart string) (ChartMeta, bool, error) {
+	data, ok, err := ShowFile(ctx, commit, "charts/"+chart+"/Chart.yaml")
 	if err != nil || !ok {
-		return chartMeta{}, false, err
+		return ChartMeta{}, false, err
 	}
-	var meta chartMeta
+	var meta ChartMeta
 	if err := yaml.Unmarshal(data, &meta); err != nil {
-		return chartMeta{}, false, fmt.Errorf("parsing charts/%s/Chart.yaml at %s: %w", chart, commit, err)
+		return ChartMeta{}, false, fmt.Errorf("parsing charts/%s/Chart.yaml at %s: %w", chart, commit, err)
 	}
 	return meta, true, nil
 }
@@ -112,17 +112,17 @@ func readChart(ctx context.Context, commit, chart string) (chartMeta, bool, erro
 func gitHubSource(sources []string) string {
 	for _, src := range sources {
 		src = strings.TrimSuffix(strings.TrimSuffix(src, "/"), ".git")
-		if _, _, err := repoOwnerName(src); err == nil {
+		if _, _, err := RepoOwnerName(src); err == nil {
 			return src
 		}
 	}
 	return ""
 }
 
-// thirdPartyVersions returns the pinned resource versions of every
+// ThirdPartyVersions returns the pinned resource versions of every
 // third_party/<dir>/component-constructor.yaml at a commit, keyed
 // <dir>/<resource>.
-func thirdPartyVersions(ctx context.Context, commit string) (map[string]string, error) {
+func ThirdPartyVersions(ctx context.Context, commit string) (map[string]string, error) {
 	dirs, err := dirsWithFile(ctx, commit, "third_party", constructorFile)
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func thirdPartyVersions(ctx context.Context, commit string) (map[string]string, 
 	versions := map[string]string{}
 	for _, dir := range dirs {
 		path := "third_party/" + dir + "/" + constructorFile
-		data, ok, err := showFile(ctx, commit, path)
+		data, ok, err := ShowFile(ctx, commit, path)
 		if err != nil || !ok {
 			return nil, err
 		}
@@ -156,7 +156,7 @@ func thirdPartyVersions(ctx context.Context, commit string) (map[string]string, 
 
 // shippedComponents names the components built and published from this
 // repository, all at the release version.
-func shippedComponents(comps []component) []string {
+func shippedComponents(comps []Component) []string {
 	var names []string
 	for _, c := range comps {
 		if c.Library || c.Image == "" {
@@ -167,31 +167,31 @@ func shippedComponents(comps []component) []string {
 	return names
 }
 
-// otherComponentRows lists the charts of components built in other
+// OtherComponentRows lists the charts of components built in other
 // repositories with their appVersion at both commits.
-func otherComponentRows(ctx context.Context, start, end string) ([]versionRow, error) {
-	charts, err := chartNames(ctx, end)
+func OtherComponentRows(ctx context.Context, start, end string) ([]VersionRow, error) {
+	charts, err := ChartNames(ctx, end)
 	if err != nil {
 		return nil, err
 	}
-	var rows []versionRow
+	var rows []VersionRow
 	for _, chart := range charts {
-		meta, _, err := readChart(ctx, end, chart)
+		meta, _, err := ReadChart(ctx, end, chart)
 		if err != nil {
 			return nil, err
 		}
 		if meta.AppVersion == "" || meta.AppVersion == unversioned {
 			continue
 		}
-		before, _, err := readChart(ctx, start, chart)
+		before, _, err := ReadChart(ctx, start, chart)
 		if err != nil {
 			return nil, err
 		}
 		from := before.AppVersion
 		if from == "" || from == unversioned {
-			from = absent
+			from = Absent
 		}
-		rows = append(rows, versionRow{
+		rows = append(rows, VersionRow{
 			Name:    chart,
 			From:    from,
 			To:      meta.AppVersion,
@@ -203,7 +203,7 @@ func otherComponentRows(ctx context.Context, start, end string) ([]versionRow, e
 }
 
 // thirdPartyRows lists the pins that differ between the two maps.
-func thirdPartyRows(from, to map[string]string) []versionRow {
+func thirdPartyRows(from, to map[string]string) []VersionRow {
 	all := map[string]bool{}
 	for k := range from {
 		all[k] = true
@@ -211,7 +211,7 @@ func thirdPartyRows(from, to map[string]string) []versionRow {
 	for k := range to {
 		all[k] = true
 	}
-	var rows []versionRow
+	var rows []VersionRow
 	for _, k := range slices.Sorted(maps.Keys(all)) {
 		before, inFrom := from[k]
 		after, inTo := to[k]
@@ -219,12 +219,12 @@ func thirdPartyRows(from, to map[string]string) []versionRow {
 			continue
 		}
 		if !inFrom {
-			before = absent
+			before = Absent
 		}
 		if !inTo {
 			after = removed
 		}
-		rows = append(rows, versionRow{
+		rows = append(rows, VersionRow{
 			Name:    k,
 			From:    before,
 			To:      after,

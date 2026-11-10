@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package releasenotes
 
 import (
 	"errors"
@@ -234,10 +234,10 @@ func TestCompare(t *testing.T) {
 func TestNewGitHub(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
-	assert.NotNil(t, newGitHub(), "anonymous client")
+	assert.NotNil(t, NewGitHub(), "anonymous client")
 
 	t.Setenv("GH_TOKEN", "token")
-	assert.NotNil(t, newGitHub(), "authenticated client")
+	assert.NotNil(t, NewGitHub(), "authenticated client")
 }
 
 func TestOtherChanges(t *testing.T) {
@@ -249,10 +249,10 @@ func TestOtherChanges(t *testing.T) {
 	})
 	client := apiServer(t, mux)
 
-	rows := []versionRow{
+	rows := []VersionRow{
 		{Name: "portal", From: "v0.27.20", To: "v0.27.32", Changed: true, Source: "https://github.com/platform-mesh/portal"},
 		{Name: "iam-ui", From: "v0.12.23", To: "v0.12.23", Source: "https://github.com/platform-mesh/iam-ui"},
-		{Name: "new-ui", From: absent, To: "v1.0.0", Changed: true, Source: "https://github.com/platform-mesh/new-ui"},
+		{Name: "new-ui", From: Absent, To: "v1.0.0", Changed: true, Source: "https://github.com/platform-mesh/new-ui"},
 		{Name: "kcp-access-vw", From: "0.1.0", To: "0.1.1", Changed: true, Source: "https://github.com/kcp-dev/contrib-virtual-workspaces"},
 		{Name: "platform-mesh-prerequisites", From: "0.1.0", To: "0.1.1", Changed: true},
 	}
@@ -285,7 +285,7 @@ func TestOtherChanges_rateLimited(t *testing.T) {
 	})
 	client := apiServer(t, mux)
 
-	_, err := otherChanges(t.Context(), client, []versionRow{{Name: "portal", From: "a", To: "b", Changed: true, Source: "https://github.com/platform-mesh/portal"}})
+	_, err := otherChanges(t.Context(), client, []VersionRow{{Name: "portal", From: "a", To: "b", Changed: true, Source: "https://github.com/platform-mesh/portal"}})
 	require.Error(t, err, "a rate limit must fail the notes, not drop the commits")
 	assert.Contains(t, err.Error(), "GH_TOKEN")
 }
@@ -299,11 +299,11 @@ func TestCollectPRs_failsClosed(t *testing.T) {
 	})
 	client := apiServer(t, mux)
 
-	prs, err := collectPRs(t.Context(), client, "platform-mesh", "platform-mesh", []change{{PR: 1}, {PR: 1}, {}})
+	prs, err := collectPRs(t.Context(), client, "platform-mesh", "platform-mesh", []Change{{PR: 1}, {PR: 1}, {}})
 	require.NoError(t, err)
 	assert.Len(t, prs, 1, "read once per pull request, direct commits skipped")
 
-	_, err = collectPRs(t.Context(), client, "platform-mesh", "platform-mesh", []change{{PR: 1}, {PR: 2}})
+	_, err = collectPRs(t.Context(), client, "platform-mesh", "platform-mesh", []Change{{PR: 1}, {PR: 2}})
 	require.Error(t, err, "an unreadable pull request fails the notes")
 }
 

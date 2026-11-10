@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package releasenotes
 
 import (
 	"context"
@@ -70,7 +70,7 @@ func finishReleaseNote(lines []string) ([]string, bool) {
 
 // collectPRs reads every pull request the changes were merged through.
 // A failure fails the notes: incomplete notes must not be published.
-func collectPRs(ctx context.Context, client *github.Client, owner, repo string, changes []change) (map[int]pr, error) {
+func collectPRs(ctx context.Context, client *github.Client, owner, repo string, changes []Change) (map[int]pr, error) {
 	prs := map[int]pr{}
 	for _, ch := range changes {
 		if ch.PR == 0 {
@@ -89,7 +89,7 @@ func collectPRs(ctx context.Context, client *github.Client, owner, repo string, 
 }
 
 // releaseNotes returns the release notes of the changes, in change order.
-func releaseNotes(changes []change, prs map[int]pr) []releaseNote {
+func releaseNotes(changes []Change, prs map[int]pr) []releaseNote {
 	var result []releaseNote
 	seen := map[int]bool{}
 	for _, ch := range changes {
@@ -124,13 +124,13 @@ type upstreamChanges struct {
 // GitHub repository its chart names as source. Charts without one are not
 // compared; a source without the versions as tags is logged and left out;
 // any other failure fails the notes.
-func otherChanges(ctx context.Context, client *github.Client, rows []versionRow) ([]upstreamChanges, error) {
+func otherChanges(ctx context.Context, client *github.Client, rows []VersionRow) ([]upstreamChanges, error) {
 	var result []upstreamChanges
 	for _, row := range rows {
-		if !row.Changed || row.From == absent || row.Source == "" {
+		if !row.Changed || row.From == Absent || row.Source == "" {
 			continue
 		}
-		owner, repo, err := repoOwnerName(row.Source)
+		owner, repo, err := RepoOwnerName(row.Source)
 		if err != nil {
 			return nil, err
 		}

@@ -43,9 +43,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
+	"go.platform-mesh.io/platform-mesh/hack/release/release-notes/releasenotes"
 	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
@@ -73,80 +73,24 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		return errors.New("usage: release-notes [--start <ref>] [--end <ref>]")
 	}
 
-	end, err := resolveRef(ctx, *endFlag)
+	end, err := releasenotes.ResolveRef(ctx, *endFlag)
 	if err != nil {
 		return err
 	}
-
-	var start ref
+	var start releasenotes.Ref
 	if *startFlag == "" {
-		start, err = defaultStart(ctx, end)
+		start, err = releasenotes.DefaultStart(ctx, end)
 	} else {
-		start, err = resolveRef(ctx, *startFlag)
+		start, err = releasenotes.ResolveRef(ctx, *startFlag)
 	}
-	if err != nil {
-		return err
-	}
-	if err := checkRange(ctx, start, end); err != nil {
-		return err
-	}
-
-	repoURL := strings.TrimSuffix(releaseutils.EnvOr("REPO_URL", releaseutils.DefaultRepoURL), ".git")
-	owner, repo, err := repoOwnerName(repoURL)
-	if err != nil {
-		return err
-	}
-	client := newGitHub()
-
-	changes, err := firstParentLog(ctx, repoURL, start.commit, end.commit)
-	if err != nil {
-		return err
-	}
-	if len(changes) == 0 {
-		return fmt.Errorf("no commits between %s and %s", start.version, end.version)
-	}
-	comps, err := components(ctx, end.commit)
-	if err != nil {
-		return err
-	}
-	grouped, err := groupChanges(ctx, comps, changes)
-	if err != nil {
-		return err
-	}
-	prs, err := collectPRs(ctx, client, owner, repo, changes)
 	if err != nil {
 		return err
 	}
 
-	otherComponents, err := otherComponentRows(ctx, start.commit, end.commit)
-	if err != nil {
-		return err
+	opts := releasenotes.Options{
+		Start:   start,
+		End:     end,
+		RepoURL: releaseutils.EnvOr("REPO_URL", releaseutils.DefaultRepoURL),
 	}
-	other, err := otherChanges(ctx, client, otherComponents)
-	if err != nil {
-		return err
-	}
-	thirdPartyFrom, err := thirdPartyVersions(ctx, start.commit)
-	if err != nil {
-		return err
-	}
-	thirdPartyTo, err := thirdPartyVersions(ctx, end.commit)
-	if err != nil {
-		return err
-	}
-
-	n := notes{
-		Version:         end.version.String(),
-		OCMVersion:      end.ocmVersion(),
-		StartVersion:    start.version.String(),
-		StartOCMVersion: start.ocmVersion(),
-		RepoURL:         repoURL,
-		ReleaseNotes:    releaseNotes(changes, prs),
-		Contributors:    contributors(prAuthors(prs), upstreamAuthors(other)),
-		Components:      shippedComponents(comps),
-		OtherComponents: otherComponents,
-		ThirdParty:      thirdPartyRows(thirdPartyFrom, thirdPartyTo),
-		Changes:         mergeUpstream(grouped, other),
-	}
-	return render(stdout, n)
+	return releasenotes.Generate(ctx, opts, stdout)
 }

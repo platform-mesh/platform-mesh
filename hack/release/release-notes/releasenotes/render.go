@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package releasenotes
 
 import (
 	"fmt"
@@ -44,9 +44,9 @@ type notes struct {
 	Contributors []author
 	// Components are built from this repository, all at OCMVersion.
 	Components      []string
-	OtherComponents []versionRow
-	ThirdParty      []versionRow
-	Changes         []componentChanges
+	OtherComponents []VersionRow
+	ThirdParty      []VersionRow
+	Changes         []ComponentChanges
 }
 
 func render(w io.Writer, n notes) error {

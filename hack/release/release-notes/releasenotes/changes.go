@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package releasenotes
 
 import (
 	"context"
@@ -32,8 +32,8 @@ import (
 const (
 	// componentsFile registers the components built from this repository.
 	componentsFile = "ocm/components.yaml"
-	// repositoryComponent collects changes outside any component.
-	repositoryComponent = "repository"
+	// RepositoryComponent collects changes outside any component.
+	RepositoryComponent = "repository"
 	// thirdPartyComponent collects changes to third_party/.
 	thirdPartyComponent = "third-party"
 	// multipleComponents collects changes touching more components than maxComponents.
@@ -50,8 +50,8 @@ var (
 	housekeeping = regexp.MustCompile(`(?i)^(tidy|go mod tidy|codegen|generate|regenerate|lint|fmt|gofmt)$`)
 )
 
-// change is one commit between the two refs.
-type change struct {
+// Change is one commit between the two refs.
+type Change struct {
 	SHA   string
 	Title string
 	// PR is 0 for a commit that was not merged through a pull request.
@@ -65,8 +65,8 @@ func isNoise(title string) bool {
 	return appVersionBump.MatchString(title) || housekeeping.MatchString(title)
 }
 
-// component is an entry of ocm/components.yaml.
-type component struct {
+// Component is an entry of ocm/components.yaml.
+type Component struct {
 	Name    string
 	Path    string `yaml:"path"`
 	Chart   string `yaml:"chart"`
@@ -74,31 +74,34 @@ type component struct {
 	Library bool   `yaml:"library"`
 }
 
-// componentChanges are the changes attributed to one component.
-type componentChanges struct {
+// ComponentChanges are the changes attributed to one component.
+type ComponentChanges struct {
 	Component string
 	// From and To are the versions of a component built in another
 	// repository; empty for components built here.
 	From    string
 	To      string
-	Changes []change
+	Changes []Change
 }
 
-// firstParentLog returns the first-parent commits in start..end, newest first,
+// FirstParentLog returns the first-parent commits in start..end, newest first,
 // linking to repoURL.
-func firstParentLog(ctx context.Context, repoURL, start, end string) ([]change, error) {
+func FirstParentLog(ctx context.Context, repoURL, start, end string) ([]Change, error) {
+	// The format is a tformat, which git calles "terminator" semantics,
+	// in which a terminator character is appended between entries
+	// instead of a separator.
 	out, err := releaseutils.Git(ctx, "log", "--first-parent", "--format=%H%x1f%s%x1f%b%x1e", start+".."+end)
 	if err != nil {
 		return nil, fmt.Errorf("listing commits %s..%s: %w", start, end, err)
 	}
-	var changes []change
+	var changes []Change
 	for entry := range strings.SplitSeq(out, "\x1e") {
 		fields := strings.SplitN(strings.TrimLeft(entry, "\n"), "\x1f", 3)
 		if len(fields) != 3 {
 			continue
 		}
 		title, number := parseLogEntry(fields[1], fields[2])
-		changes = append(changes, change{
+		changes = append(changes, Change{
 			SHA:   fields[0],
 			Title: title,
 			PR:    number,
@@ -123,29 +126,29 @@ func parseLogEntry(subject, body string) (string, int) {
 	return splitPRSuffix(subject)
 }
 
-// components reads ocm/components.yaml at a commit.
-func components(ctx context.Context, commit string) ([]component, error) {
+// Components reads ocm/Components.yaml at a commit.
+func Components(ctx context.Context, commit string) ([]Component, error) {
 	out, err := releaseutils.Git(ctx, "show", commit+":"+componentsFile)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s at %s: %w", componentsFile, commit, err)
 	}
 	var file struct {
-		Components map[string]component `yaml:"components"`
+		Components map[string]Component `yaml:"components"`
 	}
 	if err := yaml.Unmarshal([]byte(out), &file); err != nil {
 		return nil, fmt.Errorf("parsing %s at %s: %w", componentsFile, commit, err)
 	}
-	comps := make([]component, 0, len(file.Components))
+	comps := make([]Component, 0, len(file.Components))
 	for name, c := range file.Components {
 		c.Name = name
 		comps = append(comps, c)
 	}
-	slices.SortFunc(comps, func(a, b component) int { return strings.Compare(a.Name, b.Name) })
+	slices.SortFunc(comps, func(a, b Component) int { return strings.Compare(a.Name, b.Name) })
 	return comps, nil
 }
 
 // componentOf names the component a changed file belongs to.
-func componentOf(path string, comps []component) string {
+func componentOf(path string, comps []Component) string {
 	best, bestLen := "", 0
 	for _, c := range comps {
 		for _, dir := range []string{c.Path, c.Chart} {
@@ -166,7 +169,7 @@ func componentOf(path string, comps []component) string {
 	case strings.HasPrefix(path, "third_party/"):
 		return thirdPartyComponent
 	default:
-		return repositoryComponent
+		return RepositoryComponent
 	}
 }
 
@@ -179,10 +182,10 @@ func changedPaths(ctx context.Context, sha string) ([]string, error) {
 	return strings.Fields(out), nil
 }
 
-// groupChanges attributes every change to the components it touched,
+// GroupChanges attributes every change to the components it touched,
 // sorted by component name. Noise is dropped.
-func groupChanges(ctx context.Context, comps []component, changes []change) ([]componentChanges, error) {
-	byComponent := map[string][]change{}
+func GroupChanges(ctx context.Context, comps []Component, changes []Change) ([]ComponentChanges, error) {
+	byComponent := map[string][]Change{}
 	for _, ch := range changes {
 		if isNoise(ch.Title) {
 			continue
@@ -197,7 +200,7 @@ func groupChanges(ctx context.Context, comps []component, changes []change) ([]c
 		}
 		switch {
 		case len(names) == 0:
-			byComponent[repositoryComponent] = append(byComponent[repositoryComponent], ch)
+			byComponent[RepositoryComponent] = append(byComponent[RepositoryComponent], ch)
 		case len(names) > maxComponents:
 			byComponent[multipleComponents] = append(byComponent[multipleComponents], ch)
 		default:
@@ -206,9 +209,9 @@ func groupChanges(ctx context.Context, comps []component, changes []change) ([]c
 			}
 		}
 	}
-	grouped := make([]componentChanges, 0, len(byComponent))
+	grouped := make([]ComponentChanges, 0, len(byComponent))
 	for name, chs := range byComponent {
-		grouped = append(grouped, componentChanges{
+		grouped = append(grouped, ComponentChanges{
 			Component: name,
 			Changes:   chs,
 		})
@@ -219,23 +222,23 @@ func groupChanges(ctx context.Context, comps []component, changes []change) ([]c
 
 // mergeUpstream adds the commits of the components built in other
 // repositories to their groups, ahead of the changes made here.
-func mergeUpstream(grouped []componentChanges, other []upstreamChanges) []componentChanges {
+func mergeUpstream(grouped []ComponentChanges, other []upstreamChanges) []ComponentChanges {
 	for _, uc := range other {
-		var changes []change
+		var changes []Change
 		for _, c := range uc.Commits {
 			if isNoise(c.Title) {
 				continue
 			}
-			changes = append(changes, change{
+			changes = append(changes, Change{
 				SHA:   c.SHA,
 				Title: c.Title,
 				PR:    c.PR,
 				Repo:  uc.Repo,
 			})
 		}
-		i := slices.IndexFunc(grouped, func(g componentChanges) bool { return g.Component == uc.Chart })
+		i := slices.IndexFunc(grouped, func(g ComponentChanges) bool { return g.Component == uc.Chart })
 		if i < 0 {
-			grouped = append(grouped, componentChanges{Component: uc.Chart})
+			grouped = append(grouped, ComponentChanges{Component: uc.Chart})
 			i = len(grouped) - 1
 		}
 		grouped[i].From = uc.From
@@ -246,6 +249,6 @@ func mergeUpstream(grouped []componentChanges, other []upstreamChanges) []compon
 	return grouped
 }
 
-func sortGroups(grouped []componentChanges) {
-	slices.SortFunc(grouped, func(a, b componentChanges) int { return strings.Compare(a.Component, b.Component) })
+func sortGroups(grouped []ComponentChanges) {
+	slices.SortFunc(grouped, func(a, b ComponentChanges) int { return strings.Compare(a.Component, b.Component) })
 }
