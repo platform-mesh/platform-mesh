@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: core.platform-mesh.io/v1alpha1
-kind: Invite
+apiVersion: openfga.platform-mesh.io/v1alpha1
+kind: Store
 metadata:
-  name: invite-sample
+  name: test-store
 spec:
-  email: text2@acme.corp
-  role: owner # optional
+  coreModule: |
+    module core
+
+    type user
+
+    type account

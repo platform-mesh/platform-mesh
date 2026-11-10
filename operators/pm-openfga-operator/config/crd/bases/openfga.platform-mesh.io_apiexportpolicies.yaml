@@ -17,30 +17,19 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.21.0
-  name: stores.core.platform-mesh.io
+  name: apiexportpolicies.openfga.platform-mesh.io
 spec:
-  group: core.platform-mesh.io
+  group: openfga.platform-mesh.io
   names:
-    kind: Store
-    listKind: StoreList
-    plural: stores
-    singular: store
+    kind: APIExportPolicy
+    listKind: APIExportPolicyList
+    plural: apiexportpolicies
+    singular: apiexportpolicy
   scope: Cluster
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=="Ready")].status
-      name: Ready
-      type: string
-    deprecated: true
-    deprecationWarning: core.platform-mesh.io/v1alpha1 Store is deprecated, use openfga.platform-mesh.io/v1alpha1
-      Store
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: |-
-          Store is the Schema for the stores API.
-
-          Deprecated: use openfga.platform-mesh.io/v1alpha1 Store.
         properties:
           apiVersion:
             description: |-
@@ -60,33 +49,28 @@ spec:
           metadata:
             type: object
           spec:
-            description: StoreSpec defines the desired state of Store.
             properties:
-              coreModule:
-                type: string
-              tuples:
+              allowPathExpressions:
                 items:
-                  properties:
-                    object:
-                      type: string
-                    relation:
-                      type: string
-                    user:
-                      type: string
-                  required:
-                  - object
-                  - relation
-                  - user
-                  type: object
+                  type: string
+                minItems: 1
                 type: array
+              apiExportRef:
+                properties:
+                  clusterPath:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - clusterPath
+                - name
+                type: object
             required:
-            - coreModule
+            - allowPathExpressions
+            - apiExportRef
             type: object
           status:
-            description: StoreStatus defines the observed state of Store.
             properties:
-              authorizationModelId:
-                type: string
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -143,23 +127,10 @@ spec:
                   - type
                   type: object
                 type: array
-              managedTuples:
+              managedAllowExpressions:
                 items:
-                  properties:
-                    object:
-                      type: string
-                    relation:
-                      type: string
-                    user:
-                      type: string
-                  required:
-                  - object
-                  - relation
-                  - user
-                  type: object
+                  type: string
                 type: array
-              storeId:
-                type: string
             type: object
         type: object
     served: true

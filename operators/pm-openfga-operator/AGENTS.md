@@ -1,5 +1,5 @@
 ## Repository description
-- `Security-operator` lives in runtime kubernetes cluster and reconciles Store, AuthorizationModel, APIExportPolicy, LogicalClusters (kcp's CR) custom resources in kcp clusters (IdentityProviderConfiguration and Invite moved to pm-keycloak-operator)
+- `pm-openfga-operator` lives in runtime kubernetes cluster and reconciles Store, AuthorizationModel, APIExportPolicy (`openfga.platform-mesh.io`, plus the deprecated `core.platform-mesh.io` kinds behind the `LegacyAPIs` feature gate) and LogicalClusters (kcp's CR) in kcp clusters
 - Read the org-wide [AGENTS.md](https://github.com/platform-mesh/.github/blob/main/AGENTS.md) for general conventions.
 
 ## Architecture

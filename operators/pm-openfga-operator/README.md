@@ -4,9 +4,17 @@
 # platform-mesh - pm-openfga-operator
 
 ## Description
-Security-operator is responsible for security related configuration in Platform-mesh.
+pm-openfga-operator manages OpenFGA authorization for Platform Mesh.
 
 ## API description
+All kinds live in the API group `openfga.platform-mesh.io`, exported as
+`openfga.platform-mesh.io` (Store, APIExportPolicy) and
+`provider-openfga.platform-mesh.io` (AuthorizationModel). The deprecated
+`core.platform-mesh.io` kinds stay served through the `fga`, `provider-fga`
+and `system` exports while the feature gate `LegacyAPIs` is on (default);
+an object of the new group adopts the OpenFGA state of a same-name legacy
+object and marks it `openfga.platform-mesh.io/migrated=true`.
+
 - **Store** - serves as CRD representation of OpenFGA store entity. Stores are created during logical clusters initialization phase or at deployment phase of Platform-mesh installation. When created, dedicated controller will create a **store** in OpenFGA.
 - **AuthorizationModel** - serves as CRD representation of OpenFGA Authorization model entity. AuthorizationModels are created when not default ApiBinding is created in the user's workspace. When created, dedicated controller will update Authorization model in the related store in OpenFGA.
 - **ApiExportPolicy** - CRD for granting **bind** permissions. When provider creates an API to share this API with other customers of Platform-mesh, he needs to get **bind** permissions and after this other users will be able to bind provider's API and use it
