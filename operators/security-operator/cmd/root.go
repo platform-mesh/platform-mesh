@@ -24,7 +24,7 @@ import (
 
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/security-operator/internal/config"
+	"go.platform-mesh.io/security-operator/pkg/config"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

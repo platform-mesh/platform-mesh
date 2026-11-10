@@ -17,28 +17,13 @@ limitations under the License.
 package cmd
 
 import (
-	"context"
-	"crypto/tls"
-	"net/http"
-	"strings"
-
 	"github.com/spf13/cobra"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
-	"go.platform-mesh.io/account-operator/internal/controller"
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/account-operator/pkg/app"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/traces"
 
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -50,128 +35,24 @@ var operatorCmd = &cobra.Command{
 }
 
 func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
-	var err error
 	ctrl.SetLogger(log.ComponentLogger("controller-runtime").Logr())
 
 	ctx, _, shutdown := platformmeshcontext.StartContext(log, operatorCfg, defaultCfg.ShutdownTimeout)
 	defer shutdown()
 
-	disableHTTP2 := func(c *tls.Config) {
-		log.Info().Msg("disabling http/2")
-		c.NextProtos = []string{"http/1.1"}
-	}
-
-	var tlsOpts []func(*tls.Config)
-	if !defaultCfg.EnableHTTP2 {
-		tlsOpts = append(tlsOpts, disableHTTP2)
-	}
-
-	var traceShutdown func(ctx context.Context) error
 	if defaultCfg.Tracing.Enabled {
-		traceShutdown, err = traces.InitProvider(ctx, defaultCfg.Tracing.Collector)
+		traceShutdown, err := traces.InitProvider(ctx, defaultCfg.Tracing.Collector)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to start gRPC-Sidecar TracerProvider")
 		}
-	}
-	defer func() {
-		if err := traceShutdown(ctx); err != nil {
-			log.Fatal().Err(err).Msg("failed to shutdown TracerProvider")
-		}
-	}()
-
-	webhookServer := webhook.NewServer(webhook.Options{
-		TLSOpts: tlsOpts,
-		CertDir: operatorCfg.Webhooks.CertDir,
-		Port:    operatorCfg.Webhooks.Port,
-	})
-
-	restCfg := ctrl.GetConfigOrDie()
-	restCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
-		return otelhttp.NewTransport(rt)
-	})
-
-	var leaderCfg *rest.Config
-	if defaultCfg.LeaderElectionEnabled {
-		leaderCfg, err = rest.InClusterConfig()
-		if err != nil {
-			log.Fatal().Err(err).Msg("unable to get in-cluster config")
-		}
-	}
-	provider, err := pathaware.New(restCfg, operatorCfg.Kcp.ApiExportEndpointSliceName, apiexport.Options{
-		Log:    &ctrl.Log,
-		Scheme: scheme,
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating APIExport provider")
-	}
-
-	mgr, err := mcmanager.New(restCfg, provider, mcmanager.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress:   defaultCfg.Metrics.BindAddress,
-			SecureServing: defaultCfg.Metrics.Secure,
-			TLSOpts:       tlsOpts,
-		},
-		BaseContext:                   func() context.Context { return ctx },
-		WebhookServer:                 webhookServer,
-		HealthProbeBindAddress:        defaultCfg.HealthProbeBindAddress,
-		LeaderElection:                defaultCfg.LeaderElectionEnabled,
-		LeaderElectionID:              "8c290d9a.platform-mesh.io",
-		LeaderElectionConfig:          leaderCfg,
-		LeaderElectionReleaseOnCancel: true,
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to start manager")
-	}
-
-	accountReconciler, err := controller.NewAccountReconciler(log, mgr, operatorCfg)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to create account reconciler")
-	}
-	if err := accountReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
-		log.Fatal().Err(err).Str("controller", "Account").Msg("unable to create controller")
-	}
-
-	if operatorCfg.Controllers.AccountInfo.Enabled {
-		accountInfoReconciler, err := controller.NewAccountInfoReconciler(log, mgr, operatorCfg)
-		if err != nil {
-			log.Fatal().Err(err).Msg("unable to create account info reconciler")
-		}
-		if err := accountInfoReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
-			log.Fatal().Err(err).Str("controller", "AccountInfo").Msg("unable to create controller")
-		}
-	}
-
-	if operatorCfg.Webhooks.Enabled {
-		var denyList []string
-		if operatorCfg.Webhooks.DenyList != "" {
-			denyList = strings.Split(operatorCfg.Webhooks.DenyList, ",")
-			for i, item := range denyList {
-				denyList[i] = strings.TrimSpace(item)
+		defer func() {
+			if err := traceShutdown(ctx); err != nil {
+				log.Fatal().Err(err).Msg("failed to shutdown TracerProvider")
 			}
-		}
-
-		accountTypeAllowList := make([]pmcorev1alpha1.AccountType, 0, len(operatorCfg.Webhooks.AdditionalAccountTypes)+1)
-		accountTypeAllowList = append(accountTypeAllowList, pmcorev1alpha1.AccountTypeOrg)
-		for _, additionalType := range operatorCfg.Webhooks.AdditionalAccountTypes {
-			accountTypeAllowList = append(accountTypeAllowList, pmcorev1alpha1.AccountType(additionalType))
-		}
-
-		log.Info().Strs("deniedNames", denyList).Msg("webhooks are enabled")
-		if err := pmcorev1alpha1.SetupAccountWebhookWithManager(mgr.GetLocalManager(), denyList, accountTypeAllowList); err != nil {
-			log.Fatal().Err(err).Str("webhook", "Account").Msg("unable to create webhook")
-		}
+		}()
 	}
 
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up health check")
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up ready check")
-	}
-
-	log.Info().Msg("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		log.Fatal().Err(err).Msg("problem running manager")
+	if err := app.Run(ctx, operatorCfg, app.Deps{Log: log, Common: defaultCfg}); err != nil {
+		log.Fatal().Err(err).Msg("problem running operator")
 	}
 }

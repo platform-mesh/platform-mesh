@@ -28,8 +28,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.platform-mesh.io/platform-mesh/tests/framework/kcp"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -52,7 +50,7 @@ func Providers(t testing.TB, instance *kcptc.Instance, path logicalcluster.Path,
 	t.Helper()
 	providers := make(map[string]*apiexport.Provider, len(exports))
 	for _, export := range exports {
-		p, err := apiexport.New(kcp.RESTConfig(instance, path), export, apiexport.Options{Scheme: s})
+		p, err := apiexport.New(instance.RESTConfig(path.String()), export, apiexport.Options{Scheme: s})
 		require.NoError(t, err, "building provider for %s", export)
 		providers[export] = p
 	}
@@ -79,7 +77,7 @@ func New(t testing.TB, instance *kcptc.Instance, path logicalcluster.Path, s *ru
 		require.NoError(t, provider.AddProvider(name, providers[name]), "adding provider %s", name)
 	}
 
-	mgr, err := mcmanager.New(kcp.RESTConfig(instance, path), provider, mcmanager.Options{
+	mgr, err := mcmanager.New(instance.RESTConfig(path.String()), provider, mcmanager.Options{
 		Scheme:      s,
 		Metrics:     metricsserver.Options{BindAddress: "0"},
 		BaseContext: t.Context,

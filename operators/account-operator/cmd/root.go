@@ -19,22 +19,14 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"go.platform-mesh.io/account-operator/internal/config"
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/account-operator/pkg/config"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 var (
-	scheme      = runtime.NewScheme()
 	operatorCfg config.OperatorConfig
 	defaultCfg  *platformmeshcontext.CommonServiceConfig
 	log         *logger.Logger
@@ -46,12 +38,6 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
-
 	rootCmd.AddCommand(operatorCmd)
 
 	defaultCfg = platformmeshcontext.NewDefaultConfig()

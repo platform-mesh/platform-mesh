@@ -9,7 +9,7 @@ Read the org-wide [AGENTS.md](https://github.com/platform-mesh/.github/blob/main
 - `task validate` — generate + lint + test (CI gate)
 - `task generate` — regenerate CRD manifests and deepcopy from API types
 - `task lint` — golangci-lint v2 (includes formatting)
-- `task test` — unit tests with coverage (uses envtest)
+- `task test` — unit tests with coverage (plain `go test`; the envtest suites moved to `tests/integration/graphqlgateway`, run with `task test-integration PKG=./integration/graphqlgateway/...` from the repo root)
 - `task proto` — regenerate protobuf files
 - `task docker` — build container image
 - `task docker:kind` — build and load into kind cluster
@@ -27,7 +27,6 @@ gateway/          Gateway implementation
   http/           HTTP handlers, middleware, auth
   resolver/       GraphQL resolvers (query, mutation, subscription)
   schema/         GraphQL schema building from OpenAPI
-  e2e/            End-to-end tests
 listener/         Listener implementation
   controllers/    Kubernetes controllers (resource, clusteraccess)
   pkg/            OpenAPI-to-GraphQL conversion, schema handling
@@ -64,7 +63,7 @@ Import order (enforced by gci):
 5. `github.com/kcp-dev/`
 6. `github.com/kcp-dev/multicluster-provider/`
 
-Tests: testify (require/assert), testify/suite for e2e. Integration tests use controller-runtime envtest with CRDs loaded from `config/crd/`. Mocks in `listener/pkg/apischema/mocks/` are auto-generated.
+Tests: testify (require/assert, suite). Integration tests live in `tests/integration/graphqlgateway` and run against kcp workspaces, with the CRDs from `config/crd/` (exported as `config.CRDs`). Mocks in `listener/pkg/apischema/mocks/` are auto-generated.
 
 All configuration is via CLI flags — no environment variables.
 
