@@ -29,6 +29,7 @@ import (
 	"google.golang.org/grpc"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/pm-openfga-operator/internal/metrics"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
@@ -104,7 +105,7 @@ func (m *rekeyTestMocks) expectOrgContext() {
 }
 
 // expectRead makes the store scan return the given tuples in a single page.
-func (m *rekeyTestMocks) expectRead(tuples ...pmcorev1alpha1.Tuple) {
+func (m *rekeyTestMocks) expectRead(tuples ...pmopenfgav1alpha1.Tuple) {
 	fgaTuples := make([]*openfgav1.Tuple, 0, len(tuples))
 	for _, t := range tuples {
 		fgaTuples = append(fgaTuples, &openfgav1.Tuple{Key: &openfgav1.TupleKey{
@@ -131,24 +132,24 @@ func (m *rekeyTestMocks) expectLiveness(getErr error) {
 	m.deadClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).Return(getErr)
 }
 
-func staleCreatorTuple() pmcorev1alpha1.Tuple {
-	return pmcorev1alpha1.Tuple{
+func staleCreatorTuple() pmopenfgav1alpha1.Tuple {
+	return pmopenfgav1alpha1.Tuple{
 		User:     "user:alice",
 		Relation: "assignee",
 		Object:   "role:acct/" + rekeyTestOldID + "/" + rekeyTestOrg + "/owner",
 	}
 }
 
-func staleOwnerGroupTuple() pmcorev1alpha1.Tuple {
-	return pmcorev1alpha1.Tuple{
+func staleOwnerGroupTuple() pmopenfgav1alpha1.Tuple {
+	return pmopenfgav1alpha1.Tuple{
 		User:     "role:acct/" + rekeyTestOldID + "/" + rekeyTestOrg + "/owner#assignee",
 		Relation: "owner",
 		Object:   "acct:" + rekeyTestOldID + "/" + rekeyTestOrg,
 	}
 }
 
-func currentCreatorTuple() pmcorev1alpha1.Tuple {
-	return pmcorev1alpha1.Tuple{
+func currentCreatorTuple() pmopenfgav1alpha1.Tuple {
+	return pmopenfgav1alpha1.Tuple{
 		User:     "user:bob",
 		Relation: "assignee",
 		Object:   "role:acct/" + rekeyTestNewID + "/" + rekeyTestOrg + "/owner",
@@ -306,9 +307,9 @@ func TestRekeyTuplesSubroutine_ChunksGroupsOver100Tuples(t *testing.T) {
 	m := newRekeyTestMocks(t)
 	m.expectOrgContext()
 
-	stale := make([]pmcorev1alpha1.Tuple, 0, 250)
+	stale := make([]pmopenfgav1alpha1.Tuple, 0, 250)
 	for i := range 250 {
-		stale = append(stale, pmcorev1alpha1.Tuple{
+		stale = append(stale, pmopenfgav1alpha1.Tuple{
 			User:     fmt.Sprintf("user:member-%d", i),
 			Relation: "assignee",
 			Object:   "role:acct/" + rekeyTestOldID + "/" + rekeyTestOrg + "/member",
@@ -397,7 +398,7 @@ func TestRekeyTuplesSubroutine_IgnoresForeignObjectTypeKeys(t *testing.T) {
 	// old cluster id it must be invisible to the re-key pass.
 	m := newRekeyTestMocks(t)
 	m.expectOrgContext()
-	apiExportTuple := pmcorev1alpha1.Tuple{
+	apiExportTuple := pmopenfgav1alpha1.Tuple{
 		User:     "apis_kcp_io_apiexport:" + rekeyTestOldID + "/" + rekeyTestOrg,
 		Relation: "member",
 		Object:   "acct:" + rekeyTestNewID + "/" + rekeyTestOrg,
@@ -441,7 +442,7 @@ func TestRekeyTuplesSubroutine_SecondPassIsIdempotent(t *testing.T) {
 	m.expectOrgContext()
 	m.expectRead(
 		currentCreatorTuple(),
-		pmcorev1alpha1.Tuple{
+		pmopenfgav1alpha1.Tuple{
 			User:     "role:acct/" + rekeyTestNewID + "/" + rekeyTestOrg + "/owner#assignee",
 			Relation: "owner",
 			Object:   "acct:" + rekeyTestNewID + "/" + rekeyTestOrg,

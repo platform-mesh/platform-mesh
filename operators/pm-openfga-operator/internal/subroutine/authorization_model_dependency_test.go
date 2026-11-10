@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -77,10 +77,10 @@ func TestRegisterAuthorizationModelWithStore(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					*o.(*pmcorev1alpha1.Store) = pmcorev1alpha1.Store{}
+					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{}
 					return nil
 				})
-				kc.EXPECT().Update(mock.Anything, mock.MatchedBy(func(o *pmcorev1alpha1.Store) bool {
+				kc.EXPECT().Update(mock.Anything, mock.MatchedBy(func(o *pmopenfgav1alpha1.Store) bool {
 					return len(o.Finalizers) == 1 && o.Finalizers[0] == authorizationModelFinalizer("model-cluster", "model")
 				})).Return(nil)
 			},
@@ -91,7 +91,7 @@ func TestRegisterAuthorizationModelWithStore(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					*o.(*pmcorev1alpha1.Store) = pmcorev1alpha1.Store{
+					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{
 						ObjectMeta: metav1.ObjectMeta{Finalizers: []string{authorizationModelFinalizer("model-cluster", "model")}},
 					}
 					return nil
@@ -105,7 +105,7 @@ func TestRegisterAuthorizationModelWithStore(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					*o.(*pmcorev1alpha1.Store) = pmcorev1alpha1.Store{}
+					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{}
 					return nil
 				})
 				// The API server rejects adding a finalizer once deletionTimestamp is
@@ -121,7 +121,7 @@ func TestRegisterAuthorizationModelWithStore(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					*o.(*pmcorev1alpha1.Store) = pmcorev1alpha1.Store{}
+					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{}
 					return nil
 				}).Twice()
 				kc.EXPECT().Update(mock.Anything, mock.Anything).Return(
@@ -184,12 +184,12 @@ func TestDeregisterAuthorizationModelFromStore(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					*o.(*pmcorev1alpha1.Store) = pmcorev1alpha1.Store{
+					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{
 						ObjectMeta: metav1.ObjectMeta{Finalizers: []string{authorizationModelFinalizer("model-cluster", "model"), "core.platform-mesh.io/fga-store"}},
 					}
 					return nil
 				})
-				kc.EXPECT().Update(mock.Anything, mock.MatchedBy(func(o *pmcorev1alpha1.Store) bool {
+				kc.EXPECT().Update(mock.Anything, mock.MatchedBy(func(o *pmopenfgav1alpha1.Store) bool {
 					return len(o.Finalizers) == 1 && o.Finalizers[0] == "core.platform-mesh.io/fga-store"
 				})).Return(nil)
 			},
@@ -200,7 +200,7 @@ func TestDeregisterAuthorizationModelFromStore(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					*o.(*pmcorev1alpha1.Store) = pmcorev1alpha1.Store{}
+					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{}
 					return nil
 				})
 				// No Update expected.

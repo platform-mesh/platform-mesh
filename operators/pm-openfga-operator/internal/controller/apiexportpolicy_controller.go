@@ -24,6 +24,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -60,7 +61,7 @@ type APIExportPolicyReconciler struct {
 
 func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, lister iclient.Lister, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPClientGetter) *APIExportPolicyReconciler {
 	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() ctrlruntimeclient.Object {
-		return &pmcorev1alpha1.APIExportPolicy{}
+		return &pmopenfgav1alpha1.APIExportPolicy{}
 	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, cfg, storeIDGetter, lister, kcpClientGetter)).
 		WithConditions(conditions.NewManager())
 
@@ -90,7 +91,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("apiexportpolicy").
-		For(&pmcorev1alpha1.APIExportPolicy{},
+		For(&pmopenfgav1alpha1.APIExportPolicy{},
 			mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
 				return strings.HasPrefix(string(clusterName), config.SystemProviderName)
 			}),
@@ -122,7 +123,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 }
 
 func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager) []mcreconcile.Request {
-	var policies pmcorev1alpha1.APIExportPolicyList
+	var policies pmopenfgav1alpha1.APIExportPolicyList
 
 	cluster, err := mgr.GetCluster(ctx, config.MultiProviderName(config.SystemProviderName, config.OrgsClusterPath))
 	if err != nil {

@@ -22,7 +22,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -48,7 +48,7 @@ type AuthorizationModelReconciler struct {
 
 func NewAuthorizationModelReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, engageOpts mcbuilder.EngageOptions) *AuthorizationModelReconciler {
 	lc := lifecycle.New(mcMgr, "AuthorizationModelReconciler", func() ctrlruntimeclient.Object {
-		return &pmcorev1alpha1.AuthorizationModel{}
+		return &pmopenfgav1alpha1.AuthorizationModel{}
 	}, subroutine.NewTupleSubroutine(fga, mcMgr))
 
 	return &AuthorizationModelReconciler{
@@ -78,7 +78,7 @@ func (r *AuthorizationModelReconciler) SetupWithManager(mgr mcmanager.Manager, c
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("authorizationmodel").
-		For(&pmcorev1alpha1.AuthorizationModel{}, r.engageOpts).
+		For(&pmopenfgav1alpha1.AuthorizationModel{}, r.engageOpts).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

@@ -26,6 +26,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
@@ -174,7 +175,7 @@ func (s *RekeyTuplesSubroutine) reconcile(ctx context.Context, obj ctrlruntimecl
 	// Group the stale tuples by the old cluster id they reference. A tuple
 	// referencing more than one stale cluster id is ambiguous — skip it, never
 	// guess.
-	groups := map[string][]pmcorev1alpha1.Tuple{}
+	groups := map[string][]pmopenfgav1alpha1.Tuple{}
 	for _, t := range stale {
 		ids := fga.StaleClusterIDs(t, objectType, accountName, currentClusterID)
 		if len(ids) != 1 {
@@ -219,7 +220,7 @@ func (s *RekeyTuplesSubroutine) reconcile(ctx context.Context, obj ctrlruntimecl
 			continue
 		}
 
-		rekeyed := make([]pmcorev1alpha1.Tuple, 0, len(group))
+		rekeyed := make([]pmopenfgav1alpha1.Tuple, 0, len(group))
 		for _, t := range group {
 			rekeyed = append(rekeyed, fga.RekeyTuple(t, objectType, oldClusterID, currentClusterID))
 		}

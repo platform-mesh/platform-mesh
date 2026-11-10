@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,6 +43,7 @@ func newOrgResourceFakeClient(t *testing.T, objs ...ctrlruntimeclient.Object) ct
 
 	scheme := runtime.NewScheme()
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmopenfgav1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
 
 	return fake.NewClientBuilder().
@@ -50,8 +52,8 @@ func newOrgResourceFakeClient(t *testing.T, objs ...ctrlruntimeclient.Object) ct
 		Build()
 }
 
-func orgStore(name string, finalizers ...string) *pmcorev1alpha1.Store {
-	return &pmcorev1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: name, Finalizers: finalizers}}
+func orgStore(name string, finalizers ...string) *pmopenfgav1alpha1.Store {
+	return &pmopenfgav1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: name, Finalizers: finalizers}}
 }
 
 func logicalClusterForOrg(name string) *kcpcorev1alpha1.LogicalCluster {

@@ -25,7 +25,9 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
+	openfgaresources "go.platform-mesh.io/apis/static-assets/resources/pm-openfga-operator"
 	securityresources "go.platform-mesh.io/apis/static-assets/resources/security-operator"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -52,8 +54,8 @@ import (
 const (
 	coreExport        = "core.platform-mesh.io"
 	providersExport   = "providers.platform-mesh.io"
-	fgaExport         = "fga.platform-mesh.io"
-	providerFgaExport = "provider-fga.platform-mesh.io"
+	fgaExport         = "openfga.platform-mesh.io"
+	providerFgaExport = "provider-openfga.platform-mesh.io"
 )
 
 // IntegrationSuite shares one platform-mesh-system and one model-generator
@@ -76,15 +78,14 @@ func (s *IntegrationSuite) SetupSuite() {
 	var err error
 	s.env, err = kcp.Security(t.Context())
 	require.NoError(t, err)
-	s.scheme = scheme.New(t, pmcorev1alpha1.AddToScheme, pmprovidersv1alpha1.AddToScheme)
+	s.scheme = scheme.New(t, pmcorev1alpha1.AddToScheme, pmopenfgav1alpha1.AddToScheme, pmprovidersv1alpha1.AddToScheme)
 	s.platform = fixtures.Install(t, s.env,
 		fixtures.WithScheme(s.scheme),
 		fixtures.WithResources(securityresources.Resources, "*.yaml"),
-		// The deployed manifests serve Stores and AuthorizationModels from
-		// exports of their own (sharing core's identity); apigen puts the
-		// whole group into core.platform-mesh.io.
-		fixtures.WithExport(fgaExport, coreExport, "stores"),
-		fixtures.WithExport(providerFgaExport, coreExport, "authorizationmodels"),
+		fixtures.WithResources(openfgaresources.Resources, "*.yaml"),
+		// The deployed manifests serve AuthorizationModels from an export of
+		// their own; apigen puts the whole group into openfga.platform-mesh.io.
+		fixtures.WithExport(providerFgaExport, fgaExport, "authorizationmodels"),
 		// platform-mesh-system plays the provider in these tests, so it binds
 		// provider-fga and holds the AuthorizationModels.
 		fixtures.WithBindings(coreExport, providersExport, providerFgaExport),
@@ -145,7 +146,7 @@ func (s *IntegrationSuite) createAccount(t *testing.T, cl ctrlruntimeclient.Clie
 // createTestStore creates a minimal Store, which must exist before an
 // AuthorizationModel can bind to it.
 func (s *IntegrationSuite) createTestStore(t *testing.T, cl ctrlruntimeclient.Client, storeName string) {
-	store := &pmcorev1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: storeName}}
+	store := &pmopenfgav1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: storeName}}
 	if err := cl.Create(t.Context(), store); err != nil && !apierrors.IsAlreadyExists(err) {
 		s.Require().NoError(err)
 	}

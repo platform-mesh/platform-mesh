@@ -25,6 +25,7 @@ import (
 	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
@@ -116,7 +117,7 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj ctrlruntimecli
 		return subroutines.OK(), fmt.Errorf("getting Account in platform-mesh-system: %w", err)
 	}
 
-	store := pmcorev1alpha1.Store{
+	store := pmopenfgav1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
@@ -136,7 +137,7 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj ctrlruntimecli
 		return subroutines.OK(), fmt.Errorf("building tuples for organization: %w", err)
 	}
 	if w.cfg.AllowMemberTuplesEnabled { // TODO: remove this flag once the feature is tested and stable
-		tuples = append(tuples, []pmcorev1alpha1.Tuple{
+		tuples = append(tuples, []pmopenfgav1alpha1.Tuple{
 			{
 				Object:   "role:authenticated",
 				Relation: "assignee",
@@ -151,7 +152,7 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj ctrlruntimecli
 	}
 
 	if result, err := controllerutil.CreateOrUpdate(ctx, orgsClient, &store, func() error {
-		store.Spec = pmcorev1alpha1.StoreSpec{
+		store.Spec = pmopenfgav1alpha1.StoreSpec{
 			CoreModule: w.coreModule,
 		}
 		store.Spec.Tuples = tuples
@@ -192,7 +193,7 @@ func (w *workspaceInitializer) Terminate(ctx context.Context, obj ctrlruntimecli
 		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
 
-	pending, err := deleteOrgResource(ctx, orgsClient, &pmcorev1alpha1.Store{}, storeName)
+	pending, err := deleteOrgResource(ctx, orgsClient, &pmopenfgav1alpha1.Store{}, storeName)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("deleting Store %s: %w", storeName, err)
 	}

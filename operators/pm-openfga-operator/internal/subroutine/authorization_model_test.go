@@ -30,7 +30,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine"
@@ -110,7 +110,7 @@ func TestAuthorizationModelGetName(t *testing.T) {
 func TestAuthorizationModelProcess(t *testing.T) {
 	tests := []struct {
 		name           string
-		store          *pmcorev1alpha1.Store
+		store          *pmopenfgav1alpha1.Store
 		fgaMocks       func(*mocks.MockOpenFGAServiceClient)
 		kcpHelperMocks func(*mocks.MockLister)
 		mgrMocks       func(*mocks.MockManager)
@@ -119,26 +119,26 @@ func TestAuthorizationModelProcess(t *testing.T) {
 	}{
 		{
 			name: "should reconcile and apply the merged model",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Spec: pmcorev1alpha1.StoreSpec{
+				Spec: pmopenfgav1alpha1.StoreSpec{
 					CoreModule: coreModule,
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
-						am := ol.(*pmcorev1alpha1.AuthorizationModelList)
-						am.Items = []pmcorev1alpha1.AuthorizationModel{
+						am := ol.(*pmopenfgav1alpha1.AuthorizationModelList)
+						am.Items = []pmopenfgav1alpha1.AuthorizationModel{
 							{
-								Spec: pmcorev1alpha1.AuthorizationModelSpec{
+								Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+									StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 										Name:    "store",
 										Cluster: "path",
 									},
@@ -174,14 +174,14 @@ func TestAuthorizationModelProcess(t *testing.T) {
 		},
 		{
 			name: "should reconcile and not patch the model in case they are equal",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Spec: pmcorev1alpha1.StoreSpec{
+				Spec: pmopenfgav1alpha1.StoreSpec{
 					CoreModule: coreModule,
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID:              "id",
 					AuthorizationModelID: "id",
 				},
@@ -189,12 +189,12 @@ func TestAuthorizationModelProcess(t *testing.T) {
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
-						am := ol.(*pmcorev1alpha1.AuthorizationModelList)
-						am.Items = []pmcorev1alpha1.AuthorizationModel{
+						am := ol.(*pmopenfgav1alpha1.AuthorizationModelList)
+						am.Items = []pmopenfgav1alpha1.AuthorizationModel{
 							{
-								Spec: pmcorev1alpha1.AuthorizationModelSpec{
+								Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+									StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 										Name:    "store",
 										Cluster: "path",
 									},
@@ -255,14 +255,14 @@ type core_namespace
 		},
 		{
 			name: "should stop reconciliation if the authorization model is not found",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Spec: pmcorev1alpha1.StoreSpec{
+				Spec: pmopenfgav1alpha1.StoreSpec{
 					CoreModule: coreModule,
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID:              "id",
 					AuthorizationModelID: "id",
 				},
@@ -270,12 +270,12 @@ type core_namespace
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
-						am := ol.(*pmcorev1alpha1.AuthorizationModelList)
-						am.Items = []pmcorev1alpha1.AuthorizationModel{
+						am := ol.(*pmopenfgav1alpha1.AuthorizationModelList)
+						am.Items = []pmopenfgav1alpha1.AuthorizationModel{
 							{
-								Spec: pmcorev1alpha1.AuthorizationModelSpec{
+								Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+									StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 										Name:    "store",
 										Cluster: "path",
 									},
@@ -293,23 +293,23 @@ type core_namespace
 		},
 		{
 			name: "should stop reconciliation for invalid model",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
-						am := ol.(*pmcorev1alpha1.AuthorizationModelList)
-						am.Items = []pmcorev1alpha1.AuthorizationModel{
+						am := ol.(*pmopenfgav1alpha1.AuthorizationModelList)
+						am.Items = []pmopenfgav1alpha1.AuthorizationModel{
 							{
-								Spec: pmcorev1alpha1.AuthorizationModelSpec{
+								Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+									StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 										Name:    "store",
 										Cluster: "path",
 									},
@@ -324,26 +324,26 @@ type core_namespace
 		},
 		{
 			name: "should stop reconciliation for failing write",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Spec: pmcorev1alpha1.StoreSpec{
+				Spec: pmopenfgav1alpha1.StoreSpec{
 					CoreModule: coreModule,
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
-						am := ol.(*pmcorev1alpha1.AuthorizationModelList)
-						am.Items = []pmcorev1alpha1.AuthorizationModel{
+						am := ol.(*pmopenfgav1alpha1.AuthorizationModelList)
+						am.Items = []pmopenfgav1alpha1.AuthorizationModel{
 							{
-								Spec: pmcorev1alpha1.AuthorizationModelSpec{
+								Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+									StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 										Name:    "store",
 										Cluster: "path",
 									},
@@ -361,20 +361,20 @@ type core_namespace
 		},
 		{
 			name: "non-matching authorization model is filtered",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{Name: "orgs"},
-				Spec:       pmcorev1alpha1.StoreSpec{CoreModule: coreModule},
-				Status:     pmcorev1alpha1.StoreStatus{StoreID: "id"},
+				Spec:       pmopenfgav1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     pmopenfgav1alpha1.StoreStatus{StoreID: "id"},
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol ctrlruntimeclient.ObjectList, lo ...ctrlruntimeclient.ListOption) error {
-						am := ol.(*pmcorev1alpha1.AuthorizationModelList)
-						am.Items = []pmcorev1alpha1.AuthorizationModel{
+						am := ol.(*pmopenfgav1alpha1.AuthorizationModelList)
+						am.Items = []pmopenfgav1alpha1.AuthorizationModel{
 							{
-								Spec: pmcorev1alpha1.AuthorizationModelSpec{
+								Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+									StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 										Name:    "different-store",
 										Cluster: "path",
 									},
@@ -395,10 +395,10 @@ type core_namespace
 		},
 		{
 			name: "discovery returns namespaced and grouped resources",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{Name: "store"},
-				Spec:       pmcorev1alpha1.StoreSpec{CoreModule: coreModule},
-				Status:     pmcorev1alpha1.StoreStatus{StoreID: "id"},
+				Spec:       pmopenfgav1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     pmopenfgav1alpha1.StoreStatus{StoreID: "id"},
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
@@ -421,10 +421,10 @@ type core_namespace
 		},
 		{
 			name: "core discoverAndRender fails",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{Name: "store"},
-				Spec:       pmcorev1alpha1.StoreSpec{CoreModule: coreModule},
-				Status:     pmcorev1alpha1.StoreStatus{StoreID: "id"},
+				Spec:       pmopenfgav1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     pmopenfgav1alpha1.StoreStatus{StoreID: "id"},
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
@@ -440,10 +440,10 @@ type core_namespace
 		},
 		{
 			name: "privileged discoverAndRender fails",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{Name: "store"},
-				Spec:       pmcorev1alpha1.StoreSpec{CoreModule: coreModule},
-				Status:     pmcorev1alpha1.StoreStatus{StoreID: "id"},
+				Spec:       pmopenfgav1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     pmopenfgav1alpha1.StoreStatus{StoreID: "id"},
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
@@ -461,10 +461,10 @@ type core_namespace
 		},
 		{
 			name: "ParseGroupVersion fails for returned resource list",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{Name: "store"},
-				Spec:       pmcorev1alpha1.StoreSpec{CoreModule: coreModule},
-				Status:     pmcorev1alpha1.StoreStatus{StoreID: "id"},
+				Spec:       pmopenfgav1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     pmopenfgav1alpha1.StoreStatus{StoreID: "id"},
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
@@ -546,10 +546,10 @@ type core_namespace
 // core-generation override grants members create on selfsubject reviews while
 // leaving other cluster-scoped resources at the default owner-only.
 func TestAuthorizationModelSelfSubjectReviewCreateOverride(t *testing.T) {
-	store := &pmcorev1alpha1.Store{
+	store := &pmopenfgav1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{Name: "store"},
-		Spec:       pmcorev1alpha1.StoreSpec{CoreModule: coreModule},
-		Status:     pmcorev1alpha1.StoreStatus{StoreID: "id"},
+		Spec:       pmopenfgav1alpha1.StoreSpec{CoreModule: coreModule},
+		Status:     pmopenfgav1alpha1.StoreStatus{StoreID: "id"},
 	}
 
 	fga := mocks.NewMockOpenFGAServiceClient(t)
@@ -623,10 +623,10 @@ func TestAuthorizationModelProcessModuleOrder(t *testing.T) {
 			name = "changed permissions"
 		}
 		t.Run(name, func(t *testing.T) {
-			store := &pmcorev1alpha1.Store{
+			store := &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{Name: "orgs"},
-				Spec:       pmcorev1alpha1.StoreSpec{CoreModule: coreModule},
-				Status:     pmcorev1alpha1.StoreStatus{StoreID: "store-id", AuthorizationModelID: "current-id"},
+				Spec:       pmopenfgav1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     pmopenfgav1alpha1.StoreStatus{StoreID: "store-id", AuthorizationModelID: "current-id"},
 			}
 			current, err := language.TransformModuleFilesToModel([]language.ModuleFile{
 				{Name: "/orgs.fga", Contents: coreModule},
@@ -667,15 +667,15 @@ func TestAuthorizationModelProcessModuleOrder(t *testing.T) {
 			calls := 0
 			lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 				func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
-					models := []pmcorev1alpha1.AuthorizationModel{
-						{ObjectMeta: metav1.ObjectMeta{Name: "first"}, Spec: pmcorev1alpha1.AuthorizationModelSpec{Model: firstModule, StoreRef: pmcorev1alpha1.WorkspaceStoreRef{Name: "orgs", Cluster: "path"}}},
-						{ObjectMeta: metav1.ObjectMeta{Name: "second"}, Spec: pmcorev1alpha1.AuthorizationModelSpec{Model: secondModule, StoreRef: pmcorev1alpha1.WorkspaceStoreRef{Name: "orgs", Cluster: "path"}}},
+					models := []pmopenfgav1alpha1.AuthorizationModel{
+						{ObjectMeta: metav1.ObjectMeta{Name: "first"}, Spec: pmopenfgav1alpha1.AuthorizationModelSpec{Model: firstModule, StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{Name: "orgs", Cluster: "path"}}},
+						{ObjectMeta: metav1.ObjectMeta{Name: "second"}, Spec: pmopenfgav1alpha1.AuthorizationModelSpec{Model: secondModule, StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{Name: "orgs", Cluster: "path"}}},
 					}
 					if calls%2 == 1 {
 						slices.Reverse(models)
 					}
 					calls++
-					list.(*pmcorev1alpha1.AuthorizationModelList).Items = models
+					list.(*pmopenfgav1alpha1.AuthorizationModelList).Items = models
 					return nil
 				},
 			).Twice()

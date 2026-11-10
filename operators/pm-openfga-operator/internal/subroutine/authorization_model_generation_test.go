@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
@@ -114,6 +115,7 @@ func TestAuthorizationModelGeneration_CollectionPermissions(t *testing.T) {
 					ctx := context.Background()
 					scheme := runtime.NewScheme()
 					require.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
+					require.NoError(t, pmopenfgav1alpha1.AddToScheme(scheme))
 					require.NoError(t, pmprovidersv1alpha1.AddToScheme(scheme))
 					require.NoError(t, kcpapisv1alpha1.AddToScheme(scheme))
 					require.NoError(t, kcpapisv1alpha2.AddToScheme(scheme))
@@ -130,7 +132,7 @@ func TestAuthorizationModelGeneration_CollectionPermissions(t *testing.T) {
 					}
 					objects := []ctrlruntimeclient.Object{
 						accountInfo, apiExport,
-						&pmcorev1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: "org"}},
+						&pmopenfgav1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: "org"}},
 					}
 					for _, resource := range []string{"component", "commit"} {
 						objects = append(objects, &kcpapisv1alpha1.APIResourceSchema{
@@ -170,9 +172,9 @@ func TestAuthorizationModelGeneration_CollectionPermissions(t *testing.T) {
 						modules := make([]language.ModuleFile, 0, 3)
 						modules = append(modules, language.ModuleFile{Name: "core.fga", Contents: collectionPermissionsCoreModule})
 						for _, resource := range []string{"component", "commit"} {
-							var model pmcorev1alpha1.AuthorizationModel
+							var model pmopenfgav1alpha1.AuthorizationModel
 							require.NoError(t, client.Get(ctx, types.NamespacedName{Name: "metadata-dxp-sap-com-" + resource + "s-org"}, &model))
-							assert.Equal(t, pmcorev1alpha1.WorkspaceStoreRef{Name: "org", Cluster: "orgs"}, model.Spec.StoreRef)
+							assert.Equal(t, pmopenfgav1alpha1.WorkspaceStoreRef{Name: "org", Cluster: "orgs"}, model.Spec.StoreRef)
 							modules = append(modules, language.ModuleFile{Name: resource + ".fga", Contents: model.Spec.Model})
 						}
 						model, err := language.TransformModuleFilesToModel(modules, "1.2")

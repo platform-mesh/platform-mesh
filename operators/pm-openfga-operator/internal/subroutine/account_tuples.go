@@ -24,6 +24,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
@@ -154,7 +155,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, obj ctrlruntime
 		}
 		return subroutines.OK(), fmt.Errorf("listing tuples referencing Account: %w", err)
 	}
-	accountTuples := make([]pmcorev1alpha1.Tuple, 0, len(accountReferenceTuples)*2)
+	accountTuples := make([]pmopenfgav1alpha1.Tuple, 0, len(accountReferenceTuples)*2)
 	accountTuples = append(accountTuples, accountReferenceTuples...)
 
 	// From tuples referencing the account, parse potential roles specific to the account.

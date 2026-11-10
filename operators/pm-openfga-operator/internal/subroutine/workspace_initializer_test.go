@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
@@ -52,7 +52,7 @@ func TestWorkspaceInitializer_TerminateDeletesStoreAndWaitsForFinalizers(t *test
 	assert.True(t, result.IsStopWithRequeue())
 	assert.Equal(t, orgResourceDeleteRequeue, result.Requeue())
 
-	var store pmcorev1alpha1.Store
+	var store pmopenfgav1alpha1.Store
 	requireDeleting(t, cl, &store, orgTerminateTestOrg)
 }
 

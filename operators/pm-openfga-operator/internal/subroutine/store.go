@@ -26,7 +26,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/subroutines"
@@ -59,7 +59,7 @@ func (s *storeSubroutine) Finalizers(_ ctrlruntimeclient.Object) []string {
 
 func (s *storeSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := obj.(*pmcorev1alpha1.Store)
+	store := obj.(*pmopenfgav1alpha1.Store)
 
 	if store.Status.StoreID == "" {
 		return subroutines.OK(), nil
@@ -87,7 +87,7 @@ func (s *storeSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 
 func (s *storeSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := obj.(*pmcorev1alpha1.Store)
+	store := obj.(*pmopenfgav1alpha1.Store)
 
 	if store.Status.StoreID == "" {
 		log.Info().Msg("Store ID not set, trying to find store by name")

@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
@@ -49,7 +49,7 @@ func TestTupleFinalizers(t *testing.T) {
 func TestTupleProcessWithStore(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *pmcorev1alpha1.Store
+		store       *pmopenfgav1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -57,9 +57,9 @@ func TestTupleProcessWithStore(t *testing.T) {
 	}{
 		{
 			name: "should process and add tuples to the store",
-			store: &pmcorev1alpha1.Store{
-				Spec: pmcorev1alpha1.StoreSpec{
-					Tuples: []pmcorev1alpha1.Tuple{
+			store: &pmopenfgav1alpha1.Store{
+				Spec: pmopenfgav1alpha1.StoreSpec{
+					Tuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -77,10 +77,10 @@ func TestTupleProcessWithStore(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID:              "store-id",
 					AuthorizationModelID: "auth-model-id",
-					ManagedTuples: []pmcorev1alpha1.Tuple{
+					ManagedTuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -95,9 +95,9 @@ func TestTupleProcessWithStore(t *testing.T) {
 		},
 		{
 			name: "should process and add/remove tuples to the store",
-			store: &pmcorev1alpha1.Store{
-				Spec: pmcorev1alpha1.StoreSpec{
-					Tuples: []pmcorev1alpha1.Tuple{
+			store: &pmopenfgav1alpha1.Store{
+				Spec: pmopenfgav1alpha1.StoreSpec{
+					Tuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -115,10 +115,10 @@ func TestTupleProcessWithStore(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID:              "store-id",
 					AuthorizationModelID: "auth-model-id",
-					ManagedTuples: []pmcorev1alpha1.Tuple{
+					ManagedTuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -134,9 +134,9 @@ func TestTupleProcessWithStore(t *testing.T) {
 		},
 		{
 			name: "should stop processing if an error occurs",
-			store: &pmcorev1alpha1.Store{
-				Spec: pmcorev1alpha1.StoreSpec{
-					Tuples: []pmcorev1alpha1.Tuple{
+			store: &pmopenfgav1alpha1.Store{
+				Spec: pmopenfgav1alpha1.StoreSpec{
+					Tuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -154,10 +154,10 @@ func TestTupleProcessWithStore(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID:              "store-id",
 					AuthorizationModelID: "auth-model-id",
-					ManagedTuples: []pmcorev1alpha1.Tuple{
+					ManagedTuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -200,7 +200,7 @@ func TestTupleProcessWithStore(t *testing.T) {
 func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *pmcorev1alpha1.AuthorizationModel
+		store       *pmopenfgav1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -208,18 +208,18 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 	}{
 		{
 			name: "should process and add tuples to the authorization model",
-			store: &pmcorev1alpha1.AuthorizationModel{
+			store: &pmopenfgav1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						pmcorev1alpha1.StoreRefLabelKey: "store",
+						pmopenfgav1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: pmcorev1alpha1.AuthorizationModelSpec{
-					StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+				Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
+					StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 						Name:    "store",
 						Cluster: "store-cluster",
 					},
-					Tuples: []pmcorev1alpha1.Tuple{
+					Tuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -250,9 +250,9 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					store := o.(*pmcorev1alpha1.Store)
-					*store = pmcorev1alpha1.Store{
-						Status: pmcorev1alpha1.StoreStatus{
+					store := o.(*pmopenfgav1alpha1.Store)
+					*store = pmopenfgav1alpha1.Store{
+						Status: pmopenfgav1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
@@ -263,18 +263,18 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 		},
 		{
 			name: "should process and add/remove tuples to the authorization model",
-			store: &pmcorev1alpha1.AuthorizationModel{
+			store: &pmopenfgav1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						pmcorev1alpha1.StoreRefLabelKey: "store",
+						pmopenfgav1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: pmcorev1alpha1.AuthorizationModelSpec{
-					StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+				Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
+					StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 						Name:    "store",
 						Cluster: "store-cluster",
 					},
-					Tuples: []pmcorev1alpha1.Tuple{
+					Tuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -292,8 +292,8 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.AuthorizationModelStatus{
-					ManagedTuples: []pmcorev1alpha1.Tuple{
+				Status: pmopenfgav1alpha1.AuthorizationModelStatus{
+					ManagedTuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -315,9 +315,9 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					store := o.(*pmcorev1alpha1.Store)
-					*store = pmcorev1alpha1.Store{
-						Status: pmcorev1alpha1.StoreStatus{
+					store := o.(*pmopenfgav1alpha1.Store)
+					*store = pmopenfgav1alpha1.Store{
+						Status: pmopenfgav1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
@@ -360,7 +360,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *pmcorev1alpha1.AuthorizationModel
+		store       *pmopenfgav1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -368,20 +368,20 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 	}{
 		{
 			name: "should finalize the authorization model",
-			store: &pmcorev1alpha1.AuthorizationModel{
+			store: &pmopenfgav1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						pmcorev1alpha1.StoreRefLabelKey: "store",
+						pmopenfgav1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: pmcorev1alpha1.AuthorizationModelSpec{
-					StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+				Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
+					StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 						Name:    "store",
 						Cluster: "store-cluster",
 					},
 				},
-				Status: pmcorev1alpha1.AuthorizationModelStatus{
-					ManagedTuples: []pmcorev1alpha1.Tuple{
+				Status: pmopenfgav1alpha1.AuthorizationModelStatus{
+					ManagedTuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -405,39 +405,39 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				// First Get is the tuple-cleanup lookup, second is
 				// deregisterAuthorizationModelFromStore's own fetch.
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					store := o.(*pmcorev1alpha1.Store)
-					*store = pmcorev1alpha1.Store{
+					store := o.(*pmopenfgav1alpha1.Store)
+					*store = pmopenfgav1alpha1.Store{
 						ObjectMeta: metav1.ObjectMeta{
 							Finalizers: []string{"authzmodel.core.platform-mesh.io/8a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0", "core.platform-mesh.io/fga-store"},
 						},
-						Status: pmcorev1alpha1.StoreStatus{
+						Status: pmopenfgav1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
 					}
 					return nil
 				}).Twice()
-				storeClient.EXPECT().Update(mock.Anything, mock.MatchedBy(func(o *pmcorev1alpha1.Store) bool {
+				storeClient.EXPECT().Update(mock.Anything, mock.MatchedBy(func(o *pmopenfgav1alpha1.Store) bool {
 					return len(o.Finalizers) == 1 && o.Finalizers[0] == "core.platform-mesh.io/fga-store"
 				})).Return(nil)
 			},
 		},
 		{
 			name: "should fail to finalize when deregistering from the store errors",
-			store: &pmcorev1alpha1.AuthorizationModel{
+			store: &pmopenfgav1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						pmcorev1alpha1.StoreRefLabelKey: "store",
+						pmopenfgav1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: pmcorev1alpha1.AuthorizationModelSpec{
-					StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+				Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
+					StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 						Name:    "store",
 						Cluster: "store-cluster",
 					},
 				},
-				Status: pmcorev1alpha1.AuthorizationModelStatus{
-					ManagedTuples: []pmcorev1alpha1.Tuple{
+				Status: pmopenfgav1alpha1.AuthorizationModelStatus{
+					ManagedTuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -455,12 +455,12 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
-					store := o.(*pmcorev1alpha1.Store)
-					*store = pmcorev1alpha1.Store{
+					store := o.(*pmopenfgav1alpha1.Store)
+					*store = pmopenfgav1alpha1.Store{
 						ObjectMeta: metav1.ObjectMeta{
 							Finalizers: []string{"authzmodel.core.platform-mesh.io/8a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0"},
 						},
-						Status: pmcorev1alpha1.StoreStatus{
+						Status: pmopenfgav1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
@@ -473,20 +473,20 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 		},
 		{
 			name: "should finalize successfully when the referenced Store is already gone",
-			store: &pmcorev1alpha1.AuthorizationModel{
+			store: &pmopenfgav1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						pmcorev1alpha1.StoreRefLabelKey: "store",
+						pmopenfgav1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: pmcorev1alpha1.AuthorizationModelSpec{
-					StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+				Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
+					StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 						Name:    "store",
 						Cluster: "store-cluster",
 					},
 				},
-				Status: pmcorev1alpha1.AuthorizationModelStatus{
-					ManagedTuples: []pmcorev1alpha1.Tuple{
+				Status: pmopenfgav1alpha1.AuthorizationModelStatus{
+					ManagedTuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -541,7 +541,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 func TestTupleFinalizationWithStore(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *pmcorev1alpha1.Store
+		store       *pmopenfgav1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -549,9 +549,9 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 	}{
 		{
 			name: "should finalize the authorization model",
-			store: &pmcorev1alpha1.Store{
-				Status: pmcorev1alpha1.StoreStatus{
-					ManagedTuples: []pmcorev1alpha1.Tuple{
+			store: &pmopenfgav1alpha1.Store{
+				Status: pmopenfgav1alpha1.StoreStatus{
+					ManagedTuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -567,9 +567,9 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 		},
 		{
 			name: "should stop finalizing the authorization model if an error occurs",
-			store: &pmcorev1alpha1.Store{
-				Status: pmcorev1alpha1.StoreStatus{
-					ManagedTuples: []pmcorev1alpha1.Tuple{
+			store: &pmopenfgav1alpha1.Store{
+				Status: pmopenfgav1alpha1.StoreStatus{
+					ManagedTuples: []pmopenfgav1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
