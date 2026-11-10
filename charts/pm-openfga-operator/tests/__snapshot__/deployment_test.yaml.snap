@@ -3,7 +3,7 @@ operator match the snapshot:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     metadata:
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
     rules:
       - apiGroups:
           - coordination.k8s.io
@@ -53,14 +53,14 @@ operator match the snapshot:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRoleBinding
     metadata:
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
     subjects:
       - kind: ServiceAccount
-        name: RELEASE-NAME-security-operator
+        name: RELEASE-NAME-pm-openfga-operator
         namespace: NAMESPACE
   3: |
     apiVersion: v1
@@ -134,22 +134,22 @@ operator match the snapshot:
             define watch: member
     kind: ConfigMap
     metadata:
-      name: RELEASE-NAME-security-operator-core-module
+      name: RELEASE-NAME-pm-openfga-operator-core-module
   4: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          app: RELEASE-NAME-security-operator
+          app: RELEASE-NAME-pm-openfga-operator
       template:
         metadata:
           labels:
-            app: RELEASE-NAME-security-operator
+            app: RELEASE-NAME-pm-openfga-operator
             control-plane: controller-manager
         spec:
           automountServiceAccountToken: true
@@ -166,11 +166,11 @@ operator match the snapshot:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env: null
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -178,7 +178,7 @@ operator match the snapshot:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -219,31 +219,31 @@ operator match the snapshot:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - name: external-api-server
               secret:
                 secretName: kcp-kubeconfig
             - configMap:
-                name: RELEASE-NAME-security-operator-core-module
+                name: RELEASE-NAME-pm-openfga-operator-core-module
               name: core-module
   5: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator-generator
+      name: RELEASE-NAME-pm-openfga-operator-generator
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          service: RELEASE-NAME-security-operator-generator
+          service: RELEASE-NAME-pm-openfga-operator-generator
       template:
         metadata:
           labels:
             control-plane: controller-manager
-            service: RELEASE-NAME-security-operator-generator
+            service: RELEASE-NAME-pm-openfga-operator-generator
         spec:
           automountServiceAccountToken: true
           containers:
@@ -258,11 +258,11 @@ operator match the snapshot:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env: null
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -270,7 +270,7 @@ operator match the snapshot:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -309,7 +309,7 @@ operator match the snapshot:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - name: external-api-server
@@ -319,18 +319,18 @@ operator match the snapshot:
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator-initializer
+      name: RELEASE-NAME-pm-openfga-operator-initializer
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          service: RELEASE-NAME-security-operator-initializer
+          service: RELEASE-NAME-pm-openfga-operator-initializer
       template:
         metadata:
           labels:
             control-plane: controller-manager
-            service: RELEASE-NAME-security-operator-initializer
+            service: RELEASE-NAME-pm-openfga-operator-initializer
         spec:
           automountServiceAccountToken: true
           containers:
@@ -348,11 +348,11 @@ operator match the snapshot:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env: null
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -360,7 +360,7 @@ operator match the snapshot:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -401,22 +401,22 @@ operator match the snapshot:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - name: external-api-server
               secret:
                 secretName: kcp-initializer-kubeconfig
             - configMap:
-                name: RELEASE-NAME-security-operator-core-module
+                name: RELEASE-NAME-pm-openfga-operator-core-module
               name: core-module
   7: |
     apiVersion: v1
     kind: Service
     metadata:
       labels:
-        app: RELEASE-NAME-security-operator
-      name: RELEASE-NAME-security-operator-metrics
+        app: RELEASE-NAME-pm-openfga-operator
+      name: RELEASE-NAME-pm-openfga-operator-metrics
     spec:
       ports:
         - name: metrics
@@ -424,30 +424,30 @@ operator match the snapshot:
           protocol: TCP
           targetPort: metrics
       selector:
-        app: RELEASE-NAME-security-operator
+        app: RELEASE-NAME-pm-openfga-operator
       type: ClusterIP
   8: |
     apiVersion: v1
     kind: ServiceAccount
     metadata:
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
       namespace: NAMESPACE
   9: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator-system
+      name: RELEASE-NAME-pm-openfga-operator-system
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          service: RELEASE-NAME-security-operator-system
+          service: RELEASE-NAME-pm-openfga-operator-system
       template:
         metadata:
           labels:
             control-plane: controller-manager
-            service: RELEASE-NAME-security-operator-system
+            service: RELEASE-NAME-pm-openfga-operator-system
         spec:
           automountServiceAccountToken: true
           containers:
@@ -462,11 +462,11 @@ operator match the snapshot:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env: null
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -474,7 +474,7 @@ operator match the snapshot:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -513,7 +513,7 @@ operator match the snapshot:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - name: external-api-server
@@ -523,18 +523,18 @@ operator match the snapshot:
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator-terminator
+      name: RELEASE-NAME-pm-openfga-operator-terminator
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          service: RELEASE-NAME-security-operator-terminator
+          service: RELEASE-NAME-pm-openfga-operator-terminator
       template:
         metadata:
           labels:
             control-plane: controller-manager
-            service: RELEASE-NAME-security-operator-terminator
+            service: RELEASE-NAME-pm-openfga-operator-terminator
         spec:
           automountServiceAccountToken: true
           containers:
@@ -550,11 +550,11 @@ operator match the snapshot:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env: null
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -562,7 +562,7 @@ operator match the snapshot:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -603,21 +603,21 @@ operator match the snapshot:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - name: external-api-server
               secret:
                 secretName: kcp-terminator-kubeconfig
             - configMap:
-                name: RELEASE-NAME-security-operator-core-module
+                name: RELEASE-NAME-pm-openfga-operator-core-module
               name: core-module
 operator match the snapshot w. sentry:
   1: |
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     metadata:
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
     rules:
       - apiGroups:
           - coordination.k8s.io
@@ -667,14 +667,14 @@ operator match the snapshot w. sentry:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRoleBinding
     metadata:
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
     subjects:
       - kind: ServiceAccount
-        name: RELEASE-NAME-security-operator
+        name: RELEASE-NAME-pm-openfga-operator
         namespace: NAMESPACE
   3: |
     apiVersion: v1
@@ -748,22 +748,22 @@ operator match the snapshot w. sentry:
             define watch: member
     kind: ConfigMap
     metadata:
-      name: RELEASE-NAME-security-operator-core-module
+      name: RELEASE-NAME-pm-openfga-operator-core-module
   4: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          app: RELEASE-NAME-security-operator
+          app: RELEASE-NAME-pm-openfga-operator
       template:
         metadata:
           labels:
-            app: RELEASE-NAME-security-operator
+            app: RELEASE-NAME-pm-openfga-operator
             control-plane: controller-manager
         spec:
           automountServiceAccountToken: true
@@ -779,7 +779,7 @@ operator match the snapshot w. sentry:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env:
@@ -787,10 +787,10 @@ operator match the snapshot w. sentry:
                   valueFrom:
                     secretKeyRef:
                       key: dsn
-                      name: RELEASE-NAME-security-operator-sentry
+                      name: RELEASE-NAME-pm-openfga-operator-sentry
                 - name: TEST_ENV
                   value: test
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -798,7 +798,7 @@ operator match the snapshot w. sentry:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -840,11 +840,11 @@ operator match the snapshot w. sentry:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - configMap:
-                name: RELEASE-NAME-security-operator-core-module
+                name: RELEASE-NAME-pm-openfga-operator-core-module
               name: core-module
             - name: kcp-kubeconfig
               secret:
@@ -853,18 +853,18 @@ operator match the snapshot w. sentry:
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator-generator
+      name: RELEASE-NAME-pm-openfga-operator-generator
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          service: RELEASE-NAME-security-operator-generator
+          service: RELEASE-NAME-pm-openfga-operator-generator
       template:
         metadata:
           labels:
             control-plane: controller-manager
-            service: RELEASE-NAME-security-operator-generator
+            service: RELEASE-NAME-pm-openfga-operator-generator
         spec:
           automountServiceAccountToken: true
           containers:
@@ -878,7 +878,7 @@ operator match the snapshot w. sentry:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env:
@@ -886,10 +886,10 @@ operator match the snapshot w. sentry:
                   valueFrom:
                     secretKeyRef:
                       key: dsn
-                      name: RELEASE-NAME-security-operator-sentry
+                      name: RELEASE-NAME-pm-openfga-operator-sentry
                 - name: TEST_ENV
                   value: test
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -897,7 +897,7 @@ operator match the snapshot w. sentry:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -937,7 +937,7 @@ operator match the snapshot w. sentry:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - name: kcp-kubeconfig
@@ -947,18 +947,18 @@ operator match the snapshot w. sentry:
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator-initializer
+      name: RELEASE-NAME-pm-openfga-operator-initializer
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          service: RELEASE-NAME-security-operator-initializer
+          service: RELEASE-NAME-pm-openfga-operator-initializer
       template:
         metadata:
           labels:
             control-plane: controller-manager
-            service: RELEASE-NAME-security-operator-initializer
+            service: RELEASE-NAME-pm-openfga-operator-initializer
         spec:
           automountServiceAccountToken: true
           containers:
@@ -974,7 +974,7 @@ operator match the snapshot w. sentry:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env:
@@ -982,10 +982,10 @@ operator match the snapshot w. sentry:
                   valueFrom:
                     secretKeyRef:
                       key: dsn
-                      name: RELEASE-NAME-security-operator-sentry
+                      name: RELEASE-NAME-pm-openfga-operator-sentry
                 - name: TEST_ENV
                   value: test
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -993,7 +993,7 @@ operator match the snapshot w. sentry:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -1037,7 +1037,7 @@ operator match the snapshot w. sentry:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - name: kcp-kubeconfig
@@ -1045,17 +1045,17 @@ operator match the snapshot w. sentry:
                 secretName: kcp-kubeconfig
             - name: external-api-server
               secret:
-                secretName: security-initializer-kubeconfig
+                secretName: openfga-initializer-kubeconfig
             - configMap:
-                name: RELEASE-NAME-security-operator-core-module
+                name: RELEASE-NAME-pm-openfga-operator-core-module
               name: core-module
   7: |
     apiVersion: v1
     kind: Service
     metadata:
       labels:
-        app: RELEASE-NAME-security-operator
-      name: RELEASE-NAME-security-operator-metrics
+        app: RELEASE-NAME-pm-openfga-operator
+      name: RELEASE-NAME-pm-openfga-operator-metrics
     spec:
       ports:
         - name: metrics
@@ -1063,20 +1063,20 @@ operator match the snapshot w. sentry:
           protocol: TCP
           targetPort: metrics
       selector:
-        app: RELEASE-NAME-security-operator
+        app: RELEASE-NAME-pm-openfga-operator
       type: ClusterIP
   8: |
     apiVersion: external-secrets.io/v1beta1
     kind: ExternalSecret
     metadata:
-      name: RELEASE-NAME-security-operator-sentry
+      name: RELEASE-NAME-pm-openfga-operator-sentry
       namespace: NAMESPACE
     spec:
       data:
         - remoteRef:
             conversionStrategy: Default
             key: sentry/sentry-dsn
-            property: RELEASE-NAME-security-operator-sentry
+            property: RELEASE-NAME-pm-openfga-operator-sentry
           secretKey: dsn
       refreshInterval: 10m
       secretStoreRef:
@@ -1085,29 +1085,29 @@ operator match the snapshot w. sentry:
       target:
         creationPolicy: Owner
         deletionPolicy: Retain
-        name: RELEASE-NAME-security-operator-sentry
+        name: RELEASE-NAME-pm-openfga-operator-sentry
   9: |
     apiVersion: v1
     kind: ServiceAccount
     metadata:
-      name: RELEASE-NAME-security-operator
+      name: RELEASE-NAME-pm-openfga-operator
       namespace: NAMESPACE
   10: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator-system
+      name: RELEASE-NAME-pm-openfga-operator-system
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          service: RELEASE-NAME-security-operator-system
+          service: RELEASE-NAME-pm-openfga-operator-system
       template:
         metadata:
           labels:
             control-plane: controller-manager
-            service: RELEASE-NAME-security-operator-system
+            service: RELEASE-NAME-pm-openfga-operator-system
         spec:
           automountServiceAccountToken: true
           containers:
@@ -1121,7 +1121,7 @@ operator match the snapshot w. sentry:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env:
@@ -1129,10 +1129,10 @@ operator match the snapshot w. sentry:
                   valueFrom:
                     secretKeyRef:
                       key: dsn
-                      name: RELEASE-NAME-security-operator-sentry
+                      name: RELEASE-NAME-pm-openfga-operator-sentry
                 - name: TEST_ENV
                   value: test
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -1140,7 +1140,7 @@ operator match the snapshot w. sentry:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -1180,7 +1180,7 @@ operator match the snapshot w. sentry:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - name: kcp-kubeconfig
@@ -1190,18 +1190,18 @@ operator match the snapshot w. sentry:
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: RELEASE-NAME-security-operator-terminator
+      name: RELEASE-NAME-pm-openfga-operator-terminator
       namespace: NAMESPACE
     spec:
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          service: RELEASE-NAME-security-operator-terminator
+          service: RELEASE-NAME-pm-openfga-operator-terminator
       template:
         metadata:
           labels:
             control-plane: controller-manager
-            service: RELEASE-NAME-security-operator-terminator
+            service: RELEASE-NAME-pm-openfga-operator-terminator
         spec:
           automountServiceAccountToken: true
           containers:
@@ -1217,7 +1217,7 @@ operator match the snapshot w. sentry:
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
-                - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
               env:
@@ -1225,10 +1225,10 @@ operator match the snapshot w. sentry:
                   valueFrom:
                     secretKeyRef:
                       key: dsn
-                      name: RELEASE-NAME-security-operator-sentry
+                      name: RELEASE-NAME-pm-openfga-operator-sentry
                 - name: TEST_ENV
                   value: test
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
+              image: ghcr.io/platform-mesh/platform-mesh/pm-openfga-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 1
@@ -1236,7 +1236,7 @@ operator match the snapshot w. sentry:
                   path: /healthz
                   port: 8090
                 periodSeconds: 10
-              name: RELEASE-NAME-security-operator
+              name: RELEASE-NAME-pm-openfga-operator
               ports:
                 - containerPort: 9090
                   name: metrics
@@ -1280,7 +1280,7 @@ operator match the snapshot w. sentry:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          serviceAccountName: RELEASE-NAME-security-operator
+          serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
             - name: kcp-kubeconfig
@@ -1288,7 +1288,7 @@ operator match the snapshot w. sentry:
                 secretName: kcp-kubeconfig
             - name: external-api-server
               secret:
-                secretName: security-terminator-kubeconfig
+                secretName: openfga-terminator-kubeconfig
             - configMap:
-                name: RELEASE-NAME-security-operator-core-module
+                name: RELEASE-NAME-pm-openfga-operator-core-module
               name: core-module

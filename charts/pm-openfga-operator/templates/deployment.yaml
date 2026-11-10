@@ -1,19 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "common.entity.name" . }}-terminator
+  name: {{ include "common.entity.name" . }}
   namespace: {{ .Release.Namespace }}
 spec:
   revisionHistoryLimit: {{ .Values.deployment.revisionHistoryLimit }}
   selector:
     matchLabels:
-      service: {{ include "common.entity.name" . }}-terminator
+      {{- include "common.labelMatcher" . | indent 6 }}
   template:
     metadata:
       labels:
-        service: {{ include "common.entity.name" . }}-terminator
+        {{- include "common.labelMatcher" . | indent 8 }}
         control-plane: controller-manager
     spec:
+      {{- include "common.imagePullSecret" . | indent 6 }}
       {{- include "common.pod.securityContext" . | indent 6 }}
       terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
       {{ include "common.hostAliases" $ | nindent 6 }}
@@ -24,37 +25,45 @@ spec:
         ports:
         {{- include "common.PortsMetricsHealth" . | nindent 10 }}
         args:
-          - terminator
+          - fga
           - --core-module-path=/data/coreModule.fga
-          {{- include "security-operator.featureGates" . | indent 10 }}
-          {{- with .Values.openfga.storeIDCacheTTL }}
-          - --fga-store-id-cache-ttl={{ . }}
-          {{- end }}
+          {{- include "pm-openfga-operator.featureGates" . | indent 10 }}
           - --fga-target={{ .Values.openfga.endpoint }}
-          {{- if .Values.terminator.kubeconfigSecret }}
+          {{- if .Values.kubeconfigSecret }}
           - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
           {{- end }}
-          {{- with .Values.terminator.extraArgs }}
+          {{- with .Values.operator.extraArgs }}
           {{ toYaml . | nindent 10}}
           {{- end }}
           {{- include "common.commonOperatorArgs" . | indent 8 }}
         env:
         {{- include "common.basicEnvironment" . | nindent 10 }}
         volumeMounts:
-          {{- include "common.extraVolumeMounts" . | nindent 10 }}
-          {{- if .Values.terminator.kubeconfigSecret }}
+          {{- if .Values.kubeconfigSecret }}
           - name: external-api-server
             mountPath: /api-kubeconfig
           {{- end }}
+          {{- if .Values.caSecret }}
+          - name: domain-ca
+            mountPath: /etc/ssl/certs/domain-ca.crt
+            subPath: tls.crt
+            readOnly: true
+          {{- end }}
           - name: core-module
             mountPath: /data
+          {{- include "common.extraVolumeMounts" . | nindent 10 }}
       volumes:
-        {{- include "common.extraVolumes" . | nindent 8 }}
-        {{- if .Values.terminator.kubeconfigSecret }}
+        {{- if .Values.kubeconfigSecret }}
         - name: external-api-server
           secret:
-            secretName: {{ .Values.terminator.kubeconfigSecret }}
+            secretName: {{ .Values.kubeconfigSecret }}
+        {{- end }}
+        {{- if .Values.caSecret }}
+        - name: domain-ca
+          secret:
+            secretName: {{ .Values.caSecret }}
         {{- end }}
         - name: core-module
           configMap:
             name: {{ include "common.entity.name" . }}-core-module
+        {{- include "common.extraVolumes" . | nindent 8 }}

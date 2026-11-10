@@ -61,7 +61,7 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	},
 	{
 		Path:      "root:platform-mesh-system",
-		Secret:    "security-operator-kubeconfig",
+		Secret:    "pm-openfga-operator-kubeconfig",
 		AdminAuth: ptr.To(true),
 	},
 	{
@@ -99,12 +99,12 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	},
 	{
 		Path:      "root",
-		Secret:    "security-initializer-kubeconfig",
+		Secret:    "openfga-initializer-kubeconfig",
 		AdminAuth: ptr.To(true),
 	},
 	{
 		Path:      "root",
-		Secret:    "security-terminator-kubeconfig",
+		Secret:    "openfga-terminator-kubeconfig",
 		AdminAuth: ptr.To(true),
 	},
 	{

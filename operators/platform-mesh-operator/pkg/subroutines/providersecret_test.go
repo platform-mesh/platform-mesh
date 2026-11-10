@@ -514,7 +514,7 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingSecret() {
 					switch key.Name {
 					case "account-operator-kubeconfig",
 						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -923,7 +923,7 @@ func (s *ProvidersecretTestSuite) TestErrorLoadingKubeconfig() {
 					switch key.Name {
 					case "account-operator-kubeconfig",
 						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1012,7 +1012,7 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingKCPClient() {
 					switch key.Name {
 					case "account-operator-kubeconfig",
 						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1125,7 +1125,7 @@ func (s *ProvidersecretTestSuite) TestErrorGettingAPIExportEndpointSlice() {
 					switch key.Name {
 					case "account-operator-kubeconfig",
 						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1222,7 +1222,7 @@ func (s *ProvidersecretTestSuite) TestEmptyAPIExportEndpoints() {
 					switch key.Name {
 					case "account-operator-kubeconfig",
 						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1327,7 +1327,7 @@ func (s *ProvidersecretTestSuite) TestInvalidEndpointURL() {
 					switch key.Name {
 					case "account-operator-kubeconfig",
 						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1456,7 +1456,7 @@ func (s *ProvidersecretTestSuite) TestContextNotFoundInKubeconfig() {
 					switch key.Name {
 					case "account-operator-kubeconfig",
 						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1596,7 +1596,7 @@ func (s *ProvidersecretTestSuite) TestClusterNotFoundInKubeconfig() {
 					switch key.Name {
 					case "account-operator-kubeconfig",
 						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",

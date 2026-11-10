@@ -263,5 +263,5 @@ rm -rf tests/.test                      # all logs
 | `integration/krocomposition` | kro-composition-operator: compositions, schema changes, type conflicts, pruning, consumers. |
 | `integration/resourcebroker` | resource-broker across broker, coordination, compute, consumer and provider workspaces: assignment, copy, conditions, deletion, migration. |
 | `integration/keycloak` | pm-keycloak-operator: the keycloak.platform-mesh.io APIs served from kcp, Invite validation. |
-| `integration/security` | security-operator: authorization model generation and invite validation. |
+| `integration/security` | pm-openfga-operator: authorization model generation. |
 | `integration/subroutines` | The subroutines lifecycle library against a real API server with a test CRD. |

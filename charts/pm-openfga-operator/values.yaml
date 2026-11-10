@@ -2,7 +2,7 @@ image:
   # -- The image registry
   registry: ghcr.io
   # -- The image repository path (without registry)
-  repository: platform-mesh/platform-mesh/security-operator
+  repository: platform-mesh/platform-mesh/pm-openfga-operator
   # -- The image digest (when set, overrides tag: registry/repository@digest)
   digest: ""
 
@@ -25,7 +25,7 @@ deployment:
 # -- Log level for all operator components. Permissible values: debug, info, warn, error
 logLevel: info
 
-# -- Feature gates rendered into --feature-gates. Known gates: OpenFGA (default true).
+# -- Feature gates rendered into --feature-gates. Known gates: LegacyAPIs (default true; also serves the deprecated core.platform-mesh.io Stores, AuthorizationModels and APIExportPolicies).
 featureGates: {}
 
 # -- The kubeconfig secret for operator and generator
@@ -36,7 +36,7 @@ caSecret: ""
 
 initializer:
   # -- The kubeconfig secret for the initializer
-  kubeconfigSecret: "security-initializer-kubeconfig"
+  kubeconfigSecret: "openfga-initializer-kubeconfig"
   extraArgs: []
   subroutines:
     # -- Enable WorkspaceInitializer subroutine (FGA Store + AccountInfo setup)
@@ -44,7 +44,7 @@ initializer:
 
 terminator:
   # -- The kubeconfig secret for the terminator
-  kubeconfigSecret: "security-terminator-kubeconfig"
+  kubeconfigSecret: "openfga-terminator-kubeconfig"
   extraArgs: []
 
 generator:

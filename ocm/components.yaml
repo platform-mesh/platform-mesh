@@ -90,8 +90,8 @@ components:
     e2e: false # no e2e suite; test-e2e is a no-op
   pm-openfga-operator:
     path: operators/pm-openfga-operator
-    image: security-operator # renamed with the chart
-    chart: charts/security-operator
+    image: pm-openfga-operator
+    chart: charts/pm-openfga-operator
   terminal-controller-manager:
     path: operators/terminal-controller-manager
     image: terminal-controller-manager

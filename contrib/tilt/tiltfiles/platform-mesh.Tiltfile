@@ -157,17 +157,17 @@ service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
 # authorization webhook.
 if OPENFGA:
     service(
-        "security-operator",
+        "pm-openfga-operator",
         NAMESPACE,
         TEMPLATE_VARS,
         path="operators/pm-openfga-operator",
         deps=GO_DEPS,
         workloads=[
-            "security-operator",
-            "security-operator-generator",
-            "security-operator-initializer",
-            "security-operator-system",
-            "security-operator-terminator",
+            "pm-openfga-operator",
+            "pm-openfga-operator-generator",
+            "pm-openfga-operator-initializer",
+            "pm-openfga-operator-system",
+            "pm-openfga-operator-terminator",
         ],
     )
     service("rebac-authz-webhook", NAMESPACE, TEMPLATE_VARS, path="services/rebac-authz-webhook", deps=GO_DEPS)
