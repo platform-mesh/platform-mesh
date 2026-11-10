@@ -11,7 +11,7 @@ replace (
 	go.platform-mesh.io/kro-composition-operator => ./operators/kro-composition-operator
 	go.platform-mesh.io/kubernetes-graphql-gateway => ./services/kubernetes-graphql-gateway
 	go.platform-mesh.io/resource-broker => ./operators/resource-broker
-	go.platform-mesh.io/security-operator => ./operators/security-operator
+	go.platform-mesh.io/security-operator => ./operators/pm-openfga-operator
 	go.platform-mesh.io/subroutines => ./subroutines
 )
 

@@ -88,9 +88,9 @@ components:
     image: pm-keycloak-operator
     chart: charts/pm-keycloak-operator
     e2e: false # no e2e suite; test-e2e is a no-op
-  security-operator:
-    path: operators/security-operator
-    image: security-operator
+  pm-openfga-operator:
+    path: operators/pm-openfga-operator
+    image: security-operator # renamed with the chart
     chart: charts/security-operator
   terminal-controller-manager:
     path: operators/terminal-controller-manager

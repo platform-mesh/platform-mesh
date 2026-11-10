@@ -30,7 +30,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | [account-operator](operators/account-operator) | Manages the core `Account` grouping resource and its owned namespace. |
 | [extension-manager-operator](operators/extension-manager-operator) | Lifecycle management of `ContentConfiguration` resources for Micro Frontends. |
 | [pm-keycloak-operator](operators/pm-keycloak-operator) | Manages the Keycloak identity provider: realms and OIDC clients (`IdentityProviderConfiguration`), user invites (`Invite`) and the per-organization kcp authentication configuration. |
-| [security-operator](operators/security-operator) | Manages security-related configuration (authorization models, identity providers, tuples, stores, invites). |
+| [pm-openfga-operator](operators/pm-openfga-operator) | Manages OpenFGA authorization: stores, authorization models, tuples (`Store`, `AuthorizationModel`) and provider access to organizations (`APIExportPolicy`). |
 | [terminal-controller-manager](operators/terminal-controller-manager) | Manages browser-based terminal sessions (ephemeral pods) to kcp workspaces. |
 
 ### Services
