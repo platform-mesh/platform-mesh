@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if not .featureDisableOpenFGA }}
 apiVersion: core.platform-mesh.io/v1alpha1
 kind: Store
 metadata:
@@ -44,3 +45,4 @@ spec:
   - object: tenancy_kcp_io_workspace:orgs
     relation: member
     user: role:authenticated#assignee
+{{- end }}

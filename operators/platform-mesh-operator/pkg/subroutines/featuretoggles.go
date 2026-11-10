@@ -157,6 +157,9 @@ func (r *FeatureToggleSubroutine) Process(ctx context.Context, runtimeObj ctrlru
 			// identity provider, users authenticate through the IdPs
 			// configured on the instance.
 			log.Info().Msg("Keycloak is disabled")
+		case FeatureDisableOpenFGA:
+			// Platform Mesh then runs without relationship-based authorization.
+			log.Info().Msg("OpenFGA is disabled")
 		default:
 			log.Warn().Str("featureToggle", ft.Name).Msg("Unknown feature toggle")
 		}

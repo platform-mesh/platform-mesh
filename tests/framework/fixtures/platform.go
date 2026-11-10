@@ -67,6 +67,7 @@ var workspaceTypeFiles = []string{
 var manifestData = map[string]any{
 	"featureEnableTerminalControllerManager": false,
 	"featureDisableKeycloak":                 true,
+	"featureDisableOpenFGA":                  true,
 }
 
 // Platform is a platform-mesh-system tree in a kcp.

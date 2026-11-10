@@ -68,9 +68,7 @@ type keycloakAPIGroupSplit struct{}
 func (keycloakAPIGroupSplit) Name() string { return "keycloak-apigroup-split" }
 
 func (m keycloakAPIGroupSplit) Run(ctx context.Context, deps Deps) error {
-	if slices.ContainsFunc(deps.Instance.Spec.FeatureToggles, func(ft pmcorev1alpha1.FeatureToggle) bool {
-		return ft.Name == featureDisableKeycloak
-	}) {
+	if hasFeatureToggle(deps.Instance, featureDisableKeycloak) {
 		return nil
 	}
 	log := logger.LoadLoggerFromContext(ctx).ChildLogger("migration", m.Name())

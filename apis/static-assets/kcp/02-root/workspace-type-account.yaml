@@ -54,5 +54,7 @@ spec:
     with:
       - name: universal
         path: root
+{{- if not .featureDisableOpenFGA }}
       - name: security
         path: root
+{{- end }}

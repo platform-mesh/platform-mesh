@@ -270,6 +270,7 @@ func (r *DeploymentSubroutine) Process(ctx context.Context, runtimeObj ctrlrunti
 		}
 	}
 
+	// Kept without OpenFGA as well: the portal mounts the webhook CA.
 	webhookResult, oErr := r.manageAuthorizationWebhookSecrets(ctx, inst)
 	if oErr != nil {
 		log.Info().Msg("Failed to manage authorization webhook secrets")

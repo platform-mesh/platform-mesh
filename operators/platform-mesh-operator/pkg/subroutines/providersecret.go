@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"slices"
 	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
@@ -162,6 +163,11 @@ func (r *ProvidersecretSubroutine) Process(
 			Path:      "root:platform-mesh-system",
 			Secret:    "terminal-controller-manager-kubeconfig",
 			AdminAuth: ptr.To(true),
+		})
+	}
+	if HasFeatureToggle(instance, FeatureDisableOpenFGA) {
+		providers = slices.DeleteFunc(slices.Clone(providers), func(pc pmcorev1alpha1.ProviderConnection) bool {
+			return pc.Secret == RebacAuthzWebhookKubeconfigSecret
 		})
 	}
 

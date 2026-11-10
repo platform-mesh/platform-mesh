@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if not .featureDisableOpenFGA }}
 kind: APIExportEndpointSlice
 apiVersion: apis.kcp.io/v1alpha1
 metadata:
@@ -20,3 +21,4 @@ spec:
   export:
     path: root:platform-mesh-system
     name: fga.platform-mesh.io
+{{- end }}
