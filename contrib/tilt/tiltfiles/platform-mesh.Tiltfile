@@ -167,8 +167,23 @@ service("virtual-workspaces", NAMESPACE, TEMPLATE_VARS, path="services/virtual-w
 service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"frontendPort": str(PORT)})
 service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
 
-# User and role management on top of Keycloak.
+# The Keycloak identity provider and user/role management on top of it.
+# No SMTP on kind: invited users get the default password "password" (temporary,
+# changed at first login) and may log in before verifying their e-mail.
 if KEYCLOAK:
+    service(
+        "pm-keycloak-operator",
+        NAMESPACE,
+        TEMPLATE_VARS,
+        path="operators/pm-keycloak-operator",
+        deps=GO_DEPS,
+        overrides={"idp": {"setDefaultPassword": True, "allowUnverifiedEmails": True}},
+        workloads=[
+            "pm-keycloak-operator",
+            "pm-keycloak-operator-initializer",
+            "pm-keycloak-operator-terminator",
+        ],
+    )
     service("iam-service", NAMESPACE, TEMPLATE_VARS, path="services/iam-service", deps=GO_DEPS)
     service("iam-ui", NAMESPACE, TEMPLATE_VARS)
 

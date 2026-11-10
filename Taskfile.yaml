@@ -135,6 +135,10 @@ tasks:
           task tilt:e2e                        run the e2e suites (Go, then portal) against Tilt
           . contrib/tilt/env.sh                export the URLs and credentials for tests
 
+        Logging in: create an organization with your e-mail as creator (the Invite puts
+        you into the organization's Keycloak realm); there is no SMTP, so the password
+        is "password" and must be changed at first login.
+
         Change options of a running Tilt without restarting it:
 
           tilt args -- --frontend-cors
