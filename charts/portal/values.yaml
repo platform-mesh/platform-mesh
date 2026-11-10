@@ -82,7 +82,7 @@ gatewayApi:
   enabled: true
   httpRoute:
     pathPrefix: /
-    # -- hostnames for the HTTPRoute. Derived from baseDomain when empty.
+    # -- hostnames for the HTTPRoute.
     hostnames: []
     parentRefs:
     - name: k8sapi-gateway

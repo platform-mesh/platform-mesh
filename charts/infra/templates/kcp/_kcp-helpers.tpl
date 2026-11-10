@@ -228,7 +228,7 @@ passthrough
 {{- range $hosts }}
 - name: {{ include "kcp.passthroughSectionName" (dict "root" $ "suffix" .suffix) }}
   hostname: {{ .hostname | quote }}
-  port: {{ $pt.port | default $.Values.gatewayApi.port }}
+  port: {{ $pt.port }}
   protocol: TLS
   tls:
     mode: Passthrough
