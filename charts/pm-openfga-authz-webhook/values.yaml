@@ -2,7 +2,7 @@ certManager:
   enabled: true
   dnsNames: []
   ipAddresses: []
-  caSecretName: rebac-authz-webhook-webhook-ca
+  caSecretName: pm-openfga-authz-webhook-webhook-ca
 
 deployment:
   resources:
@@ -17,7 +17,7 @@ image:
   # -- The image registry
   registry: ghcr.io
   # -- The image repository path (without registry)
-  repository: platform-mesh/platform-mesh/rebac-authz-webhook
+  repository: platform-mesh/platform-mesh/pm-openfga-authz-webhook
   # -- The image digest (when set, overrides tag: registry/repository@digest)
   digest: ""
   # Overrides the image tag whose default is the chart appVersion.
@@ -46,7 +46,7 @@ serviceAccount:
 
 kcp:
   kubeconfig:
-    secret: rebac-authz-webhook-kubeconfig
+    secret: pm-openfga-authz-webhook-kubeconfig
   # -- kcp APIExportEndpointSliceName to watch. Empty string means auto-discover all slices
   apiExportEndpointSliceName: ""
 

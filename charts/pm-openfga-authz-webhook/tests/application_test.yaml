@@ -6,7 +6,7 @@ chart:
   version: 0.0.0
   appVersion: "0.0.0"
 release:
-  name: rebac-authz-webhook
+  name: pm-openfga-authz-webhook
   namespace: platform-mesh-system
 tests:
 - it: it should render the application manifests

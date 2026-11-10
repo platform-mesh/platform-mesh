@@ -1,5 +1,5 @@
 components:
-  - name: github.com/platform-mesh/helm-charts/rebac-authz-webhook
+  - name: github.com/platform-mesh/helm-charts/pm-openfga-authz-webhook
     version: ${PM_VERSION}
     provider:
       name: The Platform Mesh Team
@@ -10,7 +10,7 @@ components:
         version: ${PM_VERSION}
         access:
           type: ociArtifact
-          imageReference: ${CHART_REPO}/rebac-authz-webhook:${PM_VERSION}
+          imageReference: ${CHART_REPO}/pm-openfga-authz-webhook:${PM_VERSION}
     sources:
       - name: chart
         type: git
@@ -19,7 +19,7 @@ components:
           type: gitHub
           repoUrl: ${REPO_URL}
           commit: ${COMMIT}
-  - name: github.com/platform-mesh/rebac-authz-webhook
+  - name: github.com/platform-mesh/pm-openfga-authz-webhook
     version: ${PM_VERSION}
     provider:
       name: The Platform Mesh Team
@@ -33,8 +33,8 @@ components:
           commit: ${COMMIT}
     componentReferences:
       - name: chart
-        componentName: github.com/platform-mesh/helm-charts/rebac-authz-webhook
+        componentName: github.com/platform-mesh/helm-charts/pm-openfga-authz-webhook
         version: ${PM_VERSION}
       - name: image
-        componentName: github.com/platform-mesh/images/rebac-authz-webhook
+        componentName: github.com/platform-mesh/images/pm-openfga-authz-webhook
         version: ${PM_VERSION}
