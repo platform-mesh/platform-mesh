@@ -52,8 +52,12 @@ const (
 // Helm repository chart) and waits for their Deployments, so the scenario
 // needs Flux on the runtime cluster. The ManagedProvider CRD requires
 // runtimeDeployments and the deploy finalizer cannot complete without the
-// Flux kinds, so without Flux the test is skipped (the Tilt cluster has none).
+// Flux kinds. The Tilt cluster installs no Flux (contrib/tilt/tiltfiles/
+// prereq.Tiltfile sets flux2.enabled=false), so the test is disabled until
+// the e2e environment ships Flux.
 func TestManagedProviderLifecycle(t *testing.T) {
+	t.Skip("disabled: ManagedProvider runtimeDeployments need Flux and the Tilt cluster has none (flux2.enabled=false in contrib/tilt/tiltfiles/prereq.Tiltfile)")
+
 	cl := kubeClient(t)
 	waitPlatformMeshReady(t, cl)
 
