@@ -28,6 +28,7 @@ import (
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
+	"go.platform-mesh.io/security-operator/internal/features"
 	"go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/security-operator/internal/metrics"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
@@ -68,30 +69,9 @@ func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
-	var subs []subroutines.Subroutine
-
-	if cfg.Initializer.WorkspaceInitializerEnabled {
-		subs = append(subs, subroutine.NewWorkspaceInitializer(cfg, mgr, kcpClientGetter, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientGetter))
-	}
-	if cfg.Initializer.IDPEnabled {
-		idpSub, err := subroutine.NewIDPSubroutine(mgr, kcpClientGetter, cfg)
-		if err != nil {
-			return nil, fmt.Errorf("creating IDP subroutine: %w", err)
-		}
-		subs = append(subs, idpSub)
-	}
-	if cfg.Initializer.InviteEnabled {
-		inviteSub, err := subroutine.NewInviteSubroutine(mgr, kcpClientGetter)
-		if err != nil {
-			return nil, fmt.Errorf("creating Invite subroutine: %w", err)
-		}
-		subs = append(subs, inviteSub)
-	}
-	if cfg.Initializer.WorkspaceAuthEnabled {
-		subs = append(subs, subroutine.NewWorkspaceAuthConfigurationSubroutine(inClusterClient, mgr, kcpClientGetter, cfg))
-	}
-	if cfg.RekeyOrphanedTuplesEnabled {
-		subs = append(subs, subroutine.NewRekeyTuplesSubroutine(cfg, mgr, fgaClient, storeIDGetter, kcpClientGetter))
+	subs, err := orgSubroutines(cfg, mgr, kcpClientGetter, inClusterClient, fgaClient, storeIDGetter)
+	if err != nil {
+		return nil, err
 	}
 	lc := lifecycle.New(mgr, opts.Name, func() ctrlruntimeclient.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
@@ -110,6 +90,38 @@ func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.
 		lifecycle:   lc,
 		rateLimiter: rl,
 	}, nil
+}
+
+// orgSubroutines builds the organization subroutine chain
+// from the initializer toggles and the Keycloak feature gate.
+func orgSubroutines(cfg config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, inClusterClient ctrlruntimeclient.Client, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter) ([]subroutines.Subroutine, error) {
+	var subs []subroutines.Subroutine
+
+	if cfg.Initializer.WorkspaceInitializerEnabled {
+		subs = append(subs, subroutine.NewWorkspaceInitializer(cfg, mgr, kcpClientGetter, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientGetter))
+	}
+	keycloak := cfg.FeatureEnabled(features.Keycloak)
+	if keycloak && cfg.Initializer.IDPEnabled {
+		idpSub, err := subroutine.NewIDPSubroutine(mgr, kcpClientGetter, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("creating IDP subroutine: %w", err)
+		}
+		subs = append(subs, idpSub)
+	}
+	if keycloak && cfg.Initializer.InviteEnabled {
+		inviteSub, err := subroutine.NewInviteSubroutine(mgr, kcpClientGetter)
+		if err != nil {
+			return nil, fmt.Errorf("creating Invite subroutine: %w", err)
+		}
+		subs = append(subs, inviteSub)
+	}
+	if keycloak && cfg.Initializer.WorkspaceAuthEnabled {
+		subs = append(subs, subroutine.NewWorkspaceAuthConfigurationSubroutine(inClusterClient, mgr, kcpClientGetter, cfg))
+	}
+	if cfg.RekeyOrphanedTuplesEnabled {
+		subs = append(subs, subroutine.NewRekeyTuplesSubroutine(cfg, mgr, fgaClient, storeIDGetter, kcpClientGetter))
+	}
+	return subs, nil
 }
 
 func (r *OrgLogicalClusterController) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {

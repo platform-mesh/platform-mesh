@@ -21,6 +21,9 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"go.platform-mesh.io/security-operator/internal/features"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -59,6 +62,51 @@ func TestConfigAddFlags(t *testing.T) {
 	assert.Equal(t, 10443, cfg.Webhooks.Port)
 	assert.Equal(t, []string{"aud-a", "aud-b"}, cfg.AdditionalAudiences)
 	assert.True(t, cfg.RekeyOrphanedTuplesEnabled)
+}
+
+func TestConfig_FeatureEnabled(t *testing.T) {
+	cases := map[string]struct {
+		args     []string
+		keycloak bool
+		openFGA  bool
+	}{
+		"defaults on":   {nil, true, true},
+		"keycloak off":  {[]string{"--feature-gates=Keycloak=false"}, false, true},
+		"openfga off":   {[]string{"--feature-gates=OpenFGA=false"}, true, false},
+		"both off":      {[]string{"--feature-gates=Keycloak=false,OpenFGA=false"}, false, false},
+		"explicitly on": {[]string{"--feature-gates=Keycloak=true"}, true, true},
+		"repeated flag": {[]string{"--feature-gates=Keycloak=false", "--feature-gates=OpenFGA=false"}, false, false},
+	}
+
+	for title, cas := range cases {
+		t.Run(title, func(t *testing.T) {
+			cfg := NewConfig()
+			fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			cfg.AddFlags(fs)
+
+			require.NoError(t, fs.Parse(cas.args))
+
+			assert.Equal(t, cas.keycloak, cfg.FeatureEnabled(features.Keycloak), "Keycloak gate")
+			assert.Equal(t, cas.openFGA, cfg.FeatureEnabled(features.OpenFGA), "OpenFGA gate")
+		})
+	}
+}
+
+func TestConfig_FeatureEnabled_ZeroValueUsesDefaults(t *testing.T) {
+	cfg := Config{}
+
+	assert.True(t, cfg.FeatureEnabled(features.Keycloak))
+	assert.True(t, cfg.FeatureEnabled(features.OpenFGA))
+}
+
+func TestConfigAddFlags_UnknownFeatureGate(t *testing.T) {
+	cfg := NewConfig()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	cfg.AddFlags(fs)
+
+	err := fs.Parse([]string{"--feature-gates=NoSuchGate=true"})
+
+	require.Error(t, err)
 }
 
 func TestConfigRekeyOrphanedTuplesDefaultsToDisabled(t *testing.T) {

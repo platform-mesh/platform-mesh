@@ -30,6 +30,7 @@ import (
 	"go.platform-mesh.io/golang-commons/sentry"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/controller"
+	"go.platform-mesh.io/security-operator/internal/features"
 	fga2 "go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/security-operator/internal/predicates"
 	internalwebhook "go.platform-mesh.io/security-operator/internal/webhook"
@@ -219,14 +220,17 @@ var operatorCmd = &cobra.Command{
 		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, provider.Provider.Provider)
 		kcpClientGetterWithConfig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
 
-		inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log, kcpClientGetter)
-		if err != nil {
-			log.Error().Err(err).Str("controller", "invite").Msg("unable to create reconciler")
-			return err
-		}
-		if err = inviteReconciler.SetupWithManager(mgr, defaultCfg, log, coreEngageOpts); err != nil {
-			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
-			return err
+		keycloak := operatorCfg.FeatureEnabled(features.Keycloak)
+		if keycloak {
+			inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log, kcpClientGetter)
+			if err != nil {
+				log.Error().Err(err).Str("controller", "invite").Msg("unable to create reconciler")
+				return err
+			}
+			if err = inviteReconciler.SetupWithManager(mgr, defaultCfg, log, coreEngageOpts); err != nil {
+				log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
+				return err
+			}
 		}
 		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetterWithConfig, operatorCfg, runtimeClient, mgr, fga, storeIDGetter, controller.ControllerOptions{
 			Name: "OrgLogicalClusterReconciler",
@@ -262,7 +266,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		if operatorCfg.Webhooks.Enabled {
+		if keycloak && operatorCfg.Webhooks.Enabled {
 			log.Info().Msg("validating webhooks are enabled")
 			if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, mgr.GetLocalManager(), &operatorCfg); err != nil {
 				log.Error().Err(err).Str("webhook", "IdentityProviderConfiguration").Msg("unable to create webhook")
