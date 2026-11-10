@@ -134,6 +134,9 @@ func ThirdPartyVersions(ctx context.Context, commit string) (map[string]string, 
 		if err != nil || !ok {
 			return nil, err
 		}
+		// TODO(ntnn): Should replace this with the ocm library or
+		// another package when we do have more than one consumer
+		// parsing OCM constructors.
 		var file struct {
 			Components []struct {
 				Resources []struct {
