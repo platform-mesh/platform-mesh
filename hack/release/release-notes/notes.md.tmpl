@@ -25,6 +25,15 @@ _{{len .Contributors}} contributor(s)_
 
 ## Components built from other repositories
 {{template "table" (dict "Rows" .OtherComponents "Header" "Component" "From" .StartOCMVersion "To" .OCMVersion "Empty" "No components from other repositories.")}}
+{{- range $uc := .OtherChanges}}
+
+### {{.Chart}} {{.From}} → {{.To}}
+{{range .Commits}}
+- {{.Title}}{{if .PR}} ([#{{.PR}}]({{$uc.Repo}}/pull/{{.PR}})){{else}} ([{{slice .SHA 0 7}}]({{$uc.Repo}}/commit/{{.SHA}})){{end}}
+{{- else}}
+No commits.
+{{- end}}
+{{- end}}
 
 ## Third-party versions
 {{template "table" (dict "Rows" .ThirdParty "Header" "Pin" "From" .StartOCMVersion "To" .OCMVersion "Empty" "No third-party versions changed.")}}

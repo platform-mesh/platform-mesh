@@ -120,8 +120,8 @@ func authorOf(user *github.User) author {
 }
 
 func upstreamCommitOf(c *github.RepositoryCommit) upstreamCommit {
-	title, _, _ := strings.Cut(c.GetCommit().GetMessage(), "\n")
-	title, number := splitPRSuffix(strings.TrimSpace(title))
+	subject, body, _ := strings.Cut(c.GetCommit().GetMessage(), "\n")
+	title, number := parseLogEntry(strings.TrimSpace(subject), body)
 	commit := upstreamCommit{
 		SHA:    c.GetSHA(),
 		Title:  title,

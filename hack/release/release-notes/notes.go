@@ -111,6 +111,51 @@ func releaseNotes(changes []change, prs map[int]pr) []releaseNote {
 	return result
 }
 
+// upstreamChanges are the commits a component built in another repository
+// gained between its two versions.
+type upstreamChanges struct {
+	Chart   string
+	Repo    string
+	From    string
+	To      string
+	Commits []upstreamCommit
+}
+
+// otherChanges compares every changed other-repository component in its
+// repository <owner>/<chart>. Failures are logged and leave the component out.
+func otherChanges(ctx context.Context, client *github.Client, owner string, rows []versionRow) []upstreamChanges {
+	var result []upstreamChanges
+	for _, row := range rows {
+		if !row.Changed || row.From == absent {
+			continue
+		}
+		commits, err := compare(ctx, client, owner, row.Name, row.From, row.To)
+		if err != nil {
+			log.Printf("warning: %v", err)
+			continue
+		}
+		result = append(result, upstreamChanges{
+			Chart:   row.Name,
+			Repo:    "https://github.com/" + owner + "/" + row.Name,
+			From:    row.From,
+			To:      row.To,
+			Commits: commits,
+		})
+	}
+	return result
+}
+
+// upstreamAuthors lists the authors of the other-repository commits.
+func upstreamAuthors(changes []upstreamChanges) []author {
+	var authors []author
+	for _, uc := range changes {
+		for _, c := range uc.Commits {
+			authors = append(authors, c.Author)
+		}
+	}
+	return authors
+}
+
 // contributors merges authors, drops bots and duplicates and sorts by login.
 func contributors(groups ...[]author) []author {
 	byLogin := map[string]author{}

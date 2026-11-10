@@ -110,6 +110,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	other := otherChanges(ctx, client, owner, otherComponents)
 	thirdPartyFrom, err := thirdPartyVersions(ctx, start.commit)
 	if err != nil {
 		return err
@@ -125,9 +126,10 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		StartOCMVersion: start.ocmVersion(),
 		RepoURL:         repoURL,
 		ReleaseNotes:    releaseNotes(changes, prs),
-		Contributors:    contributors(prAuthors(prs)),
+		Contributors:    contributors(prAuthors(prs), upstreamAuthors(other)),
 		Components:      componentRows(comps, start.ocmVersion(), end.ocmVersion()),
 		OtherComponents: otherComponents,
+		OtherChanges:    other,
 		ThirdParty:      thirdPartyRows(thirdPartyFrom, thirdPartyTo),
 		Changes:         grouped,
 	}

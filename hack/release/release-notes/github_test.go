@@ -88,6 +88,25 @@ func TestUpstreamCommitOf(t *testing.T) {
 				Author: author{Login: "renovate[bot]", URL: "https://github.com/apps/renovate", Bot: true},
 			},
 		},
+		"merge commit": {
+			&github.RepositoryCommit{
+				SHA: github.Ptr("0c8c1a9"),
+				Commit: &github.Commit{
+					Message: github.Ptr("Merge pull request #137 from Perseus985/chore/updates-for-emudrha\n\nchore: updates for eMudhra"),
+				},
+				Author: &github.User{
+					Login:   github.Ptr("Perseus985"),
+					HTMLURL: github.Ptr("https://github.com/Perseus985"),
+					Type:    github.Ptr("User"),
+				},
+			},
+			upstreamCommit{
+				SHA:    "0c8c1a9",
+				Title:  "chore: updates for eMudhra",
+				PR:     137,
+				Author: author{Login: "Perseus985", URL: "https://github.com/Perseus985"},
+			},
+		},
 		"no pull request and no GitHub author": {
 			&github.RepositoryCommit{
 				SHA: github.Ptr("490c369"),
@@ -218,4 +237,35 @@ func TestNewGitHub(t *testing.T) {
 
 	t.Setenv("GH_TOKEN", "token")
 	assert.NotNil(t, newGitHub(), "authenticated client")
+}
+
+func TestOtherChanges(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /repos/platform-mesh/portal/compare/v0.27.20...v0.27.32", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprint(w, `{"commits":[{"sha":"db97262","commit":{"message":"fix: x (#1)"},"author":{"login":"jane","html_url":"https://github.com/jane","type":"User"}}]}`)
+	})
+	client := apiServer(t, mux)
+
+	rows := []versionRow{
+		{Name: "portal", From: "v0.27.20", To: "v0.27.32", Changed: true},
+		{Name: "iam-ui", From: "v0.12.23", To: "v0.12.23"},
+		{Name: "new-ui", From: absent, To: "v1.0.0", Changed: true},
+		{Name: "kcp-access-vw", From: "0.1.0", To: "0.1.1", Changed: true},
+	}
+	got := otherChanges(t.Context(), client, "platform-mesh", rows)
+	want := []upstreamChanges{
+		{
+			Chart: "portal",
+			Repo:  "https://github.com/platform-mesh/portal",
+			From:  "v0.27.20",
+			To:    "v0.27.32",
+			Commits: []upstreamCommit{
+				{SHA: "db97262", Title: "fix: x", PR: 1, Author: author{Login: "jane", URL: "https://github.com/jane"}},
+			},
+		},
+	}
+	assert.Equal(t, want, got, "unchanged, newly added and unknown repositories are skipped")
+	assert.Equal(t, []author{{Login: "jane", URL: "https://github.com/jane"}}, upstreamAuthors(got))
 }
