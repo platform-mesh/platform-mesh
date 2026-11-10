@@ -25,6 +25,8 @@ spec:
 {{- if not .featureDisableOpenFGA }}
     - export: fga.platform-mesh.io
       path: root:platform-mesh-system
+    - export: openfga.platform-mesh.io
+      path: root:platform-mesh-system
 {{- end }}
 {{- if not .featureDisableKeycloak }}
     - export: keycloak.platform-mesh.io

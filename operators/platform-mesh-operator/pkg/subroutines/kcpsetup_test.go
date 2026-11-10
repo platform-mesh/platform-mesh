@@ -1373,7 +1373,13 @@ func (s *KcpsetupTestSuite) Test_OpenFGAManifests_FeatureDisableOpenFGA() {
 		"01-platform-mesh-system/apiexport-provider-fga.platform-mesh.io.yaml",
 		"01-platform-mesh-system/apiexportendpointslice-fga.platform-mesh.io.yaml",
 		"01-platform-mesh-system/apiexportendpointslice-provider-fga.platform-mesh.io.yaml",
+		"01-platform-mesh-system/apiexport-openfga.platform-mesh.io.yaml",
+		"01-platform-mesh-system/apiexport-provider-openfga.platform-mesh.io.yaml",
+		"01-platform-mesh-system/apiexportendpointslice-openfga.platform-mesh.io.yaml",
+		"01-platform-mesh-system/apiexportendpointslice-provider-openfga.platform-mesh.io.yaml",
+		"01-platform-mesh-system/apibinding-openfga.platform-mesh.io.yaml",
 		"03-orgs/apibinding-fga.platform-mesh.io.yaml",
+		"03-orgs/apibinding-openfga.platform-mesh.io.yaml",
 		"03-orgs/store.yaml",
 	} {
 		s.Assert().Nil(render(file, true), "%s must render to nothing without OpenFGA", file)
@@ -1398,10 +1404,14 @@ func (s *KcpsetupTestSuite) Test_OpenFGAManifests_FeatureDisableOpenFGA() {
 		s.Assert().NotContains(names(render(file, true), "spec", "extend", "with"), "security", file)
 		s.Assert().Contains(names(render(file, false), "spec", "extend", "with"), "security", file)
 	}
-	s.Assert().NotContains(names(render("02-root/01-workspace-type-orgs.yaml", true), "spec", "defaultAPIBindings"), "fga.platform-mesh.io")
-	s.Assert().Contains(names(render("02-root/01-workspace-type-orgs.yaml", false), "spec", "defaultAPIBindings"), "fga.platform-mesh.io")
-	s.Assert().NotContains(names(render("02-root/workspace-type-provider.yaml", true), "spec", "defaultAPIBindings"), "provider-fga.platform-mesh.io")
-	s.Assert().Contains(names(render("02-root/workspace-type-provider.yaml", false), "spec", "defaultAPIBindings"), "provider-fga.platform-mesh.io")
+	for _, export := range []string{"fga.platform-mesh.io", "openfga.platform-mesh.io"} {
+		s.Assert().NotContains(names(render("02-root/01-workspace-type-orgs.yaml", true), "spec", "defaultAPIBindings"), export)
+		s.Assert().Contains(names(render("02-root/01-workspace-type-orgs.yaml", false), "spec", "defaultAPIBindings"), export)
+	}
+	for _, export := range []string{"provider-fga.platform-mesh.io", "provider-openfga.platform-mesh.io"} {
+		s.Assert().NotContains(names(render("02-root/workspace-type-provider.yaml", true), "spec", "defaultAPIBindings"), export)
+		s.Assert().Contains(names(render("02-root/workspace-type-provider.yaml", false), "spec", "defaultAPIBindings"), export)
+	}
 }
 
 // Test_OrgWorkspaceType_NoExtensions locks in that `org` renders without an

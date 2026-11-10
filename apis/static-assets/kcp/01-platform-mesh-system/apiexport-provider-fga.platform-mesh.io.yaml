@@ -26,7 +26,7 @@ spec:
   resources:
   - group: core.platform-mesh.io
     name: authorizationmodels
-    schema: v260112-5925c7e.authorizationmodels.core.platform-mesh.io
+    schema: v261110-4a97ee37.authorizationmodels.core.platform-mesh.io
     storage:
       crd: {}
 status: {}

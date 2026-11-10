@@ -31,7 +31,7 @@ spec:
       crd: {}
   - group: core.platform-mesh.io
     name: invites
-    schema: v261110-5d883092.invites.core.platform-mesh.io
+    schema: v261110-07dc9650.invites.core.platform-mesh.io
     storage:
       crd: {}
   permissionClaims:

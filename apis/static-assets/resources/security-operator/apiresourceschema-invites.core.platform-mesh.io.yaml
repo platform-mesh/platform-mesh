@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261111-07dc9650.invites.core.platform-mesh.io
+  name: v261110-07dc9650.invites.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:

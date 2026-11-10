@@ -27,6 +27,8 @@ spec:
 {{- if not .featureDisableOpenFGA }}
     - export: provider-fga.platform-mesh.io
       path: root:platform-mesh-system
+    - export: provider-openfga.platform-mesh.io
+      path: root:platform-mesh-system
 {{- end }}
   limitAllowedParents:
     types:
