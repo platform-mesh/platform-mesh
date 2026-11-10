@@ -53,6 +53,16 @@ type upstreamCommit struct {
 	Author author
 }
 
+// repoOwnerName splits a GitHub repository URL into owner and name.
+func repoOwnerName(repoURL string) (string, string, error) {
+	path := strings.TrimPrefix(strings.TrimSuffix(repoURL, ".git"), "https://github.com/")
+	owner, name, ok := strings.Cut(path, "/")
+	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
+		return "", "", fmt.Errorf("%q is not a GitHub repository URL", repoURL)
+	}
+	return owner, name, nil
+}
+
 // newGitHub returns a client authenticated with GH_TOKEN or GITHUB_TOKEN
 // when either is set, anonymous otherwise.
 func newGitHub() *github.Client {

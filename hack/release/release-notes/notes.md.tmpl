@@ -4,6 +4,22 @@
 
 To install see the [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with `--set-string ocm.version={{.OCMVersion}}`.
 
+## Release Notes
+{{range .ReleaseNotes}}
+- {{join .Lines "\n  "}} ([#{{.PR}}]({{$.RepoURL}}/pull/{{.PR}}))
+{{- else}}
+No release notes.
+{{- end}}
+
+## Contributors
+{{range .Contributors}}
+- {{if .URL}}[{{.Login}}]({{.URL}}){{else}}{{.Login}}{{end}}
+{{- else}}
+No contributors.
+{{- end}}
+
+_{{len .Contributors}} contributor(s)_
+
 ## Changes
 {{- range .Changes}}
 

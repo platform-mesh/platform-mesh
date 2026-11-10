@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"strings"
 	"text/template"
 
 	_ "embed"
@@ -34,12 +35,17 @@ type notes struct {
 	// OCMVersion is the release without the leading v, as OCM and charts use it.
 	OCMVersion string
 	// RepoURL is the GitHub repository pull requests and commits link to.
-	RepoURL string
-	Changes []componentChanges
+	RepoURL      string
+	ReleaseNotes []releaseNote
+	Contributors []author
+	Changes      []componentChanges
 }
 
 func render(w io.Writer, n notes) error {
-	tmpl, err := template.New("notes").Parse(notesTemplate)
+	funcs := template.FuncMap{
+		"join": strings.Join,
+	}
+	tmpl, err := template.New("notes").Funcs(funcs).Parse(notesTemplate)
 	if err != nil {
 		return fmt.Errorf("parsing notes template: %w", err)
 	}

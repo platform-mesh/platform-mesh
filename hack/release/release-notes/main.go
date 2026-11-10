@@ -86,6 +86,11 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	}
 
 	repoURL := strings.TrimSuffix(releaseutils.EnvOr("REPO_URL", releaseutils.DefaultRepoURL), ".git")
+	owner, repo, err := repoOwnerName(repoURL)
+	if err != nil {
+		return err
+	}
+	client := newGitHub()
 
 	changes, err := firstParentLog(ctx, start.commit, end.commit)
 	if err != nil {
@@ -99,12 +104,15 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	prs := collectPRs(ctx, client, owner, repo, changes)
 
 	n := notes{
-		Version:    end.version.String(),
-		OCMVersion: end.ocmVersion(),
-		RepoURL:    repoURL,
-		Changes:    grouped,
+		Version:      end.version.String(),
+		OCMVersion:   end.ocmVersion(),
+		RepoURL:      repoURL,
+		ReleaseNotes: releaseNotes(changes, prs),
+		Contributors: contributors(prAuthors(prs)),
+		Changes:      grouped,
 	}
 	return render(stdout, n)
 }
