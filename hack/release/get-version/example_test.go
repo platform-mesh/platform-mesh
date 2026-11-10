@@ -20,7 +20,8 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
+
+	"go.platform-mesh.io/platform-mesh/hack/release/get-version/scratchrepo"
 )
 
 // scratchRepo creates a fresh git repository with two commits in
@@ -31,48 +32,23 @@ import (
 // The returned function restores the previous working directory and
 // deletes the tempdir.
 func scratchRepo() func() {
-	previous, err := os.Getwd()
+	ctx := context.Background()
+	repo, err := scratchrepo.New(ctx)
 	if err != nil {
 		panic(err)
 	}
-	dir, err := os.MkdirTemp("", "get-version-example")
-	if err != nil {
-		panic(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		panic(err)
-	}
-	// Keep the developer's signing and hooks out of the scratch repository.
-	for key, value := range map[string]string{
-		"GIT_CONFIG_GLOBAL":   "/dev/null",
-		"GIT_CONFIG_NOSYSTEM": "1",
-		"GITHUB_REF_NAME":     "",
-		"GITHUB_RUN_NUMBER":   "",
+	for _, step := range []func() error{
+		func() error { return repo.Commit(ctx, "release") },
+		func() error { return repo.Tag(ctx, "v26.12.0") },
+		func() error { return repo.Commit(ctx, "fix") },
+		func() error { return repo.Tag(ctx, "v26.12.1-rc.1") },
 	} {
-		if err := os.Setenv(key, value); err != nil {
+		if err := step(); err != nil {
 			panic(err)
 		}
 	}
-
-	git := func(args ...string) {
-		out, err := exec.CommandContext(context.Background(), "git", args...).CombinedOutput()
-		if err != nil {
-			panic(fmt.Sprintf("git %v: %v: %s", args, err, out))
-		}
-	}
-	git("init", "-q", "-b", "main")
-	git("config", "user.name", "example")
-	git("config", "user.email", "example@example.com")
-	git("commit", "-q", "--allow-empty", "-m", "release")
-	git("tag", "v26.12.0")
-	git("commit", "-q", "--allow-empty", "-m", "fix")
-	git("tag", "v26.12.1-rc.1")
-
 	return func() {
-		if err := os.Chdir(previous); err != nil {
-			panic(err)
-		}
-		if err := os.RemoveAll(dir); err != nil {
+		if err := repo.Close(); err != nil {
 			panic(err)
 		}
 	}
