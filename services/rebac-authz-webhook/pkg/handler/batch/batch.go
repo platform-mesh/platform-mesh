@@ -72,7 +72,8 @@ func (h *BatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close() //nolint:errcheck
 
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+	// 1 MiB cap prevents request body resource exhaustion and a single SAR is well under 1 KiB.
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1*1024*1024))
 	if err != nil {
 		h.log.Error(err, "failed to read request body")
 		h.writeError(w, http.StatusBadRequest, "failed to read request body")
