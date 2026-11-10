@@ -29,6 +29,7 @@ import (
 	"google.golang.org/grpc"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
 
@@ -44,7 +45,7 @@ func TestTupleManager_Apply(t *testing.T) {
 		err := mgr.Apply(context.Background(), nil)
 		assert.NoError(t, err)
 
-		err = mgr.Apply(context.Background(), []pmcorev1alpha1.Tuple{})
+		err = mgr.Apply(context.Background(), []pmopenfgav1alpha1.Tuple{})
 		assert.NoError(t, err)
 	})
 
@@ -61,7 +62,7 @@ func TestTupleManager_Apply(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		tuples := []pmcorev1alpha1.Tuple{
+		tuples := []pmopenfgav1alpha1.Tuple{
 			{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 			{Object: "doc:2", Relation: "owner", User: "user:bob"},
 		}
@@ -77,7 +78,7 @@ func TestTupleManager_Apply(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		tuples := []pmcorev1alpha1.Tuple{
+		tuples := []pmopenfgav1alpha1.Tuple{
 			{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 		}
 
@@ -95,7 +96,7 @@ func TestTupleManager_Delete(t *testing.T) {
 		err := mgr.Delete(context.Background(), nil)
 		assert.NoError(t, err)
 
-		err = mgr.Delete(context.Background(), []pmcorev1alpha1.Tuple{})
+		err = mgr.Delete(context.Background(), []pmopenfgav1alpha1.Tuple{})
 		assert.NoError(t, err)
 	})
 
@@ -112,7 +113,7 @@ func TestTupleManager_Delete(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		tuples := []pmcorev1alpha1.Tuple{
+		tuples := []pmopenfgav1alpha1.Tuple{
 			{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 			{Object: "doc:2", Relation: "owner", User: "user:bob"},
 		}
@@ -128,7 +129,7 @@ func TestTupleManager_Delete(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		tuples := []pmcorev1alpha1.Tuple{
+		tuples := []pmopenfgav1alpha1.Tuple{
 			{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 		}
 
@@ -148,7 +149,7 @@ func TestTupleManager_Apply_verifies_tuple_contents(t *testing.T) {
 	log := testlogger.New()
 	mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-	tuples := []pmcorev1alpha1.Tuple{
+	tuples := []pmopenfgav1alpha1.Tuple{
 		{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 		{Object: "doc:2", Relation: "owner", User: "user:bob"},
 	}
@@ -178,7 +179,7 @@ func TestTupleManager_Delete_verifies_tuple_contents(t *testing.T) {
 	log := testlogger.New()
 	mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-	tuples := []pmcorev1alpha1.Tuple{
+	tuples := []pmopenfgav1alpha1.Tuple{
 		{Object: "doc:1", Relation: "viewer", User: "user:alice"},
 		{Object: "doc:2", Relation: "owner", User: "user:bob"},
 	}
@@ -201,7 +202,7 @@ func TestIsTupleOfAccountFilter_returnsFalseForAllTuplesWhenGeneratedClusterIdEm
 	filter := IsTupleOfAccountFilter(ai.Spec.Account.GeneratedClusterId)
 
 	// Any tuple should be rejected when GeneratedClusterId is empty
-	tuples := []pmcorev1alpha1.Tuple{
+	tuples := []pmopenfgav1alpha1.Tuple{
 		{Object: "account:1mj722nrt4jo3ggn/test-account", Relation: "viewer", User: "user:alice"},
 		{Object: "account:1yrj2fwqtxcxbm1v/other-account", Relation: "owner", User: "user:bob"},
 		{Object: "doc:1", Relation: "viewer", User: "user:charlie"},
@@ -253,7 +254,7 @@ func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	require.NoError(t, err)
 
 	// allTuples: database managed by mocks (Write appends/deletes, Read returns current state)
-	allTuples := make([]pmcorev1alpha1.Tuple, 0)
+	allTuples := make([]pmopenfgav1alpha1.Tuple, 0)
 
 	client := mocks.NewMockOpenFGAServiceClient(t)
 	log := testlogger.New()
@@ -262,14 +263,14 @@ func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	client.EXPECT().Write(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, req *openfgav1.WriteRequest, opts ...grpc.CallOption) (*openfgav1.WriteResponse, error) {
 		if req.Writes != nil {
 			for _, k := range req.Writes.TupleKeys {
-				allTuples = append(allTuples, pmcorev1alpha1.Tuple{
+				allTuples = append(allTuples, pmopenfgav1alpha1.Tuple{
 					Object: k.Object, Relation: k.Relation, User: k.User,
 				})
 			}
 		}
 		if req.Deletes != nil {
 			for _, k := range req.Deletes.TupleKeys {
-				allTuples = slices.DeleteFunc(allTuples, func(t pmcorev1alpha1.Tuple) bool {
+				allTuples = slices.DeleteFunc(allTuples, func(t pmopenfgav1alpha1.Tuple) bool {
 					return t.Object == k.Object && t.Relation == k.Relation && t.User == k.User
 				})
 			}
@@ -321,7 +322,7 @@ func TestTupleManager_ListWithFilter(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		result, err := mgr.ListWithFilter(context.Background(), func(t pmcorev1alpha1.Tuple) bool { return true })
+		result, err := mgr.ListWithFilter(context.Background(), func(t pmopenfgav1alpha1.Tuple) bool { return true })
 		assert.Error(t, err)
 		assert.Nil(t, result)
 	})
@@ -338,7 +339,7 @@ func TestTupleManager_ListWithFilter(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		result, err := mgr.ListWithFilter(context.Background(), func(t pmcorev1alpha1.Tuple) bool { return true })
+		result, err := mgr.ListWithFilter(context.Background(), func(t pmopenfgav1alpha1.Tuple) bool { return true })
 		assert.NoError(t, err)
 		assert.Len(t, result, 1)
 		assert.Equal(t, "doc:1", result[0].Object)
@@ -363,7 +364,7 @@ func TestTupleManager_ListWithFilter(t *testing.T) {
 		log := testlogger.New()
 		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
 
-		result, err := mgr.ListWithFilter(context.Background(), func(t pmcorev1alpha1.Tuple) bool { return true })
+		result, err := mgr.ListWithFilter(context.Background(), func(t pmopenfgav1alpha1.Tuple) bool { return true })
 		assert.NoError(t, err)
 		assert.Len(t, result, 2)
 	})
@@ -476,7 +477,7 @@ func testAccountAndInfo(accountName, clusterID string) (pmcorev1alpha1.Account, 
 	return acc, ai
 }
 
-func tuplesToOpenFGA(tuples []pmcorev1alpha1.Tuple) []*openfgav1.Tuple {
+func tuplesToOpenFGA(tuples []pmopenfgav1alpha1.Tuple) []*openfgav1.Tuple {
 	out := make([]*openfgav1.Tuple, 0, len(tuples))
 	for _, t := range tuples {
 		out = append(out, &openfgav1.Tuple{

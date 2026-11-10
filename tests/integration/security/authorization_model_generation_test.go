@@ -22,6 +22,7 @@ import (
 	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -65,7 +66,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	_ = suite.createTestAPIBinding(ctx, testAccountClient, apiExportName, suite.platform.System.String(), apiExportName)
 
 	expectedModelName := "process-test-example-com-testresources-generator-test-process"
-	var model pmcorev1alpha1.AuthorizationModel
+	var model pmopenfgav1alpha1.AuthorizationModel
 	suite.Assert().Eventually(func() bool {
 		err := suite.systemClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: expectedModelName}, &model)
 		return err == nil
@@ -130,7 +131,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	}, 10*time.Second, 200*time.Millisecond, "APIBindings should be bound before checking finalizers")
 
 	expectedModelName := "generator-test-example-com-testresources-generator-test-finalize"
-	var model pmcorev1alpha1.AuthorizationModel
+	var model pmopenfgav1alpha1.AuthorizationModel
 	suite.Assert().Eventually(func() bool {
 		err := suite.systemClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: expectedModelName}, &model)
 		return err == nil
@@ -164,7 +165,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	}, 10*time.Second, 200*time.Millisecond, "APIBinding1 should be deleted")
 
 	suite.Assert().Eventually(func() bool {
-		var authModel pmcorev1alpha1.AuthorizationModel
+		var authModel pmopenfgav1alpha1.AuthorizationModel
 		err := suite.systemClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: expectedModelName}, &authModel)
 		return err == nil && authModel.DeletionTimestamp.IsZero()
 	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should still exist after deleting first binding")
@@ -179,7 +180,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	}, 10*time.Second, 200*time.Millisecond, "APIBinding2 should be deleted")
 
 	suite.Assert().Eventually(func() bool {
-		var authModel pmcorev1alpha1.AuthorizationModel
+		var authModel pmopenfgav1alpha1.AuthorizationModel
 		err := suite.systemClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: expectedModelName}, &authModel)
 		return apierrors.IsNotFound(err)
 	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should be deleted after deleting both bindings")

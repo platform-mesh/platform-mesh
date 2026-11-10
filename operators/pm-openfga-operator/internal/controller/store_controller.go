@@ -22,7 +22,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -62,7 +62,7 @@ type StoreReconciler struct {
 
 func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, lister iclient.Lister, engageOpts, modelEngageOpts mcbuilder.EngageOptions) *StoreReconciler {
 	lc := lifecycle.New(mcMgr, "StoreReconciler", func() ctrlruntimeclient.Object {
-		return &pmcorev1alpha1.Store{}
+		return &pmopenfgav1alpha1.Store{}
 	},
 		subroutine.NewStoreSubroutine(fga, mcMgr, lister),
 		subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, lister, func(cfg *rest.Config) discovery.DiscoveryInterface {
@@ -98,16 +98,16 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	b := mcbuilder.ControllerManagedBy(mgr).
 		Named("store").
-		For(&pmcorev1alpha1.Store{}, r.engageOpts).
+		For(&pmopenfgav1alpha1.Store{}, r.engageOpts).
 		WithOptions(controller.TypedOptions[mcreconcile.Request]{MaxConcurrentReconciles: cfg.MaxConcurrentReconciles}).
 		WithEventFilter(predicate.And(predicates...))
 
 	return b.
 		Watches(
-			&pmcorev1alpha1.AuthorizationModel{},
+			&pmopenfgav1alpha1.AuthorizationModel{},
 			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[ctrlruntimeclient.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj ctrlruntimeclient.Object) []mcreconcile.Request {
-					model, ok := obj.(*pmcorev1alpha1.AuthorizationModel)
+					model, ok := obj.(*pmopenfgav1alpha1.AuthorizationModel)
 					if !ok {
 						return nil
 					}

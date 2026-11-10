@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,7 +32,7 @@ func TestDeleteOrgResource_NotFound(t *testing.T) {
 	t.Parallel()
 
 	cl := newOrgResourceFakeClient(t)
-	pending, err := deleteOrgResource(context.Background(), cl, &pmcorev1alpha1.Store{}, "missing")
+	pending, err := deleteOrgResource(context.Background(), cl, &pmkeycloakv1alpha1.IdentityProviderConfiguration{}, "missing")
 
 	require.NoError(t, err)
 	assert.False(t, pending)
@@ -41,25 +41,25 @@ func TestDeleteOrgResource_NotFound(t *testing.T) {
 func TestDeleteOrgResource_IssuesDelete(t *testing.T) {
 	t.Parallel()
 
-	cl := newOrgResourceFakeClient(t, orgStore("acme", "core.platform-mesh.io/fga-store"))
-	pending, err := deleteOrgResource(context.Background(), cl, &pmcorev1alpha1.Store{}, "acme")
+	cl := newOrgResourceFakeClient(t, orgIdentityProvider("acme", "keycloak.platform-mesh.io/idp-finalizer"))
+	pending, err := deleteOrgResource(context.Background(), cl, &pmkeycloakv1alpha1.IdentityProviderConfiguration{}, "acme")
 
 	require.NoError(t, err)
 	assert.True(t, pending)
 
-	var store pmcorev1alpha1.Store
-	requireDeleting(t, cl, &store, "acme")
+	var idp pmkeycloakv1alpha1.IdentityProviderConfiguration
+	requireDeleting(t, cl, &idp, "acme")
 }
 
 func TestDeleteOrgResource_PendingWhileDeleting(t *testing.T) {
 	t.Parallel()
 
 	now := metav1.Now()
-	store := orgStore("acme", "core.platform-mesh.io/fga-store")
-	store.DeletionTimestamp = &now
-	cl := newOrgResourceFakeClient(t, store)
+	idp := orgIdentityProvider("acme", "keycloak.platform-mesh.io/idp-finalizer")
+	idp.DeletionTimestamp = &now
+	cl := newOrgResourceFakeClient(t, idp)
 
-	pending, err := deleteOrgResource(context.Background(), cl, &pmcorev1alpha1.Store{}, "acme")
+	pending, err := deleteOrgResource(context.Background(), cl, &pmkeycloakv1alpha1.IdentityProviderConfiguration{}, "acme")
 
 	require.NoError(t, err)
 	assert.True(t, pending)

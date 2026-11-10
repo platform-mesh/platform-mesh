@@ -23,7 +23,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
@@ -48,14 +48,14 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 
 	var storeID string
 	var authorizationModelID string
-	var managedTuples []pmcorev1alpha1.Tuple
+	var managedTuples []pmopenfgav1alpha1.Tuple
 
 	switch o := obj.(type) {
-	case *pmcorev1alpha1.Store:
+	case *pmopenfgav1alpha1.Store:
 		storeID = o.Status.StoreID
 		authorizationModelID = o.Status.AuthorizationModelID
 		managedTuples = o.Status.ManagedTuples
-	case *pmcorev1alpha1.AuthorizationModel:
+	case *pmopenfgav1alpha1.AuthorizationModel:
 		managedTuples = o.Status.ManagedTuples
 
 		storeCluster, err := t.mgr.GetCluster(ctx, config.StoreClusterName(o.Spec.StoreRef.Cluster))
@@ -63,7 +63,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
 		}
 
-		var store pmcorev1alpha1.Store
+		var store pmopenfgav1alpha1.Store
 		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
 			Name: o.Spec.StoreRef.Name,
 		}, &store)
@@ -87,7 +87,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 		return subroutines.OK(), err
 	}
 
-	if o, ok := obj.(*pmcorev1alpha1.AuthorizationModel); ok {
+	if o, ok := obj.(*pmopenfgav1alpha1.AuthorizationModel); ok {
 		// Release the Store reservation before this object's own finalizer clears.
 		if err := deregisterAuthorizationModelFromStore(ctx, t.mgr,
 			config.StoreClusterName(o.Spec.StoreRef.Cluster), o.Spec.StoreRef.Name,
@@ -98,9 +98,9 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 	}
 
 	switch o := obj.(type) {
-	case *pmcorev1alpha1.Store:
+	case *pmopenfgav1alpha1.Store:
 		o.Status.ManagedTuples = nil
-	case *pmcorev1alpha1.AuthorizationModel:
+	case *pmopenfgav1alpha1.AuthorizationModel:
 		o.Status.ManagedTuples = nil
 	}
 
@@ -121,17 +121,17 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obj
 
 	var storeID string
 	var authorizationModelID string
-	var specTuples []pmcorev1alpha1.Tuple
-	var managedTuples []pmcorev1alpha1.Tuple
+	var specTuples []pmopenfgav1alpha1.Tuple
+	var managedTuples []pmopenfgav1alpha1.Tuple
 
 	switch o := obj.(type) {
-	case *pmcorev1alpha1.Store:
+	case *pmopenfgav1alpha1.Store:
 		storeID = o.Status.StoreID
 		authorizationModelID = o.Status.AuthorizationModelID
 
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
-	case *pmcorev1alpha1.AuthorizationModel:
+	case *pmopenfgav1alpha1.AuthorizationModel:
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
 
@@ -140,7 +140,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obj
 			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
 		}
 
-		var store pmcorev1alpha1.Store
+		var store pmopenfgav1alpha1.Store
 		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
 			Name: o.Spec.StoreRef.Name,
 		}, &store)
@@ -157,9 +157,9 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obj
 		return subroutines.OK(), err
 	}
 
-	var tuplesToDelete []pmcorev1alpha1.Tuple
+	var tuplesToDelete []pmopenfgav1alpha1.Tuple
 	for _, tuple := range managedTuples {
-		if slices.IndexFunc(specTuples, func(s pmcorev1alpha1.Tuple) bool {
+		if slices.IndexFunc(specTuples, func(s pmopenfgav1alpha1.Tuple) bool {
 			return s.Object == tuple.Object && s.Relation == tuple.Relation && s.User == tuple.User
 		}) == -1 {
 			tuplesToDelete = append(tuplesToDelete, tuple)
@@ -170,9 +170,9 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obj
 	}
 
 	switch o := obj.(type) {
-	case *pmcorev1alpha1.Store:
+	case *pmopenfgav1alpha1.Store:
 		o.Status.ManagedTuples = specTuples
-	case *pmcorev1alpha1.AuthorizationModel:
+	case *pmopenfgav1alpha1.AuthorizationModel:
 		o.Status.ManagedTuples = specTuples
 	}
 

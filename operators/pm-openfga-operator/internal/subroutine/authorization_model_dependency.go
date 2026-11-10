@@ -22,7 +22,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -60,7 +60,7 @@ func registerAuthorizationModelWithStore(ctx context.Context, mgr mcmanager.Mana
 	finalizer := authorizationModelFinalizer(modelCluster, modelName)
 
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var store pmcorev1alpha1.Store
+		var store pmopenfgav1alpha1.Store
 		if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: storeName}, &store); err != nil {
 			return err
 		}
@@ -83,7 +83,7 @@ func deregisterAuthorizationModelFromStore(ctx context.Context, mgr mcmanager.Ma
 	finalizer := authorizationModelFinalizer(modelCluster, modelName)
 
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var store pmcorev1alpha1.Store
+		var store pmopenfgav1alpha1.Store
 		err := cl.GetClient().Get(ctx, types.NamespacedName{Name: storeName}, &store)
 		if apierrors.IsNotFound(err) {
 			return nil

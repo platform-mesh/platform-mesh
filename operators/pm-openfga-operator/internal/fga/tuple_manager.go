@@ -22,7 +22,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/pm-openfga-operator/internal/metrics"
 )
@@ -39,7 +39,7 @@ type TupleManager struct {
 	logger               logger.Logger
 }
 
-type TupleFilter func(t pmcorev1alpha1.Tuple) bool
+type TupleFilter func(t pmopenfgav1alpha1.Tuple) bool
 
 func NewTupleManager(client openfgav1.OpenFGAServiceClient, storeID, authorizationModelID string, log *logger.Logger) *TupleManager {
 	return &TupleManager{
@@ -52,7 +52,7 @@ func NewTupleManager(client openfgav1.OpenFGAServiceClient, storeID, authorizati
 
 // Apply writes a given set of tuples within a single transaction and ignores
 // duplicate writes.
-func (m *TupleManager) Apply(ctx context.Context, tuples []pmcorev1alpha1.Tuple) error {
+func (m *TupleManager) Apply(ctx context.Context, tuples []pmopenfgav1alpha1.Tuple) error {
 	if len(tuples) == 0 {
 		return nil
 	}
@@ -86,7 +86,7 @@ func (m *TupleManager) Apply(ctx context.Context, tuples []pmcorev1alpha1.Tuple)
 
 // Delete deletes a given set of tuples within a single transaction and ignores
 // duplicate deletions.
-func (m *TupleManager) Delete(ctx context.Context, tuples []pmcorev1alpha1.Tuple) error {
+func (m *TupleManager) Delete(ctx context.Context, tuples []pmopenfgav1alpha1.Tuple) error {
 	if len(tuples) == 0 {
 		return nil
 	}
@@ -125,7 +125,7 @@ const maxTuplesPerWrite = 100
 // ApplyChunked writes tuples through Apply in chunks of at most
 // maxTuplesPerWrite tuples per Write request. Like Apply it ignores duplicate
 // writes, so a partially applied set can safely be re-applied.
-func (m *TupleManager) ApplyChunked(ctx context.Context, tuples []pmcorev1alpha1.Tuple) error {
+func (m *TupleManager) ApplyChunked(ctx context.Context, tuples []pmopenfgav1alpha1.Tuple) error {
 	for start := 0; start < len(tuples); start += maxTuplesPerWrite {
 		end := min(start+maxTuplesPerWrite, len(tuples))
 		if err := m.Apply(ctx, tuples[start:end]); err != nil {
@@ -138,7 +138,7 @@ func (m *TupleManager) ApplyChunked(ctx context.Context, tuples []pmcorev1alpha1
 // DeleteChunked deletes tuples through Delete in chunks of at most
 // maxTuplesPerWrite tuples per Write request. Like Delete it ignores missing
 // tuples, so a partially deleted set can safely be re-deleted.
-func (m *TupleManager) DeleteChunked(ctx context.Context, tuples []pmcorev1alpha1.Tuple) error {
+func (m *TupleManager) DeleteChunked(ctx context.Context, tuples []pmopenfgav1alpha1.Tuple) error {
 	for start := 0; start < len(tuples); start += maxTuplesPerWrite {
 		end := min(start+maxTuplesPerWrite, len(tuples))
 		if err := m.Delete(ctx, tuples[start:end]); err != nil {
@@ -150,12 +150,12 @@ func (m *TupleManager) DeleteChunked(ctx context.Context, tuples []pmcorev1alpha
 
 // ListWithFilter gets all tuples in the store and returns a list of all tuples
 // that match the given filter.
-func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) ([]pmcorev1alpha1.Tuple, error) {
+func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) ([]pmopenfgav1alpha1.Tuple, error) {
 	if filter == nil {
 		return nil, fmt.Errorf("filter function cannot be nil")
 	}
 
-	var result []pmcorev1alpha1.Tuple
+	var result []pmopenfgav1alpha1.Tuple
 	var continuationToken string
 	for {
 		resp, err := m.client.Read(ctx, &openfgav1.ReadRequest{
@@ -172,7 +172,7 @@ func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) (
 			if t.Key == nil {
 				continue
 			}
-			tuple := pmcorev1alpha1.Tuple{
+			tuple := pmopenfgav1alpha1.Tuple{
 				Object:   t.Key.Object,
 				Relation: t.Key.Relation,
 				User:     t.Key.User,
@@ -194,8 +194,8 @@ func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) (
 
 // ListWithKey reads tuples from the store filtered by the given
 // ReadRequestTupleKey.
-func (m *TupleManager) ListWithKey(ctx context.Context, key *openfgav1.ReadRequestTupleKey) ([]pmcorev1alpha1.Tuple, error) {
-	var result []pmcorev1alpha1.Tuple
+func (m *TupleManager) ListWithKey(ctx context.Context, key *openfgav1.ReadRequestTupleKey) ([]pmopenfgav1alpha1.Tuple, error) {
+	var result []pmopenfgav1alpha1.Tuple
 	var continuationToken string
 	for {
 		resp, err := m.client.Read(ctx, &openfgav1.ReadRequest{
@@ -212,7 +212,7 @@ func (m *TupleManager) ListWithKey(ctx context.Context, key *openfgav1.ReadReque
 			if t.Key == nil {
 				continue
 			}
-			result = append(result, pmcorev1alpha1.Tuple{
+			result = append(result, pmopenfgav1alpha1.Tuple{
 				Object:   t.Key.Object,
 				Relation: t.Key.Relation,
 				User:     t.Key.User,

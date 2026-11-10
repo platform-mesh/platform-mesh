@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
@@ -55,14 +55,14 @@ func TestFinalizers(t *testing.T) {
 func TestProcess(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *pmcorev1alpha1.Store
+		store       *pmopenfgav1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		expectError bool
-		wantStatus  *pmcorev1alpha1.StoreStatus
+		wantStatus  *pmopenfgav1alpha1.StoreStatus
 	}{
 		{
 			name: "should try and create the store if it does not exist",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -74,7 +74,7 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should skip creation if the store already exists",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -91,11 +91,11 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should verify the store if .status.storeId is set",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -105,11 +105,11 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should verify and update the store if .status.storeId is set but name differs",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -120,7 +120,7 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should fail if store listing fails",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -132,7 +132,7 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should fail if store creation fails",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -145,9 +145,9 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should recreate a missing store and clear its authorization model ID",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{Name: "store"},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID:              "old-id",
 					AuthorizationModelID: "old-model-id",
 				},
@@ -158,13 +158,13 @@ func TestProcess(t *testing.T) {
 				fga.EXPECT().CreateStore(mock.Anything, &openfgav1.CreateStoreRequest{Name: "store"}).
 					Return(&openfgav1.CreateStoreResponse{Id: "new-id"}, nil)
 			},
-			wantStatus: &pmcorev1alpha1.StoreStatus{StoreID: "new-id"},
+			wantStatus: &pmopenfgav1alpha1.StoreStatus{StoreID: "new-id"},
 		},
 		{
 			name: "should preserve status if recreating a missing store fails",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{Name: "store"},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID:              "old-id",
 					AuthorizationModelID: "old-model-id",
 				},
@@ -176,18 +176,18 @@ func TestProcess(t *testing.T) {
 					Return(nil, errors.New("create store failed"))
 			},
 			expectError: true,
-			wantStatus: &pmcorev1alpha1.StoreStatus{
+			wantStatus: &pmopenfgav1alpha1.StoreStatus{
 				StoreID:              "old-id",
 				AuthorizationModelID: "old-model-id",
 			},
 		},
 		{
 			name: "should fail if get store fails when verifying existing store",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID:              "id",
 					AuthorizationModelID: "model-id",
 				},
@@ -196,18 +196,18 @@ func TestProcess(t *testing.T) {
 				fga.EXPECT().GetStore(mock.Anything, &openfgav1.GetStoreRequest{StoreId: "id"}).Return(nil, status.Error(codes.Unavailable, "get store failed"))
 			},
 			expectError: true,
-			wantStatus: &pmcorev1alpha1.StoreStatus{
+			wantStatus: &pmopenfgav1alpha1.StoreStatus{
 				StoreID:              "id",
 				AuthorizationModelID: "model-id",
 			},
 		},
 		{
 			name: "should fail if update store fails when names differ",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -245,7 +245,7 @@ func TestProcess(t *testing.T) {
 func TestFinalize(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *pmcorev1alpha1.Store
+		store       *pmopenfgav1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		listerMocks func(*mocks.MockLister)
 		mgrMocks    func(*testing.T, *mocks.MockManager)
@@ -253,7 +253,7 @@ func TestFinalize(t *testing.T) {
 	}{
 		{
 			name: "should skip reconciliation if .status.storeId is not set",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -303,7 +303,7 @@ func TestFinalize(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(cluster, nil).Once()
 				cluster.EXPECT().GetClient().Return(client).Once()
 				client.EXPECT().Delete(mock.Anything, mock.Anything).Return(
-					apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "mine")).Once()
+					apierrors.NewNotFound(schema.GroupResource{Group: "openfga.platform-mesh.io", Resource: "authorizationmodels"}, "mine")).Once()
 			},
 			expectError: true,
 		},
@@ -332,12 +332,12 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should delete the store if no authorization model finalizer is present",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "store",
 					Finalizers: []string{"core.platform-mesh.io/fga-store"},
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -347,11 +347,11 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should reconcile successfully if store is not found with the .status.storeId",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -361,11 +361,11 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should not reconcile successfully deletion is erroneous",
-			store: &pmcorev1alpha1.Store{
+			store: &pmopenfgav1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: pmcorev1alpha1.StoreStatus{
+				Status: pmopenfgav1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -406,13 +406,13 @@ func TestFinalize(t *testing.T) {
 	}
 }
 
-func storeWithModelFinalizer() *pmcorev1alpha1.Store {
-	return &pmcorev1alpha1.Store{
+func storeWithModelFinalizer() *pmopenfgav1alpha1.Store {
+	return &pmopenfgav1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "store",
 			Finalizers: []string{"authzmodel.core.platform-mesh.io/somecluster.somemodel"},
 		},
-		Status: pmcorev1alpha1.StoreStatus{
+		Status: pmopenfgav1alpha1.StoreStatus{
 			StoreID: "id",
 		},
 	}
@@ -420,23 +420,23 @@ func storeWithModelFinalizer() *pmcorev1alpha1.Store {
 
 // authorizationModel is a model in the given provider cluster that extends
 // the given store.
-func authorizationModel(name, cluster, storeName, storeCluster string, deletionTimestamp *metav1.Time) pmcorev1alpha1.AuthorizationModel {
-	return pmcorev1alpha1.AuthorizationModel{
+func authorizationModel(name, cluster, storeName, storeCluster string, deletionTimestamp *metav1.Time) pmopenfgav1alpha1.AuthorizationModel {
+	return pmopenfgav1alpha1.AuthorizationModel{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              name,
 			Annotations:       map[string]string{logicalcluster.AnnotationKey: cluster},
 			DeletionTimestamp: deletionTimestamp,
 		},
-		Spec: pmcorev1alpha1.AuthorizationModelSpec{
-			StoreRef: pmcorev1alpha1.WorkspaceStoreRef{Name: storeName, Cluster: storeCluster},
+		Spec: pmopenfgav1alpha1.AuthorizationModelSpec{
+			StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{Name: storeName, Cluster: storeCluster},
 		},
 	}
 }
 
-func listAuthorizationModels(lister *mocks.MockLister, models ...pmcorev1alpha1.AuthorizationModel) {
+func listAuthorizationModels(lister *mocks.MockLister, models ...pmopenfgav1alpha1.AuthorizationModel) {
 	lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
-			list.(*pmcorev1alpha1.AuthorizationModelList).Items = models
+			list.(*pmopenfgav1alpha1.AuthorizationModelList).Items = models
 			return nil
 		},
 	).Once()

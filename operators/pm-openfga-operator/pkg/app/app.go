@@ -26,6 +26,7 @@ import (
 	"fmt"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -58,6 +59,7 @@ func NewScheme() *runtime.Scheme {
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(s))
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(s))
+	utilruntime.Must(pmopenfgav1alpha1.AddToScheme(s))
 	utilruntime.Must(pmprovidersv1alpha1.AddToScheme(s))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(s))
 	utilruntime.Must(kcpapisv1alpha2.AddToScheme(s))

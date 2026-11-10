@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
@@ -45,6 +46,7 @@ func getAPIExportPolicyTestScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmopenfgav1alpha1.AddToScheme(scheme))
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	return scheme
@@ -63,19 +65,19 @@ func TestAPIExportPolicySubroutine_Finalizers(t *testing.T) {
 func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *pmcorev1alpha1.APIExportPolicy
+		policy      *pmopenfgav1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "should fail when getting provider cluster ID fails - GetCluster fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -90,12 +92,12 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "should fail when expression starts with wrong prefix",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -112,12 +114,12 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "should handle wildcard expression with root:orgs path - List fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -165,19 +167,19 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *pmcorev1alpha1.APIExportPolicy
+		policy      *pmopenfgav1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "should fail when getting provider cluster ID fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -192,12 +194,12 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 		},
 		{
 			name: "should handle finalize with wildcard expression - NewClientForLogicalCluster fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -245,20 +247,20 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 	tests := []struct {
 		name                string
-		policy              *pmcorev1alpha1.APIExportPolicy
+		policy              *pmopenfgav1alpha1.APIExportPolicy
 		setupMocks          func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg                 *config.Config
 		expectError         bool
-		expectedTupleWrites []pmcorev1alpha1.Tuple
+		expectedTupleWrites []pmopenfgav1alpha1.Tuple
 	}{
 		{
 			name: "should write correct FGA tuple for single org expression",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -296,12 +298,12 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Cluster client for status patch
 				clusterClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&pmcorev1alpha1.APIExportPolicy{
+					WithObjects(&pmopenfgav1alpha1.APIExportPolicy{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "test-policy",
 						},
 					}).
-					WithStatusSubresource(&pmcorev1alpha1.APIExportPolicy{}).
+					WithStatusSubresource(&pmopenfgav1alpha1.APIExportPolicy{}).
 					Build()
 
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil)
@@ -329,12 +331,12 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 		},
 		{
 			name: "should write correct FGA tuple with bind_inherited for wildcard expression",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -372,12 +374,12 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Cluster client for status patch
 				clusterClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&pmcorev1alpha1.APIExportPolicy{
+					WithObjects(&pmopenfgav1alpha1.APIExportPolicy{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "test-policy",
 						},
 					}).
-					WithStatusSubresource(&pmcorev1alpha1.APIExportPolicy{}).
+					WithStatusSubresource(&pmopenfgav1alpha1.APIExportPolicy{}).
 					Build()
 
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil)
@@ -405,12 +407,12 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 		},
 		{
 			name: "should write FGA tuples for all orgs when root:orgs:* expression is used",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -451,10 +453,10 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				// Cluster client for status patch
 				clusterClient := fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&pmcorev1alpha1.APIExportPolicy{
+					WithObjects(&pmopenfgav1alpha1.APIExportPolicy{
 						ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
 					}).
-					WithStatusSubresource(&pmcorev1alpha1.APIExportPolicy{}).
+					WithStatusSubresource(&pmopenfgav1alpha1.APIExportPolicy{}).
 					Build()
 
 				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id-org1", nil)
@@ -525,19 +527,19 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *pmcorev1alpha1.APIExportPolicy
+		policy      *pmopenfgav1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "should delete FGA tuple for single org expression",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -595,12 +597,12 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 		},
 		{
 			name: "should delete FGA tuple with bind_inherited for wildcard expression",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -658,12 +660,12 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 		},
 		{
 			name: "should delete FGA tuples for all orgs when root:orgs:* expression is used",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
 				},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef: pmcorev1alpha1.APIExportRef{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef: pmopenfgav1alpha1.APIExportRef{
 						Name:        "my-export",
 						ClusterPath: "root:providers:my-provider",
 					},
@@ -778,16 +780,16 @@ func newProviderClient(scheme *runtime.Scheme) ctrlruntimeclient.Client {
 func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *pmcorev1alpha1.APIExportPolicy
+		policy      *pmopenfgav1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "getClusterIDFromPath: Get LogicalCluster fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -801,9 +803,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "getClusterIDFromPath: kcp.io/cluster annotation missing",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -820,9 +822,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteRemovedExpressions: internal getClusterIDFromPath fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -838,13 +840,13 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteRemovedExpressions: removed expression triggers delete failure",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:other"},
 				},
-				Status: pmcorev1alpha1.APIExportPolicyStatus{
+				Status: pmopenfgav1alpha1.APIExportPolicyStatus{
 					// "root:orgs:other" is still in spec → continue; "root:orgs:acme" is removed → delete
 					ManagedAllowExpressions: []string{"root:orgs:other", "root:orgs:acme"},
 				},
@@ -861,9 +863,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "orgs: List AccountInfo fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -879,9 +881,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "orgs: non-org type skipped, storeIDGetter fails for org account",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -910,9 +912,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "orgs: fga.Write fails when applying tuple",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -939,9 +941,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "non-orgs: NewForLogicalCluster fails for workspace",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -957,9 +959,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "non-orgs: Get AccountInfo fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -977,9 +979,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "non-orgs: storeIDGetter fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -1001,9 +1003,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "non-orgs: fga.Write fails when applying tuple",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -1026,10 +1028,10 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "ClusterFromContext fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -1053,10 +1055,10 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "Status Patch fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -1112,16 +1114,16 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 	tests := []struct {
 		name        string
-		policy      *pmcorev1alpha1.APIExportPolicy
+		policy      *pmopenfgav1alpha1.APIExportPolicy
 		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockLister)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
 			name: "deleteTuplesForExpression: parseAllowExpression fails for invalid expression",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"wrong:path:expression"},
 				},
 			},
@@ -1135,9 +1137,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression orgs: GetAllClient fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -1152,9 +1154,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression orgs: List AccountInfo fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -1169,9 +1171,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression orgs: storeIDGetter fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -1193,9 +1195,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression orgs: fga.Write (Delete) fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
@@ -1218,9 +1220,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression non-orgs: NewForLogicalCluster fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -1235,9 +1237,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression non-orgs: storeIDGetter fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
@@ -1258,9 +1260,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 		},
 		{
 			name: "deleteTuplesForExpression non-orgs: fga.Write (Delete) fails",
-			policy: &pmcorev1alpha1.APIExportPolicy{
-				Spec: pmcorev1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmcorev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+			policy: &pmopenfgav1alpha1.APIExportPolicy{
+				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
+					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},

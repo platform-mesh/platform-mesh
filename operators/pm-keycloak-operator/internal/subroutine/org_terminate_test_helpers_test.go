@@ -110,10 +110,6 @@ func orgWorkspaceAuthConfiguration(name string) *kcptenancyv1alpha1.WorkspaceAut
 	return &kcptenancyv1alpha1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: name}}
 }
 
-func orgStore(name string, finalizers ...string) *pmcorev1alpha1.Store {
-	return &pmcorev1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: name, Finalizers: finalizers}}
-}
-
 func orgIdentityProvider(name string, finalizers ...string) *pmkeycloakv1alpha1.IdentityProviderConfiguration {
 	return &pmkeycloakv1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: name, Finalizers: finalizers}}
 }

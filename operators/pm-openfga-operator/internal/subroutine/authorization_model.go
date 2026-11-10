@@ -30,7 +30,7 @@ import (
 	language "github.com/openfga/language/pkg/go/transformer"
 	"google.golang.org/protobuf/proto"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/pm-openfga-operator/internal/util"
@@ -152,18 +152,18 @@ var _ subroutines.Processor = &authorizationModelSubroutine{}
 
 func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
 
-func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, store *pmcorev1alpha1.Store) (pmcorev1alpha1.AuthorizationModelList, error) {
+func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, store *pmopenfgav1alpha1.Store) (pmopenfgav1alpha1.AuthorizationModelList, error) {
 	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
-		return pmcorev1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
+		return pmopenfgav1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
 	}
 
-	allAuthorizationModels := pmcorev1alpha1.AuthorizationModelList{}
+	allAuthorizationModels := pmopenfgav1alpha1.AuthorizationModelList{}
 	if err := lister.List(ctx, &allAuthorizationModels); err != nil {
-		return pmcorev1alpha1.AuthorizationModelList{}, err
+		return pmopenfgav1alpha1.AuthorizationModelList{}, err
 	}
 
-	var extendingModules pmcorev1alpha1.AuthorizationModelList
+	var extendingModules pmopenfgav1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
 		if model.Spec.StoreRef.Name != store.Name || config.StoreClusterName(model.Spec.StoreRef.Cluster) != storeClusterKey {
 			continue
@@ -176,7 +176,7 @@ func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, s
 
 func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := obj.(*pmcorev1alpha1.Store)
+	store := obj.(*pmopenfgav1alpha1.Store)
 
 	extendingModules, err := getRelatedAuthorizationModels(ctx, a.lister, store)
 	if err != nil {

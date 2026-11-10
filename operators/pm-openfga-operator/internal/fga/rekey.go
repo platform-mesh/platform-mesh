@@ -19,14 +19,14 @@ package fga
 import (
 	"slices"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 )
 
 // StaleAccountTupleFilter returns a filter matching tuples that reference
 // accountName under the account object type objectType with a cluster id other
 // than currentClusterID, in either their Object or their User key.
 func StaleAccountTupleFilter(objectType, accountName, currentClusterID string) TupleFilter {
-	return func(t pmcorev1alpha1.Tuple) bool {
+	return func(t pmopenfgav1alpha1.Tuple) bool {
 		return len(StaleClusterIDs(t, objectType, accountName, currentClusterID)) > 0
 	}
 }
@@ -38,7 +38,7 @@ func StaleAccountTupleFilter(objectType, accountName, currentClusterID string) T
 // ParseAccountKey). A tuple built from account keys references exactly one
 // cluster id; more than one returned id means the tuple is ambiguous and must
 // not be re-keyed blindly.
-func StaleClusterIDs(t pmcorev1alpha1.Tuple, objectType, accountName, currentClusterID string) []string {
+func StaleClusterIDs(t pmopenfgav1alpha1.Tuple, objectType, accountName, currentClusterID string) []string {
 	if objectType == "" || accountName == "" || currentClusterID == "" {
 		return nil
 	}
@@ -58,7 +58,7 @@ func StaleClusterIDs(t pmcorev1alpha1.Tuple, objectType, accountName, currentClu
 // carry newClusterID instead. Keys that do not parse as account keys, that
 // carry another object type, or that carry a different cluster id, are left
 // untouched.
-func RekeyTuple(t pmcorev1alpha1.Tuple, objectType, oldClusterID, newClusterID string) pmcorev1alpha1.Tuple {
+func RekeyTuple(t pmopenfgav1alpha1.Tuple, objectType, oldClusterID, newClusterID string) pmopenfgav1alpha1.Tuple {
 	t.Object = rekeyKey(t.Object, objectType, oldClusterID, newClusterID)
 	t.User = rekeyKey(t.User, objectType, oldClusterID, newClusterID)
 	return t

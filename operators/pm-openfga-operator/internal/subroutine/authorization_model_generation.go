@@ -25,6 +25,7 @@ import (
 	"text/template"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
@@ -235,7 +236,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 		}
 
 		authModelName := toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, toDeleteAccountInfo.Spec.Organization.Name)
-		err = modelCluster.GetClient().Delete(ctx, &pmcorev1alpha1.AuthorizationModel{
+		err = modelCluster.GetClient().Delete(ctx, &pmopenfgav1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: authModelName,
 			},
@@ -396,16 +397,16 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 			return subroutines.OK(), fmt.Errorf("registering authorization model %s with store: %w", modelName, err)
 		}
 
-		model := pmcorev1alpha1.AuthorizationModel{
+		model := pmopenfgav1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: modelName,
 			},
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, modelCluster.GetClient(), &model, func() error {
-			model.Spec = pmcorev1alpha1.AuthorizationModelSpec{
+			model.Spec = pmopenfgav1alpha1.AuthorizationModelSpec{
 				Model: buffer.String(),
-				StoreRef: pmcorev1alpha1.WorkspaceStoreRef{
+				StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
 					Name:    accountInfo.Spec.Organization.Name,
 					Cluster: accountInfo.Spec.Organization.OriginClusterId,
 				},

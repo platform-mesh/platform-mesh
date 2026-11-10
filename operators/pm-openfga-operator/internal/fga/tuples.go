@@ -23,7 +23,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 )
 
 type BaseTuplesInput struct {
@@ -47,12 +47,12 @@ type InitialTuplesForAccountInput struct {
 
 // InitialTuplesForAccount returns FGA tuples for an account not of type
 // organization.
-func InitialTuplesForAccount(in InitialTuplesForAccountInput) ([]pmcorev1alpha1.Tuple, error) {
+func InitialTuplesForAccount(in InitialTuplesForAccountInput) ([]pmopenfgav1alpha1.Tuple, error) {
 	base, err := baseTuples(in.BaseTuplesInput)
 	if err != nil {
 		return nil, err
 	}
-	tuples := append(base, pmcorev1alpha1.Tuple{
+	tuples := append(base, pmopenfgav1alpha1.Tuple{
 		User:     renderAccountEntity(in.ObjectType, in.ParentOriginClusterID, in.ParentName),
 		Relation: in.ParentRelation,
 		Object:   renderAccountEntity(in.ObjectType, in.AccountOriginClusterID, in.AccountName),
@@ -61,14 +61,14 @@ func InitialTuplesForAccount(in InitialTuplesForAccountInput) ([]pmcorev1alpha1.
 }
 
 // TuplesForOrganization returns FGA tuples for an Account of type organization.
-func TuplesForOrganization(in TuplesForOrganizationInput) ([]pmcorev1alpha1.Tuple, error) {
+func TuplesForOrganization(in TuplesForOrganizationInput) ([]pmopenfgav1alpha1.Tuple, error) {
 	return baseTuples(in.BaseTuplesInput)
 }
 
 // IsTupleOfAccountFilter returns a filter determining whether a tuple is tied
 // to the given account, i.e. contains its cluster id.
 func IsTupleOfAccountFilter(generatedClusterID string) TupleFilter {
-	return func(t pmcorev1alpha1.Tuple) bool {
+	return func(t pmopenfgav1alpha1.Tuple) bool {
 		return generatedClusterID != "" && (strings.Contains(t.Object, generatedClusterID) || strings.Contains(t.User, generatedClusterID))
 	}
 }
@@ -81,12 +81,12 @@ func ReferencingAccountTupleKey(objectType, accountOriginClusterID, accountName 
 	}
 }
 
-func baseTuples(in BaseTuplesInput) ([]pmcorev1alpha1.Tuple, error) {
+func baseTuples(in BaseTuplesInput) ([]pmopenfgav1alpha1.Tuple, error) {
 	if in.Creator == "" {
 		return nil, errors.New("account creator is empty")
 	}
 
-	return []pmcorev1alpha1.Tuple{
+	return []pmopenfgav1alpha1.Tuple{
 		{
 			User:     renderCreatorUser(in.Creator),
 			Relation: "assignee",

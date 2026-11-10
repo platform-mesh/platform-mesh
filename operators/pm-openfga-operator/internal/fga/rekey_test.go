@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
 )
@@ -37,32 +37,32 @@ func TestStaleAccountTupleFilter(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		tuple pmcorev1alpha1.Tuple
+		tuple pmopenfgav1alpha1.Tuple
 		want  bool
 	}{
 		{
 			name:  "stale role object",
-			tuple: pmcorev1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/old-id/myorg/owner"},
+			tuple: pmopenfgav1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/old-id/myorg/owner"},
 			want:  true,
 		},
 		{
 			name:  "stale role user and account object",
-			tuple: pmcorev1alpha1.Tuple{User: "role:acct/old-id/myorg/owner#assignee", Relation: "owner", Object: "acct:old-id/myorg"},
+			tuple: pmopenfgav1alpha1.Tuple{User: "role:acct/old-id/myorg/owner#assignee", Relation: "owner", Object: "acct:old-id/myorg"},
 			want:  true,
 		},
 		{
 			name:  "current cluster id",
-			tuple: pmcorev1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/new-id/myorg/owner"},
+			tuple: pmopenfgav1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/new-id/myorg/owner"},
 			want:  false,
 		},
 		{
 			name:  "different account name",
-			tuple: pmcorev1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/old-id/otherorg/owner"},
+			tuple: pmopenfgav1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/old-id/otherorg/owner"},
 			want:  false,
 		},
 		{
 			name:  "non-account keys",
-			tuple: pmcorev1alpha1.Tuple{User: "user:*", Relation: "assignee", Object: "role:authenticated"},
+			tuple: pmopenfgav1alpha1.Tuple{User: "user:*", Relation: "assignee", Object: "role:authenticated"},
 			want:  false,
 		},
 		// Keys of OTHER object types share the raw shape (the org store holds
@@ -70,17 +70,17 @@ func TestStaleAccountTupleFilter(t *testing.T) {
 		// never match, even with the org's name and a stale cluster id.
 		{
 			name:  "other object type in user key",
-			tuple: pmcorev1alpha1.Tuple{User: "apis_kcp_io_apiexport:old-id/myorg", Relation: "member", Object: "acct:new-id/myorg"},
+			tuple: pmopenfgav1alpha1.Tuple{User: "apis_kcp_io_apiexport:old-id/myorg", Relation: "member", Object: "acct:new-id/myorg"},
 			want:  false,
 		},
 		{
 			name:  "other object type in object key",
-			tuple: pmcorev1alpha1.Tuple{User: "user:alice", Relation: "member", Object: "apis_kcp_io_apiexport:old-id/myorg"},
+			tuple: pmopenfgav1alpha1.Tuple{User: "user:alice", Relation: "member", Object: "apis_kcp_io_apiexport:old-id/myorg"},
 			want:  false,
 		},
 		{
 			name:  "other object type in role key",
-			tuple: pmcorev1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:apis_kcp_io_apiexport/old-id/myorg/owner"},
+			tuple: pmopenfgav1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:apis_kcp_io_apiexport/old-id/myorg/owner"},
 			want:  false,
 		},
 	}
@@ -91,7 +91,7 @@ func TestStaleAccountTupleFilter(t *testing.T) {
 	}
 
 	t.Run("empty object type, account name or cluster id never match", func(t *testing.T) {
-		stale := pmcorev1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/old-id/myorg/owner"}
+		stale := pmopenfgav1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/old-id/myorg/owner"}
 		assert.False(t, StaleAccountTupleFilter("", "myorg", "new-id")(stale))
 		assert.False(t, StaleAccountTupleFilter("acct", "", "new-id")(stale))
 		assert.False(t, StaleAccountTupleFilter("acct", "myorg", "")(stale))
@@ -100,21 +100,21 @@ func TestStaleAccountTupleFilter(t *testing.T) {
 
 func TestStaleClusterIDs(t *testing.T) {
 	t.Run("single stale id from both keys", func(t *testing.T) {
-		tuple := pmcorev1alpha1.Tuple{User: "role:acct/old-id/myorg/owner#assignee", Relation: "owner", Object: "acct:old-id/myorg"}
+		tuple := pmopenfgav1alpha1.Tuple{User: "role:acct/old-id/myorg/owner#assignee", Relation: "owner", Object: "acct:old-id/myorg"}
 		assert.Equal(t, []string{"old-id"}, StaleClusterIDs(tuple, "acct", "myorg", "new-id"))
 	})
 	t.Run("two distinct stale ids are both reported", func(t *testing.T) {
-		tuple := pmcorev1alpha1.Tuple{User: "role:acct/old-a/myorg/owner#assignee", Relation: "owner", Object: "acct:old-b/myorg"}
+		tuple := pmopenfgav1alpha1.Tuple{User: "role:acct/old-a/myorg/owner#assignee", Relation: "owner", Object: "acct:old-b/myorg"}
 		assert.ElementsMatch(t, []string{"old-a", "old-b"}, StaleClusterIDs(tuple, "acct", "myorg", "new-id"))
 	})
 	t.Run("no stale ids", func(t *testing.T) {
-		tuple := pmcorev1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/new-id/myorg/owner"}
+		tuple := pmopenfgav1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/new-id/myorg/owner"}
 		assert.Empty(t, StaleClusterIDs(tuple, "acct", "myorg", "new-id"))
 	})
 	t.Run("other object types are invisible", func(t *testing.T) {
 		// The apiexport key references the org's name under a foreign old id:
 		// it must not contribute a stale id.
-		tuple := pmcorev1alpha1.Tuple{User: "apis_kcp_io_apiexport:other-old/myorg", Relation: "member", Object: "acct:old-id/myorg"}
+		tuple := pmopenfgav1alpha1.Tuple{User: "apis_kcp_io_apiexport:other-old/myorg", Relation: "member", Object: "acct:old-id/myorg"}
 		assert.Equal(t, []string{"old-id"}, StaleClusterIDs(tuple, "acct", "myorg", "new-id"))
 	})
 }
@@ -122,33 +122,33 @@ func TestStaleClusterIDs(t *testing.T) {
 func TestRekeyTuple(t *testing.T) {
 	tests := []struct {
 		name string
-		in   pmcorev1alpha1.Tuple
-		want pmcorev1alpha1.Tuple
+		in   pmopenfgav1alpha1.Tuple
+		want pmopenfgav1alpha1.Tuple
 	}{
 		{
 			name: "creator tuple: only object rewritten",
-			in:   pmcorev1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/old-id/myorg/owner"},
-			want: pmcorev1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/new-id/myorg/owner"},
+			in:   pmopenfgav1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/old-id/myorg/owner"},
+			want: pmopenfgav1alpha1.Tuple{User: "user:alice", Relation: "assignee", Object: "role:acct/new-id/myorg/owner"},
 		},
 		{
 			name: "role-assignee tuple: object and user rewritten",
-			in:   pmcorev1alpha1.Tuple{User: "role:acct/old-id/myorg/owner#assignee", Relation: "owner", Object: "acct:old-id/myorg"},
-			want: pmcorev1alpha1.Tuple{User: "role:acct/new-id/myorg/owner#assignee", Relation: "owner", Object: "acct:new-id/myorg"},
+			in:   pmopenfgav1alpha1.Tuple{User: "role:acct/old-id/myorg/owner#assignee", Relation: "owner", Object: "acct:old-id/myorg"},
+			want: pmopenfgav1alpha1.Tuple{User: "role:acct/new-id/myorg/owner#assignee", Relation: "owner", Object: "acct:new-id/myorg"},
 		},
 		{
 			name: "keys with other cluster ids untouched",
-			in:   pmcorev1alpha1.Tuple{User: "acct:another-id/parent", Relation: "parent", Object: "acct:old-id/myorg"},
-			want: pmcorev1alpha1.Tuple{User: "acct:another-id/parent", Relation: "parent", Object: "acct:new-id/myorg"},
+			in:   pmopenfgav1alpha1.Tuple{User: "acct:another-id/parent", Relation: "parent", Object: "acct:old-id/myorg"},
+			want: pmopenfgav1alpha1.Tuple{User: "acct:another-id/parent", Relation: "parent", Object: "acct:new-id/myorg"},
 		},
 		{
 			name: "non-account keys untouched",
-			in:   pmcorev1alpha1.Tuple{User: "user:*", Relation: "assignee", Object: "role:authenticated"},
-			want: pmcorev1alpha1.Tuple{User: "user:*", Relation: "assignee", Object: "role:authenticated"},
+			in:   pmopenfgav1alpha1.Tuple{User: "user:*", Relation: "assignee", Object: "role:authenticated"},
+			want: pmopenfgav1alpha1.Tuple{User: "user:*", Relation: "assignee", Object: "role:authenticated"},
 		},
 		{
 			name: "keys of other object types untouched even with matching cluster id",
-			in:   pmcorev1alpha1.Tuple{User: "apis_kcp_io_apiexport:old-id/myorg", Relation: "member", Object: "acct:old-id/myorg"},
-			want: pmcorev1alpha1.Tuple{User: "apis_kcp_io_apiexport:old-id/myorg", Relation: "member", Object: "acct:new-id/myorg"},
+			in:   pmopenfgav1alpha1.Tuple{User: "apis_kcp_io_apiexport:old-id/myorg", Relation: "member", Object: "acct:old-id/myorg"},
+			want: pmopenfgav1alpha1.Tuple{User: "apis_kcp_io_apiexport:old-id/myorg", Relation: "member", Object: "acct:new-id/myorg"},
 		},
 	}
 	for _, test := range tests {
@@ -158,10 +158,10 @@ func TestRekeyTuple(t *testing.T) {
 	}
 }
 
-func chunkTestTuples(n int) []pmcorev1alpha1.Tuple {
-	tuples := make([]pmcorev1alpha1.Tuple, 0, n)
+func chunkTestTuples(n int) []pmopenfgav1alpha1.Tuple {
+	tuples := make([]pmopenfgav1alpha1.Tuple, 0, n)
 	for i := range n {
-		tuples = append(tuples, pmcorev1alpha1.Tuple{
+		tuples = append(tuples, pmopenfgav1alpha1.Tuple{
 			User:     fmt.Sprintf("user:user-%d", i),
 			Relation: "assignee",
 			Object:   "role:acct/old-id/myorg/member",

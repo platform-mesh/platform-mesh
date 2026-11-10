@@ -26,7 +26,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
@@ -63,7 +63,7 @@ func (s *storeSubroutine) Finalizers(_ ctrlruntimeclient.Object) []string {
 
 func (s *storeSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := obj.(*pmcorev1alpha1.Store)
+	store := obj.(*pmopenfgav1alpha1.Store)
 
 	if store.Status.StoreID == "" {
 		return subroutines.OK(), nil
@@ -99,7 +99,7 @@ func (s *storeSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 
 // deleteAuthorizationModels deletes the AuthorizationModels that extend the
 // Store, in the provider workspaces they live in.
-func (s *storeSubroutine) deleteAuthorizationModels(ctx context.Context, store *pmcorev1alpha1.Store) error {
+func (s *storeSubroutine) deleteAuthorizationModels(ctx context.Context, store *pmopenfgav1alpha1.Store) error {
 	models, err := getRelatedAuthorizationModels(ctx, s.kcpHelper, store)
 	if err != nil {
 		return fmt.Errorf("listing authorization models: %w", err)
@@ -126,7 +126,7 @@ func (s *storeSubroutine) deleteAuthorizationModels(ctx context.Context, store *
 
 func (s *storeSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := obj.(*pmcorev1alpha1.Store)
+	store := obj.(*pmopenfgav1alpha1.Store)
 
 	if store.Status.StoreID == "" {
 		log.Info().Msg("Store ID not set, trying to find store by name")

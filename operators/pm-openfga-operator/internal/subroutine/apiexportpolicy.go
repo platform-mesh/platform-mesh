@@ -25,6 +25,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
@@ -72,7 +73,7 @@ func (a *APIExportPolicySubroutine) Finalizers(_ ctrlruntimeclient.Object) []str
 
 func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	policy := obj.(*pmcorev1alpha1.APIExportPolicy)
+	policy := obj.(*pmopenfgav1alpha1.APIExportPolicy)
 
 	providerClusterID, err := a.getClusterIDFromPath(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
@@ -108,14 +109,14 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj ctrlruntime
 					return subroutines.OK(), fmt.Errorf("getting store ID for org %s: %w", ai.Spec.Organization.Name, err)
 				}
 
-				tuple := pmcorev1alpha1.Tuple{
+				tuple := pmopenfgav1alpha1.Tuple{
 					Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 					Relation: relation,
 					User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, policy.Spec.APIExportRef.Name),
 				}
 
 				tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
-				if err := tm.Apply(ctx, []pmcorev1alpha1.Tuple{tuple}); err != nil {
+				if err := tm.Apply(ctx, []pmopenfgav1alpha1.Tuple{tuple}); err != nil {
 					return subroutines.OK(), fmt.Errorf("applying tuple for expression %s: %w", expression, err)
 				}
 			}
@@ -140,14 +141,14 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj ctrlruntime
 			return subroutines.OK(), fmt.Errorf("getting store ID for org %s: %w", ai.Spec.Organization.Name, err)
 		}
 
-		tuple := pmcorev1alpha1.Tuple{
+		tuple := pmopenfgav1alpha1.Tuple{
 			Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 			Relation: relation,
 			User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, policy.Spec.APIExportRef.Name),
 		}
 
 		tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
-		if err := tm.Apply(ctx, []pmcorev1alpha1.Tuple{tuple}); err != nil {
+		if err := tm.Apply(ctx, []pmopenfgav1alpha1.Tuple{tuple}); err != nil {
 			return subroutines.OK(), fmt.Errorf("applying tuple for expression %s: %w", expression, err)
 		}
 	}
@@ -171,7 +172,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj ctrlruntime
 
 func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	policy := obj.(*pmcorev1alpha1.APIExportPolicy)
+	policy := obj.(*pmopenfgav1alpha1.APIExportPolicy)
 
 	providerClusterID, err := a.getClusterIDFromPath(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
@@ -228,7 +229,7 @@ func (a *APIExportPolicySubroutine) parseAllowExpression(expr string) (workspace
 
 // finds expressions which are present in the status but aren't in the spec
 // and do the cleanup of the tuples for removed expressions
-func (a *APIExportPolicySubroutine) deleteRemovedExpressions(ctx context.Context, policy *pmcorev1alpha1.APIExportPolicy) error {
+func (a *APIExportPolicySubroutine) deleteRemovedExpressions(ctx context.Context, policy *pmopenfgav1alpha1.APIExportPolicy) error {
 	providerClusterID, err := a.getClusterIDFromPath(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
 		return fmt.Errorf("getting provider cluster ID for %s: %w", policy.Spec.APIExportRef.ClusterPath, err)
@@ -270,14 +271,14 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 				return fmt.Errorf("getting store ID for org %s: %w", ai.Spec.Organization.Name, err)
 			}
 
-			tupleToDelete := pmcorev1alpha1.Tuple{
+			tupleToDelete := pmopenfgav1alpha1.Tuple{
 				Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 				Relation: relation,
 				User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, apiExportName),
 			}
 
 			tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
-			if err := tm.Delete(ctx, []pmcorev1alpha1.Tuple{tupleToDelete}); err != nil {
+			if err := tm.Delete(ctx, []pmopenfgav1alpha1.Tuple{tupleToDelete}); err != nil {
 				return fmt.Errorf("removing tuple in openFGA: %w", err)
 			}
 		}
@@ -299,14 +300,14 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 		return fmt.Errorf("getting store ID for org %s: %w", ai.Spec.Organization.Name, err)
 	}
 
-	tupleToDelete := pmcorev1alpha1.Tuple{
+	tupleToDelete := pmopenfgav1alpha1.Tuple{
 		Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 		Relation: relation,
 		User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, apiExportName),
 	}
 
 	tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
-	if err := tm.Delete(ctx, []pmcorev1alpha1.Tuple{tupleToDelete}); err != nil {
+	if err := tm.Delete(ctx, []pmopenfgav1alpha1.Tuple{tupleToDelete}); err != nil {
 		return fmt.Errorf("removing tuples: %w", err)
 	}
 
