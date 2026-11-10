@@ -33,6 +33,9 @@ type notes struct {
 	Version string
 	// OCMVersion is the release without the leading v, as OCM and charts use it.
 	OCMVersion string
+	// RepoURL is the GitHub repository pull requests and commits link to.
+	RepoURL string
+	Changes []componentChanges
 }
 
 func render(w io.Writer, n notes) error {

@@ -3,3 +3,15 @@
 <!-- flavour text -->
 
 To install see the [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with `--set-string ocm.version={{.OCMVersion}}`.
+
+## Changes
+{{- range .Changes}}
+
+### {{.Component}}
+{{range .Changes}}
+- {{.Title}}{{if .PR}} ([#{{.PR}}]({{$.RepoURL}}/pull/{{.PR}})){{else}} ([{{slice .SHA 0 7}}]({{$.RepoURL}}/commit/{{.SHA}})){{end}}
+{{- end}}
+{{- else}}
+
+No changes.
+{{- end}}

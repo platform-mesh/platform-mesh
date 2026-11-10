@@ -40,7 +40,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+
+	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
 func main() {
@@ -82,10 +85,26 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		return err
 	}
 
-	_ = start
+	repoURL := strings.TrimSuffix(releaseutils.EnvOr("REPO_URL", releaseutils.DefaultRepoURL), ".git")
+
+	changes, err := firstParentLog(ctx, start.commit, end.commit)
+	if err != nil {
+		return err
+	}
+	comps, err := components(ctx, end.commit)
+	if err != nil {
+		return err
+	}
+	grouped, err := groupChanges(ctx, comps, changes)
+	if err != nil {
+		return err
+	}
+
 	n := notes{
 		Version:    end.version.String(),
 		OCMVersion: end.ocmVersion(),
+		RepoURL:    repoURL,
+		Changes:    grouped,
 	}
 	return render(stdout, n)
 }
