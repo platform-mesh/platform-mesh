@@ -94,6 +94,31 @@ func TestDefaultStart(t *testing.T) {
 	}
 }
 
+// TestCheckRange uses its own history with a side branch. Not parallel: scratchrepo.
+func TestCheckRange(t *testing.T) {
+	repo := scratchrepo.NewT(t)
+	repo.Commit("one")
+	repo.Tag("v26.10.0")
+	repo.Commit("two")
+	repo.Tag("v26.10.1")
+	repo.Git("checkout", "-q", "-b", "side", "v26.10.0")
+	repo.Commit("side")
+	repo.Git("checkout", "-q", "main")
+
+	resolve := func(input string) ref {
+		t.Helper()
+		r, err := resolveRef(t.Context(), input)
+		require.NoError(t, err)
+		return r
+	}
+	v0, v1, side := resolve("v26.10.0"), resolve("v26.10.1"), resolve("side")
+
+	require.NoError(t, checkRange(t.Context(), v0, v1))
+	require.Error(t, checkRange(t.Context(), v1, v0), "inverted range")
+	require.Error(t, checkRange(t.Context(), v1, v1), "same commit")
+	require.Error(t, checkRange(t.Context(), side, v1), "unrelated branch")
+}
+
 func TestDefaultStart_noRelease(t *testing.T) {
 	scratchRepo(t)
 

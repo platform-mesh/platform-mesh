@@ -78,6 +78,17 @@ func defaultStart(ctx context.Context, end ref) (ref, error) {
 	return resolveRef(ctx, strings.TrimSpace(out))
 }
 
+// checkRange rejects a start that is not a strict ancestor of end.
+func checkRange(ctx context.Context, start, end ref) error {
+	if start.commit == end.commit {
+		return fmt.Errorf("start and end are the same commit %s", start.version)
+	}
+	if _, err := git(ctx, "merge-base", "--is-ancestor", start.commit, end.commit); err != nil {
+		return fmt.Errorf("start %s is not an ancestor of end %s", start.version, end.version)
+	}
+	return nil
+}
+
 func git(ctx context.Context, args ...string) (string, error) {
 	out, err := exec.CommandContext(ctx, "git", args...).Output()
 	if err != nil {

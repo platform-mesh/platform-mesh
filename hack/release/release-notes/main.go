@@ -87,6 +87,9 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if err := checkRange(ctx, start, end); err != nil {
+		return err
+	}
 
 	repoURL := strings.TrimSuffix(releaseutils.EnvOr("REPO_URL", releaseutils.DefaultRepoURL), ".git")
 	owner, repo, err := repoOwnerName(repoURL)
@@ -98,6 +101,9 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	changes, err := firstParentLog(ctx, repoURL, start.commit, end.commit)
 	if err != nil {
 		return err
+	}
+	if len(changes) == 0 {
+		return fmt.Errorf("no commits between %s and %s", start.version, end.version)
 	}
 	comps, err := components(ctx, end.commit)
 	if err != nil {
