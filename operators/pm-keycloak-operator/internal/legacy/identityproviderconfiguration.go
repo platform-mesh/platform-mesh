@@ -88,16 +88,36 @@ func identityProviderConfigurationToCurrent(in *pmcorev1alpha1.IdentityProviderC
 //nolint:staticcheck // legacy kind served on purpose
 func identityProviderConfigurationFromCurrent(in *pmkeycloakv1alpha1.IdentityProviderConfiguration, out *pmcorev1alpha1.IdentityProviderConfiguration) {
 	out.ObjectMeta = *in.ObjectMeta.DeepCopy()
-	out.Status.Conditions = in.Status.DeepCopy().Conditions
-	out.Status.ManagedClients = nil
-	if in.Status.ManagedClients != nil {
-		out.Status.ManagedClients = make(map[string]pmcorev1alpha1.ManagedClient, len(in.Status.ManagedClients))
-		for name, mc := range in.Status.ManagedClients {
-			out.Status.ManagedClients[name] = pmcorev1alpha1.ManagedClient{
+	out.Status = IdentityProviderConfigurationStatusFromCurrent(in.Status)
+}
+
+// IdentityProviderConfigurationSpecFromCurrent converts a spec to the deprecated shape.
+func IdentityProviderConfigurationSpecFromCurrent(in pmkeycloakv1alpha1.IdentityProviderConfigurationSpec) pmcorev1alpha1.IdentityProviderConfigurationSpec {
+	out := pmcorev1alpha1.IdentityProviderConfigurationSpec{RegistrationAllowed: in.RegistrationAllowed}
+	for _, c := range in.Clients {
+		out.Clients = append(out.Clients, pmcorev1alpha1.IdentityProviderClientConfig{
+			ClientType:             pmcorev1alpha1.IdentityProviderClientType(c.ClientType),
+			ClientName:             c.ClientName,
+			RedirectURIs:           append([]string(nil), c.RedirectURIs...),
+			PostLogoutRedirectURIs: append([]string(nil), c.PostLogoutRedirectURIs...),
+			SecretRef:              c.SecretRef,
+		})
+	}
+	return out
+}
+
+// IdentityProviderConfigurationStatusFromCurrent converts a status to the deprecated shape.
+func IdentityProviderConfigurationStatusFromCurrent(in pmkeycloakv1alpha1.IdentityProviderConfigurationStatus) pmcorev1alpha1.IdentityProviderConfigurationStatus {
+	out := pmcorev1alpha1.IdentityProviderConfigurationStatus{Conditions: in.DeepCopy().Conditions}
+	if in.ManagedClients != nil {
+		out.ManagedClients = make(map[string]pmcorev1alpha1.ManagedClient, len(in.ManagedClients))
+		for name, mc := range in.ManagedClients {
+			out.ManagedClients[name] = pmcorev1alpha1.ManagedClient{
 				ClientID:              mc.ClientID,
 				RegistrationClientURI: mc.RegistrationClientURI,
 				SecretRef:             mc.SecretRef,
 			}
 		}
 	}
+	return out
 }

@@ -136,7 +136,7 @@ func (s *subroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) 
 	}
 
 	// AccountInfos are served by the core export, not the one this Invite came through.
-	cl, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.CoreClusterName(clusterName)))
+	cl, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.ProviderClusterName(config.CoreProviderName, clusterName)))
 	if errors.Is(err, multicluster.ErrClusterNotFound) {
 		log.Info().Err(err).Msg("cluster not engaged by the core provider yet, requeueing")
 		return subroutines.Pending(clusterNotReadyRequeue, "waiting for the core provider to engage the cluster"), nil

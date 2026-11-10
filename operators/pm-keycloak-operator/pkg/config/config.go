@@ -211,12 +211,17 @@ func MultiProviderName(providerName, clusterName string) multicluster.ClusterNam
 	return multicluster.ClusterName(providerName + ProviderSeparator + clusterName)
 }
 
-// CoreClusterName returns the logical cluster an engaged cluster name refers to,
-// as seen through the core provider, which serves AccountInfos.
-func CoreClusterName(engaged multicluster.ClusterName) multicluster.ClusterName {
+// ProviderClusterName returns the logical cluster an engaged cluster name
+// refers to, as seen through another named provider.
+func ProviderClusterName(providerName string, engaged multicluster.ClusterName) multicluster.ClusterName {
+	return MultiProviderName(providerName, LogicalClusterName(engaged))
+}
+
+// LogicalClusterName strips the provider prefix off an engaged cluster name.
+func LogicalClusterName(engaged multicluster.ClusterName) string {
 	_, cluster, found := strings.Cut(string(engaged), ProviderSeparator)
 	if !found {
-		cluster = string(engaged)
+		return string(engaged)
 	}
-	return MultiProviderName(CoreProviderName, cluster)
+	return cluster
 }

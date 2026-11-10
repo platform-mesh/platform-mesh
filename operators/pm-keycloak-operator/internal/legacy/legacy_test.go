@@ -156,3 +156,20 @@ func (f processorFunc) Process(_ context.Context, obj ctrlruntimeclient.Object) 
 	f(obj)
 	return subroutines.OK(), nil
 }
+
+func TestSubroutine_Migrated(t *testing.T) {
+	t.Parallel()
+
+	inner := &recorder{}
+	sub := IdentityProviderConfiguration(inner)
+	obj := legacyIPC()
+	obj.Annotations = map[string]string{MigratedAnnotation: "true"}
+
+	_, err := sub.Process(t.Context(), obj)
+	require.NoError(t, err)
+	_, err = sub.Finalize(t.Context(), obj)
+	require.NoError(t, err)
+
+	assert.Nil(t, inner.seen, "a migrated legacy object is neither processed nor finalized")
+	assert.NotEmpty(t, sub.Finalizers(obj), "finalizers are still reported so the lifecycle removes them")
+}

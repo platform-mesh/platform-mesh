@@ -28,6 +28,8 @@ import (
 	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	iclient "go.platform-mesh.io/pm-keycloak-operator/internal/client"
+	"go.platform-mesh.io/pm-keycloak-operator/internal/features"
+	"go.platform-mesh.io/pm-keycloak-operator/internal/legacy"
 	"go.platform-mesh.io/pm-keycloak-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
 
@@ -61,6 +63,7 @@ func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGe
 		kubectlClientRedirectURLs: cfg.IDP.KubectlClientRedirectURLs,
 		baseDomain:                cfg.BaseDomain,
 		registrationAllowed:       cfg.IDP.RegistrationAllowed,
+		legacyTwin:                cfg.FeatureEnabled(features.LegacyAPIs),
 		limiter:                   limiter,
 	}, nil
 }
@@ -78,7 +81,10 @@ type IDPSubroutine struct {
 	kubectlClientRedirectURLs []string
 	baseDomain                string
 	registrationAllowed       bool
-	limiter                   workqueue.TypedRateLimiter[*pmkeycloakv1alpha1.IdentityProviderConfiguration]
+	// legacyTwin also maintains the deprecated core.platform-mesh.io
+	// IdentityProviderConfiguration for consumers still reading it (the portal).
+	legacyTwin bool
+	limiter    workqueue.TypedRateLimiter[*pmkeycloakv1alpha1.IdentityProviderConfiguration]
 }
 
 func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
@@ -155,6 +161,11 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Obj
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to create idp resource %w", err)
 	}
+	if i.legacyTwin {
+		if err := ensureLegacyTwin(ctx, orgsClient, idp); err != nil {
+			return subroutines.OK(), fmt.Errorf("failed to create legacy idp resource %w", err)
+		}
+	}
 
 	log.Info().Str("workspace", workspaceName).Msg("idp configuration resource is created")
 	if err := orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, idp); err != nil {
@@ -212,7 +223,40 @@ func (i *IDPSubroutine) Terminate(ctx context.Context, obj ctrlruntimeclient.Obj
 		return subroutines.StopWithRequeue(orgResourceDeleteRequeue, "waiting for IdentityProviderConfiguration to be deleted"), nil
 	}
 
+	// The deprecated twin, from this initializer or a previous release.
+	//nolint:staticcheck // legacy kind served on purpose
+	pending, err = deleteOrgResource(ctx, orgsClient, &pmcorev1alpha1.IdentityProviderConfiguration{}, workspaceName)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("deleting legacy IdentityProviderConfiguration %s: %w", workspaceName, err)
+	}
+	if pending {
+		return subroutines.StopWithRequeue(orgResourceDeleteRequeue, "waiting for legacy IdentityProviderConfiguration to be deleted"), nil
+	}
+
 	return subroutines.OK(), nil
+}
+
+// ensureLegacyTwin keeps a deprecated core.platform-mesh.io copy of idp next
+// to it, created already marked migrated so only the keycloak object's
+// reconciler touches the realm and mirrors its status into the copy.
+func ensureLegacyTwin(ctx context.Context, cl ctrlruntimeclient.Client, idp *pmkeycloakv1alpha1.IdentityProviderConfiguration) error {
+	//nolint:staticcheck // legacy kind served on purpose
+	twin := &pmcorev1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: idp.Name}}
+	_, err := controllerutil.CreateOrPatch(ctx, cl, twin, func() error {
+		annotations := twin.GetAnnotations()
+		if annotations == nil {
+			annotations = map[string]string{}
+		}
+		annotations[legacy.MigratedAnnotation] = "true"
+		twin.SetAnnotations(annotations)
+		twin.Spec = legacy.IdentityProviderConfigurationSpecFromCurrent(idp.Spec)
+		return nil
+	})
+	if meta.IsNoMatchError(err) {
+		// The workspace does not bind the deprecated API.
+		return nil
+	}
+	return err
 }
 
 func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl ctrlruntimeclient.Client, workspaceName string, idp *pmkeycloakv1alpha1.IdentityProviderConfiguration) error {

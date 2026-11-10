@@ -111,7 +111,7 @@ func TestInitContainerConfigAddFlags(t *testing.T) {
 	assert.Equal(t, "/tmp/config.yaml", cfg.ConfigFile)
 }
 
-func TestCoreClusterName(t *testing.T) {
+func TestProviderClusterName(t *testing.T) {
 	cases := map[string]struct {
 		engaged  string
 		expected string
@@ -125,7 +125,7 @@ func TestCoreClusterName(t *testing.T) {
 
 	for title, cas := range cases {
 		t.Run(title, func(t *testing.T) {
-			assert.Equal(t, cas.expected, string(CoreClusterName(multicluster.ClusterName(cas.engaged))))
+			assert.Equal(t, cas.expected, string(ProviderClusterName(CoreProviderName, multicluster.ClusterName(cas.engaged))))
 		})
 	}
 }

@@ -31,7 +31,9 @@ import (
 	iclient "go.platform-mesh.io/pm-keycloak-operator/internal/client"
 	"go.platform-mesh.io/pm-keycloak-operator/internal/controller"
 	"go.platform-mesh.io/pm-keycloak-operator/internal/features"
+	"go.platform-mesh.io/pm-keycloak-operator/internal/legacy"
 	"go.platform-mesh.io/pm-keycloak-operator/internal/predicates"
+	"go.platform-mesh.io/pm-keycloak-operator/internal/subroutine/idp"
 	internalwebhook "go.platform-mesh.io/pm-keycloak-operator/internal/webhook"
 	"go.platform-mesh.io/pm-keycloak-operator/pkg/config"
 
@@ -108,9 +110,20 @@ func SetupOperatorControllers(ctx context.Context, mgr mcmanager.Manager, cfg *c
 	kcpClientGetterWithConfig := iclient.NewConfigSchemeKCPClientGetter(deps.RestConfig, scheme)
 	keycloakEngageOpts := controller.WithClustersFromNamedProvider(config.KeycloakProviderName, config.ProviderSeparator)
 
+	// With LegacyAPIs a keycloak IdentityProviderConfiguration created next to
+	// its deprecated core twin takes over that twin's realm and clients and
+	// keeps the twin's status current for consumers still reading it.
 	legacyAPIs := cfg.FeatureEnabled(features.LegacyAPIs)
+	var adopt idp.LegacyAdopter
+	var mirror idp.LegacyMirror
+	var legacyExists internalwebhook.LegacyExists
+	if legacyAPIs {
+		adopt = legacy.IdentityProviderConfigurationAdopter(kcpClientGetter)
+		mirror = legacy.IdentityProviderConfigurationMirror(kcpClientGetter)
+		legacyExists = legacy.IdentityProviderConfigurationExists(kcpClientGetterWithConfig)
+	}
 
-	idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, cfg, log)
+	idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, cfg, log, adopt, mirror)
 	if err != nil {
 		return fmt.Errorf("creating identityprovider reconciler: %w", err)
 	}
@@ -156,7 +169,7 @@ func SetupOperatorControllers(ctx context.Context, mgr mcmanager.Manager, cfg *c
 
 	if cfg.Webhooks.Enabled {
 		log.Info().Msg("validating webhooks are enabled")
-		if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, mgr.GetLocalManager(), cfg, legacyAPIs); err != nil {
+		if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, mgr.GetLocalManager(), cfg, legacyExists); err != nil {
 			return fmt.Errorf("setting up IdentityProviderConfiguration webhook: %w", err)
 		}
 	}
