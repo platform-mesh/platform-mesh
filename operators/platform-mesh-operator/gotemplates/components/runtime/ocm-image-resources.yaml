@@ -15,8 +15,7 @@
 {{ $values := .values }}
 {{- range $service, $config := .values.services }}
 {{- if $config.enabled }}
-{{- with $config.imageResources }}
-{{- range . }}
+{{- range $config.imageResources }}
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Resource
 metadata:
@@ -76,7 +75,42 @@ spec:
       name: {{ $values.ocm.repo.name }}
       namespace: {{ $.releaseNamespace }}
 ---
-{{- end }}
+{{- else }}
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Resource
+metadata:
+  name: "{{ $service }}-image"
+  namespace: {{ $.releaseNamespace }}
+  annotations:
+    repo: oci
+    artifact: image
+    for: {{ $service }}
+spec:
+  componentRef:
+    name: {{ $values.ocm.component.name }}
+  resource:
+    byReference:
+      resource:
+        name: image
+      referencePath:
+        {{- with $values.ocm.referencePath }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        - name: {{ $service }}
+        {{- if not $config.external }}
+        - name: image
+        {{- end }}
+  additionalStatusFields:
+    registry: resource.access.imageReference.toOCI().registry
+    repository: resource.access.imageReference.toOCI().repository
+    tag: resource.access.imageReference.toOCI().tag
+    digest: resource.access.imageReference.toOCI().digest
+  ocmConfig:
+    - kind: Repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      name: {{ $values.ocm.repo.name }}
+      namespace: {{ $.releaseNamespace }}
+---
 {{- end }}
 {{ end -}}
 {{ end -}}

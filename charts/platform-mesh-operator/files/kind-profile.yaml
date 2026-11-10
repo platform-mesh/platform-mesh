@@ -15,17 +15,6 @@ data:
         repo:
           name: platform-mesh
         skipVerify: true
-      certManager:
-        # Installed by platform-mesh-prerequisites.
-        enabled: false
-      etcdDruid:
-        # Installed by platform-mesh-prerequisites.
-        enabled: false
-      prometheusOperatorCRDs:
-        enabled: false
-      opentelemetryOperator:
-        enabled: false
-    components:
       # -- Change hostaliases here and all involved components will get the same hostaliases
       hostAliasesEntries: &hostAliasesEntries
         # REQUIRED: set the host aliases for kcp shards
@@ -54,26 +43,10 @@ data:
               for: account-operator
           syncWave: 4
           enabled: true
-          dependsOn: []
           values:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            crds:
-              enabled: false
-            kcp:
-              apiExportEndpointSliceName: "core.platform-mesh.io"
-            kubeconfigSecret: account-operator-kubeconfig
-            log:
-              level: debug
-              noJson: true
-            subroutines:
-              fga:
-                grpcAddr: openfga:8081
-            tracing:
-              collector:
-                host: observability-opentelemetry-collector.observability.svc.cluster.local:4317
-              enabled: false
         extension-manager-operator:
           imageResources:
           - annotations:
@@ -82,20 +55,10 @@ data:
               for: extension-manager-operator
           syncWave: 4
           enabled: true
-          dependsOn: []
           values:
-            crds:
-              enabled: false
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            kcp:
-              enabled: true
-              kubeconfigSecret: extension-manager-operator-kubeconfig
-            tracing:
-              collector:
-                host: observability-opentelemetry-collector.observability.svc.cluster.local:4317
-              enabled: false
         infra:
           enabled: true
           imageResources:
@@ -149,94 +112,20 @@ data:
               for: infra
               path: kcp.etcd.backup.image.tag
               image-ref: combined
-          dependsOn: []
           values:
             keycloak:
               operator:
                 hostname: https://{{ .baseDomainPort }}/keycloak/
                 enabled: true
-                # cert-manager writes the issuing CA as ca.crt in the leaf certificate Secret.
-                caSecret: domain-certificate
-                httpEnabled: true
-                db:
-                  password: keycloak-password
-                admin:
-                  password: admin
-                  secret: admin
-                health:
-                  port: 9000
-                  periodSeconds: 10
-                  liveness:
-                    path: /keycloak/health/live
-                    failureThreshold: 3
-                  readiness:
-                    path: /keycloak/health/ready
-                    initialDelaySeconds: 0
-                    periodSeconds: 10
-                  startup:
-                    path: /keycloak/health
-                    failureThreshold: 600
               gatewayApi:
                 hostnames:
                   - "{{ .baseDomain }}"
-              service:
-                name: keycloak-service
-                port: 8080
-              keycloakConfig:
-                url: http://keycloak-service.platform-mesh-system.svc.cluster.local:8080/keycloak
-                redirectUrls: ["http://localhost:8000/callback*"]
-            dex:
-              enabled: false
             cnpg:
               enabled: true
-              cluster:
-                instances: 1
-              roles:
-                keycloak:
-                  password: keycloak-password
-                openfga:
-                  password: openfga-password
             gatewayApi:
               enabled: true
               gatewayClassName: __GATEWAY_CLASS_NAME__
-              listeners:
-                - name: terminate
-                  hostname: "{{ .baseDomain }}"
-                  port: 8443
-                  protocol: HTTPS
-                  tls:
-                    mode: Terminate
-                    certificateRefs:
-                      - kind: Secret
-                        name: domain-certificate
-                        namespace: platform-mesh-system
-                - name: terminate-wildstar
-                  hostname: "*.{{ .baseDomain }}"
-                  port: 8443
-                  protocol: HTTPS
-                  tls:
-                    mode: Terminate
-                    certificateRefs:
-                      - kind: Secret
-                        name: domain-certificate
-                        namespace: platform-mesh-system
-              passthrough:
-                enabled: true
-                port: 8443
-              listenersExtra:
-                - name: terminate-services
-                  hostname: "*.services.{{ .baseDomain }}"
-                  port: 8443
-                  protocol: HTTPS
-                  tls:
-                    mode: Terminate
-                    certificateRefs:
-                      - kind: Secret
-                        name: domain-certificate
-                        namespace: platform-mesh-system
-                  allowedRoutes:
-                    namespaces:
-                      from: All
+              port: 8443
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
@@ -281,9 +170,6 @@ data:
           enabled: true
           dependsOn: []
           values:
-            caSecret: domain-certificate
-            extraArgs:
-            - --no-json
             keycloak:
               baseUrl: "https://{{ .baseDomainPort }}/keycloak"
             hostAliases:
@@ -306,55 +192,6 @@ data:
               image-ref: combined
           targetNamespace: platform-mesh-system
           values: {}
-        keycloak-operator:
-          # Installed by platform-mesh-prerequisites.
-          enabled: false
-          external: true
-          dependsOn: []
-          imageResources:
-          - name: keycloak-operator-keycloak-image
-            resource: keycloak-image
-            resourceName: keycloak-image
-            absoluteReferencePath:
-              - name: keycloak-operator
-              - name: image
-            annotations:
-              repo: oci
-              artifact: image
-              for: keycloak-operator
-              path: keycloakImage.tag
-          - name: keycloak-operator-image
-            resource: manager-image
-            resourceName: manager-image
-            absoluteReferencePath:
-              - name: keycloak-operator
-              - name: image
-            annotations:
-              repo: oci
-              artifact: image
-              for: keycloak-operator
-              path: image.tag
-          absoluteReferencePath:
-            - name: keycloak-operator
-            - name: chart
-          values:
-            watchNamespaces: platform-mesh-system
-        cnpg-operator:
-          # Installed by platform-mesh-prerequisites.
-          enabled: false
-          external: true
-          dependsOn: []
-          targetNamespace: platform-mesh-system
-          absoluteReferencePath:
-          - name: cnpg-operator
-          values: {}
-          imageResources:
-          - name: cnpg-operator-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: cnpg-operator
-              image-ref: combined
         kubernetes-graphql-gateway:
           imageResources:
           - annotations:
@@ -493,14 +330,10 @@ data:
               for: portal
           syncWave: 4
           enabled: true
-          dependsOn: []
           values:
             auth:
               default:
                 baseDomain: '{{ .baseDomain }}'
-                clientId: welcome
-                clientSecretKey: attribute.client_secret
-                clientSecretName: portal-client-secret-welcome
                 discoveryUrl: 'https://{{ .baseDomainPort }}/keycloak/realms/${org-name}/.well-known/openid-configuration'
             cookieDomain: '{{ .baseDomain }}'
             crdGatewayApiUrl: 'https://${org-subdomain}{{ .baseDomain }}/api/kubernetes-graphql-gateway/root:orgs:${org-name}/graphql'
@@ -510,60 +343,17 @@ data:
               value: https://${org-subdomain}{{ .baseDomainPort }}/iam/graphql
             - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
               value: https://${org-subdomain}{{ .baseDomainPort }}/gateway/api/clusters/root:orgs:${org-name}/graphql
-            - name: NODE_EXTRA_CA_CERTS
-              value: /etc/ssl/certs/ca-bundle.crt
             - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
               value: https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443
-            initContainers:
-            - name: combine-ca
-              image: busybox:1.36
-              command:
-              - sh
-              - -c
-              - cat /domain-ca/ca.crt /webhook-ca/ca.crt > /combined-ca/ca-bundle.crt
-              # busybox runs as root by default, but pod has runAsNonRoot
-              securityContext:
-                runAsUser: 1000
-              volumeMounts:
-              - name: domain-ca
-                mountPath: /domain-ca
-                readOnly: true
-              - name: webhook-ca
-                mountPath: /webhook-ca
-                readOnly: true
-              - name: combined-ca
-                mountPath: /combined-ca
-            extraVolumes:
-            - name: domain-ca
-              secret:
-                secretName: domain-certificate
-            - name: webhook-ca
-              secret:
-                secretName: rebac-authz-webhook-cert
-            - name: combined-ca
-              emptyDir: {}
-            extraVolumeMounts:
-            - name: combined-ca
-              mountPath: /etc/ssl/certs/ca-bundle.crt
-              subPath: ca-bundle.crt
-              readOnly: true
             frontendPort: '8443'
             gatewayApi:
-              enabled: true
               httpRoute:
                 hostnames:
                 - "{{ .baseDomain }}"
                 - "*.{{ .baseDomain }}"
-                parentRefs:
-                - name: k8sapi-gateway
-                  kind: Gateway
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            http:
-              protocol: https
-            kcp:
-              kubeconfigSecret: portal-kubeconfig
         rebac-authz-webhook:
           imageResources:
           - annotations:
@@ -577,16 +367,6 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            certManager:
-              enabled: false
-            istio:
-              dnsNames:
-              - rebac-authz-webhook.platform-mesh-system.svc.cluster.local
-              exposed: false
-            log:
-              level: debug
-            openfga:
-              url: openfga:8081
         security-operator:
           imageResources:
           - annotations:
@@ -598,34 +378,11 @@ data:
           dependsOn: []
           values:
             baseDomain: '{{ .baseDomainPort }}'
-            caSecret: domain-certificate
-            crds:
-              enabled: false
-            openfga:
-              endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
             keycloak:
               baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
-            idp:
-              smtp:
-                # REQUIRED: configure a production SMTP server
-                server: ""
-                port: ""
-                fromAddress: ""
-              # Production defaults: invite-only, require email verification
-              registrationAllowed: false
-              allowUnverifiedEmails: false
-              setDefaultPassword: false
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            initializer:
-              kubeconfigSecret: security-initializer-kubeconfig
-            kubeconfigSecret: security-operator-kubeconfig
-            log:
-              level: debug
-              noJson: true
-            terminator:
-              kubeconfigSecret: security-terminator-kubeconfig
         virtual-workspaces:
           imageResources:
           - annotations:
@@ -634,20 +391,15 @@ data:
               for: virtual-workspaces
           syncWave: 4
           enabled: true
-          dependsOn: []
           targetNamespace: platform-mesh-system
           values:
-            virtualWorkspaceSecretName: virtual-workspaces-cert
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
             deployment:
               serverUrl: "{{ .internalFrontProxyUrl }}"
-              resourceSchemaName: "v250704-6d57f16.contentconfigurations.ui.platform-mesh.io"
-              resourceSchemaWorkspace: "root:platform-mesh-system"
         marketplace-ui:
           enabled: true
-          dependsOn: []
           imageResources:
           - annotations:
               repo: oci
@@ -656,17 +408,12 @@ data:
           values:
             contentConfig:
               baseDomain: '{{ .baseDomain }}'
-              protocol: https
             exposure:
               hostnames:
               - "{{ .baseDomain }}"
               - "*.{{ .baseDomain }}"
             gatewayApi:
               enabled: true
-            http:
-              protocol: https
-            istio:
-              enabled: false
         terminal-controller-manager:
           enabled: false
           dependsOn: []

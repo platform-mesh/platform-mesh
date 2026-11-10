@@ -29,6 +29,13 @@ istio:
   # -- enable Istio VirtualService
   enabled: false
 
+tracing:
+  # -- Toggle to enable/disable OpenTelemetry tracing
+  enabled: false
+  collector:
+    # -- OpenTelemetry collector endpoint
+    endpoint: observability-opentelemetry-collector.observability.svc.cluster.local:4317
+
 ## @param kubeconfigSecret The secret containing the kubeconfig for the operator
 kubeconfigSecret: ""
 

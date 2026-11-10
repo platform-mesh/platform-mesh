@@ -25,13 +25,33 @@ matches the snapshot:
           containers:
             - env:
                 - name: HTTP_PROTOCOL
-                  value: null
+                  value: https
                 - name: DISCOVERY_ENDPOINT
-                  value: null
+                  value: https://:443/keycloak/realms/${org-name}/.well-known/openid-configuration
                 - name: OIDC_CLIENT_ID_DEFAULT
-                  value: null
+                  value: welcome
                 - name: BASE_DOMAINS_DEFAULT
                   value: null
+                - name: COOKIE_DOMAIN
+                  value: null
+                - name: FRONTEND_PORT
+                  value: "443"
+                - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+                  value: https://${org-subdomain}:443/iam/graphql
+                - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+                  value: https://${org-subdomain}:443/gateway/api/clusters/root:orgs:${org-name}/graphql
+                - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+                  value: https://rebac-authz-webhook.NAMESPACE.svc.cluster.local:9443
+                - name: NODE_EXTRA_CA_CERTS
+                  value: /etc/ssl/certs/ca-bundle.crt
+                - name: PORT
+                  value: "443"
+                - name: REGION
+                  value: null
+                - name: IMAGE_TAG
+                  value: 1.0.0
+                - name: IMAGE_NAME
+                  value: ghcr.io/platform-mesh/portal
                 - name: DEVELOPMENT_INSTANCE
                   value: "false"
                 - name: FEATURE_TOGGLES
@@ -40,16 +60,6 @@ matches the snapshot:
                   value: enableFeatureToggleSetting
                 - name: CONTENT_CONFIGURATION_VALIDATOR_API_URL
                   value: http://extension-manager-operator-server.NAMESPACE.svc.cluster.local:8088/validate
-                - name: PORT
-                  value: "8080"
-                - name: REGION
-                  value: null
-                - name: IMAGE_TAG
-                  value: 1.0.0
-                - name: IMAGE_NAME
-                  value: ghcr.io/platform-mesh/portal
-                - name: FRONTEND_PORT
-                  value: "8000"
                 - name: VALID_WEBCOMPONENT_URLS
                   value: .?
                 - name: TEST_TEST
@@ -68,11 +78,14 @@ matches the snapshot:
               imagePullPolicy: IfNotPresent
               name: portal
               ports:
-                - containerPort: 8080
+                - containerPort: 443
                   name: http
                   protocol: TCP
                 - containerPort: 9090
                   name: metrics
+                  protocol: TCP
+                - containerPort: 8080
+                  name: health-port
                   protocol: TCP
               resources:
                 limits:
@@ -86,10 +99,32 @@ matches the snapshot:
                 seccompProfile:
                   type: RuntimeDefault
               volumeMounts:
+                - mountPath: /etc/ssl/certs/ca-bundle.crt
+                  name: combined-ca
+                  readOnly: true
+                  subPath: ca-bundle.crt
                 - mountPath: /kubeconfig
                   name: kubeconfig
                 - mountPath: /kcp-kubeconfig
                   name: kcp-kubeconfig
+          initContainers:
+            - command:
+                - sh
+                - -c
+                - cat /domain-ca/ca.crt /webhook-ca/ca.crt > /combined-ca/ca-bundle.crt
+              image: busybox:1.36
+              name: combine-ca
+              securityContext:
+                runAsUser: 1000
+              volumeMounts:
+                - mountPath: /domain-ca
+                  name: domain-ca
+                  readOnly: true
+                - mountPath: /webhook-ca
+                  name: webhook-ca
+                  readOnly: true
+                - mountPath: /combined-ca
+                  name: combined-ca
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -97,6 +132,14 @@ matches the snapshot:
           serviceAccountName: portal
           terminationGracePeriodSeconds: 10
           volumes:
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
+            - name: webhook-ca
+              secret:
+                secretName: rebac-authz-webhook-cert
+            - emptyDir: {}
+              name: combined-ca
             - name: kubeconfig
               secret:
                 secretName: my-kubeconfig-secret
@@ -130,13 +173,33 @@ test hosAliases:
           containers:
             - env:
                 - name: HTTP_PROTOCOL
-                  value: null
+                  value: https
                 - name: DISCOVERY_ENDPOINT
-                  value: null
+                  value: https://:443/keycloak/realms/${org-name}/.well-known/openid-configuration
                 - name: OIDC_CLIENT_ID_DEFAULT
-                  value: null
+                  value: welcome
                 - name: BASE_DOMAINS_DEFAULT
                   value: null
+                - name: COOKIE_DOMAIN
+                  value: null
+                - name: FRONTEND_PORT
+                  value: "443"
+                - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+                  value: https://${org-subdomain}:443/iam/graphql
+                - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+                  value: https://${org-subdomain}:443/gateway/api/clusters/root:orgs:${org-name}/graphql
+                - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+                  value: https://rebac-authz-webhook.NAMESPACE.svc.cluster.local:9443
+                - name: NODE_EXTRA_CA_CERTS
+                  value: /etc/ssl/certs/ca-bundle.crt
+                - name: PORT
+                  value: "443"
+                - name: REGION
+                  value: null
+                - name: IMAGE_TAG
+                  value: 1.0.0
+                - name: IMAGE_NAME
+                  value: ghcr.io/platform-mesh/portal
                 - name: DEVELOPMENT_INSTANCE
                   value: "false"
                 - name: FEATURE_TOGGLES
@@ -145,27 +208,22 @@ test hosAliases:
                   value: enableFeatureToggleSetting
                 - name: CONTENT_CONFIGURATION_VALIDATOR_API_URL
                   value: http://extension-manager-operator-server.NAMESPACE.svc.cluster.local:8088/validate
-                - name: PORT
-                  value: "8080"
-                - name: REGION
-                  value: null
-                - name: IMAGE_TAG
-                  value: 1.0.0
-                - name: IMAGE_NAME
-                  value: ghcr.io/platform-mesh/portal
-                - name: FRONTEND_PORT
-                  value: "8000"
                 - name: VALID_WEBCOMPONENT_URLS
                   value: .?
+                - name: KUBECONFIG_KCP
+                  value: /kcp-kubeconfig/kubeconfig
               image: ghcr.io/platform-mesh/portal:1.0.0
               imagePullPolicy: IfNotPresent
               name: portal
               ports:
-                - containerPort: 8080
+                - containerPort: 443
                   name: http
                   protocol: TCP
                 - containerPort: 9090
                   name: metrics
+                  protocol: TCP
+                - containerPort: 8080
+                  name: health-port
                   protocol: TCP
               resources:
                 limits:
@@ -178,16 +236,51 @@ test hosAliases:
                 runAsNonRoot: true
                 seccompProfile:
                   type: RuntimeDefault
-              volumeMounts: null
+              volumeMounts:
+                - mountPath: /etc/ssl/certs/ca-bundle.crt
+                  name: combined-ca
+                  readOnly: true
+                  subPath: ca-bundle.crt
+                - mountPath: /kcp-kubeconfig
+                  name: kcp-kubeconfig
           hostAliases:
             - hostnames:
                 - example.com
                 - test.example.com
               ip: 10.0.0.1
+          initContainers:
+            - command:
+                - sh
+                - -c
+                - cat /domain-ca/ca.crt /webhook-ca/ca.crt > /combined-ca/ca-bundle.crt
+              image: busybox:1.36
+              name: combine-ca
+              securityContext:
+                runAsUser: 1000
+              volumeMounts:
+                - mountPath: /domain-ca
+                  name: domain-ca
+                  readOnly: true
+                - mountPath: /webhook-ca
+                  name: webhook-ca
+                  readOnly: true
+                - mountPath: /combined-ca
+                  name: combined-ca
           securityContext:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
           serviceAccountName: portal
           terminationGracePeriodSeconds: 10
-          volumes: null
+          volumes:
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
+            - name: webhook-ca
+              secret:
+                secretName: rebac-authz-webhook-cert
+            - emptyDir: {}
+              name: combined-ca
+            - name: kcp-kubeconfig
+              secret:
+                secretName: portal-kubeconfig
