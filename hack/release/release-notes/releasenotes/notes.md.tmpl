@@ -19,9 +19,9 @@ No release notes.
 {{- else}}
 No contributors.
 {{- end}}
-
+{{if .Contributors}}
 _{{len .Contributors}} contributor(s)_
-
+{{end}}
 ## Components built from this repository
 
 All at version `{{.OCMVersion}}`:
