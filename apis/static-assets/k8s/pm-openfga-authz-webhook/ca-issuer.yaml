@@ -14,7 +14,8 @@
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: rebac-authz-webhook-selfsigned-issuer
+  name: pm-openfga-authz-webhook-ca-issuer
   namespace: platform-mesh-system
 spec:
-  selfSigned: {}
+  ca:
+    secretName: pm-openfga-authz-webhook-ca

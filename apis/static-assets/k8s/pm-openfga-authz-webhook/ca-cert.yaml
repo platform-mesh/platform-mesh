@@ -11,23 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-apiVersion: v1
-kind: Secret
+apiVersion: cert-manager.io/v1
+kind: Certificate
 metadata:
-  name: kcp-webhook-secret
+  name: pm-openfga-authz-webhook-ca
   namespace: platform-mesh-system
-type: Opaque
-stringData:
-  kubeconfig: |
-    apiVersion: v1
-    kind: Config
-    clusters:
-    - name: webhook
-      cluster:
-          server: https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz
-    current-context: webhook
-    contexts:
-    - name: webhook
-      context:
-        cluster: webhook
+spec:
+  isCA: true
+  commonName: pm-openfga-authz-webhook-ca
+  secretName: pm-openfga-authz-webhook-ca
+  duration: 87600h
+  issuerRef:
+    name: pm-openfga-authz-webhook-selfsigned-issuer

@@ -11,11 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 apiVersion: cert-manager.io/v1
-kind: Issuer
+kind: Certificate
 metadata:
-  name: rebac-authz-webhook-ca-issuer
+  name: pm-openfga-authz-webhook-cert
   namespace: platform-mesh-system
 spec:
-  ca:
-    secretName: rebac-authz-webhook-ca
+  secretName: pm-openfga-authz-webhook-cert
+  issuerRef:
+    name: pm-openfga-authz-webhook-ca-issuer
+  dnsNames:
+  - pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local

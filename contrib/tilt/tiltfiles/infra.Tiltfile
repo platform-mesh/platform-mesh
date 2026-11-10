@@ -87,7 +87,7 @@ infra = profile_chart(
             "cacheServer": {"replicas": 1, "resources": NO_REQUESTS},
             "frontProxy": {"resources": NO_REQUESTS},
             "etcd": {"resources": NO_REQUESTS, "backup": {"resources": NO_REQUESTS}},
-            # The ReBAC authorization webhook is rebac-authz-webhook, which needs OpenFGA.
+            # The ReBAC authorization webhook is pm-openfga-authz-webhook, which needs OpenFGA.
             "webhook": {"enabled": OPENFGA},
         },
         "keycloak": {"operator": {"enabled": KEYCLOAK, "resources": NO_REQUESTS}},

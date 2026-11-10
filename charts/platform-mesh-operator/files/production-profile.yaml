@@ -473,7 +473,7 @@ data:
             - name: NODE_EXTRA_CA_CERTS
               value: /etc/ssl/certs/ca-bundle.crt
             - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
-              value: https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443
+              value: https://pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local:9443
             initContainers:
             - name: combine-ca
               image: busybox:1.36
@@ -499,7 +499,7 @@ data:
                 secretName: domain-certificate
             - name: webhook-ca
               secret:
-                secretName: rebac-authz-webhook-cert
+                secretName: pm-openfga-authz-webhook-cert
             - name: combined-ca
               emptyDir: {}
             extraVolumeMounts:
@@ -524,12 +524,12 @@ data:
               protocol: https
             kcp:
               kubeconfigSecret: portal-kubeconfig
-        rebac-authz-webhook:
+        pm-openfga-authz-webhook:
           imageResources:
           - annotations:
               repo: oci
               artifact: image
-              for: rebac-authz-webhook
+              for: pm-openfga-authz-webhook
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -541,7 +541,7 @@ data:
               enabled: false
             istio:
               dnsNames:
-              - rebac-authz-webhook.platform-mesh-system.svc.cluster.local
+              - pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local
               exposed: false
             log:
               level: debug

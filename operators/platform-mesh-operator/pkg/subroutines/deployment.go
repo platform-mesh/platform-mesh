@@ -79,6 +79,8 @@ const (
 	defaultProfileConfigMapSuffix = "-profile"
 	// argoPlaceholderRepoURL is set by templates and replaced by ResourceSubroutine with actual OCM values
 	argoPlaceholderRepoURL = "PLACEHOLDER_TO_BE_SET_BY_RESOURCE_SUBROUTINE"
+	// kcpWebhookSecretManifest is the kcp webhook secret in k8sManifests.
+	kcpWebhookSecretManifest = "pm-openfga-authz-webhook/kcp-webhook-secret.yaml"
 )
 
 func NewDeploymentSubroutine(clientRuntime ctrlruntimeclient.Client, clientInfra ctrlruntimeclient.Client, cfg *pmconfig.CommonServiceConfig, operatorCfg *config.OperatorConfig) *DeploymentSubroutine {
@@ -1161,7 +1163,7 @@ func (r *DeploymentSubroutine) createKCPWebhookSecret(ctx context.Context, inst 
 	}
 
 	// Continue to create the secret
-	obj, err := unstructuredFromFS(r.k8sManifests, "rebac-auth-webhook/kcp-webhook-secret.yaml", map[string]any{}, log)
+	obj, err := unstructuredFromFS(r.k8sManifests, kcpWebhookSecretManifest, map[string]any{}, log)
 	if err != nil {
 		return err
 	}
@@ -1174,11 +1176,39 @@ func (r *DeploymentSubroutine) createKCPWebhookSecret(ctx context.Context, inst 
 	return nil
 }
 
+// kcpWebhookServers returns the server of every cluster in the kubeconfig
+// of the kcp webhook secret manifest, keyed by cluster name.
+func (r *DeploymentSubroutine) kcpWebhookServers(log *logger.Logger) (map[string]string, error) {
+	obj, err := unstructuredFromFS(r.k8sManifests, kcpWebhookSecretManifest, map[string]any{}, log)
+	if err != nil {
+		return nil, err
+	}
+	raw, found, err := unstructured.NestedString(obj.Object, "stringData", "kubeconfig")
+	if err != nil {
+		return nil, fmt.Errorf("reading kubeconfig of %s: %w", kcpWebhookSecretManifest, err)
+	}
+	if !found {
+		return nil, fmt.Errorf("kubeconfig not found in %s", kcpWebhookSecretManifest)
+	}
+	kubeconfig, err := clientcmd.Load([]byte(raw))
+	if err != nil {
+		return nil, fmt.Errorf("loading kubeconfig of %s: %w", kcpWebhookSecretManifest, err)
+	}
+
+	servers := make(map[string]string, len(kubeconfig.Clusters))
+	for name, cluster := range kubeconfig.Clusters {
+		if cluster != nil {
+			servers[name] = cluster.Server
+		}
+	}
+	return servers, nil
+}
+
 func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 	operatorCfg := pmconfig.LoadConfigFromContext(ctx).(config.OperatorConfig)
 
-	// Retrieve the ca.crt from the rebac-authz-webhook-cert secret
+	// Retrieve the ca.crt from the pm-openfga-authz-webhook-cert secret
 	caSecretName := operatorCfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName
 	webhookCertSecret, err := GetSecret(r.clientRuntime, caSecretName, inst.Namespace)
 	if err != nil {
@@ -1228,6 +1258,12 @@ func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst 
 		return subroutines.OK(), err
 	}
 
+	servers, err := r.kcpWebhookServers(log)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to read the servers of the kcp webhook secret manifest")
+		return subroutines.OK(), err
+	}
+
 	// Update the certificate-authority-data in all clusters only if it actually changed
 	updated := false
 	for clusterName, cluster := range kubeconfig.Clusters {
@@ -1236,6 +1272,12 @@ func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst 
 			kubeconfig.Clusters[clusterName] = cluster
 			updated = true
 			log.Debug().Str("cluster", clusterName).Msg("Updated certificate-authority-data in cluster")
+		}
+		// The secret is only created when missing, so an existing one keeps the server it was created with.
+		if server, ok := servers[clusterName]; ok && cluster != nil && cluster.Server != server {
+			cluster.Server = server
+			updated = true
+			log.Debug().Str("cluster", clusterName).Str("server", server).Msg("Updated server in cluster")
 		}
 	}
 
@@ -1412,7 +1454,7 @@ func (r *DeploymentSubroutine) hasIstioProxyInjected(ctx context.Context, labelS
 func (r *DeploymentSubroutine) manageAuthorizationWebhookSecrets(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh) (subroutines.Result, error) {
 	// The serving certificate is signed by a long-lived CA, so renewing it keeps the CA that kcp trusts.
 	for _, file := range []string{"selfsigned-issuer.yaml", "ca-cert.yaml", "ca-issuer.yaml", "webhook-cert.yaml"} {
-		if err := applyManifestFromFileWithMergedValues(ctx, r.k8sManifests, "rebac-auth-webhook/"+file, r.clientRuntime, map[string]any{}); err != nil {
+		if err := applyManifestFromFileWithMergedValues(ctx, r.k8sManifests, "pm-openfga-authz-webhook/"+file, r.clientRuntime, map[string]any{}); err != nil {
 			return subroutines.OK(), err
 		}
 	}

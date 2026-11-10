@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rebacauthwebhook
+package pmopenfgaauthzwebhook
 
 import "embed"
 
 // Resources holds the cert-manager issuers, certificates and the kcp kubeconfig secret
-// for the rebac authorization webhook.
+// for pm-openfga-authz-webhook, the kcp authorization webhook.
 //
 //go:embed *.yaml
 var Resources embed.FS

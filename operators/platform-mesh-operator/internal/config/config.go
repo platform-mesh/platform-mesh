@@ -152,7 +152,7 @@ func NewOperatorConfig() OperatorConfig {
 			Deployment: DeploymentSubroutineConfig{
 				Enabled:                          true,
 				AuthorizationWebhookSecretName:   "kcp-webhook-secret",
-				AuthorizationWebhookSecretCAName: "rebac-authz-webhook-cert",
+				AuthorizationWebhookSecretCAName: "pm-openfga-authz-webhook-cert",
 				EnableIstio:                      true,
 			},
 			KcpSetup: KcpSetupSubroutineConfig{

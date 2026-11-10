@@ -57,8 +57,8 @@ components:
       - name: kubernetes-graphql-gateway
         componentName: github.com/platform-mesh/kubernetes-graphql-gateway
         version: ${PM_VERSION}
-      - name: rebac-authz-webhook
-        componentName: github.com/platform-mesh/rebac-authz-webhook
+      - name: pm-openfga-authz-webhook
+        componentName: github.com/platform-mesh/pm-openfga-authz-webhook
         version: ${PM_VERSION}
       - name: pm-openfga-operator
         componentName: github.com/platform-mesh/pm-openfga-operator
