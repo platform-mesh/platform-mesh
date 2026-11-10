@@ -13,9 +13,9 @@ use (
 	./operators/kro-composition-operator
 	./operators/platform-mesh-operator
 	./operators/pm-keycloak-operator
+	./operators/pm-openfga-operator
 	./operators/provider-operator
 	./operators/resource-broker
-	./operators/security-operator
 	./operators/terminal-controller-manager
 	./services/iam-service
 	./services/kubernetes-graphql-gateway

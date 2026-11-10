@@ -160,7 +160,7 @@ if OPENFGA:
         "security-operator",
         NAMESPACE,
         TEMPLATE_VARS,
-        path="operators/security-operator",
+        path="operators/pm-openfga-operator",
         deps=GO_DEPS,
         workloads=[
             "security-operator",
