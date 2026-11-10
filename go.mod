@@ -3,6 +3,7 @@ module go.platform-mesh.io/platform-mesh
 go 1.26.3
 
 require (
+	github.com/google/go-github/v84 v84.0.0
 	github.com/jarcoal/httpmock v1.4.2
 	github.com/kcp-dev/kcp-testcontainers v0.0.3
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
@@ -109,6 +110,7 @@ require (
 	github.com/google/cel-go v0.31.0 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/graphql-go/graphql v0.8.1 // indirect
 	github.com/graphql-go/handler v0.2.4 // indirect
