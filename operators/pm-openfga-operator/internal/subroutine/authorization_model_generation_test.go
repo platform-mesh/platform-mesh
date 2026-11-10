@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
@@ -716,6 +717,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			cluster := mocks.NewMockCluster(t)
 			kcpClient := mocks.NewMockClient(t)
 
+			expectNoLegacyModelCluster(manager)
 			if test.mockSetup != nil {
 				test.mockSetup(manager, lister, cluster, kcpClient)
 			}
@@ -776,7 +778,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
 				modelCluster := mocks.NewMockCluster(t)
 				modelClient := mocks.NewMockClient(t)
-				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderOpenfgaProviderName, "export-cluster")).Return(modelCluster, nil)
 				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
@@ -862,7 +864,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
 				modelCluster := mocks.NewMockCluster(t)
 				modelClient := mocks.NewMockClient(t)
-				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderOpenfgaProviderName, "export-cluster")).Return(modelCluster, nil)
 				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
@@ -962,7 +964,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
 				modelCluster := mocks.NewMockCluster(t)
 				modelClient := mocks.NewMockClient(t)
-				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderOpenfgaProviderName, "export-cluster")).Return(modelCluster, nil)
 				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
@@ -1018,7 +1020,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
 				modelCluster := mocks.NewMockCluster(t)
 				modelClient := mocks.NewMockClient(t)
-				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderOpenfgaProviderName, "export-cluster")).Return(modelCluster, nil)
 				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
@@ -1120,7 +1122,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
 				modelCluster := mocks.NewMockCluster(t)
 				modelClient := mocks.NewMockClient(t)
-				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderOpenfgaProviderName, "export-cluster")).Return(modelCluster, nil)
 				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
@@ -1226,7 +1228,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
 				modelCluster := mocks.NewMockCluster(t)
 				modelClient := mocks.NewMockClient(t)
-				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderOpenfgaProviderName, "export-cluster")).Return(modelCluster, nil)
 				modelCluster.EXPECT().GetClient().Return(modelClient)
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
@@ -1313,7 +1315,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
 				modelCluster := mocks.NewMockCluster(t)
-				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil).Maybe()
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderOpenfgaProviderName, "export-cluster")).Return(modelCluster, nil).Maybe()
 				modelCluster.EXPECT().GetClient().Return(mocks.NewMockClient(t)).Maybe()
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).Return(assert.AnError)
 			},
@@ -1355,7 +1357,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.CoreProviderName, "export-cluster")).Return(apiExportCluster, nil)
 				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
 				modelCluster := mocks.NewMockCluster(t)
-				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderFgaProviderName, "export-cluster")).Return(modelCluster, nil).Maybe()
+				manager.EXPECT().GetCluster(mock.Anything, config.MultiProviderName(config.ProviderOpenfgaProviderName, "export-cluster")).Return(modelCluster, nil).Maybe()
 				modelCluster.EXPECT().GetClient().Return(mocks.NewMockClient(t)).Maybe()
 				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					ae := o.(*kcpapisv1alpha2.APIExport)
@@ -1371,6 +1373,7 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 			manager := mocks.NewMockManager(t)
 			lister := mocks.NewMockLister(t)
 
+			expectNoLegacyModelCluster(manager)
 			if test.mockSetup != nil {
 				test.mockSetup(manager, lister, test.binding)
 			}
@@ -1437,4 +1440,11 @@ func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
 func TestAuthorizationModelGenerationSubroutine_GetName(t *testing.T) {
 	sub := subroutine.NewAuthorizationModelGenerationSubroutine(nil, mocks.NewMockLister(t))
 	assert.Equal(t, "AuthorizationModelGeneration", sub.GetName())
+}
+
+// expectNoLegacyModelCluster: provider workspaces bind provider-openfga only.
+func expectNoLegacyModelCluster(manager *mocks.MockManager) {
+	manager.EXPECT().GetCluster(mock.Anything, mock.MatchedBy(func(name multicluster.ClusterName) bool {
+		return strings.HasPrefix(string(name), config.ProviderFgaProviderName+config.ProviderSeparator)
+	})).Return(nil, multicluster.ErrClusterNotFound).Maybe()
 }

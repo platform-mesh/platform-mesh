@@ -282,7 +282,8 @@ func TestFinalize(t *testing.T) {
 			mgrMocks: func(t *testing.T, mgr *mocks.MockManager) {
 				cluster := mocks.NewMockCluster(t)
 				client := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(cluster, nil).Once()
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-openfga#provider")).Return(cluster, nil).Once()
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(nil, multicluster.ErrClusterNotFound).Once()
 				cluster.EXPECT().GetClient().Return(client).Once()
 				client.EXPECT().Delete(mock.Anything, mock.MatchedBy(func(o ctrlruntimeclient.Object) bool {
 					return o.GetName() == "mine"
@@ -300,7 +301,8 @@ func TestFinalize(t *testing.T) {
 			mgrMocks: func(t *testing.T, mgr *mocks.MockManager) {
 				cluster := mocks.NewMockCluster(t)
 				client := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(cluster, nil).Once()
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-openfga#provider")).Return(cluster, nil).Once()
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(nil, multicluster.ErrClusterNotFound).Once()
 				cluster.EXPECT().GetClient().Return(client).Once()
 				client.EXPECT().Delete(mock.Anything, mock.Anything).Return(
 					apierrors.NewNotFound(schema.GroupResource{Group: "openfga.platform-mesh.io", Resource: "authorizationmodels"}, "mine")).Once()
@@ -324,7 +326,8 @@ func TestFinalize(t *testing.T) {
 			mgrMocks: func(t *testing.T, mgr *mocks.MockManager) {
 				cluster := mocks.NewMockCluster(t)
 				client := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(cluster, nil).Once()
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-openfga#provider")).Return(cluster, nil).Once()
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(nil, multicluster.ErrClusterNotFound).Once()
 				cluster.EXPECT().GetClient().Return(client).Once()
 				client.EXPECT().Delete(mock.Anything, mock.Anything).Return(errors.New("error")).Once()
 			},
@@ -393,7 +396,7 @@ func TestFinalize(t *testing.T) {
 
 			subroutine := subroutine.NewStoreSubroutine(fga, manager, kcpHelper)
 
-			// The Store is reconciled through the fga provider.
+			// The Store is reconciled through the openfga provider.
 			ctx := mccontext.WithCluster(context.Background(), config.StoreClusterName("path"))
 
 			_, err := subroutine.Finalize(ctx, test.store)

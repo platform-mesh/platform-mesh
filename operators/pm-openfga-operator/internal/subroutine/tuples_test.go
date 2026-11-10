@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 func TestTupleGetName(t *testing.T) {
@@ -504,6 +505,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(
 					apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "stores"}, "store"),
 				)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("fga#store-cluster")).Return(nil, multicluster.ErrClusterNotFound)
 			},
 		},
 	}

@@ -295,17 +295,6 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 					}).
 					Build()
 
-				// Cluster client for status patch
-				clusterClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(&pmopenfgav1alpha1.APIExportPolicy{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "test-policy",
-						},
-					}).
-					WithStatusSubresource(&pmopenfgav1alpha1.APIExportPolicy{}).
-					Build()
-
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil)
 
 				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("test-store-id", nil)
@@ -323,8 +312,6 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 						tuple.Relation == "bind" &&
 						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
 				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
-
-				kcpClientGetter.EXPECT().NewClientFromContext(mock.Anything).Return(clusterClient, nil)
 			},
 			cfg:         &config.Config{},
 			expectError: false,
@@ -371,17 +358,6 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 					}).
 					Build()
 
-				// Cluster client for status patch
-				clusterClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(&pmopenfgav1alpha1.APIExportPolicy{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "test-policy",
-						},
-					}).
-					WithStatusSubresource(&pmopenfgav1alpha1.APIExportPolicy{}).
-					Build()
-
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil)
 
 				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("test-store-id", nil)
@@ -399,8 +375,6 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 						tuple.Relation == "bind_inherited" &&
 						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
 				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
-
-				kcpClientGetter.EXPECT().NewClientFromContext(mock.Anything).Return(clusterClient, nil)
 			},
 			cfg:         &config.Config{},
 			expectError: false,
@@ -450,15 +424,6 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 					return nil
 				})
 
-				// Cluster client for status patch
-				clusterClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(&pmopenfgav1alpha1.APIExportPolicy{
-						ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-					}).
-					WithStatusSubresource(&pmopenfgav1alpha1.APIExportPolicy{}).
-					Build()
-
 				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id-org1", nil)
 				storeIDGetter.EXPECT().Get(mock.Anything, "org2").Return("store-id-org2", nil)
 
@@ -489,8 +454,6 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 						tuple.Relation == "bind_inherited" &&
 						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
 				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
-
-				kcpClientGetter.EXPECT().NewClientFromContext(mock.Anything).Return(clusterClient, nil)
 			},
 			cfg:         &config.Config{},
 			expectError: false,
@@ -1022,62 +985,6 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil).Once()
 				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("store-id", nil)
 				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, assert.AnError)
-			},
-			cfg:         &config.Config{},
-			expectError: true,
-		},
-		{
-			name: "ClusterFromContext fails",
-			policy: &pmopenfgav1alpha1.APIExportPolicy{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
-					AllowPathExpressions: []string{"root:orgs:acme"},
-				},
-			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
-				scheme := getAPIExportPolicyTestScheme()
-				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&pmcorev1alpha1.AccountInfo{
-						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "acme-org"}},
-					}).Build()
-				providerClient := newProviderClient(scheme)
-				// Mock provider cluster ID lookup
-				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
-				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil).Once()
-				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("store-id", nil)
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
-				kcpClientGetter.EXPECT().NewClientFromContext(mock.Anything).Return(nil, assert.AnError)
-			},
-			cfg:         &config.Config{},
-			expectError: true,
-		},
-		{
-			name: "Status Patch fails",
-			policy: &pmopenfgav1alpha1.APIExportPolicy{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-				Spec: pmopenfgav1alpha1.APIExportPolicySpec{
-					APIExportRef:         pmopenfgav1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
-					AllowPathExpressions: []string{"root:orgs:acme"},
-				},
-			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, storeIDGetter *mocks.MockStoreIDGetter, kcpClientGetter *mocks.MockKCPClientGetter, lister *mocks.MockLister) {
-				scheme := getAPIExportPolicyTestScheme()
-				targetClient := fake.NewClientBuilder().WithScheme(scheme).
-					WithObjects(&pmcorev1alpha1.AccountInfo{
-						ObjectMeta: metav1.ObjectMeta{Name: "account"},
-						Spec:       pmcorev1alpha1.AccountInfoSpec{Organization: pmcorev1alpha1.AccountLocation{Name: "acme-org"}},
-					}).Build()
-				// Empty cluster client — Status().Patch will fail with NotFound for "test-policy"
-				clusterClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-				providerClient := newProviderClient(scheme)
-				// Mock provider cluster ID lookup
-				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:providers:my-provider"))).Return(providerClient, nil)
-				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, string(config.MultiProviderName(config.CoreProviderName, "root:orgs:acme"))).Return(targetClient, nil).Once()
-				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("store-id", nil)
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
-				kcpClientGetter.EXPECT().NewClientFromContext(mock.Anything).Return(clusterClient, nil)
 			},
 			cfg:         &config.Config{},
 			expectError: true,

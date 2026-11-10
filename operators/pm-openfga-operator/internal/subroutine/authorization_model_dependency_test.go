@@ -26,6 +26,7 @@ import (
 
 	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,24 +58,25 @@ func TestRegisterAuthorizationModelWithStore(t *testing.T) {
 		{
 			name: "error getting store cluster",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(nil, assert.AnError)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(nil, assert.AnError)
 			},
 			expectError: true,
 		},
 		{
 			name: "error getting store (e.g. NotFound because the Store or its org is terminating)",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(
 					apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "stores"}, "store"))
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("fga#store-cluster")).Return(nil, multicluster.ErrClusterNotFound)
 			},
 			expectError: true,
 		},
 		{
 			name: "adds the finalizer when not already present",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{}
@@ -88,7 +90,7 @@ func TestRegisterAuthorizationModelWithStore(t *testing.T) {
 		{
 			name: "no-op when the finalizer is already present",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{
@@ -102,7 +104,7 @@ func TestRegisterAuthorizationModelWithStore(t *testing.T) {
 		{
 			name: "propagates the rejection when the Store is already being deleted",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{}
@@ -118,7 +120,7 @@ func TestRegisterAuthorizationModelWithStore(t *testing.T) {
 		{
 			name: "retries once on a resourceVersion conflict then succeeds",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{}
@@ -156,23 +158,24 @@ func TestDeregisterAuthorizationModelFromStore(t *testing.T) {
 		{
 			name: "error getting store cluster",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(nil, assert.AnError)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(nil, assert.AnError)
 			},
 			expectError: true,
 		},
 		{
 			name: "store already gone: nothing to deregister",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(
 					apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "stores"}, "store"))
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("fga#store-cluster")).Return(nil, multicluster.ErrClusterNotFound)
 			},
 		},
 		{
 			name: "error getting store (not NotFound)",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 			},
@@ -181,7 +184,7 @@ func TestDeregisterAuthorizationModelFromStore(t *testing.T) {
 		{
 			name: "removes the finalizer when present",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{
@@ -197,7 +200,7 @@ func TestDeregisterAuthorizationModelFromStore(t *testing.T) {
 		{
 			name: "no-op when the finalizer is not present",
 			mockSetup: func(mgr *mocks.MockManager, cl *mocks.MockCluster, kc *mocks.MockClient) {
-				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(cl, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, config.StoreClusterName("store-cluster")).Return(cl, nil)
 				cl.EXPECT().GetClient().Return(kc)
 				kc.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 					*o.(*pmopenfgav1alpha1.Store) = pmopenfgav1alpha1.Store{}

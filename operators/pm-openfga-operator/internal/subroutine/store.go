@@ -29,7 +29,6 @@ import (
 	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
-	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -112,11 +111,11 @@ func (s *storeSubroutine) deleteAuthorizationModels(ctx context.Context, store *
 		}
 
 		modelCluster := logicalcluster.From(model).String()
-		cluster, err := s.mgr.GetCluster(ctx, config.MultiProviderName(config.ProviderFgaProviderName, modelCluster))
+		target, err := findModelTarget(ctx, s.mgr, modelCluster)
 		if err != nil {
 			return fmt.Errorf("getting cluster %q of authorization model %s: %w", modelCluster, model.Name, err)
 		}
-		if err := cluster.GetClient().Delete(ctx, model); err != nil && !apierrors.IsNotFound(err) {
+		if err := target.delete(ctx, model.Name); err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("deleting authorization model %s in %q: %w", model.Name, modelCluster, err)
 		}
 	}

@@ -165,7 +165,7 @@ func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, s
 
 	var extendingModules pmopenfgav1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
-		if model.Spec.StoreRef.Name != store.Name || config.StoreClusterName(model.Spec.StoreRef.Cluster) != storeClusterKey {
+		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != config.LogicalClusterName(storeClusterKey) {
 			continue
 		}
 

@@ -153,18 +153,9 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj ctrlruntime
 		}
 	}
 
-	cl, err := a.kcpClientGetter.NewClientFromContext(ctx)
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
-	}
-
-	// Update status with managed expressions
-	original := policy.DeepCopy()
+	// Persisted by the lifecycle after the subroutine returns, also for the
+	// legacy kind the legacy adapter maps this object back to.
 	policy.Status.ManagedAllowExpressions = policy.Spec.AllowPathExpressions
-
-	if err := cl.Status().Patch(ctx, policy, ctrlruntimeclient.MergeFrom(original)); err != nil {
-		return subroutines.OK(), fmt.Errorf("failed to patch APIExportPolicy status: %w", err)
-	}
 
 	log.Info().Msg("Successfully processed APIExportPolicy")
 	return subroutines.OK(), nil
