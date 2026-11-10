@@ -20,7 +20,7 @@
 #   components       components (including libraries) to verify/test
 #   imageComponents  subset that produce an image
 #   charts           chart names (directories under charts/) that changed
-#   integration      true when the integration or e2e tests (tests/integration,
+#   tests            true when the integration or e2e tests (tests/integration,
 #                    tests/e2e) are affected: any change under tests/, operators/,
 #                    services/, hack/ or a shared path (not a JSON array)
 #
@@ -53,9 +53,9 @@ for p in $lib_paths; do shared_re="$shared_re|^$p/"; done
 
 # The integration and e2e tests (tests/integration against kcp, tests/e2e against
 # a deployed stack) import every operator, so any Go change selects it.
-integration=false
+tests=false
 if [ -z "$changed" ] || grep -qE "$shared_re|^(tests|operators|services|hack)/" <<<"$changed"; then
-  integration=true
+  tests=true
 fi
 
 if [ -z "$changed" ]; then
@@ -98,4 +98,4 @@ done
 echo "components=$(to_json <<<"$selected_components")"
 echo "imageComponents=$(to_json <<<"$images")"
 echo "charts=$(to_json <<<"$selected_charts")"
-echo "integration=$integration"
+echo "tests=$tests"

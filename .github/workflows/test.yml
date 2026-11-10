@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       components: ${{ steps.changes.outputs.components }}
-      integration: ${{ steps.changes.outputs.integration }}
+      tests: ${{ steps.changes.outputs.tests }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -84,7 +84,7 @@ jobs:
   # `task test-integration` locally.
   integration:
     needs: changes
-    if: needs.changes.outputs.integration == 'true'
+    if: needs.changes.outputs.tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
