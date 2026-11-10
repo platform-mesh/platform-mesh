@@ -86,7 +86,7 @@ type clusterCache struct {
 
 	mgr     mcmanager.Manager
 	backoff wait.Backoff
-	// storeClusters serves Stores, which are exported by fga.platform-mesh.io and not by the manager's export.
+	// storeClusters serves Stores, which are exported by openfga.platform-mesh.io and not by the manager's export.
 	storeClusters ClusterGetter
 }
 
@@ -224,7 +224,7 @@ func (c *clusterCache) tryResolve(ctx context.Context, name multicluster.Cluster
 
 	store := unstructured.Unstructured{}
 	store.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "core.platform-mesh.io",
+		Group:   "openfga.platform-mesh.io",
 		Version: "v1alpha1",
 		Kind:    "Store",
 	})

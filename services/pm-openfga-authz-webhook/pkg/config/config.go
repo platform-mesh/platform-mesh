@@ -66,7 +66,7 @@ func New() *Config {
 		},
 
 		APIExportEndpointSliceName:      "core.platform-mesh.io",
-		StoreAPIExportEndpointSliceName: "fga.platform-mesh.io",
+		StoreAPIExportEndpointSliceName: "openfga.platform-mesh.io",
 	}
 }
 
