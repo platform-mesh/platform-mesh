@@ -19,7 +19,7 @@ use (
 	./operators/terminal-controller-manager
 	./services/iam-service
 	./services/kubernetes-graphql-gateway
-	./services/rebac-authz-webhook
+	./services/pm-openfga-authz-webhook
 	./services/virtual-workspaces
 	./subroutines
 )

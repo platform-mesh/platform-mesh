@@ -170,7 +170,7 @@ if OPENFGA:
             "pm-openfga-operator-terminator",
         ],
     )
-    service("rebac-authz-webhook", NAMESPACE, TEMPLATE_VARS, path="services/rebac-authz-webhook", deps=GO_DEPS)
+    service("rebac-authz-webhook", NAMESPACE, TEMPLATE_VARS, path="services/pm-openfga-authz-webhook", deps=GO_DEPS)
 
 # The Keycloak identity provider.
 # No SMTP on kind: invited users get the default password "password" (temporary,
