@@ -82,8 +82,9 @@ func TestIsNoise(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]bool{
-		"Set appVersion v0.27.32 in charts/portal/Chart.yaml":                            true,
-		"[BACKPORT] Set appVersion v0.6.7 in charts/example-httpbin-operator/Chart.yaml": true,
+		"Set appVersion v0.27.32 in charts/portal/Chart.yaml":                                 true,
+		"[BACKPORT] Set appVersion v0.6.7 in charts/example-httpbin-operator/Chart.yaml":      true,
+		"[release-26.10] Set appVersion v0.6.7 in charts/example-httpbin-operator/Chart.yaml": true,
 		"tidy":                                true,
 		"Tidy":                                true,
 		"go mod tidy":                         true,

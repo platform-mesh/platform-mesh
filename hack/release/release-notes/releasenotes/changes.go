@@ -45,7 +45,7 @@ var (
 	mergeSubject = regexp.MustCompile(`^Merge pull request #(\d+) `)
 	// appVersionBump is the title of the automated chart bumps; the version
 	// tables already show those versions.
-	appVersionBump = regexp.MustCompile(`^(\[BACKPORT\] )?Set appVersion \S+ in charts/[^/]+/Chart\.yaml$`)
+	appVersionBump = regexp.MustCompile(`Set appVersion \S+ in charts/[^/]+/Chart\.yaml$`)
 	// housekeeping are commit titles without user-facing content.
 	housekeeping = regexp.MustCompile(`(?i)^(tidy|go mod tidy|codegen|generate|regenerate|lint|fmt|gofmt)$`)
 )
