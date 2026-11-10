@@ -20,21 +20,18 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 
-	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
+	"go.platform-mesh.io/pm-openfga-operator/internal/legacy"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 // authorizationModelFinalizerPrefix marks the finalizers a Store carries for
 // each AuthorizationModel that depends on it.
-const authorizationModelFinalizerPrefix = "authzmodel.core.platform-mesh.io/"
+const authorizationModelFinalizerPrefix = legacy.DependencyFinalizerPrefix
 
 // authorizationModelFinalizer returns the finalizer name for an
 // AuthorizationModel's dependency on its Store. Hashed because finalizer
@@ -50,51 +47,42 @@ func authorizationModelFinalizer(modelCluster, modelName string) string {
 // this once the Store has a deletionTimestamp, so callers must not create
 // the AuthorizationModel unless this succeeds.
 //
-// storeCluster must already be formatted the way the caller's manager
-// expects.
-func registerAuthorizationModelWithStore(ctx context.Context, mgr mcmanager.Manager, storeCluster multicluster.ClusterName, storeName, modelCluster, modelName string) error {
-	cl, err := mgr.GetCluster(ctx, storeCluster)
-	if err != nil {
-		return fmt.Errorf("getting store cluster: %w", err)
-	}
+// storeCluster is the Store's logical cluster; the Store is looked up as
+// openfga.platform-mesh.io first and as the deprecated core kind second.
+func registerAuthorizationModelWithStore(ctx context.Context, mgr mcmanager.Manager, storeCluster, storeName, modelCluster, modelName string) error {
 	finalizer := authorizationModelFinalizer(modelCluster, modelName)
 
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var store pmopenfgav1alpha1.Store
-		if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: storeName}, &store); err != nil {
+		ref, err := findStore(ctx, mgr, storeCluster, storeName)
+		if err != nil {
 			return err
 		}
-		if controllerutil.ContainsFinalizer(&store, finalizer) {
+		if controllerutil.ContainsFinalizer(ref.obj, finalizer) {
 			return nil
 		}
-		controllerutil.AddFinalizer(&store, finalizer)
-		return cl.GetClient().Update(ctx, &store)
+		controllerutil.AddFinalizer(ref.obj, finalizer)
+		return ref.client.Update(ctx, ref.obj)
 	})
 }
 
 // deregisterAuthorizationModelFromStore removes the finalizer added by
 // registerAuthorizationModelWithStore. A NotFound Store is treated as
 // already deregistered.
-func deregisterAuthorizationModelFromStore(ctx context.Context, mgr mcmanager.Manager, storeCluster multicluster.ClusterName, storeName, modelCluster, modelName string) error {
-	cl, err := mgr.GetCluster(ctx, storeCluster)
-	if err != nil {
-		return fmt.Errorf("getting store cluster: %w", err)
-	}
+func deregisterAuthorizationModelFromStore(ctx context.Context, mgr mcmanager.Manager, storeCluster, storeName, modelCluster, modelName string) error {
 	finalizer := authorizationModelFinalizer(modelCluster, modelName)
 
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var store pmopenfgav1alpha1.Store
-		err := cl.GetClient().Get(ctx, types.NamespacedName{Name: storeName}, &store)
+		ref, err := findStore(ctx, mgr, storeCluster, storeName)
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		if !controllerutil.ContainsFinalizer(&store, finalizer) {
+		if !controllerutil.ContainsFinalizer(ref.obj, finalizer) {
 			return nil
 		}
-		controllerutil.RemoveFinalizer(&store, finalizer)
-		return cl.GetClient().Update(ctx, &store)
+		controllerutil.RemoveFinalizer(ref.obj, finalizer)
+		return ref.client.Update(ctx, ref.obj)
 	})
 }

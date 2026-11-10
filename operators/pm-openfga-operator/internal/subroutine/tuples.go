@@ -26,11 +26,9 @@ import (
 	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
-	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -58,15 +56,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 	case *pmopenfgav1alpha1.AuthorizationModel:
 		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, config.StoreClusterName(o.Spec.StoreRef.Cluster))
-		if err != nil {
-			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
-		}
-
-		var store pmopenfgav1alpha1.Store
-		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
-			Name: o.Spec.StoreRef.Name,
-		}, &store)
+		ref, err := findStore(ctx, t.mgr, o.Spec.StoreRef.Cluster, o.Spec.StoreRef.Name)
 		if apierrors.IsNotFound(err) {
 			// The Store this AuthorizationModel depended on is already gone, so its
 			// tuples and the FGA store itself are already gone too — nothing left to
@@ -78,8 +68,8 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 			return subroutines.OK(), err
 		}
 
-		storeID = store.Status.StoreID
-		authorizationModelID = store.Status.AuthorizationModelID
+		storeID = ref.store.Status.StoreID
+		authorizationModelID = ref.store.Status.AuthorizationModelID
 	}
 
 	tm := fga.NewTupleManager(t.fga, storeID, authorizationModelID, log)
@@ -90,7 +80,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 	if o, ok := obj.(*pmopenfgav1alpha1.AuthorizationModel); ok {
 		// Release the Store reservation before this object's own finalizer clears.
 		if err := deregisterAuthorizationModelFromStore(ctx, t.mgr,
-			config.StoreClusterName(o.Spec.StoreRef.Cluster), o.Spec.StoreRef.Name,
+			o.Spec.StoreRef.Cluster, o.Spec.StoreRef.Name,
 			logicalcluster.From(o).String(), o.GetName(),
 		); err != nil {
 			return subroutines.OK(), fmt.Errorf("deregistering authorization model from store: %w", err)
@@ -135,21 +125,13 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obj
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, config.StoreClusterName(o.Spec.StoreRef.Cluster))
-		if err != nil {
-			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
-		}
-
-		var store pmopenfgav1alpha1.Store
-		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
-			Name: o.Spec.StoreRef.Name,
-		}, &store)
+		ref, err := findStore(ctx, t.mgr, o.Spec.StoreRef.Cluster, o.Spec.StoreRef.Name)
 		if err != nil {
 			return subroutines.OK(), err
 		}
 
-		storeID = store.Status.StoreID
-		authorizationModelID = store.Status.AuthorizationModelID
+		storeID = ref.store.Status.StoreID
+		authorizationModelID = ref.store.Status.AuthorizationModelID
 	}
 
 	tm := fga.NewTupleManager(t.fga, storeID, authorizationModelID, log)

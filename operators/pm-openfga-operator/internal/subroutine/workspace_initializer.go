@@ -201,6 +201,16 @@ func (w *workspaceInitializer) Terminate(ctx context.Context, obj ctrlruntimecli
 		return subroutines.StopWithRequeue(orgResourceDeleteRequeue, "waiting for Store to be deleted"), nil
 	}
 
+	// The deprecated Store a previous release created for the same org.
+	//nolint:staticcheck // legacy kind served on purpose
+	pending, err = deleteOrgResource(ctx, orgsClient, &pmcorev1alpha1.Store{}, storeName)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("deleting legacy Store %s: %w", storeName, err)
+	}
+	if pending {
+		return subroutines.StopWithRequeue(orgResourceDeleteRequeue, "waiting for legacy Store to be deleted"), nil
+	}
+
 	return subroutines.OK(), nil
 }
 
