@@ -18,14 +18,14 @@ package pmversions
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+
+	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
 const (
@@ -72,7 +72,7 @@ func Now(ctx context.Context) (Version, error) {
 // commit. This could produce erroneous results in an anomalous
 // checkout.
 func FromCommit(ctx context.Context, commit string) (Version, error) {
-	out, err := git(ctx, "tag", "-l", "v[0-9]*", "--points-at", commit)
+	out, err := releaseutils.Git(ctx, "tag", "-l", "v[0-9]*", "--points-at", commit)
 	if err != nil {
 		return Version{}, fmt.Errorf("listing release tags at %s: %w", commit, err)
 	}
@@ -127,7 +127,7 @@ func prereleaseBase(branch string, prev Version) Version {
 // describe returns the previous final release of a commit, the number of
 // commits since it and the shortened commit hash.
 func describe(ctx context.Context, commit string) (Version, int, string, error) {
-	out, err := git(ctx, "describe", "--tags", "--long", "--abbrev=7", "--match", "v[0-9]*", "--exclude", "*-*", commit)
+	out, err := releaseutils.Git(ctx, "describe", "--tags", "--long", "--abbrev=7", "--match", "v[0-9]*", "--exclude", "*-*", commit)
 	if err != nil {
 		return Version{}, 0, "", fmt.Errorf("finding previous release of %s: %w", commit, err)
 	}
@@ -151,21 +151,9 @@ func branch(ctx context.Context) (string, error) {
 	if ref := os.Getenv(envRefName); ref != "" {
 		return ref, nil
 	}
-	out, err := git(ctx, "rev-parse", "--abbrev-ref", "HEAD")
+	out, err := releaseutils.Git(ctx, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return "", fmt.Errorf("reading current branch: %w", err)
 	}
 	return strings.TrimSpace(out), nil
-}
-
-func git(ctx context.Context, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, "git", args...).Output()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
-			return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(exitErr.Stderr)))
-		}
-		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
-	}
-	return string(out), nil
 }

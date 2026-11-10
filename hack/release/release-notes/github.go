@@ -33,7 +33,7 @@ import (
 )
 
 // Retry policy for the GitHub API. Rate limits and client errors are not
-// retried; a hung connection is cut by apiTimeout.
+// retried.
 const (
 	apiTimeout    = 30 * time.Second
 	apiAttempts   = 3
@@ -78,6 +78,8 @@ func repoOwnerName(repoURL string) (string, string, error) {
 
 // newGitHub returns a client authenticated with GH_TOKEN or GITHUB_TOKEN
 // when either is set, anonymous otherwise.
+// apiTimeout bounds every request; go-github's default client has none,
+// and a hung connection would otherwise stall the release job.
 func newGitHub() *github.Client {
 	client := github.NewClient(&http.Client{Timeout: apiTimeout})
 	for _, key := range []string{"GH_TOKEN", "GITHUB_TOKEN"} {

@@ -25,6 +25,8 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v3"
+
+	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
 const (
@@ -85,7 +87,7 @@ type componentChanges struct {
 // firstParentLog returns the first-parent commits in start..end, newest first,
 // linking to repoURL.
 func firstParentLog(ctx context.Context, repoURL, start, end string) ([]change, error) {
-	out, err := git(ctx, "log", "--first-parent", "--format=%H%x1f%s%x1f%b%x1e", start+".."+end)
+	out, err := releaseutils.Git(ctx, "log", "--first-parent", "--format=%H%x1f%s%x1f%b%x1e", start+".."+end)
 	if err != nil {
 		return nil, fmt.Errorf("listing commits %s..%s: %w", start, end, err)
 	}
@@ -123,7 +125,7 @@ func parseLogEntry(subject, body string) (string, int) {
 
 // components reads ocm/components.yaml at a commit.
 func components(ctx context.Context, commit string) ([]component, error) {
-	out, err := git(ctx, "show", commit+":"+componentsFile)
+	out, err := releaseutils.Git(ctx, "show", commit+":"+componentsFile)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s at %s: %w", componentsFile, commit, err)
 	}
@@ -170,7 +172,7 @@ func componentOf(path string, comps []component) string {
 
 // changedPaths lists the files a first-parent commit changed.
 func changedPaths(ctx context.Context, sha string) ([]string, error) {
-	out, err := git(ctx, "diff-tree", "--no-commit-id", "--name-only", "-r", "-m", "--first-parent", sha)
+	out, err := releaseutils.Git(ctx, "diff-tree", "--no-commit-id", "--name-only", "-r", "-m", "--first-parent", sha)
 	if err != nil {
 		return nil, fmt.Errorf("listing files of %s: %w", sha, err)
 	}

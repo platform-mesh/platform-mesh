@@ -24,6 +24,8 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v3"
+
+	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
 const (
@@ -47,14 +49,14 @@ type versionRow struct {
 
 // showFile returns a file at a commit, and false when it does not exist there.
 func showFile(ctx context.Context, commit, path string) ([]byte, bool, error) {
-	entry, err := git(ctx, "ls-tree", commit, "--", path)
+	entry, err := releaseutils.Git(ctx, "ls-tree", commit, "--", path)
 	if err != nil {
 		return nil, false, fmt.Errorf("looking up %s at %s: %w", path, commit, err)
 	}
 	if fields := strings.Fields(entry); len(fields) < 2 || fields[1] != "blob" {
 		return nil, false, nil
 	}
-	out, err := git(ctx, "show", commit+":"+path)
+	out, err := releaseutils.Git(ctx, "show", commit+":"+path)
 	if err != nil {
 		return nil, false, fmt.Errorf("reading %s at %s: %w", path, commit, err)
 	}
@@ -69,7 +71,7 @@ func chartNames(ctx context.Context, commit string) ([]string, error) {
 // dirsWithFile lists the direct subdirectories of dir at a commit that
 // contain file.
 func dirsWithFile(ctx context.Context, commit, dir, file string) ([]string, error) {
-	out, err := git(ctx, "ls-tree", "-r", "--name-only", commit, dir+"/")
+	out, err := releaseutils.Git(ctx, "ls-tree", "-r", "--name-only", commit, dir+"/")
 	if err != nil {
 		return nil, fmt.Errorf("listing %s/ at %s: %w", dir, commit, err)
 	}

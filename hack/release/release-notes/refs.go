@@ -20,10 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"go.platform-mesh.io/platform-mesh/hack/release/get-version/pmversions"
+	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
 // ref is a resolved --start or --end argument.
@@ -42,7 +42,7 @@ func resolveRef(ctx context.Context, input string) (ref, error) {
 	if input == "" {
 		return ref{}, errors.New("empty ref")
 	}
-	out, err := git(ctx, "rev-parse", "--verify", "--quiet", "--end-of-options", input+"^{commit}")
+	out, err := releaseutils.Git(ctx, "rev-parse", "--verify", "--quiet", "--end-of-options", input+"^{commit}")
 	if err != nil {
 		return ref{}, fmt.Errorf("unknown ref %q", input)
 	}
@@ -62,7 +62,7 @@ func resolveRef(ctx context.Context, input string) (ref, error) {
 // skipping the tags at end itself.
 func defaultStart(ctx context.Context, end ref) (ref, error) {
 	args := []string{"describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "--exclude", "*-*"}
-	out, err := git(ctx, "tag", "--points-at", end.commit)
+	out, err := releaseutils.Git(ctx, "tag", "--points-at", end.commit)
 	if err != nil {
 		return ref{}, fmt.Errorf("listing tags at %s: %w", end.version, err)
 	}
@@ -71,7 +71,7 @@ func defaultStart(ctx context.Context, end ref) (ref, error) {
 			args = append(args, "--exclude", tag)
 		}
 	}
-	out, err = git(ctx, append(args, end.commit)...)
+	out, err = releaseutils.Git(ctx, append(args, end.commit)...)
 	if err != nil {
 		return ref{}, fmt.Errorf("finding the release before %s: %w", end.version, err)
 	}
@@ -83,20 +83,8 @@ func checkRange(ctx context.Context, start, end ref) error {
 	if start.commit == end.commit {
 		return fmt.Errorf("start and end are the same commit %s", start.version)
 	}
-	if _, err := git(ctx, "merge-base", "--is-ancestor", start.commit, end.commit); err != nil {
+	if _, err := releaseutils.Git(ctx, "merge-base", "--is-ancestor", start.commit, end.commit); err != nil {
 		return fmt.Errorf("start %s is not an ancestor of end %s", start.version, end.version)
 	}
 	return nil
-}
-
-func git(ctx context.Context, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, "git", args...).Output()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
-			return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(exitErr.Stderr)))
-		}
-		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
-	}
-	return string(out), nil
 }
