@@ -39,7 +39,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0 # changes and ct lint diff against the target branch
-      - uses: ./.github/actions/changes
+      - uses: $/.github/actions/changes
         id: changes
 
       - name: Enforce common image schema (air-gap localization)
@@ -65,7 +65,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: ./.github/actions/helm
+      - uses: $/.github/actions/helm
         if: steps.changes.outputs.charts != '[]'
         id: helm
 

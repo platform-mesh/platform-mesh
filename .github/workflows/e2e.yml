@@ -65,7 +65,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: ./.github/actions/helm
+      - uses: $/.github/actions/helm
         id: helm
 
       - name: Install kind and tilt

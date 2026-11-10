@@ -43,7 +43,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: ./.github/actions/changes
+      - uses: $/.github/actions/changes
         id: changes
 
   # One job, not a matrix: every component is run even if an earlier one

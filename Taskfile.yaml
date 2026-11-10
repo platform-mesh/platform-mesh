@@ -92,22 +92,28 @@ tasks:
 
   tilt:up:
     desc: Start the Tilt development environment on kind.
+    preconditions:
+      - sh: command -v helm
+        msg: helm is not installed; the Tilt environment renders the charts with it.
     vars:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
-      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - KIND={{.KIND}} hack/kind.sh up
       - contrib/tilt/hack/print-urls.sh
       # Arguments after `--` go to the Tiltfile, e.g. task tilt:up -- --frontend-cors
       - "{{.TILT}} up -f ./contrib/tilt/Tiltfile -- {{.CLI_ARGS}}"
 
   tilt:ci:
     desc: Bring up the Tilt development environment and wait for readiness.
+    preconditions:
+      - sh: command -v helm
+        msg: helm is not installed; the Tilt environment renders the charts with it.
     vars:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
-      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - KIND={{.KIND}} hack/kind.sh up
       - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile {{.CLI_ARGS}}"
 
   tilt:help:

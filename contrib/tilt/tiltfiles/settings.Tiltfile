@@ -20,7 +20,7 @@ load("../helpers.py", "REPO")
 DEFAULT_CONTEXT = "kind-platform-mesh"
 DEFAULT_HTTPBIN_NAMESPACE = "example-httpbin-provider"
 
-config.define_string("context", usage="kube context to deploy into (default {}, see kind.sh)".format(DEFAULT_CONTEXT))
+config.define_string("context", usage="kube context to deploy into (default {}, see hack/kind.sh)".format(DEFAULT_CONTEXT))
 config.define_string(
     "httpbin-namespace", usage="HTTPBin provider runtime namespace (default {})".format(DEFAULT_HTTPBIN_NAMESPACE)
 )
@@ -50,7 +50,7 @@ def third_party_version(name, resource):
 
 # Every hostname is <x>.pm.<node-ip-dashed>.sslip.io, reaching the kind
 # node's traefik NodePort from host, pods and kcp alike.
-# kind.sh makes CoreDNS answer sslip.io in-cluster.
+# hack/kind.sh makes CoreDNS answer sslip.io in-cluster.
 CLUSTER_ID = cfg.get("cluster-id", "") or str(
     local(
         "kubectl --context {} get nodes -o jsonpath='{{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}}'".format(
@@ -61,7 +61,7 @@ CLUSTER_ID = cfg.get("cluster-id", "") or str(
     )
 ).strip().replace(".", "-")
 if not CLUSTER_ID:
-    fail("could not determine the node InternalIP; run contrib/tilt/kind.sh or pass --cluster-id")
+    fail("could not determine the node InternalIP; run hack/kind.sh up or pass --cluster-id")
 BASE_DOMAIN = "pm.{}.sslip.io".format(CLUSTER_ID)
 PORT = 31000
 BASE_DOMAIN_PORT = "{}:{}".format(BASE_DOMAIN, PORT)

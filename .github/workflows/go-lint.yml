@@ -39,7 +39,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0 # changes diffs against the base commit
-      - uses: ./.github/actions/changes
+      - uses: $/.github/actions/changes
         id: changes
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         if: steps.changes.outputs.components != '[]' || steps.changes.outputs.integration == 'true'

@@ -17,7 +17,7 @@ load("./tiltfiles/settings.Tiltfile", "CONTEXT")
 
 allow_k8s_contexts(CONTEXT)
 if config.tilt_subcommand in ("up", "ci") and k8s_context() != CONTEXT:
-    fail("kube context is {}, expected {}; run contrib/tilt/kind.sh first".format(k8s_context(), CONTEXT))
+    fail("kube context is {}, expected {}; run `task tilt:up` (or hack/kind.sh up) first".format(k8s_context(), CONTEXT))
 
 watch_settings(ignore=[".cache/**", ".secret/**"])
 
