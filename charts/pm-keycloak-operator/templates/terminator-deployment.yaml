@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}-terminator
+  namespace: {{ .Release.Namespace }}
+spec:
+  revisionHistoryLimit: {{ .Values.deployment.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      service: {{ include "common.entity.name" . }}-terminator
+  template:
+    metadata:
+      labels:
+        service: {{ include "common.entity.name" . }}-terminator
+        control-plane: controller-manager
+    spec:
+      {{- include "common.pod.securityContext" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
+      {{ include "common.hostAliases" $ | nindent 6 }}
+      containers:
+      - {{- include "common.podBasics" . | indent 8 }}
+        {{- include "common.container.securityContext" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadyness" . | indent 8}}
+        ports:
+        {{- include "common.PortsMetricsHealth" . | nindent 10 }}
+        args:
+          - terminator
+          {{- include "pm-keycloak-operator.featureGates" . | indent 10 }}
+          {{- include "pm-keycloak-operator.keycloakArgs" . | indent 10 }}
+          {{- if .Values.terminator.kubeconfigSecret }}
+          - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+          {{- end }}
+          {{- with .Values.terminator.extraArgs }}
+          {{ toYaml . | nindent 10}}
+          {{- end }}
+          {{- include "common.commonOperatorArgs" . | indent 8 }}
+        env:
+        {{- include "common.basicEnvironment" . | nindent 10 }}
+        volumeMounts:
+          {{- include "common.extraVolumeMounts" . | nindent 10 }}
+          {{- if .Values.terminator.kubeconfigSecret }}
+          - name: external-api-server
+            mountPath: /api-kubeconfig
+          {{- end }}
+      volumes:
+        {{- include "common.extraVolumes" . | nindent 8 }}
+        {{- if .Values.terminator.kubeconfigSecret }}
+        - name: external-api-server
+          secret:
+            secretName: {{ .Values.terminator.kubeconfigSecret }}
+        {{- end }}
