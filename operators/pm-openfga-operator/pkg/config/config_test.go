@@ -33,6 +33,8 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal(t, "/api-kubeconfig/kubeconfig", cfg.KCP.Kubeconfig)
 	assert.Equal(t, "core.platform-mesh.io", cfg.APIExportEndpointSlices.CorePlatformMeshIO)
 	assert.Equal(t, "system.platform-mesh.io", cfg.APIExportEndpointSlices.SystemPlatformMeshIO)
+	assert.Equal(t, "openfga.platform-mesh.io", cfg.APIExportEndpointSlices.OpenfgaPlatformMeshIO)
+	assert.Equal(t, "root:openfga", cfg.InitializerName())
 }
 
 func TestConfigAddFlags(t *testing.T) {
@@ -54,12 +56,12 @@ func TestConfigAddFlags(t *testing.T) {
 
 func TestConfig_FeatureEnabled(t *testing.T) {
 	cases := map[string]struct {
-		args    []string
-		openFGA bool
+		args   []string
+		legacy bool
 	}{
 		"default on":    {nil, true},
-		"openfga off":   {[]string{"--feature-gates=OpenFGA=false"}, false},
-		"explicitly on": {[]string{"--feature-gates=OpenFGA=true"}, true},
+		"legacy off":    {[]string{"--feature-gates=LegacyAPIs=false"}, false},
+		"explicitly on": {[]string{"--feature-gates=LegacyAPIs=true"}, true},
 	}
 
 	for title, cas := range cases {
@@ -70,7 +72,7 @@ func TestConfig_FeatureEnabled(t *testing.T) {
 
 			require.NoError(t, fs.Parse(cas.args))
 
-			assert.Equal(t, cas.openFGA, cfg.FeatureEnabled(features.OpenFGA), "OpenFGA gate")
+			assert.Equal(t, cas.legacy, cfg.FeatureEnabled(features.LegacyAPIs), "LegacyAPIs gate")
 		})
 	}
 }
@@ -78,7 +80,7 @@ func TestConfig_FeatureEnabled(t *testing.T) {
 func TestConfig_FeatureEnabled_ZeroValueUsesDefaults(t *testing.T) {
 	cfg := Config{}
 
-	assert.True(t, cfg.FeatureEnabled(features.OpenFGA))
+	assert.True(t, cfg.FeatureEnabled(features.LegacyAPIs))
 }
 
 func TestConfigAddFlags_UnknownFeatureGate(t *testing.T) {
