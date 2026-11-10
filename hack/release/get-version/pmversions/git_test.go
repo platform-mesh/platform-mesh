@@ -17,7 +17,9 @@ limitations under the License.
 package pmversions
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,6 +28,12 @@ import (
 )
 
 // Tests chdir into a scratch repository, so they cannot run in parallel.
+
+// thisMonth is the development base of a commit made now, vYY.MM.9999.
+func thisMonth() string {
+	now := time.Now()
+	return fmt.Sprintf("v%d.%02d.%d", now.Year()%100, int(now.Month()), developmentPatch)
+}
 
 func TestFromCommit(t *testing.T) {
 	repo := scratchrepo.NewT(t)
@@ -44,11 +52,11 @@ func TestFromCommit(t *testing.T) {
 		commit string
 		want   string
 	}{
-		"tagged release":               {release, "v26.10.0"},
-		"tagged candidate":             {candidate, "v26.11.0-rc.1"},
-		"abbreviated hash":             {release[:7], "v26.10.0"},
-		"untagged counts from release": {between, "v26.11.0-dev.2.g" + between[:7]},
-		"HEAD":                         {"HEAD", "v26.11.0-dev.4.g" + repo.Head()[:7]},
+		"tagged release":   {release, "v26.10.0"},
+		"tagged candidate": {candidate, "v26.11.0-rc.1"},
+		"abbreviated hash": {release[:7], "v26.10.0"},
+		"untagged on main": {between, thisMonth() + "-dev.3.g" + between[:7]},
+		"HEAD":             {"HEAD", thisMonth() + "-dev.5.g" + repo.Head()[:7]},
 	}
 
 	for title, cas := range cases {
@@ -125,17 +133,17 @@ func TestNow(t *testing.T) {
 	repo.Commit("commit")
 	repo.Commit("commit")
 
-	t.Run("main builds towards the next feature release", func(t *testing.T) {
+	t.Run("main builds a development version of its month", func(t *testing.T) {
 		now, err := Now(t.Context())
 		require.NoError(t, err)
-		assert.Equal(t, "v26.12.0-dev.2.g"+repo.Head()[:7], now.String())
+		assert.Equal(t, thisMonth()+"-dev.4.g"+repo.Head()[:7], now.String(), "counted over the whole history")
 	})
 
 	t.Run("run number from environment", func(t *testing.T) {
 		t.Setenv(envRunNumber, "42")
 		now, err := Now(t.Context())
 		require.NoError(t, err)
-		assert.Equal(t, "v26.12.0-dev.42.g"+repo.Head()[:7], now.String())
+		assert.Equal(t, thisMonth()+"-dev.42.g"+repo.Head()[:7], now.String())
 	})
 
 	t.Run("bad run number", func(t *testing.T) {
@@ -172,8 +180,22 @@ func TestNow(t *testing.T) {
 	t.Run("detached without environment is main", func(t *testing.T) {
 		now, err := Now(t.Context())
 		require.NoError(t, err)
-		assert.Equal(t, "v26.12.0-dev.2.g"+repo.Head()[:7], now.String())
+		assert.Equal(t, thisMonth()+"-dev.4.g"+repo.Head()[:7], now.String())
 	})
+}
+
+func TestFromCommit_withoutTags(t *testing.T) {
+	repo := scratchrepo.NewT(t)
+	repo.Commit("one")
+	repo.Commit("two")
+
+	v, err := FromCommit(t.Context(), "HEAD")
+	require.NoError(t, err)
+	assert.Equal(t, thisMonth()+"-dev.2.g"+repo.Head()[:7], v.String(), "a checkout without release tags still gets a version")
+
+	repo.Git("checkout", "-q", "-b", "release-26.11")
+	_, err = FromCommit(t.Context(), "HEAD")
+	require.Error(t, err, "a release branch needs its release tags")
 }
 
 func TestParseDescribe(t *testing.T) {
@@ -183,19 +205,18 @@ func TestParseDescribe(t *testing.T) {
 		out       string
 		wantPrev  string
 		wantCount int
-		wantSHA   string
 		wantErr   bool
 	}{
-		"at the release":        {"v26.10.0-0-g1a2b3c4", "v26.10.0", 0, "1a2b3c4", false},
-		"commits after release": {"v26.10.10-17-g1a2b3c4", "v26.10.10", 17, "1a2b3c4", false},
-		"garbage":               {"heads/main", "", 0, "", true},
-		"not a release tag":     {"v1-3-g1a2b3c4", "", 0, "", true},
+		"at the release":        {"v26.10.0-0-g1a2b3c4", "v26.10.0", 0, false},
+		"commits after release": {"v26.10.10-17-g1a2b3c4", "v26.10.10", 17, false},
+		"garbage":               {"heads/main", "", 0, true},
+		"not a release tag":     {"v1-3-g1a2b3c4", "", 0, true},
 	}
 
 	for title, cas := range cases {
 		t.Run(title, func(t *testing.T) {
 			t.Parallel()
-			prev, count, sha, err := parseDescribe(cas.out)
+			prev, count, err := parseDescribe(cas.out)
 			if cas.wantErr {
 				require.Error(t, err)
 				return
@@ -203,7 +224,6 @@ func TestParseDescribe(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, cas.wantPrev, prev.String())
 			assert.Equal(t, cas.wantCount, count)
-			assert.Equal(t, cas.wantSHA, sha)
 		})
 	}
 }

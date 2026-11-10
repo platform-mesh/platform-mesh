@@ -63,7 +63,7 @@ func TestResolveRef(t *testing.T) {
 	head, err := resolveRef(t.Context(), "HEAD")
 	require.NoError(t, err)
 	assert.NotEqual(t, tag.commit, head.commit)
-	assert.Equal(t, "v26.11.0-dev.1.g"+head.commit[:7], head.version.String(), "an untagged commit gets a prerelease version")
+	assert.Contains(t, head.version.String(), ".9999-dev.4.g"+head.commit[:7], "an untagged commit gets a development version")
 
 	_, err = resolveRef(t.Context(), "v99.99.99")
 	require.Error(t, err)

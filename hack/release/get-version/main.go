@@ -19,7 +19,9 @@ limitations under the License.
 //
 // Usage: get-version [-library] now|previous|next
 //
-//	now       the release tag at HEAD, otherwise <base>-dev.<n>.g<sha>
+//	now       the release tag at HEAD
+//	          or next patch on a release-YY.MM branch
+//	          otherwise vYY.MM.9999-dev.<n>.g<sha>
 //	previous  the previous final release vYY.MM.P
 //	next      the next feature release vYY.MM
 //	-library  print the Go module form v0.YYMM.P[-pre] instead;

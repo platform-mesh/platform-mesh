@@ -24,6 +24,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
@@ -36,6 +37,11 @@ const (
 	envRunNumber = "GITHUB_RUN_NUMBER"
 	// head is the commit the checkout is at.
 	head = "HEAD"
+	// developmentPatch marks a build of a non-release branch; it sorts
+	// above every patch release of its month.
+	developmentPatch = 9999
+	// shaLength abbreviates commits in prerelease versions.
+	shaLength = 7
 )
 
 // describePattern splits git describe --long output <tag>-<count>-g<sha>.
@@ -43,7 +49,7 @@ var describePattern = regexp.MustCompile(`^(v\S+?)-(\d+)-g([0-9a-f]+)$`)
 
 // Previous returns the previous final release.
 func Previous(ctx context.Context) (Version, error) {
-	prev, _, _, err := describe(ctx, head)
+	prev, _, err := describe(ctx, head)
 	return prev, err
 }
 
@@ -66,11 +72,16 @@ func Now(ctx context.Context) (Version, error) {
 
 // FromCommit returns the version at a commit.
 // If the commit is tagged the tag is parsed and returned.
-// Otherwise a prerelease version is built from the nearest tagged ancestor.
 //
-// Warning: The base follows the branch of the checkout, not of the
-// commit. This could produce erroneous results in an anomalous
-// checkout.
+// On a release branch an untagged commit gets the next patch of that
+// release as <patch>-dev.<n>.g<sha>, counted from the nearest tagged
+// ancestor.
+//
+// Anywhere else it gets vYY.MM.9999-dev.<n>.g<sha> from the commit
+// date, so a checkout without tags still yields a usable version. <n>
+// is GITHUB_RUN_NUMBER when set, else the commit count.
+//
+// Warning: the branch is that of the checkout, not of the commit.
 func FromCommit(ctx context.Context, commit string) (Version, error) {
 	out, err := releaseutils.Git(ctx, "tag", "-l", "v[0-9]*", "--points-at", commit)
 	if err != nil {
@@ -87,12 +98,18 @@ func FromCommit(ctx context.Context, commit string) (Version, error) {
 		return slices.MaxFunc(at, Version.Compare), nil
 	}
 
-	prev, count, sha, err := describe(ctx, commit)
+	branch, err := branch(ctx)
 	if err != nil {
 		return Version{}, err
 	}
-
-	branch, err := branch(ctx)
+	var base Version
+	var count int
+	minor, onRelease := ParseReleaseBranch(branch)
+	if onRelease {
+		base, count, err = releaseBranchBase(ctx, commit, minor)
+	} else {
+		base, count, err = developmentBase(ctx, commit)
+	}
 	if err != nil {
 		return Version{}, err
 	}
@@ -103,48 +120,77 @@ func FromCommit(ctx context.Context, commit string) (Version, error) {
 		}
 	}
 
-	base := prereleaseBase(branch, prev)
-	base.Pre = fmt.Sprintf("dev.%d.g%s", count, sha)
+	sha, err := releaseutils.Git(ctx, "rev-parse", "--short="+strconv.Itoa(shaLength), commit)
+	if err != nil {
+		return Version{}, fmt.Errorf("abbreviating %s: %w", commit, err)
+	}
+
+	base.Pre = fmt.Sprintf("dev.%d.g%s", count, strings.TrimSpace(sha))
 	return base, nil
 }
 
-// prereleaseBase returns the release currently being built towards.
-// On a release branch it is the next patch release for that release branch.
-// Otherwise the first release of the next feature release.
-func prereleaseBase(branch string, prev Version) Version {
-	base, onRelease := ParseReleaseBranch(branch)
-	switch {
-	case onRelease && prev.SameMinor(base):
-		base.Patch = prev.Patch + 1
-		return base
-	case onRelease:
-		return base
-	default:
-		return prev.NextMinor()
+// releaseBranchBase returns the next patch of the release branch's minor
+// and the commits since the nearest release.
+func releaseBranchBase(ctx context.Context, commit string, minor Version) (Version, int, error) {
+	prev, count, err := describe(ctx, commit)
+	if err != nil {
+		return Version{}, 0, err
 	}
+	if prev.SameMinor(minor) {
+		minor.Patch = prev.Patch + 1
+	}
+	return minor, count, nil
 }
 
-// describe returns the previous final release of a commit, the number of
-// commits since it and the shortened commit hash.
-func describe(ctx context.Context, commit string) (Version, int, string, error) {
+// developmentBase returns vYY.MM.9999 for the month of the commit and the
+// number of commits in its history.
+func developmentBase(ctx context.Context, commit string) (Version, int, error) {
+	out, err := releaseutils.Git(ctx, "show", "-s", "--format=%cs", commit)
+	if err != nil {
+		return Version{}, 0, fmt.Errorf("reading date of %s: %w", commit, err)
+	}
+	date, err := time.Parse(time.DateOnly, strings.TrimSpace(out))
+	if err != nil {
+		return Version{}, 0, fmt.Errorf("parsing date of %s: %w", commit, err)
+	}
+	out, err = releaseutils.Git(ctx, "rev-list", "--count", commit)
+	if err != nil {
+		return Version{}, 0, fmt.Errorf("counting commits of %s: %w", commit, err)
+	}
+	count, err := strconv.Atoi(strings.TrimSpace(out))
+	if err != nil {
+		return Version{}, 0, fmt.Errorf("parsing commit count of %s: %w", commit, err)
+	}
+	base := Version{
+		Year:  date.Year() % 100,
+		Month: int(date.Month()),
+		Patch: developmentPatch,
+	}
+	return base, count, nil
+}
+
+// describe returns the previous final release of a commit and the number
+// of commits since it.
+func describe(ctx context.Context, commit string) (Version, int, error) {
 	out, err := releaseutils.Git(ctx, "describe", "--tags", "--long", "--abbrev=7", "--match", "v[0-9]*", "--exclude", "*-*", commit)
 	if err != nil {
-		return Version{}, 0, "", fmt.Errorf("finding previous release of %s: %w", commit, err)
+		return Version{}, 0, fmt.Errorf("finding previous release of %s: %w", commit, err)
 	}
 	return parseDescribe(strings.TrimSpace(out))
 }
 
-func parseDescribe(out string) (Version, int, string, error) {
+// parseDescribe splits <tag>-<count>-g<sha>.
+func parseDescribe(out string) (Version, int, error) {
 	m := describePattern.FindStringSubmatch(out)
 	if m == nil {
-		return Version{}, 0, "", fmt.Errorf("unexpected git describe output %q", out)
+		return Version{}, 0, fmt.Errorf("unexpected git describe output %q", out)
 	}
 	prev, err := ParseTag(m[1])
 	if err != nil {
-		return Version{}, 0, "", fmt.Errorf("parsing previous release: %w", err)
+		return Version{}, 0, fmt.Errorf("parsing previous release: %w", err)
 	}
 	count, _ := strconv.Atoi(m[2])
-	return prev, count, m[3], nil
+	return prev, count, nil
 }
 
 func branch(ctx context.Context) (string, error) {
