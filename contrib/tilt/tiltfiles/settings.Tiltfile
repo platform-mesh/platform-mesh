@@ -29,12 +29,46 @@ config.define_bool(
     "frontend-cors",
     usage="allow browser calls from a frontend run outside the cluster (see installation/frontend-dev-cors-values.yaml)",
 )
+
+# Backends the environment can run without, and the PlatformMesh feature
+# toggle that makes platform-mesh-operator skip their kcp manifests. The
+# sub-Tiltfiles skip the backend and everything that only exists for it.
+WITHOUT_TOGGLES = {
+    "keycloak": "feature-disable-keycloak",
+}
+config.define_string_list(
+    "without",
+    usage="comma-separated backends to leave out: {} (repeatable)".format("|".join(WITHOUT_TOGGLES.keys())),
+)
 cfg = config.parse()
+
+
+def parse_without(args):
+    """Backends named by --without, deduplicated and validated.
+
+    string_list accumulates repeated flags but does not split on commas.
+    """
+    names = []
+    for arg in args:
+        for name in arg.split(","):
+            name = name.strip()
+            if not name:
+                continue
+            if name not in WITHOUT_TOGGLES:
+                fail("--without={}: expected one or more of {}".format(name, ", ".join(WITHOUT_TOGGLES.keys())))
+            if name not in names:
+                names.append(name)
+    return names
+
 
 CONTEXT = cfg.get("context", DEFAULT_CONTEXT)
 NAMESPACE = "platform-mesh-system"
 HTTPBIN_NAMESPACE = cfg.get("httpbin-namespace", DEFAULT_HTTPBIN_NAMESPACE)
 FRONTEND_CORS = cfg.get("frontend-cors", False)
+WITHOUT = parse_without(cfg.get("without", []))
+KEYCLOAK = "keycloak" not in WITHOUT
+# Toggles for the PlatformMesh CR (manifests/platformmesh.yaml).
+FEATURE_TOGGLES = ["feature-accounts-in-accounts"] + [WITHOUT_TOGGLES[name] for name in WITHOUT]
 KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
 GO_DEPS = ["apis", "subroutines", "golang-commons"]
 

@@ -30,9 +30,11 @@ load(
 load(
     "./settings.Tiltfile",
     "BASE_DOMAIN",
+    "FEATURE_TOGGLES",
     "GO_DEPS",
     "HTTPBIN_NAMESPACE",
     "KCP_FRONT_PROXY_URL",
+    "KEYCLOAK",
     "KUBECTL",
     "NAMESPACE",
     "PORT",
@@ -98,7 +100,17 @@ k8s_resource(
 
 # Separate resource so re-triggering the operator never delete-recreates
 # the CR.
-k8s_yaml(render("manifests/platformmesh.yaml", {"BASE_DOMAIN": BASE_DOMAIN, "PORT": PORT, "HTTPBIN_NAMESPACE": HTTPBIN_NAMESPACE}))
+k8s_yaml(
+    render(
+        "manifests/platformmesh.yaml",
+        {
+            "BASE_DOMAIN": BASE_DOMAIN,
+            "PORT": PORT,
+            "HTTPBIN_NAMESPACE": HTTPBIN_NAMESPACE,
+            "FEATURE_TOGGLES": "\n".join(["    - name: " + t for t in FEATURE_TOGGLES]),
+        },
+    )
+)
 k8s_resource(
     new_name="platformmesh",
     objects=["platform-mesh:platformmesh", "platform-mesh-profile:configmap"],
@@ -134,6 +146,7 @@ service(
     TEMPLATE_VARS,
     path="operators/security-operator",
     deps=GO_DEPS,
+    overrides={"keycloak": {"enabled": KEYCLOAK}},
     workloads=[
         "security-operator",
         "security-operator-generator",
@@ -142,7 +155,6 @@ service(
         "security-operator-terminator",
     ],
 )
-service("iam-service", NAMESPACE, TEMPLATE_VARS, path="services/iam-service", deps=GO_DEPS)
 service(
     "kubernetes-graphql-gateway",
     NAMESPACE,
@@ -154,7 +166,11 @@ service(
 service("rebac-authz-webhook", NAMESPACE, TEMPLATE_VARS, path="services/rebac-authz-webhook", deps=GO_DEPS)
 service("virtual-workspaces", NAMESPACE, TEMPLATE_VARS, path="services/virtual-workspaces", deps=GO_DEPS)
 service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"frontendPort": str(PORT)})
-service("iam-ui", NAMESPACE, TEMPLATE_VARS)
 service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
+
+# User and role management on top of Keycloak.
+if KEYCLOAK:
+    service("iam-service", NAMESPACE, TEMPLATE_VARS, path="services/iam-service", deps=GO_DEPS)
+    service("iam-ui", NAMESPACE, TEMPLATE_VARS)
 
 include("./httpbin.Tiltfile")
