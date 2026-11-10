@@ -16,5 +16,8 @@ data:
         secretRef:
           name: {{ .secretRef.name | quote }}
           namespace: {{ .secretRef.namespace | quote }}
+        {{- if hasKey . "admin" }}
+        admin: {{ .admin }}
+        {{- end }}
     {{- end }}
 {{- end }}

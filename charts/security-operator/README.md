@@ -22,6 +22,10 @@ A Helm chart for security-operator
 | hostAliases.enabled | bool | `false` |  |
 | idp.additionalRedirectUrls | list | `[]` | Additional redirect URLs to allow for OAuth clients (e.g. for local development callbacks) |
 | idp.allowUnverifiedEmails | Development only | `false` | Allow login without email verification. Must be false in production. |
+| idp.events.enabled | bool | `false` | Store Keycloak user events in every org realm, except master and welcome. Event types already enabled in a realm are kept. |
+| idp.events.expiration | string | `"168h"` | Minimum retention of stored user events (Go duration). A longer retention or none (never expire) already set in a realm is kept. |
+| idp.events.readerClient | string | `""` | Client ID in the master realm that gets the view-events and view-users roles of every org realm except master and welcome, e.g. an initContainer client with admin false. Empty disables. |
+| idp.events.types | list | `["LOGIN"]` | User event types to store, added to the types already enabled in a realm |
 | idp.registrationAllowed | Development only | `false` | Allow self-registration of new users via IDP. Must be false in production. |
 | idp.setDefaultPassword | Development only | `false` | Set a default password for new users. Must be false in production. |
 | idp.smtp.fromAddress | string | `""` | Email address used as the sender for IDP notifications |
@@ -31,7 +35,7 @@ A Helm chart for security-operator
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/security-operator"` | The image repository path (without registry) |
 | initContainer | object | `{"clients":[{"name":"security-operator","secretRef":{"name":"security-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}],"enabled":true,"keycloakBaseURL":"","keycloakClientId":"admin-cli","keycloakUser":"keycloak-admin"}` | Init container configuration for bootstrapping Keycloak service account clients |
-| initContainer.clients | list | `[{"name":"security-operator","secretRef":{"name":"security-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}]` | Service account clients to create (beyond the default one from keycloak.client.secret) |
+| initContainer.clients | list | `[{"name":"security-operator","secretRef":{"name":"security-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}]` | Service account clients to create (beyond the default one from keycloak.client.secret). A client gets the master realm admin role unless it sets admin to false, which also removes an admin role the client already has. |
 | initContainer.enabled | bool | `true` | Enable the init container |
 | initContainer.keycloakBaseURL | string | `""` | Keycloak base URL (e.g., https://keycloak.example.com). If empty, derived from baseDomain. |
 | initContainer.keycloakClientId | string | `"admin-cli"` | Keycloak client ID for admin authentication |

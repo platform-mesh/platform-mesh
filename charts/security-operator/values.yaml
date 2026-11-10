@@ -82,6 +82,16 @@ idp:
   allowUnverifiedEmails: false
   # -- (Development only) Set a default password for new users. Must be false in production.
   setDefaultPassword: false
+  events:
+    # -- Store Keycloak user events in every org realm, except master and welcome. Event types already enabled in a realm are kept.
+    enabled: false
+    # -- User event types to store, added to the types already enabled in a realm
+    types:
+      - LOGIN
+    # -- Minimum retention of stored user events (Go duration). A longer retention or none (never expire) already set in a realm is kept.
+    expiration: 168h
+    # -- Client ID in the master realm that gets the view-events and view-users roles of every org realm except master and welcome, e.g. an initContainer client with admin false. Empty disables.
+    readerClient: ""
 
 
 keycloak:
@@ -121,7 +131,7 @@ initContainer:
   keycloakClientId: admin-cli
   # -- Keycloak username for admin authentication
   keycloakUser: keycloak-admin
-  # -- Service account clients to create (beyond the default one from keycloak.client.secret)
+  # -- Service account clients to create (beyond the default one from keycloak.client.secret). A client gets the master realm admin role unless it sets admin to false, which also removes an admin role the client already has.
   clients:
   - name: security-operator
     secretRef:
