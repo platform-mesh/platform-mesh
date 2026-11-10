@@ -65,6 +65,7 @@ func New() *Runner {
 	return &Runner{steps: []Step{
 		fgaAPIExportSplit{},
 		providerAPIExportSplit{},
+		keycloakAPIGroupSplit{},
 	}}
 }
 

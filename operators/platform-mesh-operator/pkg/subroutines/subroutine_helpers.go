@@ -89,6 +89,7 @@ func (h *Helper) NewKcpClient(config *rest.Config, workspacePath string) (ctrlru
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(authenticationv1.AddToScheme(scheme))
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmkeycloakv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))

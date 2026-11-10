@@ -1,5 +1,9 @@
 # Migrate OpenFGA to the shared CNPG cluster
 
+See also [keycloak-api-group.md](keycloak-api-group.md) for the move of
+`IdentityProviderConfiguration`/`Invite` to `keycloak.platform-mesh.io` in the
+same release (automatic).
+
 This procedure moves OpenFGA from its bundled PostgreSQL instance to the shared CNPG cluster. It requires a maintenance window.
 
 Run the commands from the repository root in the same shell. Apply profile changes through the source that owns the profile. The examples below use a directly managed `platform-mesh-profile` ConfigMap.
