@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -254,7 +255,8 @@ func TestOtherChanges(t *testing.T) {
 		{Name: "new-ui", From: absent, To: "v1.0.0", Changed: true},
 		{Name: "kcp-access-vw", From: "0.1.0", To: "0.1.1", Changed: true},
 	}
-	got := otherChanges(t.Context(), client, "platform-mesh", rows)
+	got, err := otherChanges(t.Context(), client, "platform-mesh", rows)
+	require.NoError(t, err)
 	want := []upstreamChanges{
 		{
 			Chart: "portal",
@@ -268,4 +270,53 @@ func TestOtherChanges(t *testing.T) {
 	}
 	assert.Equal(t, want, got, "unchanged, newly added and unknown repositories are skipped")
 	assert.Equal(t, []author{{Login: "jane", URL: "https://github.com/jane"}}, upstreamAuthors(got))
+}
+
+func TestOtherChanges_rateLimited(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /repos/platform-mesh/portal/compare/a...b", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.Header().Set("X-RateLimit-Reset", "9999999999")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = fmt.Fprint(w, `{"message":"API rate limit exceeded"}`)
+	})
+	client := apiServer(t, mux)
+
+	_, err := otherChanges(t.Context(), client, "platform-mesh", []versionRow{{Name: "portal", From: "a", To: "b", Changed: true}})
+	require.Error(t, err, "a rate limit must fail the notes, not drop the commits")
+	assert.Contains(t, err.Error(), "GH_TOKEN")
+}
+
+func TestCollectPRs_failsClosed(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /repos/platform-mesh/platform-mesh/pulls/1", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprint(w, `{"number":1,"title":"ok","body":"","user":{"login":"jane","type":"User"}}`)
+	})
+	client := apiServer(t, mux)
+
+	prs, err := collectPRs(t.Context(), client, "platform-mesh", "platform-mesh", []change{{PR: 1}, {PR: 1}, {}})
+	require.NoError(t, err)
+	assert.Len(t, prs, 1, "read once per pull request, direct commits skipped")
+
+	_, err = collectPRs(t.Context(), client, "platform-mesh", "platform-mesh", []change{{PR: 1}, {PR: 2}})
+	require.Error(t, err, "an unreadable pull request fails the notes")
+}
+
+func TestCallAPI(t *testing.T) {
+	t.Parallel()
+
+	permanent := &github.ErrorResponse{Response: &http.Response{StatusCode: http.StatusNotFound}}
+	calls := 0
+	err := callAPI(t.Context(), func() error {
+		calls++
+		return permanent
+	})
+	require.ErrorIs(t, err, permanent)
+	assert.Equal(t, 1, calls, "client errors are not retried")
+	assert.True(t, isNotFound(err))
+	assert.False(t, isNotFound(errors.New("other")))
 }

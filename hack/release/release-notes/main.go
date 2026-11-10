@@ -29,6 +29,9 @@ limitations under the License.
 //
 //	REPO_URL      GitHub repository the pull requests belong to, https://github.com/platform-mesh/platform-mesh unless set
 //	GH_TOKEN      GitHub token for the API; GITHUB_TOKEN is used when unset. Optional, raises the rate limit
+//
+// The notes fail rather than render incomplete when the GitHub API cannot be
+// read; transient failures are retried.
 package main
 
 import (
@@ -104,13 +107,19 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	prs := collectPRs(ctx, client, owner, repo, changes)
+	prs, err := collectPRs(ctx, client, owner, repo, changes)
+	if err != nil {
+		return err
+	}
 
 	otherComponents, err := otherComponentRows(ctx, start.commit, end.commit)
 	if err != nil {
 		return err
 	}
-	other := otherChanges(ctx, client, owner, otherComponents)
+	other, err := otherChanges(ctx, client, owner, otherComponents)
+	if err != nil {
+		return err
+	}
 	thirdPartyFrom, err := thirdPartyVersions(ctx, start.commit)
 	if err != nil {
 		return err

@@ -69,8 +69,8 @@ func finishReleaseNote(lines []string) ([]string, bool) {
 }
 
 // collectPRs reads every pull request the changes were merged through.
-// Failures are logged and leave the pull request out.
-func collectPRs(ctx context.Context, client *github.Client, owner, repo string, changes []change) map[int]pr {
+// A failure fails the notes: incomplete notes must not be published.
+func collectPRs(ctx context.Context, client *github.Client, owner, repo string, changes []change) (map[int]pr, error) {
 	prs := map[int]pr{}
 	for _, ch := range changes {
 		if ch.PR == 0 {
@@ -81,12 +81,11 @@ func collectPRs(ctx context.Context, client *github.Client, owner, repo string, 
 		}
 		p, err := pullRequest(ctx, client, owner, repo, ch.PR)
 		if err != nil {
-			log.Printf("warning: %v", err)
-			continue
+			return nil, err
 		}
 		prs[ch.PR] = p
 	}
-	return prs
+	return prs, nil
 }
 
 // releaseNotes returns the release notes of the changes, in change order.
@@ -122,17 +121,21 @@ type upstreamChanges struct {
 }
 
 // otherChanges compares every changed other-repository component in its
-// repository <owner>/<chart>. Failures are logged and leave the component out.
-func otherChanges(ctx context.Context, client *github.Client, owner string, rows []versionRow) []upstreamChanges {
+// repository <owner>/<chart>. A component without such a repository or
+// tags is logged and left out; any other failure fails the notes.
+func otherChanges(ctx context.Context, client *github.Client, owner string, rows []versionRow) ([]upstreamChanges, error) {
 	var result []upstreamChanges
 	for _, row := range rows {
 		if !row.Changed || row.From == absent {
 			continue
 		}
 		commits, err := compare(ctx, client, owner, row.Name, row.From, row.To)
-		if err != nil {
-			log.Printf("warning: %v", err)
+		if isNotFound(err) {
+			log.Printf("warning: no source repository or tags for %s at github.com/%s/%s, skipping its commits", row.Name, owner, row.Name)
 			continue
+		}
+		if err != nil {
+			return nil, err
 		}
 		result = append(result, upstreamChanges{
 			Chart:   row.Name,
@@ -142,7 +145,7 @@ func otherChanges(ctx context.Context, client *github.Client, owner string, rows
 			Commits: commits,
 		})
 	}
-	return result
+	return result, nil
 }
 
 // upstreamAuthors lists the authors of the other-repository commits.

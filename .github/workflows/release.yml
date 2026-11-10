@@ -74,6 +74,7 @@ jobs:
   github-release:
     needs: [version, publish]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # create the release
     env:

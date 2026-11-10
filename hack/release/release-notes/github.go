@@ -18,13 +18,26 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v84/github"
+
+	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
+)
+
+// Retry policy for the GitHub API. Rate limits and client errors are not
+// retried; a hung connection is cut by apiTimeout.
+const (
+	apiTimeout    = 30 * time.Second
+	apiAttempts   = 3
+	apiRetryDelay = 5 * time.Second
 )
 
 // prSuffix is the pull request number squash and merge commits carry.
@@ -66,7 +79,7 @@ func repoOwnerName(repoURL string) (string, string, error) {
 // newGitHub returns a client authenticated with GH_TOKEN or GITHUB_TOKEN
 // when either is set, anonymous otherwise.
 func newGitHub() *github.Client {
-	client := github.NewClient(nil)
+	client := github.NewClient(&http.Client{Timeout: apiTimeout})
 	for _, key := range []string{"GH_TOKEN", "GITHUB_TOKEN"} {
 		if token := os.Getenv(key); token != "" {
 			return client.WithAuthToken(token)
@@ -76,7 +89,12 @@ func newGitHub() *github.Client {
 }
 
 func pullRequest(ctx context.Context, client *github.Client, owner, repo string, number int) (pr, error) {
-	p, _, err := client.PullRequests.Get(ctx, owner, repo, number)
+	var p *github.PullRequest
+	err := callAPI(ctx, func() error {
+		var err error
+		p, _, err = client.PullRequests.Get(ctx, owner, repo, number)
+		return err
+	})
 	if err != nil {
 		return pr{}, fmt.Errorf("reading %s/%s#%d: %w", owner, repo, number, err)
 	}
@@ -94,7 +112,13 @@ func compare(ctx context.Context, client *github.Client, owner, repo, base, head
 	var commits []upstreamCommit
 	opts := &github.ListOptions{PerPage: 100}
 	for {
-		comparison, resp, err := client.Repositories.CompareCommits(ctx, owner, repo, base, head, opts)
+		var comparison *github.CommitsComparison
+		var resp *github.Response
+		err := callAPI(ctx, func() error {
+			var err error
+			comparison, resp, err = client.Repositories.CompareCommits(ctx, owner, repo, base, head, opts)
+			return err
+		})
 		if err != nil {
 			return nil, fmt.Errorf("comparing %s/%s %s...%s: %w", owner, repo, base, head, err)
 		}
@@ -106,6 +130,42 @@ func compare(ctx context.Context, client *github.Client, owner, repo, base, head
 		}
 		opts.Page = resp.NextPage
 	}
+}
+
+// callAPI runs one API call, retrying transient failures.
+// Rate limits and client errors are returned at once.
+func callAPI(ctx context.Context, fn func() error) error {
+	return releaseutils.Retry(ctx, apiAttempts, apiRetryDelay, func() error {
+		err := fn()
+		switch {
+		case err == nil:
+			return nil
+		case isRateLimited(err):
+			return releaseutils.Permanent(fmt.Errorf("%w; set GH_TOKEN to raise the limit", err))
+		case isClientError(err):
+			return releaseutils.Permanent(err)
+		default:
+			return err
+		}
+	})
+}
+
+func isRateLimited(err error) bool {
+	var rate *github.RateLimitError
+	var abuse *github.AbuseRateLimitError
+	return errors.As(err, &rate) || errors.As(err, &abuse)
+}
+
+func isClientError(err error) bool {
+	var resp *github.ErrorResponse
+	return errors.As(err, &resp) && resp.Response != nil &&
+		resp.Response.StatusCode >= http.StatusBadRequest && resp.Response.StatusCode < http.StatusInternalServerError
+}
+
+// isNotFound reports whether the API answered 404.
+func isNotFound(err error) bool {
+	var resp *github.ErrorResponse
+	return errors.As(err, &resp) && resp.Response != nil && resp.Response.StatusCode == http.StatusNotFound
 }
 
 func authorOf(user *github.User) author {
