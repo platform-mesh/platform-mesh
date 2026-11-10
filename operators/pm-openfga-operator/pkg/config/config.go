@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -28,12 +29,19 @@ import (
 )
 
 const (
-	CoreProviderName        = "core"
+	CoreProviderName      = "core"
+	ProvidersProviderName = "providers"
+	// OpenfgaProviderName engages clusters through openfga.platform-mesh.io (Stores, APIExportPolicies).
+	OpenfgaProviderName = "openfga"
+	// ProviderOpenfgaProviderName engages clusters through provider-openfga.platform-mesh.io (AuthorizationModels).
+	ProviderOpenfgaProviderName = "provider-openfga"
+	// Legacy providers for the deprecated core.platform-mesh.io kinds (feature gate LegacyAPIs):
+	// system.platform-mesh.io serves APIExportPolicies, fga.platform-mesh.io Stores and
+	// provider-fga.platform-mesh.io AuthorizationModels.
 	SystemProviderName      = "system"
-	ProvidersProviderName   = "providers"
 	FgaProviderName         = "fga"
 	ProviderFgaProviderName = "provider-fga"
-	providerSeparator       = "#"
+	ProviderSeparator       = "#"
 	OrgsClusterPath         = "root:orgs"
 )
 
@@ -54,9 +62,12 @@ type KCPConfig struct {
 }
 
 type APIExportEndpointSlices struct {
-	CorePlatformMeshIO        string
+	CorePlatformMeshIO            string
+	ProvidersPlatformMeshIO       string
+	OpenfgaPlatformMeshIO         string
+	ProviderOpenfgaPlatformMeshIO string
+	// Legacy slices, used with the LegacyAPIs feature gate.
 	SystemPlatformMeshIO      string
-	ProvidersPlatformMeshIO   string
 	FgaPlatformMeshIO         string
 	ProviderFgaPlatformMeshIO string
 }
@@ -89,14 +100,16 @@ func NewConfig() Config {
 			Kubeconfig: "/api-kubeconfig/kubeconfig",
 		},
 		APIExportEndpointSlices: APIExportEndpointSlices{
-			CorePlatformMeshIO:        "core.platform-mesh.io",
-			SystemPlatformMeshIO:      "system.platform-mesh.io",
-			ProvidersPlatformMeshIO:   "providers.platform-mesh.io",
-			FgaPlatformMeshIO:         "fga.platform-mesh.io",
-			ProviderFgaPlatformMeshIO: "provider-fga.platform-mesh.io",
+			CorePlatformMeshIO:            "core.platform-mesh.io",
+			ProvidersPlatformMeshIO:       "providers.platform-mesh.io",
+			OpenfgaPlatformMeshIO:         "openfga.platform-mesh.io",
+			ProviderOpenfgaPlatformMeshIO: "provider-openfga.platform-mesh.io",
+			SystemPlatformMeshIO:          "system.platform-mesh.io",
+			FgaPlatformMeshIO:             "fga.platform-mesh.io",
+			ProviderFgaPlatformMeshIO:     "provider-fga.platform-mesh.io",
 		},
 		WorkspacePath:     "root",
-		WorkspaceTypeName: "security",
+		WorkspaceTypeName: "openfga",
 		Initializer: InitializerConfig{
 			WorkspaceInitializerEnabled: true,
 		},
@@ -112,10 +125,12 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.FGA.CreatorRelation, "fga-creator-relation", c.FGA.CreatorRelation, "Set the OpenFGA creator relation name")
 	fs.StringVar(&c.KCP.Kubeconfig, "kcp-kubeconfig", c.KCP.Kubeconfig, "Set the kcp kubeconfig path")
 	fs.StringVar(&c.APIExportEndpointSlices.CorePlatformMeshIO, "api-export-endpoint-slice-name", c.APIExportEndpointSlices.CorePlatformMeshIO, "Set the core.platform-mesh.io APIExportEndpointSlice name")
-	fs.StringVar(&c.APIExportEndpointSlices.SystemPlatformMeshIO, "system-api-export-endpoint-slice-name", c.APIExportEndpointSlices.SystemPlatformMeshIO, "Set the system.platform-mesh.io APIExportEndpointSlice name")
+	fs.StringVar(&c.APIExportEndpointSlices.SystemPlatformMeshIO, "system-api-export-endpoint-slice-name", c.APIExportEndpointSlices.SystemPlatformMeshIO, "Set the system.platform-mesh.io APIExportEndpointSlice name (legacy APIExportPolicies)")
 	fs.StringVar(&c.APIExportEndpointSlices.ProvidersPlatformMeshIO, "providers-api-export-endpoint-slice-name", c.APIExportEndpointSlices.ProvidersPlatformMeshIO, "Set the providers.platform-mesh.io APIExportEndpointSlice name")
-	fs.StringVar(&c.APIExportEndpointSlices.FgaPlatformMeshIO, "fga-api-export-endpoint-slice-name", c.APIExportEndpointSlices.FgaPlatformMeshIO, "Set the fga.platform-mesh.io APIExportEndpointSlice name")
-	fs.StringVar(&c.APIExportEndpointSlices.ProviderFgaPlatformMeshIO, "provider-fga-api-export-endpoint-slice-name", c.APIExportEndpointSlices.ProviderFgaPlatformMeshIO, "Set the provider-fga.platform-mesh.io APIExportEndpointSlice name")
+	fs.StringVar(&c.APIExportEndpointSlices.OpenfgaPlatformMeshIO, "openfga-api-export-endpoint-slice-name", c.APIExportEndpointSlices.OpenfgaPlatformMeshIO, "Set the openfga.platform-mesh.io APIExportEndpointSlice name")
+	fs.StringVar(&c.APIExportEndpointSlices.ProviderOpenfgaPlatformMeshIO, "provider-openfga-api-export-endpoint-slice-name", c.APIExportEndpointSlices.ProviderOpenfgaPlatformMeshIO, "Set the provider-openfga.platform-mesh.io APIExportEndpointSlice name")
+	fs.StringVar(&c.APIExportEndpointSlices.FgaPlatformMeshIO, "fga-api-export-endpoint-slice-name", c.APIExportEndpointSlices.FgaPlatformMeshIO, "Set the fga.platform-mesh.io APIExportEndpointSlice name (legacy Stores)")
+	fs.StringVar(&c.APIExportEndpointSlices.ProviderFgaPlatformMeshIO, "provider-fga-api-export-endpoint-slice-name", c.APIExportEndpointSlices.ProviderFgaPlatformMeshIO, "Set the provider-fga.platform-mesh.io APIExportEndpointSlice name (legacy AuthorizationModels)")
 	fs.StringVar(&c.CoreModulePath, "core-module-path", c.CoreModulePath, "Set the path to the core module FGA model file")
 	fs.StringVar(&c.WorkspacePath, "workspace-path", c.WorkspacePath, "Set the parent workspace path for created workspaces")
 	fs.StringVar(&c.WorkspaceTypeName, "workspace-type-name", c.WorkspaceTypeName, "Set the workspace type name")
@@ -145,10 +160,19 @@ func (c Config) TerminatorName() string {
 // MultiProviderName returns a cluster name with provider prefix and separator for multi provider.
 // The multi.Provider prefixes cluster names as "providerName#clusterName"
 func MultiProviderName(providerName, clusterName string) multicluster.ClusterName {
-	return multicluster.ClusterName(providerName + providerSeparator + clusterName)
+	return multicluster.ClusterName(providerName + ProviderSeparator + clusterName)
 }
 
-// StoreClusterName returns the cluster name of a Store's logical cluster, as seen through the fga provider.
+// StoreClusterName returns the cluster name of a Store's logical cluster, as seen through the openfga provider.
 func StoreClusterName(logicalCluster string) multicluster.ClusterName {
-	return MultiProviderName(FgaProviderName, logicalCluster)
+	return MultiProviderName(OpenfgaProviderName, logicalCluster)
+}
+
+// LogicalClusterName strips the provider prefix off an engaged cluster name.
+func LogicalClusterName(engaged multicluster.ClusterName) string {
+	_, cluster, found := strings.Cut(string(engaged), ProviderSeparator)
+	if !found {
+		return string(engaged)
+	}
+	return cluster
 }

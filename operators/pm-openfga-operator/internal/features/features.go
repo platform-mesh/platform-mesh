@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package features defines the pm-openfga-operator feature gates, set with --feature-gates=<Gate>=<bool>.
+// Package features defines the pm-openfga-operator feature gates,
+// set with --feature-gates=<Gate>=<bool>.
 package features
 
 import (
@@ -22,11 +23,13 @@ import (
 	"k8s.io/component-base/featuregate"
 )
 
-// OpenFGA enables authorization management.
-const OpenFGA featuregate.Feature = "OpenFGA"
+// LegacyAPIs also reconciles the deprecated core.platform-mesh.io Stores,
+// AuthorizationModels and APIExportPolicies through the fga, provider-fga and
+// system APIExports, for installations not yet migrated to openfga.platform-mesh.io.
+const LegacyAPIs featuregate.Feature = "LegacyAPIs"
 
 var defaultFeatures = map[featuregate.Feature]featuregate.FeatureSpec{
-	OpenFGA: {Default: true, PreRelease: featuregate.Alpha},
+	LegacyAPIs: {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // New returns a feature gate with every pm-openfga-operator feature registered at its default.
