@@ -42,7 +42,6 @@ type notes struct {
 	Contributors    []author
 	Components      []versionRow
 	OtherComponents []versionRow
-	OtherChanges    []upstreamChanges
 	ThirdParty      []versionRow
 	Changes         []componentChanges
 }

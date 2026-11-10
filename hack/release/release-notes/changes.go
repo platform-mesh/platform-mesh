@@ -39,14 +39,28 @@ const (
 	maxComponents      = 3
 )
 
-var mergeSubject = regexp.MustCompile(`^Merge pull request #(\d+) `)
+var (
+	mergeSubject = regexp.MustCompile(`^Merge pull request #(\d+) `)
+	// appVersionBump is the title of the automated chart bumps; the version
+	// tables already show those versions.
+	appVersionBump = regexp.MustCompile(`^(\[BACKPORT\] )?Set appVersion \S+ in charts/[^/]+/Chart\.yaml$`)
+	// housekeeping are commit titles without user-facing content.
+	housekeeping = regexp.MustCompile(`(?i)^(tidy|go mod tidy|codegen|generate|regenerate|lint|fmt|gofmt)$`)
+)
 
-// change is one first-parent commit between the two refs.
+// change is one commit between the two refs.
 type change struct {
 	SHA   string
 	Title string
 	// PR is 0 for a commit that was not merged through a pull request.
 	PR int
+	// Repo is the GitHub repository the commit and pull request link to.
+	Repo string
+}
+
+// isNoise reports whether a commit title carries nothing worth listing.
+func isNoise(title string) bool {
+	return appVersionBump.MatchString(title) || housekeeping.MatchString(title)
 }
 
 // component is an entry of ocm/components.yaml.
@@ -61,11 +75,16 @@ type component struct {
 // componentChanges are the changes attributed to one component.
 type componentChanges struct {
 	Component string
-	Changes   []change
+	// From and To are the versions of a component built in another
+	// repository; empty for components built here.
+	From    string
+	To      string
+	Changes []change
 }
 
-// firstParentLog returns the first-parent commits in start..end, newest first.
-func firstParentLog(ctx context.Context, start, end string) ([]change, error) {
+// firstParentLog returns the first-parent commits in start..end, newest first,
+// linking to repoURL.
+func firstParentLog(ctx context.Context, repoURL, start, end string) ([]change, error) {
 	out, err := git(ctx, "log", "--first-parent", "--format=%H%x1f%s%x1f%b%x1e", start+".."+end)
 	if err != nil {
 		return nil, fmt.Errorf("listing commits %s..%s: %w", start, end, err)
@@ -81,6 +100,7 @@ func firstParentLog(ctx context.Context, start, end string) ([]change, error) {
 			SHA:   fields[0],
 			Title: title,
 			PR:    number,
+			Repo:  repoURL,
 		})
 	}
 	return changes, nil
@@ -158,10 +178,13 @@ func changedPaths(ctx context.Context, sha string) ([]string, error) {
 }
 
 // groupChanges attributes every change to the components it touched,
-// sorted by component name.
+// sorted by component name. Noise is dropped.
 func groupChanges(ctx context.Context, comps []component, changes []change) ([]componentChanges, error) {
 	byComponent := map[string][]change{}
 	for _, ch := range changes {
+		if isNoise(ch.Title) {
+			continue
+		}
 		paths, err := changedPaths(ctx, ch.SHA)
 		if err != nil {
 			return nil, err
@@ -188,6 +211,39 @@ func groupChanges(ctx context.Context, comps []component, changes []change) ([]c
 			Changes:   chs,
 		})
 	}
-	slices.SortFunc(grouped, func(a, b componentChanges) int { return strings.Compare(a.Component, b.Component) })
+	sortGroups(grouped)
 	return grouped, nil
+}
+
+// mergeUpstream adds the commits of the components built in other
+// repositories to their groups, ahead of the changes made here.
+func mergeUpstream(grouped []componentChanges, other []upstreamChanges) []componentChanges {
+	for _, uc := range other {
+		var changes []change
+		for _, c := range uc.Commits {
+			if isNoise(c.Title) {
+				continue
+			}
+			changes = append(changes, change{
+				SHA:   c.SHA,
+				Title: c.Title,
+				PR:    c.PR,
+				Repo:  uc.Repo,
+			})
+		}
+		i := slices.IndexFunc(grouped, func(g componentChanges) bool { return g.Component == uc.Chart })
+		if i < 0 {
+			grouped = append(grouped, componentChanges{Component: uc.Chart})
+			i = len(grouped) - 1
+		}
+		grouped[i].From = uc.From
+		grouped[i].To = uc.To
+		grouped[i].Changes = append(changes, grouped[i].Changes...)
+	}
+	sortGroups(grouped)
+	return grouped
+}
+
+func sortGroups(grouped []componentChanges) {
+	slices.SortFunc(grouped, func(a, b componentChanges) int { return strings.Compare(a.Component, b.Component) })
 }

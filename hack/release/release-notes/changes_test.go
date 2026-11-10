@@ -112,13 +112,17 @@ func TestChanges(t *testing.T) {
 
 	write("hack/tool.sh", "#!/bin/sh\n")
 	repo.Commit("Add tool")
+	write("go.sum", "x\n")
+	repo.Commit("tidy")
 
-	changes, err := firstParentLog(t.Context(), "v26.10.0", "HEAD")
+	const repoURL = "https://github.com/platform-mesh/platform-mesh"
+	changes, err := firstParentLog(t.Context(), repoURL, "v26.10.0", "HEAD")
 	require.NoError(t, err)
-	require.Len(t, changes, 3, "first-parent history only")
-	assert.Equal(t, change{SHA: changes[0].SHA, Title: "Add tool"}, changes[0])
-	assert.Equal(t, change{SHA: changes[1].SHA, Title: "Add iam service and portal chart", PR: 11}, changes[1])
-	assert.Equal(t, change{SHA: changes[2].SHA, Title: "Add account operator", PR: 10}, changes[2])
+	require.Len(t, changes, 4, "first-parent history only")
+	assert.Equal(t, change{SHA: changes[0].SHA, Title: "tidy", Repo: repoURL}, changes[0])
+	assert.Equal(t, change{SHA: changes[1].SHA, Title: "Add tool", Repo: repoURL}, changes[1])
+	assert.Equal(t, change{SHA: changes[2].SHA, Title: "Add iam service and portal chart", PR: 11, Repo: repoURL}, changes[2])
+	assert.Equal(t, change{SHA: changes[3].SHA, Title: "Add account operator", PR: 10, Repo: repoURL}, changes[3])
 
 	comps, err := components(t.Context(), "HEAD")
 	require.NoError(t, err)
@@ -137,6 +141,65 @@ func TestChanges(t *testing.T) {
 		"iam-service":       {"Add iam service and portal chart"},
 		"portal":            {"Add iam service and portal chart"},
 		repositoryComponent: {"Add tool"},
-	}, byName, "a merge is attributed by all files of its branch, once per component")
+	}, byName, "a merge is attributed by all files of its branch, once per component; tidy is noise")
 	assert.Equal(t, "account-operator", grouped[0].Component, "sorted by component")
+}
+
+func TestIsNoise(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]bool{
+		"Set appVersion v0.27.32 in charts/portal/Chart.yaml":                            true,
+		"[BACKPORT] Set appVersion v0.6.7 in charts/example-httpbin-operator/Chart.yaml": true,
+		"tidy":                                true,
+		"Tidy":                                true,
+		"go mod tidy":                         true,
+		"codegen":                             true,
+		"generate":                            true,
+		"Set appVersion for portal":           false,
+		"tidy up the release notes":           false,
+		"fix(portal): generate correct links": false,
+	}
+
+	for title, want := range cases {
+		t.Run(title, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, want, isNoise(title))
+		})
+	}
+}
+
+func TestMergeUpstream(t *testing.T) {
+	t.Parallel()
+
+	const local = "https://github.com/platform-mesh/platform-mesh"
+	grouped := []componentChanges{
+		{Component: "account-operator", Changes: []change{{SHA: "a", Title: "Fix", PR: 1, Repo: local}}},
+		{Component: "portal", Changes: []change{{SHA: "b", Title: "Tune values", PR: 2, Repo: local}}},
+	}
+	other := []upstreamChanges{
+		{
+			Chart: "portal", Repo: "https://github.com/platform-mesh/portal", From: "v0.27.20", To: "v0.27.32",
+			Commits: []upstreamCommit{
+				{SHA: "c", Title: "feat: x", PR: 10},
+				{SHA: "d", Title: "codegen"},
+			},
+		},
+		{
+			Chart: "iam-ui", Repo: "https://github.com/platform-mesh/iam-ui", From: "v0.12.23", To: "v0.12.30",
+			Commits: []upstreamCommit{{SHA: "e", Title: "fix: y", PR: 20}},
+		},
+	}
+
+	want := []componentChanges{
+		{Component: "account-operator", Changes: []change{{SHA: "a", Title: "Fix", PR: 1, Repo: local}}},
+		{Component: "iam-ui", From: "v0.12.23", To: "v0.12.30", Changes: []change{
+			{SHA: "e", Title: "fix: y", PR: 20, Repo: "https://github.com/platform-mesh/iam-ui"},
+		}},
+		{Component: "portal", From: "v0.27.20", To: "v0.27.32", Changes: []change{
+			{SHA: "c", Title: "feat: x", PR: 10, Repo: "https://github.com/platform-mesh/portal"},
+			{SHA: "b", Title: "Tune values", PR: 2, Repo: local},
+		}},
+	}
+	assert.Equal(t, want, mergeUpstream(grouped, other), "upstream commits first, noise dropped, new group created, sorted")
 }

@@ -92,7 +92,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	}
 	client := newGitHub()
 
-	changes, err := firstParentLog(ctx, start.commit, end.commit)
+	changes, err := firstParentLog(ctx, repoURL, start.commit, end.commit)
 	if err != nil {
 		return err
 	}
@@ -129,9 +129,8 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		Contributors:    contributors(prAuthors(prs), upstreamAuthors(other)),
 		Components:      componentRows(comps, start.ocmVersion(), end.ocmVersion()),
 		OtherComponents: otherComponents,
-		OtherChanges:    other,
 		ThirdParty:      thirdPartyRows(thirdPartyFrom, thirdPartyTo),
-		Changes:         grouped,
+		Changes:         mergeUpstream(grouped, other),
 	}
 	return render(stdout, n)
 }
