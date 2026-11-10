@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
-	"go.platform-mesh.io/security-operator/pkg/app"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/app"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 )

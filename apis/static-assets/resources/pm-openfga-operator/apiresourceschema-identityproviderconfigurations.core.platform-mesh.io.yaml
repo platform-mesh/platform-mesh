@@ -15,23 +15,25 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261110-6b64808e.stores.openfga.platform-mesh.io
+  name: v261111-3fc0b5de.identityproviderconfigurations.core.platform-mesh.io
 spec:
-  group: openfga.platform-mesh.io
+  group: core.platform-mesh.io
   names:
-    kind: Store
-    listKind: StoreList
-    plural: stores
-    singular: store
+    kind: IdentityProviderConfiguration
+    listKind: IdentityProviderConfigurationList
+    plural: identityproviderconfigurations
+    singular: identityproviderconfiguration
   scope: Cluster
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=="Ready")].status
-      name: Ready
-      type: string
+  - deprecated: true
+    deprecationWarning: core.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
+      is deprecated, use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
     name: v1alpha1
     schema:
-      description: Store is the Schema for the stores API.
+      description: |-
+        IdentityProviderConfiguration is the Schema for the identityproviderconfigurations API
+
+        Deprecated: use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration.
       properties:
         apiVersion:
           description: |-
@@ -51,33 +53,55 @@ spec:
         metadata:
           type: object
         spec:
-          description: StoreSpec defines the desired state of Store.
+          description: spec defines the desired state of IdentityProviderConfiguration
           properties:
-            coreModule:
-              type: string
-            tuples:
+            clients:
               items:
                 properties:
-                  object:
+                  clientName:
                     type: string
-                  relation:
+                  clientType:
+                    enum:
+                    - confidential
+                    - public
                     type: string
-                  user:
-                    type: string
+                  postLogoutRedirectUris:
+                    items:
+                      type: string
+                    type: array
+                  redirectUris:
+                    items:
+                      type: string
+                    type: array
+                  secretRef:
+                    description: |-
+                      SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                      in any namespace
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
                 required:
-                - object
-                - relation
-                - user
+                - clientName
+                - clientType
+                - redirectUris
                 type: object
               type: array
+            registrationAllowed:
+              type: boolean
           required:
-          - coreModule
+          - clients
           type: object
         status:
-          description: StoreStatus defines the observed state of Store.
+          description: status defines the observed state of IdentityProviderConfiguration
           properties:
-            authorizationModelId:
-              type: string
             conditions:
               items:
                 description: Condition contains details for one aspect of the current
@@ -134,24 +158,39 @@ spec:
                 - type
                 type: object
               type: array
-            managedTuples:
-              items:
+            managedClients:
+              additionalProperties:
+                description: ManagedClient tracks a client that is managed by the
+                  operator.
                 properties:
-                  object:
+                  clientId:
                     type: string
-                  relation:
+                  registrationClientUri:
                     type: string
-                  user:
-                    type: string
+                  secretRef:
+                    description: |-
+                      SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                      in any namespace
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
                 required:
-                - object
-                - relation
-                - user
+                - clientId
+                - registrationClientUri
+                - secretRef
                 type: object
-              type: array
-            storeId:
-              type: string
+              type: object
           type: object
+      required:
+      - spec
       type: object
     served: true
     storage: true

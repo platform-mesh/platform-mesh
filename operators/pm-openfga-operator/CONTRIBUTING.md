@@ -48,12 +48,12 @@ After it you need to restart security operator's pods and they will fetch a loca
 If you want to use another image name and tag use this approach
 
 ```bash
-docker build -t security-operator:latest . && \
-kind load docker-image security-operator:latest --name=platform-mesh && \
-kubectl patch deployment platform-mesh-security-operator -n platform-mesh-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value": "IfNotPresent"}]' && \
-kubectl patch deployment platform-mesh-security-operator -n platform-mesh-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "security-operator:latest"}]' && \
-kubectl rollout restart deployment platform-mesh-security-operator -n platform-mesh-system && \
-kubectl rollout status deployment platform-mesh-security-operator -n platform-mesh-system
+docker build -t pm-openfga-operator:latest . && \
+kind load docker-image pm-openfga-operator:latest --name=platform-mesh && \
+kubectl patch deployment platform-mesh-pm-openfga-operator -n platform-mesh-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value": "IfNotPresent"}]' && \
+kubectl patch deployment platform-mesh-pm-openfga-operator -n platform-mesh-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "pm-openfga-operator:latest"}]' && \
+kubectl rollout restart deployment platform-mesh-pm-openfga-operator -n platform-mesh-system && \
+kubectl rollout status deployment platform-mesh-pm-openfga-operator -n platform-mesh-system
 ```
 
 **Install the CRDs into the cluster:**

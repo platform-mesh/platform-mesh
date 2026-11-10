@@ -21,7 +21,7 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"go.platform-mesh.io/security-operator/internal/features"
+	"go.platform-mesh.io/pm-openfga-operator/internal/features"
 
 	"k8s.io/component-base/featuregate"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"

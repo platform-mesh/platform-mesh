@@ -28,12 +28,12 @@ import (
 
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/sentry"
-	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/controller"
-	fga2 "go.platform-mesh.io/security-operator/internal/fga"
-	"go.platform-mesh.io/security-operator/internal/predicates"
-	"go.platform-mesh.io/security-operator/pkg/app"
-	"go.platform-mesh.io/security-operator/pkg/config"
+	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
+	"go.platform-mesh.io/pm-openfga-operator/internal/controller"
+	fga2 "go.platform-mesh.io/pm-openfga-operator/internal/fga"
+	"go.platform-mesh.io/pm-openfga-operator/internal/predicates"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/app"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -98,7 +98,7 @@ var operatorCmd = &cobra.Command{
 			},
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			LeaderElection:         defaultCfg.LeaderElectionEnabled,
-			LeaderElectionID:       "security-operator.platform-mesh.io",
+			LeaderElectionID:       "pm-openfga-operator.platform-mesh.io",
 			BaseContext:            func() context.Context { return ctx },
 		}
 		if defaultCfg.LeaderElectionEnabled {

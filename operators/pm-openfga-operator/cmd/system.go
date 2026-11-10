@@ -26,10 +26,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
-	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/controller"
-	"go.platform-mesh.io/security-operator/internal/fga"
-	"go.platform-mesh.io/security-operator/pkg/config"
+	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
+	"go.platform-mesh.io/pm-openfga-operator/internal/controller"
+	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -69,7 +69,7 @@ var systemCmd = &cobra.Command{
 			},
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			LeaderElection:         defaultCfg.LeaderElectionEnabled,
-			LeaderElectionID:       "security-operator-system.platform-mesh.io",
+			LeaderElectionID:       "pm-openfga-operator-system.platform-mesh.io",
 			BaseContext:            func() context.Context { return ctx },
 		}
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 components:
-  - name: github.com/platform-mesh/images/security-operator
+  - name: github.com/platform-mesh/images/pm-openfga-operator
     version: ${PM_VERSION}
     provider:
       name: The Platform Mesh Team
@@ -32,16 +32,16 @@ components:
         version: v${PM_VERSION}
         access:
           type: ociArtifact
-          imageReference: ${IMAGE_REPO}/security-operator:v${PM_VERSION}
+          imageReference: ${IMAGE_REPO}/pm-openfga-operator:v${PM_VERSION}
       - name: sbom-cyclonedx
         type: sbom
         input:
           type: file
-          path: security-operator/sbom-cyclonedx.json
+          path: pm-openfga-operator/sbom-cyclonedx.json
           mediaType: application/vnd.cyclonedx+json
       - name: sbom-spdx
         type: sbom
         input:
           type: file
-          path: security-operator/sbom-spdx.json
+          path: pm-openfga-operator/sbom-spdx.json
           mediaType: application/spdx+json

@@ -33,8 +33,8 @@ import (
 	"go.platform-mesh.io/platform-mesh/tests/framework/kcp"
 	"go.platform-mesh.io/platform-mesh/tests/framework/manager"
 	"go.platform-mesh.io/platform-mesh/tests/framework/scheme"
-	"go.platform-mesh.io/security-operator/pkg/app"
-	"go.platform-mesh.io/security-operator/pkg/config"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/app"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

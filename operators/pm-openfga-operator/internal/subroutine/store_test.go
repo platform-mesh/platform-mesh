@@ -28,8 +28,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/security-operator/internal/subroutine"
-	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
+	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine"
+	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"

@@ -23,8 +23,8 @@ require (
 	go.platform-mesh.io/golang-commons v0.20.0
 	go.platform-mesh.io/kro-composition-operator v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/kubernetes-graphql-gateway v0.0.0-00010101000000-000000000000
+	go.platform-mesh.io/pm-openfga-operator v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/resource-broker v0.0.0-00010101000000-000000000000
-	go.platform-mesh.io/security-operator v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/subroutines v0.7.0
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/sync v0.24.0
@@ -54,8 +54,8 @@ replace (
 	go.platform-mesh.io/golang-commons => ./golang-commons
 	go.platform-mesh.io/kro-composition-operator => ./operators/kro-composition-operator
 	go.platform-mesh.io/kubernetes-graphql-gateway => ./services/kubernetes-graphql-gateway
+	go.platform-mesh.io/pm-openfga-operator => ./operators/pm-openfga-operator
 	go.platform-mesh.io/resource-broker => ./operators/resource-broker
-	go.platform-mesh.io/security-operator => ./operators/pm-openfga-operator
 	go.platform-mesh.io/subroutines => ./subroutines
 )
 

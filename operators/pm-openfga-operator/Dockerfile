@@ -18,7 +18,7 @@
 # The operator module is linked to the shared in-repo modules through the
 # repository-root go.work file and the go.mod replace directives, so the
 # workspace and those module sources must be present in the build:
-#   docker build -f operators/security-operator/Dockerfile .
+#   docker build -f operators/pm-openfga-operator/Dockerfile .
 FROM --platform=$BUILDPLATFORM golang:1.27.3@sha256:2920bb124f1a2e12a1d39f0cab756ae0068441ee1da7655dec7f5e374944095b AS builder
 ARG TARGETOS
 ARG TARGETARCH
@@ -31,7 +31,7 @@ COPY go.work.sum go.work.sum
 COPY apis/ apis/
 COPY golang-commons/ golang-commons/
 COPY subroutines/ subroutines/
-COPY operators/security-operator/ operators/security-operator/
+COPY operators/pm-openfga-operator/ operators/pm-openfga-operator/
 
 # Drop every workspace module except the ones copied above, so the workspace
 # resolves with only the modules copied above — regardless of what else go.work lists
@@ -39,12 +39,12 @@ COPY operators/security-operator/ operators/security-operator/
 # dropped modules don't need to exist in the build context.
 RUN for m in $(go work edit -json | sed -n 's/.*"DiskPath": "\(.*\)".*/\1/p'); do \
       case "$m" in \
-        ./apis|./golang-commons|./subroutines|./operators/security-operator) ;; \
+        ./apis|./golang-commons|./subroutines|./operators/pm-openfga-operator) ;; \
         *) go work edit -dropuse "$m" ;; \
       esac; \
     done
 
-WORKDIR /workspace/operators/security-operator
+WORKDIR /workspace/operators/pm-openfga-operator
 
 # cache deps before building so that source changes don't invalidate the layer
 RUN go mod download
