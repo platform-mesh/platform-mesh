@@ -56,7 +56,7 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
 		Path:           "root:platform-mesh-system",
 		Secret:         RebacAuthzWebhookKubeconfigSecret,
-		APIExportNames: []string{"core.platform-mesh.io", "fga.platform-mesh.io"},
+		APIExportNames: []string{"core.platform-mesh.io", "fga.platform-mesh.io", "openfga.platform-mesh.io"},
 		AdminAuth:      ptr.To(false),
 	},
 	{

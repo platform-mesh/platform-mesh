@@ -19,8 +19,8 @@ metadata:
   name: system.platform-mesh.io
 spec:
   latestResourceSchemas:
-  - v261110-ea292166.identityproviderconfigurations.core.platform-mesh.io
-  - v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
+  - v261110-3fc0b5de.identityproviderconfigurations.core.platform-mesh.io
+  - v261110-1e4f8d47.apiexportpolicies.core.platform-mesh.io
   permissionClaims:
     - all: true
       group: tenancy.kcp.io
