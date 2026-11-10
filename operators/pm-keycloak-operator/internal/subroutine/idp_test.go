@@ -28,6 +28,8 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
+	"go.platform-mesh.io/pm-keycloak-operator/internal/features"
+	"go.platform-mesh.io/pm-keycloak-operator/internal/legacy"
 	"go.platform-mesh.io/pm-keycloak-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/pm-keycloak-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
@@ -553,7 +555,8 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 			mgr := mocks.NewMockManager(t)
 			cluster := mocks.NewMockCluster(t)
 			kcpHelper := mocks.NewMockKCPClientGetter(t)
-			cfg := config.Config{}
+			cfg := config.Config{FeatureGates: features.New()}
+			require.NoError(t, cfg.FeatureGates.Set("LegacyAPIs=false"))
 			cfg.IDP.AdditionalRedirectURLs = []string{}
 			cfg.IDP.KubectlClientRedirectURLs = []string{"http://localhost:8000", "http://localhost:18000"}
 			cfg.BaseDomain = "example.com"
@@ -650,4 +653,53 @@ func newIDPTerminateSubroutine(t *testing.T, objs ...ctrlruntimeclient.Object) (
 	clientGetter.EXPECT().NewClientForLogicalCluster(context.Background(), config.OrgsClusterPath).Return(cl, nil).Once()
 
 	return &IDPSubroutine{kcpClientGetter: clientGetter}, cl
+}
+
+// With LegacyAPIs the initializer keeps a deprecated twin of the
+// IdentityProviderConfiguration, created already marked migrated.
+func TestIDPSubroutine_InitializeCreatesLegacyTwin(t *testing.T) {
+	t.Parallel()
+
+	creator := "alice@example.com"
+	cl := newOrgResourceFakeClient(t, &pmcorev1alpha1.Account{
+		ObjectMeta: metav1.ObjectMeta{Name: orgTerminateTestOrg},
+		Spec:       pmcorev1alpha1.AccountSpec{Type: pmcorev1alpha1.AccountTypeOrg, Creator: &creator},
+	})
+	mgr := mocks.NewMockManager(t)
+	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(mocks.NewMockCluster(t), nil).Once()
+	clientGetter := mocks.NewMockKCPClientGetter(t)
+	clientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, config.OrgsClusterPath).Return(cl, nil).Once()
+	cfg := config.Config{}
+	cfg.BaseDomain = "example.com"
+	sub, err := NewIDPSubroutine(mgr, clientGetter, cfg)
+	require.NoError(t, err)
+
+	result, err := sub.Initialize(testlogger.New().WithContext(context.Background()), logicalClusterForOrg(orgTerminateTestOrg))
+	require.NoError(t, err)
+	assert.True(t, result.IsStopWithRequeue(), "the keycloak object is not Ready yet")
+
+	var idp pmkeycloakv1alpha1.IdentityProviderConfiguration
+	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Name: orgTerminateTestOrg}, &idp))
+	//nolint:staticcheck // legacy kind under test
+	var twin pmcorev1alpha1.IdentityProviderConfiguration
+	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Name: orgTerminateTestOrg}, &twin))
+	assert.Equal(t, "true", twin.Annotations[legacy.MigratedAnnotation], "never reconciled by the legacy chain")
+	assert.Equal(t, legacy.IdentityProviderConfigurationSpecFromCurrent(idp.Spec), twin.Spec)
+	assert.Len(t, twin.Spec.Clients, 2)
+}
+
+func TestIDPSubroutine_TerminateDeletesLegacyTwin(t *testing.T) {
+	t.Parallel()
+
+	//nolint:staticcheck // legacy kind under test
+	twin := &pmcorev1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: orgTerminateTestOrg, Finalizers: []string{"core.platform-mesh.io/idp-finalizer"}}}
+	sub, cl := newIDPTerminateSubroutine(t, twin)
+
+	result, err := sub.Terminate(context.Background(), logicalClusterForOrg(orgTerminateTestOrg))
+
+	require.NoError(t, err)
+	assert.True(t, result.IsStopWithRequeue())
+	//nolint:staticcheck // legacy kind under test
+	var got pmcorev1alpha1.IdentityProviderConfiguration
+	requireDeleting(t, cl, &got, orgTerminateTestOrg)
 }

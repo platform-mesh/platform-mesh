@@ -25,6 +25,16 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// MigratedAnnotation marks a legacy object whose keycloak.platform-mesh.io
+// successor exists. The legacy reconcilers leave it alone and release its
+// finalizers without touching Keycloak when it is deleted.
+const MigratedAnnotation = "keycloak.platform-mesh.io/migrated"
+
+// Migrated reports whether obj carries MigratedAnnotation.
+func Migrated(obj ctrlruntimeclient.Object) bool {
+	return obj.GetAnnotations()[MigratedAnnotation] == "true"
+}
+
 // converter maps a legacy object to its current counterpart.
 // writeBack copies the current object's state back into the legacy one.
 type converter func(legacy ctrlruntimeclient.Object) (current ctrlruntimeclient.Object, writeBack func(), err error)
@@ -49,7 +59,7 @@ func (s *Subroutine) GetName() string { return s.inner.GetName() }
 // Process implements subroutines.Processor.
 func (s *Subroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	processor, ok := s.inner.(subroutines.Processor)
-	if !ok {
+	if !ok || Migrated(obj) {
 		return subroutines.OK(), nil
 	}
 	current, writeBack, err := s.convert(obj)
@@ -62,9 +72,10 @@ func (s *Subroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) 
 }
 
 // Finalize implements subroutines.Finalizer.
+// A migrated object is released without finalizing: its successor owns the realm now.
 func (s *Subroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	finalizer, ok := s.inner.(subroutines.Finalizer)
-	if !ok {
+	if !ok || Migrated(obj) {
 		return subroutines.OK(), nil
 	}
 	current, writeBack, err := s.convert(obj)

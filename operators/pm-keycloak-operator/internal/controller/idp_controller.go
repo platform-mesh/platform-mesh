@@ -36,14 +36,22 @@ import (
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
 
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	ctrhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	"sigs.k8s.io/multicluster-runtime/pkg/handler"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 // IdentityProviderConfigurationReconciler reconciles IdentityProviderConfigurations
@@ -55,15 +63,20 @@ type IdentityProviderConfigurationReconciler struct {
 	engageOpts  mcbuilder.EngageOptions
 	lifecycle   *lifecycle.Lifecycle
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
+	// watchLegacy re-reconciles the keycloak object when its deprecated twin
+	// changes, so the twin's status mirror does not wait for the resync.
+	watchLegacy bool
 }
 
 // NewIdentityProviderConfigurationReconciler reconciles keycloak.platform-mesh.io
 // IdentityProviderConfigurations engaged through the keycloak provider.
-func NewIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg *config.Config, log *logger.Logger) (*IdentityProviderConfigurationReconciler, error) {
+// adopt, when set, takes over the Keycloak clients of a same-named
+// deprecated IdentityProviderConfiguration (feature gate LegacyAPIs).
+func NewIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg *config.Config, log *logger.Logger, adopt idp.LegacyAdopter, mirror idp.LegacyMirror) (*IdentityProviderConfigurationReconciler, error) {
 	return newIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, cfg, log, "identityprovider",
 		func() ctrlruntimeclient.Object { return &pmkeycloakv1alpha1.IdentityProviderConfiguration{} },
 		func(sub subroutines.Subroutine) subroutines.Subroutine { return sub },
-		WithClustersFromNamedProvider(config.KeycloakProviderName, config.ProviderSeparator))
+		WithClustersFromNamedProvider(config.KeycloakProviderName, config.ProviderSeparator), adopt, mirror, mirror != nil)
 }
 
 // NewLegacyIdentityProviderConfigurationReconciler reconciles the deprecated
@@ -76,15 +89,21 @@ func NewLegacyIdentityProviderConfigurationReconciler(ctx context.Context, mgr m
 		func(sub subroutines.Subroutine) subroutines.Subroutine {
 			return legacy.IdentityProviderConfiguration(sub)
 		},
-		WithClustersFromNamedProvider(config.SystemProviderName, config.ProviderSeparator))
+		WithClustersFromNamedProvider(config.SystemProviderName, config.ProviderSeparator), nil, nil, false)
 }
 
 func newIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg *config.Config, log *logger.Logger,
-	name string, newObj func() ctrlruntimeclient.Object, wrap func(subroutines.Subroutine) subroutines.Subroutine, engageOpts mcbuilder.EngageOptions,
+	name string, newObj func() ctrlruntimeclient.Object, wrap func(subroutines.Subroutine) subroutines.Subroutine, engageOpts mcbuilder.EngageOptions, adopt idp.LegacyAdopter, mirror idp.LegacyMirror, watchLegacy bool,
 ) (*IdentityProviderConfigurationReconciler, error) {
 	idpSubroutine, err := idp.New(ctx, cfg, mgr, kcpClientGetter)
 	if err != nil {
 		return nil, fmt.Errorf("creating IDP subroutine: %w", err)
+	}
+	if adopt != nil {
+		idpSubroutine = idpSubroutine.WithLegacyAdopter(adopt)
+	}
+	if mirror != nil {
+		idpSubroutine = idpSubroutine.WithLegacyMirror(mirror)
 	}
 
 	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
@@ -102,6 +121,7 @@ func newIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanag
 		engageOpts:  engageOpts,
 		lifecycle:   lc,
 		rateLimiter: rl,
+		watchLegacy: watchLegacy,
 	}, nil
 }
 
@@ -123,10 +143,25 @@ func (r *IdentityProviderConfigurationReconciler) SetupWithManager(mgr mcmanager
 		RateLimiter:             r.rateLimiter,
 	}
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
-	return mcbuilder.ControllerManagedBy(mgr).
+	b := mcbuilder.ControllerManagedBy(mgr).
 		Named(r.name).
 		For(r.newObj(), r.engageOpts).
 		WithOptions(opts).
-		WithEventFilter(predicate.And(predicates...)).
-		Complete(r)
+		WithEventFilter(predicate.And(predicates...))
+	if r.watchLegacy {
+		b = b.Watches(
+			//nolint:staticcheck // legacy kind served on purpose
+			&pmcorev1alpha1.IdentityProviderConfiguration{},
+			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[ctrlruntimeclient.Object, mcreconcile.Request] {
+				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(_ context.Context, obj ctrlruntimeclient.Object) []mcreconcile.Request {
+					return []mcreconcile.Request{{
+						Request:     reconcile.Request{NamespacedName: types.NamespacedName{Name: obj.GetName()}},
+						ClusterName: config.MultiProviderName(config.KeycloakProviderName, logicalcluster.From(obj).String()),
+					}}
+				})
+			},
+			WithClustersFromNamedProvider(config.SystemProviderName, config.ProviderSeparator),
+		)
+	}
+	return b.Complete(r)
 }

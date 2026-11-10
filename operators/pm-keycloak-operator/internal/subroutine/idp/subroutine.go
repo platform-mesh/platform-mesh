@@ -41,6 +41,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
@@ -64,12 +65,39 @@ func pendingIfClusterNotReady(ctx context.Context, err error) (subroutines.Resul
 	return subroutines.Pending(clusterNotReadyRequeue, "waiting for cluster to be engaged by the multicluster provider"), true
 }
 
+// LegacyAdopter hands a deprecated core.platform-mesh.io
+// IdentityProviderConfiguration of the same name over to the one being
+// reconciled, returning the managed clients to continue with.
+// nil means there is nothing to adopt.
+type LegacyAdopter func(ctx context.Context, engaged multicluster.ClusterName, name string) (map[string]pmkeycloakv1alpha1.ManagedClient, error)
+
+// LegacyMirror copies status to a deprecated core.platform-mesh.io
+// IdentityProviderConfiguration of the same name, if one exists.
+type LegacyMirror func(ctx context.Context, engaged multicluster.ClusterName, name string, status pmkeycloakv1alpha1.IdentityProviderConfigurationStatus) error
+
 type subroutine struct {
 	keycloakBaseURL string
 	adminClient     *http.Client
 	mgr             mcmanager.Manager
 	cfg             *config.Config
 	kcpClientGetter iclient.KCPClientGetter
+	adoptLegacy     LegacyAdopter
+	mirrorLegacy    LegacyMirror
+}
+
+// WithLegacyAdopter makes the subroutine take over the Keycloak clients of a
+// deprecated IdentityProviderConfiguration when it reconciles a successor
+// that has no managed clients yet.
+func (s *subroutine) WithLegacyAdopter(adopt LegacyAdopter) *subroutine {
+	s.adoptLegacy = adopt
+	return s
+}
+
+// WithLegacyMirror makes the subroutine keep the status of a deprecated twin
+// in sync after each reconcile.
+func (s *subroutine) WithLegacyMirror(mirror LegacyMirror) *subroutine {
+	s.mirrorLegacy = mirror
+	return s
 }
 
 func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter) (*subroutine, error) {
@@ -232,6 +260,21 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 		return subroutines.OK(), err
 	}
 
+	if len(idpConfig.Status.ManagedClients) == 0 && s.adoptLegacy != nil {
+		engaged, ok := mccontext.ClusterFrom(ctx)
+		if !ok {
+			return subroutines.OK(), fmt.Errorf("failed to get cluster from context")
+		}
+		adopted, err := s.adoptLegacy(ctx, engaged, idpConfig.Name)
+		if err != nil {
+			return subroutines.OK(), fmt.Errorf("adopting legacy IdentityProviderConfiguration: %w", err)
+		}
+		if len(adopted) > 0 {
+			log.Info().Int("clients", len(adopted)).Msg("adopted the Keycloak clients of the deprecated core.platform-mesh.io IdentityProviderConfiguration")
+			idpConfig.Status.ManagedClients = adopted
+		}
+	}
+
 	// Status changes are persisted by the lifecycle after the subroutine returns,
 	// also for the legacy kind the legacy adapter maps this object back to.
 	if s.refreshRegistrationClientURIs(idpConfig) {
@@ -266,6 +309,16 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 	}
 
 	idpConfig.Status.ManagedClients = managedClients
+
+	if s.mirrorLegacy != nil {
+		engaged, ok := mccontext.ClusterFrom(ctx)
+		if !ok {
+			return subroutines.OK(), fmt.Errorf("failed to get cluster from context")
+		}
+		if err := s.mirrorLegacy(ctx, engaged, idpConfig.Name, idpConfig.Status); err != nil {
+			return subroutines.OK(), fmt.Errorf("mirroring status to the legacy IdentityProviderConfiguration: %w", err)
+		}
+	}
 
 	return subroutines.OK(), nil
 }

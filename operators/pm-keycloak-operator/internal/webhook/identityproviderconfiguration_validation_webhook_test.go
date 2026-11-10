@@ -30,7 +30,12 @@ import (
 	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/pm-keycloak-operator/pkg/config"
 
+	admissionv1 "k8s.io/api/admission/v1"
+	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 type fakeRealmChecker struct {
@@ -107,6 +112,40 @@ func TestIdentityProviderConfigurationValidator_ValidateCreate(t *testing.T) {
 	}
 }
 
+func TestIdentityProviderConfigurationValidator_ValidateCreate_RealmAdopter(t *testing.T) {
+	v := &identityProviderConfigurationValidator{keycloakClient: fakeRealmChecker{exists: true}}
+	ipc := &pmkeycloakv1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "org-1"}}
+
+	cases := map[string]struct {
+		groups  []string
+		wantErr bool
+	}{
+		"kcp admin adopts an existing realm":      {[]string{"system:authenticated", "system:kcp:admin"}, false},
+		"system:masters adopts an existing realm": {[]string{"system:masters"}, false},
+		"tenant may not take over a realm":        {[]string{"system:authenticated"}, true},
+		"no request in context":                   {nil, true},
+	}
+
+	for title, cas := range cases {
+		t.Run(title, func(t *testing.T) {
+			ctx := t.Context()
+			if cas.groups != nil {
+				ctx = admission.NewContextWithRequest(ctx, admission.Request{
+					AdmissionRequest: admissionv1.AdmissionRequest{UserInfo: authenticationv1.UserInfo{Groups: cas.groups}},
+				})
+			}
+
+			_, err := v.ValidateCreate(ctx, ipc)
+
+			if cas.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestIdentityProviderConfigurationValidator_ValidateUpdate(t *testing.T) {
 	v := &identityProviderConfigurationValidator{keycloakClient: fakeRealmChecker{exists: true}}
 	_, err := v.ValidateUpdate(t.Context(), &pmkeycloakv1alpha1.IdentityProviderConfiguration{}, &pmkeycloakv1alpha1.IdentityProviderConfiguration{})
@@ -175,7 +214,51 @@ func TestNewKeycloakAdminClient(t *testing.T) {
 func TestSetupIdentityProviderConfigurationValidatingWebhookWithManager_AdminClientError(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Keycloak.BaseURL = "http://127.0.0.1:1"
-	err := SetupIdentityProviderConfigurationValidatingWebhookWithManager(t.Context(), nil, cfg, true)
+	err := SetupIdentityProviderConfigurationValidatingWebhookWithManager(t.Context(), nil, cfg, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create keycloak admin client for webhook")
+}
+
+// TestIdentityProviderConfigurationValidator_ValidateCreate_LegacyHandover locks in
+// that the successor of a deprecated IdentityProviderConfiguration may be created
+// for its existing realm, and only then.
+func TestIdentityProviderConfigurationValidator_ValidateCreate_LegacyHandover(t *testing.T) {
+	ipc := &pmkeycloakv1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{
+		Name:        "org-1",
+		Annotations: map[string]string{"kcp.io/cluster": "abc123"},
+	}}
+
+	cases := map[string]struct {
+		legacyExists LegacyExists
+		wantErr      bool
+	}{
+		"legacy object in the same cluster": {
+			legacyExists: func(_ context.Context, cluster logicalcluster.Name, name string) (bool, error) {
+				return cluster == "abc123" && name == "org-1", nil
+			},
+		},
+		"no legacy object": {
+			legacyExists: func(context.Context, logicalcluster.Name, string) (bool, error) { return false, nil },
+			wantErr:      true,
+		},
+		"lookup fails": {
+			legacyExists: func(context.Context, logicalcluster.Name, string) (bool, error) { return false, fmt.Errorf("boom") },
+			wantErr:      true,
+		},
+		"legacy kind not served": {wantErr: true},
+	}
+
+	for title, cas := range cases {
+		t.Run(title, func(t *testing.T) {
+			v := &identityProviderConfigurationValidator{keycloakClient: fakeRealmChecker{exists: true}, legacyExists: cas.legacyExists}
+
+			_, err := v.ValidateCreate(t.Context(), ipc)
+
+			if cas.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
