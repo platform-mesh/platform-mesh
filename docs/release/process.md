@@ -29,20 +29,13 @@ the chart defaults to). Nothing is copied or rewritten.
 Chart dependencies on `common` and the `*-crds` charts are `file://` references
 into this directory, pinned to the same version.
 
-The only version-related file is [`VERSION`](../../VERSION) at the repository
-root. It holds the feature release (`26.11`) that the branch is working
-towards and is bumped on `main` by hand right after a feature release. Release
-branches keep theirs.
-[`hack/release/next-version.sh`](../../hack/release/next-version.sh) derives
-the next full version from it and from the tags reachable from `HEAD`.
-
 ## Releasing
 
 ### A feature release
 
 1. On `main`, cut a release candidate:
 
-   If you're unsure what to tag, you could run `hack/release/next-version.sh` now,
+   If you're unsure what to tag, you could run `go run ./hack/release/get-version next` now,
    but usually you know what to tag and can simply go ahead:
 
    ```sh
@@ -59,11 +52,10 @@ the next full version from it and from the tags reachable from `HEAD`.
    git tag v26.11.0 && git push origin v26.11.0
    ```
 
-4. Afterwards, on `main`: create the release branch and bump `VERSION`:
+4. Afterwards, on `main`: create the release branch:
 
    ```sh
    git branch release-26.11 v26.11.0 && git push origin release-26.11
-   echo 26.12 > VERSION   # commit via pull request
    ```
 
    When to create the branch is a workflow decision, not a technical one. It
@@ -254,7 +246,7 @@ go run ./hack/release/ocm-build-third-party third_party/kcp
 SKIP_PUSH=true go run ./hack/release/ocm-build-chart charts/account-operator   # SKIP_PUSH: the chart archive is already published
 go run ./hack/release/ocm-build-aggregate
 ocm get component-version "$OCM_REPO//github.com/platform-mesh/platform-mesh:$PM_VERSION" --recursive
-hack/release/next-version.sh                                                    # what the next release would be
+go run ./hack/release/get-version now                                           # what this checkout would be published as
 ```
 
 A chart's component references the image component at the same version, so a
