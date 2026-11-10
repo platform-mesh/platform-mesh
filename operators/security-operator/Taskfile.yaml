@@ -40,10 +40,6 @@ tasks:
         vars:
           PATH: /core/...
           OUTPUT: '{{.CRD_DIRECTORY}}'
-      - task: tools:generate-crds
-        vars:
-          PATH: /keycloak/...
-          OUTPUT: '{{.CRD_DIRECTORY}}'
       - task: providerpermissions-manifests
   providerpermissions-manifests:
     internal: true
@@ -65,9 +61,6 @@ tasks:
       - task: tools:generate-deepcopy
         vars:
           PATH: /core/...
-      - task: tools:generate-deepcopy
-        vars:
-          PATH: /keycloak/...
       - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/security-operator --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
       # The deployed export's permission claims and identity, copied so the
       # generated export matches what the platform-mesh-operator installs.
