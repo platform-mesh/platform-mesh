@@ -72,6 +72,7 @@ var manifestData = map[string]any{
 	"featureEnableTerminalControllerManager": false,
 	"apiExportRootTenancyKcpIoIdentityHash":  "",
 	"featureDisableKeycloak":                 true,
+	"featureDisableOpenFGA":                  true,
 }
 
 // Platform is a platform-mesh-system tree in a kcp.

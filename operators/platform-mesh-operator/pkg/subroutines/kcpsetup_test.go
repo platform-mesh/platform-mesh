@@ -38,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
@@ -1346,4 +1347,76 @@ func (s *KcpsetupTestSuite) Test_IDPWebhookTemplate_FeatureDisableIDPWebhook() {
 	disabled, err := ReplaceTemplate(map[string]any{"featureDisableIDPWebhook": true, caKey: "Y2E="}, templateBytes)
 	s.Require().NoError(err)
 	s.Assert().NotContains(string(disabled), "kind: ValidatingWebhookConfiguration")
+}
+
+// Test_OpenFGAManifests_FeatureDisableOpenFGA locks in that every OpenFGA-backed
+// manifest renders to nothing (or without its OpenFGA parts) when the toggle is
+// "true", and stays complete otherwise.
+func (s *KcpsetupTestSuite) Test_OpenFGAManifests_FeatureDisableOpenFGA() {
+	render := func(file string, toggle bool) map[string]any {
+		templateBytes, err := fs.ReadFile(kcpmanifests.Resources, file)
+		s.Require().NoError(err, file)
+		out, err := ReplaceTemplate(map[string]any{
+			"featureDisableOpenFGA":                  toggle,
+			"featureDisableKeycloak":                 false,
+			"featureEnableTerminalControllerManager": false,
+			"apiExportRootTenancyKcpIoIdentityHash":  "hash",
+		}, templateBytes)
+		s.Require().NoError(err, file)
+		var obj map[string]any
+		s.Require().NoError(yaml.Unmarshal(out, &obj), "%s renders invalid YAML:\n%s", file, out)
+		return obj
+	}
+
+	for _, file := range []string{
+		"01-platform-mesh-system/apiexport-fga.platform-mesh.io.yaml",
+		"01-platform-mesh-system/apiexport-provider-fga.platform-mesh.io.yaml",
+		"01-platform-mesh-system/apiexportendpointslice-fga.platform-mesh.io.yaml",
+		"01-platform-mesh-system/apiexportendpointslice-provider-fga.platform-mesh.io.yaml",
+		"03-orgs/apibinding-fga.platform-mesh.io.yaml",
+		"03-orgs/store.yaml",
+	} {
+		s.Assert().Nil(render(file, true), "%s must render to nothing without OpenFGA", file)
+		s.Assert().NotNil(render(file, false), "%s must render with OpenFGA", file)
+	}
+
+	names := func(obj map[string]any, path ...string) []string {
+		items, _, _ := unstructured.NestedSlice(obj, path...)
+		var out []string
+		for _, item := range items {
+			m, _ := item.(map[string]any)
+			if n, ok := m["name"].(string); ok {
+				out = append(out, n)
+			}
+			if n, ok := m["export"].(string); ok {
+				out = append(out, n)
+			}
+		}
+		return out
+	}
+	for _, file := range []string{"02-root/workspace-type-org.yaml", "02-root/workspace-type-account.yaml"} {
+		s.Assert().NotContains(names(render(file, true), "spec", "extend", "with"), "security", file)
+		s.Assert().Contains(names(render(file, false), "spec", "extend", "with"), "security", file)
+	}
+	s.Assert().NotContains(names(render("02-root/workspace-type-provider.yaml", true), "spec", "defaultAPIBindings"), "provider-fga.platform-mesh.io")
+	s.Assert().Contains(names(render("02-root/workspace-type-provider.yaml", false), "spec", "defaultAPIBindings"), "provider-fga.platform-mesh.io")
+}
+
+// Test_OrgWorkspaceType_NoExtensions locks in that `org` renders without an
+// empty extend.with (kcp rejects null) when both Keycloak and OpenFGA are off.
+func (s *KcpsetupTestSuite) Test_OrgWorkspaceType_NoExtensions() {
+	templateBytes, err := fs.ReadFile(kcpmanifests.Resources, "02-root/workspace-type-org.yaml")
+	s.Require().NoError(err)
+
+	out, err := ReplaceTemplate(map[string]any{
+		"featureDisableOpenFGA":                  true,
+		"featureDisableKeycloak":                 true,
+		"featureEnableTerminalControllerManager": false,
+	}, templateBytes)
+	s.Require().NoError(err)
+
+	var obj map[string]any
+	s.Require().NoError(yaml.Unmarshal(out, &obj))
+	_, found, _ := unstructured.NestedFieldNoCopy(obj, "spec", "extend")
+	s.Assert().False(found, "extend must be absent, not null")
 }

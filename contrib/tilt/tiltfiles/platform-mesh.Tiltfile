@@ -36,6 +36,7 @@ load(
     "KCP_FRONT_PROXY_URL",
     "KEYCLOAK",
     "KUBECTL",
+    "OPENFGA",
     "NAMESPACE",
     "PORT",
     "TEMPLATE_VARS",
@@ -141,20 +142,6 @@ service(
     workloads=["extension-manager-operator-operator", "extension-manager-operator-server"],
 )
 service(
-    "security-operator",
-    NAMESPACE,
-    TEMPLATE_VARS,
-    path="operators/security-operator",
-    deps=GO_DEPS,
-    workloads=[
-        "security-operator",
-        "security-operator-generator",
-        "security-operator-initializer",
-        "security-operator-system",
-        "security-operator-terminator",
-    ],
-)
-service(
     "kubernetes-graphql-gateway",
     NAMESPACE,
     TEMPLATE_VARS,
@@ -162,12 +149,30 @@ service(
     deps=GO_DEPS,
     workloads=["kubernetes-graphql-gateway", "kubernetes-graphql-gateway-listener"],
 )
-service("rebac-authz-webhook", NAMESPACE, TEMPLATE_VARS, path="services/rebac-authz-webhook", deps=GO_DEPS)
 service("virtual-workspaces", NAMESPACE, TEMPLATE_VARS, path="services/virtual-workspaces", deps=GO_DEPS)
 service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"frontendPort": str(PORT)})
 service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
 
-# The Keycloak identity provider and user/role management on top of it.
+# Relationship-based authorization on OpenFGA: stores, models and the kcp
+# authorization webhook.
+if OPENFGA:
+    service(
+        "security-operator",
+        NAMESPACE,
+        TEMPLATE_VARS,
+        path="operators/security-operator",
+        deps=GO_DEPS,
+        workloads=[
+            "security-operator",
+            "security-operator-generator",
+            "security-operator-initializer",
+            "security-operator-system",
+            "security-operator-terminator",
+        ],
+    )
+    service("rebac-authz-webhook", NAMESPACE, TEMPLATE_VARS, path="services/rebac-authz-webhook", deps=GO_DEPS)
+
+# The Keycloak identity provider.
 # No SMTP on kind: invited users get the default password "password" (temporary,
 # changed at first login) and may log in before verifying their e-mail.
 if KEYCLOAK:
@@ -184,6 +189,9 @@ if KEYCLOAK:
             "pm-keycloak-operator-terminator",
         ],
     )
+
+# User and role management: Keycloak users with OpenFGA roles.
+if KEYCLOAK and OPENFGA:
     service("iam-service", NAMESPACE, TEMPLATE_VARS, path="services/iam-service", deps=GO_DEPS)
     service("iam-ui", NAMESPACE, TEMPLATE_VARS)
 

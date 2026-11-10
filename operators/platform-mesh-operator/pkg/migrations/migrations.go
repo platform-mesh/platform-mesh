@@ -20,6 +20,7 @@ package migrations
 
 import (
 	"context"
+	"slices"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	gcerrors "go.platform-mesh.io/golang-commons/errors"
@@ -53,6 +54,13 @@ type Step interface {
 	Name() string
 	// Run checks for the legacy state this step handles and fixes it up if found.
 	Run(ctx context.Context, deps Deps) error
+}
+
+// hasFeatureToggle reports whether the PlatformMesh sets the named feature toggle.
+func hasFeatureToggle(inst *pmcorev1alpha1.PlatformMesh, name string) bool {
+	return slices.ContainsFunc(inst.Spec.FeatureToggles, func(ft pmcorev1alpha1.FeatureToggle) bool {
+		return ft.Name == name
+	})
 }
 
 // Runner runs a fixed, ordered list of steps.

@@ -22,6 +22,7 @@ load(
     "BASE_DOMAIN",
     "KEYCLOAK",
     "KUBECTL",
+    "OPENFGA",
     "NAMESPACE",
     "PORT",
     "TEMPLATE_VARS",
@@ -42,22 +43,23 @@ k8s_resource(
     labels=["infra"],
 )
 
-openfga = remote_chart(
-    "openfga",
-    "oci://ghcr.io/openfga/helm-charts",
-    third_party_version("openfga", "chart"),
-    NAMESPACE,
-    values=[profile_values_file("openfga", TEMPLATE_VARS)],
-)
-k8s_yaml(openfga)
-# openfga now uses the shared CNPG postgres (see the openfga-cnpg migration);
-# it no longer ships its own postgres, so wait on "postgres-ready".
-k8s_resource(
-    "openfga",
-    objects=select_objects(openfga, lambda o: True),
-    resource_deps=["namespace", "postgres-ready"],
-    labels=["infra"],
-)
+if OPENFGA:
+    openfga = remote_chart(
+        "openfga",
+        "oci://ghcr.io/openfga/helm-charts",
+        third_party_version("openfga", "chart"),
+        NAMESPACE,
+        values=[profile_values_file("openfga", TEMPLATE_VARS)],
+    )
+    k8s_yaml(openfga)
+    # openfga now uses the shared CNPG postgres (see the openfga-cnpg migration);
+    # it no longer ships its own postgres, so wait on the "postgres-ready" resource.
+    k8s_resource(
+        "openfga",
+        objects=select_objects(openfga, lambda o: True),
+        resource_deps=["namespace", "postgres-ready"],
+        labels=["infra"],
+    )
 
 # The profile's 8443 literals mean "external port"; here that is the NodePort.
 
@@ -85,6 +87,8 @@ infra = profile_chart(
             "cacheServer": {"replicas": 1, "resources": NO_REQUESTS},
             "frontProxy": {"resources": NO_REQUESTS},
             "etcd": {"resources": NO_REQUESTS, "backup": {"resources": NO_REQUESTS}},
+            # The ReBAC authorization webhook is rebac-authz-webhook, which needs OpenFGA.
+            "webhook": {"enabled": OPENFGA},
         },
         "keycloak": {"operator": {"enabled": KEYCLOAK, "resources": NO_REQUESTS}},
     },

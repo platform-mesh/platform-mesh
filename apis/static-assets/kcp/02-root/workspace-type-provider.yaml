@@ -24,8 +24,10 @@ spec:
       path: root:platform-mesh-system
     - export: ui.platform-mesh.io
       path: root:platform-mesh-system
+{{- if not .featureDisableOpenFGA }}
     - export: provider-fga.platform-mesh.io
       path: root:platform-mesh-system
+{{- end }}
   limitAllowedParents:
     types:
       - name: providers

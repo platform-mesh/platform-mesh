@@ -35,6 +35,7 @@ config.define_bool(
 # sub-Tiltfiles skip the backend and everything that only exists for it.
 WITHOUT_TOGGLES = {
     "keycloak": "feature-disable-keycloak",
+    "openfga": "feature-disable-openfga",
 }
 config.define_string_list(
     "without",
@@ -67,6 +68,7 @@ HTTPBIN_NAMESPACE = cfg.get("httpbin-namespace", DEFAULT_HTTPBIN_NAMESPACE)
 FRONTEND_CORS = cfg.get("frontend-cors", False)
 WITHOUT = parse_without(cfg.get("without", []))
 KEYCLOAK = "keycloak" not in WITHOUT
+OPENFGA = "openfga" not in WITHOUT
 # Toggles for the PlatformMesh CR (manifests/platformmesh.yaml).
 FEATURE_TOGGLES = ["feature-accounts-in-accounts"] + [WITHOUT_TOGGLES[name] for name in WITHOUT]
 KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
