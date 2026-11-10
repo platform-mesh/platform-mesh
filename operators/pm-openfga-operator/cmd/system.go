@@ -28,6 +28,7 @@ import (
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/pm-openfga-operator/internal/controller"
+	"go.platform-mesh.io/pm-openfga-operator/internal/features"
 	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
@@ -82,11 +83,11 @@ var systemCmd = &cobra.Command{
 			opts.LeaderElectionConfig = inClusterCfg
 		}
 
-		systemProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.SystemPlatformMeshIO, apiexport.Options{
+		openfgaProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.OpenfgaPlatformMeshIO, apiexport.Options{
 			Scheme: scheme,
 		})
 		if err != nil {
-			setupLog.Error(err, "unable to create apiexport provider")
+			setupLog.Error(err, "unable to create openfga apiexport provider")
 			return err
 		}
 
@@ -98,12 +99,27 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		multiProv := multiprovider.New(multiprovider.Options{})
-		if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
+		multiProv := multiprovider.New(multiprovider.Options{Separator: config.ProviderSeparator})
+		if err := multiProv.AddProvider(config.OpenfgaProviderName, openfgaProvider); err != nil {
 			return err
 		}
 		if err := multiProv.AddProvider(config.CoreProviderName, coreProvider); err != nil {
 			return err
+		}
+		kinds := []controller.Kinds{controller.CurrentKinds()}
+		if systemCfg.FeatureEnabled(features.LegacyAPIs) {
+			// Deprecated core.platform-mesh.io APIExportPolicies are served through system.platform-mesh.io.
+			systemProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.SystemPlatformMeshIO, apiexport.Options{
+				Scheme: scheme,
+			})
+			if err != nil {
+				setupLog.Error(err, "unable to create system apiexport provider")
+				return err
+			}
+			if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
+				return err
+			}
+			kinds = append(kinds, controller.LegacyKinds())
 		}
 
 		mgr, err := mcmanager.New(restCfg, multiProv, opts)
@@ -131,9 +147,11 @@ var systemCmd = &cobra.Command{
 
 		providerLister := iclient.NewProviderLister(coreProvider.Provider.Provider)
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, providerLister, &systemCfg, storeIDGetter, kcpClientGetter).SetupWithManager(mgr, defaultCfg); err != nil {
-			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
-			return err
+		for _, k := range kinds {
+			if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, providerLister, &systemCfg, storeIDGetter, kcpClientGetter, k).SetupWithManager(mgr, defaultCfg); err != nil {
+				log.Error().Err(err).Str("controller", "apiexportpolicy"+k.Suffix).Msg("unable to create controller")
+				return err
+			}
 		}
 
 		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

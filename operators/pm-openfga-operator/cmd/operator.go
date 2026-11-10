@@ -30,7 +30,9 @@ import (
 	"go.platform-mesh.io/golang-commons/sentry"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/pm-openfga-operator/internal/controller"
+	"go.platform-mesh.io/pm-openfga-operator/internal/features"
 	fga2 "go.platform-mesh.io/pm-openfga-operator/internal/fga"
+	"go.platform-mesh.io/pm-openfga-operator/internal/legacy"
 	"go.platform-mesh.io/pm-openfga-operator/internal/predicates"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/app"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
@@ -53,11 +55,7 @@ var (
 	scheme = app.NewScheme()
 )
 
-const (
-	coreProviderName = "core-platform-mesh-io"
-	// providerSeparator must match mcmultiprovider.Options.Separator below.
-	providerSeparator = "#"
-)
+const coreProviderName = "core-platform-mesh-io"
 
 var operatorCmd = &cobra.Command{
 	Use: "fga",
@@ -123,24 +121,25 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		// Stores live under fga.platform-mesh.io and AuthorizationModels under provider-fga.platform-mesh.io,
-		// so the Store and AuthorizationModel controllers engage only with clusters visible through those exports.
-		fgaProvider, err := pathaware.New(restCfg, operatorCfg.APIExportEndpointSlices.FgaPlatformMeshIO, apiexport.Options{
+		// Stores live under openfga.platform-mesh.io and AuthorizationModels under
+		// provider-openfga.platform-mesh.io, so the Store and AuthorizationModel
+		// controllers engage only with clusters visible through those exports.
+		openfgaProvider, err := pathaware.New(restCfg, operatorCfg.APIExportEndpointSlices.OpenfgaPlatformMeshIO, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
-			setupLog.Error(err, "unable to construct fga cluster provider")
+			setupLog.Error(err, "unable to construct openfga cluster provider")
 			return err
 		}
-		providerFgaProvider, err := pathaware.New(restCfg, operatorCfg.APIExportEndpointSlices.ProviderFgaPlatformMeshIO, apiexport.Options{
+		providerOpenfgaProvider, err := pathaware.New(restCfg, operatorCfg.APIExportEndpointSlices.ProviderOpenfgaPlatformMeshIO, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
-			setupLog.Error(err, "unable to construct provider-fga cluster provider")
+			setupLog.Error(err, "unable to construct provider-openfga cluster provider")
 			return err
 		}
 
-		multiProvider := mcmultiprovider.New(mcmultiprovider.Options{Separator: providerSeparator})
+		multiProvider := mcmultiprovider.New(mcmultiprovider.Options{Separator: config.ProviderSeparator})
 
 		mgr, err := mcmanager.New(restCfg, multiProvider, mgrOpts)
 		if err != nil {
@@ -152,13 +151,46 @@ var operatorCmd = &cobra.Command{
 			setupLog.Error(err, "unable to add core cluster provider")
 			return err
 		}
-		if err := multiProvider.AddProvider(config.FgaProviderName, fgaProvider); err != nil {
-			setupLog.Error(err, "unable to add fga cluster provider")
+		if err := multiProvider.AddProvider(config.OpenfgaProviderName, openfgaProvider); err != nil {
+			setupLog.Error(err, "unable to add openfga cluster provider")
 			return err
 		}
-		if err := multiProvider.AddProvider(config.ProviderFgaProviderName, providerFgaProvider); err != nil {
-			setupLog.Error(err, "unable to add provider-fga cluster provider")
+		if err := multiProvider.AddProvider(config.ProviderOpenfgaProviderName, providerOpenfgaProvider); err != nil {
+			setupLog.Error(err, "unable to add provider-openfga cluster provider")
 			return err
+		}
+
+		authorizationModelLister := legacy.AuthorizationModelLister{
+			Current: iclient.NewProviderLister(providerOpenfgaProvider.Provider.Provider),
+		}
+		kinds := []controller.Kinds{controller.CurrentKinds()}
+		if operatorCfg.FeatureEnabled(features.LegacyAPIs) {
+			// The deprecated core.platform-mesh.io kinds are served through
+			// fga.platform-mesh.io and provider-fga.platform-mesh.io.
+			fgaProvider, err := pathaware.New(restCfg, operatorCfg.APIExportEndpointSlices.FgaPlatformMeshIO, apiexport.Options{
+				Scheme: mgrOpts.Scheme,
+			})
+			if err != nil {
+				setupLog.Error(err, "unable to construct fga cluster provider")
+				return err
+			}
+			providerFgaProvider, err := pathaware.New(restCfg, operatorCfg.APIExportEndpointSlices.ProviderFgaPlatformMeshIO, apiexport.Options{
+				Scheme: mgrOpts.Scheme,
+			})
+			if err != nil {
+				setupLog.Error(err, "unable to construct provider-fga cluster provider")
+				return err
+			}
+			if err := multiProvider.AddProvider(config.FgaProviderName, fgaProvider); err != nil {
+				setupLog.Error(err, "unable to add fga cluster provider")
+				return err
+			}
+			if err := multiProvider.AddProvider(config.ProviderFgaProviderName, providerFgaProvider); err != nil {
+				setupLog.Error(err, "unable to add provider-fga cluster provider")
+				return err
+			}
+			authorizationModelLister.Legacy = iclient.NewProviderLister(providerFgaProvider.Provider.Provider)
+			kinds = append(kinds, controller.LegacyKinds())
 		}
 
 		conn, err := grpc.NewClient(operatorCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -176,22 +208,20 @@ var operatorCmd = &cobra.Command{
 			log,
 		)
 
-		authorizationModelLister := iclient.NewProviderLister(providerFgaProvider.Provider.Provider)
-		fgaEngageOpts := controller.WithClustersFromNamedProvider(config.FgaProviderName, providerSeparator)
-		providerFgaEngageOpts := controller.WithClustersFromNamedProvider(config.ProviderFgaProviderName, providerSeparator)
-		// Invites, AccountInfos and LogicalClusters are only served through core.platform-mesh.io.
-		coreEngageOpts := controller.WithClustersFromNamedProvider(coreProviderName, providerSeparator)
+		// AccountInfos and LogicalClusters are only served through core.platform-mesh.io.
+		coreEngageOpts := controller.WithClustersFromNamedProvider(coreProviderName, config.ProviderSeparator)
 
-		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg, authorizationModelLister, fgaEngageOpts, providerFgaEngageOpts).
-			SetupWithManager(mgr, defaultCfg); err != nil {
-			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
-			return err
-		}
-		if err = controller.
-			NewAuthorizationModelReconciler(ctx, log, fga, mgr, providerFgaEngageOpts).
-			SetupWithManager(mgr, defaultCfg); err != nil {
-			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
-			return err
+		for _, k := range kinds {
+			if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg, authorizationModelLister, k).
+				SetupWithManager(mgr, defaultCfg); err != nil {
+				log.Error().Err(err).Str("controller", "store"+k.Suffix).Msg("unable to create controller")
+				return err
+			}
+			if err = controller.NewAuthorizationModelReconciler(ctx, log, fga, mgr, k).
+				SetupWithManager(mgr, defaultCfg); err != nil {
+				log.Error().Err(err).Str("controller", "authorizationmodel"+k.Suffix).Msg("unable to create controller")
+				return err
+			}
 		}
 
 		kcpClientGetterWithConfig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)

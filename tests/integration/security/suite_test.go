@@ -52,10 +52,10 @@ import (
 )
 
 const (
-	coreExport        = "core.platform-mesh.io"
-	providersExport   = "providers.platform-mesh.io"
-	fgaExport         = "openfga.platform-mesh.io"
-	providerFgaExport = "provider-openfga.platform-mesh.io"
+	coreExport            = "core.platform-mesh.io"
+	providersExport       = "providers.platform-mesh.io"
+	openfgaExport         = "openfga.platform-mesh.io"
+	providerOpenfgaExport = "provider-openfga.platform-mesh.io"
 )
 
 // IntegrationSuite shares one platform-mesh-system and one model-generator
@@ -85,13 +85,13 @@ func (s *IntegrationSuite) SetupSuite() {
 		fixtures.WithResources(openfgaresources.Resources, "*.yaml"),
 		// The deployed manifests serve AuthorizationModels from an export of
 		// their own; apigen puts the whole group into openfga.platform-mesh.io.
-		fixtures.WithExport(providerFgaExport, fgaExport, "authorizationmodels"),
+		fixtures.WithExport(providerOpenfgaExport, openfgaExport, "authorizationmodels"),
 		// platform-mesh-system plays the provider in these tests, so it binds
 		// provider-fga and holds the AuthorizationModels.
-		fixtures.WithBindings(coreExport, providersExport, providerFgaExport),
+		fixtures.WithBindings(coreExport, providersExport, providerOpenfgaExport),
 		// Orgs hold their Store; in production the security-operator's org
 		// initializer (not run here) binds fga.platform-mesh.io for them.
-		fixtures.WithDefaultBindings("org", fgaExport),
+		fixtures.WithDefaultBindings("org", openfgaExport),
 		fixtures.WithOrgs(),
 	)
 	s.systemClient = s.platform.SystemClient
@@ -107,13 +107,13 @@ func (s *IntegrationSuite) setupControllers(t *testing.T) {
 	log, err := logger.New(logcfg)
 	require.NoError(t, err, "creating operator logger")
 
-	byExport := manager.Providers(t, s.env, s.platform.System, s.scheme, coreExport, providersExport, fgaExport, providerFgaExport)
+	byExport := manager.Providers(t, s.env, s.platform.System, s.scheme, coreExport, providersExport, openfgaExport, providerOpenfgaExport)
 	// The operator finds its clusters by provider name prefix (config.MultiProviderName).
 	providers := map[string]*apiexport.Provider{
-		config.CoreProviderName:        byExport[coreExport],
-		config.ProvidersProviderName:   byExport[providersExport],
-		config.FgaProviderName:         byExport[fgaExport],
-		config.ProviderFgaProviderName: byExport[providerFgaExport],
+		config.CoreProviderName:            byExport[coreExport],
+		config.ProvidersProviderName:       byExport[providersExport],
+		config.OpenfgaProviderName:         byExport[openfgaExport],
+		config.ProviderOpenfgaProviderName: byExport[providerOpenfgaExport],
 	}
 	mgr, _ := manager.New(t, s.env, s.platform.System, s.scheme, providers)
 
