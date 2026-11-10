@@ -128,6 +128,8 @@ tasks:
           task tilt:up -- --frontend-cors      same, and allow browser calls from a frontend
                                                run outside the cluster (localhost, *.portal.localhost)
           task tilt:ci                         start and wait until everything is ready
+          task tilt:up -- --without=keycloak   leave Keycloak (and iam-service, iam-ui) out;
+                                               security-operator runs with Keycloak=false
           task tilt:e2e                        run the e2e suites (Go, then portal) against Tilt
           . contrib/tilt/env.sh                export the URLs and credentials for tests
 
@@ -135,7 +137,7 @@ tasks:
 
           tilt args -- --frontend-cors
 
-        Tiltfile options (after `--`): --frontend-cors, --context, --cluster-id, --httpbin-namespace
+        Tiltfile options (after `--`): --frontend-cors, --without, --context, --cluster-id, --httpbin-namespace
         EOF
       - contrib/tilt/hack/print-urls.sh
       - |

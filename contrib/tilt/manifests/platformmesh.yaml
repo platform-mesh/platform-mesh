@@ -13,7 +13,8 @@
 # limitations under the License.
 
 # The PlatformMesh and profile the Tilt environment hands to platform-mesh-operator.
-# __BASE_DOMAIN__, __PORT__ and __HTTPBIN_NAMESPACE__ are substituted by the Tiltfile.
+# The Tiltfile fills in the __PLACEHOLDERS__: base domain, port, HTTPBin
+# namespace and the feature toggle list (settings.Tiltfile FEATURE_TOGGLES).
 #
 # The profile enables nothing: Tilt deploys every chart itself, PMO only does
 # the glue no chart does (kcp workspaces and APIExports, per-component kcp
@@ -29,7 +30,7 @@ spec:
     port: __PORT__
     protocol: https
   featureToggles:
-    - name: feature-accounts-in-accounts
+__FEATURE_TOGGLES__
   kcp:
     # HTTPBin e2e fixture (tiltfiles/httpbin.Tiltfile): admin kubeconfig for the
     # provider workspace, consumed by api-syncagent and the e2e tests, and the
