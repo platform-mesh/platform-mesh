@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	github.com/jarcoal/httpmock v1.4.2
-	github.com/kcp-dev/kcp-testcontainers v0.0.1
+	github.com/kcp-dev/kcp-testcontainers v0.0.3
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.9.0
 	github.com/kcp-dev/multicluster-provider/client v0.9.0
@@ -104,7 +104,6 @@ require (
 	github.com/go-openapi/swag/stringutils v0.29.2 // indirect
 	github.com/go-openapi/swag/typeutils v0.29.2 // indirect
 	github.com/go-openapi/swag/yamlutils v0.29.2 // indirect
-	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/gobuffalo/flect v1.0.3 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/cel-go v0.31.0 // indirect

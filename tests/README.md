@@ -1,25 +1,24 @@
 # tests
 
-The tests that need a control plane: integration tests against a kcp in
-Docker and e2e tests against a deployed Platform Mesh. The Go code here is
-part of the root module (`go.platform-mesh.io/platform-mesh`); unit tests
-stay next to the code they test (`task test`, `task test-<component>`).
+Tests that need a running control plane live here. Integration tests run
+the components against a kcp in Docker; e2e tests run against a deployed
+Platform Mesh. Unit tests stay next to the code they test and run with
+`task test` or `task test-<component>`.
+
+The code here is part of the root Go module, so a test imports helpers as
+`go.platform-mesh.io/platform-mesh/tests/framework/...`.
 
 ## Two environments
 
-| Environment | Used by | What it is |
+| Environment | Tests | What you get |
 |---|---|---|
-| **kcp** | `integration/<area>` (build tag `integration`) | A sharded kcp (front-proxy, cache server, two shards) in Docker via [kcp-testcontainers](https://github.com/kcp-dev/kcp-testcontainers), shared by every test of the run. Components run in-process; tests isolate by workspace. |
-| **kind** | `e2e/<area>` (build tag `e2e`) | One kind cluster with the stack deployed by Tilt. Tests are black-box against `KUBECONFIG` (and `ADMIN_KUBECONFIG` for kcp). |
+| **kcp in Docker** | `integration/<area>`, build tag `integration` | A sharded kcp (front-proxy, cache server, two shards) started by [kcp-testcontainers](https://github.com/kcp-dev/kcp-testcontainers). Every test of a run shares it. The operators run inside the test process; tests keep out of each other's way by working in their own workspaces. |
+| **kind** | `e2e/<area>`, build tag `e2e` | One kind cluster with the whole stack deployed by Tilt. Tests treat it as a black box through `KUBECONFIG`, and `ADMIN_KUBECONFIG` for kcp. |
 
-Everything else is a helper in `framework/`:
+## Writing an integration test
 
-- `framework/kcp`: `kcp.Default(ctx)`, the shared kcp as a kcp-testcontainers `*Instance` (`CreateWorkspace`, `Client`, `RESTConfig`, ...), plus `kcp.Config`/`kcp.RESTConfig` for clients that follow the URLs kcp advertises.
-- `framework/fixtures`: apply manifests (`Decode`, `Apply`, `ApplyFS`) and `Install` the platform-mesh-system tree (operator resources, bindings, WorkspaceTypes, `:root:orgs`).
-- `framework/manager`: multicluster managers over kcp APIExport providers.
-- `framework/wait`, `framework/scheme`: the waits and scheme every suite needs.
-
-A test, the way [kcp-testcontainers' own tests](https://github.com/kcp-dev/kcp-testcontainers/tree/main/tests/e2e) are written:
+Ask for the shared kcp, create a workspace to work in, get a client for it.
+That is the whole setup:
 
 ```go
 //go:build integration
@@ -27,7 +26,7 @@ A test, the way [kcp-testcontainers' own tests](https://github.com/kcp-dev/kcp-t
 func TestSomething(t *testing.T) {
 	instance, err := kcp.Default(t.Context())
 	require.NoError(t, err)
-	path, err := instance.CreateWorkspace(t.Context(), "root:something-") // trailing "-": GenerateName
+	path, err := instance.CreateWorkspace(t.Context(), "root:something-", kcptc.WaitForReachable())
 	require.NoError(t, err)
 	cl, err := instance.Client(path.String(), client.Options{Scheme: scheme.New(t)})
 	require.NoError(t, err)
@@ -35,90 +34,104 @@ func TestSomething(t *testing.T) {
 }
 ```
 
-`CreateWorkspace` returns when the workspace is Ready on its shard; the
-front-proxy's routing index can trail by a moment, so retry the first
-request (`wait.Eventually`) or use `fixtures.Install`, which does.
+A few things worth knowing:
+
+- A path segment ending in `-` is a name prefix; kcp generates the rest, so
+  tests never collide on workspace names.
+- Creating a workspace returns once it is ready on its shard. The
+  front-proxy that routes requests learns about new workspaces a moment
+  later, so ask for the reachability wait as above unless you are happy to
+  retry the first request yourself.
+- Workspace type, shard and the other kcp workspace options are passed
+  through `kcptc.With(...)`, which takes the options from the kcp SDK's
+  testing package.
+
+The `framework/` directory holds what the suites share:
+
+- `framework/kcp` hands out the kcp. The default instance is shared by all
+  suites; a suite whose setup clashes with the others gets an instance of
+  its own (today only the security suite).
+- `framework/fixtures` applies manifests and builds the
+  `platform-mesh-system` workspace tree the operators expect: the
+  operator's API exports and schemas, the bindings to them, the workspace
+  types, and optionally the `orgs` workspace.
+- `framework/manager` builds the multicluster managers the operators run on.
+- `framework/wait` and `framework/scheme` are the waits and the scheme
+  every suite needs.
 
 ## Running the integration tests
 
+Docker is all you need.
+
 ```sh
-task test-integration                                   # all of tests/integration
+task test-integration                                   # everything under tests/integration
 task test-integration PKG=./integration/framework/...   # one area
 task test-integration P=4                               # more packages at once (default 2)
 task test-integration ADDITIONAL_COMMAND_ARGS=-v        # extra go test flags
 task test-integration KCP_VERSION=v0.34.0               # another kcp release
 ```
 
-Docker is all that is needed. The task runs the repository's kcp version
-(`third_party/kcp`, the one Tilt deploys) unless `KCP_VERSION` says
-otherwise; the image is `ghcr.io/kcp-dev/kcp:<version>`. From an IDE, run
-the package with `-tags integration`; without `KCP_VERSION` the framework
-uses kcp-testcontainers' default release.
+The task runs the kcp version the repository deploys (the one in
+`third_party/kcp`) unless `KCP_VERSION` says otherwise. From an IDE, run
+the package with `-tags integration`; without `KCP_VERSION` set, the
+framework falls back to kcp-testcontainers' default release.
 
-### One kcp per run, in Docker
+### One kcp per run
 
-`kcp.Default(ctx)` is `kcptc.Shared` with the instance name `platform-mesh`.
-The first test of a `go test` run to call it starts the kcp (front-proxy,
-cache server, shards `root` and `shard-b`, about 20s); every later call, in
-the same or another test binary, finds the containers by name and joins. So
-`P=` (`go test -p`) really runs packages concurrently, all on one kcp. The
-containers belong to the go test session and testcontainers' reaper removes
-them a few seconds after the last test binary has exited
-(`TESTCONTAINERS_RYUK_DISABLED=true` keeps them).
+The first test to ask for the kcp starts it, which takes about 20 seconds.
+Every later test, in the same or in another test binary, finds the running
+containers by name and joins them. Running packages in parallel therefore
+means several test binaries on one kcp, not several kcps. The containers
+belong to the `go test` session; testcontainers removes them a few seconds
+after the last test binary exits. Set `TESTCONTAINERS_RYUK_DISABLED=true`
+to keep them around.
 
-Containers talk to each other over a Docker network, but the operators run
-in-process on the host and follow the URLs kcp advertises: workspace URLs
-and the APIExport virtual workspace URLs in APIExportEndpointSlices. The
-framework therefore publishes the front-proxy and both shards on free host
-ports and makes the shards advertise the host side
-(`--shard-external-url`, `--shard-virtual-workspace-url`), so a URL from
-kcp works from the test as it would for a deployed operator
-(`integration/framework` checks this). Ports are picked per run; nothing
-needs 6443. The shards' certificates do not carry the front-proxy's name,
-which `instance.Config()` pins as TLS server name, so anything that follows
-advertised URLs (the multicluster managers, a client on a virtual workspace
-URL) takes its config from `kcp.Config(instance)` / `kcp.RESTConfig`.
+### Why it works from the host
 
-A package whose fixtures cannot share a kcp with the others (see below)
-gets a function next to `Default` with an instance name of its own, like
-`Second` in kcp-testcontainers' tests; kcp feature gates go into that
-function's options.
+The operators run in the test process on the host and follow the URLs kcp
+hands out: workspace URLs, and the virtual workspace URLs their API exports
+advertise. The framework therefore publishes the front-proxy and both shards
+on free host ports and makes kcp advertise those host addresses, so a URL
+from kcp works in a test exactly as it does for a deployed operator. The
+framework suite checks this. Ports are picked per run; nothing needs 6443.
+Every certificate kcp serves is valid for the Docker host, so no TLS
+overrides are needed anywhere.
 
-### Sharing a kcp
+### Sharing one kcp between suites
 
-Packages sharing a kcp isolate by workspace (`instance.CreateWorkspace` generates
-names), and `fixtures.Install` reuses `:root:platform-mesh-system` and
-`:root:orgs`. Install keeps objects that already exist, so packages that
-bring different definitions of the same object cannot share a kcp in any
-order. Today that is `integration/security`: it splits stores and
-authorizationmodels out of `core.platform-mesh.io` into
-`fga.platform-mesh.io` and `provider-fga.platform-mesh.io`
-(`fixtures.WithExport`, the deployed shape), while `account` and `framework`
-install the export as apigen generates it, serving the whole group. On a
-shared kcp where one of those ran first, the security suite fails at once
-and says so, which is why it runs on its own instance.
+Suites stay apart by working in their own generated workspaces. The one
+shared piece is the `platform-mesh-system` tree the fixtures install, and
+installing it is idempotent: whatever already exists is kept. That is also
+its limit. Two suites that need different definitions of the same object
+cannot share a kcp, in any order. Today that is the security suite: it
+splits the stores and authorization models out of the core export into
+separate exports, as deployed, while the account and framework suites
+install the core export whole. So the security suite runs on its own kcp.
 
-Exports and schemas always come from the operator's apigen output in
-`apis/static-assets/resources/<operator>` (`fixtures.WithResources` on its
-embedded `Resources`; apigen reads the existing APIExport back and replaces
-only its resources, so hand-written permission claims and identity survive
-`task generate`); bindings are derived from the export they bind
-(`fixtures.BindingFor`, `fixtures.WithBindings(exportName)`); WorkspaceTypes
-come from the deployed kcp manifests in `apis/static-assets/kcp`, with
-bindings to exports and extends of types that are not installed dropped,
-plus `fixtures.WithDefaultBindings` for what a suite needs on top. Suites
-keep copies of none of these.
+### Where the fixtures come from
+
+Suites keep no copies of exports, schemas, bindings or workspace types.
+
+- Exports and schemas come from each operator's generated API output under
+  `apis/static-assets/resources/<operator>`. The generator only replaces
+  the resources in an existing export, so permission claims and identity
+  written by hand survive `task generate`.
+- Bindings are derived from the export they bind.
+- Workspace types come from the deployed kcp manifests under
+  `apis/static-assets/kcp`. References to exports and types a suite did not
+  install are dropped, and a suite can add the default bindings it needs on
+  top.
 
 ## Logs
 
-The test binary that starts an instance streams the containers' output to
-`tests/.test/<instance>/` (gitignored): `front-proxy.log`, `root.log`,
-`shard-b.log` and `cache.log`. CI uploads them when the job fails.
-Controller logs go to the test output; `TEST_QUIET=1` silences them.
+The test binary that starts a kcp streams each container's output to
+`tests/.test/<instance>/`, which is gitignored: `front-proxy.log`,
+`root.log`, `shard-b.log` and `cache.log`. CI uploads them when the job
+fails. Operator logs go to the test output; `TEST_QUIET=1` silences them.
 
-Workspaces are not deleted after a test; the kcp and its state go away with
-the run, so to inspect a failure, keep the containers
-(`TESTCONTAINERS_RYUK_DISABLED=true`).
+Workspaces are not deleted after a test. The kcp and everything in it go
+away with the run, so to look at a failure afterwards, keep the containers
+with `TESTCONTAINERS_RYUK_DISABLED=true`.
 
 ## Cleaning up
 
@@ -132,11 +145,11 @@ rm -rf tests/.test                      # all logs
 
 | Package | What it covers |
 |---|---|
-| `integration/framework` | Smoke test of `tests/framework`: the shared kcp starts, fixtures land in workspaces, `fixtures.Install` builds the platform-mesh-system tree, advertised virtual workspace URLs answer from the host. |
-| `integration/account` | account-operator in-process: Accounts reconciled into Workspaces and AccountInfos. |
-| `integration/extensionmanager` | extension-manager-operator ContentConfiguration controller. |
-| `integration/graphqlgateway` | kubernetes-graphql-gateway listener controllers (ClusterAccess, resource) and the gateway serving GraphQL from kcp workspaces. |
-| `integration/krocomposition` | kro-composition-operator engine: compositions, schema changes, type conflicts, pruning, consumers. |
+| `integration/framework` | Smoke test of the framework itself: the kcp starts, fixtures land in workspaces, the platform-mesh-system tree installs, advertised virtual workspace URLs answer from the host. |
+| `integration/account` | account-operator: Accounts reconciled into Workspaces and AccountInfos. |
+| `integration/extensionmanager` | extension-manager-operator: the ContentConfiguration controller. |
+| `integration/graphqlgateway` | kubernetes-graphql-gateway: the listener controllers and the gateway serving GraphQL from kcp workspaces. |
+| `integration/krocomposition` | kro-composition-operator: compositions, schema changes, type conflicts, pruning, consumers. |
 | `integration/resourcebroker` | resource-broker across broker, coordination, compute, consumer and provider workspaces: assignment, copy, conditions, deletion, migration. |
 | `integration/security` | security-operator: authorization model generation and invite validation. |
-| `integration/subroutines` | subroutines lifecycle library against a real API server with a test CRD. |
+| `integration/subroutines` | The subroutines lifecycle library against a real API server with a test CRD. |
