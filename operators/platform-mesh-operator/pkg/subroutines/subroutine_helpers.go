@@ -571,7 +571,7 @@ func ApplyManifestFromFile(
 	}
 
 	if obj.GetKind() == "ContentConfiguration" && obj.GetAPIVersion() == "ui.platform-mesh.io/v1alpha1" {
-		if templateData["featureDisableContentConfigurations"] == "true" {
+		if disabled, _ := templateData["featureDisableContentConfigurations"].(bool); disabled {
 			log.Debug().Str("file", path).Str("kind", obj.GetKind()).Str("name", obj.GetName()).
 				Msg("Skipping ContentConfiguration due to feature-disable-contentconfigurations toggle")
 			return nil

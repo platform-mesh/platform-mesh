@@ -152,6 +152,11 @@ func (r *FeatureToggleSubroutine) Process(ctx context.Context, runtimeObj ctrlru
 			// The IDP validating webhook provides important security validation for IdentityProviderConfiguration resources.
 			// Production deployments should run with this webhook enabled (default behavior).
 			log.Info().Msg("IDP validating webhook is disabled")
+		case FeatureDisableKeycloak:
+			// Platform Mesh then neither configures nor maintains an
+			// identity provider, users authenticate through the IdPs
+			// configured on the instance.
+			log.Info().Msg("Keycloak is disabled")
 		default:
 			log.Warn().Str("featureToggle", ft.Name).Msg("Unknown feature toggle")
 		}

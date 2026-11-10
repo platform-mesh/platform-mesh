@@ -69,8 +69,9 @@ var workspaceTypeFiles = []string{
 // manifestData renders the manifest templates with every feature off and
 // no identity hashes.
 var manifestData = map[string]any{
-	"featureEnableTerminalControllerManager": "false",
+	"featureEnableTerminalControllerManager": false,
 	"apiExportRootTenancyKcpIoIdentityHash":  "",
+	"featureDisableKeycloak":                 true,
 }
 
 // Platform is a platform-mesh-system tree in a kcp.

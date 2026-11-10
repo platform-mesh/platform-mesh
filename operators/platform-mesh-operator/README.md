@@ -169,6 +169,7 @@ spec:
 | `feature-disable-email-verification` | Disables email verification requirement in WorkspaceAuthenticationConfiguration |
 | `feature-disable-contentconfigurations` | Disables loading of all ContentConfiguration manifests during KCP setup |
 | `feature-disable-idp-webhook` | - Disables the IDP validating webhook. This removes important security validation for IdentityProviderConfiguration resources. Production deployments should run with this webhook enabled. |
+| `feature-disable-keycloak` | Runs Platform Mesh without the Keycloak identity provider: the `welcome` IdentityProviderConfiguration, the `orgs-authentication` WorkspaceAuthenticationConfiguration (and its reference on the `orgs` WorkspaceType) and the IDP validating webhook are not applied. Platform Mesh then neither configures nor maintains an identity provider, users authenticate through the external IdPs configured on the instance. Pair with `keycloak.enabled=false` on the security-operator chart. |
 
 ### Wait Configuration
 
