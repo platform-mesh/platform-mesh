@@ -1,0 +1,11 @@
+# no command
+! exec get-version
+stderr 'usage: get-version \[-library\] now\|previous\|next'
+
+# unknown command
+! exec get-version latest
+stderr 'unknown argument "latest", want now, previous or next'
+
+# too many arguments
+! exec get-version now previous
+stderr 'usage: get-version'

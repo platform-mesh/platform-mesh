@@ -1,0 +1,26 @@
+# a release followed by a release candidate on main
+exec git init -q -b main
+exec git commit -q --allow-empty -m release
+exec git tag v26.12.0
+exec git commit -q --allow-empty -m fix
+exec git tag v26.12.1-rc.1
+
+# the tag at HEAD wins
+exec get-version now
+stdout '^v26\.12\.1-rc\.1\n$'
+! stderr .
+
+exec get-version previous
+stdout '^v26\.12\.0\n$'
+
+# the month after the previous release, wrapping the year
+exec get-version next
+stdout '^v27\.01\n$'
+
+# the Go module form
+exec get-version -library now
+stdout '^v0\.2612\.1-rc\.1\n$'
+exec get-version -library previous
+stdout '^v0\.2612\.0\n$'
+exec get-version -library next
+stdout '^v0\.2701\.0\n$'

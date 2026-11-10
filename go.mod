@@ -12,6 +12,7 @@ require (
 	github.com/kcp-dev/sdk v0.33.6
 	github.com/kubernetes-sigs/kro v0.9.4
 	github.com/moby/moby/api v1.56.1
+	github.com/rogpeppe/go-internal v1.16.0
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.45.0
 	go.platform-mesh.io/account-operator v0.0.0-00010101000000-000000000000
@@ -186,6 +187,7 @@ require (
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261019180522-ce908d29299b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect

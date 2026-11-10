@@ -1,0 +1,31 @@
+# an untagged commit on main gets a development version of its month
+exec git init -q -b main
+exec git commit -q --allow-empty -m one
+exec git commit -q --allow-empty -m two
+exec get-version now
+stdout '^v[0-9]{2}\.[0-9]{2}\.9999-dev\.2\.g[0-9a-f]{7}\n$'
+
+# without release tags there is no previous or next release
+! exec get-version previous
+stderr 'finding previous release'
+! exec get-version next
+stderr 'finding previous release'
+
+# GitHub Actions numbers the build
+env GITHUB_RUN_NUMBER=42
+exec get-version now
+stdout '^v[0-9]{2}\.[0-9]{2}\.9999-dev\.42\.g[0-9a-f]{7}\n$'
+env GITHUB_RUN_NUMBER=
+
+# a release branch builds towards the next patch of its release
+exec git tag v26.12.0
+exec git commit -q --allow-empty -m three
+exec git checkout -q -b release-26.12
+exec get-version now
+stdout '^v26\.12\.1-dev\.1\.g[0-9a-f]{7}\n$'
+
+# the branch name comes from GitHub Actions when the checkout is detached
+exec git checkout -q --detach
+env GITHUB_REF_NAME=release-26.12
+exec get-version now
+stdout '^v26\.12\.1-dev\.1\.g[0-9a-f]{7}\n$'
