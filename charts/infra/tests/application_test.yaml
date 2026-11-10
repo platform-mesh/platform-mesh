@@ -83,8 +83,7 @@ tests:
           tls:
             mode: Terminate
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
                 name: domain-certificate
                 namespace: default2
   asserts:

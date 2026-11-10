@@ -1,3 +1,6 @@
+{{- $baseDomain := .Values.baseDomain }}
+{{- $port := .Values.port | toString }}
+{{- $baseDomainPort := printf "%s:%s" $baseDomain $port }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,9 +17,30 @@ spec:
       {{- include "common.pod.securityContext" . | indent 6 }}
       terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
       {{ include "common.hostAliases" $ | nindent 6 }}
-      {{- with .Values.initContainers }}
+      {{- if or .Values.caSecret .Values.initContainers }}
       initContainers:
+        {{- if and .Values.caSecret .Values.webhookCaSecret }}
+        - name: combine-ca
+          image: busybox:1.36
+          command:
+          - sh
+          - -c
+          - cat /domain-ca/ca.crt /webhook-ca/ca.crt > /combined-ca/ca-bundle.crt
+          securityContext:
+            runAsUser: 1000
+          volumeMounts:
+          - name: domain-ca
+            mountPath: /domain-ca
+            readOnly: true
+          - name: webhook-ca
+            mountPath: /webhook-ca
+            readOnly: true
+          - name: combined-ca
+            mountPath: /combined-ca
+        {{- end }}
+        {{- with .Values.initContainers }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       containers:
       - {{- include "common.podBasics" . | indent 8 }}
@@ -24,14 +48,34 @@ spec:
         env:
         - name: HTTP_PROTOCOL
           value: {{ .Values.http.protocol }}
-        {{- with .Values.auth.default }}
         - name: DISCOVERY_ENDPOINT
-          value: {{ .discoveryUrl }}
+          value: "https://{{ $baseDomainPort }}/keycloak/realms/${org-name}/.well-known/openid-configuration"
         - name: OIDC_CLIENT_ID_DEFAULT
-          value: {{ .clientId }}
+          value: {{ .Values.auth.default.clientId }}
         - name: BASE_DOMAINS_DEFAULT
-          value: {{ .baseDomain }}
+          value: {{ $baseDomain }}
+        - name: COOKIE_DOMAIN
+          value: {{ $baseDomain }}
+        - name: FRONTEND_PORT
+          value: {{ $port | quote }}
+        - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+          value: "https://${org-subdomain}{{ $baseDomainPort }}/iam/graphql"
+        - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+          value: "https://${org-subdomain}{{ $baseDomainPort }}/gateway/api/clusters/root:orgs:${org-name}/graphql"
+        - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+          value: "https://rebac-authz-webhook.{{ .Release.Namespace }}.svc.cluster.local:9443"
+        {{- if .Values.caSecret }}
+        - name: NODE_EXTRA_CA_CERTS
+          value: /etc/ssl/certs/ca-bundle.crt
         {{- end }}
+        - name: PORT
+          value: "{{ include "common.getKeyValue" (dict "Values" .Values "key" "port") }}"
+        - name: REGION
+          value: {{ .Values.region }}
+        - name: IMAGE_TAG
+          value: "{{ .Chart.AppVersion }}"
+        - name: IMAGE_NAME
+          value: "{{ include "common.image.name" . }}"
         {{- if .Values.developmentLandcsape }}
         - name: DEVELOPMENT_INSTANCE
           value: "{{ .Values.developmentLandcsape }}"
@@ -46,22 +90,6 @@ spec:
         {{- end }}
         - name: CONTENT_CONFIGURATION_VALIDATOR_API_URL
           value: "{{ .Values.validation.protocol }}://{{ .Values.validation.service }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.validation.port }}{{ .Values.validation.path }}"
-        - name: PORT
-          value: "{{ include "common.getKeyValue" (dict "Values" .Values "key" "port") }}"
-        - name: REGION
-          value: {{ .Values.region }}
-        - name: IMAGE_TAG
-          value: "{{ .Chart.AppVersion }}"
-        - name: IMAGE_NAME
-          value: "{{ include "common.image.name" . }}"
-        {{- if .Values.cookieDomain }}
-        - name: COOKIE_DOMAIN
-          value: {{ .Values.cookieDomain }}
-        {{- end }}
-        {{- if .Values.frontendPort }}
-        - name: FRONTEND_PORT
-          value: "{{ .Values.frontendPort }}"
-        {{- end }}
         {{- if .Values.environment }}
         - name: ENVIRONMENT
           value: "{{ .Values.environment }}"
@@ -90,6 +118,17 @@ spec:
           {{- include "common.ports" . | nindent 10 }}
         volumeMounts:
         {{- include "common.extraVolumeMounts" . | nindent 8 }}
+        {{- if and .Values.caSecret .Values.webhookCaSecret }}
+        - name: combined-ca
+          mountPath: /etc/ssl/certs/ca-bundle.crt
+          subPath: ca-bundle.crt
+          readOnly: true
+        {{- else if .Values.caSecret }}
+        - name: domain-ca
+          mountPath: /etc/ssl/certs/ca-bundle.crt
+          subPath: ca.crt
+          readOnly: true
+        {{- end }}
         {{- with .Values.kubeconfigSecret }}
         - name: kubeconfig
           mountPath: /kubeconfig
@@ -100,6 +139,20 @@ spec:
         {{- end }}
       volumes:
       {{- include "common.extraVolumes" . | nindent 8 }}
+        {{- if .Values.caSecret }}
+        - name: domain-ca
+          secret:
+            secretName: {{ .Values.caSecret }}
+        {{- end }}
+        {{- if .Values.webhookCaSecret }}
+        - name: webhook-ca
+          secret:
+            secretName: {{ .Values.webhookCaSecret }}
+        {{- end }}
+        {{- if and .Values.caSecret .Values.webhookCaSecret }}
+        - name: combined-ca
+          emptyDir: {}
+        {{- end }}
         {{- with .Values.kubeconfigSecret }}
         - name: kubeconfig
           secret:

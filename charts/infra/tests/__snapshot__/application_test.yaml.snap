@@ -8,13 +8,23 @@ Gateway API enabled:
     spec:
       gatewayClassName: null
       listeners:
-        - name: terminate
+        - hostname: ""
+          name: terminate
           port: 443
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - hostname: ""
+          name: terminate-wildstar
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -27,8 +37,7 @@ Gateway API enabled:
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -680,13 +689,23 @@ Istio disabled:
     spec:
       gatewayClassName: null
       listeners:
-        - name: terminate
+        - hostname: ""
+          name: terminate
           port: 443
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - hostname: ""
+          name: terminate-wildstar
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -699,8 +718,7 @@ Istio disabled:
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -1352,13 +1370,23 @@ Istio enabled:
     spec:
       gatewayClassName: null
       listeners:
-        - name: terminate
+        - hostname: ""
+          name: terminate
           port: 443
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - hostname: ""
+          name: terminate-wildstar
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -1371,8 +1399,7 @@ Istio enabled:
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -2362,13 +2389,23 @@ match snapshots:
     spec:
       gatewayClassName: null
       listeners:
-        - name: terminate
+        - hostname: ""
+          name: terminate
           port: 443
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - hostname: ""
+          name: terminate-wildstar
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -2381,8 +2418,7 @@ match snapshots:
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -3034,13 +3070,23 @@ match snapshots w. hostAliases enabled:
     spec:
       gatewayClassName: null
       listeners:
-        - name: terminate
+        - hostname: ""
+          name: terminate
           port: 443
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - hostname: ""
+          name: terminate-wildstar
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -3053,8 +3099,7 @@ match snapshots w. hostAliases enabled:
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -3714,13 +3759,23 @@ match snapshots w. kcp version:
     spec:
       gatewayClassName: null
       listeners:
-        - name: terminate
+        - hostname: ""
+          name: terminate
           port: 443
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - hostname: ""
+          name: terminate-wildstar
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -3733,8 +3788,7 @@ match snapshots w. kcp version:
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -4386,13 +4440,23 @@ match snapshots with mailpit enabled:
     spec:
       gatewayClassName: null
       listeners:
-        - name: terminate
+        - hostname: ""
+          name: terminate
           port: 443
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - hostname: ""
+          name: terminate-wildstar
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate
@@ -4405,8 +4469,7 @@ match snapshots with mailpit enabled:
           protocol: HTTPS
           tls:
             certificateRefs:
-              - group: ""
-                kind: Secret
+              - kind: Secret
                 name: domain-certificate
                 namespace: platform-mesh-system
             mode: Terminate

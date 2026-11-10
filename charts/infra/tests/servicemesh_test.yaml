@@ -31,22 +31,45 @@ tests:
       path: spec.infrastructure.annotations
       value:
         dns.gardener.cloud/class: garden
-- it: terminates HTTPS on a single hostname-less listener by default
+- it: terminates HTTPS on standard listeners when hostname and port are set
   templates:
   - gatewayapi/gateway.yaml
   set:
     gatewayApi:
       enabled: true
+      listeners:
+      - name: terminate
+        hostname: example.com
+        port: 443
+        protocol: HTTPS
+        tls:
+          mode: Terminate
+          certificateRefs:
+          - kind: Secret
+            name: domain-certificate
+            namespace: platform-mesh-system
+      - name: terminate-wildstar
+        hostname: "*.example.com"
+        port: 443
+        protocol: HTTPS
+        tls:
+          mode: Terminate
+          certificateRefs:
+          - kind: Secret
+            name: domain-certificate
+            namespace: platform-mesh-system
   asserts:
-  - equal:
-      path: spec.listeners[0].name
-      value: terminate
-  - notExists:
-      path: spec.listeners[0].hostname
-  - notContains:
+  - contains:
+      path: spec.listeners
+      content:
+        name: terminate
+        hostname: example.com
+      any: true
+  - contains:
       path: spec.listeners
       content:
         name: terminate-wildstar
+        hostname: "*.example.com"
       any: true
 - it: generates one passthrough listener per kcp hostname
   templates:
@@ -94,7 +117,7 @@ tests:
       content:
         protocol: TLS
       any: true
-- it: fails when a user listener collides with a generated passthrough listener
+- it: fails when a user listenersExtra entry collides with a generated passthrough listener
   templates:
   - gatewayapi/gateway.yaml
   set:
@@ -104,6 +127,9 @@ tests:
       - name: passthrough
         port: 8443
         protocol: TLS
+    kcp:
+      external:
+        hostname: kcp.api.example.com
   asserts:
   - failedTemplate:
       errorPattern: generated from the kcp hostnames

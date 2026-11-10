@@ -25,11 +25,11 @@ contentConfig:
   # -- base domain for the marketplace content API (e.g. example.com). Required.
   baseDomain: ""
   # -- protocol for the marketplace content API. Permissible values: http, https
-  protocol: ""
+  protocol: "https"
 
 http:
   # -- protocol used by the frontend. Must be set. Permissible values: http, https
-  protocol: ""
+  protocol: "https"
 
 gatewayApi:
   enabled: false

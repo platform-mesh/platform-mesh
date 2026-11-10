@@ -66,12 +66,12 @@ tests:
       - matchRegex:
           path: data["profile.yaml"]
           pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'cat /domain-ca/ca\.crt /webhook-ca/ca\.crt'
       - notMatchRegex:
           path: data["profile.yaml"]
-          pattern: 'cat /domain-ca/tls\.crt'
+          pattern: 'webhookCaSecret:'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'cat /domain-ca/ca\.crt'
       # The external port must be substituted by Helm at template time; the
       # __EXTERNAL_PORT__ placeholder must not leak into the ConfigMap, and
       # PMO's template context does not define `.port`.
@@ -103,9 +103,6 @@ tests:
       - matchRegex:
           path: data["profile.yaml"]
           pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'cat /domain-ca/ca\.crt /webhook-ca/ca\.crt'
       - notMatchRegex:
           path: data["profile.yaml"]
           pattern: 'cat /domain-ca/tls\.crt'
