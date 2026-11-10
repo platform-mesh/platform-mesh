@@ -22,12 +22,32 @@ webhooks:
       - v1
     clientConfig:
       caBundle: {{ index . "identityproviderconfiguration-validator.webhooks.core.platform-mesh.io.ca-bundle" }}
-      url: https://security-operator-webhook.platform-mesh-system.svc.cluster.local:9443/validate-keycloak-platform-mesh-io-v1alpha1-identityproviderconfiguration
+      url: https://pm-keycloak-operator-webhook.platform-mesh-system.svc.cluster.local:9443/validate-keycloak-platform-mesh-io-v1alpha1-identityproviderconfiguration
     failurePolicy: Fail
     name: identityproviderconfiguration.validation.platform-mesh.io
     rules:
       - apiGroups:
           - keycloak.platform-mesh.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - identityproviderconfigurations
+    sideEffects: None
+    timeoutSeconds: 30
+  # Deprecated core.platform-mesh.io kind, served while pm-keycloak-operator runs with LegacyAPIs=true.
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      caBundle: {{ index . "identityproviderconfiguration-validator.webhooks.core.platform-mesh.io.ca-bundle" }}
+      url: https://pm-keycloak-operator-webhook.platform-mesh-system.svc.cluster.local:9443/validate-core-platform-mesh-io-v1alpha1-identityproviderconfiguration
+    failurePolicy: Fail
+    name: legacy-identityproviderconfiguration.validation.platform-mesh.io
+    rules:
+      - apiGroups:
+          - core.platform-mesh.io
         apiVersions:
           - v1alpha1
         operations:

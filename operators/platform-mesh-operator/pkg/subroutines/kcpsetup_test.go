@@ -1274,6 +1274,7 @@ func (s *KcpsetupTestSuite) Test_idpWebhookDisabled() {
 func (s *KcpsetupTestSuite) Test_ApplyManifestFromFile_FeatureDisableKeycloak() {
 	manifests := []string{
 		"03-platform-mesh-system/welcome-ipc.yaml",
+		"03-platform-mesh-system/welcome-ipc-legacy.yaml",
 		"workspace-authentication-configuration.yaml",
 	}
 	tests := []struct {

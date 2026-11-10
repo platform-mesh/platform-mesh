@@ -13,7 +13,7 @@
 # limitations under the License.
 
 {{- if not .featureDisableKeycloak }}
-apiVersion: core.platform-mesh.io/v1alpha1
+apiVersion: keycloak.platform-mesh.io/v1alpha1
 kind: IdentityProviderConfiguration
 metadata:
   name: welcome
