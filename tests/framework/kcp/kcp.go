@@ -31,16 +31,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go"
 
-	"k8s.io/client-go/rest"
-
 	kcptc "github.com/kcp-dev/kcp-testcontainers"
-	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 // tag is the kcp release under test (KCP_VERSION).
@@ -62,30 +60,36 @@ func Default(ctx context.Context) (*kcptc.Instance, error) {
 	return shared(ctx, "platform-mesh")
 }
 
-// Config returns the unscoped admin config of instance, verifying TLS
-// against the URL's host rather than the front-proxy alias, for clients that
-// follow the URLs kcp advertises (virtual workspaces live on the shards).
-func Config(instance *kcptc.Instance) *rest.Config {
-	cfg := instance.Config()
-	if i := strings.Index(cfg.Host, "/clusters/"); i >= 0 {
-		cfg.Host = cfg.Host[:i]
-	}
-	cfg.ServerName = ""
-	return cfg
+// Security returns the instance of the security suite, whose fixtures split
+// core.platform-mesh.io into exports the other suites' fixtures conflict with.
+func Security(ctx context.Context) (*kcptc.Instance, error) {
+	return shared(ctx, "security")
 }
 
-// RESTConfig returns Config scoped to the workspace at path.
-func RESTConfig(instance *kcptc.Instance, path logicalcluster.Path) *rest.Config {
-	cfg := Config(instance)
-	cfg.Host += path.RequestPath()
-	return cfg
-}
+var (
+	instancesMu sync.Mutex
+	instances   = map[string]*kcptc.Instance{}
+)
 
-// shared starts or joins the shared kcp named name. The operators run on the
-// host and follow the URLs kcp advertises, so the front-proxy and the shards
-// are published on fixed host ports and the shards advertise those instead
-// of their Docker network aliases.
+// shared starts or joins the shared kcp named name, once per process. The
+// operators run on the host and follow the URLs kcp advertises, so the
+// front-proxy and the shards are published on fixed host ports and the
+// shards advertise those instead of their Docker network aliases.
 func shared(ctx context.Context, name string) (*kcptc.Instance, error) {
+	instancesMu.Lock()
+	defer instancesMu.Unlock()
+	if instance, ok := instances[name]; ok {
+		return instance, nil
+	}
+	instance, err := start(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	instances[name] = instance
+	return instance, nil
+}
+
+func start(ctx context.Context, name string) (*kcptc.Instance, error) {
 	host, err := daemonHost(ctx)
 	if err != nil {
 		return nil, err

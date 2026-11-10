@@ -28,7 +28,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
-	"go.platform-mesh.io/platform-mesh/tests/framework/kcp"
 	"go.platform-mesh.io/platform-mesh/tests/framework/scheme"
 	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
@@ -43,8 +42,8 @@ import (
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/sdk/apis/core"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	kcptesting "github.com/kcp-dev/sdk/testing"
 )
 
 const (
@@ -162,12 +161,13 @@ func Install(t testing.TB, instance *kcptc.Instance, opts ...Option) *Platform {
 		o.scheme = scheme.New(t)
 	}
 
-	cluster, err := clusterclient.New(kcp.Config(instance), ctrlruntimeclient.Options{Scheme: o.scheme})
+	cluster, err := clusterclient.New(instance.BaseConfig(), ctrlruntimeclient.Options{Scheme: o.scheme})
 	require.NoError(t, err, "building kcp cluster client")
 	root := core.RootCluster.Path()
 	p := &Platform{Root: root, System: root.Join(SystemWorkspace), Cluster: cluster}
 	p.RootClient = p.Cluster.Cluster(root)
-	ensureWorkspace(t, p.Cluster, root, SystemWorkspace, "universal")
+	_, err = instance.CreateWorkspace(t.Context(), p.System.String(), kcptc.WaitForReachable())
+	require.NoError(t, err, "creating workspace %s", p.System)
 	p.SystemClient = p.Cluster.Cluster(p.System)
 
 	ids := rootIdentities(t, p.RootClient)
@@ -205,8 +205,9 @@ func Install(t testing.TB, instance *kcptc.Instance, opts ...Option) *Platform {
 		installWorkspaceTypes(t, p, o.defaultBindings)
 	}
 	if o.orgs {
-		ensureWorkspace(t, p.Cluster, root, OrgsWorkspace, "orgs")
 		p.Orgs = root.Join(OrgsWorkspace)
+		_, err = instance.CreateWorkspace(t.Context(), p.Orgs.String(), kcptc.With(kcptesting.WithType(root, "orgs")), kcptc.WaitForReachable())
+		require.NoError(t, err, "creating workspace %s", p.Orgs)
 		p.OrgsClient = p.Cluster.Cluster(p.Orgs)
 		for _, name := range systemDefaultBindings(t, p, "orgs") {
 			served[name] = true
@@ -403,38 +404,4 @@ func exportExists(t testing.TB, cl ctrlruntimeclient.Client, name string) bool {
 	}
 	require.NoError(t, err, "getting APIExport %s", name)
 	return true
-}
-
-// ensureWorkspace creates workspace name of type root:<typeName> under parent
-// unless it exists and waits until it is Ready and reachable by path.
-func ensureWorkspace(t testing.TB, cluster clusterclient.ClusterClient, parent logicalcluster.Path, name, typeName string) {
-	t.Helper()
-	parentClient := cluster.Cluster(parent)
-	ws := &kcptenancyv1alpha1.Workspace{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: kcptenancyv1alpha1.WorkspaceSpec{
-			Type: &kcptenancyv1alpha1.WorkspaceTypeReference{
-				Name: kcptenancyv1alpha1.WorkspaceTypeName(typeName),
-				Path: core.RootCluster.String(),
-			},
-		},
-	}
-	// A WorkspaceType created a moment ago may not be known to admission yet.
-	wait.Eventually(t, func() (bool, string) {
-		err := parentClient.Create(t.Context(), ws.DeepCopy())
-		if err == nil || apierrors.IsAlreadyExists(err) {
-			return true, ""
-		}
-		return false, fmt.Sprintf("creating workspace: %v", err)
-	}, wait.Timeout, wait.Tick, "workspace %s should be created", parent.Join(name))
-	wait.WorkspaceReady(t, parentClient, name)
-
-	path := parent.Join(name)
-	wait.Eventually(t, func() (bool, string) {
-		lc := &kcpcorev1alpha1.LogicalCluster{}
-		if err := cluster.Cluster(path).Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: kcpcorev1alpha1.LogicalClusterName}, lc); err != nil {
-			return false, fmt.Sprintf("getting LogicalCluster: %v", err)
-		}
-		return true, ""
-	}, wait.Timeout, wait.Tick, "workspace %s should be reachable", path)
 }

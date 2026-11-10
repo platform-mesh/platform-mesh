@@ -72,21 +72,14 @@ spec:
                 type: integer
 `
 
-// workspace creates a workspace under root with a generated name and waits
-// until the front-proxy routes to it (CreateWorkspace only waits for Ready).
+// workspace creates a workspace under root with a generated name, served
+// through the front-proxy on return.
 func workspace(t *testing.T, instance *kcptc.Instance, prefix string) (logicalcluster.Path, ctrlruntimeclient.Client) {
 	t.Helper()
-	path, err := instance.CreateWorkspace(t.Context(), core.RootCluster.String()+":"+prefix+"-")
+	path, err := instance.CreateWorkspace(t.Context(), core.RootCluster.String()+":"+prefix+"-", kcptc.WaitForReachable())
 	require.NoError(t, err)
 	cl, err := instance.Client(path.String(), ctrlruntimeclient.Options{Scheme: scheme.New(t)})
 	require.NoError(t, err)
-	wait.Eventually(t, func() (bool, string) {
-		lc := &kcpcorev1alpha1.LogicalCluster{}
-		if err := cl.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: kcpcorev1alpha1.LogicalClusterName}, lc); err != nil {
-			return false, err.Error()
-		}
-		return true, ""
-	}, wait.Timeout, wait.Tick, "workspace %s should be reachable through the front-proxy", path)
 	return path, cl
 }
 
@@ -185,7 +178,7 @@ func TestVirtualWorkspaceReachable(t *testing.T) {
 	require.NotEmpty(t, slice.Status.APIExportEndpoints, "the endpoint slice should advertise virtual workspace URLs")
 
 	for _, endpoint := range slice.Status.APIExportEndpoints {
-		cfg := kcp.Config(instance)
+		cfg := instance.BaseConfig()
 		cfg.Host = endpoint.URL
 		dc, err := discovery.NewDiscoveryClientForConfig(cfg)
 		require.NoError(t, err)
