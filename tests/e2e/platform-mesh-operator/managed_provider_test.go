@@ -58,7 +58,6 @@ const (
 // Flux kinds, so without Flux the test is skipped (the Tilt cluster has none).
 func TestManagedProviderLifecycle(t *testing.T) {
 	cl := kubeClient(t)
-	requireFlux(t, cl)
 	waitPlatformMeshReady(t, cl)
 
 	providersWs := kcpClient(t, "root:providers")
