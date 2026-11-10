@@ -547,6 +547,43 @@ data:
               level: debug
             openfga:
               url: openfga:8081
+        pm-keycloak-operator:
+          imageResources:
+          - annotations:
+              repo: oci
+              artifact: image
+              for: pm-keycloak-operator
+          syncWave: 4
+          enabled: true
+          dependsOn: []
+          values:
+            baseDomain: '{{ .baseDomainPort }}'
+            caSecret: domain-certificate
+            crds:
+              enabled: false
+            keycloak:
+              baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
+            idp:
+              smtp:
+                # REQUIRED: configure a production SMTP server
+                server: ""
+                port: ""
+                fromAddress: ""
+              # Production defaults: invite-only, require email verification
+              registrationAllowed: false
+              allowUnverifiedEmails: false
+              setDefaultPassword: false
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
+            initializer:
+              kubeconfigSecret: keycloak-initializer-kubeconfig
+            kubeconfigSecret: pm-keycloak-operator-kubeconfig
+            log:
+              level: debug
+              noJson: true
+            terminator:
+              kubeconfigSecret: keycloak-terminator-kubeconfig
         security-operator:
           imageResources:
           - annotations:

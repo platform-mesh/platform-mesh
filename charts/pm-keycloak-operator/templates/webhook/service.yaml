@@ -1,0 +1,14 @@
+{{- if .Values.webhooks.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.entity.name" . }}-webhook
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+  - port: {{ .Values.webhooks.port }}
+    protocol: TCP
+    targetPort: webhook
+  selector:
+    {{- include "common.labelMatcher" . | indent 4 }}
+{{- end -}}

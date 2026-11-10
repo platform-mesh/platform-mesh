@@ -34,7 +34,8 @@ var DefaultCASecretKey = "ca.crt"
 var AccountOperatorMutatingWebhookName = "account-operator.webhooks.core.platform-mesh.io"
 var AccountOperatorValidatingWebhookName = "organization-validator.webhooks.core.platform-mesh.io"
 
-var SecurityOperatorWebhookCASecretName = "security-operator-ca-secret"
+// KeycloakOperatorWebhookCASecretName is the CA secret of the pm-keycloak-operator webhook chart PKI.
+var KeycloakOperatorWebhookCASecretName = "pm-keycloak-operator-ca-secret"
 var IdentityProviderValidatingWebhookName = "identityproviderconfiguration-validator.webhooks.core.platform-mesh.io"
 var AccountOperatorWorkspace = "root:platform-mesh-system"
 
@@ -57,6 +58,11 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
 		Path:      "root:platform-mesh-system",
 		Secret:    "security-operator-kubeconfig",
+		AdminAuth: ptr.To(true),
+	},
+	{
+		Path:      "root:platform-mesh-system",
+		Secret:    "pm-keycloak-operator-kubeconfig",
 		AdminAuth: ptr.To(true),
 	},
 	{
@@ -98,6 +104,16 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 		AdminAuth: ptr.To(true),
 	},
 	{
+		Path:      "root",
+		Secret:    "keycloak-initializer-kubeconfig",
+		AdminAuth: ptr.To(true),
+	},
+	{
+		Path:      "root",
+		Secret:    "keycloak-terminator-kubeconfig",
+		AdminAuth: ptr.To(true),
+	},
+	{
 		Path:      "root:platform-mesh-system",
 		Secret:    "virtual-workspaces-kubeconfig",
 		AdminAuth: ptr.To(true),
@@ -134,7 +150,7 @@ var DEFAULT_VALIDATING_WEBHOOK_CONFIGURATION = pmcorev1alpha1.WebhookConfigurati
 
 var DEFAULT_IDENTITY_PROVIDER_VALIDATING_WEBHOOK_CONFIGURATION = pmcorev1alpha1.WebhookConfiguration{
 	SecretRef: pmcorev1alpha1.SecretReference{
-		Name:      SecurityOperatorWebhookCASecretName,
+		Name:      KeycloakOperatorWebhookCASecretName,
 		Namespace: AccountOperatorWebhookSecretNamespace,
 	},
 	SecretData: DefaultCASecretKey,
