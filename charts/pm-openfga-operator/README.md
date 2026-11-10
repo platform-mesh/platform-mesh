@@ -1,6 +1,6 @@
-# security-operator
+# pm-openfga-operator
 
-A Helm chart for security-operator
+Manages OpenFGA authorization of a Platform Mesh installation (openfga.platform-mesh.io)
 
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 ## Values
@@ -21,9 +21,9 @@ A Helm chart for security-operator
 | hostAliases.enabled | bool | `false` |  |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
-| image.repository | string | `"platform-mesh/platform-mesh/security-operator"` | The image repository path (without registry) |
+| image.repository | string | `"platform-mesh/platform-mesh/pm-openfga-operator"` | The image repository path (without registry) |
 | initializer.extraArgs | list | `[]` |  |
-| initializer.kubeconfigSecret | string | `"security-initializer-kubeconfig"` | The kubeconfig secret for the initializer |
+| initializer.kubeconfigSecret | string | `"openfga-initializer-kubeconfig"` | The kubeconfig secret for the initializer |
 | initializer.subroutines.workspaceEnabled | bool | `true` | Enable WorkspaceInitializer subroutine (FGA Store + AccountInfo setup) |
 | kubeconfigSecret | string | `""` | The kubeconfig secret for operator and generator |
 | logLevel | string | `"info"` | Log level for all operator components. Permissible values: debug, info, warn, error |
@@ -34,7 +34,7 @@ A Helm chart for security-operator
 | system.extraArgs | list | `[]` | Extra arguments passed to the system binary |
 | system.kubeconfigSecret | string | `""` | The kubeconfig secret for the system component |
 | terminator.extraArgs | list | `[]` |  |
-| terminator.kubeconfigSecret | string | `"security-terminator-kubeconfig"` | The kubeconfig secret for the terminator |
+| terminator.kubeconfigSecret | string | `"openfga-terminator-kubeconfig"` | The kubeconfig secret for the terminator |
 
 ## Overriding Values
 

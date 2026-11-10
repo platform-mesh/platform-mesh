@@ -662,7 +662,7 @@ data:
               level: debug
             openfga:
               url: openfga:8081
-        security-operator:
+        pm-openfga-operator:
           syncWave: 4
           enabled: true
           values:
@@ -688,13 +688,13 @@ data:
               enabled: true
               entries: *hostAliasesEntries
             initializer:
-              kubeconfigSecret: security-initializer-kubeconfig
-            kubeconfigSecret: security-operator-kubeconfig
+              kubeconfigSecret: openfga-initializer-kubeconfig
+            kubeconfigSecret: pm-openfga-operator-kubeconfig
             log:
               level: debug
               noJson: true
             terminator:
-              kubeconfigSecret: security-terminator-kubeconfig
+              kubeconfigSecret: openfga-terminator-kubeconfig
         terminal-controller-manager:
           enabled: false
         virtual-workspaces:

@@ -1,7 +1,7 @@
 {{/*
 Feature gate arguments from .Values.featureGates.
 */}}
-{{- define "security-operator.featureGates" -}}
+{{- define "pm-openfga-operator.featureGates" -}}
 {{- $pairs := list -}}
 {{- range $name, $enabled := .Values.featureGates -}}
 {{- $pairs = append $pairs (printf "%s=%s" $name (toString $enabled)) -}}

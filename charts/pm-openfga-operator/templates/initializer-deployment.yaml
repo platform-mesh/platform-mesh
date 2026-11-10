@@ -26,7 +26,7 @@ spec:
         args:
           - initializer
           - --core-module-path=/data/coreModule.fga
-          {{- include "security-operator.featureGates" . | indent 10 }}
+          {{- include "pm-openfga-operator.featureGates" . | indent 10 }}
           - --fga-target={{ .Values.openfga.endpoint }}
           {{- if .Values.initializer.kubeconfigSecret }}
           - --kcp-kubeconfig=/api-kubeconfig/kubeconfig

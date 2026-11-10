@@ -60,8 +60,8 @@ components:
       - name: rebac-authz-webhook
         componentName: github.com/platform-mesh/rebac-authz-webhook
         version: ${PM_VERSION}
-      - name: security-operator
-        componentName: github.com/platform-mesh/security-operator
+      - name: pm-openfga-operator
+        componentName: github.com/platform-mesh/pm-openfga-operator
         version: ${PM_VERSION}
       - name: openfga
         componentName: github.com/openfga/openfga

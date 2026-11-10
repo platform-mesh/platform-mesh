@@ -1,6 +1,6 @@
 apiVersion: v2
-name: security-operator
-description: A Helm chart for security-operator
+name: pm-openfga-operator
+description: Manages OpenFGA authorization of a Platform Mesh installation (openfga.platform-mesh.io)
 type: application
 version: 0.0.0
 appVersion: "0.0.0"
