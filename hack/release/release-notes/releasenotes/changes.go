@@ -50,9 +50,11 @@ var (
 	housekeeping = regexp.MustCompile(`(?i)^(tidy|go mod tidy|codegen|generate|regenerate|lint|fmt|gofmt)$`)
 )
 
-// Change is one commit between the two refs.
+// Change is one commit with the PR number and repo it belongs to.
 type Change struct {
-	SHA   string
+	// SHA is the commit hash.
+	SHA string
+	// Title is the subject of the commit.
 	Title string
 	// PR is 0 for a commit that was not merged through a pull request.
 	PR int
