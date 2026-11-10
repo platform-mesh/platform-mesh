@@ -17,30 +17,24 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.21.0
-  name: accounts.core.platform-mesh.io
+  name: stores.openfga.platform-mesh.io
 spec:
-  group: core.platform-mesh.io
+  group: openfga.platform-mesh.io
   names:
-    kind: Account
-    listKind: AccountList
-    plural: accounts
-    singular: account
+    kind: Store
+    listKind: StoreList
+    plural: stores
+    singular: store
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.displayName
-      name: Display Name
-      type: string
-    - jsonPath: .spec.type
-      name: Type
-      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Account is the Schema for the accounts API
+        description: Store is the Schema for the stores API.
         properties:
           apiVersion:
             description: |-
@@ -60,64 +54,33 @@ spec:
           metadata:
             type: object
           spec:
-            description: AccountSpec defines the desired state of Account
+            description: StoreSpec defines the desired state of Store.
             properties:
-              creator:
-                description: The initial creator of this account
+              coreModule:
                 type: string
-              data:
-                description: Additional information that should be stored with the
-                  account
-                x-kubernetes-preserve-unknown-fields: true
-              description:
-                description: An optional description for this account
-                type: string
-              displayName:
-                description: The display name for this account
-                maxLength: 255
-                type: string
-              extensions:
+              tuples:
                 items:
                   properties:
-                    apiVersion:
-                      description: |-
-                        APIVersion defines the versioned schema of this representation of an object.
-                        Servers should convert recognized schemas to the latest internal value, and
-                        may reject unrecognized values.
-                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+                    object:
                       type: string
-                    kind:
-                      description: |-
-                        Kind is a string value representing the REST resource this object represents.
-                        Servers may infer this from the endpoint the client submits requests to.
-                        Cannot be updated.
-                        In CamelCase.
-                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                    relation:
                       type: string
-                    metadataGoTemplate:
-                      x-kubernetes-preserve-unknown-fields: true
-                    readyConditionType:
-                      description: |-
-                        The type of a condition that must be set to True on the Extension object
-                        for the extension to be considered reconciled and ready. If this is empty,
-                        the extension is considered ready.
+                    user:
                       type: string
-                    specGoTemplate:
-                      x-kubernetes-preserve-unknown-fields: true
                   required:
-                  - specGoTemplate
+                  - object
+                  - relation
+                  - user
                   type: object
                 type: array
-              type:
-                description: Type specifies the intended type for this Account object.
-                type: string
             required:
-            - displayName
-            - type
+            - coreModule
             type: object
           status:
-            description: AccountStatus defines the observed state of Account
+            description: StoreStatus defines the observed state of Store.
             properties:
+              authorizationModelId:
+                type: string
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -174,12 +137,23 @@ spec:
                   - type
                   type: object
                 type: array
-              nextReconcileTime:
-                format: date-time
+              managedTuples:
+                items:
+                  properties:
+                    object:
+                      type: string
+                    relation:
+                      type: string
+                    user:
+                      type: string
+                  required:
+                  - object
+                  - relation
+                  - user
+                  type: object
+                type: array
+              storeId:
                 type: string
-              observedGeneration:
-                format: int64
-                type: integer
             type: object
         type: object
     served: true

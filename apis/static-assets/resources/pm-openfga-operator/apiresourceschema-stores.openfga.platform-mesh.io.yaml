@@ -15,25 +15,23 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261111-4a97ee37.authorizationmodels.core.platform-mesh.io
+  name: v261111-6b64808e.stores.openfga.platform-mesh.io
 spec:
-  group: core.platform-mesh.io
+  group: openfga.platform-mesh.io
   names:
-    kind: AuthorizationModel
-    listKind: AuthorizationModelList
-    plural: authorizationmodels
-    singular: authorizationmodel
+    kind: Store
+    listKind: StoreList
+    plural: stores
+    singular: store
   scope: Cluster
   versions:
-  - deprecated: true
-    deprecationWarning: core.platform-mesh.io/v1alpha1 AuthorizationModel is deprecated,
-      use openfga.platform-mesh.io/v1alpha1 AuthorizationModel
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
     name: v1alpha1
     schema:
-      description: |-
-        AuthorizationModel is the Schema for the authorizationmodels API.
-
-        Deprecated: use openfga.platform-mesh.io/v1alpha1 AuthorizationModel.
+      description: Store is the Schema for the stores API.
       properties:
         apiVersion:
           description: |-
@@ -53,23 +51,10 @@ spec:
         metadata:
           type: object
         spec:
-          description: AuthorizationModelSpec defines the desired state of AuthorizationModel.
+          description: StoreSpec defines the desired state of Store.
           properties:
-            model:
+            coreModule:
               type: string
-            storeRef:
-              properties:
-                cluster:
-                  type: string
-                name:
-                  type: string
-                path:
-                  description: Path is deprecated. Use Cluster instead.
-                  type: string
-              required:
-              - cluster
-              - name
-              type: object
             tuples:
               items:
                 properties:
@@ -86,12 +71,13 @@ spec:
                 type: object
               type: array
           required:
-          - model
-          - storeRef
+          - coreModule
           type: object
         status:
-          description: AuthorizationModelStatus defines the observed state of AuthorizationModel.
+          description: StoreStatus defines the observed state of Store.
           properties:
+            authorizationModelId:
+              type: string
             conditions:
               items:
                 description: Condition contains details for one aspect of the current
@@ -163,6 +149,8 @@ spec:
                 - user
                 type: object
               type: array
+            storeId:
+              type: string
           type: object
       type: object
     served: true

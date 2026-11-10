@@ -22,7 +22,7 @@ metadata:
   name: store-editor-role
 rules:
 - apiGroups:
-  - core.platform-mesh.io
+  - openfga.platform-mesh.io
   resources:
   - stores
   verbs:
@@ -34,7 +34,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - core.platform-mesh.io
+  - openfga.platform-mesh.io
   resources:
   - stores/status
   verbs:

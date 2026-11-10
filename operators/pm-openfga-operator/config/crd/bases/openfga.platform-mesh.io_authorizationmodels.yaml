@@ -17,26 +17,21 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.21.0
-  name: identityproviderconfigurations.core.platform-mesh.io
+  name: authorizationmodels.openfga.platform-mesh.io
 spec:
-  group: core.platform-mesh.io
+  group: openfga.platform-mesh.io
   names:
-    kind: IdentityProviderConfiguration
-    listKind: IdentityProviderConfigurationList
-    plural: identityproviderconfigurations
-    singular: identityproviderconfiguration
+    kind: AuthorizationModel
+    listKind: AuthorizationModelList
+    plural: authorizationmodels
+    singular: authorizationmodel
   scope: Cluster
   versions:
-  - deprecated: true
-    deprecationWarning: core.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
-      is deprecated, use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: |-
-          IdentityProviderConfiguration is the Schema for the identityproviderconfigurations API
-
-          Deprecated: use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration.
+        description: AuthorizationModel is the Schema for the authorizationmodels
+          API.
         properties:
           apiVersion:
             description: |-
@@ -56,54 +51,44 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of IdentityProviderConfiguration
+            description: AuthorizationModelSpec defines the desired state of AuthorizationModel.
             properties:
-              clients:
+              model:
+                type: string
+              storeRef:
+                properties:
+                  cluster:
+                    type: string
+                  name:
+                    type: string
+                  path:
+                    description: Path is deprecated. Use Cluster instead.
+                    type: string
+                required:
+                - cluster
+                - name
+                type: object
+              tuples:
                 items:
                   properties:
-                    clientName:
+                    object:
                       type: string
-                    clientType:
-                      enum:
-                      - confidential
-                      - public
+                    relation:
                       type: string
-                    postLogoutRedirectUris:
-                      items:
-                        type: string
-                      type: array
-                    redirectUris:
-                      items:
-                        type: string
-                      type: array
-                    secretRef:
-                      description: |-
-                        SecretReference represents a Secret Reference. It has enough information to retrieve secret
-                        in any namespace
-                      properties:
-                        name:
-                          description: name is unique within a namespace to reference
-                            a secret resource.
-                          type: string
-                        namespace:
-                          description: namespace defines the space within which the
-                            secret name must be unique.
-                          type: string
-                      type: object
-                      x-kubernetes-map-type: atomic
+                    user:
+                      type: string
                   required:
-                  - clientName
-                  - clientType
-                  - redirectUris
+                  - object
+                  - relation
+                  - user
                   type: object
                 type: array
-              registrationAllowed:
-                type: boolean
             required:
-            - clients
+            - model
+            - storeRef
             type: object
           status:
-            description: status defines the observed state of IdentityProviderConfiguration
+            description: AuthorizationModelStatus defines the observed state of AuthorizationModel.
             properties:
               conditions:
                 items:
@@ -161,39 +146,22 @@ spec:
                   - type
                   type: object
                 type: array
-              managedClients:
-                additionalProperties:
-                  description: ManagedClient tracks a client that is managed by the
-                    operator.
+              managedTuples:
+                items:
                   properties:
-                    clientId:
+                    object:
                       type: string
-                    registrationClientUri:
+                    relation:
                       type: string
-                    secretRef:
-                      description: |-
-                        SecretReference represents a Secret Reference. It has enough information to retrieve secret
-                        in any namespace
-                      properties:
-                        name:
-                          description: name is unique within a namespace to reference
-                            a secret resource.
-                          type: string
-                        namespace:
-                          description: namespace defines the space within which the
-                            secret name must be unique.
-                          type: string
-                      type: object
-                      x-kubernetes-map-type: atomic
+                    user:
+                      type: string
                   required:
-                  - clientId
-                  - registrationClientUri
-                  - secretRef
+                  - object
+                  - relation
+                  - user
                   type: object
-                type: object
+                type: array
             type: object
-        required:
-        - spec
         type: object
     served: true
     storage: true

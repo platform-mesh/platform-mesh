@@ -15,25 +15,18 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261111-3fc0b5de.identityproviderconfigurations.core.platform-mesh.io
+  name: v261111-63340683.apiexportpolicies.openfga.platform-mesh.io
 spec:
-  group: core.platform-mesh.io
+  group: openfga.platform-mesh.io
   names:
-    kind: IdentityProviderConfiguration
-    listKind: IdentityProviderConfigurationList
-    plural: identityproviderconfigurations
-    singular: identityproviderconfiguration
+    kind: APIExportPolicy
+    listKind: APIExportPolicyList
+    plural: apiexportpolicies
+    singular: apiexportpolicy
   scope: Cluster
   versions:
-  - deprecated: true
-    deprecationWarning: core.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
-      is deprecated, use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
-    name: v1alpha1
+  - name: v1alpha1
     schema:
-      description: |-
-        IdentityProviderConfiguration is the Schema for the identityproviderconfigurations API
-
-        Deprecated: use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration.
       properties:
         apiVersion:
           description: |-
@@ -53,54 +46,27 @@ spec:
         metadata:
           type: object
         spec:
-          description: spec defines the desired state of IdentityProviderConfiguration
           properties:
-            clients:
+            allowPathExpressions:
               items:
-                properties:
-                  clientName:
-                    type: string
-                  clientType:
-                    enum:
-                    - confidential
-                    - public
-                    type: string
-                  postLogoutRedirectUris:
-                    items:
-                      type: string
-                    type: array
-                  redirectUris:
-                    items:
-                      type: string
-                    type: array
-                  secretRef:
-                    description: |-
-                      SecretReference represents a Secret Reference. It has enough information to retrieve secret
-                      in any namespace
-                    properties:
-                      name:
-                        description: name is unique within a namespace to reference
-                          a secret resource.
-                        type: string
-                      namespace:
-                        description: namespace defines the space within which the
-                          secret name must be unique.
-                        type: string
-                    type: object
-                    x-kubernetes-map-type: atomic
-                required:
-                - clientName
-                - clientType
-                - redirectUris
-                type: object
+                type: string
+              minItems: 1
               type: array
-            registrationAllowed:
-              type: boolean
+            apiExportRef:
+              properties:
+                clusterPath:
+                  type: string
+                name:
+                  type: string
+              required:
+              - clusterPath
+              - name
+              type: object
           required:
-          - clients
+          - allowPathExpressions
+          - apiExportRef
           type: object
         status:
-          description: status defines the observed state of IdentityProviderConfiguration
           properties:
             conditions:
               items:
@@ -158,39 +124,11 @@ spec:
                 - type
                 type: object
               type: array
-            managedClients:
-              additionalProperties:
-                description: ManagedClient tracks a client that is managed by the
-                  operator.
-                properties:
-                  clientId:
-                    type: string
-                  registrationClientUri:
-                    type: string
-                  secretRef:
-                    description: |-
-                      SecretReference represents a Secret Reference. It has enough information to retrieve secret
-                      in any namespace
-                    properties:
-                      name:
-                        description: name is unique within a namespace to reference
-                          a secret resource.
-                        type: string
-                      namespace:
-                        description: namespace defines the space within which the
-                          secret name must be unique.
-                        type: string
-                    type: object
-                    x-kubernetes-map-type: atomic
-                required:
-                - clientId
-                - registrationClientUri
-                - secretRef
-                type: object
-              type: object
+            managedAllowExpressions:
+              items:
+                type: string
+              type: array
           type: object
-      required:
-      - spec
       type: object
     served: true
     storage: true

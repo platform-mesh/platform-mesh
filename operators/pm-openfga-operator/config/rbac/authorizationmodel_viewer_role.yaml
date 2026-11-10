@@ -22,7 +22,7 @@ metadata:
   name: authorizationmodel-viewer-role
 rules:
 - apiGroups:
-  - core.platform-mesh.io
+  - openfga.platform-mesh.io
   resources:
   - authorizationmodels
   verbs:
@@ -30,7 +30,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - core.platform-mesh.io
+  - openfga.platform-mesh.io
   resources:
   - authorizationmodels/status
   verbs:

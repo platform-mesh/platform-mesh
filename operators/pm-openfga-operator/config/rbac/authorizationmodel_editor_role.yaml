@@ -22,7 +22,7 @@ metadata:
   name: authorizationmodel-editor-role
 rules:
 - apiGroups:
-  - core.platform-mesh.io
+  - openfga.platform-mesh.io
   resources:
   - authorizationmodels
   verbs:
@@ -34,7 +34,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - core.platform-mesh.io
+  - openfga.platform-mesh.io
   resources:
   - authorizationmodels/status
   verbs:
