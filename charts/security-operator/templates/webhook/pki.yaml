@@ -1,4 +1,4 @@
-{{- if .Values.webhooks.enabled -}}
+{{- if include "security-operator.webhooks.enabled" . -}}
 # Self-signed issuer for bootstrapping the CA
 apiVersion: cert-manager.io/v1
 kind: Issuer

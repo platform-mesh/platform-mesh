@@ -1,4 +1,4 @@
-{{- if and .Values.webhooks.enabled .Values.webhooks.register -}}
+{{- if and (include "security-operator.webhooks.enabled" .) .Values.webhooks.register -}}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
