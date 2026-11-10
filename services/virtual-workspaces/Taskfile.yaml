@@ -86,7 +86,3 @@ tasks:
     desc: Run unit tests (nothing in this module uses envtest).
     cmds:
       - go test ./... {{.ADDITIONAL_COMMAND_ARGS}}
-  test-e2e:
-    desc: No e2e tests for virtual-workspaces.
-    cmds:
-      - 'echo "virtual-workspaces: no e2e tests"'

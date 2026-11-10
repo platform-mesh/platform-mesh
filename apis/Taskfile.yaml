@@ -15,7 +15,7 @@
 version: "3"
 
 # Standard component Taskfile for the shared apis module.
-# Exposes the repo-standard targets: lint, test, test-e2e, generate, build.
+# Exposes the repo-standard targets: lint, test, generate, build.
 #
 # Shared tools (controller-gen, golangci-lint) come from the repository-root
 # bin/ — installed by the root `tools:` tasks, referenced here via ROOT_BIN.
@@ -50,10 +50,6 @@ tasks:
     desc: Run apis unit tests.
     cmds:
       - go test -count=1 ./...
-  test-e2e:
-    desc: No e2e tests for the apis module.
-    cmds:
-      - 'echo "apis: no e2e tests"'
   fuzz:
     desc: "Run fuzz tests with a configurable duration (default 30s per target)"
     vars:

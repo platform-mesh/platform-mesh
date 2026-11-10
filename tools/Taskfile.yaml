@@ -68,9 +68,6 @@ vars:
   KUSTOMIZE_VERSION: v5.4.3
   KUSTOMIZE: '{{.BIN}}/kustomize-{{.KUSTOMIZE_VERSION}}'
 
-  MKCERT_VERSION: v1.4.4
-  MKCERT: '{{.BIN}}/mkcert-{{.MKCERT_VERSION}}'
-
   MOCKERY_VERSION: 3.9.0
   MOCKERY: '{{.BIN}}/mockery-{{.MOCKERY_VERSION}}'
 
@@ -193,16 +190,6 @@ tasks:
       - 'ln -sf {{.KCP}} {{.BIN}}/kcp'
       - 'ln -sf {{.KCP_FRONT_PROXY}} {{.BIN}}/kcp-front-proxy'
       - 'ln -sf {{.SHARDED_TEST_SERVER}} {{.BIN}}/sharded-test-server'
-  envtest:
-    internal: true
-    cmds:
-      - task: uget
-        vars:
-          tool: setup-envtest
-          source: 'https://github.com/kubernetes-sigs/controller-runtime/releases/download/{VERSION}/setup-envtest-{GOOS}-{GOARCH}'
-          version: '{{ .ENVTEST_VERSION }}'
-          extractArg: 'setup-envtest-*'
-          uncompressed: true
   go-test-coverage:
     internal: true
     cmds:
@@ -272,18 +259,8 @@ tasks:
           uncompressed: true
           extractArg: 'yq_*'
 
-  mkcert:
-    internal: true
-    cmds:
-      - task: uget
-        vars:
-          tool: mkcert
-          source: 'https://github.com/FiloSottile/mkcert/releases/download/{VERSION}/mkcert-{VERSION}-{GOOS}-{GOARCH}'
-          version: '{{ .MKCERT_VERSION }}'
-          extractArg: 'mkcert-*'
-          uncompressed: true
   kind:
-    desc: Install kind into the root bin (used by the operator e2e tests and Tilt).
+    desc: Install kind into the root bin (used by hack/kind.sh via the tilt:* tasks).
     cmds:
       - task: uget
         vars:
@@ -293,7 +270,7 @@ tasks:
           extractArg: 'kind-*'
           uncompressed: true
   tilt:
-    desc: Install tilt into the root bin (used by the tilt:* tasks and tilt.yml).
+    desc: Install tilt into the root bin (used by the tilt:* tasks and e2e.yml).
     cmds:
       - task: uget
         vars:

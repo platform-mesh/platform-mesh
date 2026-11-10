@@ -64,8 +64,3 @@ tasks:
       KIND_CLUSTER: '{{.KIND_CLUSTER | default "kind"}}'
     cmds:
       - kind load docker-image --name {{.KIND_CLUSTER}} {{.IMG}}
-
-  test-e2e:
-    desc: Ported to tests/integration/krocomposition (task test-integration PKG=./integration/krocomposition/...).
-    cmds:
-      - 'echo "kro-composition-operator: integration tests live in tests/integration/krocomposition"'

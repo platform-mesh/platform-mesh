@@ -19,6 +19,7 @@ package subroutines
 import (
 	"context"
 	"io/fs"
+	"os"
 	"path"
 	"sort"
 	"testing"
@@ -28,7 +29,6 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
-	e2eyaml "go.platform-mesh.io/platform-mesh-operator/test/e2e/kind/yaml"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -39,9 +39,9 @@ import (
 // operator would create, from the profile we actually ship, and check nothing is left waiting
 // on a release that is never deployed.
 
-// shippedProfilePath is what the kind e2e suite applies — the closest thing in-tree to a
+// shippedProfilePath is the profile the e2e suite applies — the closest thing in-tree to a
 // production config.
-const shippedProfilePath = "platform-mesh-resource/default-profile.yaml"
+const shippedProfilePath = "testdata/default-profile.yaml"
 
 // platformMeshNamespace is where the CR lives in a real install. The shipped profile writes
 // explicit "namespace: platform-mesh-system" dependsOn entries, so this has to match.
@@ -49,7 +49,7 @@ const platformMeshNamespace = "platform-mesh-system"
 
 func loadShippedProfile(t *testing.T) string {
 	t.Helper()
-	raw, err := fs.ReadFile(e2eyaml.Resources, shippedProfilePath)
+	raw, err := os.ReadFile(shippedProfilePath)
 	require.NoError(t, err)
 
 	var cm corev1.ConfigMap

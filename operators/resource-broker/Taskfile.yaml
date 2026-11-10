@@ -151,8 +151,3 @@ tasks:
         echo "Restarting all resource-broker deployments..."
         kubectl get deployments -n {{.DEPLOYMENT_NAMESPACE}} -o name | grep resource-broker | xargs -I {} kubectl rollout restart {} -n {{.DEPLOYMENT_NAMESPACE}}
       - echo "Image loaded and deployments restarted"
-
-  test-e2e:
-    desc: Ported to tests/integration/resourcebroker (task test-integration PKG=./integration/resourcebroker/...).
-    cmds:
-      - 'echo "resource-broker: integration tests live in tests/integration/resourcebroker"'

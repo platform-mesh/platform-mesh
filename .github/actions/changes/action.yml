@@ -22,14 +22,11 @@ outputs:
   components:
     description: JSON array of changed components, libraries included
     value: ${{ steps.c.outputs.components }}
-  e2eComponents:
-    description: JSON array of changed components that have e2e tests
-    value: ${{ steps.c.outputs.e2eComponents }}
   charts:
     description: JSON array of changed chart names (directories under charts/)
     value: ${{ steps.c.outputs.charts }}
   integration:
-    description: "true when the integration tests (tests/integration) are affected"
+    description: "true when the integration or e2e tests (tests/integration, tests/e2e) are affected"
     value: ${{ steps.c.outputs.integration }}
 
 runs:

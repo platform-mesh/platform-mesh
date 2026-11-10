@@ -17,15 +17,16 @@ version: "3"
 # Root Taskfile for the platform-mesh monorepo.
 #
 # Structure:
-#   * Global targets (`lint`, `test`, `test-e2e`, `generate`, `build`) run the
+#   * Global targets (`lint`, `test`, `generate`, `build`) run the
 #     matching target for EVERY component.
 #   * Per-component targets (`lint-<name>`, `test-<name>`, ...) run it for ONE
 #     component, e.g. `task lint-account-operator`.
 #
 # Every component (module/service) must expose the standard targets in its own
-# Taskfile: lint, test, test-e2e, generate, build. The root simply fans out to
-# them. Integration tests live under tests/ in the root module: `task test-integration`
-# (components in-process against a kcp in Docker); see tests/README.md.
+# Taskfile: lint, test, generate, build. The root simply fans out to them.
+# Integration and e2e tests live under tests/ in the root module: `task
+# test-integration` (components in-process against a kcp in Docker) and `task
+# test-e2e` (against a deployed Platform Mesh); see tests/README.md.
 #
 # The components below are linked locally through the repository-root go.work
 # file. Add a component by listing its name here; its directory is discovered
@@ -41,9 +42,9 @@ includes:
   charts:
     taskfile: charts/Taskfile.yaml
     dir: .
-  # The integration tests: `task tests:integration` (kcp in Docker) and the
-  # Playwright portal suite (`task tests:portal-e2e:setup`,
-  # `task tests:portal-e2e:httpbins`, ...).
+  # The integration tests: `task tests:integration` (kcp in Docker), `task
+  # tests:e2e` (deployed stack) and the Playwright portal suite
+  # (`task tests:portal-e2e:setup`, `task tests:portal-e2e:httpbins`, ...).
   tests:
     taskfile: tests/Taskfile.yaml
     dir: tests
@@ -121,7 +122,7 @@ tasks:
           task tilt:up -- --frontend-cors      same, and allow browser calls from a frontend
                                                run outside the cluster (localhost, *.portal.localhost)
           task tilt:ci                         start and wait until everything is ready
-          task tilt:e2e                        run the portal e2e suite against Tilt
+          task tilt:e2e                        run the e2e suites (Go, then portal) against Tilt
           . contrib/tilt/env.sh                export the URLs and credentials for tests
 
         Change options of a running Tilt without restarting it:
@@ -138,11 +139,13 @@ tasks:
         contrib/tilt/hack/print-frontend-env.sh || echo "(not available until Tilt has deployed the portal)"
 
   tilt:e2e:
-    desc: Run the portal e2e suite against the Tilt environment.
+    desc: Run the e2e suites (tests/e2e Go, then the portal) against the Tilt environment.
     cmds:
       - |
         . contrib/tilt/env.sh || exit 1
-        task tests:portal-e2e TEST_RUN_ID="$(date +%s)"
+        # tests/e2e reads the kind cluster from KUBECONFIG (context KIND_CONTEXT).
+        export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+        task tests:e2e TEST_RUN_ID="$(date +%s)"
 
   # ---------------------------------------------------------------------------
   # Global fan-out targets: run the standard target across all components.
@@ -218,10 +221,10 @@ tasks:
       - task: tests:integration
         vars: {PKG: '{{.PKG}}', P: '{{.P}}', KCP_VERSION: '{{.KCP_VERSION}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}
   test-e2e:
-    desc: Run e2e/integration tests for every component.
+    desc: Run the e2e tests (tests/e2e Go suites, then the portal suite) against KUBECONFIG / ADMIN_KUBECONFIG.
     cmds:
-      - for: {var: COMPONENTS}
-        cmd: task test-e2e-{{.ITEM}}
+      - task: tests:e2e
+        vars: {TEST_RUN_ID: '{{.TEST_RUN_ID}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}
   generate:
     desc: Run code generation for every component, then sync the generated CRDs into the charts.
     cmds:
@@ -247,13 +250,7 @@ tasks:
 
   # ---------------------------------------------------------------------------
   # Per-component targets. Each delegates to the component's own Taskfile.
-  # `test-e2e-*` is declared before `test-*` so the more specific pattern wins.
   # ---------------------------------------------------------------------------
-  "test-e2e-*":
-    desc: "Run e2e tests for one component (e.g. task test-e2e-account-operator)."
-    cmds:
-      - task: _run
-        vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: test-e2e}
   "test-*":
     desc: "Run unit tests for one component (e.g. task test-account-operator)."
     cmds:

@@ -55,6 +55,9 @@ The `framework/` directory holds what the suites share:
   `platform-mesh-system` workspace tree the operators expect: the
   operator's API exports and schemas, the bindings to them, the workspace
   types, and optionally the `orgs` workspace.
+- `framework/pm` hands the e2e tests the deployed Platform Mesh they run
+  against: the runtime cluster from `KUBECONFIG` and kcp from
+  `ADMIN_KUBECONFIG`, which `task tilt:e2e` sets.
 - `framework/manager` builds the multicluster managers the operators run on.
 - `framework/wait` and `framework/scheme` are the waits and the scheme
   every suite needs.
