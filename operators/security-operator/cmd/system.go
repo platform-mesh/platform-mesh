@@ -28,6 +28,7 @@ import (
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/controller"
+	"go.platform-mesh.io/security-operator/internal/features"
 	"go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/security-operator/pkg/config"
 
@@ -129,14 +130,16 @@ var systemCmd = &cobra.Command{
 
 		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, coreProvider.Provider.Provider)
 
-		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, &systemCfg, log)
-		if err != nil {
-			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create reconciler")
-			return err
-		}
-		if err := idpReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
-			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
-			return err
+		if systemCfg.FeatureEnabled(features.Keycloak) {
+			idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, &systemCfg, log)
+			if err != nil {
+				log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create reconciler")
+				return err
+			}
+			if err := idpReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
+				log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
+				return err
+			}
 		}
 
 		providerLister := iclient.NewProviderLister(coreProvider.Provider.Provider)

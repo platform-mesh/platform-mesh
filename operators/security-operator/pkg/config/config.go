@@ -22,6 +22,9 @@ import (
 
 	"github.com/spf13/pflag"
 
+	"go.platform-mesh.io/security-operator/internal/features"
+
+	"k8s.io/component-base/featuregate"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
@@ -96,6 +99,7 @@ type APIExportEndpointSlices struct {
 
 // Config struct to hold the app config
 type Config struct {
+	FeatureGates                     featuregate.MutableFeatureGate
 	FGA                              FGAConfig
 	KCP                              KCPConfig
 	APIExportEndpointSlices          APIExportEndpointSlices
@@ -121,6 +125,7 @@ type Config struct {
 
 func NewConfig() Config {
 	return Config{
+		FeatureGates: features.New(),
 		FGA: FGAConfig{
 			ObjectType:      "core_platform-mesh_io_account",
 			ParentRelation:  "parent",
@@ -165,6 +170,7 @@ func NewConfig() Config {
 }
 
 func (c *Config) AddFlags(fs *pflag.FlagSet) {
+	c.FeatureGates.AddFlag(fs)
 	fs.StringVar(&c.FGA.Target, "fga-target", c.FGA.Target, "Set the OpenFGA API target")
 	fs.DurationVar(&c.FGA.StoreIDCacheTTL, "fga-store-id-cache-ttl", c.FGA.StoreIDCacheTTL, "TTL for the OpenFGA store ID cache (e.g. 5m, 1h)")
 	fs.StringVar(&c.FGA.ObjectType, "fga-object-type", c.FGA.ObjectType, "Set the OpenFGA object type for account tuples")
@@ -215,6 +221,15 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 
 func (c Config) InitializerName() string {
 	return c.WorkspacePath + ":" + c.WorkspaceTypeName
+}
+
+// FeatureEnabled reports whether a feature gate is on.
+// A Config built without NewConfig has every gate at its default.
+func (c Config) FeatureEnabled(feature featuregate.Feature) bool {
+	if c.FeatureGates == nil {
+		return features.New().Enabled(feature)
+	}
+	return c.FeatureGates.Enabled(feature)
 }
 
 func (c Config) TerminatorName() string {
