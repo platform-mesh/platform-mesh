@@ -19,7 +19,7 @@ name: prerelease
 #
 #   - on demand (and optionally on a schedule), not for every commit,
 #   - with the version <next release>-dev.<run number>.g<sha>, e.g.
-#     26.11.0-dev.42.g1a2b3c4 (hack/release/get-version now):
+#     26.11.0-dev.42.g1a2b3c4 (hack/release/get-version current):
 #     "dev" sorts below "rc", so semver range queries prefer release candidates
 #     and releases over these builds,
 #   - without a GitHub release.
@@ -70,7 +70,7 @@ jobs:
           GITHUB_REF_NAME: ${{ inputs.ref || github.ref_name }}
         run: |
           set -euo pipefail
-          version="$(go run ./hack/release/get-version now)"
+          version="$(go run ./hack/release/get-version current)"
           version="${version#v}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

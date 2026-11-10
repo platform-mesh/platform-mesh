@@ -17,9 +17,9 @@ limitations under the License.
 // get-version prints a Platform Mesh version derived from git tags and
 // the current branch as per RFC 015.
 //
-// Usage: get-version [-library] now|previous|next
+// Usage: get-version [-library] current|previous|next
 //
-//	now       the release tag at HEAD
+//	current   the release tag at HEAD
 //	          or next patch on a release-YY.MM branch
 //	          otherwise vYY.MM.9999-dev.<n>.g<sha>
 //	previous  the previous final release vYY.MM.P
@@ -69,20 +69,20 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		return fmt.Errorf("parsing flags: %w", err)
 	}
 	if flags.NArg() != 1 {
-		return errors.New("usage: get-version [-library] now|previous|next")
+		return errors.New("usage: get-version [-library] current|previous|next")
 	}
 
 	var v pmversions.Version
 	var err error
 	switch flags.Arg(0) {
-	case "now":
-		v, err = pmversions.Now(ctx)
+	case "current":
+		v, err = pmversions.Current(ctx)
 	case "previous":
 		v, err = pmversions.Previous(ctx)
 	case "next":
 		v, err = pmversions.Next(ctx)
 	default:
-		return fmt.Errorf("unknown argument %q, want now, previous or next", flags.Arg(0))
+		return fmt.Errorf("unknown argument %q, want current, previous or next", flags.Arg(0))
 	}
 	if err != nil {
 		return err

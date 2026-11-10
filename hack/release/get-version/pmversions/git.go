@@ -63,10 +63,10 @@ func Next(ctx context.Context) (Version, error) {
 	return prev.NextMinor(), nil
 }
 
-// Now returns the version at the current commit.
+// Current returns the version at the current commit.
 // If the commit is tagged the tag is parsed and returned.
 // Otherwise a prerelease version is returned.
-func Now(ctx context.Context) (Version, error) {
+func Current(ctx context.Context) (Version, error) {
 	return FromCommit(ctx, head)
 }
 

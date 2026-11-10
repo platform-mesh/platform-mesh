@@ -253,7 +253,7 @@ go run ./hack/release/ocm-build-third-party third_party/kcp
 SKIP_PUSH=true go run ./hack/release/ocm-build-chart charts/account-operator   # SKIP_PUSH: the chart archive is already published
 go run ./hack/release/ocm-build-aggregate
 ocm get component-version "$OCM_REPO//github.com/platform-mesh/platform-mesh:$PM_VERSION" --recursive
-go run ./hack/release/get-version now                                           # what this checkout would be published as
+go run ./hack/release/get-version current                                       # what this checkout would be published as
 go run ./hack/release/release-notes --start v26.10.2 --end HEAD                 # release notes for a range of commits or version tags
 ```
 

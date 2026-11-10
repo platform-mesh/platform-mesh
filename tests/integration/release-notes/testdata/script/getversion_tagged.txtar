@@ -6,7 +6,7 @@ exec git commit -q --allow-empty -m fix
 exec git tag v26.12.1-rc.1
 
 # the tag at HEAD wins
-exec get-version now
+exec get-version current
 stdout '^v26\.12\.1-rc\.1\n$'
 ! stderr .
 
@@ -18,7 +18,7 @@ exec get-version next
 stdout '^v27\.01\n$'
 
 # the Go module form
-exec get-version -library now
+exec get-version -library current
 stdout '^v0\.2612\.1-rc\.1\n$'
 exec get-version -library previous
 stdout '^v0\.2612\.0\n$'

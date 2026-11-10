@@ -103,13 +103,13 @@ func TestNext(t *testing.T) {
 	assert.Equal(t, "v27.01", next.Minor())
 }
 
-func TestNow(t *testing.T) {
+func TestCurrent(t *testing.T) {
 	repo := scratchrepo.NewT(t)
 	repo.Commit("initial")
 	repo.Tag("v26.10.0")
 
 	t.Run("final at HEAD", func(t *testing.T) {
-		now, err := pmversions.Now(t.Context())
+		now, err := pmversions.Current(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "v26.10.0", now.String())
 	})
@@ -118,7 +118,7 @@ func TestNow(t *testing.T) {
 	repo.Tag("v26.11.0-rc.1")
 
 	t.Run("candidate at HEAD", func(t *testing.T) {
-		now, err := pmversions.Now(t.Context())
+		now, err := pmversions.Current(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "v26.11.0-rc.1", now.String())
 	})
@@ -126,7 +126,7 @@ func TestNow(t *testing.T) {
 	repo.Tag("v26.11.0")
 
 	t.Run("final wins over candidate at HEAD", func(t *testing.T) {
-		now, err := pmversions.Now(t.Context())
+		now, err := pmversions.Current(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "v26.11.0", now.String())
 	})
@@ -135,27 +135,27 @@ func TestNow(t *testing.T) {
 	repo.Commit("commit")
 
 	t.Run("main builds a development version of its month", func(t *testing.T) {
-		now, err := pmversions.Now(t.Context())
+		now, err := pmversions.Current(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, thisMonth()+"-dev.4.g"+repo.Head()[:7], now.String(), "counted over the whole history")
 	})
 
 	t.Run("run number from environment", func(t *testing.T) {
 		t.Setenv("GITHUB_RUN_NUMBER", "42")
-		now, err := pmversions.Now(t.Context())
+		now, err := pmversions.Current(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, thisMonth()+"-dev.42.g"+repo.Head()[:7], now.String())
 	})
 
 	t.Run("bad run number", func(t *testing.T) {
 		t.Setenv("GITHUB_RUN_NUMBER", "forty-two")
-		_, err := pmversions.Now(t.Context())
+		_, err := pmversions.Current(t.Context())
 		require.Error(t, err)
 	})
 
 	t.Run("branch from environment", func(t *testing.T) {
 		t.Setenv("GITHUB_REF_NAME", "release-26.11")
-		now, err := pmversions.Now(t.Context())
+		now, err := pmversions.Current(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "v26.11.1-dev.2.g"+repo.Head()[:7], now.String())
 	})
@@ -163,7 +163,7 @@ func TestNow(t *testing.T) {
 	repo.Git("checkout", "-q", "-b", "release-26.11")
 
 	t.Run("release branch builds towards the next patch", func(t *testing.T) {
-		now, err := pmversions.Now(t.Context())
+		now, err := pmversions.Current(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "v26.11.1-dev.2.g"+repo.Head()[:7], now.String())
 	})
@@ -171,7 +171,7 @@ func TestNow(t *testing.T) {
 	repo.Git("checkout", "-q", "-b", "release-26.12")
 
 	t.Run("release branch before its first release", func(t *testing.T) {
-		now, err := pmversions.Now(t.Context())
+		now, err := pmversions.Current(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "v26.12.0-dev.2.g"+repo.Head()[:7], now.String())
 	})
@@ -179,7 +179,7 @@ func TestNow(t *testing.T) {
 	repo.Git("checkout", "-q", "--detach")
 
 	t.Run("detached without environment is main", func(t *testing.T) {
-		now, err := pmversions.Now(t.Context())
+		now, err := pmversions.Current(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, thisMonth()+"-dev.4.g"+repo.Head()[:7], now.String())
 	})
