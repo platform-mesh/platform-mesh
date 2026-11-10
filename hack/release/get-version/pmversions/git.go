@@ -37,9 +37,9 @@ const (
 	envRunNumber = "GITHUB_RUN_NUMBER"
 	// head is the commit the checkout is at.
 	head = "HEAD"
-	// developmentPatch marks a build of a non-release branch; it sorts
+	// DevelopmentPatch marks a build of a non-release branch, it sorts
 	// above every patch release of its month.
-	developmentPatch = 9999
+	DevelopmentPatch = 9999
 	// shaLength abbreviates commits in prerelease versions.
 	shaLength = 7
 )
@@ -164,7 +164,7 @@ func developmentBase(ctx context.Context, commit string) (Version, int, error) {
 	base := Version{
 		Year:  date.Year() % 100,
 		Month: int(date.Month()),
-		Patch: developmentPatch,
+		Patch: DevelopmentPatch,
 	}
 	return base, count, nil
 }
