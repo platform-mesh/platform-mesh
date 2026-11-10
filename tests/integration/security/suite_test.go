@@ -27,6 +27,7 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
+	keycloakresources "go.platform-mesh.io/apis/static-assets/resources/pm-keycloak-operator"
 	securityresources "go.platform-mesh.io/apis/static-assets/resources/security-operator"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -82,6 +83,7 @@ func (s *IntegrationSuite) SetupSuite() {
 	s.platform = fixtures.Install(t, s.env,
 		fixtures.WithScheme(s.scheme),
 		fixtures.WithResources(securityresources.Resources, "*.yaml"),
+		fixtures.WithResources(keycloakresources.Resources, "*.yaml"),
 		// The deployed manifests serve Stores and AuthorizationModels from
 		// exports of their own (sharing core's identity); apigen puts the
 		// whole group into core.platform-mesh.io.
