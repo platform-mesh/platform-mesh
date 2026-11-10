@@ -10,7 +10,8 @@ The operators and services in this monorepo import these types instead of redefi
 
 | Group | Version | Kinds |
 |-------|---------|-------|
-| `core.platform-mesh.io` | `v1alpha1` | `Account`, `AccountInfo`, `Store`, `Invite`, `AuthorizationModel`, `APIExportPolicy`, `IdentityProviderConfiguration` |
+| `core.platform-mesh.io` | `v1alpha1` | `Account`, `AccountInfo`, `Store`, `AuthorizationModel`, `APIExportPolicy`; deprecated: `Invite`, `IdentityProviderConfiguration` |
+| `keycloak.platform-mesh.io` | `v1alpha1` | `IdentityProviderConfiguration`, `Invite` |
 | `ui.platform-mesh.io` | `v1alpha1` | `ProviderMetadata`, `ContentConfiguration` |
 | `gateway.platform-mesh.io` | `v1alpha1` | `ClusterMetadata`, `ClusterAccess` |
 | `marketplace.platform-mesh.io` | `v1alpha1` | `MarketplaceEntry` |
