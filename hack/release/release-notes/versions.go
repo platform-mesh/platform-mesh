@@ -47,9 +47,12 @@ type versionRow struct {
 
 // showFile returns a file at a commit, and false when it does not exist there.
 func showFile(ctx context.Context, commit, path string) ([]byte, bool, error) {
-	// cat-file -e fails for a missing path; that is the answer, not an error.
-	if _, missing := git(ctx, "cat-file", "-e", commit+":"+path); missing != nil {
-		return nil, false, nil //nolint:nilerr // a missing file is a valid result
+	entry, err := git(ctx, "ls-tree", commit, "--", path)
+	if err != nil {
+		return nil, false, fmt.Errorf("looking up %s at %s: %w", path, commit, err)
+	}
+	if fields := strings.Fields(entry); len(fields) < 2 || fields[1] != "blob" {
+		return nil, false, nil
 	}
 	out, err := git(ctx, "show", commit+":"+path)
 	if err != nil {

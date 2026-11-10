@@ -88,6 +88,24 @@ func TestVersionsAtCommits(t *testing.T) {
 	repo.Commit("end")
 	end := repo.Head()
 
+	t.Run("showFile", func(t *testing.T) {
+		data, ok, err := showFile(t.Context(), end, "charts/portal/Chart.yaml")
+		require.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, "appVersion: \"v0.27.32\"\n", string(data))
+
+		_, ok, err = showFile(t.Context(), start, "charts/iam-ui/Chart.yaml")
+		require.NoError(t, err)
+		assert.False(t, ok, "missing file is not an error")
+
+		_, ok, err = showFile(t.Context(), end, "charts/portal")
+		require.NoError(t, err)
+		assert.False(t, ok, "a directory is not a file")
+
+		_, _, err = showFile(t.Context(), "deadbeef", "charts/portal/Chart.yaml")
+		require.Error(t, err, "an unknown commit is an error, not a missing file")
+	})
+
 	t.Run("chartNames", func(t *testing.T) {
 		names, err := chartNames(t.Context(), end)
 		require.NoError(t, err)
