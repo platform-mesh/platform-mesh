@@ -1,4 +1,4 @@
-module go.platform-mesh.io/security-operator
+module go.platform-mesh.io/pm-openfga-operator
 
 go 1.26.3
 

@@ -24,8 +24,8 @@ import (
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/security-operator/internal/metrics"
-	"go.platform-mesh.io/security-operator/internal/subroutine"
+	"go.platform-mesh.io/pm-openfga-operator/internal/metrics"
+	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine"
 	"go.platform-mesh.io/subroutines/lifecycle"
 
 	ctrl "sigs.k8s.io/controller-runtime"

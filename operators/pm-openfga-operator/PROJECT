@@ -7,8 +7,8 @@ layout:
 - go.kubebuilder.io/v4
 plugins:
   helm.kubebuilder.io/v2-alpha: {}
-projectName: security-operator
-repo: github.com/platform-mesh/security-operator
+projectName: pm-openfga-operator
+repo: github.com/platform-mesh/pm-openfga-operator
 resources:
 - api:
     crdVersion: v1
@@ -16,27 +16,27 @@ resources:
   domain: platform-mesh.io
   group: core
   kind: Store
-  path: github.com/platform-mesh/security-operator/api/v1alpha1
+  path: github.com/platform-mesh/pm-openfga-operator/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
   domain: platform-mesh.io
   group: core
   kind: AuthorizationModel
-  path: github.com/platform-mesh/security-operator/api/v1alpha1
+  path: github.com/platform-mesh/pm-openfga-operator/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
   domain: platform-mesh.io
   group: core
   kind: Invite
-  path: github.com/platform-mesh/security-operator/api/v1alpha1
+  path: github.com/platform-mesh/pm-openfga-operator/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
   domain: platform-mesh.io
   group: core
   kind: IdentityProviderConfiguration
-  path: github.com/platform-mesh/security-operator/api/v1alpha1
+  path: github.com/platform-mesh/pm-openfga-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

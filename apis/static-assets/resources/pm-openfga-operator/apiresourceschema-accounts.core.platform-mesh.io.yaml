@@ -15,18 +15,29 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261110-63340683.apiexportpolicies.openfga.platform-mesh.io
+  name: v261111-e03ee6b8.accounts.core.platform-mesh.io
 spec:
-  group: openfga.platform-mesh.io
+  group: core.platform-mesh.io
   names:
-    kind: APIExportPolicy
-    listKind: APIExportPolicyList
-    plural: apiexportpolicies
-    singular: apiexportpolicy
+    kind: Account
+    listKind: AccountList
+    plural: accounts
+    singular: account
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.displayName
+      name: Display Name
+      type: string
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    name: v1alpha1
     schema:
+      description: Account is the Schema for the accounts API
       properties:
         apiVersion:
           description: |-
@@ -46,27 +57,62 @@ spec:
         metadata:
           type: object
         spec:
+          description: AccountSpec defines the desired state of Account
           properties:
-            allowPathExpressions:
+            creator:
+              description: The initial creator of this account
+              type: string
+            data:
+              description: Additional information that should be stored with the account
+              x-kubernetes-preserve-unknown-fields: true
+            description:
+              description: An optional description for this account
+              type: string
+            displayName:
+              description: The display name for this account
+              maxLength: 255
+              type: string
+            extensions:
               items:
-                type: string
-              minItems: 1
+                properties:
+                  apiVersion:
+                    description: |-
+                      APIVersion defines the versioned schema of this representation of an object.
+                      Servers should convert recognized schemas to the latest internal value, and
+                      may reject unrecognized values.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+                    type: string
+                  kind:
+                    description: |-
+                      Kind is a string value representing the REST resource this object represents.
+                      Servers may infer this from the endpoint the client submits requests to.
+                      Cannot be updated.
+                      In CamelCase.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                    type: string
+                  metadataGoTemplate:
+                    x-kubernetes-preserve-unknown-fields: true
+                  readyConditionType:
+                    description: |-
+                      The type of a condition that must be set to True on the Extension object
+                      for the extension to be considered reconciled and ready. If this is empty,
+                      the extension is considered ready.
+                    type: string
+                  specGoTemplate:
+                    x-kubernetes-preserve-unknown-fields: true
+                required:
+                - specGoTemplate
+                type: object
               type: array
-            apiExportRef:
-              properties:
-                clusterPath:
-                  type: string
-                name:
-                  type: string
-              required:
-              - clusterPath
-              - name
-              type: object
+            type:
+              description: Type specifies the intended type for this Account object.
+              type: string
           required:
-          - allowPathExpressions
-          - apiExportRef
+          - displayName
+          - type
           type: object
         status:
+          description: AccountStatus defines the observed state of Account
           properties:
             conditions:
               items:
@@ -124,10 +170,12 @@ spec:
                 - type
                 type: object
               type: array
-            managedAllowExpressions:
-              items:
-                type: string
-              type: array
+            nextReconcileTime:
+              format: date-time
+              type: string
+            observedGeneration:
+              format: int64
+              type: integer
           type: object
       type: object
     served: true

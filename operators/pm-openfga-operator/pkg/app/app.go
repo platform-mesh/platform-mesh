@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package app wires the security-operator controllers onto a manager. It is
+// Package app wires the pm-openfga-operator controllers onto a manager. It is
 // the public surface through which cmd/ and the integration tests set up the
 // operator; the reconcilers themselves stay in internal/.
 package app
@@ -29,9 +29,9 @@ import (
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
-	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/controller"
-	"go.platform-mesh.io/security-operator/pkg/config"
+	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
+	"go.platform-mesh.io/pm-openfga-operator/internal/controller"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -52,7 +52,7 @@ import (
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
-// NewScheme returns the scheme the security-operator managers use.
+// NewScheme returns the scheme the pm-openfga-operator managers use.
 func NewScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
@@ -131,7 +131,7 @@ func RunModelGenerator(ctx context.Context, restCfg *rest.Config, cfg *config.Co
 		},
 		HealthProbeBindAddress: commonCfg.HealthProbeBindAddress,
 		LeaderElection:         commonCfg.LeaderElectionEnabled,
-		LeaderElectionID:       "security-operator-generator.platform-mesh.io",
+		LeaderElectionID:       "pm-openfga-operator-generator.platform-mesh.io",
 		BaseContext:            func() context.Context { return ctx },
 	}
 	if commonCfg.LeaderElectionEnabled {

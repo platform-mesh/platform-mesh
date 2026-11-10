@@ -29,7 +29,7 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
-	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
+	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
 )
 
 func TestStaleAccountTupleFilter(t *testing.T) {

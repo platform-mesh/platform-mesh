@@ -1,0 +1,107 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIExport
+metadata:
+  name: core.platform-mesh.io
+spec:
+  permissionClaims:
+    # Copied from apis/static-assets/kcp/01-platform-mesh-system/apiexport-core.platform-mesh.io.yaml by hack/sync-export-claims.sh (task generate). Do not edit here.
+    - group: tenancy.kcp.io
+      identityHash: '{{ .apiExportRootTenancyKcpIoIdentityHash }}'
+      resource: workspaces
+      verbs:
+        - '*'
+    - group: tenancy.kcp.io
+      identityHash: '{{ .apiExportRootTenancyKcpIoIdentityHash }}'
+      resource: workspacetypes
+      verbs:
+        - '*'
+    - resource: apibindings
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+        - '*'
+    - resource: apiexports
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+        - '*'
+    - resource: apiresourceschemas
+      group: apis.kcp.io
+      identityHash: ""
+      verbs:
+        - '*'
+    - resource: logicalclusters
+      group: core.kcp.io
+      identityHash: ""
+      verbs:
+        - '*'
+    - resource: secrets
+      group: ""
+      identityHash: ""
+      verbs:
+        - get
+        - create
+        - update
+        - delete
+      defaultSelector:
+        matchExpressions:
+          - key: core.platform-mesh.io/idp-name
+            operator: Exists
+          - key: core.platform-mesh.io/client-name
+            operator: Exists
+  resources:
+    - group: core.platform-mesh.io
+      name: accountinfos
+      schema: v261111-15110895.accountinfos.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: accounts
+      schema: v261111-e03ee6b8.accounts.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: apiexportpolicies
+      schema: v261111-e939e08c.apiexportpolicies.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: authorizationmodels
+      schema: v261111-0448ecfb.authorizationmodels.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: identityproviderconfigurations
+      schema: v261111-3fc0b5de.identityproviderconfigurations.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: invites
+      schema: v261111-07dc9650.invites.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: platformmeshes
+      schema: v261111-372b0617.platformmeshes.core.platform-mesh.io
+      storage:
+        crd: {}
+    - group: core.platform-mesh.io
+      name: stores
+      schema: v261111-b16ec0ed.stores.core.platform-mesh.io
+      storage:
+        crd: {}
+status: {}

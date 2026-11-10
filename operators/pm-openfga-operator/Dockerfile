@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build the security-operator binary.
+# Build the pm-openfga-operator binary.
 #
 # NOTE: the build context is the repository ROOT, not this directory.
 # The operator module is linked to the shared in-repo modules through the
 # go.mod replace directives, so those module sources must be present in the build:
-#   docker build -f operators/security-operator/Dockerfile .
+#   docker build -f operators/pm-openfga-operator/Dockerfile .
 FROM --platform=$BUILDPLATFORM golang:1.27.3@sha256:2920bb124f1a2e12a1d39f0cab756ae0068441ee1da7655dec7f5e374944095b AS builder
 ARG TARGETOS
 ARG TARGETARCH
@@ -28,9 +28,9 @@ WORKDIR /workspace
 COPY apis/ apis/
 COPY golang-commons/ golang-commons/
 COPY subroutines/ subroutines/
-COPY operators/security-operator/ operators/security-operator/
+COPY operators/pm-openfga-operator/ operators/pm-openfga-operator/
 
-WORKDIR /workspace/operators/security-operator
+WORKDIR /workspace/operators/pm-openfga-operator
 
 # cache deps before building so that source changes don't invalidate the layer
 RUN go mod download
@@ -40,13 +40,13 @@ RUN go mod download
 # was called. For example, if we call make docker-build in a local env which has the Apple Silicon M1 SO
 # the docker BUILDPLATFORM arg will be linux/arm64 when for Apple x86 it will be linux/amd64. Therefore,
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/security-operator main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/pm-openfga-operator main.go
 
-# Use distroless as minimal base image to package the security-operator binary
+# Use distroless as minimal base image to package the pm-openfga-operator binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329
 WORKDIR /
-COPY --from=builder /workspace/security-operator /app/security-operator
+COPY --from=builder /workspace/pm-openfga-operator /app/pm-openfga-operator
 USER 65532:65532
 
-ENTRYPOINT ["/app/security-operator"]
+ENTRYPOINT ["/app/pm-openfga-operator"]

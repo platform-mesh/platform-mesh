@@ -25,11 +25,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/controller"
-	"go.platform-mesh.io/security-operator/internal/fga"
-	"go.platform-mesh.io/security-operator/internal/predicates"
-	"go.platform-mesh.io/security-operator/internal/terminatingworkspaces"
+	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
+	"go.platform-mesh.io/pm-openfga-operator/internal/controller"
+	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
+	"go.platform-mesh.io/pm-openfga-operator/internal/predicates"
+	"go.platform-mesh.io/pm-openfga-operator/internal/terminatingworkspaces"
 
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,7 +52,7 @@ var terminatorCmd = &cobra.Command{
 		mgrOpts := ctrl.Options{
 			Scheme:                 scheme,
 			LeaderElection:         defaultCfg.LeaderElectionEnabled,
-			LeaderElectionID:       "security-operator-terminator.platform-mesh.io",
+			LeaderElectionID:       "pm-openfga-operator-terminator.platform-mesh.io",
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			Metrics: server.Options{
 				BindAddress: defaultCfg.Metrics.BindAddress,

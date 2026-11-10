@@ -16,7 +16,7 @@ limitations under the License.
 
 package main
 
-import "go.platform-mesh.io/security-operator/cmd"
+import "go.platform-mesh.io/pm-openfga-operator/cmd"
 
 func main() {
 	cmd.Execute()

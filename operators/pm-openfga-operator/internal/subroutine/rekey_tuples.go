@@ -27,10 +27,10 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
-	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/fga"
-	"go.platform-mesh.io/security-operator/internal/metrics"
-	"go.platform-mesh.io/security-operator/pkg/config"
+	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
+	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
+	"go.platform-mesh.io/pm-openfga-operator/internal/metrics"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
 
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	rekeyEventComponent = "security-operator"
+	rekeyEventComponent = "pm-openfga-operator"
 	// rekeyEventAction is the "action" field of the events API: what this
 	// controller did to the org, regardless of the per-event outcome.
 	rekeyEventAction = "RekeyOrphanedTuples"

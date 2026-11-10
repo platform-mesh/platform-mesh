@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.platform-mesh.io/security-operator/internal/features"
+	"go.platform-mesh.io/pm-openfga-operator/internal/features"
 )
 
 func TestNewConfig(t *testing.T) {

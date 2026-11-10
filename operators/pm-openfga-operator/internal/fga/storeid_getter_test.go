@@ -31,7 +31,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
-	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
+	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
 )
 
 func TestCachingStoreIDGetter_Get(t *testing.T) {

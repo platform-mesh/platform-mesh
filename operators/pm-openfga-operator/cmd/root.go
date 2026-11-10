@@ -24,7 +24,7 @@ import (
 
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/security-operator/pkg/config"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -43,7 +43,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use: "security-operator",
+	Use: "pm-openfga-operator",
 }
 
 func init() {

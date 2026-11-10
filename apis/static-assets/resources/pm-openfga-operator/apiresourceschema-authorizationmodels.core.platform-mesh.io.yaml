@@ -15,9 +15,9 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261110-50d7c45a.authorizationmodels.openfga.platform-mesh.io
+  name: v261111-0448ecfb.authorizationmodels.core.platform-mesh.io
 spec:
-  group: openfga.platform-mesh.io
+  group: core.platform-mesh.io
   names:
     kind: AuthorizationModel
     listKind: AuthorizationModelList

@@ -25,10 +25,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/controller"
-	"go.platform-mesh.io/security-operator/internal/fga"
-	"go.platform-mesh.io/security-operator/internal/predicates"
+	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
+	"go.platform-mesh.io/pm-openfga-operator/internal/controller"
+	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
+	"go.platform-mesh.io/pm-openfga-operator/internal/predicates"
 
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -53,7 +53,7 @@ var initializerCmd = &cobra.Command{
 		mgrOpts := ctrl.Options{
 			Scheme:                 scheme,
 			LeaderElection:         defaultCfg.LeaderElectionEnabled,
-			LeaderElectionID:       "security-operator-initializer.platform-mesh.io",
+			LeaderElectionID:       "pm-openfga-operator-initializer.platform-mesh.io",
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			Metrics: server.Options{
 				BindAddress: defaultCfg.Metrics.BindAddress,

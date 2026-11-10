@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.platform-mesh.io/security-operator/pkg/config"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 )
 
 func TestOrgSubroutines(t *testing.T) {

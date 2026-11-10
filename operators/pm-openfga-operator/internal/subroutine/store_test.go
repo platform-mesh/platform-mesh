@@ -28,9 +28,9 @@ import (
 	"google.golang.org/grpc/status"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	"go.platform-mesh.io/security-operator/internal/subroutine"
-	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
-	"go.platform-mesh.io/security-operator/pkg/config"
+	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine"
+	"go.platform-mesh.io/pm-openfga-operator/internal/subroutine/mocks"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

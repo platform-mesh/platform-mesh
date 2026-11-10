@@ -1,7 +1,7 @@
 > [!WARNING]
 > This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
 
-# platform-mesh - security-operator
+# platform-mesh - pm-openfga-operator
 
 ## Description
 Security-operator is responsible for security related configuration in Platform-mesh.
@@ -77,12 +77,12 @@ relations must be rewritten as parent expressions before upgrading.
     - **account level logical clusters** - operator creates additional tuples in organization's store for accounts hieracy
 - **Authorization Model generation** - to execute authorization checks in OpenFGA against custom resource which are created by the user, operator generates Authorization Model for each resource in ApiExport when the ApiExport is bound (ApiBinding is created). The model is created in the workspace where **ApiExport** and **ApiResourceSchema** resource live.
 - **ApiExport bindability control** - ApiExportPolicy controller creates all necessary tuples in OpenFGA to support authorization checks for **bind** kcp's verb. More information about this [ApiExportPolicy ADR](https://github.com/platform-mesh/architecture/blob/main/adr/002-apiexport-binding-access-control.md)
-- **Reconcile logical cluster** - security-operator reconciles logical clusters after they are initialized and applies the same logic as initializer does. It keeps already initialized logical clusters up to date if something has been changed in initializing flow.
+- **Reconcile logical cluster** - pm-openfga-operator reconciles logical clusters after they are initialized and applies the same logic as initializer does. It keeps already initialized logical clusters up to date if something has been changed in initializing flow.
 
 ## Getting started
 
-- For running and building the security-operator, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository.
-- To deploy the security-operator to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository.
+- For running and building the pm-openfga-operator, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository.
+- To deploy the pm-openfga-operator to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository.
 
 ## Releasing
 
@@ -92,7 +92,7 @@ All the released versions will be available through access to GitHub (as any oth
 
 ## Requirements
 
-The security-operator requires a installation of go. Checkout the [go.mod](go.mod) for the required go version and dependencies.
+The pm-openfga-operator requires a installation of go. Checkout the [go.mod](go.mod) for the required go version and dependencies.
 
 ## Security / Disclosure
 If you find any bug that may be a security problem, please follow our instructions at [in our security policy](https://github.com/platform-mesh/extension-manager-operator/security/policy) on how to report it. Please do not create GitHub issues for security-related doubts or problems.

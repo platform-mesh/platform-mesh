@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package features defines the security-operator feature gates, set with --feature-gates=<Gate>=<bool>.
+// Package features defines the pm-openfga-operator feature gates, set with --feature-gates=<Gate>=<bool>.
 package features
 
 import (
@@ -29,7 +29,7 @@ var defaultFeatures = map[featuregate.Feature]featuregate.FeatureSpec{
 	OpenFGA: {Default: true, PreRelease: featuregate.Alpha},
 }
 
-// New returns a feature gate with every security-operator feature registered at its default.
+// New returns a feature gate with every pm-openfga-operator feature registered at its default.
 func New() featuregate.MutableFeatureGate {
 	gate := featuregate.NewFeatureGate()
 	utilruntime.Must(gate.Add(defaultFeatures))
