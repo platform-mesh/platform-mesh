@@ -108,4 +108,5 @@ jobs:
         with:
           name: kcp-logs
           path: tests/.test/**/*.log
+          include-hidden-files: true # tests/.test is a hidden directory
           retention-days: 5

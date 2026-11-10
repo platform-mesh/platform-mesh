@@ -139,6 +139,7 @@ jobs:
             e2e.log
             contrib/tilt/.cache/tilt-snapshot.json
             tests/.test/
+          include-hidden-files: true # tests/.test is a hidden directory
           retention-days: 5
 
       - name: Upload Playwright artefacts
