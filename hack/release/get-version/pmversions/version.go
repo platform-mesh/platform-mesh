@@ -86,6 +86,15 @@ func (version Version) String() string {
 	return s
 }
 
+// LibraryString returns the version in the go library form of v0.YYMM.P[-pre].
+func (version Version) LibraryString() string {
+	s := fmt.Sprintf("v0.%d%02d.%d", version.Year, version.Month, version.Patch)
+	if version.Pre != "" {
+		s += "-" + version.Pre
+	}
+	return s
+}
+
 // Final reports whether the version has no prerelease suffix.
 func (version Version) Final() bool {
 	return version.Pre == ""

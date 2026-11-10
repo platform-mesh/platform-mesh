@@ -85,6 +85,30 @@ func TestParseReleaseBranch(t *testing.T) {
 	}
 }
 
+func TestVersion_LibraryString(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		tag  string
+		want string
+	}{
+		"final":             {"v26.11.0", "v0.2611.0"},
+		"patch":             {"v26.10.12", "v0.2610.12"},
+		"january is padded": {"v27.01.0", "v0.2701.0"},
+		"release candidate": {"v26.11.0-rc.3", "v0.2611.0-rc.3"},
+		"dev build":         {"v26.11.0-dev.42.g1a2b3c4", "v0.2611.0-dev.42.g1a2b3c4"},
+	}
+
+	for title, cas := range cases {
+		t.Run(title, func(t *testing.T) {
+			t.Parallel()
+			v, err := ParseTag(cas.tag)
+			require.NoError(t, err)
+			assert.Equal(t, cas.want, v.LibraryString())
+		})
+	}
+}
+
 func TestVersion_Compare(t *testing.T) {
 	t.Parallel()
 
