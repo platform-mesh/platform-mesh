@@ -274,8 +274,6 @@ keycloak:
     userRegistration:
       # -- toggle to enable/disable user registration
       enabled: true
-    # -- redirect urls
-    redirectUrls: ["http://localhost:8000/callback*"]
     # -- realm configuration
     realm:
       # -- realm name
@@ -422,8 +420,8 @@ gatewayApi:
   passthrough:
     # -- Generate one TLS passthrough listener per kcp hostname (front proxy, root shard, shards). Disable to manage passthrough listeners yourself; kcp TLSRoutes then attach to a listener named "passthrough".
     enabled: true
-    # -- Port of the generated passthrough listeners. Defaults to gatewayApi.port when not set.
-    port: ~
+    # -- Port of the generated passthrough listeners.
+    port: 443
     # -- allowedRoutes of the generated passthrough listeners
     allowedRoutes:
       namespaces:

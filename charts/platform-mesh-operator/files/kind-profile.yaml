@@ -15,6 +15,7 @@ data:
         repo:
           name: platform-mesh
         skipVerify: true
+    components:
       # -- Change hostaliases here and all involved components will get the same hostaliases
       hostAliasesEntries: &hostAliasesEntries
         # REQUIRED: set the host aliases for kcp shards
