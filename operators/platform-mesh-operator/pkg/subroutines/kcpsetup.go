@@ -287,7 +287,7 @@ func (r *KcpsetupSubroutine) getCABundleInventory(
 	b64Data := base64.StdEncoding.EncodeToString(caData)
 	caBundles[key] = b64Data
 
-	// Get Identity Provider validating webhook CA bundle (security-operator webhook)
+	// Get Identity Provider validating webhook CA bundle (pm-keycloak-operator webhook)
 	// Skip if webhook is disabled via feature toggle
 	if !idpWebhookDisabled(inst) {
 		ipdValidatingWebhookConfig := DEFAULT_IDENTITY_PROVIDER_VALIDATING_WEBHOOK_CONFIGURATION
