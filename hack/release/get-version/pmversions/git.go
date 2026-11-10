@@ -34,6 +34,8 @@ const (
 	envRefName = "GITHUB_REF_NAME"
 	// envRunNumber numbers prerelease builds in GitHub Actions.
 	envRunNumber = "GITHUB_RUN_NUMBER"
+	// head is the commit the checkout is at.
+	head = "HEAD"
 )
 
 // describePattern splits git describe --long output <tag>-<count>-g<sha>.
@@ -41,7 +43,7 @@ var describePattern = regexp.MustCompile(`^(v\S+?)-(\d+)-g([0-9a-f]+)$`)
 
 // Previous returns the previous final release.
 func Previous(ctx context.Context) (Version, error) {
-	prev, _, _, err := describe(ctx)
+	prev, _, _, err := describe(ctx, head)
 	return prev, err
 }
 
@@ -59,9 +61,20 @@ func Next(ctx context.Context) (Version, error) {
 // If the commit is tagged the tag is parsed and returned.
 // Otherwise a prerelease version is returned.
 func Now(ctx context.Context) (Version, error) {
-	out, err := git(ctx, "tag", "-l", "v[0-9]*", "--points-at", "HEAD")
+	return FromCommit(ctx, head)
+}
+
+// FromCommit returns the version at a commit.
+// If the commit is tagged the tag is parsed and returned.
+// Otherwise a prerelease version is built from the nearest tagged ancestor.
+//
+// Warning: The base follows the branch of the checkout, not of the
+// commit. This could produce erroneous results in an anomalous
+// checkout.
+func FromCommit(ctx context.Context, commit string) (Version, error) {
+	out, err := git(ctx, "tag", "-l", "v[0-9]*", "--points-at", commit)
 	if err != nil {
-		return Version{}, fmt.Errorf("listing release tags at HEAD: %w", err)
+		return Version{}, fmt.Errorf("listing release tags at %s: %w", commit, err)
 	}
 
 	var at []Version
@@ -74,7 +87,7 @@ func Now(ctx context.Context) (Version, error) {
 		return slices.MaxFunc(at, Version.Compare), nil
 	}
 
-	prev, count, sha, err := describe(ctx)
+	prev, count, sha, err := describe(ctx, commit)
 	if err != nil {
 		return Version{}, err
 	}
@@ -111,12 +124,12 @@ func prereleaseBase(branch string, prev Version) Version {
 	}
 }
 
-// describe returns the previous final release, the number of commits
-// since it and the shortened HEAD commit hash.
-func describe(ctx context.Context) (Version, int, string, error) {
-	out, err := git(ctx, "describe", "--tags", "--long", "--abbrev=7", "--match", "v[0-9]*", "--exclude", "*-*")
+// describe returns the previous final release of a commit, the number of
+// commits since it and the shortened commit hash.
+func describe(ctx context.Context, commit string) (Version, int, string, error) {
+	out, err := git(ctx, "describe", "--tags", "--long", "--abbrev=7", "--match", "v[0-9]*", "--exclude", "*-*", commit)
 	if err != nil {
-		return Version{}, 0, "", fmt.Errorf("finding previous release: %w", err)
+		return Version{}, 0, "", fmt.Errorf("finding previous release of %s: %w", commit, err)
 	}
 	return parseDescribe(strings.TrimSpace(out))
 }

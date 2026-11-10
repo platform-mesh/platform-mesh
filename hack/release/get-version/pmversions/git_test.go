@@ -64,6 +64,43 @@ func sha(t *testing.T) string {
 	return run(t, "rev-parse", "--short=7", "HEAD")
 }
 
+func TestFromCommit(t *testing.T) {
+	scratchRepo(t)
+	run(t, "tag", "v26.10.0")
+	release := run(t, "rev-parse", "HEAD")
+	commit(t)
+	run(t, "tag", "v26.11.0-rc.1")
+	candidate := run(t, "rev-parse", "HEAD")
+	commit(t)
+	between := run(t, "rev-parse", "HEAD")
+	commit(t)
+	commit(t)
+
+	cases := map[string]struct {
+		commit string
+		want   string
+	}{
+		"tagged release":               {release, "v26.10.0"},
+		"tagged candidate":             {candidate, "v26.11.0-rc.1"},
+		"abbreviated hash":             {release[:7], "v26.10.0"},
+		"untagged counts from release": {between, "v26.11.0-dev.2.g" + between[:7]},
+		"HEAD":                         {"HEAD", "v26.11.0-dev.4.g" + sha(t)},
+	}
+
+	for title, cas := range cases {
+		t.Run(title, func(t *testing.T) {
+			v, err := FromCommit(t.Context(), cas.commit)
+			require.NoError(t, err)
+			assert.Equal(t, cas.want, v.String())
+		})
+	}
+
+	t.Run("unknown commit", func(t *testing.T) {
+		_, err := FromCommit(t.Context(), "0000000")
+		require.Error(t, err)
+	})
+}
+
 func TestPrevious(t *testing.T) {
 	scratchRepo(t)
 
