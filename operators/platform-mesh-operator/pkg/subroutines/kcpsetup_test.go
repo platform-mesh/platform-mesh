@@ -1401,8 +1401,8 @@ func (s *KcpsetupTestSuite) Test_OpenFGAManifests_FeatureDisableOpenFGA() {
 		return out
 	}
 	for _, file := range []string{"02-root/workspace-type-org.yaml", "02-root/workspace-type-account.yaml"} {
-		s.Assert().NotContains(names(render(file, true), "spec", "extend", "with"), "security", file)
-		s.Assert().Contains(names(render(file, false), "spec", "extend", "with"), "security", file)
+		s.Assert().NotContains(names(render(file, true), "spec", "extend", "with"), "openfga", file)
+		s.Assert().Contains(names(render(file, false), "spec", "extend", "with"), "openfga", file)
 	}
 	for _, export := range []string{"provider-fga.platform-mesh.io", "provider-openfga.platform-mesh.io"} {
 		s.Assert().NotContains(names(render("02-root/workspace-type-provider.yaml", true), "spec", "defaultAPIBindings"), export)
