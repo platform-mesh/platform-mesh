@@ -122,7 +122,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	other, err := otherChanges(ctx, client, owner, otherComponents)
+	other, err := otherChanges(ctx, client, otherComponents)
 	if err != nil {
 		return err
 	}

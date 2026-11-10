@@ -120,18 +120,23 @@ type upstreamChanges struct {
 	Commits []upstreamCommit
 }
 
-// otherChanges compares every changed other-repository component in its
-// repository <owner>/<chart>. A component without such a repository or
-// tags is logged and left out; any other failure fails the notes.
-func otherChanges(ctx context.Context, client *github.Client, owner string, rows []versionRow) ([]upstreamChanges, error) {
+// otherChanges compares every changed other-repository component in the
+// GitHub repository its chart names as source. Charts without one are not
+// compared; a source without the versions as tags is logged and left out;
+// any other failure fails the notes.
+func otherChanges(ctx context.Context, client *github.Client, rows []versionRow) ([]upstreamChanges, error) {
 	var result []upstreamChanges
 	for _, row := range rows {
-		if !row.Changed || row.From == absent {
+		if !row.Changed || row.From == absent || row.Source == "" {
 			continue
 		}
-		commits, err := compare(ctx, client, owner, row.Name, row.From, row.To)
+		owner, repo, err := repoOwnerName(row.Source)
+		if err != nil {
+			return nil, err
+		}
+		commits, err := compare(ctx, client, owner, repo, row.From, row.To)
 		if isNotFound(err) {
-			log.Printf("warning: no source repository or tags for %s at github.com/%s/%s, skipping its commits", row.Name, owner, row.Name)
+			log.Printf("warning: %s has no tags %s...%s, skipping its commits", row.Source, row.From, row.To)
 			continue
 		}
 		if err != nil {
@@ -139,7 +144,7 @@ func otherChanges(ctx context.Context, client *github.Client, owner string, rows
 		}
 		result = append(result, upstreamChanges{
 			Chart:   row.Name,
-			Repo:    "https://github.com/" + owner + "/" + row.Name,
+			Repo:    row.Source,
 			From:    row.From,
 			To:      row.To,
 			Commits: commits,

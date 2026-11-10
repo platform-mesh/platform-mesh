@@ -74,14 +74,14 @@ func TestVersionsAtCommits(t *testing.T) {
 		repo.Git("add", path)
 	}
 
-	write("charts/portal/Chart.yaml", "appVersion: \"v0.27.20\"\n")
+	write("charts/portal/Chart.yaml", "appVersion: \"v0.27.20\"\nsources:\n  - https://github.com/platform-mesh/portal\n")
 	write("charts/account-operator/Chart.yaml", "appVersion: 0.0.0\n")
 	write("charts/common/Chart.yaml", "name: common\n")
 	write("charts/README.md", "x\n")
 	repo.Commit("start")
 	start := repo.Head()
 
-	write("charts/portal/Chart.yaml", "appVersion: \"v0.27.32\"\n")
+	write("charts/portal/Chart.yaml", "appVersion: \"v0.27.32\"\nsources:\n  - https://example.com/docs\n  - https://github.com/platform-mesh/portal.git\n")
 	write("charts/iam-ui/Chart.yaml", "appVersion: \"v0.12.30\"\n")
 	write("third_party/kcp/component-constructor.yaml", "components:\n  - name: github.com/kcp-dev/kcp\n    resources:\n      - name: image\n        version: v0.33.6\n      - name: chart\n        version: 0.1.0\n")
 	write("third_party/README.md", "x\n")
@@ -89,10 +89,10 @@ func TestVersionsAtCommits(t *testing.T) {
 	end := repo.Head()
 
 	t.Run("showFile", func(t *testing.T) {
-		data, ok, err := showFile(t.Context(), end, "charts/portal/Chart.yaml")
+		data, ok, err := showFile(t.Context(), end, "charts/iam-ui/Chart.yaml")
 		require.NoError(t, err)
 		assert.True(t, ok)
-		assert.Equal(t, "appVersion: \"v0.27.32\"\n", string(data))
+		assert.Equal(t, "appVersion: \"v0.12.30\"\n", string(data))
 
 		_, ok, err = showFile(t.Context(), start, "charts/iam-ui/Chart.yaml")
 		require.NoError(t, err)
@@ -112,16 +112,18 @@ func TestVersionsAtCommits(t *testing.T) {
 		assert.Equal(t, []string{"account-operator", "common", "iam-ui", "portal"}, names)
 	})
 
-	t.Run("appVersion", func(t *testing.T) {
-		v, err := appVersion(t.Context(), start, "portal")
+	t.Run("readChart", func(t *testing.T) {
+		meta, ok, err := readChart(t.Context(), start, "portal")
 		require.NoError(t, err)
-		assert.Equal(t, "v0.27.20", v)
-		v, err = appVersion(t.Context(), start, "iam-ui")
+		assert.True(t, ok)
+		assert.Equal(t, "v0.27.20", meta.AppVersion)
+		_, ok, err = readChart(t.Context(), start, "iam-ui")
 		require.NoError(t, err)
-		assert.Empty(t, v, "chart did not exist yet")
-		v, err = appVersion(t.Context(), end, "common")
+		assert.False(t, ok, "chart did not exist yet")
+		meta, ok, err = readChart(t.Context(), end, "common")
 		require.NoError(t, err)
-		assert.Empty(t, v, "no appVersion field")
+		assert.True(t, ok)
+		assert.Empty(t, meta.AppVersion, "no appVersion field")
 	})
 
 	t.Run("otherComponentRows", func(t *testing.T) {
@@ -129,9 +131,9 @@ func TestVersionsAtCommits(t *testing.T) {
 		require.NoError(t, err)
 		want := []versionRow{
 			{Name: "iam-ui", From: absent, To: "v0.12.30", Changed: true},
-			{Name: "portal", From: "v0.27.20", To: "v0.27.32", Changed: true},
+			{Name: "portal", From: "v0.27.20", To: "v0.27.32", Changed: true, Source: "https://github.com/platform-mesh/portal"},
 		}
-		assert.Equal(t, want, rows, "0.0.0 and charts without appVersion are not other components")
+		assert.Equal(t, want, rows, "0.0.0 and charts without appVersion are not other components; the first GitHub source wins, .git stripped")
 	})
 
 	t.Run("thirdPartyVersions", func(t *testing.T) {

@@ -45,6 +45,15 @@ type versionRow struct {
 	From    string
 	To      string
 	Changed bool
+	// Source is the GitHub repository a component built elsewhere comes
+	// from (Chart.yaml sources); empty when unknown or not applicable.
+	Source string
+}
+
+// chartMeta is the part of Chart.yaml the notes read.
+type chartMeta struct {
+	AppVersion string   `yaml:"appVersion"`
+	Sources    []string `yaml:"sources"`
 }
 
 // showFile returns a file at a commit, and false when it does not exist there.
@@ -85,20 +94,29 @@ func dirsWithFile(ctx context.Context, commit, dir, file string) ([]string, erro
 	return names, nil
 }
 
-// appVersion returns the appVersion of a chart at a commit,
-// empty when the chart does not exist there.
-func appVersion(ctx context.Context, commit, chart string) (string, error) {
+// readChart returns Chart.yaml of a chart at a commit,
+// and false when the chart does not exist there.
+func readChart(ctx context.Context, commit, chart string) (chartMeta, bool, error) {
 	data, ok, err := showFile(ctx, commit, "charts/"+chart+"/Chart.yaml")
 	if err != nil || !ok {
-		return "", err
+		return chartMeta{}, false, err
 	}
-	var file struct {
-		AppVersion string `yaml:"appVersion"`
+	var meta chartMeta
+	if err := yaml.Unmarshal(data, &meta); err != nil {
+		return chartMeta{}, false, fmt.Errorf("parsing charts/%s/Chart.yaml at %s: %w", chart, commit, err)
 	}
-	if err := yaml.Unmarshal(data, &file); err != nil {
-		return "", fmt.Errorf("parsing charts/%s/Chart.yaml at %s: %w", chart, commit, err)
+	return meta, true, nil
+}
+
+// gitHubSource returns the first GitHub repository among a chart's sources.
+func gitHubSource(sources []string) string {
+	for _, src := range sources {
+		src = strings.TrimSuffix(strings.TrimSuffix(src, "/"), ".git")
+		if _, _, err := repoOwnerName(src); err == nil {
+			return src
+		}
 	}
-	return file.AppVersion, nil
+	return ""
 }
 
 // thirdPartyVersions returns the pinned resource versions of every
@@ -158,25 +176,27 @@ func otherComponentRows(ctx context.Context, start, end string) ([]versionRow, e
 	}
 	var rows []versionRow
 	for _, chart := range charts {
-		to, err := appVersion(ctx, end, chart)
+		meta, _, err := readChart(ctx, end, chart)
 		if err != nil {
 			return nil, err
 		}
-		if to == "" || to == unversioned {
+		if meta.AppVersion == "" || meta.AppVersion == unversioned {
 			continue
 		}
-		from, err := appVersion(ctx, start, chart)
+		before, _, err := readChart(ctx, start, chart)
 		if err != nil {
 			return nil, err
 		}
+		from := before.AppVersion
 		if from == "" || from == unversioned {
 			from = absent
 		}
 		rows = append(rows, versionRow{
 			Name:    chart,
 			From:    from,
-			To:      to,
-			Changed: from != to,
+			To:      meta.AppVersion,
+			Changed: from != meta.AppVersion,
+			Source:  gitHubSource(meta.Sources),
 		})
 	}
 	return rows, nil

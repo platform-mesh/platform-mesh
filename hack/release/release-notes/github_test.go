@@ -250,12 +250,13 @@ func TestOtherChanges(t *testing.T) {
 	client := apiServer(t, mux)
 
 	rows := []versionRow{
-		{Name: "portal", From: "v0.27.20", To: "v0.27.32", Changed: true},
-		{Name: "iam-ui", From: "v0.12.23", To: "v0.12.23"},
-		{Name: "new-ui", From: absent, To: "v1.0.0", Changed: true},
-		{Name: "kcp-access-vw", From: "0.1.0", To: "0.1.1", Changed: true},
+		{Name: "portal", From: "v0.27.20", To: "v0.27.32", Changed: true, Source: "https://github.com/platform-mesh/portal"},
+		{Name: "iam-ui", From: "v0.12.23", To: "v0.12.23", Source: "https://github.com/platform-mesh/iam-ui"},
+		{Name: "new-ui", From: absent, To: "v1.0.0", Changed: true, Source: "https://github.com/platform-mesh/new-ui"},
+		{Name: "kcp-access-vw", From: "0.1.0", To: "0.1.1", Changed: true, Source: "https://github.com/kcp-dev/contrib-virtual-workspaces"},
+		{Name: "platform-mesh-prerequisites", From: "0.1.0", To: "0.1.1", Changed: true},
 	}
-	got, err := otherChanges(t.Context(), client, "platform-mesh", rows)
+	got, err := otherChanges(t.Context(), client, rows)
 	require.NoError(t, err)
 	want := []upstreamChanges{
 		{
@@ -268,7 +269,7 @@ func TestOtherChanges(t *testing.T) {
 			},
 		},
 	}
-	assert.Equal(t, want, got, "unchanged, newly added and unknown repositories are skipped")
+	assert.Equal(t, want, got, "unchanged, newly added, source without the tags (404) and charts without a source are skipped")
 	assert.Equal(t, []author{{Login: "jane", URL: "https://github.com/jane"}}, upstreamAuthors(got))
 }
 
@@ -284,7 +285,7 @@ func TestOtherChanges_rateLimited(t *testing.T) {
 	})
 	client := apiServer(t, mux)
 
-	_, err := otherChanges(t.Context(), client, "platform-mesh", []versionRow{{Name: "portal", From: "a", To: "b", Changed: true}})
+	_, err := otherChanges(t.Context(), client, []versionRow{{Name: "portal", From: "a", To: "b", Changed: true, Source: "https://github.com/platform-mesh/portal"}})
 	require.Error(t, err, "a rate limit must fail the notes, not drop the commits")
 	assert.Contains(t, err.Error(), "GH_TOKEN")
 }
