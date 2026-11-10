@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{ if not .featureDisableIDPWebhook }}
+{{- if not .featureDisableIDPWebhook }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
@@ -37,4 +37,4 @@ webhooks:
           - identityproviderconfigurations
     sideEffects: None
     timeoutSeconds: 30
-{{ end }}
+{{- end }}

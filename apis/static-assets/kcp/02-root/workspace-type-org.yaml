@@ -33,7 +33,7 @@ spec:
     # virtual workspace, which only serves clusters bound to that export.
     - export: ui.platform-mesh.io
       path: root:platform-mesh-system
-{{- if eq .featureEnableTerminalControllerManager "true" }}
+{{- if .featureEnableTerminalControllerManager }}
     - export: terminal.platform-mesh.io
       path: root:platform-mesh-system
 {{- end }}

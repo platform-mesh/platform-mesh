@@ -203,7 +203,8 @@ func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *res
 	templateData["featureDisableEmailVerification"] = HasFeatureToggle(inst, "feature-disable-email-verification")
 	templateData["featureDisableContentConfigurations"] = HasFeatureToggle(inst, "feature-disable-contentconfigurations")
 	templateData["featureEnableTerminalControllerManager"] = HasFeatureToggle(inst, "feature-enable-terminal-controller-manager")
-	templateData["featureDisableIDPWebhook"] = HasFeatureToggle(inst, FeatureDisableIDPWebhook)
+	templateData["featureDisableKeycloak"] = HasFeatureToggle(inst, FeatureDisableKeycloak)
+	templateData["featureDisableIDPWebhook"] = idpWebhookDisabled(inst)
 	templateData["registrationAllowed"] = r.cfg.IDP.RegistrationAllowed
 	templateData["welcomeAdditionalRedirectUris"] = r.cfg.IDP.WelcomeAdditionalRedirectUris
 	templateData["welcomeAdditionalPostLogoutRedirectUris"] = r.cfg.IDP.WelcomeAdditionalPostLogoutRedirectUris
@@ -221,7 +222,7 @@ func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *res
 	ipc.SetGroupVersionKind(schema.GroupVersionKind{Group: "core.platform-mesh.io", Version: "v1alpha1", Kind: "IdentityProviderConfiguration"})
 
 	err = pmSystemClient.Get(ctx, types.NamespacedName{Name: "welcome"}, &ipc)
-	if err == nil {
+	if err == nil && !HasFeatureToggle(inst, FeatureDisableKeycloak) {
 		managedClients, found, err := unstructured.NestedMap(ipc.Object, "status", "managedClients")
 		if err != nil {
 			log.Err(err).Msg("Failed to get managedClients from IdentityProviderConfiguration 'welcome'")
@@ -286,7 +287,7 @@ func (r *KcpsetupSubroutine) getCABundleInventory(
 
 	// Get Identity Provider validating webhook CA bundle (security-operator webhook)
 	// Skip if webhook is disabled via feature toggle
-	if HasFeatureToggle(inst, FeatureDisableIDPWebhook) != "true" {
+	if !idpWebhookDisabled(inst) {
 		ipdValidatingWebhookConfig := DEFAULT_IDENTITY_PROVIDER_VALIDATING_WEBHOOK_CONFIGURATION
 		ipdCaData, err := r.getCaBundle(ctx, &ipdValidatingWebhookConfig)
 		if err != nil {
@@ -453,11 +454,18 @@ func getExtraDefaultApiBindings(obj unstructured.Unstructured, workspacePath str
 	return res
 }
 
-func HasFeatureToggle(inst *pmcorev1alpha1.PlatformMesh, name string) string {
+// idpWebhookDisabled reports whether the IdentityProviderConfiguration
+// validating webhook is off, either directly or because Keycloak is disabled.
+func idpWebhookDisabled(inst *pmcorev1alpha1.PlatformMesh) bool {
+	return HasFeatureToggle(inst, FeatureDisableIDPWebhook) ||
+		HasFeatureToggle(inst, FeatureDisableKeycloak)
+}
+
+func HasFeatureToggle(inst *pmcorev1alpha1.PlatformMesh, name string) bool {
 	for _, ft := range inst.Spec.FeatureToggles {
 		if ft.Name == name {
-			return "true"
+			return true
 		}
 	}
-	return "false"
+	return false
 }

@@ -40,6 +40,8 @@ var AccountOperatorWorkspace = "root:platform-mesh-system"
 
 const FeatureDisableIDPWebhook = "feature-disable-idp-webhook"
 
+const FeatureDisableKeycloak = "feature-disable-keycloak"
+
 var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
 		Path:      "root:platform-mesh-system",

@@ -65,7 +65,8 @@ var workspaceTypeFiles = []string{
 
 // manifestData renders the WorkspaceType templates with every feature off.
 var manifestData = map[string]any{
-	"featureEnableTerminalControllerManager": "false",
+	"featureEnableTerminalControllerManager": false,
+	"featureDisableKeycloak":                 true,
 }
 
 // Platform is a platform-mesh-system tree in a kcp.

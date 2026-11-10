@@ -1074,25 +1074,25 @@ func (s *KcpsetupTestSuite) Test_HasFeatureToggle() {
 		name           string
 		featureToggles []pmcorev1alpha1.FeatureToggle
 		toggleName     string
-		expected       string
+		expected       bool
 	}{
 		{
 			name:           "returns true when feature toggle exists",
 			featureToggles: []pmcorev1alpha1.FeatureToggle{{Name: "feature-disable-email-verification"}},
 			toggleName:     "feature-disable-email-verification",
-			expected:       "true",
+			expected:       true,
 		},
 		{
 			name:           "returns false when feature toggle does not exist",
 			featureToggles: []pmcorev1alpha1.FeatureToggle{{Name: "feature-enable-getting-started"}},
 			toggleName:     "feature-disable-email-verification",
-			expected:       "false",
+			expected:       false,
 		},
 		{
 			name:           "returns false when feature toggles are empty",
 			featureToggles: nil,
 			toggleName:     "feature-disable-email-verification",
-			expected:       "false",
+			expected:       false,
 		},
 		{
 			name: "returns true when toggle is among multiple toggles",
@@ -1101,13 +1101,13 @@ func (s *KcpsetupTestSuite) Test_HasFeatureToggle() {
 				{Name: "feature-disable-email-verification"},
 			},
 			toggleName: "feature-disable-email-verification",
-			expected:   "true",
+			expected:   true,
 		},
 		{
 			name:           "returns true for feature-disable-contentconfigurations",
 			featureToggles: []pmcorev1alpha1.FeatureToggle{{Name: "feature-disable-contentconfigurations"}},
 			toggleName:     "feature-disable-contentconfigurations",
-			expected:       "true",
+			expected:       true,
 		},
 	}
 
@@ -1130,21 +1130,21 @@ func (s *KcpsetupTestSuite) Test_WorkspaceAuthConfigTemplate_FeatureDisableEmail
 
 	tests := []struct {
 		name                  string
-		featureToggleValue    string
+		featureToggleValue    any
 		expectClaimValidation bool
 		expectedExpression    string
 		expectedMessage       string
 	}{
 		{
 			name:                  "includes claimValidationRules when feature is enabled",
-			featureToggleValue:    "true",
+			featureToggleValue:    true,
 			expectClaimValidation: true,
 			expectedExpression:    `claims.?email_verified.orValue(true) == true || claims.?email_verified.orValue(true) == false`,
 			expectedMessage:       "Allowing both verified and unverified emails",
 		},
 		{
 			name:                  "excludes claimValidationRules when feature is disabled",
-			featureToggleValue:    "false",
+			featureToggleValue:    false,
 			expectClaimValidation: false,
 		},
 	}
@@ -1182,22 +1182,22 @@ func (s *KcpsetupTestSuite) Test_WorkspaceAuthConfigTemplate_FeatureDisableEmail
 func (s *KcpsetupTestSuite) Test_ApplyManifestFromFile_SkipsContentConfiguration_WhenToggleEnabled() {
 	tests := []struct {
 		name               string
-		featureToggleValue string
+		featureToggleValue any
 		expectSkipped      bool
 	}{
 		{
 			name:               "skips ContentConfiguration when toggle is enabled",
-			featureToggleValue: "true",
+			featureToggleValue: true,
 			expectSkipped:      true,
 		},
 		{
 			name:               "applies ContentConfiguration when toggle is disabled",
-			featureToggleValue: "false",
+			featureToggleValue: false,
 			expectSkipped:      false,
 		},
 		{
 			name:               "applies ContentConfiguration when toggle is not present",
-			featureToggleValue: "",
+			featureToggleValue: nil,
 			expectSkipped:      false,
 		},
 	}
@@ -1235,7 +1235,7 @@ func (s *KcpsetupTestSuite) Test_ApplyManifestFromFile_DoesNotSkipNonContentConf
 	kcpClientMock := new(mocks.Client)
 
 	templateData := map[string]any{
-		"featureDisableContentConfigurations": "true",
+		"featureDisableContentConfigurations": true,
 	}
 
 	// Use a non-ContentConfiguration file (e.g., a workspace file)
@@ -1246,4 +1246,103 @@ func (s *KcpsetupTestSuite) Test_ApplyManifestFromFile_DoesNotSkipNonContentConf
 
 	err := ApplyManifestFromFile(ctx, kcpmanifests.Resources, path, kcpClientMock, templateData, "root", &pmcorev1alpha1.PlatformMesh{}, nil)
 	s.Assert().NoError(err)
+}
+
+func (s *KcpsetupTestSuite) Test_idpWebhookDisabled() {
+	tests := []struct {
+		name     string
+		toggles  []pmcorev1alpha1.FeatureToggle
+		expected bool
+	}{
+		{name: "no toggles", expected: false},
+		{name: "idp webhook toggle", toggles: []pmcorev1alpha1.FeatureToggle{{Name: FeatureDisableIDPWebhook}}, expected: true},
+		{name: "keycloak toggle implies idp webhook", toggles: []pmcorev1alpha1.FeatureToggle{{Name: FeatureDisableKeycloak}}, expected: true},
+		{name: "unrelated toggle", toggles: []pmcorev1alpha1.FeatureToggle{{Name: "feature-accounts-in-accounts"}}, expected: false},
+	}
+
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			inst := &pmcorev1alpha1.PlatformMesh{Spec: pmcorev1alpha1.PlatformMeshSpec{FeatureToggles: tc.toggles}}
+			s.Assert().Equal(tc.expected, idpWebhookDisabled(inst))
+		})
+	}
+}
+
+// Test_ApplyManifestFromFile_FeatureDisableKeycloak locks in that the
+// Keycloak-backed manifests render to nothing (and are not applied) when the
+// toggle is "true", and are applied for "false" and for a missing key.
+func (s *KcpsetupTestSuite) Test_ApplyManifestFromFile_FeatureDisableKeycloak() {
+	manifests := []string{
+		"03-platform-mesh-system/welcome-ipc.yaml",
+		"workspace-authentication-configuration.yaml",
+	}
+	tests := []struct {
+		name          string
+		templateData  map[string]any
+		expectSkipped bool
+	}{
+		{name: "skipped when disabled", templateData: map[string]any{"featureDisableKeycloak": true}, expectSkipped: true},
+		{name: "applied when enabled", templateData: map[string]any{"featureDisableKeycloak": false}},
+		{name: "applied when key missing", templateData: map[string]any{}},
+	}
+
+	for _, manifest := range manifests {
+		for _, tc := range tests {
+			s.Run(manifest+" "+tc.name, func() {
+				ctx := context.WithValue(context.Background(), keys.LoggerCtxKey, s.log)
+				kcpClientMock := new(mocks.Client)
+				templateData := map[string]any{
+					"baseDomainPort":                  "example.com:443",
+					"registrationAllowed":             false,
+					"welcomeAudiences":                []string{},
+					"featureDisableEmailVerification": false,
+					"userClaim":                       "email",
+				}
+				for k, v := range tc.templateData {
+					templateData[k] = v
+				}
+				if !tc.expectSkipped {
+					kcpClientMock.EXPECT().Apply(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				}
+
+				err := ApplyManifestFromFile(ctx, kcpmanifests.Resources, manifest, kcpClientMock, templateData, "root", &pmcorev1alpha1.PlatformMesh{}, nil)
+
+				s.Require().NoError(err)
+				if tc.expectSkipped {
+					kcpClientMock.AssertNotCalled(s.T(), "Apply", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+				}
+			})
+		}
+	}
+}
+
+func (s *KcpsetupTestSuite) Test_OrgsWorkspaceTypeTemplate_FeatureDisableKeycloak() {
+	templateBytes, err := fs.ReadFile(kcpmanifests.Resources, "02-root/01-workspace-type-orgs.yaml")
+	s.Require().NoError(err)
+
+	disabled, err := ReplaceTemplate(map[string]any{"featureDisableKeycloak": true}, templateBytes)
+	s.Require().NoError(err)
+	s.Assert().NotContains(string(disabled), "authenticationConfigurations")
+	s.Assert().Contains(string(disabled), "kind: WorkspaceType")
+
+	enabled, err := ReplaceTemplate(map[string]any{"featureDisableKeycloak": false}, templateBytes)
+	s.Require().NoError(err)
+	s.Assert().Contains(string(enabled), "orgs-authentication")
+}
+
+// Test_IDPWebhookTemplate_FeatureDisableIDPWebhook locks in the fix for the
+// webhook never rendering: HasFeatureToggle yields false, which
+// `not` treated as truthy.
+func (s *KcpsetupTestSuite) Test_IDPWebhookTemplate_FeatureDisableIDPWebhook() {
+	templateBytes, err := fs.ReadFile(kcpmanifests.Resources, "04-platform-mesh-system/idpvalidatingwebhookconfiguration-admissionregistration.k8s.io.yaml")
+	s.Require().NoError(err)
+	caKey := "identityproviderconfiguration-validator.webhooks.core.platform-mesh.io.ca-bundle"
+
+	enabled, err := ReplaceTemplate(map[string]any{"featureDisableIDPWebhook": false, caKey: "Y2E="}, templateBytes)
+	s.Require().NoError(err)
+	s.Assert().Contains(string(enabled), "kind: ValidatingWebhookConfiguration")
+
+	disabled, err := ReplaceTemplate(map[string]any{"featureDisableIDPWebhook": true, caKey: "Y2E="}, templateBytes)
+	s.Require().NoError(err)
+	s.Assert().NotContains(string(disabled), "kind: ValidatingWebhookConfiguration")
 }

@@ -157,7 +157,7 @@ func (r *ProvidersecretSubroutine) Process(
 		providers = append(instance.Spec.Kcp.ProviderConnections, instance.Spec.Kcp.ExtraProviderConnections...)
 	}
 
-	if HasFeatureToggle(instance, "feature-enable-terminal-controller-manager") == "true" {
+	if HasFeatureToggle(instance, "feature-enable-terminal-controller-manager") {
 		providers = append(providers, pmcorev1alpha1.ProviderConnection{
 			Path:      "root:platform-mesh-system",
 			Secret:    "terminal-controller-manager-kubeconfig",
