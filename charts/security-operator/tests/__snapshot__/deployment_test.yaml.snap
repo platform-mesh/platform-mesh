@@ -157,13 +157,8 @@ operator match the snapshot:
             - args:
                 - fga
                 - --core-module-path=/data/coreModule.fga
-                - --user-claim=email
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
-                - --domain-ca-lookup
-                - --webhooks-enabled=true
-                - --webhooks-port=9443
-                - --webhooks-cert-dir=/certs
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
@@ -174,12 +169,7 @@ operator match the snapshot:
                 - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
-              env:
-                - name: KEYCLOAK_CLIENT_SECRET
-                  valueFrom:
-                    secretKeyRef:
-                      key: client_secret
-                      name: security-operator-client-secret
+              env: null
               image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
@@ -195,9 +185,6 @@ operator match the snapshot:
                   protocol: TCP
                 - containerPort: 8090
                   name: health-port
-                  protocol: TCP
-                - containerPort: 9443
-                  name: webhook
                   protocol: TCP
               readinessProbe:
                 httpGet:
@@ -226,33 +213,8 @@ operator match the snapshot:
               volumeMounts:
                 - mountPath: /api-kubeconfig
                   name: external-api-server
-                - mountPath: /keycloak-credentials
-                  name: keycloak-credentials
-                  readOnly: true
                 - mountPath: /data
                   name: core-module
-                - mountPath: /certs
-                  name: webhook-certs
-                  readOnly: true
-          initContainers:
-            - args:
-                - init-container
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
-              imagePullPolicy: IfNotPresent
-              name: bootstrap-keycloak-clients
-              resources: null
-              securityContext:
-                readOnlyRootFilesystem: true
-                runAsNonRoot: true
-                seccompProfile:
-                  type: RuntimeDefault
-              volumeMounts:
-                - mountPath: /config
-                  name: init-container-config
-                  readOnly: true
-                - mountPath: /secrets
-                  name: keycloak-password
-                  readOnly: true
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -260,27 +222,12 @@ operator match the snapshot:
           serviceAccountName: RELEASE-NAME-security-operator
           terminationGracePeriodSeconds: 10
           volumes:
-            - configMap:
-                name: RELEASE-NAME-security-operator-init-container-config
-              name: init-container-config
-            - name: keycloak-password
-              secret:
-                items:
-                  - key: password
-                    path: keycloak-password
-                secretName: keycloak-admin
             - name: external-api-server
               secret:
                 secretName: kcp-kubeconfig
-            - name: keycloak-credentials
-              secret:
-                secretName: keycloak-admin
             - configMap:
                 name: RELEASE-NAME-security-operator-core-module
               name: core-module
-            - name: webhook-certs
-              secret:
-                secretName: RELEASE-NAME-security-operator-webhook-server-cert
   5: |
     apiVersion: apps/v1
     kind: Deployment
@@ -369,14 +316,6 @@ operator match the snapshot:
               secret:
                 secretName: kcp-kubeconfig
   6: |
-    apiVersion: v1
-    data:
-      config.yaml: "keycloakBaseURL: \nkeycloakClientID: \"admin-cli\"\nkeycloakUser: \"keycloak-admin\"\npasswordFile: \"/secrets/keycloak-password\"\nclients:\n  - name: \"security-operator\"\n    secretRef:\n      name: \"security-operator-client-secret\"\n      namespace: \"platform-mesh-system\"\n  - name: \"iam-service\"\n    secretRef:\n      name: \"iam-client-secret\"\n      namespace: \"platform-mesh-system\"\n"
-    kind: ConfigMap
-    metadata:
-      name: RELEASE-NAME-security-operator-init-container-config
-      namespace: NAMESPACE
-  7: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -398,10 +337,8 @@ operator match the snapshot:
             - args:
                 - initializer
                 - --core-module-path=/data/coreModule.fga
-                - --user-claim=email
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
-                - --domain-ca-lookup
                 - --test=myval
                 - --test2=myval
                 - --leader-elect
@@ -473,7 +410,7 @@ operator match the snapshot:
             - configMap:
                 name: RELEASE-NAME-security-operator-core-module
               name: core-module
-  8: |
+  7: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -489,13 +426,13 @@ operator match the snapshot:
       selector:
         app: RELEASE-NAME-security-operator
       type: ClusterIP
-  9: |
+  8: |
     apiVersion: v1
     kind: ServiceAccount
     metadata:
       name: RELEASE-NAME-security-operator
       namespace: NAMESPACE
-  10: |
+  9: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -528,12 +465,7 @@ operator match the snapshot:
                 - --image-name="ghcr.io/platform-mesh/platform-mesh/security-operator"
                 - --shutdown-timeout=1m
                 - --max-concurrent-reconciles=10
-              env:
-                - name: KEYCLOAK_CLIENT_SECRET
-                  valueFrom:
-                    secretKeyRef:
-                      key: client_secret
-                      name: security-operator-client-secret
+              env: null
               image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
@@ -577,9 +509,6 @@ operator match the snapshot:
               volumeMounts:
                 - mountPath: /api-kubeconfig
                   name: external-api-server
-                - mountPath: /keycloak-credentials
-                  name: keycloak-credentials
-                  readOnly: true
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -590,10 +519,7 @@ operator match the snapshot:
             - name: external-api-server
               secret:
                 secretName: kcp-kubeconfig
-            - name: keycloak-credentials
-              secret:
-                secretName: keycloak-admin
-  11: |
+  10: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -686,63 +612,6 @@ operator match the snapshot:
             - configMap:
                 name: RELEASE-NAME-security-operator-core-module
               name: core-module
-  12: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: RELEASE-NAME-security-operator-selfsigned-issuer
-    spec:
-      selfSigned: {}
-  13: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: RELEASE-NAME-security-operator-ca-cert
-    spec:
-      commonName: RELEASE-NAME-security-operator-ca
-      duration: 2160h
-      isCA: true
-      issuerRef:
-        kind: Issuer
-        name: RELEASE-NAME-security-operator-selfsigned-issuer
-      renewBefore: 720h
-      secretName: RELEASE-NAME-security-operator-ca-secret
-  14: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: RELEASE-NAME-security-operator-ca-issuer
-    spec:
-      ca:
-        secretName: RELEASE-NAME-security-operator-ca-secret
-  15: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: RELEASE-NAME-security-operator-serving-cert
-    spec:
-      dnsNames:
-        - RELEASE-NAME-security-operator-webhook.NAMESPACE.svc
-        - RELEASE-NAME-security-operator-webhook.NAMESPACE.svc.cluster.local
-      duration: 2160h
-      issuerRef:
-        kind: Issuer
-        name: RELEASE-NAME-security-operator-ca-issuer
-      renewBefore: 720h
-      secretName: RELEASE-NAME-security-operator-webhook-server-cert
-  16: |
-    apiVersion: v1
-    kind: Service
-    metadata:
-      name: RELEASE-NAME-security-operator-webhook
-      namespace: NAMESPACE
-    spec:
-      ports:
-        - port: 9443
-          protocol: TCP
-          targetPort: webhook
-      selector:
-        app: RELEASE-NAME-security-operator
 operator match the snapshot w. sentry:
   1: |
     apiVersion: rbac.authorization.k8s.io/v1
@@ -902,12 +771,7 @@ operator match the snapshot w. sentry:
             - args:
                 - fga
                 - --core-module-path=/data/coreModule.fga
-                - --user-claim=email
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
-                - --domain-ca-lookup
-                - --webhooks-enabled=true
-                - --webhooks-port=9443
-                - --webhooks-cert-dir=/certs
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
@@ -926,11 +790,6 @@ operator match the snapshot w. sentry:
                       name: RELEASE-NAME-security-operator-sentry
                 - name: TEST_ENV
                   value: test
-                - name: KEYCLOAK_CLIENT_SECRET
-                  valueFrom:
-                    secretKeyRef:
-                      key: client_secret
-                      name: security-operator-client-secret
               image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
@@ -946,9 +805,6 @@ operator match the snapshot w. sentry:
                   protocol: TCP
                 - containerPort: 8090
                   name: health-port
-                  protocol: TCP
-                - containerPort: 9443
-                  name: webhook
                   protocol: TCP
               readinessProbe:
                 httpGet:
@@ -975,35 +831,10 @@ operator match the snapshot w. sentry:
                   port: 8090
                 periodSeconds: 10
               volumeMounts:
-                - mountPath: /keycloak-credentials
-                  name: keycloak-credentials
-                  readOnly: true
                 - mountPath: /data
                   name: core-module
-                - mountPath: /certs
-                  name: webhook-certs
-                  readOnly: true
                 - mountPath: /etc/kcp-kubeconfig
                   name: kcp-kubeconfig
-                  readOnly: true
-          initContainers:
-            - args:
-                - init-container
-              image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
-              imagePullPolicy: IfNotPresent
-              name: bootstrap-keycloak-clients
-              resources: null
-              securityContext:
-                readOnlyRootFilesystem: true
-                runAsNonRoot: true
-                seccompProfile:
-                  type: RuntimeDefault
-              volumeMounts:
-                - mountPath: /config
-                  name: init-container-config
-                  readOnly: true
-                - mountPath: /secrets
-                  name: keycloak-password
                   readOnly: true
           securityContext:
             runAsNonRoot: true
@@ -1013,23 +844,8 @@ operator match the snapshot w. sentry:
           terminationGracePeriodSeconds: 10
           volumes:
             - configMap:
-                name: RELEASE-NAME-security-operator-init-container-config
-              name: init-container-config
-            - name: keycloak-password
-              secret:
-                items:
-                  - key: password
-                    path: keycloak-password
-                secretName: keycloak-admin
-            - name: keycloak-credentials
-              secret:
-                secretName: keycloak-admin
-            - configMap:
                 name: RELEASE-NAME-security-operator-core-module
               name: core-module
-            - name: webhook-certs
-              secret:
-                secretName: RELEASE-NAME-security-operator-webhook-server-cert
             - name: kcp-kubeconfig
               secret:
                 secretName: kcp-kubeconfig
@@ -1128,14 +944,6 @@ operator match the snapshot w. sentry:
               secret:
                 secretName: kcp-kubeconfig
   6: |
-    apiVersion: v1
-    data:
-      config.yaml: "keycloakBaseURL: \nkeycloakClientID: \"admin-cli\"\nkeycloakUser: \"keycloak-admin\"\npasswordFile: \"/secrets/keycloak-password\"\nclients:\n  - name: \"security-operator\"\n    secretRef:\n      name: \"security-operator-client-secret\"\n      namespace: \"platform-mesh-system\"\n  - name: \"iam-service\"\n    secretRef:\n      name: \"iam-client-secret\"\n      namespace: \"platform-mesh-system\"\n"
-    kind: ConfigMap
-    metadata:
-      name: RELEASE-NAME-security-operator-init-container-config
-      namespace: NAMESPACE
-  7: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -1157,10 +965,8 @@ operator match the snapshot w. sentry:
             - args:
                 - initializer
                 - --core-module-path=/data/coreModule.fga
-                - --user-claim=email
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
-                - --domain-ca-lookup
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
@@ -1243,7 +1049,7 @@ operator match the snapshot w. sentry:
             - configMap:
                 name: RELEASE-NAME-security-operator-core-module
               name: core-module
-  8: |
+  7: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -1259,7 +1065,7 @@ operator match the snapshot w. sentry:
       selector:
         app: RELEASE-NAME-security-operator
       type: ClusterIP
-  9: |
+  8: |
     apiVersion: external-secrets.io/v1beta1
     kind: ExternalSecret
     metadata:
@@ -1280,13 +1086,13 @@ operator match the snapshot w. sentry:
         creationPolicy: Owner
         deletionPolicy: Retain
         name: RELEASE-NAME-security-operator-sentry
-  10: |
+  9: |
     apiVersion: v1
     kind: ServiceAccount
     metadata:
       name: RELEASE-NAME-security-operator
       namespace: NAMESPACE
-  11: |
+  10: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -1326,11 +1132,6 @@ operator match the snapshot w. sentry:
                       name: RELEASE-NAME-security-operator-sentry
                 - name: TEST_ENV
                   value: test
-                - name: KEYCLOAK_CLIENT_SECRET
-                  valueFrom:
-                    secretKeyRef:
-                      key: client_secret
-                      name: security-operator-client-secret
               image: ghcr.io/platform-mesh/platform-mesh/security-operator:1.0.0
               imagePullPolicy: IfNotPresent
               livenessProbe:
@@ -1375,9 +1176,6 @@ operator match the snapshot w. sentry:
                 - mountPath: /etc/kcp-kubeconfig
                   name: kcp-kubeconfig
                   readOnly: true
-                - mountPath: /keycloak-credentials
-                  name: keycloak-credentials
-                  readOnly: true
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -1388,10 +1186,7 @@ operator match the snapshot w. sentry:
             - name: kcp-kubeconfig
               secret:
                 secretName: kcp-kubeconfig
-            - name: keycloak-credentials
-              secret:
-                secretName: keycloak-admin
-  12: |
+  11: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -1497,60 +1292,3 @@ operator match the snapshot w. sentry:
             - configMap:
                 name: RELEASE-NAME-security-operator-core-module
               name: core-module
-  13: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: RELEASE-NAME-security-operator-selfsigned-issuer
-    spec:
-      selfSigned: {}
-  14: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: RELEASE-NAME-security-operator-ca-cert
-    spec:
-      commonName: RELEASE-NAME-security-operator-ca
-      duration: 2160h
-      isCA: true
-      issuerRef:
-        kind: Issuer
-        name: RELEASE-NAME-security-operator-selfsigned-issuer
-      renewBefore: 720h
-      secretName: RELEASE-NAME-security-operator-ca-secret
-  15: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: RELEASE-NAME-security-operator-ca-issuer
-    spec:
-      ca:
-        secretName: RELEASE-NAME-security-operator-ca-secret
-  16: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: RELEASE-NAME-security-operator-serving-cert
-    spec:
-      dnsNames:
-        - RELEASE-NAME-security-operator-webhook.NAMESPACE.svc
-        - RELEASE-NAME-security-operator-webhook.NAMESPACE.svc.cluster.local
-      duration: 2160h
-      issuerRef:
-        kind: Issuer
-        name: RELEASE-NAME-security-operator-ca-issuer
-      renewBefore: 720h
-      secretName: RELEASE-NAME-security-operator-webhook-server-cert
-  17: |
-    apiVersion: v1
-    kind: Service
-    metadata:
-      name: RELEASE-NAME-security-operator-webhook
-      namespace: NAMESPACE
-    spec:
-      ports:
-        - port: 9443
-          protocol: TCP
-          targetPort: webhook
-      selector:
-        app: RELEASE-NAME-security-operator

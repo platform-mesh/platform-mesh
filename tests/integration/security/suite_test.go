@@ -25,9 +25,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
-	keycloakresources "go.platform-mesh.io/apis/static-assets/resources/pm-keycloak-operator"
 	securityresources "go.platform-mesh.io/apis/static-assets/resources/security-operator"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -53,7 +51,6 @@ import (
 
 const (
 	coreExport        = "core.platform-mesh.io"
-	keycloakExport    = "keycloak.platform-mesh.io"
 	providersExport   = "providers.platform-mesh.io"
 	fgaExport         = "fga.platform-mesh.io"
 	providerFgaExport = "provider-fga.platform-mesh.io"
@@ -79,20 +76,18 @@ func (s *IntegrationSuite) SetupSuite() {
 	var err error
 	s.env, err = kcp.Security(t.Context())
 	require.NoError(t, err)
-	s.scheme = scheme.New(t, pmcorev1alpha1.AddToScheme, pmkeycloakv1alpha1.AddToScheme, pmprovidersv1alpha1.AddToScheme)
+	s.scheme = scheme.New(t, pmcorev1alpha1.AddToScheme, pmprovidersv1alpha1.AddToScheme)
 	s.platform = fixtures.Install(t, s.env,
 		fixtures.WithScheme(s.scheme),
 		fixtures.WithResources(securityresources.Resources, "*.yaml"),
-		fixtures.WithResources(keycloakresources.Resources, "*.yaml"),
 		// The deployed manifests serve Stores and AuthorizationModels from
 		// exports of their own (sharing core's identity); apigen puts the
 		// whole group into core.platform-mesh.io.
 		fixtures.WithExport(fgaExport, coreExport, "stores"),
 		fixtures.WithExport(providerFgaExport, coreExport, "authorizationmodels"),
 		// platform-mesh-system plays the provider in these tests, so it binds
-		// provider-fga and holds the AuthorizationModels. Invites and
-		// IdentityProviderConfigurations come from keycloak.platform-mesh.io.
-		fixtures.WithBindings(coreExport, keycloakExport, providersExport, providerFgaExport),
+		// provider-fga and holds the AuthorizationModels.
+		fixtures.WithBindings(coreExport, providersExport, providerFgaExport),
 		// Orgs hold their Store; in production the security-operator's org
 		// initializer (not run here) binds fga.platform-mesh.io for them.
 		fixtures.WithDefaultBindings("org", fgaExport),

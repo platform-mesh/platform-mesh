@@ -9,8 +9,6 @@ Security-operator is responsible for security related configuration in Platform-
 ## API description
 - **Store** - serves as CRD representation of OpenFGA store entity. Stores are created during logical clusters initialization phase or at deployment phase of Platform-mesh installation. When created, dedicated controller will create a **store** in OpenFGA.
 - **AuthorizationModel** - serves as CRD representation of OpenFGA Authorization model entity. AuthorizationModels are created when not default ApiBinding is created in the user's workspace. When created, dedicated controller will update Authorization model in the related store in OpenFGA.
-- **Invite** - serves as a mechanism for inviting people in your organization by their email
-- **IdentityProviderConfiguration (IDP)** - CRD for realm configuration in Keycloak and OIDC clients management. IDP is created during logical clusters initialization phase or at deployment phase of Platform-mesh installation.
 - **ApiExportPolicy** - CRD for granting **bind** permissions. When provider creates an API to share this API with other customers of Platform-mesh, he needs to get **bind** permissions and after this other users will be able to bind provider's API and use it
 - **ProviderPermissions** - configures roles and permission expressions for resources in a provider's APIExport.
 
@@ -75,10 +73,9 @@ relations must be rewritten as parent expressions before upgrading.
 
 ## Features
 - **Initialization of logical clusters** - This feature consist of 2 parts:
-    - **organization level logical clusters** - operator creates **Store**, **IDP**, **Invite**, **WorkspaceAuthenticationConfiguration** resources to initialize an organization
+    - **organization level logical clusters** - operator creates the **Store** resource to initialize an organization (identity provider setup is done by pm-keycloak-operator)
     - **account level logical clusters** - operator creates additional tuples in organization's store for accounts hieracy
 - **Authorization Model generation** - to execute authorization checks in OpenFGA against custom resource which are created by the user, operator generates Authorization Model for each resource in ApiExport when the ApiExport is bound (ApiBinding is created). The model is created in the workspace where **ApiExport** and **ApiResourceSchema** resource live.
-- **OIDC management** - Keycloak serves as the internal Identity Provider within Platform Mesh. After IDP resource is created and reconciled successfully, **WorkspaceAuthenticationConfiguration** resource is created and configured to use keycloak as identity provider for kcp authentication
 - **ApiExport bindability control** - ApiExportPolicy controller creates all necessary tuples in OpenFGA to support authorization checks for **bind** kcp's verb. More information about this [ApiExportPolicy ADR](https://github.com/platform-mesh/architecture/blob/main/adr/002-apiexport-binding-access-control.md)
 - **Reconcile logical cluster** - security-operator reconciles logical clusters after they are initialized and applies the same logic as initializer does. It keeps already initialized logical clusters up to date if something has been changed in initializing flow.
 

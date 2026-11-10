@@ -12,6 +12,7 @@ use (
 	./operators/extension-manager-operator
 	./operators/kro-composition-operator
 	./operators/platform-mesh-operator
+	./operators/pm-keycloak-operator
 	./operators/provider-operator
 	./operators/resource-broker
 	./operators/security-operator

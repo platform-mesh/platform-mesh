@@ -17,7 +17,6 @@ limitations under the License.
 package config
 
 import (
-	"os"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -38,23 +37,8 @@ const (
 	OrgsClusterPath         = "root:orgs"
 )
 
-type KeycloakConfig struct {
-	BaseURL      string
-	ClientID     string
-	ClientSecret string
-}
-
-type WebhooksConfig struct {
-	Enabled bool
-	Port    int
-	CertDir string
-}
-
 type InitializerConfig struct {
 	WorkspaceInitializerEnabled bool
-	IDPEnabled                  bool
-	InviteEnabled               bool
-	WorkspaceAuthEnabled        bool
 }
 
 type FGAConfig struct {
@@ -69,26 +53,6 @@ type KCPConfig struct {
 	Kubeconfig string
 }
 
-type IDPConfig struct {
-	RealmDenyList []string
-
-	SMTPServer  string
-	SMTPPort    int
-	FromAddress string
-
-	SSL      bool
-	StartTLS bool
-
-	SMTPUser     string
-	SMTPPassword string
-
-	AdditionalRedirectURLs    []string
-	KubectlClientRedirectURLs []string
-
-	AccessTokenLifespan int
-	RegistrationAllowed bool
-}
-
 type APIExportEndpointSlices struct {
 	CorePlatformMeshIO        string
 	SystemPlatformMeshIO      string
@@ -99,28 +63,17 @@ type APIExportEndpointSlices struct {
 
 // Config struct to hold the app config
 type Config struct {
-	FeatureGates                     featuregate.MutableFeatureGate
-	FGA                              FGAConfig
-	KCP                              KCPConfig
-	APIExportEndpointSlices          APIExportEndpointSlices
-	CoreModulePath                   string
-	BaseDomain                       string
-	GroupClaim                       string
-	UserClaim                        string
-	DevelopmentAllowUnverifiedEmails bool
-	WorkspacePath                    string
-	WorkspaceTypeName                string
-	DomainCALookup                   bool
-	MigrateAuthorizationModels       bool
-	HttpClientTimeoutSeconds         int
-	SetDefaultPassword               bool
-	AllowMemberTuplesEnabled         bool
-	RekeyOrphanedTuplesEnabled       bool
-	IDP                              IDPConfig
-	Keycloak                         KeycloakConfig
-	Initializer                      InitializerConfig
-	Webhooks                         WebhooksConfig
-	AdditionalAudiences              []string
+	FeatureGates               featuregate.MutableFeatureGate
+	FGA                        FGAConfig
+	KCP                        KCPConfig
+	APIExportEndpointSlices    APIExportEndpointSlices
+	CoreModulePath             string
+	WorkspacePath              string
+	WorkspaceTypeName          string
+	MigrateAuthorizationModels bool
+	AllowMemberTuplesEnabled   bool
+	RekeyOrphanedTuplesEnabled bool
+	Initializer                InitializerConfig
 }
 
 func NewConfig() Config {
@@ -142,29 +95,10 @@ func NewConfig() Config {
 			FgaPlatformMeshIO:         "fga.platform-mesh.io",
 			ProviderFgaPlatformMeshIO: "provider-fga.platform-mesh.io",
 		},
-		BaseDomain:               "portal.dev.local:8443",
-		GroupClaim:               "groups",
-		UserClaim:                "email",
-		WorkspacePath:            "root",
-		WorkspaceTypeName:        "security",
-		HttpClientTimeoutSeconds: 30,
-		IDP: IDPConfig{
-			KubectlClientRedirectURLs: []string{"http://localhost:8000", "http://localhost:18000"},
-			AccessTokenLifespan:       28800,
-		},
-		Keycloak: KeycloakConfig{
-			ClientID:     "security-operator",
-			ClientSecret: os.Getenv("KEYCLOAK_CLIENT_SECRET"),
-		},
+		WorkspacePath:     "root",
+		WorkspaceTypeName: "security",
 		Initializer: InitializerConfig{
 			WorkspaceInitializerEnabled: true,
-			IDPEnabled:                  true,
-			InviteEnabled:               true,
-			WorkspaceAuthEnabled:        true,
-		},
-		Webhooks: WebhooksConfig{
-			Port:    9443,
-			CertDir: "/tmp/k8s-webhook-server/serving-certs",
 		},
 	}
 }
@@ -183,40 +117,12 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.APIExportEndpointSlices.FgaPlatformMeshIO, "fga-api-export-endpoint-slice-name", c.APIExportEndpointSlices.FgaPlatformMeshIO, "Set the fga.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.APIExportEndpointSlices.ProviderFgaPlatformMeshIO, "provider-fga-api-export-endpoint-slice-name", c.APIExportEndpointSlices.ProviderFgaPlatformMeshIO, "Set the provider-fga.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.CoreModulePath, "core-module-path", c.CoreModulePath, "Set the path to the core module FGA model file")
-	fs.StringVar(&c.BaseDomain, "base-domain", c.BaseDomain, "Set the base domain used to construct issuer URLs")
-	fs.StringVar(&c.GroupClaim, "group-claim", c.GroupClaim, "Set the ID token group claim")
-	fs.StringVar(&c.UserClaim, "user-claim", c.UserClaim, "Set the ID token user claim")
-	fs.BoolVar(&c.DevelopmentAllowUnverifiedEmails, "development-allow-unverified-emails", c.DevelopmentAllowUnverifiedEmails, "Allow unverified emails in development mode")
 	fs.StringVar(&c.WorkspacePath, "workspace-path", c.WorkspacePath, "Set the parent workspace path for created workspaces")
 	fs.StringVar(&c.WorkspaceTypeName, "workspace-type-name", c.WorkspaceTypeName, "Set the workspace type name")
-	fs.BoolVar(&c.DomainCALookup, "domain-ca-lookup", c.DomainCALookup, "Enable lookup of domain CA from Kubernetes secret")
 	fs.BoolVar(&c.MigrateAuthorizationModels, "migrate-authorization-models", c.MigrateAuthorizationModels, "Enable one-time authorization model migration")
-	fs.IntVar(&c.HttpClientTimeoutSeconds, "http-client-timeout-seconds", c.HttpClientTimeoutSeconds, "Set HTTP client timeout in seconds")
-	fs.BoolVar(&c.SetDefaultPassword, "set-default-password", c.SetDefaultPassword, "Enable setting default password for identity provider users")
 	fs.BoolVar(&c.AllowMemberTuplesEnabled, "allow-member-tuples-enabled", c.AllowMemberTuplesEnabled, "Enable allow-member tuples management")
 	fs.BoolVar(&c.RekeyOrphanedTuplesEnabled, "rekey-orphaned-tuples-enabled", c.RekeyOrphanedTuplesEnabled, "Enable re-keying of org tuples orphaned by a workspace re-creation (cluster-id change)")
-	fs.StringSliceVar(&c.IDP.RealmDenyList, "idp-realm-deny-list", c.IDP.RealmDenyList, "Comma-separated list of Keycloak realms to ignore")
-	fs.StringVar(&c.IDP.SMTPServer, "idp-smtp-server", c.IDP.SMTPServer, "Set Keycloak SMTP server host")
-	fs.IntVar(&c.IDP.SMTPPort, "idp-smtp-port", c.IDP.SMTPPort, "Set Keycloak SMTP server port")
-	fs.StringVar(&c.IDP.FromAddress, "idp-from-address", c.IDP.FromAddress, "Set SMTP from address")
-	fs.BoolVar(&c.IDP.SSL, "idp-smtp-ssl", c.IDP.SSL, "Enable SMTP SSL")
-	fs.BoolVar(&c.IDP.StartTLS, "idp-smtp-starttls", c.IDP.StartTLS, "Enable SMTP STARTTLS")
-	fs.StringVar(&c.IDP.SMTPUser, "idp-smtp-user", c.IDP.SMTPUser, "Set SMTP username")
-	fs.StringVar(&c.IDP.SMTPPassword, "idp-smtp-password", c.IDP.SMTPPassword, "Set SMTP password")
-	fs.StringSliceVar(&c.IDP.AdditionalRedirectURLs, "idp-additional-redirect-urls", c.IDP.AdditionalRedirectURLs, "Additional redirect URLs for Keycloak clients")
-	fs.StringSliceVar(&c.IDP.KubectlClientRedirectURLs, "idp-kubectl-client-redirect-urls", c.IDP.KubectlClientRedirectURLs, "Redirect URLs for the kubectl Keycloak client")
-	fs.IntVar(&c.IDP.AccessTokenLifespan, "idp-access-token-lifespan", c.IDP.AccessTokenLifespan, "Keycloak access token lifespan in seconds")
-	fs.BoolVar(&c.IDP.RegistrationAllowed, "idp-registration-allowed", c.IDP.RegistrationAllowed, "Enable Keycloak self-registration")
-	fs.StringVar(&c.Keycloak.BaseURL, "keycloak-base-url", c.Keycloak.BaseURL, "Set Keycloak base URL")
-	fs.StringVar(&c.Keycloak.ClientID, "keycloak-client-id", c.Keycloak.ClientID, "Set Keycloak client ID")
 	fs.BoolVar(&c.Initializer.WorkspaceInitializerEnabled, "initializer-workspace-enabled", c.Initializer.WorkspaceInitializerEnabled, "Enable workspace initialization")
-	fs.BoolVar(&c.Initializer.IDPEnabled, "initializer-idp-enabled", c.Initializer.IDPEnabled, "Enable IDP initialization")
-	fs.BoolVar(&c.Initializer.InviteEnabled, "initializer-invite-enabled", c.Initializer.InviteEnabled, "Enable invite initialization")
-	fs.BoolVar(&c.Initializer.WorkspaceAuthEnabled, "initializer-workspace-auth-enabled", c.Initializer.WorkspaceAuthEnabled, "Enable workspace auth initialization")
-	fs.StringSliceVar(&c.AdditionalAudiences, "additional-audiences", c.AdditionalAudiences, "Additional audiences to trust in workspace JWT authentication configurations")
-	fs.BoolVar(&c.Webhooks.Enabled, "webhooks-enabled", c.Webhooks.Enabled, "Enable validating webhooks")
-	fs.IntVar(&c.Webhooks.Port, "webhooks-port", c.Webhooks.Port, "Set webhook server port")
-	fs.StringVar(&c.Webhooks.CertDir, "webhooks-cert-dir", c.Webhooks.CertDir, "Set webhook certificate directory")
 }
 
 func (c Config) InitializerName() string {

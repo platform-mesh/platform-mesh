@@ -50,7 +50,6 @@ tests:
     set:
       featureGates:
         OpenFGA: false
-        Keycloak: true
     templates:
       - deployment.yaml
       - system-deployment.yaml
@@ -59,45 +58,4 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --feature-gates=Keycloak=true,OpenFGA=false
-  - it: keycloak disabled turns the gate off and drops every keycloak object
-    set:
-      keycloak:
-        enabled: false
-        baseUrl: https://keycloak.example.com
-      featureGates:
-        Keycloak: true
-      kubeconfigSecret: kcp-kubeconfig
-    templates:
-      - deployment.yaml
-      - system-deployment.yaml
-      - initializer-deployment.yaml
-      - terminator-deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --feature-gates=Keycloak=false
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --keycloak-base-url=https://keycloak.example.com
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --webhooks-enabled=true
-      - notExists:
-          path: spec.template.spec.initContainers
-      - notMatchRegexRaw:
-          pattern: KEYCLOAK_CLIENT_SECRET|keycloak-credentials|keycloak-password|bootstrap-keycloak-clients
-  - it: keycloak disabled renders no webhook or init container objects
-    set:
-      keycloak:
-        enabled: false
-      webhooks:
-        register: true
-    templates:
-      - webhook/pki.yaml
-      - webhook/service.yaml
-      - webhook/validating-webhook.yaml
-      - init-container-config.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
+          content: --feature-gates=OpenFGA=false

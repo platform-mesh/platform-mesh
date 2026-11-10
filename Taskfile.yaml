@@ -64,6 +64,7 @@ vars:
     - extension-manager-operator
     - kro-composition-operator
     - platform-mesh-operator
+    - pm-keycloak-operator
     - provider-operator
     - resource-broker
     - security-operator

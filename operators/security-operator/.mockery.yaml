@@ -102,12 +102,3 @@ packages:
       StoreIDGetter:
         config:
           filename: mock_StoreIDGetter.go
-
-  go.platform-mesh.io/security-operator/pkg/clientreg:
-    config:
-      dir: internal/subroutine/mocks
-      pkgname: mocks
-    interfaces:
-      TokenRefresher:
-        config:
-          filename: mock_TokenRefresher.go

@@ -18,111 +18,30 @@ spec:
       {{- include "common.pod.securityContext" . | indent 6 }}
       terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
       {{ include "common.hostAliases" $ | nindent 6 }}
-      {{- if and .Values.keycloak.enabled .Values.initContainer.enabled }}
-      initContainers:
-      - name: bootstrap-keycloak-clients
-        image: {{ include "common.image" . }}
-        imagePullPolicy: IfNotPresent
-        {{- include "common.container.securityContext" . | indent 8 }}
-        args:
-          - init-container
-        resources:
-          {{- toYaml .Values.initContainer.resources | nindent 10 }}
-        volumeMounts:
-          - name: init-container-config
-            mountPath: /config
-            readOnly: true
-          - name: keycloak-password
-            mountPath: /secrets
-            readOnly: true
-          {{- if .Values.caSecret }}
-          - name: domain-ca
-            mountPath: /etc/ssl/certs/domain-ca.crt
-            subPath: tls.crt
-            readOnly: true
-          {{- end }}
-      {{- end }}
       containers:
       - {{- include "common.podBasics" . | indent 8 }}
         {{- include "common.container.securityContext" . | indent 8 }}
         {{- include "common.operatorHealthAndReadyness" . | indent 8}}
         ports:
         {{- include "common.PortsMetricsHealth" . | nindent 10 }}
-        {{- if include "security-operator.webhooks.enabled" . }}
-          - name: webhook
-            containerPort: {{ .Values.webhooks.port }}
-            protocol: TCP
-        {{- end }}
         args:
           - fga
           - --core-module-path=/data/coreModule.fga
           {{- include "security-operator.featureGates" . | indent 10 }}
-          {{- with .Values.jwt.userIdClaim }}
-          - --user-claim={{ . }}
-          {{- end }}
-          {{- with .Values.baseDomain }}
-          - --base-domain={{ . }}
-          {{- end }}
           - --fga-target={{ .Values.openfga.endpoint }}
           {{- if .Values.kubeconfigSecret }}
           - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
           {{- end }}
-          {{- if and .Values.domainCALookup }}
-          - --domain-ca-lookup
-          {{- end }}
-          {{- if .Values.keycloak.enabled }}
-          {{- with .Values.keycloak.baseUrl }}
-          - --keycloak-base-url={{ . }}
-          {{- end }}
-          {{- with .Values.idp.additionalRedirectUrls }}
-          - --idp-additional-redirect-urls={{ join "," . }}
-          {{- end }}
-          {{- with .Values.idp.smtp.server }}
-          - --idp-smtp-server={{ . }}
-          {{- end }}
-          {{- with .Values.idp.smtp.port }}
-          - --idp-smtp-port={{ . }}
-          {{- end }}
-          {{- with .Values.idp.smtp.fromAddress }}
-          - --idp-from-address={{ . }}
-          {{- end }}
-          {{- if .Values.idp.registrationAllowed }}
-          - --idp-registration-allowed
-          {{- end }}
-          {{- if .Values.idp.allowUnverifiedEmails }}
-          - --development-allow-unverified-emails
-          {{- end }}
-          {{- if .Values.idp.setDefaultPassword }}
-          - --set-default-password
-          {{- end }}
-          {{- end }}
           {{- with .Values.operator.extraArgs }}
           {{ toYaml . | nindent 10}}
-          {{- end }}
-          {{- if include "security-operator.webhooks.enabled" . }}
-          - --webhooks-enabled=true
-          - --webhooks-port={{ .Values.webhooks.port }}
-          - --webhooks-cert-dir={{ .Values.webhooks.certDir }}
           {{- end }}
           {{- include "common.commonOperatorArgs" . | indent 8 }}
         env:
         {{- include "common.basicEnvironment" . | nindent 10 }}
-          {{- if .Values.keycloak.enabled }}
-          - name: KEYCLOAK_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.keycloak.client.secret.name }}
-                key: {{ .Values.keycloak.client.secret.key }}
-          {{- end }}
         volumeMounts:
           {{- if .Values.kubeconfigSecret }}
           - name: external-api-server
             mountPath: /api-kubeconfig
-          {{- end }}
-          {{- if and .Values.keycloak.enabled .Values.keycloakSecret }}
-          - name: keycloak-credentials
-            mountPath: /keycloak-credentials
-            readOnly: true
           {{- end }}
           {{- if .Values.caSecret }}
           - name: domain-ca
@@ -132,33 +51,12 @@ spec:
           {{- end }}
           - name: core-module
             mountPath: /data
-          {{- if include "security-operator.webhooks.enabled" . }}
-          - name: webhook-certs
-            mountPath: {{ .Values.webhooks.certDir }}
-            readOnly: true
-          {{- end }}
           {{- include "common.extraVolumeMounts" . | nindent 10 }}
       volumes:
-        {{- if and .Values.keycloak.enabled .Values.initContainer.enabled }}
-        - name: init-container-config
-          configMap:
-            name: {{ include "common.entity.name" . }}-init-container-config
-        - name: keycloak-password
-          secret:
-            secretName: {{ .Values.keycloakSecret }}
-            items:
-              - key: password
-                path: keycloak-password
-        {{- end }}
         {{- if .Values.kubeconfigSecret }}
         - name: external-api-server
           secret:
             secretName: {{ .Values.kubeconfigSecret }}
-        {{- end }}
-        {{- if and .Values.keycloak.enabled .Values.keycloakSecret }}
-        - name: keycloak-credentials
-          secret:
-            secretName: {{ .Values.keycloakSecret }}
         {{- end }}
         {{- if .Values.caSecret }}
         - name: domain-ca
@@ -168,9 +66,4 @@ spec:
         - name: core-module
           configMap:
             name: {{ include "common.entity.name" . }}-core-module
-        {{- if include "security-operator.webhooks.enabled" . }}
-        - name: webhook-certs
-          secret:
-            secretName: {{ include "common.entity.name" . }}-webhook-server-cert
-        {{- end }}
         {{- include "common.extraVolumes" . | nindent 8 }}
