@@ -18,6 +18,7 @@ package releaseutils
 
 import (
 	"context"
+	"errors"
 	"log"
 	"time"
 )
@@ -30,12 +31,26 @@ const (
 	RegistryRetryDelay = 10 * time.Second
 )
 
+// permanentError is an error Retry does not retry.
+type permanentError struct {
+	err error
+}
+
+func (e permanentError) Error() string { return e.err.Error() }
+func (e permanentError) Unwrap() error { return e.err }
+
+// Permanent marks an error as not worth retrying.
+func Permanent(err error) error {
+	return permanentError{err: err}
+}
+
 // Retry runs fn up to attempts times, pausing delay between failures.
+// An error marked Permanent is returned at once.
 func Retry(ctx context.Context, attempts int, delay time.Duration, fn func() error) error {
 	var err error
 	for i := 1; i <= attempts; i++ {
 		err = fn()
-		if err == nil || i == attempts {
+		if err == nil || i == attempts || errors.As(err, &permanentError{}) {
 			return err
 		}
 		log.Printf("attempt %d/%d failed: %v; retrying in %s", i, attempts, err, delay)

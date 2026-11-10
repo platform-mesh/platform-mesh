@@ -3,6 +3,7 @@ module go.platform-mesh.io/platform-mesh
 go 1.26.3
 
 require (
+	github.com/google/go-github/v84 v84.0.0
 	github.com/jarcoal/httpmock v1.4.2
 	github.com/kcp-dev/kcp-testcontainers v0.0.3
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
@@ -11,6 +12,7 @@ require (
 	github.com/kcp-dev/sdk v0.33.6
 	github.com/kubernetes-sigs/kro v0.9.4
 	github.com/moby/moby/api v1.56.1
+	github.com/rogpeppe/go-internal v1.16.0
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.45.0
 	go.platform-mesh.io/account-operator v0.0.0-00010101000000-000000000000
@@ -109,6 +111,7 @@ require (
 	github.com/google/cel-go v0.31.0 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/graphql-go/graphql v0.8.1 // indirect
 	github.com/graphql-go/handler v0.2.4 // indirect
@@ -184,6 +187,7 @@ require (
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261019180522-ce908d29299b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect

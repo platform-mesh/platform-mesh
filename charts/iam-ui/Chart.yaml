@@ -3,6 +3,8 @@ appVersion: "v0.12.30"
 description: Helm Chart for the iam-ui
 name: iam-ui
 version: 0.0.0
+sources:
+  - https://github.com/platform-mesh/iam-ui
 dependencies:
   - name: common
     version: 0.0.0

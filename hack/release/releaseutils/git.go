@@ -18,20 +18,35 @@ package releaseutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 )
 
+// Git runs git in the working directory and returns its stdout.
+// A failure carries git's stderr.
+func Git(ctx context.Context, args ...string) (string, error) {
+	out, err := exec.CommandContext(ctx, "git", args...).Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+			return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
+	return string(out), nil
+}
+
 // Commit returns COMMIT, or the commit of git HEAD when unset.
 func Commit(ctx context.Context) (string, error) {
 	if commit := os.Getenv("COMMIT"); commit != "" {
 		return commit, nil
 	}
-	out, err := exec.CommandContext(ctx, "git", "rev-parse", "HEAD").Output()
+	out, err := Git(ctx, "rev-parse", "HEAD")
 	if err != nil {
 		return "", fmt.Errorf("reading git HEAD: %w", err)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }

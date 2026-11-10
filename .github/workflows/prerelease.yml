@@ -19,9 +19,9 @@ name: prerelease
 #
 #   - on demand (and optionally on a schedule), not for every commit,
 #   - with the version <next release>-dev.<run number>.g<sha>, e.g.
-#     26.11.0-dev.42.g1a2b3c4 (next release per hack/release/next-version.sh,
-#     i.e. the VERSION file). "dev" sorts below "rc", so semver range queries
-#     prefer release candidates and releases over these builds,
+#     26.11.0-dev.42.g1a2b3c4 (hack/release/get-version current):
+#     "dev" sorts below "rc", so semver range queries prefer release candidates
+#     and releases over these builds,
 #   - without a GitHub release.
 #
 # Install it like a release (https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh), with the version as
@@ -59,13 +59,19 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           persist-credentials: false
           fetch-depth: 0 # tags are needed to derive the version
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.work
       - name: Derive version
         id: v
         env:
-          RUN_NUMBER: ${{ github.run_number }}
+          # The checkout is detached, a ref input that is a branch selects
+          # the release branch rule, a commit falls back to main.
+          GITHUB_REF_NAME: ${{ inputs.ref || github.ref_name }}
         run: |
           set -euo pipefail
-          version="$(hack/release/next-version.sh)-dev.${RUN_NUMBER}.g$(git rev-parse --short=7 HEAD)"
+          version="$(go run ./hack/release/get-version current)"
+          version="${version#v}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           {

@@ -74,6 +74,7 @@ jobs:
   github-release:
     needs: [version, publish]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # create the release
     env:
@@ -86,8 +87,11 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0 # release notes compare against the previous tag
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.work
       - name: Release notes
-        run: hack/release/release-notes.sh "$TAG" > release-notes.md
+        run: go run ./hack/release/release-notes --end "$TAG" > release-notes.md
       - name: Create GitHub release
         run: |
           set -euo pipefail
