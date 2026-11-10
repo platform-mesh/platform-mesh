@@ -21,6 +21,10 @@ spec:
     with:
     - name: security
       path: root
+{{- if not .featureDisableKeycloak }}
+    - name: keycloak
+      path: root
+{{- end }}
   defaultAPIBindings:
     - export: core.platform-mesh.io
       path: root:platform-mesh-system
