@@ -86,13 +86,24 @@ pmo = chart(
 pmo = writable_rootfs(pmo, "ghcr.io/platform-mesh/platform-mesh/platform-mesh-operator")
 k8s_yaml(pmo)
 
+# CRDs get their own Tilt resource so restarting / re-rendering the
+# operator never touches them (Tilt's GC would otherwise delete-and-
+# recreate any CRD that disappears from the chart render, which
+# cascades into all PlatformMesh CRs via their finalizers).
+is_crd = lambda o: o["kind"] == "CustomResourceDefinition"
+k8s_resource(
+    new_name="platform-mesh-operator-crds",
+    objects=select_objects(pmo, is_crd),
+    labels=["platform-mesh"],
+)
+
 # Not after 'kcp': the root shard only starts once PMO has written
 # kcp-webhook-secret, PMO's kcp setup retries until the front proxy
 # answers.
 k8s_resource(
     "platform-mesh-operator",
-    objects=select_objects(pmo, lambda o: True),
-    resource_deps=["kcp-operator", "domain-certificate-ready", "ocm-crds"],
+    objects=select_objects(pmo, lambda o: not is_crd(o)),
+    resource_deps=["kcp-operator", "domain-certificate-ready", "ocm-crds", "platform-mesh-operator-crds"],
     labels=["platform-mesh"],
 )
 
