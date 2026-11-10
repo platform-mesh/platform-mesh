@@ -45,7 +45,7 @@ const FeatureDisableKeycloak = "feature-disable-keycloak"
 
 const FeatureDisableOpenFGA = "feature-disable-openfga"
 
-const RebacAuthzWebhookKubeconfigSecret = "rebac-authz-webhook-kubeconfig"
+const OpenfgaAuthzWebhookKubeconfigSecret = "pm-openfga-authz-webhook-kubeconfig"
 
 var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
@@ -55,7 +55,7 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	},
 	{
 		Path:           "root:platform-mesh-system",
-		Secret:         RebacAuthzWebhookKubeconfigSecret,
+		Secret:         OpenfgaAuthzWebhookKubeconfigSecret,
 		APIExportNames: []string{"core.platform-mesh.io", "fga.platform-mesh.io", "openfga.platform-mesh.io"},
 		AdminAuth:      ptr.To(false),
 	},

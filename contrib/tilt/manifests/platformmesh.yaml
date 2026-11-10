@@ -18,7 +18,7 @@
 #
 # The profile enables nothing: Tilt deploys every chart itself, PMO only does
 # the glue no chart does (kcp workspaces and APIExports, per-component kcp
-# kubeconfig secrets, the rebac webhook CA, feature toggles).
+# kubeconfig secrets, the authorization webhook CA, feature toggles).
 apiVersion: core.platform-mesh.io/v1alpha1
 kind: PlatformMesh
 metadata:

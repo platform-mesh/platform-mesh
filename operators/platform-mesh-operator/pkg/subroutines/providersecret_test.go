@@ -513,7 +513,7 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingSecret() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
 						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
@@ -922,7 +922,7 @@ func (s *ProvidersecretTestSuite) TestErrorLoadingKubeconfig() {
 				if key.Namespace == "" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
 						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
@@ -1011,7 +1011,7 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingKCPClient() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
 						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
@@ -1124,7 +1124,7 @@ func (s *ProvidersecretTestSuite) TestErrorGettingAPIExportEndpointSlice() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
 						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
@@ -1221,7 +1221,7 @@ func (s *ProvidersecretTestSuite) TestEmptyAPIExportEndpoints() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
 						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
@@ -1326,7 +1326,7 @@ func (s *ProvidersecretTestSuite) TestInvalidEndpointURL() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
 						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
@@ -1455,7 +1455,7 @@ func (s *ProvidersecretTestSuite) TestContextNotFoundInKubeconfig() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
 						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
@@ -1595,7 +1595,7 @@ func (s *ProvidersecretTestSuite) TestClusterNotFoundInKubeconfig() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
 						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",

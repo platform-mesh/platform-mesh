@@ -12,14 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 apiVersion: cert-manager.io/v1
-kind: Certificate
+kind: Issuer
 metadata:
-  name: rebac-authz-webhook-ca
+  name: pm-openfga-authz-webhook-selfsigned-issuer
   namespace: platform-mesh-system
 spec:
-  isCA: true
-  commonName: rebac-authz-webhook-ca
-  secretName: rebac-authz-webhook-ca
-  duration: 87600h
-  issuerRef:
-    name: rebac-authz-webhook-selfsigned-issuer
+  selfSigned: {}

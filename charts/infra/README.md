@@ -145,7 +145,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.webhook.caData | string | `""` |  |
 | kcp.webhook.enabled | bool | `true` |  |
 | kcp.webhook.port | int | `9443` |  |
-| kcp.webhook.server | string | `"https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz"` |  |
+| kcp.webhook.server | string | `"https://pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz"` |  |
 | kcp.webhook.version | string | `"v1"` |  |
 | keycloak.domain | object | `{"name":"platform-mesh.io","pathPrefix":"/keycloak"}` | domain configuration |
 | keycloak.domain.name | string | `"platform-mesh.io"` | domain name |

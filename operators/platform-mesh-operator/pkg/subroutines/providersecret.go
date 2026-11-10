@@ -167,7 +167,7 @@ func (r *ProvidersecretSubroutine) Process(
 	}
 	if HasFeatureToggle(instance, FeatureDisableOpenFGA) {
 		providers = slices.DeleteFunc(slices.Clone(providers), func(pc pmcorev1alpha1.ProviderConnection) bool {
-			return pc.Secret == RebacAuthzWebhookKubeconfigSecret
+			return pc.Secret == OpenfgaAuthzWebhookKubeconfigSecret
 		})
 	}
 

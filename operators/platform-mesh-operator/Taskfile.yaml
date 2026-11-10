@@ -241,7 +241,7 @@ tasks:
         - portal
         - extension-manager-operator
         - fga-operator
-        - rebac-authz-webhook
+        - pm-openfga-authz-webhook
         - iam-service
         - infra
         - kcp

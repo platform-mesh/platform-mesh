@@ -634,12 +634,12 @@ data:
               protocol: https
             kcp:
               kubeconfigSecret: portal-kubeconfig
-        rebac-authz-webhook:
+        pm-openfga-authz-webhook:
           imageResources:
           - annotations:
               repo: oci
               artifact: image
-              for: rebac-authz-webhook
+              for: pm-openfga-authz-webhook
           syncWave: 4
           enabled: true
           values:
@@ -656,7 +656,7 @@ data:
               enabled: true
             istio:
               dnsNames:
-              - rebac-authz-webhook.platform-mesh-system.svc.cluster.local
+              - pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local
               exposed: false
             log:
               level: debug

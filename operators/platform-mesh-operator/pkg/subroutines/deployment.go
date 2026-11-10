@@ -1161,7 +1161,7 @@ func (r *DeploymentSubroutine) createKCPWebhookSecret(ctx context.Context, inst 
 	}
 
 	// Continue to create the secret
-	obj, err := unstructuredFromFS(r.k8sManifests, "rebac-auth-webhook/kcp-webhook-secret.yaml", map[string]any{}, log)
+	obj, err := unstructuredFromFS(r.k8sManifests, "pm-openfga-authz-webhook/kcp-webhook-secret.yaml", map[string]any{}, log)
 	if err != nil {
 		return err
 	}
@@ -1178,7 +1178,7 @@ func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst 
 	log := logger.LoadLoggerFromContext(ctx)
 	operatorCfg := pmconfig.LoadConfigFromContext(ctx).(config.OperatorConfig)
 
-	// Retrieve the ca.crt from the rebac-authz-webhook-cert secret
+	// Retrieve the ca.crt from the pm-openfga-authz-webhook-cert secret
 	caSecretName := operatorCfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName
 	webhookCertSecret, err := GetSecret(r.clientRuntime, caSecretName, inst.Namespace)
 	if err != nil {
@@ -1412,7 +1412,7 @@ func (r *DeploymentSubroutine) hasIstioProxyInjected(ctx context.Context, labelS
 func (r *DeploymentSubroutine) manageAuthorizationWebhookSecrets(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh) (subroutines.Result, error) {
 	// The serving certificate is signed by a long-lived CA, so renewing it keeps the CA that kcp trusts.
 	for _, file := range []string{"selfsigned-issuer.yaml", "ca-cert.yaml", "ca-issuer.yaml", "webhook-cert.yaml"} {
-		if err := applyManifestFromFileWithMergedValues(ctx, r.k8sManifests, "rebac-auth-webhook/"+file, r.clientRuntime, map[string]any{}); err != nil {
+		if err := applyManifestFromFileWithMergedValues(ctx, r.k8sManifests, "pm-openfga-authz-webhook/"+file, r.clientRuntime, map[string]any{}); err != nil {
 			return subroutines.OK(), err
 		}
 	}
