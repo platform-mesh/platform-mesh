@@ -17,11 +17,13 @@ limitations under the License.
 // get-version prints a Platform Mesh version derived from git tags and
 // the current branch as per RFC 015.
 //
-// Usage: get-version now|previous|next
+// Usage: get-version [-library] now|previous|next
 //
 //	now       the release tag at HEAD, otherwise <base>-dev.<n>.g<sha>
 //	previous  the previous final release vYY.MM.P
 //	next      the next feature release vYY.MM
+//	-library  print the Go module form v0.YYMM.P[-pre] instead;
+//	          next prints its first release v0.YYMM.0
 //
 // Run from the repository root.
 //
@@ -35,7 +37,9 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -48,7 +52,7 @@ func main() {
 	log.SetFlags(0)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	err := run(ctx)
+	err := run(ctx, os.Args[1:], os.Stdout)
 	stop()
 	if err != nil {
 		log.SetPrefix("error: ")
@@ -56,34 +60,41 @@ func main() {
 	}
 }
 
-func run(ctx context.Context) error {
-	if len(os.Args) != 2 {
-		return errors.New("usage: get-version now|previous|next")
+func run(ctx context.Context, args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("get-version", flag.ContinueOnError)
+	library := flags.Bool("library", false, "print the Go module form v0.YYMM.P[-pre]")
+	if err := flags.Parse(args); err != nil {
+		return fmt.Errorf("parsing flags: %w", err)
+	}
+	if flags.NArg() != 1 {
+		return errors.New("usage: get-version [-library] now|previous|next")
 	}
 
-	var out string
-	switch os.Args[1] {
+	var v pmversions.Version
+	var err error
+	switch flags.Arg(0) {
 	case "now":
-		v, err := pmversions.Now(ctx)
-		if err != nil {
-			return err
-		}
-		out = v.String()
+		v, err = pmversions.Now(ctx)
 	case "previous":
-		v, err := pmversions.Previous(ctx)
-		if err != nil {
-			return err
-		}
-		out = v.String()
+		v, err = pmversions.Previous(ctx)
 	case "next":
-		v, err := pmversions.Next(ctx)
-		if err != nil {
-			return err
-		}
-		out = v.Minor()
+		v, err = pmversions.Next(ctx)
 	default:
-		return fmt.Errorf("unknown argument %q, want now, previous or next", os.Args[1])
+		return fmt.Errorf("unknown argument %q, want now, previous or next", flags.Arg(0))
 	}
-	fmt.Println(out)
+	if err != nil {
+		return err
+	}
+
+	out := v.String()
+	switch {
+	case *library:
+		out = v.LibraryString()
+	case flags.Arg(0) == "next":
+		out = v.Minor()
+	}
+	if _, err := fmt.Fprintln(stdout, out); err != nil {
+		return fmt.Errorf("writing version: %w", err)
+	}
 	return nil
 }
