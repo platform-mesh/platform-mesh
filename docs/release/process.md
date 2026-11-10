@@ -108,11 +108,18 @@ from the tag:
 3. **verify** – resolves the published graph, checks every signature of this
    version, pulls and templates charts.
 4. **trivy** – scans the images and SBOMs.
-5. `release.yml` then generates the release notes
-   ([`hack/release/release-notes.sh`](../../hack/release/release-notes.sh):
-   merged pull requests since the previous tag, grouped by area; changed
-   third-party and other-repository versions) and creates the GitHub release,
-   marked as prerelease for `-rc.N` tags.
+5. `release.yml` then generates the release notes with
+   [`hack/release/release-notes`](../../hack/release/release-notes/main.go)
+   and creates the GitHub release, marked as prerelease for `-rc.N` tags.
+   The notes cover the range from the previous final release to the tag:
+   the `release-note` blocks of the merged pull requests, the contributors
+   (including the authors in the other repositories), the component,
+   other-repository and third-party version tables, the commits of the
+   other-repository components whose `appVersion` changed, and the commits
+   grouped by component (`ocm/components.yaml`). The notes open with a
+   `<!-- flavour text -->` placeholder; replace it when editing the
+   release on GitHub. The GitHub API is read with `GH_TOKEN` when set
+   (optional; raises the rate limit).
 
 Published versions are immutable. Tagging a version that exists in the
 registry already fails; use the next one.
@@ -247,6 +254,7 @@ SKIP_PUSH=true go run ./hack/release/ocm-build-chart charts/account-operator   #
 go run ./hack/release/ocm-build-aggregate
 ocm get component-version "$OCM_REPO//github.com/platform-mesh/platform-mesh:$PM_VERSION" --recursive
 go run ./hack/release/get-version now                                           # what this checkout would be published as
+go run ./hack/release/release-notes --start v26.10.2 --end HEAD                 # release notes for a range of commits or version tags
 ```
 
 A chart's component references the image component at the same version, so a
