@@ -81,9 +81,9 @@ Prefer table-driven tests. There are three tiers:
 
 | Tier | Where | Runs against | Command |
 |---|---|---|---|
-| unit | next to the code, no build tag | nothing external | `task test`, `task test-<component>` |
-| integration | `tests/integration/<area>`, build tag `integration` | a kcp in Docker (kcp-testcontainers), components in-process | `task test-integration` |
-| e2e | `tests/e2e/<area>`, build tag `e2e` | a deployed Platform Mesh (`KUBECONFIG`, `ADMIN_KUBECONFIG`), usually Tilt | `task test-e2e` |
+| unit | next to the code | nothing external | `task test`, `task test-<component>` |
+| integration | `tests/integration/<area>` | a kcp in Docker (kcp-testcontainers), components in-process | `task test-integration` |
+| e2e | `tests/e2e/<area>` | a deployed Platform Mesh (`KUBECONFIG`, `ADMIN_KUBECONFIG`), usually Tilt | `task test-e2e` |
 
 ```bash
 task test                                           # unit tests, every component

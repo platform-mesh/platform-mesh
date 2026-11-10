@@ -1,5 +1,3 @@
-//go:build e2e
-
 /*
 Copyright The Platform Mesh Authors.
 
@@ -31,7 +29,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -99,23 +96,6 @@ func TestManagedProviderLifecycle(t *testing.T) {
 
 // runtimeDeploymentNames are the Deployments the two Flux components create.
 var runtimeDeploymentNames = []string{"example-httpbin-operator", "podinfo"}
-
-// requireFlux skips t unless the Flux kinds the ManagedProvider deploy
-// subroutine creates are served by the runtime cluster.
-func requireFlux(t *testing.T, cl ctrlruntimeclient.Client) {
-	t.Helper()
-	for _, crd := range []string{
-		"helmreleases.helm.toolkit.fluxcd.io",
-		"ocirepositories.source.toolkit.fluxcd.io",
-		"helmrepositories.source.toolkit.fluxcd.io",
-	} {
-		err := cl.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: crd}, &apiextensionsv1.CustomResourceDefinition{})
-		if apierrors.IsNotFound(err) {
-			t.Skipf("Flux is not installed on the runtime cluster (no CRD %s); ManagedProvider runtimeDeployments need it", crd)
-		}
-		require.NoError(t, err, "getting CRD %s", crd)
-	}
-}
 
 func createManagedProviderAndValidate(t *testing.T, cl, providersWs, systemWs ctrlruntimeclient.Client, providerWsName string, cleanupOnDelete bool) {
 	t.Helper()

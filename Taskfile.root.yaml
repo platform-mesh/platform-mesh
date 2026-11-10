@@ -29,19 +29,19 @@ tasks:
         sh: 'UGET_DIRECTORY={{.ROOT_DIR}}/bin UGET_CHECKSUMS={{.ROOT_DIR}}/hack/tools.checksums UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:golangci-lint'
     cmds:
       - task: fmt
-      # tests/integration and tests/e2e are behind build tags
-      - '{{.GOLANGCI_LINT}} run --config {{.ROOT_DIR}}/.golangci.yaml --build-tags integration,e2e --timeout 15m ./...'
+      - '{{.GOLANGCI_LINT}} run --config {{.ROOT_DIR}}/.golangci.yaml --timeout 15m ./...'
   build:
     cmds:
       - go build ./...
-      - go vet -tags integration,e2e ./tests/...
+      - go vet ./tests/...
   generate:
     desc: Nothing to generate in the root module.
     cmds:
       - 'echo "root: nothing to generate"'
   test:
+    desc: Unit tests of the root module. tests/integration and tests/e2e need an environment and have their own tasks (test-integration, test-e2e).
     cmds:
-      - go test ./...
+      - go test $(go list ./... | grep -v -e /tests/integration/ -e /tests/e2e/)
   test-e2e:
     desc: No e2e tests in the root module.
     cmds:

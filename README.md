@@ -76,8 +76,8 @@ task test-e2e            # tests/e2e: Go suites, then the Playwright portal suit
 ```
 tests/
   framework/    shared helpers: the kcp in Docker, fixtures, managers, waits, scheme
-  integration/  build tag `integration`, one package per area (account, security, resourcebroker, ...)
-  e2e/          build tag `e2e`: platform-mesh-operator (Go, against Tilt), portal (Playwright)
+  integration/  one package per area (account, security, resourcebroker, ...)
+  e2e/          platform-mesh-operator (Go, against Tilt), portal (Playwright)
 ```
 
 ## Development

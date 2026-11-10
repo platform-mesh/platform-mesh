@@ -1,5 +1,3 @@
-//go:build e2e
-
 /*
 Copyright The Platform Mesh Authors.
 

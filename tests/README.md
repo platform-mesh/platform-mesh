@@ -12,8 +12,8 @@ The code here is part of the root Go module, so a test imports helpers as
 
 | Environment | Tests | What you get |
 |---|---|---|
-| **kcp in Docker** | `integration/<area>`, build tag `integration` | A sharded kcp (front-proxy, cache server, two shards) started by [kcp-testcontainers](https://github.com/kcp-dev/kcp-testcontainers). Every test of a run shares it. The operators run inside the test process; tests keep out of each other's way by working in their own workspaces. |
-| **kind** | `e2e/<area>`, build tag `e2e` | One kind cluster with the whole stack deployed by Tilt. Tests treat it as a black box through `KUBECONFIG`, and `ADMIN_KUBECONFIG` for kcp. |
+| **kcp in Docker** | `integration/<area>` | A sharded kcp (front-proxy, cache server, two shards) started by [kcp-testcontainers](https://github.com/kcp-dev/kcp-testcontainers). Every test of a run shares it. The operators run inside the test process; tests keep out of each other's way by working in their own workspaces. |
+| **kind** | `e2e/<area>` | One kind cluster with the whole stack deployed by Tilt. Tests treat it as a black box through `KUBECONFIG`, and `ADMIN_KUBECONFIG` for kcp. |
 
 ## Writing an integration test
 
@@ -21,8 +21,6 @@ Ask for the shared kcp, create a workspace to work in, get a client for it.
 That is the whole setup:
 
 ```go
-//go:build integration
-
 func TestSomething(t *testing.T) {
 	instance, err := kcp.Default(t.Context())
 	require.NoError(t, err)
@@ -76,8 +74,8 @@ task test-integration KCP_VERSION=v0.34.0               # another kcp release
 
 The task runs the kcp version the repository deploys (the one in
 `third_party/kcp`) unless `KCP_VERSION` says otherwise. From an IDE, run
-the package with `-tags integration`; without `KCP_VERSION` set, the
-framework falls back to kcp-testcontainers' default release.
+the package as usual; without `KCP_VERSION` set, the framework falls back
+to kcp-testcontainers' default release.
 
 ### One kcp per run
 
