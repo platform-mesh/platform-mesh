@@ -32,6 +32,7 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/pm-openfga-operator/internal/controller"
+	"go.platform-mesh.io/pm-openfga-operator/internal/features"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -83,10 +84,11 @@ type Deps struct {
 // SetupModelGeneratorControllers registers the model-generator controllers
 // (the APIBinding reconciler that generates AuthorizationModels) on mgr.
 //
-// mgr must run on a multi provider that holds the core, providers, fga and
-// provider-fga APIExport providers under config.CoreProviderName,
-// config.ProvidersProviderName, config.FgaProviderName and
-// config.ProviderFgaProviderName.
+// mgr must run on a multi provider that holds the core, providers, openfga
+// and provider-openfga APIExport providers under config.CoreProviderName,
+// config.ProvidersProviderName, config.OpenfgaProviderName and
+// config.ProviderOpenfgaProviderName; with LegacyAPIs also the fga and
+// provider-fga ones under config.FgaProviderName and config.ProviderFgaProviderName.
 func SetupModelGeneratorControllers(mgr mcmanager.Manager, cfg *config.Config, deps Deps) error {
 	if deps.Log == nil {
 		return errors.New("deps.Log must be set")
@@ -144,16 +146,25 @@ func RunModelGenerator(ctx context.Context, restCfg *rest.Config, cfg *config.Co
 		mgrOpts.LeaderElectionConfig = inClusterCfg
 	}
 
-	multiProv := multiprovider.New(multiprovider.Options{})
+	multiProv := multiprovider.New(multiprovider.Options{Separator: config.ProviderSeparator})
 	var coreProvider *pathaware.Provider
-	for _, p := range []struct {
+	providers := []struct {
 		name, endpointSlice string
 	}{
 		{config.ProvidersProviderName, cfg.APIExportEndpointSlices.ProvidersPlatformMeshIO},
 		{config.CoreProviderName, cfg.APIExportEndpointSlices.CorePlatformMeshIO},
-		{config.FgaProviderName, cfg.APIExportEndpointSlices.FgaPlatformMeshIO},
-		{config.ProviderFgaProviderName, cfg.APIExportEndpointSlices.ProviderFgaPlatformMeshIO},
-	} {
+		{config.OpenfgaProviderName, cfg.APIExportEndpointSlices.OpenfgaPlatformMeshIO},
+		{config.ProviderOpenfgaProviderName, cfg.APIExportEndpointSlices.ProviderOpenfgaPlatformMeshIO},
+	}
+	if cfg.FeatureEnabled(features.LegacyAPIs) {
+		// Stores and AuthorizationModels of workspaces that still bind only the
+		// deprecated fga.platform-mesh.io and provider-fga.platform-mesh.io exports.
+		providers = append(providers,
+			struct{ name, endpointSlice string }{config.FgaProviderName, cfg.APIExportEndpointSlices.FgaPlatformMeshIO},
+			struct{ name, endpointSlice string }{config.ProviderFgaProviderName, cfg.APIExportEndpointSlices.ProviderFgaPlatformMeshIO},
+		)
+	}
+	for _, p := range providers {
 		prov, err := pathaware.New(restCfg, p.endpointSlice, apiexport.Options{Scheme: scheme})
 		if err != nil {
 			return fmt.Errorf("creating %s apiexport provider: %w", p.name, err)

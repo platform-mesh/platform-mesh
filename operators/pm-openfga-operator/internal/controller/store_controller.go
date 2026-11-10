@@ -22,7 +22,6 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
-	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -50,34 +49,34 @@ import (
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
-// StoreReconciler reconciles a Store object
+// StoreReconciler reconciles the Stores of one API group.
 type StoreReconciler struct {
-	fga             openfgav1.OpenFGAServiceClient
-	log             *logger.Logger
-	lifecycle       *lifecycle.Lifecycle
-	ctx             context.Context
-	engageOpts      mcbuilder.EngageOptions
-	modelEngageOpts mcbuilder.EngageOptions
+	fga       openfgav1.OpenFGAServiceClient
+	log       *logger.Logger
+	lifecycle *lifecycle.Lifecycle
+	ctx       context.Context
+	kinds     Kinds
 }
 
-func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, lister iclient.Lister, engageOpts, modelEngageOpts mcbuilder.EngageOptions) *StoreReconciler {
-	lc := lifecycle.New(mcMgr, "StoreReconciler", func() ctrlruntimeclient.Object {
-		return &pmopenfgav1alpha1.Store{}
-	},
+// NewStoreReconciler reconciles the Stores of kinds; lister lists the
+// AuthorizationModels of both groups that extend a Store's model.
+func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, lister iclient.Lister, kinds Kinds) *StoreReconciler {
+	subs := chain(mcMgr, kinds.BeforeStore, kinds.WrapStore,
 		subroutine.NewStoreSubroutine(fga, mcMgr, lister),
 		subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, lister, func(cfg *rest.Config) discovery.DiscoveryInterface {
 			return discovery.NewDiscoveryClientForConfigOrDie(cfg)
 		}, log),
 		subroutine.NewTupleSubroutine(fga, mcMgr),
-	).WithConditions(conditions.NewManager())
+	)
+	lc := lifecycle.New(mcMgr, "StoreReconciler"+kinds.Suffix, kinds.NewStore, subs...).
+		WithConditions(conditions.NewManager())
 
 	return &StoreReconciler{
-		fga:             fga,
-		log:             log,
-		lifecycle:       lc,
-		ctx:             ctx,
-		engageOpts:      engageOpts,
-		modelEngageOpts: modelEngageOpts,
+		fga:       fga,
+		log:       log,
+		lifecycle: lc,
+		ctx:       ctx,
+		kinds:     kinds,
 	}
 }
 
@@ -88,8 +87,8 @@ func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request
 	if err != nil {
 		labelResult = "error"
 	}
-	metrics.ReconcileTotal.WithLabelValues("store", labelResult).Inc()
-	metrics.ReconcileDuration.WithLabelValues("store").Observe(time.Since(start).Seconds())
+	metrics.ReconcileTotal.WithLabelValues("store"+r.kinds.Suffix, labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues("store" + r.kinds.Suffix).Observe(time.Since(start).Seconds())
 	return result, err
 }
 
@@ -97,17 +96,17 @@ func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request
 func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	b := mcbuilder.ControllerManagedBy(mgr).
-		Named("store").
-		For(&pmopenfgav1alpha1.Store{}, r.engageOpts).
+		Named("store"+r.kinds.Suffix).
+		For(r.kinds.NewStore(), r.kinds.StoreEngageOptions()).
 		WithOptions(controller.TypedOptions[mcreconcile.Request]{MaxConcurrentReconciles: cfg.MaxConcurrentReconciles}).
 		WithEventFilter(predicate.And(predicates...))
 
 	return b.
 		Watches(
-			&pmopenfgav1alpha1.AuthorizationModel{},
+			r.kinds.NewAuthorizationModel(),
 			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[ctrlruntimeclient.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj ctrlruntimeclient.Object) []mcreconcile.Request {
-					model, ok := obj.(*pmopenfgav1alpha1.AuthorizationModel)
+					name, clusterID, ok := r.kinds.AuthorizationModelStoreRef(obj)
 					if !ok {
 						return nil
 					}
@@ -116,15 +115,15 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 						{
 							Request: reconcile.Request{
 								NamespacedName: types.NamespacedName{
-									Name: model.Spec.StoreRef.Name,
+									Name: name,
 								},
 							},
-							ClusterName: config.StoreClusterName(model.Spec.StoreRef.Cluster),
+							ClusterName: config.MultiProviderName(r.kinds.StoreProvider, clusterID),
 						},
 					}
 				})
 			},
 			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
-			r.modelEngageOpts,
+			r.kinds.AuthorizationModelEngageOptions(),
 		).Complete(r)
 }
