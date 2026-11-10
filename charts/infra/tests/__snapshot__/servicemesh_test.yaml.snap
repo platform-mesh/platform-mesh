@@ -1,5 +1,26 @@
 keycloak operator enabled renders all resources:
   1: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: keycloak-admin
+      namespace: platform-mesh-system
+    stringData:
+      password: admin
+      secret: admin
+      username: keycloak-admin
+    type: Opaque
+  2: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: keycloak-db-credentials
+      namespace: platform-mesh-system
+    stringData:
+      password: keycloak-password
+      username: keycloak
+    type: Opaque
+  3: |
     apiVersion: k8s.keycloak.org/v2beta1
     kind: Keycloak
     metadata:
@@ -35,6 +56,10 @@ keycloak operator enabled renders all resources:
       instances: 1
       proxy:
         headers: xforwarded
+      truststores:
+        domain-ca:
+          secret:
+            name: domain-certificate
       unsupported:
         podTemplate:
           spec:
@@ -88,9 +113,9 @@ test HTTPRoutes:
         - backendRefs:
             - group: ""
               kind: Service
-              name: keycloak
+              name: keycloak-service
               namespace: platform-mesh-system
-              port: 80
+              port: 8080
           matches:
             - path:
                 type: PathPrefix

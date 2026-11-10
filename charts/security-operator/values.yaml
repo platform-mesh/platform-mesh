@@ -25,6 +25,12 @@ deployment:
 # -- Log level for all operator components. Permissible values: debug, info, warn, error
 logLevel: info
 
+log:
+  # -- Log level
+  level: debug
+  # -- Disable JSON log formatting
+  noJson: true
+
 webhooks:
   # -- Enable validating admission webhooks
   enabled: true
@@ -48,12 +54,12 @@ webhooks:
   certRenewBefore: 720h
 
 # -- The kubeconfig secret for operator and generator
-kubeconfigSecret: ""
+kubeconfigSecret: "security-operator-kubeconfig"
 
 # -- Name of the secret containing Keycloak admin credentials (keys: username, password, secret)
 keycloakSecret: "keycloak-admin"
 # -- Name of the secret containing the CA certificate for outbound TLS trust (key: tls.crt or ca.crt)
-caSecret: ""
+caSecret: "domain-certificate"
 
 # -- Enable domain CA lookup for TLS verification on kcp side
 domainCALookup: true

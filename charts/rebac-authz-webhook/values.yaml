@@ -1,5 +1,5 @@
 certManager:
-  enabled: true
+  enabled: false
   dnsNames: []
   ipAddresses: []
   caSecretName: rebac-authz-webhook-webhook-ca
@@ -58,7 +58,11 @@ service:
   annotations: {}
 
 openfga:
-  endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
+  endpoint: openfga:8081
+
+log:
+  # -- Log level
+  level: debug
 
 webhook:
   cacheMissMaxRetries: 1
@@ -68,7 +72,7 @@ webhook:
 
 istio:
   enabled: false
-  dnsNames: []
+  dnsNames: [rebac-authz-webhook.platform-mesh-system.svc.cluster.local]
 
 # Horizontal Pod Autoscaler configuration
 # hpa:
