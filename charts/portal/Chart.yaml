@@ -3,6 +3,8 @@ description: Helm Chart for the Platform Mesh Portal
 name: portal
 version: 0.0.0
 appVersion: "v0.27.32"
+sources:
+  - https://github.com/platform-mesh/portal
 dependencies:
   - name: common
     repository: file://../common

@@ -3,6 +3,8 @@ appVersion: "v0.15.9"
 description: Helm Chart for the marketplace-ui
 name: marketplace-ui
 version: 0.0.0
+sources:
+  - https://github.com/platform-mesh/marketplace-ui
 dependencies:
   - name: common
     version: 0.0.0
