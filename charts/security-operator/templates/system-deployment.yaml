@@ -26,15 +26,17 @@ spec:
         {{- include "common.PortsMetricsHealth" . | nindent 10 }}
         args:
           - system
-          {{- with .Values.keycloak.baseUrl }}
-          - --keycloak-base-url={{ . }}
-          {{- end }}
+          {{- include "security-operator.featureGates" . | indent 10 }}
           {{- with .Values.baseDomain }}
           - --base-domain={{ . }}
           {{- end }}
           - --fga-target={{ .Values.openfga.endpoint }}
           {{- if $systemKubeconfigSecret }}
           - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+          {{- end }}
+          {{- if .Values.keycloak.enabled }}
+          {{- with .Values.keycloak.baseUrl }}
+          - --keycloak-base-url={{ . }}
           {{- end }}
           {{- with .Values.idp.smtp.server }}
           - --idp-smtp-server={{ . }}
@@ -54,24 +56,27 @@ spec:
           {{- if .Values.idp.setDefaultPassword }}
           - --set-default-password
           {{- end }}
+          {{- end }}
           {{- with .Values.system.extraArgs }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
           {{- include "common.commonOperatorArgs" . | indent 8 }}
         env:
         {{- include "common.basicEnvironment" . | nindent 10 }}
+          {{- if .Values.keycloak.enabled }}
           - name: KEYCLOAK_CLIENT_SECRET
             valueFrom:
               secretKeyRef:
                 name: {{ .Values.keycloak.client.secret.name }}
                 key: {{ .Values.keycloak.client.secret.key }}
+          {{- end }}
         volumeMounts:
           {{- include "common.extraVolumeMounts" . | nindent 10 }}
           {{- if .Values.kubeconfigSecret }}
           - name: external-api-server
             mountPath: /api-kubeconfig
           {{- end }}
-          {{- if .Values.keycloakSecret }}
+          {{- if and .Values.keycloak.enabled .Values.keycloakSecret }}
           - name: keycloak-credentials
             mountPath: /keycloak-credentials
             readOnly: true
@@ -89,7 +94,7 @@ spec:
           secret:
             secretName: {{ $systemKubeconfigSecret }}
         {{- end }}
-        {{- if .Values.keycloakSecret }}
+        {{- if and .Values.keycloak.enabled .Values.keycloakSecret }}
         - name: keycloak-credentials
           secret:
             secretName: {{ .Values.keycloakSecret }}

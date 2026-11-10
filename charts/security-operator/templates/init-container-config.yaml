@@ -1,4 +1,4 @@
-{{- if .Values.initContainer.enabled }}
+{{- if and .Values.keycloak.enabled .Values.initContainer.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

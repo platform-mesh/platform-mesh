@@ -1,4 +1,4 @@
-{{- if .Values.webhooks.enabled -}}
+{{- if include "security-operator.webhooks.enabled" . -}}
 apiVersion: v1
 kind: Service
 metadata:

@@ -25,6 +25,9 @@ deployment:
 # -- Log level for all operator components. Permissible values: debug, info, warn, error
 logLevel: info
 
+# -- Feature gates rendered into --feature-gates. Known gates: Keycloak, OpenFGA (both default true). keycloak.enabled=false forces Keycloak=false.
+featureGates: {}
+
 webhooks:
   # -- Enable validating admission webhooks
   enabled: true
@@ -85,7 +88,9 @@ idp:
 
 
 keycloak:
-  # -- base URL of the Keycloak instance (e.g. https://example.com/keycloak). Required.
+  # -- Enable identity provider management (IdentityProviderConfiguration, Invite, WorkspaceAuthenticationConfiguration, the IDP webhook and the Keycloak init container). Disables the Keycloak feature gate when false.
+  enabled: true
+  # -- base URL of the Keycloak instance (e.g. https://example.com/keycloak). Required when enabled.
   baseUrl: ""
   client:
     secret:
