@@ -78,7 +78,7 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
 		Path:           "root:platform-mesh-system",
 		Secret:         "iam-service-kubeconfig",
-		APIExportNames: []string{"core.platform-mesh.io", "providers.platform-mesh.io"},
+		APIExportNames: []string{"core.platform-mesh.io", "providers.platform-mesh.io", "keycloak.platform-mesh.io"},
 		AdminAuth:      ptr.To(false),
 	},
 	{
