@@ -34,16 +34,22 @@ type notes struct {
 	Version string
 	// OCMVersion is the release without the leading v, as OCM and charts use it.
 	OCMVersion string
+	// StartOCMVersion is the release the notes start after, without the leading v.
+	StartOCMVersion string
 	// RepoURL is the GitHub repository pull requests and commits link to.
-	RepoURL      string
-	ReleaseNotes []releaseNote
-	Contributors []author
-	Changes      []componentChanges
+	RepoURL         string
+	ReleaseNotes    []releaseNote
+	Contributors    []author
+	Components      []versionRow
+	OtherComponents []versionRow
+	ThirdParty      []versionRow
+	Changes         []componentChanges
 }
 
 func render(w io.Writer, n notes) error {
 	funcs := template.FuncMap{
 		"join": strings.Join,
+		"dict": dict,
 	}
 	tmpl, err := template.New("notes").Funcs(funcs).Parse(notesTemplate)
 	if err != nil {
@@ -53,4 +59,20 @@ func render(w io.Writer, n notes) error {
 		return fmt.Errorf("rendering notes: %w", err)
 	}
 	return nil
+}
+
+// dict builds template arguments from alternating keys and values.
+func dict(pairs ...any) (map[string]any, error) {
+	if len(pairs)%2 != 0 {
+		return nil, fmt.Errorf("dict needs key/value pairs, got %d arguments", len(pairs))
+	}
+	m := make(map[string]any, len(pairs)/2)
+	for i := 0; i < len(pairs); i += 2 {
+		key, ok := pairs[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("dict key %v is not a string", pairs[i])
+		}
+		m[key] = pairs[i+1]
+	}
+	return m, nil
 }

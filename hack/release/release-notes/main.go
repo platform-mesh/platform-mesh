@@ -106,13 +106,30 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	}
 	prs := collectPRs(ctx, client, owner, repo, changes)
 
+	otherComponents, err := otherComponentRows(ctx, start.commit, end.commit)
+	if err != nil {
+		return err
+	}
+	thirdPartyFrom, err := thirdPartyVersions(ctx, start.commit)
+	if err != nil {
+		return err
+	}
+	thirdPartyTo, err := thirdPartyVersions(ctx, end.commit)
+	if err != nil {
+		return err
+	}
+
 	n := notes{
-		Version:      end.version.String(),
-		OCMVersion:   end.ocmVersion(),
-		RepoURL:      repoURL,
-		ReleaseNotes: releaseNotes(changes, prs),
-		Contributors: contributors(prAuthors(prs)),
-		Changes:      grouped,
+		Version:         end.version.String(),
+		OCMVersion:      end.ocmVersion(),
+		StartOCMVersion: start.ocmVersion(),
+		RepoURL:         repoURL,
+		ReleaseNotes:    releaseNotes(changes, prs),
+		Contributors:    contributors(prAuthors(prs)),
+		Components:      componentRows(comps, start.ocmVersion(), end.ocmVersion()),
+		OtherComponents: otherComponents,
+		ThirdParty:      thirdPartyRows(thirdPartyFrom, thirdPartyTo),
+		Changes:         grouped,
 	}
 	return render(stdout, n)
 }

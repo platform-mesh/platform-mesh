@@ -20,6 +20,15 @@ No contributors.
 
 _{{len .Contributors}} contributor(s)_
 
+## Components built from this repository
+{{template "table" (dict "Rows" .Components "Header" "Component" "From" .StartOCMVersion "To" .OCMVersion "Empty" "No components.")}}
+
+## Components built from other repositories
+{{template "table" (dict "Rows" .OtherComponents "Header" "Component" "From" .StartOCMVersion "To" .OCMVersion "Empty" "No components from other repositories.")}}
+
+## Third-party versions
+{{template "table" (dict "Rows" .ThirdParty "Header" "Pin" "From" .StartOCMVersion "To" .OCMVersion "Empty" "No third-party versions changed.")}}
+
 ## Changes
 {{- range .Changes}}
 
@@ -30,4 +39,16 @@ _{{len .Contributors}} contributor(s)_
 {{- else}}
 
 No changes.
+{{- end}}
+
+{{- define "table"}}
+{{- if .Rows}}
+| {{.Header}} | {{.From}} | {{.To}} |
+|---|---|---|
+{{- range .Rows}}
+| {{.Name}} | {{.From}} | {{if .Changed}}**{{.To}}**{{else}}{{.To}}{{end}} |
+{{- end}}
+{{- else}}
+{{.Empty}}
+{{- end}}
 {{- end}}
