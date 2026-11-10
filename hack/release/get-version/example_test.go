@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	"go.platform-mesh.io/platform-mesh/hack/release/get-version/scratchrepo"
+	"go.platform-mesh.io/platform-mesh/tests/integration/release-notes/scratchrepo"
 )
 
 // scratchRepo creates a fresh git repository with two commits in

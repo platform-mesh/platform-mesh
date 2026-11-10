@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.platform-mesh.io/platform-mesh/hack/release/get-version/scratchrepo"
+	"go.platform-mesh.io/platform-mesh/tests/integration/release-notes/scratchrepo"
 )
 
 // Tests chdir into a scratch repository, so they cannot run in parallel.

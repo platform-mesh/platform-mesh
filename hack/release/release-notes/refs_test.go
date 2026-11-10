@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.platform-mesh.io/platform-mesh/hack/release/get-version/pmversions"
-	"go.platform-mesh.io/platform-mesh/hack/release/get-version/scratchrepo"
+	"go.platform-mesh.io/platform-mesh/tests/integration/release-notes/scratchrepo"
 )
 
 func TestRef_ocmVersion(t *testing.T) {
