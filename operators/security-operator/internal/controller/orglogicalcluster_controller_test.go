@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.platform-mesh.io/security-operator/internal/features"
 	"go.platform-mesh.io/security-operator/pkg/config"
 )
 
@@ -35,28 +34,14 @@ func TestOrgSubroutines(t *testing.T) {
 	require.NoError(t, os.WriteFile(coreModule, []byte("module core\n"), 0o600))
 
 	cases := map[string]struct {
-		gates    string
-		rekey    bool
-		expected []string
+		workspace bool
+		rekey     bool
+		expected  []string
 	}{
-		"defaults": {
-			gates:    "",
-			expected: []string{"WorkspaceInitializer", "IDPSubroutine", "InviteInitializationSubroutine", "workspaceAuthConfiguration"},
-		},
-		"rekey enabled": {
-			gates:    "",
-			rekey:    true,
-			expected: []string{"WorkspaceInitializer", "IDPSubroutine", "InviteInitializationSubroutine", "workspaceAuthConfiguration", "RekeyTuplesSubroutine"},
-		},
-		"keycloak gate off drops the identity subroutines": {
-			gates:    "Keycloak=false",
-			expected: []string{"WorkspaceInitializer"},
-		},
-		"keycloak gate off keeps rekey": {
-			gates:    "Keycloak=false",
-			rekey:    true,
-			expected: []string{"WorkspaceInitializer", "RekeyTuplesSubroutine"},
-		},
+		"defaults":           {true, false, []string{"WorkspaceInitializer"}},
+		"rekey enabled":      {true, true, []string{"WorkspaceInitializer", "RekeyTuplesSubroutine"}},
+		"workspace disabled": {false, true, []string{"RekeyTuplesSubroutine"}},
+		"all off":            {false, false, []string{}},
 	}
 
 	for title, cas := range cases {
@@ -65,13 +50,10 @@ func TestOrgSubroutines(t *testing.T) {
 
 			cfg := config.NewConfig()
 			cfg.CoreModulePath = coreModule
+			cfg.Initializer.WorkspaceInitializerEnabled = cas.workspace
 			cfg.RekeyOrphanedTuplesEnabled = cas.rekey
-			if cas.gates != "" {
-				require.NoError(t, cfg.FeatureGates.Set(cas.gates))
-			}
 
-			subs, err := orgSubroutines(cfg, nil, nil, nil, nil, nil)
-			require.NoError(t, err)
+			subs := orgSubroutines(cfg, nil, nil, nil, nil)
 
 			names := make([]string, 0, len(subs))
 			for _, sub := range subs {
@@ -80,25 +62,4 @@ func TestOrgSubroutines(t *testing.T) {
 			assert.Equal(t, cas.expected, names)
 		})
 	}
-}
-
-func TestOrgSubroutines_InitializerTogglesStillApply(t *testing.T) {
-	t.Parallel()
-
-	coreModule := filepath.Join(t.TempDir(), "core.fga")
-	require.NoError(t, os.WriteFile(coreModule, []byte("module core\n"), 0o600))
-
-	cfg := config.NewConfig()
-	cfg.CoreModulePath = coreModule
-	cfg.Initializer.IDPEnabled = false
-	require.True(t, cfg.FeatureEnabled(features.Keycloak), "gate stays on; only the toggle is off")
-
-	subs, err := orgSubroutines(cfg, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
-
-	names := make([]string, 0, len(subs))
-	for _, sub := range subs {
-		names = append(names, sub.GetName())
-	}
-	assert.Equal(t, []string{"WorkspaceInitializer", "InviteInitializationSubroutine", "workspaceAuthConfiguration"}, names)
 }

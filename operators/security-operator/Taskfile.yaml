@@ -117,9 +117,6 @@ tasks:
       - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzStoreRoundTrip -fuzztime={{.FUZZTIME}} -count=1
       - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAuthorizationModelRoundTrip -fuzztime={{.FUZZTIME}} -count=1
       - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAPIExportPolicyRoundTrip -fuzztime={{.FUZZTIME}} -count=1
-      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzIdentityProviderConfigurationRoundTrip -fuzztime={{.FUZZTIME}} -count=1
-      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzInviteRoundTrip -fuzztime={{.FUZZTIME}} -count=1
-      - go test ./internal/webhook/ -run=^$ -fuzz=FuzzIdentityProviderConfigurationValidateCreate -fuzztime={{.FUZZTIME}} -count=1
 
   docker:kind:load:
     desc: "Build container image with current tag from kind cluster and load it into kind"

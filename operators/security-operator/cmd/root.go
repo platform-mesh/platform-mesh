@@ -51,7 +51,6 @@ func init() {
 	rootCmd.AddCommand(terminatorCmd)
 	rootCmd.AddCommand(operatorCmd)
 	rootCmd.AddCommand(modelGeneratorCmd)
-	rootCmd.AddCommand(initContainerCmd)
 	rootCmd.AddCommand(systemCmd)
 
 	defaultCfg = platformeshconfig.NewDefaultConfig()
@@ -60,7 +59,6 @@ func init() {
 	initializerCfg = config.NewConfig()
 	terminatorCfg = config.NewConfig()
 	systemCfg = config.NewConfig()
-	initContainerCfg = config.NewInitContainerConfig()
 
 	defaultCfg.AddFlags(rootCmd.PersistentFlags())
 	operatorCfg.AddFlags(operatorCmd.Flags())
@@ -68,7 +66,6 @@ func init() {
 	initializerCfg.AddFlags(initializerCmd.Flags())
 	terminatorCfg.AddFlags(terminatorCmd.Flags())
 	systemCfg.AddFlags(systemCmd.Flags())
-	initContainerCfg.AddFlags(initContainerCmd.Flags())
 
 	cobra.OnInitialize(initLog)
 }

@@ -27,35 +27,9 @@ spec:
         args:
           - system
           {{- include "security-operator.featureGates" . | indent 10 }}
-          {{- with .Values.baseDomain }}
-          - --base-domain={{ . }}
-          {{- end }}
           - --fga-target={{ .Values.openfga.endpoint }}
           {{- if $systemKubeconfigSecret }}
           - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
-          {{- end }}
-          {{- if .Values.keycloak.enabled }}
-          {{- with .Values.keycloak.baseUrl }}
-          - --keycloak-base-url={{ . }}
-          {{- end }}
-          {{- with .Values.idp.smtp.server }}
-          - --idp-smtp-server={{ . }}
-          {{- end }}
-          {{- with .Values.idp.smtp.port }}
-          - --idp-smtp-port={{ . }}
-          {{- end }}
-          {{- with .Values.idp.smtp.fromAddress }}
-          - --idp-from-address={{ . }}
-          {{- end }}
-          {{- with .Values.idp.additionalRedirectUrls }}
-          - --idp-additional-redirect-urls={{ join "," . }}
-          {{- end }}
-          {{- if .Values.idp.registrationAllowed }}
-          - --idp-registration-allowed
-          {{- end }}
-          {{- if .Values.idp.setDefaultPassword }}
-          - --set-default-password
-          {{- end }}
           {{- end }}
           {{- with .Values.system.extraArgs }}
           {{- toYaml . | nindent 10 }}
@@ -63,23 +37,11 @@ spec:
           {{- include "common.commonOperatorArgs" . | indent 8 }}
         env:
         {{- include "common.basicEnvironment" . | nindent 10 }}
-          {{- if .Values.keycloak.enabled }}
-          - name: KEYCLOAK_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.keycloak.client.secret.name }}
-                key: {{ .Values.keycloak.client.secret.key }}
-          {{- end }}
         volumeMounts:
           {{- include "common.extraVolumeMounts" . | nindent 10 }}
           {{- if .Values.kubeconfigSecret }}
           - name: external-api-server
             mountPath: /api-kubeconfig
-          {{- end }}
-          {{- if and .Values.keycloak.enabled .Values.keycloakSecret }}
-          - name: keycloak-credentials
-            mountPath: /keycloak-credentials
-            readOnly: true
           {{- end }}
           {{- if .Values.caSecret }}
           - name: domain-ca
@@ -93,11 +55,6 @@ spec:
         - name: external-api-server
           secret:
             secretName: {{ $systemKubeconfigSecret }}
-        {{- end }}
-        {{- if and .Values.keycloak.enabled .Values.keycloakSecret }}
-        - name: keycloak-credentials
-          secret:
-            secretName: {{ .Values.keycloakSecret }}
         {{- end }}
         {{- if .Values.caSecret }}
         - name: domain-ca

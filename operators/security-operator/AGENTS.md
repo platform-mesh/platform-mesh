@@ -1,5 +1,5 @@
 ## Repository description
-- `Security-operator` lives in runtime kubernetes cluster and reconciles Store, AuthorizationModel, IdentityProviderConfiguration (IDP), Invites, APIExportPolicy, LogicalClusters (kcp's CR) custom resources in kcp clusters
+- `Security-operator` lives in runtime kubernetes cluster and reconciles Store, AuthorizationModel, APIExportPolicy, LogicalClusters (kcp's CR) custom resources in kcp clusters (IdentityProviderConfiguration and Invite moved to pm-keycloak-operator)
 - Read the org-wide [AGENTS.md](https://github.com/platform-mesh/.github/blob/main/AGENTS.md) for general conventions.
 
 ## Architecture

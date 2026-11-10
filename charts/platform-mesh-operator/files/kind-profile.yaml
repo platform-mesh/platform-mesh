@@ -592,24 +592,11 @@ data:
           enabled: true
           dependsOn: []
           values:
-            baseDomain: '{{ .baseDomainPort }}'
             caSecret: domain-certificate
             crds:
               enabled: false
             openfga:
               endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
-            keycloak:
-              baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
-            idp:
-              smtp:
-                # REQUIRED: configure a production SMTP server
-                server: ""
-                port: ""
-                fromAddress: ""
-              # Production defaults: invite-only, require email verification
-              registrationAllowed: false
-              allowUnverifiedEmails: false
-              setDefaultPassword: false
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries

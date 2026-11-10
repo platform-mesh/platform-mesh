@@ -27,9 +27,6 @@ spec:
           - terminator
           - --core-module-path=/data/coreModule.fga
           {{- include "security-operator.featureGates" . | indent 10 }}
-          {{- with .Values.baseDomain }}
-          - --base-domain={{ . }}
-          {{- end }}
           {{- with .Values.openfga.storeIDCacheTTL }}
           - --fga-store-id-cache-ttl={{ . }}
           {{- end }}

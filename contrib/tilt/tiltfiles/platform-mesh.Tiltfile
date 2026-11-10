@@ -146,7 +146,6 @@ service(
     TEMPLATE_VARS,
     path="operators/security-operator",
     deps=GO_DEPS,
-    overrides={"keycloak": {"enabled": KEYCLOAK}},
     workloads=[
         "security-operator",
         "security-operator-generator",

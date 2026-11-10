@@ -22,16 +22,11 @@ import (
 	"k8s.io/component-base/featuregate"
 )
 
-const (
-	// Keycloak enables identity provider management.
-	Keycloak featuregate.Feature = "Keycloak"
-	// OpenFGA enables authorization management.
-	OpenFGA featuregate.Feature = "OpenFGA"
-)
+// OpenFGA enables authorization management.
+const OpenFGA featuregate.Feature = "OpenFGA"
 
 var defaultFeatures = map[featuregate.Feature]featuregate.FeatureSpec{
-	Keycloak: {Default: true, PreRelease: featuregate.Alpha},
-	OpenFGA:  {Default: true, PreRelease: featuregate.Alpha},
+	OpenFGA: {Default: true, PreRelease: featuregate.Alpha},
 }
 
 // New returns a feature gate with every security-operator feature registered at its default.

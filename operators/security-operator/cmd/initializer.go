@@ -20,8 +20,6 @@ import (
 	"crypto/tls"
 	"os"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -32,11 +30,8 @@ import (
 	"go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/security-operator/internal/predicates"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -95,22 +90,6 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		runtimeScheme := runtime.NewScheme()
-		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
-		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
-
-		k8sCfg := ctrl.GetConfigOrDie()
-
-		runtimeClient, err := ctrlruntimeclient.New(k8sCfg, ctrlruntimeclient.Options{Scheme: scheme})
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create in cluster client")
-			os.Exit(1)
-		}
-
-		if initializerCfg.IDP.AdditionalRedirectURLs == nil {
-			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
-		}
-
 		conn, err := grpc.NewClient(initializerCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create grpc client")
@@ -126,7 +105,7 @@ var initializerCmd = &cobra.Command{
 		)
 
 		kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
-		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, initializerCfg, runtimeClient, mgr, fgaClient, storeIDGetter, controller.ControllerOptions{
+		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, initializerCfg, mgr, fgaClient, storeIDGetter, controller.ControllerOptions{
 			Name:            "OrgLogicalClusterInitializer",
 			InitializerName: initializerCfg.InitializerName(),
 		})

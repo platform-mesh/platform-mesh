@@ -30,20 +30,16 @@ import (
 	"go.platform-mesh.io/golang-commons/sentry"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/controller"
-	"go.platform-mesh.io/security-operator/internal/features"
 	fga2 "go.platform-mesh.io/security-operator/internal/fga"
 	"go.platform-mesh.io/security-operator/internal/predicates"
-	internalwebhook "go.platform-mesh.io/security-operator/internal/webhook"
 	"go.platform-mesh.io/security-operator/pkg/app"
 	"go.platform-mesh.io/security-operator/pkg/config"
 
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcmultiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 
@@ -89,17 +85,6 @@ var operatorCmd = &cobra.Command{
 			defer platformeshcontext.Recover(log)
 		}
 
-		webhookServer := webhook.NewServer(webhook.Options{
-			TLSOpts: []func(*tls.Config){
-				func(c *tls.Config) {
-					log.Info().Msg("disabling http/2")
-					c.NextProtos = []string{"http/1.1"}
-				},
-			},
-			CertDir: operatorCfg.Webhooks.CertDir,
-			Port:    operatorCfg.Webhooks.Port,
-		})
-
 		mgrOpts := ctrl.Options{
 			Scheme: scheme,
 			Metrics: metricsserver.Options{
@@ -115,7 +100,6 @@ var operatorCmd = &cobra.Command{
 			LeaderElection:         defaultCfg.LeaderElectionEnabled,
 			LeaderElectionID:       "security-operator.platform-mesh.io",
 			BaseContext:            func() context.Context { return ctx },
-			WebhookServer:          webhookServer,
 		}
 		if defaultCfg.LeaderElectionEnabled {
 			inClusterCfg, err := rest.InClusterConfig()
@@ -192,13 +176,6 @@ var operatorCmd = &cobra.Command{
 			log,
 		)
 
-		k8sCfg := ctrl.GetConfigOrDie()
-
-		runtimeClient, err := ctrlruntimeclient.New(k8sCfg, ctrlruntimeclient.Options{Scheme: scheme})
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create in cluster client")
-			return err
-		}
 		authorizationModelLister := iclient.NewProviderLister(providerFgaProvider.Provider.Provider)
 		fgaEngageOpts := controller.WithClustersFromNamedProvider(config.FgaProviderName, providerSeparator)
 		providerFgaEngageOpts := controller.WithClustersFromNamedProvider(config.ProviderFgaProviderName, providerSeparator)
@@ -217,22 +194,9 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, provider.Provider.Provider)
 		kcpClientGetterWithConfig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
 
-		keycloak := operatorCfg.FeatureEnabled(features.Keycloak)
-		if keycloak {
-			inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log, kcpClientGetter)
-			if err != nil {
-				log.Error().Err(err).Str("controller", "invite").Msg("unable to create reconciler")
-				return err
-			}
-			if err = inviteReconciler.SetupWithManager(mgr, defaultCfg, log, coreEngageOpts); err != nil {
-				log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
-				return err
-			}
-		}
-		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetterWithConfig, operatorCfg, runtimeClient, mgr, fga, storeIDGetter, controller.ControllerOptions{
+		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetterWithConfig, operatorCfg, mgr, fga, storeIDGetter, controller.ControllerOptions{
 			Name: "OrgLogicalClusterReconciler",
 		})
 		if err != nil {
@@ -265,15 +229,6 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "accountinfo").Msg("unable to create controller")
 			return err
 		}
-
-		if keycloak && operatorCfg.Webhooks.Enabled {
-			log.Info().Msg("validating webhooks are enabled")
-			if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, mgr.GetLocalManager(), &operatorCfg); err != nil {
-				log.Error().Err(err).Str("webhook", "IdentityProviderConfiguration").Msg("unable to create webhook")
-				return err
-			}
-		}
-		// +kubebuilder:scaffold:builder
 
 		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 			log.Error().Err(err).Msg("unable to set up health check")
