@@ -25,6 +25,12 @@ import (
 type InitContainerClientConfig struct {
 	Name      string                 `mapstructure:"name" yaml:"name"`
 	SecretRef corev1.SecretReference `mapstructure:"secretRef" yaml:"secretRef"`
+	// Admin grants the master realm admin role (nil means true); false removes it.
+	Admin *bool `mapstructure:"admin" yaml:"admin,omitempty"`
+}
+
+func (c InitContainerClientConfig) IsAdmin() bool {
+	return c.Admin == nil || *c.Admin
 }
 
 type InitContainerConfiguration struct {

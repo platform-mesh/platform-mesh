@@ -17,8 +17,10 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/coreos/go-oidc"
@@ -138,8 +140,12 @@ var initContainerCmd = &cobra.Command{
 				return fmt.Errorf("failed to get service account user for %q: %w", clientCfg.Name, err)
 			}
 
-			if err := adminClient.AssignRealmRoleToUser(ctx, serviceAccountUser.ID, *adminRole); err != nil {
-				return fmt.Errorf("failed to assign admin role to %q: %w", clientCfg.Name, err)
+			removed, err := reconcileAdminRole(ctx, adminClient, serviceAccountUser.ID, *adminRole, clientCfg.IsAdmin())
+			if err != nil {
+				return fmt.Errorf("failed to reconcile admin role of %q: %w", clientCfg.Name, err)
+			}
+			if removed {
+				log.Info().Str("clientID", clientCfg.Name).Msg("Removed admin role")
 			}
 
 			secret := &corev1.Secret{
@@ -170,6 +176,25 @@ var initContainerCmd = &cobra.Command{
 		log.Info().Msg("Init container completed successfully")
 		return nil
 	},
+}
+
+// reconcileAdminRole assigns the admin role, or removes it when it is mapped
+// and the client must not have it.
+func reconcileAdminRole(ctx context.Context, adminClient *keycloak.AdminClient, userID string, adminRole keycloak.RoleInfo, admin bool) (removed bool, err error) {
+	if admin {
+		return false, adminClient.AssignRealmRoleToUser(ctx, userID, adminRole)
+	}
+	roles, err := adminClient.ListUserRealmRoles(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	if !slices.ContainsFunc(roles, func(r keycloak.RoleInfo) bool { return r.ID == adminRole.ID }) {
+		return false, nil
+	}
+	if err := adminClient.RemoveRealmRoleFromUser(ctx, userID, adminRole); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func loadInitContainerConfig(cfg *config.InitContainerConfig) (*config.InitContainerConfiguration, error) {
