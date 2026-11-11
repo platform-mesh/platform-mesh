@@ -75,6 +75,7 @@ func New() *Runner {
 		providerAPIExportSplit{},
 		orgsDefaultBindings{},
 		keycloakAPIGroupSplit{},
+		openfgaAPIGroupSplit{},
 	}}
 }
 

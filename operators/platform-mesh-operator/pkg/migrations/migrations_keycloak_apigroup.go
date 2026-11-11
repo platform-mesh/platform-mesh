@@ -27,8 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -144,15 +142,7 @@ func migrateAccountTree(ctx context.Context, deps Deps, path string, client ctrl
 // ensureKeycloakBinding binds keycloak.platform-mesh.io into an existing
 // workspace; kcp applies a type's defaultAPIBindings only at creation.
 func ensureKeycloakBinding(ctx context.Context, client ctrlruntimeclient.Client) error {
-	bindings := &unstructured.UnstructuredList{}
-	bindings.SetGroupVersionKind(schema.GroupVersionKind{Group: "apis.kcp.io", Version: "v1alpha2", Kind: "APIBindingList"})
-	if err := client.List(ctx, bindings); err != nil {
-		return gcerrors.Wrap(err, "Failed to list APIBindings")
-	}
-	if hasBindingToExport(bindings, keycloakPlatformMeshIOExport) {
-		return nil
-	}
-	return applyBinding(ctx, client, keycloakPlatformMeshIOExport, keycloakPlatformMeshIOExport, platformMeshSystemPath, nil)
+	return ensureBinding(ctx, client, keycloakPlatformMeshIOExport)
 }
 
 // ensureKeycloakTerminator adds root:keycloak to the LogicalCluster's
