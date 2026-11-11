@@ -1,0 +1,288 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package quickstart implements "pmctl quickstart": a local Platform Mesh
+// installation in a kind cluster, for demos and tests.
+package quickstart
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/spf13/cobra"
+
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/klog/v2"
+)
+
+const (
+	// namespace everything is installed into.
+	namespace = "platform-mesh-system"
+
+	// gatewayPort is the HTTPS port Platform Mesh is reached on, on the
+	// host and inside the cluster. The kind profile of the operator chart
+	// has it built in, so it is not configurable.
+	gatewayPort = 8443
+	// gatewayNodePort is the NodePort of the gateway Service; kind maps
+	// 127.0.0.1:gatewayPort to it.
+	gatewayNodePort = 31000
+	// gatewayClusterIP is the fixed ClusterIP of the gateway Service, in
+	// kind's default service subnet. The kind profile points the Platform
+	// Mesh hostnames at it through host aliases.
+	gatewayClusterIP = "10.96.188.4"
+
+	runtimeAuto = "auto"
+)
+
+var long = `Create a local Platform Mesh installation for demos and tests.
+
+quickstart creates a kind cluster on the local container runtime (docker,
+podman or nerdctl) and installs the given Platform Mesh release into it, the
+way a user installs it: the platform-mesh-prerequisites and
+platform-mesh-operator charts with the kind profile. The operator then rolls
+out the release's OCM component.
+
+Running it again against an existing cluster upgrades the installation to the
+given version. The kubeconfig of the cluster is written to a file of its own;
+~/.kube/config is not touched.`
+
+var example = `  # Install the latest release
+  pmctl quickstart
+
+  # Install a specific release
+  pmctl quickstart --version=v26.10.2
+
+  # Use podman
+  pmctl quickstart --container-runtime=podman
+
+  # Remove the installation
+  pmctl quickstart delete`
+
+// ClusterOptions identifies the kind cluster; create and delete share them.
+type ClusterOptions struct {
+	// Name of the kind cluster.
+	Name string
+	// Kubeconfig is the file the kubeconfig of the cluster is written to.
+	Kubeconfig string
+	// ContainerRuntime is auto, docker, podman or nerdctl.
+	ContainerRuntime string
+}
+
+// AddFlags registers the cluster flags.
+func (o *ClusterOptions) AddFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&o.Name, "name", o.Name, "Name of the kind cluster.")
+	cmd.Flags().StringVar(&o.Kubeconfig, "kubeconfig", o.Kubeconfig, "File the kubeconfig of the cluster is written to (default \"<name>.kubeconfig\").")
+	cmd.Flags().StringVar(&o.ContainerRuntime, "container-runtime", o.ContainerRuntime, "Container runtime kind uses. One of: auto|docker|podman|nerdctl.")
+}
+
+// Complete fills in the derived defaults.
+func (o *ClusterOptions) Complete() {
+	if o.Kubeconfig == "" {
+		o.Kubeconfig = o.Name + ".kubeconfig"
+	}
+}
+
+// Validate checks the cluster options.
+func (o *ClusterOptions) Validate() error {
+	if o.Name == "" {
+		return errors.New("--name must not be empty")
+	}
+	switch o.ContainerRuntime {
+	case runtimeAuto, "docker", "podman", "nerdctl":
+		return nil
+	default:
+		return fmt.Errorf("--container-runtime must be one of auto|docker|podman|nerdctl, got %q", o.ContainerRuntime)
+	}
+}
+
+// caFile is where the CA certificate of the installation is written to.
+func (o *ClusterOptions) caFile() string {
+	return o.Name + "-ca.crt"
+}
+
+// Options holds the flags and dependencies of "pmctl quickstart".
+type Options struct {
+	genericiooptions.IOStreams
+	ClusterOptions
+
+	// Version is the Platform Mesh release, vYY.MM.P; empty means latest.
+	Version string
+	// NodeImage overrides the kind node image.
+	NodeImage string
+	// BaseDomain is the DNS name Platform Mesh is served under. It and
+	// its subdomains must resolve to 127.0.0.1 on the host.
+	BaseDomain string
+	// ChartRepository holds the Platform Mesh Helm charts: an oci://
+	// reference, or a local directory of charts.
+	ChartRepository string
+	// OCMRepository is the OCI registry the operator reads the Platform
+	// Mesh OCM components from.
+	OCMRepository string
+	// RegistrationAllowed lets users sign up in the portal.
+	RegistrationAllowed bool
+	// Timeout bounds the whole run.
+	Timeout time.Duration
+}
+
+// NewOptions returns Options with defaults.
+func NewOptions(streams genericiooptions.IOStreams) *Options {
+	return &Options{
+		IOStreams: streams,
+		ClusterOptions: ClusterOptions{
+			Name:             "pm-quickstart",
+			ContainerRuntime: runtimeAuto,
+		},
+		BaseDomain:          "pm.127-0-0-1.sslip.io",
+		ChartRepository:     "oci://ghcr.io/platform-mesh/helm-charts",
+		OCMRepository:       "ghcr.io/platform-mesh",
+		RegistrationAllowed: true,
+		Timeout:             45 * time.Minute,
+	}
+}
+
+// NewQuickstartCommand returns the "pmctl quickstart" command.
+func NewQuickstartCommand(streams genericiooptions.IOStreams) *cobra.Command {
+	o := NewOptions(streams)
+	cmd := &cobra.Command{
+		Use:     "quickstart",
+		Short:   "Create a local Platform Mesh installation in a kind cluster",
+		Long:    long,
+		Example: example,
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Complete(cmd, args); err != nil {
+				return err
+			}
+			if err := o.Validate(); err != nil {
+				return err
+			}
+			return o.Run(cmd.Context())
+		},
+	}
+	o.AddFlags(cmd)
+	cmd.Flags().StringVar(&o.Version, "version", o.Version, "Platform Mesh release to install, e.g. v26.10.2 (default: the latest release).")
+	cmd.Flags().StringVar(&o.NodeImage, "node-image", o.NodeImage, "kind node image (default: the one of the built-in kind version).")
+	cmd.Flags().StringVar(&o.BaseDomain, "base-domain", o.BaseDomain, "DNS name Platform Mesh is served under. It and its subdomains must resolve to 127.0.0.1.")
+	cmd.Flags().StringVar(&o.ChartRepository, "chart-repository", o.ChartRepository, "Repository of the Platform Mesh Helm charts: an oci:// reference or a local directory.")
+	cmd.Flags().StringVar(&o.OCMRepository, "ocm-repository", o.OCMRepository, "OCI registry the Platform Mesh OCM components are read from.")
+	cmd.Flags().BoolVar(&o.RegistrationAllowed, "registration-allowed", o.RegistrationAllowed, "Let users sign up in the portal.")
+	cmd.Flags().DurationVar(&o.Timeout, "timeout", o.Timeout, "Time to wait for the installation to become ready.")
+
+	cmd.AddCommand(NewDeleteCommand(streams))
+	return cmd
+}
+
+// Complete fills in the fields that are derived from the command line.
+func (o *Options) Complete(_ *cobra.Command, _ []string) error {
+	o.ClusterOptions.Complete()
+	// Releases are tagged vYY.MM.P in git; charts and components carry
+	// the version without the prefix.
+	o.Version = strings.TrimPrefix(o.Version, "v")
+	o.ChartRepository = strings.TrimSuffix(o.ChartRepository, "/")
+	return nil
+}
+
+// Validate checks the options.
+func (o *Options) Validate() error {
+	if err := o.ClusterOptions.Validate(); err != nil {
+		return err
+	}
+	if o.BaseDomain == "" {
+		return errors.New("--base-domain must not be empty")
+	}
+	if o.ChartRepository == "" {
+		return errors.New("--chart-repository must not be empty")
+	}
+	if o.OCMRepository == "" {
+		return errors.New("--ocm-repository must not be empty")
+	}
+	if o.Timeout <= 0 {
+		return errors.New("--timeout must be positive")
+	}
+	return nil
+}
+
+// Run creates the cluster and installs Platform Mesh into it.
+func (o *Options) Run(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
+	helm, err := newHelmClient(o.Kubeconfig, namespace)
+	if err != nil {
+		return err
+	}
+	if o.Version == "" {
+		if o.Version, err = helm.latestVersion(o.chartRef(operatorChart)); err != nil {
+			return fmt.Errorf("finding the latest release (use --version to name one): %w", err)
+		}
+	}
+	if err := o.createCluster(); err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(o.ErrOut, "Installing Platform Mesh %s ...\n", o.Version)
+	if err := o.install(ctx, helm); err != nil {
+		return err
+	}
+	if err := o.waitReady(ctx); err != nil {
+		return err
+	}
+
+	o.printSummary()
+	return nil
+}
+
+// url is the address of the portal.
+func (o *Options) url() string {
+	return "https://" + net.JoinHostPort(o.BaseDomain, strconv.Itoa(gatewayPort)) + "/"
+}
+
+// logf prints a debug line, shown with -v=1 or higher.
+func (o *Options) logf(format string, args ...any) {
+	if !klog.V(1).Enabled() {
+		return
+	}
+	_, _ = fmt.Fprintf(o.ErrOut, ">>> "+format+"\n", args...)
+}
+
+func (o *Options) printSummary() {
+	_, _ = fmt.Fprintf(o.Out, `
+Platform Mesh %[1]s is ready.
+
+  Portal          %[2]s
+  Keycloak admin  %[2]skeycloak/admin/
+  kcp API         https://kcp.api.%[3]s:%[4]d
+
+  Kubeconfig      %[5]s
+  CA certificate  %[6]s
+
+Next steps:
+
+  export KUBECONFIG=%[5]s
+  kubectl -n %[7]s get platformmeshes
+
+The certificates are issued by a CA created for this installation: trust
+%[6]s, or accept the browser warning.
+
+Remove the installation with:
+
+  pmctl quickstart delete --name %[8]s
+`, o.Version, o.url(), o.BaseDomain, gatewayPort, o.Kubeconfig, o.caFile(), namespace, o.Name)
+}
