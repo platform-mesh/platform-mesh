@@ -323,6 +323,7 @@ data:
           syncWave: 4
           enabled: true
           values:
+            baseDomain: '{{ .baseDomain }}'
             auth:
               default:
                 baseDomain: '{{ .baseDomain }}'

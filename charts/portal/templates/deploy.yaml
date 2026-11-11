@@ -1,5 +1,5 @@
 {{- $baseDomain := .Values.baseDomain }}
-{{- $port := .Values.port | toString }}
+{{- $port := .Values.frontendPort | toString }}
 {{- $baseDomainPort := printf "%s:%s" $baseDomain $port }}
 apiVersion: apps/v1
 kind: Deployment

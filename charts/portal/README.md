@@ -18,6 +18,7 @@ Helm Chart for the Platform Mesh Portal
 | developmentLandcsape | string | `"false"` | development landscape toggle. Set to "true" only in local/dev environments to enable dev-only UI features. Permissible values: "true", "false" |
 | environment | string | `""` | environment label propagated to observability (e.g. logs, traces). Permissible values: any string (e.g. production, staging, development) |
 | featureToggles | string | `"enableSessionAutoRefresh=true"` |  |
+| frontendPort | string | `""` | Does not affect the container listen port (which defaults to 8080 via common chart defaults). |
 | gatewayApi.enabled | bool | `true` | toggle to enable the Gateway API |
 | gatewayApi.httpRoute.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. |
@@ -37,7 +38,6 @@ Helm Chart for the Platform Mesh Portal
 | kcp.kubeconfigSecret | string | `"portal-kubeconfig"` |  |
 | kcp.url | string | `""` | kcp API URL (e.g. https://localhost:8443 for local setup) |
 | kubeconfigSecret | string | `""` | allows the configuration of a kubeconfig secret for external api servers |
-| port | int | `443` | External HTTPS port for the portal. The operator substitutes this value. |
 | uiOptions | string | `"enableFeatureToggleSetting"` |  |
 | validWebcomponentUrls | string | `".?"` |  |
 | validation.path | string | `"/validate"` | Path of the extension-manager validation webhook |

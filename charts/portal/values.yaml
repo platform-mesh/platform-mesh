@@ -11,8 +11,9 @@ image:
 # -- URLs (cookieDomain, discoveryUrl, crdGatewayApiUrl, httpRoute hostnames) are built from it.
 baseDomain: ""
 
-# -- External HTTPS port for the portal. The operator substitutes this value.
-port: 443
+# -- External HTTPS port for browser-facing URLs. The operator substitutes this value.
+# -- Does not affect the container listen port (which defaults to 8080 via common chart defaults).
+frontendPort: ""
 
 # -- Name of the Secret containing the domain TLS CA certificate (key: ca.crt).
 # -- When set together with webhookCaSecret, the chart renders a combine-ca init container
