@@ -45,6 +45,31 @@ const FeatureDisableKeycloak = "feature-disable-keycloak"
 
 const FeatureDisableOpenFGA = "feature-disable-openfga"
 
+// FeatureToggleConflicts lists field paths below the services that must
+// be off when a feature toggle is set.
+// When a PlatformMesh disables a feature and the profile has one of
+// them on, the reconciliation is stopped and a condition is set on the
+// resource.
+// If the postgres for either openfga or keycloak are managed by
+// pm-operator they are not deleted even if the respective feature is
+// disabled. They must be deleted manually by the administrator.
+var FeatureToggleConflicts = map[string][][]string{
+	FeatureDisableKeycloak: {
+		{"pm-keycloak-operator", "enabled"},
+		{"iam-service", "enabled"},
+		{"iam-ui", "enabled"},
+		{"infra", "values", "keycloak", "operator", "enabled"},
+	},
+	FeatureDisableOpenFGA: {
+		{"pm-openfga-operator", "enabled"},
+		{"pm-openfga-authz-webhook", "enabled"},
+		{"iam-service", "enabled"},
+		{"iam-ui", "enabled"},
+		{"openfga", "enabled"},
+		{"infra", "values", "kcp", "webhook", "enabled"},
+	},
+}
+
 const OpenfgaAuthzWebhookKubeconfigSecret = "pm-openfga-authz-webhook-kubeconfig"
 
 var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{

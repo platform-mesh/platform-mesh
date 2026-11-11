@@ -533,7 +533,6 @@ func (r *DeploymentSubroutine) buildRuntimeTemplateVars(ctx context.Context, ins
 			baseVars["services"] = services
 		}
 	}
-
 	// Add instance-specific fields
 	baseVars["releaseNamespace"] = inst.Namespace
 	if deployNs, ok := baseVars["deploymentNamespace"].(string); ok && deployNs != "" {
@@ -691,6 +690,10 @@ func (r *DeploymentSubroutine) buildComponentsTemplateVars(ctx context.Context, 
 	componentsNamespace := inst.Namespace
 	if deployNs, ok := values["deploymentNamespace"].(string); ok && deployNs != "" {
 		componentsNamespace = deployNs
+	}
+
+	if conflicts := featureToggleConflicts(inst, mergedServices); len(conflicts) > 0 {
+		return nil, nil, errors.New("Profile enables what a feature toggle disables: %s", strings.Join(conflicts, ", "))
 	}
 
 	// Drop dependencies on switched-off components: they are never rendered, so Flux would
