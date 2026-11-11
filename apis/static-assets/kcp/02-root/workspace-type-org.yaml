@@ -33,6 +33,10 @@ spec:
     # virtual workspace, which only serves clusters bound to that export.
     - export: ui.platform-mesh.io
       path: root:platform-mesh-system
+{{- if not .featureDisableKeycloak }}
+    - export: keycloak.platform-mesh.io
+      path: root:platform-mesh-system
+{{- end }}
 {{- if .featureEnableTerminalControllerManager }}
     - export: terminal.platform-mesh.io
       path: root:platform-mesh-system

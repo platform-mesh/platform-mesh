@@ -1,0 +1,62 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIExport
+metadata:
+  name: keycloak.platform-mesh.io
+spec:
+  resources:
+  - group: keycloak.platform-mesh.io
+    name: identityproviderconfigurations
+    schema: v261110-12b5dfe4.identityproviderconfigurations.keycloak.platform-mesh.io
+    storage:
+      crd: {}
+  - group: keycloak.platform-mesh.io
+    name: invites
+    schema: v261110-786b8a52.invites.keycloak.platform-mesh.io
+    storage:
+      crd: {}
+  permissionClaims:
+    - group: tenancy.kcp.io
+      identityHash: {{ .apiExportRootTenancyKcpIoIdentityHash }}
+      resource: workspaces
+      verbs:
+      - '*'
+    - group: tenancy.kcp.io
+      identityHash: {{ .apiExportRootTenancyKcpIoIdentityHash }}
+      resource: workspacetypes
+      verbs:
+      - '*'
+    - resource: logicalclusters
+      group: core.kcp.io
+      identityHash: ""
+      verbs:
+      - '*'
+    # OIDC client secrets the IdentityProviderConfiguration reconciler writes.
+    - resource: secrets
+      group: ""
+      identityHash: ""
+      verbs:
+      - get
+      - create
+      - update
+      - delete
+      defaultSelector:
+        matchExpressions:
+          - key: keycloak.platform-mesh.io/idp-name
+            operator: Exists
+          - key: keycloak.platform-mesh.io/client-name
+            operator: Exists
+status: {}

@@ -24,6 +24,10 @@ spec:
       path: root:platform-mesh-system
     - export: fga.platform-mesh.io
       path: root:platform-mesh-system
+{{- if not .featureDisableKeycloak }}
+    - export: keycloak.platform-mesh.io
+      path: root:platform-mesh-system
+{{- end }}
   defaultChildWorkspaceType:
     name: org
     path: root
