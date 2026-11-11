@@ -149,7 +149,6 @@ data:
                 enabled: true
         iam-ui:
           enabled: true
-          dependsOn: []
           syncWave: 4
           imageResources:
           - annotations:
@@ -169,7 +168,6 @@ data:
               for: iam-service
           syncWave: 4
           enabled: true
-          dependsOn: []
           values:
             keycloak:
               baseUrl: "https://{{ .baseDomainPort }}/keycloak"
@@ -178,12 +176,10 @@ data:
               entries: *hostAliasesEntries
         kcp:
           external: true
-          dependsOn: []
         kcp-operator:
           syncWave: 1
           external: true
           enabled: true
-          dependsOn: []
           imageResources:
           - name: kcp-operator-image
             annotations:
@@ -192,7 +188,6 @@ data:
               for: kcp-operator
               image-ref: combined
           targetNamespace: platform-mesh-system
-          values: {}
         kubernetes-graphql-gateway:
           imageResources:
           - annotations:
@@ -201,7 +196,6 @@ data:
               for: kubernetes-graphql-gateway
           syncWave: 4
           enabled: true
-          dependsOn: []
           values:
             gateway:
               playground: true
@@ -227,8 +221,6 @@ data:
                 enabled: true
             sentry:
               environment: dev
-            tracing:
-              enabled: false
             trust:
               default:
                 audience: default
@@ -237,7 +229,6 @@ data:
         openfga:
           enabled: true
           external: true
-          dependsOn: []
           syncWave: 2
           suspend: true
           imageResources:
@@ -363,7 +354,6 @@ data:
               for: rebac-authz-webhook
           syncWave: 4
           enabled: true
-          dependsOn: []
           values:
             hostAliases:
               enabled: true
@@ -376,7 +366,6 @@ data:
               for: security-operator
           syncWave: 4
           enabled: true
-          dependsOn: []
           values:
             baseDomain: '{{ .baseDomainPort }}'
             keycloak:
@@ -417,7 +406,6 @@ data:
               enabled: true
         terminal-controller-manager:
           enabled: false
-          dependsOn: []
           imageResources:
           - annotations:
               repo: oci
@@ -432,52 +420,4 @@ data:
             resource: terminal-image
             referencePath:
             - name: terminal-controller-manager
-          values:
-            kcp:
-              kubeconfigSecret: terminal-controller-manager-kubeconfig
-        observability:
-          syncWave: 4
-          enabled: false
-          targetNamespace: observability
-          imageResources:
-          - name: otel-collector-image
-            resource: otel-collector-image
-            resourceName: otel-collector-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: otelCollector.image.tag
-          - name: prometheus-server-image
-            resource: prometheus-server-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: prometheus.server.image.tag
-              image-ref: combined
-          - name: prometheus-config-reloader-image
-            resource: prometheus-config-reloader-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: prometheus.configmapReload.prometheus.image.tag
-              image-ref: combined
-          dependsOn: []
-          values:
-            prometheus:
-              server:
-                persistentVolume:
-                  enabled: false
-                extraFlags:
-                - web.enable-remote-write-receiver
-              alertmanager:
-                enabled: false
-              prometheus-node-exporter:
-                enabled: false
-              prometheus-pushgateway:
-                enabled: false
-              kube-state-metrics:
-                enabled: false
       targetNamespace: platform-mesh-system
