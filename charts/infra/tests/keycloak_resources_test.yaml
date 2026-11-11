@@ -4,18 +4,13 @@ templates:
 set:
   keycloak.operator.enabled: true
 tests:
-  - it: preserves the operator's effective default memory budget
+  - it: leaves resource defaults to the Keycloak operator
     asserts:
-      - equal:
+      - notExists:
           path: spec.resources
-          value:
-            requests:
-              memory: 1700Mi
-            limits:
-              memory: 2Gi
       - notExists:
           path: spec.unsupported.podTemplate.spec.containers[0].resources
-  - it: sets resources through the supported field for optimized installations
+  - it: sets resources through the supported field for headless installations
     set:
       keycloak.operator.resources:
         requests:

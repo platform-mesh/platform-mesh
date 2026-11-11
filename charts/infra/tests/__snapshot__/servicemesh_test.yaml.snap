@@ -35,11 +35,6 @@ keycloak operator enabled renders all resources:
       instances: 1
       proxy:
         headers: xforwarded
-      resources:
-        limits:
-          memory: 2Gi
-        requests:
-          memory: 1700Mi
       unsupported:
         podTemplate:
           spec:
