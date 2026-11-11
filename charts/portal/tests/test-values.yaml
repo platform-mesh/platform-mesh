@@ -1,6 +1,9 @@
 image:
   tag: 12345
 
+baseDomain: portal.example.com
+frontendPort: "443"
+
 baseDomains:
   - portal.example.com
   - portal2.example.com

@@ -27,25 +27,25 @@ matches the snapshot:
                 - name: HTTP_PROTOCOL
                   value: https
                 - name: DISCOVERY_ENDPOINT
-                  value: https://:443/keycloak/realms/${org-name}/.well-known/openid-configuration
+                  value: https://portal.example.com:443/keycloak/realms/${org-name}/.well-known/openid-configuration
                 - name: OIDC_CLIENT_ID_DEFAULT
                   value: welcome
                 - name: BASE_DOMAINS_DEFAULT
-                  value: null
+                  value: portal.example.com
                 - name: COOKIE_DOMAIN
-                  value: null
+                  value: portal.example.com
                 - name: FRONTEND_PORT
                   value: "443"
                 - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
-                  value: https://${org-subdomain}:443/iam/graphql
+                  value: https://${org-subdomain}portal.example.com:443/iam/graphql
                 - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
-                  value: https://${org-subdomain}:443/gateway/api/clusters/root:orgs:${org-name}/graphql
+                  value: https://${org-subdomain}portal.example.com:443/gateway/api/clusters/root:orgs:${org-name}/graphql
                 - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
                   value: https://rebac-authz-webhook.NAMESPACE.svc.cluster.local:9443
                 - name: NODE_EXTRA_CA_CERTS
                   value: /etc/ssl/certs/ca-bundle.crt
                 - name: PORT
-                  value: "443"
+                  value: "8080"
                 - name: REGION
                   value: null
                 - name: IMAGE_TAG
@@ -78,14 +78,11 @@ matches the snapshot:
               imagePullPolicy: IfNotPresent
               name: portal
               ports:
-                - containerPort: 443
+                - containerPort: 8080
                   name: http
                   protocol: TCP
                 - containerPort: 9090
                   name: metrics
-                  protocol: TCP
-                - containerPort: 8080
-                  name: health-port
                   protocol: TCP
               resources:
                 limits:
@@ -175,7 +172,7 @@ test hosAliases:
                 - name: HTTP_PROTOCOL
                   value: https
                 - name: DISCOVERY_ENDPOINT
-                  value: https://:443/keycloak/realms/${org-name}/.well-known/openid-configuration
+                  value: https://:/keycloak/realms/${org-name}/.well-known/openid-configuration
                 - name: OIDC_CLIENT_ID_DEFAULT
                   value: welcome
                 - name: BASE_DOMAINS_DEFAULT
@@ -183,17 +180,17 @@ test hosAliases:
                 - name: COOKIE_DOMAIN
                   value: null
                 - name: FRONTEND_PORT
-                  value: "443"
+                  value: ""
                 - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
-                  value: https://${org-subdomain}:443/iam/graphql
+                  value: https://${org-subdomain}:/iam/graphql
                 - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
-                  value: https://${org-subdomain}:443/gateway/api/clusters/root:orgs:${org-name}/graphql
+                  value: https://${org-subdomain}:/gateway/api/clusters/root:orgs:${org-name}/graphql
                 - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
                   value: https://rebac-authz-webhook.NAMESPACE.svc.cluster.local:9443
                 - name: NODE_EXTRA_CA_CERTS
                   value: /etc/ssl/certs/ca-bundle.crt
                 - name: PORT
-                  value: "443"
+                  value: "8080"
                 - name: REGION
                   value: null
                 - name: IMAGE_TAG
@@ -216,14 +213,11 @@ test hosAliases:
               imagePullPolicy: IfNotPresent
               name: portal
               ports:
-                - containerPort: 443
+                - containerPort: 8080
                   name: http
                   protocol: TCP
                 - containerPort: 9090
                   name: metrics
-                  protocol: TCP
-                - containerPort: 8080
-                  name: health-port
                   protocol: TCP
               resources:
                 limits:

@@ -30,7 +30,7 @@ kcp:
   # -- kcp APIExportEndpointSliceName
   apiExportEndpointSliceName: "terminal.platform-mesh.io"
   # -- Secret containing kubeconfig for kcp connection
-  kubeconfigSecret: ""
+  kubeconfigSecret: "terminal-controller-manager-kubeconfig"
 
 gateway:
   # -- The gateway name for HTTPRoutes
