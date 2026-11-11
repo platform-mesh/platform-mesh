@@ -48,6 +48,11 @@ on:
         required: false
         type: string
         default: ""
+      skip-components:
+        description: "Optional components (ocm/components.yaml) to leave out, separated by commas without spaces"
+        required: false
+        type: string
+        default: ""
     secrets:
       OCM_SIGNING_PRIVATE_KEY:
         description: "PEM private key the OCM components are signed with"
@@ -61,6 +66,8 @@ permissions:
 
 env:
   OCM_REPO: ghcr.io/${{ github.repository_owner }}
+  # Optional components this run leaves out, separated by commas without spaces.
+  SKIP_COMPONENTS: ${{ inputs.skip-components }}
   # The signature name must equal the CN of the signing certificate.
   SIGNATURE: ${{ vars.OCM_SIGNATURE_NAME || 'platform-mesh.platform-mesh' }}
 
@@ -81,7 +88,7 @@ jobs:
         id: c
         run: |
           set -euo pipefail
-          images="$(yq -o=json -I=0 '[.components | to_entries | .[] | select(.value.image != null) | {"component": .key, "image": .value.image, "path": .value.path}]' ocm/components.yaml)"
+          images="$(yq -o=json -I=0 '[.components | to_entries | .[] | select(.value.image != null) | select(.key as $k | (strenv(SKIP_COMPONENTS) | split(",") | any_c(. == $k)) | not) | {"component": .key, "image": .value.image, "path": .value.path}]' ocm/components.yaml)"
           [ "$images" != "[]" ] && [ -n "$images" ] || { echo "::error::no image components found in ocm/components.yaml"; exit 1; }
           echo "images=$images" >> "$GITHUB_OUTPUT"
           echo "$images" | jq -r '.[] | "- \(.component) (image \(.image), \(.path))"'

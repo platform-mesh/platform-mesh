@@ -33,6 +33,13 @@
 #                chart as one whose appVersion is the Platform Mesh version
 #                charts not listed here wrap components from other repositories
 #                or third parties.
+#   optional     true if a release may leave the component out: nothing else
+#                needs it, and installations enable it explicitly (a service
+#                that is `enabled: false` in the profiles). A build that sets
+#                SKIP_COMPONENTS=<name>[,<name>...] builds no image, chart or
+#                OCM component for it, and the Platform Mesh component does
+#                not reference it. Left out, it cannot be enabled from that
+#                release.
 
 components:
   # --- root module -----------------------------------------------------------
@@ -82,6 +89,7 @@ components:
     path: operators/terminal-controller-manager
     image: terminal-controller-manager
     chart: charts/terminal-controller-manager
+    optional: true
 
   # --- services --------------------------------------------------------------
   iam-service:

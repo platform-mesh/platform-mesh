@@ -124,6 +124,26 @@ from the tag:
 Published versions are immutable. Tagging a version that exists in the
 registry already fails; use the next one.
 
+### Optional components
+
+A component marked `optional: true` in
+[`ocm/components.yaml`](../../ocm/components.yaml) may be left out of a
+build. Today that is `terminal-controller-manager`.
+
+A release contains every component, optional ones included. A build leaves
+them out when it sets `SKIP_COMPONENTS=<name>[,<name>...]` for the release
+commands; the `prerelease` workflow has a `skip-components` input for it.
+Then:
+
+- no image is built for the component, and `ocm-build-image` and
+  `ocm-build-chart` do nothing for its directories;
+- `ocm-build-aggregate` builds the Platform Mesh component without the
+  reference to it, so the graph is complete without the component.
+
+An installation from such a build cannot enable the component: its chart and
+image are not in the graph. The commands refuse to skip a component that is
+not marked optional.
+
 ### Prereleases from main
 
 To publish the current `main` without a release, run the

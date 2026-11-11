@@ -27,6 +27,8 @@ limitations under the License.
 //	REPO_URL    git repository recorded as the component's source
 //	COMMIT      git commit recorded as the component's source
 //	SIGNATURE   sign the component versions with this signature
+//	SKIP_COMPONENTS  optional components (ocm/components.yaml) to leave out
+//	            of the aggregate, separated by commas
 package main
 
 import (
@@ -96,8 +98,21 @@ func run(ctx context.Context) error {
 		return err
 	}
 
+	skipped, err := releaseutils.SkippedComponents()
+	if err != nil {
+		return err
+	}
+	selected, dropped, cleanup, err := selectedConstructor(skipped)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	if len(dropped) > 0 {
+		log.Printf("leaving out %s", strings.Join(dropped, ", "))
+	}
+
 	log.Printf("building %s into %s", constructor, ocmRepo)
-	cvs, err := repo.Add(ctx, constructor, "", env)
+	cvs, err := repo.Add(ctx, selected, "", env)
 	if err != nil {
 		return err
 	}
