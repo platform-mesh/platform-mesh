@@ -249,6 +249,7 @@ func (o *Options) kubeClient() (kubernetes.Interface, error) {
 }
 
 // protectProfile marks the profile ConfigMap as kept by helm.
+// TODO(mjudeikis): Remove this once we get lifecycle handled.
 func protectProfile(ctx context.Context, kube kubernetes.Interface) error {
 	patch := []byte(`{"metadata":{"annotations":{"helm.sh/resource-policy":"keep"}}}`)
 	_, err := kube.CoreV1().ConfigMaps(namespace).Patch(ctx, profileConfigMap, types.MergePatchType, patch, metav1.PatchOptions{})
