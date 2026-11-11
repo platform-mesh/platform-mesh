@@ -61,7 +61,7 @@ it should render the application manifests:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga:8081
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m
@@ -200,7 +200,7 @@ it should render the application manifests with service account:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga:8081
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m
@@ -339,7 +339,7 @@ it should render the application manifests with service monitor:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga:8081
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m
@@ -478,7 +478,7 @@ it should render the application manifests with useInClusterClient:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga:8081
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m
@@ -617,7 +617,7 @@ it should render the cert-manager manifests with certManager enabled:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga:8081
+                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m

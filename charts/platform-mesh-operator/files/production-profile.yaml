@@ -15,24 +15,6 @@ data:
         repo:
           name: platform-mesh
         skipVerify: false
-      certManager:
-        # Installed or supplied by the target cluster.
-        enabled: false
-      etcdDruid:
-        # Installed or supplied by the target cluster.
-        enabled: false
-      prometheusOperatorCRDs:
-        # Enable when components.observability.enabled is true
-        enabled: false
-        interval: 1m
-        name: prometheus-operator-crds
-        ocmResourceName: chart
-        ocmComponentName: prometheus-operator-crds
-        targetNamespace: observability
-        values: {}
-      opentelemetryOperator:
-        # Enable when components.observability.enabled is true
-        enabled: false
     components:
       # Production workloads resolve public Platform Mesh hostnames through DNS.
       # Do not route them to an implementation-specific Service ClusterIP.
@@ -150,26 +132,18 @@ data:
               external:
                 hostname: kcp.api.{{ .baseDomain }}
                 port: __EXTERNAL_PORT__
-              auth:
-                serviceAccount:
-                  enabled: true
               frontProxy:
                 port: __EXTERNAL_PORT__
               rootShard:
                 hostname: "root.kcp.{{ .baseDomain }}"
                 shardBaseURL: https://root.kcp.{{ .baseDomain }}:__EXTERNAL_PORT__/
-                extraArgs:
-                - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
               shards:
                 - name: nereus
                   hostname: nereus.kcp.{{ .baseDomain }}
                 - name: triton
                   hostname: triton.kcp.{{ .baseDomain }}
-              webhook:
-                enabled: true
         iam-ui:
           enabled: true
-          dependsOn: []
           syncWave: 4
           imageResources:
           - annotations:
@@ -347,20 +321,7 @@ data:
           enabled: true
           values:
             baseDomain: '{{ .baseDomain }}'
-            auth:
-              default:
-                baseDomain: '{{ .baseDomain }}'
-                discoveryUrl: 'https://{{ .baseDomainPort }}/keycloak/realms/${org-name}/.well-known/openid-configuration'
-            cookieDomain: '{{ .baseDomain }}'
-            crdGatewayApiUrl: 'https://${org-subdomain}{{ .baseDomain }}/api/kubernetes-graphql-gateway/root:orgs:${org-name}/graphql'
             environment: kind
-            extraEnvVars:
-            - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
-              value: https://${org-subdomain}{{ .baseDomainPort }}/iam/graphql
-            - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
-              value: https://${org-subdomain}{{ .baseDomainPort }}/gateway/api/clusters/root:orgs:${org-name}/graphql
-            - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
-              value: https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443
             frontendPort: '__EXTERNAL_PORT__'
             gatewayApi:
               httpRoute:
@@ -414,7 +375,6 @@ data:
               serverUrl: "{{ .internalFrontProxyUrl }}"
         marketplace-ui:
           enabled: true
-          dependsOn: []
           imageResources:
           - annotations:
               repo: oci

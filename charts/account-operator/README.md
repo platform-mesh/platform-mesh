@@ -31,7 +31,7 @@ A Helm chart to deploy platform-mesh Account-Operator
 | operator.leaderElect | bool | `true` |  |
 | security.mountServiceAccountToken | bool | `true` | Mount the service account token |
 | subroutines.accountInfo.enabled | bool | `true` | Enable AccountInfo subroutine |
-| subroutines.fga.grpcAddr | string | `"openfga:8081"` | gRPC address of the OpenFGA service |
+| subroutines.fga.grpcAddr | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` | gRPC address of the OpenFGA service |
 | subroutines.workspace.enabled | bool | `true` | Enable workspace subroutine |
 | subroutines.workspaceReady.enabled | bool | `true` | Enable workspace ready subroutine |
 | subroutines.workspaceType.enabled | bool | `true` | Enable workspace type subroutine |

@@ -58,7 +58,7 @@ service:
   annotations: {}
 
 openfga:
-  endpoint: openfga:8081
+  endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
 
 log:
   # -- Log level
