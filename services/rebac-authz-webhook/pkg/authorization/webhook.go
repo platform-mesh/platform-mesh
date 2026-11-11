@@ -114,7 +114,7 @@ func (wh *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// prevent unbound reads, 1MiB should be enough for a SAR
-	maxReader := http.MaxBytesReader(w, r.Body, 1<<20)
+	maxReader := http.MaxBytesReader(w, r.Body, 1*1024*1024)
 
 	body, err := io.ReadAll(maxReader)
 	if err != nil {
