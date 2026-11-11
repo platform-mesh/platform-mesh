@@ -63,6 +63,10 @@ match the snapshots:
                   name: external-api-server
                 - mountPath: /roles
                   name: roles
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           hostAliases: []
           serviceAccountName: iam-service
           volumes:
@@ -72,6 +76,9 @@ match the snapshots:
             - configMap:
                 name: iam-service-roles
               name: roles
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
   2: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute

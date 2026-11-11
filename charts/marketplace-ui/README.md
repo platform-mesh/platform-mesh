@@ -6,7 +6,7 @@ Helm Chart for the marketplace-ui
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | contentConfig.baseDomain | string | `""` | base domain for the marketplace content API (e.g. example.com). Required. |
-| contentConfig.protocol | string | `""` | protocol for the marketplace content API. Permissible values: http, https |
+| contentConfig.protocol | string | `"https"` | protocol for the marketplace content API. Permissible values: http, https |
 | deployment.maxSurge | int | `5` |  |
 | deployment.maxUnavailable | int | `0` |  |
 | exposure.hostnames | list | `[]` | hostnames to be used for exposure |
@@ -17,7 +17,7 @@ Helm Chart for the marketplace-ui
 | health.port | int | `8080` |  |
 | health.readiness.path | string | `"/healthz"` |  |
 | health.startup.path | string | `"/healthz"` |  |
-| http.protocol | string | `""` | protocol used by the frontend. Must be set. Permissible values: http, https |
+| http.protocol | string | `"https"` | protocol used by the frontend. Must be set. Permissible values: http, https |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` | The image registry |
