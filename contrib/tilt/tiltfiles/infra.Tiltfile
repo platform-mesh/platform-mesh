@@ -50,11 +50,11 @@ openfga = remote_chart(
 )
 k8s_yaml(openfga)
 # openfga now uses the shared CNPG postgres (see the openfga-cnpg migration);
-# it no longer ships its own postgres, so wait on the "postgres" resource.
+# it no longer ships its own postgres, so wait on "postgres-ready".
 k8s_resource(
     "openfga",
     objects=select_objects(openfga, lambda o: True),
-    resource_deps=["namespace", "postgres"],
+    resource_deps=["namespace", "postgres-ready"],
     labels=["infra"],
 )
 
@@ -169,13 +169,28 @@ k8s_resource(
     extra_pod_selectors=[{"cnpg.io/cluster": "platform-mesh-pg"}],
     pod_readiness="wait",
 )
+# "postgres" turns Ready as soon as any cnpg.io/cluster pod is Ready, which
+# includes the short-lived initdb pod while initdb is still running. Consumers
+# (openfga's migrate-database init container, keycloak) then hit a database
+# that does not exist yet, and tilt ci aborts on the first Init:Error. Gate
+# them on the Cluster being Ready and every Database having been applied.
+local_resource(
+    "postgres-ready",
+    labels=["infra"],
+    resource_deps=["postgres"],
+    allow_parallel=True,
+    cmd=KUBECTL
+    + " wait clusters.postgresql.cnpg.io/platform-mesh-pg --for=condition=Ready --timeout=5m && "
+    + KUBECTL
+    + " wait databases.postgresql.cnpg.io --all --for=jsonpath='{.status.applied}'=true --timeout=5m",
+)
 k8s_resource(
     new_name="keycloak",
     objects=select_objects(
         infra,
         lambda o: o["kind"] == "Keycloak" or (o["kind"] == "Secret" and o["metadata"]["name"].startswith("keycloak-")),
     ),
-    resource_deps=["keycloak-operator", "postgres", "domain-certificate-ready"],
+    resource_deps=["keycloak-operator", "postgres-ready", "domain-certificate-ready"],
     labels=["infra"],
     extra_pod_selectors=[{"app": "keycloak"}],
     pod_readiness="wait",
