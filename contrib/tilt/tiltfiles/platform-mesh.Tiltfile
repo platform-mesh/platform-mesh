@@ -62,6 +62,7 @@ pmo = chart(
             "platform-mesh-operator",
             {
                 "ocm": {"enabled": False},
+                "gateway": {"className": TEMPLATE_VARS["gatewayClassName"]},
                 "log": {"level": "debug"},
                 "extraArgs": [
                     "--subroutines-feature-toggles-enabled=true",
@@ -159,7 +160,7 @@ service(
 )
 service("rebac-authz-webhook", NAMESPACE, TEMPLATE_VARS, path="services/rebac-authz-webhook", deps=GO_DEPS)
 service("virtual-workspaces", NAMESPACE, TEMPLATE_VARS, path="services/virtual-workspaces", deps=GO_DEPS)
-service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"frontendPort": str(PORT)})
+service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"baseDomain": BASE_DOMAIN, "port": PORT})
 service("iam-ui", NAMESPACE, TEMPLATE_VARS)
 service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
 
