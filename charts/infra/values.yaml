@@ -223,12 +223,8 @@ keycloak:
     # -- Enable plain HTTP on the Keycloak pod. Keycloak sits behind gatewayAPI, which
     # handles TLS termination.
     httpEnabled: true
-    # -- Keycloak server resources, applied through the supported Keycloak spec.resources field. Defaults preserve the operator's effective 1700Mi request and 2Gi limit.
-    resources:
-      limits:
-        memory: 2Gi
-      requests:
-        memory: 1700Mi
+    # -- Optional Keycloak server resources, applied through the supported spec.resources field. Leave empty to use the Keycloak operator's defaults.
+    resources: {}
     health:
       port: 9000
       periodSeconds: 10

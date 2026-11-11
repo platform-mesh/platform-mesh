@@ -3,30 +3,6 @@
 Optional infrastructure prerequisites for Platform Mesh
 
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
-## Optimized Kind prerequisites
-
-For the operator's `kind-optimized` profile, add these Helm options to
-both prerequisite installation passes, including when using the published OCI
-chart. No separate values file is required:
-
-```shell
---set flux2.kustomizeController.create=false \
---set flux2.notificationController.create=false \
---set keycloak-operator.deployment.resources.requests.memory=384Mi \
---set ocm-k8s-toolkit.manager.resources.requests.memory=128Mi
-```
-
-These settings omit the unused Flux Kustomize and notification controllers and
-reduce the Keycloak operator and OCM manager memory requests while retaining
-their memory limits. Keep the usual certificate, gateway, and component settings
-for each installation pass.
-
-Flux image scanning and update controllers are disabled by default for all
-profiles because Platform Mesh selects images through OCM component versions.
-Enable `flux2.imageReflectionController.create` and
-`flux2.imageAutomationController.create` when using Flux image automation.
-Keep Kustomize or notification controllers enabled when an installation uses
-Flux Kustomizations, Alerts, Providers, or Receivers.
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|

@@ -4,11 +4,11 @@ templates:
   - installation.yaml
 set:
   ocm.enabled: true
-  ocm.profile: kind-optimized
+  ocm.profile: kind-headless
   gateway.baseDomain: portal.localhost
   gateway.clusterIP: 10.96.188.4
 tests:
-  - it: merges the optimized overrides with the base Kind configuration
+  - it: renders the complete headless profile
     template: installation-profile.yaml
     asserts:
       - equal:
@@ -49,14 +49,14 @@ tests:
       - notMatchRegex:
           path: data["profile.yaml"]
           pattern: 'cpu: 75m'
-  - it: requires the gateway address for the optimized profile
+  - it: requires the gateway address for the headless profile
     template: installation.yaml
     set:
       gateway.clusterIP: ""
     asserts:
       - failedTemplate:
-          errorMessage: gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind-optimized profile
-  - it: does not replace the profile when upgrading to optimized
+          errorMessage: gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind-headless profile
+  - it: does not replace the profile when upgrading to headless
     template: installation-profile.yaml
     release:
       upgrade: true

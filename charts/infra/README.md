@@ -195,7 +195,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | keycloak.operator.image.repository | string | `"platform-mesh/custom-images/keycloak"` | Keycloak image repository (without registry) |
 | keycloak.operator.image.tag | string | `"v26.8.1"` | Keycloak image tag (defaults to appVersion) |
 | keycloak.operator.instances | int | `1` | Number of Keycloak instances |
-| keycloak.operator.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"memory":"1700Mi"}}` | Keycloak server resources, applied through the supported Keycloak spec.resources field. Defaults preserve the operator's effective 1700Mi request and 2Gi limit. |
+| keycloak.operator.resources | object | `{}` | Optional Keycloak server resources, applied through the supported spec.resources field. Leave empty to use the Keycloak operator's defaults. |
 | keycloak.operator.waitForDb.image.digest | string | `""` | wait-for-db init container image digest (when set, overrides tag) |
 | keycloak.operator.waitForDb.image.registry | string | `"docker.io"` | wait-for-db init container image registry |
 | keycloak.operator.waitForDb.image.repository | string | `"library/busybox"` | wait-for-db init container image repository (without registry) |
