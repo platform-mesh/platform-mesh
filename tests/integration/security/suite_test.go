@@ -27,8 +27,9 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
+	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
+	coreresources "go.platform-mesh.io/apis/static-assets/resources/account-operator"
 	openfgaresources "go.platform-mesh.io/apis/static-assets/resources/pm-openfga-operator"
-	securityresources "go.platform-mesh.io/apis/static-assets/resources/security-operator"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh/tests/framework/fixtures"
@@ -81,7 +82,11 @@ func (s *IntegrationSuite) SetupSuite() {
 	s.scheme = scheme.New(t, pmcorev1alpha1.AddToScheme, pmopenfgav1alpha1.AddToScheme, pmprovidersv1alpha1.AddToScheme)
 	s.platform = fixtures.Install(t, s.env,
 		fixtures.WithScheme(s.scheme),
-		fixtures.WithResources(securityresources.Resources, "*.yaml"),
+		// core from account-operator's apigen output, providers from the
+		// deployed manifests (no component generates a copy of them).
+		fixtures.WithResources(coreresources.Resources, "*.yaml"),
+		fixtures.WithResources(kcpmanifests.Resources, "01-platform-mesh-system/apiexport-providers.platform-mesh.io.yaml"),
+		fixtures.WithResources(kcpmanifests.Resources, "01-platform-mesh-system/apiresourceschema-provider*.providers.platform-mesh.io.yaml"),
 		fixtures.WithResources(openfgaresources.Resources, "*.yaml"),
 		// The deployed manifests serve AuthorizationModels from an export of
 		// their own; apigen puts the whole group into openfga.platform-mesh.io.
