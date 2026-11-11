@@ -49,7 +49,7 @@ subroutines:
     enabled: true
   fga:
     # -- gRPC address of the OpenFGA service
-    grpcAddr: openfga:8081
+    grpcAddr: openfga.platform-mesh-system.svc.cluster.local:8081
 
 log:
   # -- Log level

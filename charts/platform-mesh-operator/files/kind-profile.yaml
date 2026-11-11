@@ -126,27 +126,20 @@ data:
             gatewayApi:
               enabled: true
               gatewayClassName: __GATEWAY_CLASS_NAME__
-              port: 8443
+              port: __EXTERNAL_PORT__
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
             kcp:
               external:
                 hostname: kcp.api.{{ .baseDomain }}
-                port: 8443
-              auth:
-                serviceAccount:
-                  enabled: true
+                port: __EXTERNAL_PORT__
               frontProxy:
-                port: 8443
+                port: __EXTERNAL_PORT__
               rootShard:
                 hostname: "root.kcp.{{ .baseDomain }}"
-                shardBaseURL: https://root.kcp.{{ .baseDomain }}:8443/
-                extraArgs:
-                - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+                shardBaseURL: https://root.kcp.{{ .baseDomain }}:__EXTERNAL_PORT__/
               shards: []
-              webhook:
-                enabled: true
         iam-ui:
           enabled: true
           syncWave: 4
@@ -324,21 +317,8 @@ data:
           enabled: true
           values:
             baseDomain: '{{ .baseDomain }}'
-            auth:
-              default:
-                baseDomain: '{{ .baseDomain }}'
-                discoveryUrl: 'https://{{ .baseDomainPort }}/keycloak/realms/${org-name}/.well-known/openid-configuration'
-            cookieDomain: '{{ .baseDomain }}'
-            crdGatewayApiUrl: 'https://${org-subdomain}{{ .baseDomain }}/api/kubernetes-graphql-gateway/root:orgs:${org-name}/graphql'
             environment: kind
-            extraEnvVars:
-            - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
-              value: https://${org-subdomain}{{ .baseDomainPort }}/iam/graphql
-            - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
-              value: https://${org-subdomain}{{ .baseDomainPort }}/gateway/api/clusters/root:orgs:${org-name}/graphql
-            - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
-              value: https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443
-            frontendPort: '8443'
+            frontendPort: '__EXTERNAL_PORT__'
             gatewayApi:
               httpRoute:
                 hostnames:
