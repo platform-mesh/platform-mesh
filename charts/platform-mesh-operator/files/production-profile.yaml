@@ -305,6 +305,9 @@ data:
         kcp-operator:
           syncWave: 1
           external: true
+          # The chart comes from kcp's Helm repository, not from an OCI registry
+          # (third_party/kcp-operator/component-constructor.yaml).
+          helmRepo: true
           enabled: true
           dependsOn: []
           imageResources:

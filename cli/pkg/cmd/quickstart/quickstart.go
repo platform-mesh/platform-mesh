@@ -156,6 +156,9 @@ type Options struct {
 	RegistrationAllowed bool
 	// Timeout bounds the whole run.
 	Timeout time.Duration
+	// StallTimeout is how long a HelmRelease may keep failing before the
+	// run gives up; zero waits for Timeout.
+	StallTimeout time.Duration
 
 	progress progress
 }
@@ -174,6 +177,7 @@ func NewOptions(streams genericiooptions.IOStreams) *Options {
 		RegistrationAllowed: true,
 		ParallelBuilds:      2,
 		Timeout:             45 * time.Minute,
+		StallTimeout:        10 * time.Minute,
 	}
 }
 
@@ -206,6 +210,7 @@ func NewQuickstartCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVar(&o.OCMRepository, "ocm-repository", o.OCMRepository, "OCI registry the Platform Mesh OCM components are read from.")
 	cmd.Flags().BoolVar(&o.RegistrationAllowed, "registration-allowed", o.RegistrationAllowed, "Let users sign up in the portal.")
 	cmd.Flags().DurationVar(&o.Timeout, "timeout", o.Timeout, "Time to wait for the installation to become ready.")
+	cmd.Flags().DurationVar(&o.StallTimeout, "stall-timeout", o.StallTimeout, "Give up when a HelmRelease has been failing for this long; 0 waits for --timeout.")
 
 	cmd.AddCommand(NewDeleteCommand(streams))
 	return cmd
@@ -251,6 +256,9 @@ func (o *Options) Validate() error {
 	}
 	if o.OCMRepository == "" {
 		return errors.New("--ocm-repository must not be empty")
+	}
+	if o.StallTimeout < 0 {
+		return errors.New("--stall-timeout must not be negative")
 	}
 	if o.Timeout <= 0 {
 		return errors.New("--timeout must be positive")

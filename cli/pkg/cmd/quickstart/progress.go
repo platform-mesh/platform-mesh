@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mattn/go-runewidth"
 	"golang.org/x/term"
 
 	"k8s.io/klog/v2"
@@ -166,7 +167,7 @@ func (o *Options) spin(name string) (stop func()) {
 				lines = append(lines, line)
 			}
 			for j, line := range lines {
-				lines[j] = truncate(line, width-1)
+				lines[j] = runewidth.Truncate(line, width-1, "…")
 			}
 			erase := p.erase()
 			p.spinning = true
@@ -189,16 +190,4 @@ func (o *Options) spin(name string) (stop func()) {
 		close(done)
 		wg.Wait()
 	}
-}
-
-// truncate cuts s to at most width characters.
-func truncate(s string, width int) string {
-	if width < 1 {
-		width = 1
-	}
-	runes := []rune(s)
-	if len(runes) <= width {
-		return s
-	}
-	return string(runes[:width-1]) + "…"
 }

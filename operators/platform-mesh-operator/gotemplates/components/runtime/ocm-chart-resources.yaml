@@ -24,6 +24,8 @@ metadata:
     artifact: chart
     {{- if $config.gitRepo }}
     repo: git
+    {{- else if $config.helmRepo }}
+    repo: helm
     {{- else }}
     repo: oci
     {{- end }}

@@ -369,7 +369,13 @@ func (o *Options) waitReady(ctx context.Context) error {
 		return err
 	}
 
+	// From here on the charts roll out; one that keeps failing ends the wait.
+	stall := newStallDetector(client, o.StallTimeout)
+
 	err = o.poll(ctx, "Waiting for Platform Mesh to become ready", func(ctx context.Context) (bool, string, error) {
+		if err := stall.check(ctx); err != nil {
+			return false, "", err
+		}
 		pm, err := client.Resource(platformMeshGVR).Namespace(namespace).Get(ctx, "platform-mesh", metav1.GetOptions{})
 		if err != nil {
 			return false, err.Error(), nil //nolint:nilerr // retried, the error is the status
@@ -388,6 +394,9 @@ func (o *Options) waitReady(ctx context.Context) error {
 	// TODO(mjudeikis): We need better readiness check, using PM main instance.
 	for _, release := range []string{"account-operator", "portal"} {
 		err = o.poll(ctx, "Rolling out "+release, func(ctx context.Context) (bool, string, error) {
+			if err := stall.check(ctx); err != nil {
+				return false, "", err
+			}
 			hr, err := client.Resource(helmReleaseGVR).Namespace(namespace).Get(ctx, release, metav1.GetOptions{})
 			if err != nil {
 				return false, err.Error(), nil //nolint:nilerr // retried, the error is the status
@@ -419,6 +428,9 @@ func (o *Options) waitReady(ctx context.Context) error {
 		return err
 	}
 	err = o.poll(ctx, "Waiting for workloads", func(ctx context.Context) (bool, string, error) {
+		if err := stall.check(ctx); err != nil {
+			return false, "", err
+		}
 		deployments, err := kube.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false, err.Error(), nil //nolint:nilerr // retried, the error is the status

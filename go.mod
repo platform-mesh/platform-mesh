@@ -12,6 +12,7 @@ require (
 	github.com/kcp-dev/multicluster-provider/client v0.9.0
 	github.com/kcp-dev/sdk v0.33.6
 	github.com/kubernetes-sigs/kro v0.9.4
+	github.com/mattn/go-runewidth v0.0.19
 	github.com/moby/moby/api v1.56.1
 	github.com/rogpeppe/go-internal v1.16.0
 	github.com/spf13/cobra v1.10.2
@@ -162,7 +163,6 @@ require (
 	github.com/magiconair/properties v1.18.12 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
