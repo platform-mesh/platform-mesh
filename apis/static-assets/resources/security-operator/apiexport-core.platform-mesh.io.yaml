@@ -86,12 +86,12 @@ spec:
         crd: {}
     - group: core.platform-mesh.io
       name: identityproviderconfigurations
-      schema: v260217-2c67392.identityproviderconfigurations.core.platform-mesh.io
+      schema: v261111-3fc0b5de.identityproviderconfigurations.core.platform-mesh.io
       storage:
         crd: {}
     - group: core.platform-mesh.io
       name: invites
-      schema: v260213-fbdf981.invites.core.platform-mesh.io
+      schema: v261111-07dc9650.invites.core.platform-mesh.io
       storage:
         crd: {}
     - group: core.platform-mesh.io

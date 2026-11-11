@@ -25,7 +25,7 @@ import (
 	"github.com/coreos/go-oidc"
 	"golang.org/x/oauth2/clientcredentials"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/security-operator/pkg/clientreg"
 	"go.platform-mesh.io/security-operator/pkg/clientreg/keycloak"
 	"go.platform-mesh.io/security-operator/pkg/config"
@@ -45,12 +45,12 @@ func SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx context.
 
 	realmDenyList := slices.Clone(cfg.IDP.RealmDenyList)
 
-	return mcruntime.NewWebhookManagedBy(mgr, &pmcorev1alpha1.IdentityProviderConfiguration{}).
+	return mcruntime.NewWebhookManagedBy(mgr, &pmkeycloakv1alpha1.IdentityProviderConfiguration{}).
 		WithValidator(&identityProviderConfigurationValidator{keycloakClient: keycloakClient, realmDenyList: realmDenyList}).
 		Complete()
 }
 
-var _ admission.Validator[*pmcorev1alpha1.IdentityProviderConfiguration] = (*identityProviderConfigurationValidator)(nil)
+var _ admission.Validator[*pmkeycloakv1alpha1.IdentityProviderConfiguration] = (*identityProviderConfigurationValidator)(nil)
 var _ realmChecker = (*keycloak.AdminClient)(nil)
 
 type identityProviderConfigurationValidator struct {
@@ -62,7 +62,7 @@ type realmChecker interface {
 	RealmExists(ctx context.Context, realmName string) (bool, error)
 }
 
-func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Context, idp *pmcorev1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
+func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Context, idp *pmkeycloakv1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
 	realmName := strings.TrimSpace(idp.GetName())
 	if realmName == "" {
 		return nil, fmt.Errorf("realm name must not be empty")
@@ -85,12 +85,12 @@ func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Cont
 	return nil, nil
 }
 
-func (v *identityProviderConfigurationValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *pmcorev1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
+func (v *identityProviderConfigurationValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *pmkeycloakv1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
 	// Intentionally allow updates to prevent deadlocks when reconcilers add status/finalizers.
 	return nil, nil
 }
 
-func (v *identityProviderConfigurationValidator) ValidateDelete(ctx context.Context, obj *pmcorev1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
+func (v *identityProviderConfigurationValidator) ValidateDelete(ctx context.Context, obj *pmkeycloakv1alpha1.IdentityProviderConfiguration) (admission.Warnings, error) {
 	return nil, nil
 }
 

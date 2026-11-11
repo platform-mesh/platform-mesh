@@ -28,7 +28,7 @@ import (
 	"github.com/coreos/go-oidc"
 	"golang.org/x/oauth2/clientcredentials"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/pkg/clientreg"
@@ -123,7 +123,7 @@ func (s *subroutine) registrationClientURI(realmName, clientID string) string {
 // changed. The stored URIs would otherwise point at the old Keycloak address
 // forever: they are only refreshed after a successful update, which the old
 // address prevents. It reports whether any URI changed.
-func (s *subroutine) refreshRegistrationClientURIs(idpConfig *pmcorev1alpha1.IdentityProviderConfiguration) bool {
+func (s *subroutine) refreshRegistrationClientURIs(idpConfig *pmkeycloakv1alpha1.IdentityProviderConfiguration) bool {
 	changed := false
 	for clientName, managedClient := range idpConfig.Status.ManagedClients {
 		if managedClient.ClientID == "" {
@@ -149,7 +149,7 @@ func (s *subroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object)
 }
 
 func (s *subroutine) finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
-	idpToDelete := obj.(*pmcorev1alpha1.IdentityProviderConfiguration)
+	idpToDelete := obj.(*pmkeycloakv1alpha1.IdentityProviderConfiguration)
 	log := logger.LoadLoggerFromContext(ctx)
 	realmName := idpToDelete.Name
 
@@ -222,7 +222,7 @@ func (s *subroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) 
 }
 
 func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
-	idpConfig := obj.(*pmcorev1alpha1.IdentityProviderConfiguration)
+	idpConfig := obj.(*pmkeycloakv1alpha1.IdentityProviderConfiguration)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	cl, err := s.mgr.ClusterFromContext(ctx)
@@ -250,7 +250,7 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 		return subroutines.OK(), err
 	}
 
-	managedClients := make(map[string]pmcorev1alpha1.ManagedClient)
+	managedClients := make(map[string]pmkeycloakv1alpha1.ManagedClient)
 	for i := range idpConfig.Spec.Clients {
 		clientConfig := &idpConfig.Spec.Clients[i]
 
@@ -266,7 +266,7 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 		// Store the URI derived from the configured base URL rather than the
 		// one Keycloak returns, which carries Keycloak's own hostname and would
 		// be rewritten by refreshRegistrationClientURIs on every reconcile.
-		managedClients[clientConfig.ClientName] = pmcorev1alpha1.ManagedClient{
+		managedClients[clientConfig.ClientName] = pmkeycloakv1alpha1.ManagedClient{
 			ClientID:              clientInfo.ClientID,
 			RegistrationClientURI: s.registrationClientURI(realmName, clientInfo.ClientID),
 			SecretRef:             clientConfig.SecretRef,
@@ -327,10 +327,10 @@ func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.Admi
 	return nil
 }
 
-func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *pmcorev1alpha1.IdentityProviderConfiguration, oidcClient clientreg.Client, log *logger.Logger) error {
+func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *pmkeycloakv1alpha1.IdentityProviderConfiguration, oidcClient clientreg.Client, log *logger.Logger) error {
 	for clientName, managedClient := range idpConfig.Status.ManagedClients {
 		exists := slices.ContainsFunc(idpConfig.Spec.Clients,
-			func(c pmcorev1alpha1.IdentityProviderClientConfig) bool {
+			func(c pmkeycloakv1alpha1.IdentityProviderClientConfig) bool {
 				return c.ClientName == clientName
 			},
 		)
@@ -371,14 +371,14 @@ func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *pmcore
 	return nil
 }
 
-func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *pmcorev1alpha1.IdentityProviderConfiguration, clientConfig *pmcorev1alpha1.IdentityProviderClientConfig, realmName string, oidcClient clientreg.Client, adminClient *keycloak.AdminClient) (clientreg.ClientInformation, error) {
+func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *pmkeycloakv1alpha1.IdentityProviderConfiguration, clientConfig *pmkeycloakv1alpha1.IdentityProviderClientConfig, realmName string, oidcClient clientreg.Client, adminClient *keycloak.AdminClient) (clientreg.ClientInformation, error) {
 	existingClient, err := adminClient.GetClientByName(ctx, clientConfig.ClientName)
 	if err != nil {
 		return clientreg.ClientInformation{}, fmt.Errorf("failed to check if client exists: %w", err)
 	}
 
 	authMethod := clientreg.TokenEndpointAuthMethodClientSecretBasic
-	if clientConfig.ClientType == pmcorev1alpha1.IdentityProviderClientTypePublic {
+	if clientConfig.ClientType == pmkeycloakv1alpha1.IdentityProviderClientTypePublic {
 		authMethod = clientreg.TokenEndpointAuthMethodNone
 	}
 
@@ -426,7 +426,7 @@ func (s *subroutine) readRegistrationAccessToken(ctx context.Context, secretRef 
 	return string(secret.Data["registration_access_token"]), nil
 }
 
-func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig *pmcorev1alpha1.IdentityProviderClientConfig, clientInfo clientreg.ClientInformation, idpName string) error {
+func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig *pmkeycloakv1alpha1.IdentityProviderClientConfig, clientInfo clientreg.ClientInformation, idpName string) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clientConfig.SecretRef.Name,

@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
@@ -61,7 +61,7 @@ func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config
 	}
 
 	lc := lifecycle.New(mgr, "InviteReconciler", func() ctrlruntimeclient.Object {
-		return &pmcorev1alpha1.Invite{}
+		return &pmkeycloakv1alpha1.Invite{}
 	}, inviteSubroutine).
 		WithConditions(conditions.NewManager())
 
@@ -92,7 +92,7 @@ func (r *InviteReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platform
 	predicates := []predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("invite").
-		For(&pmcorev1alpha1.Invite{}, engageOpts).
+		For(&pmkeycloakv1alpha1.Invite{}, engageOpts).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

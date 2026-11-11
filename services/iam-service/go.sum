@@ -239,8 +239,6 @@ go.opentelemetry.io/proto/otlp v1.11.1 h1:SCrPqH9NE5CmBrOqpjNCiT0X5mGwMyGERXdogf
 go.opentelemetry.io/proto/otlp v1.11.1/go.mod h1:wq8W4aSf6bOy8RZyESOeQFr9Pu7wydWX/TY4sgvrTPg=
 go.platform-mesh.io/account-operator v0.0.0-20261102140907-8ea20ccca2cd h1:g2YBy9ZIXK3MH/EEra8MQiW/I5DXmcKp7IGzTRbNDZA=
 go.platform-mesh.io/account-operator v0.0.0-20261102140907-8ea20ccca2cd/go.mod h1:VFtDTCm301Hn9t/ANF0fWbI769hkQpGw6TlvZ0JKYds=
-go.platform-mesh.io/apis v0.1.0 h1:FOrtNlm2x51m+NMwEwewGKx5ZmWn1/wsAs4W5YCrIi8=
-go.platform-mesh.io/apis v0.1.0/go.mod h1:9k3kaleBUvyKMuM8p7yvCzZ2CV4jBqqTp6AyCfXbmRU=
 go.platform-mesh.io/golang-commons v0.20.0 h1:Vze662yjmxTaEt/3+sVbTrBc3CDx5NqsBL0GIsyFpm0=
 go.platform-mesh.io/golang-commons v0.20.0/go.mod h1:YluNzcBix+dyh17Y90U+Bs7Y3G0z11PrIOFHgYYdrhw=
 go.platform-mesh.io/subroutines v0.7.0 h1:8mlBNffwg8/6WRXUPlQS0A0kO+C8wu51mR4qtFebLgs=

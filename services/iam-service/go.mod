@@ -34,10 +34,6 @@ require (
 
 require (
 	github.com/go-openapi/swag/pools v0.29.2 // indirect
-	github.com/go-openapi/testify/v2 v2.8.0 // indirect
-	github.com/google/cel-go v0.31.0 // indirect
-	github.com/google/pprof v0.0.0-20260830191439-4932ad3515ea // indirect
-	github.com/onsi/ginkgo/v2 v2.33.1 // indirect
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 )
 
@@ -137,3 +133,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+replace go.platform-mesh.io/apis => ../../apis

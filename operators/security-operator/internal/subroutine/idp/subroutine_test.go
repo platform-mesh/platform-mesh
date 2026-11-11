@@ -29,6 +29,7 @@ import (
 	"golang.org/x/oauth2"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/internal/subroutine/idp"
@@ -76,6 +77,7 @@ func getTestScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmkeycloakv1alpha1.AddToScheme(scheme))
 	return scheme
 }
 
@@ -84,7 +86,7 @@ func setupManagerAndCluster(t *testing.T, orgsClient ctrlruntimeclient.Client, i
 
 	kcpClient := fake.NewClientBuilder().
 		WithScheme(scheme).
-		WithStatusSubresource(&pmcorev1alpha1.IdentityProviderConfiguration{}).
+		WithStatusSubresource(&pmkeycloakv1alpha1.IdentityProviderConfiguration{}).
 		WithObjects(initialObjects...).
 		Build()
 
@@ -126,15 +128,15 @@ func TestSubroutineProcess(t *testing.T) {
 	}{
 		{
 			desc: "realm and client created successfully without SMTP",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "test-realm",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
@@ -184,15 +186,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "realm already exists",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "existing-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "existing-realm",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-existing-realm",
@@ -245,15 +247,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "client already exists - update path",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "test-realm",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
@@ -262,8 +264,8 @@ func TestSubroutineProcess(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-					ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 						"test-realm": {
 							ClientID:              "existing-client-id",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/existing-client-id",
@@ -326,15 +328,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "update client with 401 retry",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "test-realm",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
@@ -343,8 +345,8 @@ func TestSubroutineProcess(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-					ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 						"test-realm": {
 							ClientID:              "existing-client-id",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/existing-client-id",
@@ -418,15 +420,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "client in status but not in spec - deletion",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "new-client",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-new-client",
@@ -435,8 +437,8 @@ func TestSubroutineProcess(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-					ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 						"old-client": {
 							ClientID:              "old-client-id",
 							RegistrationClientURI: "",
@@ -509,15 +511,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error deleting client in status but not in spec",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{},
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{},
 				},
-				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-					ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 						"old-client": {
 							ClientID:              "old-client-id",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/old-client-id",
@@ -549,15 +551,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error creating realm",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "error-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "error-realm",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-error-realm",
@@ -585,15 +587,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error getting client ID",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "test-realm",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
@@ -623,15 +625,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error getting Initial Access Token",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "test-realm",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
@@ -668,12 +670,12 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error updating realm when conflict",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{Name: "conflict-realm"},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{{
 						ClientName:   "conflict-realm",
-						ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+						ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 						RedirectURIs: []string{"https://test.example.com/*"},
 						SecretRef:    corev1.SecretReference{Name: "portal-client-secret-conflict-realm", Namespace: "default"},
 					}},
@@ -689,15 +691,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error regenerating registration access token",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "test-realm",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
@@ -735,15 +737,15 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error client registration non-201 status",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName:   "test-realm",
-							ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+							ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 							RedirectURIs: []string{"https://test.example.com/*"},
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
@@ -785,12 +787,12 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error unmarshaling updateClient response",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{{
 						ClientName:   "test-realm",
-						ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+						ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 						RedirectURIs: []string{"https://test.example.com/*"},
 						SecretRef:    corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
@@ -831,7 +833,7 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc:               "error cluster from context",
-			obj:                &pmcorev1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "test-realm"}, Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{}},
+			obj:                &pmkeycloakv1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "test-realm"}, Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{}},
 			cfg:                &config.Config{Keycloak: config.KeycloakConfig{BaseURL: "http://localhost", ClientID: "security-operator"}},
 			expectErr:          true,
 			setupK8sMocks:      func(m *mocks.MockClient, kcpClient ctrlruntimeclient.Client) {},
@@ -844,11 +846,11 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error creating secret",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
-						ClientName: "test-realm", ClientType: pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{{
+						ClientName: "test-realm", ClientType: pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 						RedirectURIs: []string{"https://test.example.com/*"},
 						SecretRef:    corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
@@ -899,13 +901,13 @@ func TestSubroutineProcess(t *testing.T) {
 			cfg := getTestConfig(test.cfg, srv.URL)
 
 			var initialObjects []ctrlruntimeclient.Object
-			if idpObj, ok := test.obj.(*pmcorev1alpha1.IdentityProviderConfiguration); ok {
+			if idpObj, ok := test.obj.(*pmkeycloakv1alpha1.IdentityProviderConfiguration); ok {
 				for clientName, managedClient := range idpObj.Status.ManagedClients {
 					if managedClient.ClientID != "" {
 						if idpObj.Status.ManagedClients == nil {
-							idpObj.Status.ManagedClients = make(map[string]pmcorev1alpha1.ManagedClient)
+							idpObj.Status.ManagedClients = make(map[string]pmkeycloakv1alpha1.ManagedClient)
 						}
-						idpObj.Status.ManagedClients[clientName] = pmcorev1alpha1.ManagedClient{
+						idpObj.Status.ManagedClients[clientName] = pmkeycloakv1alpha1.ManagedClient{
 							ClientID:              managedClient.ClientID,
 							RegistrationClientURI: fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", srv.URL, idpObj.Name, managedClient.ClientID),
 							SecretRef:             managedClient.SecretRef,
@@ -958,12 +960,12 @@ func TestFinalize(t *testing.T) {
 	}{
 		{
 			desc: "finalize deletes client and realm successfully",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName: "test-realm",
 							SecretRef: corev1.SecretReference{
@@ -973,8 +975,8 @@ func TestFinalize(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-					ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 						"test-realm": {
 							ClientID:              "client-id-123",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
@@ -1021,16 +1023,16 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			desc: "finalize error reading secret",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{{
 						ClientName: "test-realm",
 						SecretRef:  corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
 				},
-				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-					ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 						"test-realm": {
 							ClientID:              "client-id-123",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
@@ -1053,16 +1055,16 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			desc: "finalize error deleting secret",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{{
 						ClientName: "test-realm",
 						SecretRef:  corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
 				},
-				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-					ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 						"test-realm": {
 							ClientID:              "client-id-123",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
@@ -1091,12 +1093,12 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			desc: "finalize error deleting client",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName: "test-realm",
 							SecretRef: corev1.SecretReference{
@@ -1106,8 +1108,8 @@ func TestFinalize(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-					ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 						"test-realm": {
 							ClientID:              "client-id-123",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
@@ -1152,12 +1154,12 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			desc: "finalize error deleting realm",
-			obj: &pmcorev1alpha1.IdentityProviderConfiguration{
+			obj: &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
-				Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []pmcorev1alpha1.IdentityProviderClientConfig{
+				Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName: "test-realm",
 							SecretRef: corev1.SecretReference{
@@ -1167,8 +1169,8 @@ func TestFinalize(t *testing.T) {
 						},
 					},
 				},
-				Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-					ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+				Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 						"test-realm": {
 							ClientID:              "client-id-123",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
@@ -1237,7 +1239,7 @@ func TestFinalize(t *testing.T) {
 			}
 
 			// Update RegistrationClientURI with the actual server URL
-			if idpObj, ok := test.obj.(*pmcorev1alpha1.IdentityProviderConfiguration); ok {
+			if idpObj, ok := test.obj.(*pmkeycloakv1alpha1.IdentityProviderConfiguration); ok {
 				for clientName, managedClient := range idpObj.Status.ManagedClients {
 					if managedClient.ClientID != "" {
 						managedClient.RegistrationClientURI = fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", srv.URL, idpObj.Name, managedClient.ClientID)
@@ -1290,7 +1292,7 @@ func TestHelperFunctions(t *testing.T) {
 	assert.Equal(t, "IdentityProviderConfiguration", s.GetName())
 	assert.Equal(t, []string{"core.platform-mesh.io/idp-finalizer"}, s.Finalizers(nil))
 
-	res, finalizerErr := s.Finalize(ctx, &pmcorev1alpha1.IdentityProviderConfiguration{})
+	res, finalizerErr := s.Finalize(ctx, &pmkeycloakv1alpha1.IdentityProviderConfiguration{})
 	assert.Nil(t, finalizerErr)
 	assert.Equal(t, subroutines.OK(), res)
 }
@@ -1324,18 +1326,18 @@ func TestProcessRefreshesStaleRegistrationClientURI(t *testing.T) {
 	})
 
 	secretRef := corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"}
-	idpObj := &pmcorev1alpha1.IdentityProviderConfiguration{
+	idpObj := &pmkeycloakv1alpha1.IdentityProviderConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
-		Spec: pmcorev1alpha1.IdentityProviderConfigurationSpec{
-			Clients: []pmcorev1alpha1.IdentityProviderClientConfig{{
+		Spec: pmkeycloakv1alpha1.IdentityProviderConfigurationSpec{
+			Clients: []pmkeycloakv1alpha1.IdentityProviderClientConfig{{
 				ClientName:   "test-realm",
-				ClientType:   pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+				ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 				RedirectURIs: []string{"https://test.example.com/*"},
 				SecretRef:    secretRef,
 			}},
 		},
-		Status: pmcorev1alpha1.IdentityProviderConfigurationStatus{
-			ManagedClients: map[string]pmcorev1alpha1.ManagedClient{
+		Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+			ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{
 				"test-realm": {
 					ClientID: "existing-client-id",
 					// Issued under a Keycloak base URL that is no longer configured.
@@ -1362,7 +1364,7 @@ func TestProcessRefreshesStaleRegistrationClientURI(t *testing.T) {
 	assert.Nil(t, opErr)
 	assert.True(t, updated, "client update must go to the configured Keycloak base URL")
 
-	got := &pmcorev1alpha1.IdentityProviderConfiguration{}
+	got := &pmkeycloakv1alpha1.IdentityProviderConfiguration{}
 	assert.NoError(t, kcpClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "test-realm"}, got))
 	assert.Equal(t,
 		srv.URL+"/realms/test-realm/clients-registrations/openid-connect/existing-client-id",

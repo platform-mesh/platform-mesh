@@ -23,6 +23,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/subroutines"
@@ -110,7 +111,7 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.
 	}
 
 	// the Invite resource is created in :root:orgs:<new org> workspace
-	invite := &pmcorev1alpha1.Invite{ObjectMeta: metav1.ObjectMeta{Name: wsName}}
+	invite := &pmkeycloakv1alpha1.Invite{ObjectMeta: metav1.ObjectMeta{Name: wsName}}
 	_, err = controllerutil.CreateOrUpdate(ctx, client, invite, func() error {
 		invite.Spec.Email = *account.Spec.Creator
 
