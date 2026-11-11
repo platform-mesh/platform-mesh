@@ -25,10 +25,24 @@ import (
 	"strings"
 )
 
-// Git runs git in the working directory and returns its stdout.
-// A failure carries git's stderr.
+// gitDirKey is the context key of the directory git runs in.
+type gitDirKey struct{}
+
+// WithGitDir returns a context that makes Git, and everything built on it,
+// run in dir instead of the working directory: for a caller that is not
+// started from the checkout it asks about.
+func WithGitDir(ctx context.Context, dir string) context.Context {
+	return context.WithValue(ctx, gitDirKey{}, dir)
+}
+
+// Git runs git in the working directory, or the one of WithGitDir, and
+// returns its stdout. A failure carries git's stderr.
 func Git(ctx context.Context, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, "git", args...).Output()
+	cmd := exec.CommandContext(ctx, "git", args...)
+	if dir, ok := ctx.Value(gitDirKey{}).(string); ok {
+		cmd.Dir = dir
+	}
+	out, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {

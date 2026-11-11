@@ -39,9 +39,55 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"go.platform-mesh.io/platform-mesh/hack/release/get-version/pmversions"
+	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
+
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 )
+
+// This file is "pmctl quickstart --version=main": it builds the checkout into
+// a local registry. No OCM library is involved; every step runs a command,
+// and the code here only picks the commands, their order and their inputs.
+// By hand, from the root of the checkout, it is roughly:
+//
+//	# 1. The version of this build.
+//	next=$(go run ./hack/release/get-version next)          # v26.11
+//	export PM_VERSION=${next#v}.0-snapshot.$(date +%s).g$(git rev-parse --short=7 HEAD)
+//	export COMMIT=$(git rev-parse HEAD)
+//
+//	# 2. A plain-HTTP registry next to the kind node (registry.go).
+//	docker run -d --name <cluster>-registry --network kind \
+//	  -v <cluster>-registry-data:/var/lib/registry -p 127.0.0.1::5000 registry:2.8.3
+//	export OCM_REPO=http://<registry IP>:5000/platform-mesh
+//
+//	# 3. The image of every component in ocm/components.yaml, several at a time.
+//	task images-<component> REGISTRY=127.0.0.1:<port> REPO=platform-mesh/platform-mesh \
+//	  VERSION=v$PM_VERSION PUSH=false PLATFORMS=linux/<arch>
+//	docker push 127.0.0.1:<port>/platform-mesh/platform-mesh/<image>:v$PM_VERSION
+//
+//	# 4. The pinned tools and the release commands of the checkout, a signing
+//	#    key, and the ocm configuration that holds it.
+//	task tools:ocm tools:helm tools:yq
+//	go build -o <state>/bin/ ./hack/release/ocm-build-image ./hack/release/ocm-build-third-party \
+//	  ./hack/release/ocm-build-chart ./hack/release/ocm-build-aggregate
+//	export OCM_CONFIG=<state>/ocmconfig SIGNATURE=pmctl-quickstart
+//	hack/charts/resolve-dependencies.sh
+//
+//	# 5. The OCM components, in the order a release publishes them. Each
+//	#    command fills the ${...} of a component-constructor.yaml from the
+//	#    environment, adds it with "ocm add component-versions" and signs it.
+//	ocm-build-image <component dir> <state>/sbom           # per image component
+//	ocm-build-third-party third_party/<name>               # per third-party wrapper
+//	ocm transfer component-version ghcr.io/platform-mesh//<name>:<version> $OCM_REPO
+//	                                                       # per component built elsewhere
+//	ocm-build-chart charts/<name>                          # per chart: helm push + components
+//	ocm-build-aggregate                                    # github.com/platform-mesh/platform-mesh
+//	ocm verify component-version --signature $SIGNATURE $OCM_REPO//github.com/platform-mesh/platform-mesh:$PM_VERSION
+//
+// What comes back is a source for install.go: the two charts in the checkout,
+// pointed at the registry, and the certificate of the signing key. <state> is
+// stateDir; build.log there has every command as it was run, with its output.
 
 const (
 	// snapshotVersion is the --version that builds the checkout.
@@ -196,19 +242,22 @@ func (s *snapshot) withLog(err error) error {
 // makes every build a version of its own: published versions are immutable,
 // and the tree may have changed without a commit.
 func (s *snapshot) resolveVersion(ctx context.Context) error {
-	next, err := s.output(ctx, s.root, nil, "go", "run", "./hack/release/get-version", "next")
+	// The checkout need not be where pmctl runs.
+	ctx = releaseutils.WithGitDir(ctx, s.root)
+
+	version, err := pmversions.Next(ctx)
 	if err != nil {
 		return fmt.Errorf("deriving the next release from %s: %w", s.root, err)
 	}
-	next = strings.TrimPrefix(next, "v")
-	// vYY.MM is the feature release; its first version is YY.MM.0.
-	if strings.Count(next, ".") == 1 {
-		next += ".0"
-	}
-	if s.commit, err = s.output(ctx, s.root, nil, "git", "rev-parse", "HEAD"); err != nil {
+	commit, err := releaseutils.Git(ctx, "rev-parse", "HEAD")
+	if err != nil {
 		return err
 	}
-	s.version = fmt.Sprintf("%s-snapshot.%d.g%s", next, time.Now().Unix(), s.commit[:7])
+	s.commit = strings.TrimSpace(commit)
+
+	version.Pre = fmt.Sprintf("snapshot.%d.g%s", time.Now().Unix(), s.commit[:7])
+	// Charts and components carry the version without the v of the tag.
+	s.version = strings.TrimPrefix(version.String(), "v")
 	return nil
 }
 
