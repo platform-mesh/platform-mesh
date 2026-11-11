@@ -34,6 +34,22 @@ tasks:
     cmds:
       - go build ./...
       - go vet ./tests/...
+      - task: pmctl
+  pmctl:
+    desc: Build the pmctl CLI into bin/pmctl (VERSION= to override the stamped version).
+    vars:
+      VERSION:
+        sh: 'echo "${VERSION:-$(go run ./hack/release/get-version current)}"'
+      GIT_COMMIT:
+        sh: git rev-parse HEAD
+      BUILD_DATE:
+        sh: date -u +%Y-%m-%dT%H:%M:%SZ
+      LDFLAGS: >-
+        -X k8s.io/component-base/version.gitVersion={{.VERSION}}
+        -X k8s.io/component-base/version.gitCommit={{.GIT_COMMIT}}
+        -X k8s.io/component-base/version.buildDate={{.BUILD_DATE}}
+    cmds:
+      - go build -ldflags '{{.LDFLAGS}}' -o {{.ROOT_DIR}}/bin/pmctl ./cli/cmd/pmctl
   generate:
     desc: Nothing to generate in the root module.
     cmds:

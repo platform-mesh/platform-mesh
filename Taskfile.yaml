@@ -242,6 +242,10 @@ tasks:
     cmds:
       - for: {var: COMPONENTS}
         cmd: task build-{{.ITEM}}
+  pmctl:
+    desc: Build the pmctl CLI into bin/pmctl (VERSION= to override the stamped version). Also built by `task build-root`.
+    cmds:
+      - task --taskfile Taskfile.root.yaml pmctl {{if .VERSION}}VERSION={{.VERSION}}{{end}}
   images:
     desc: 'Build container images for every component that ships a Dockerfile (VERSION=, PUSH=, PLATFORMS= to override).'
     cmds:
