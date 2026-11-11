@@ -287,6 +287,7 @@ Set any limit flag to `0` to disable that limit.
 | `--enable-http2` | `false` | Enable HTTP/2 for the controller-manager server |
 | `--metrics-bind-address` | `0` (disabled) | Bind address for the metrics endpoint |
 | `--metrics-secure-serve` | `false` | Serve metrics over HTTPS |
+| `--cache-label-selector` | empty | A [label selector](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors) used to restrict which [`ClusterAccess`](#run-with-clusteraccess-remote-clusters) resource is being reconciled by the listener. **Important:** When set, the same labels must be present on every [`ClusterAccess`](#run-with-clusteraccess-remote-clusters) resource and on every secret that is referenced within it (e.g. via `tokenSecretRef`, `kubeconfigSecretRef`, `clientCertificateRef`, `ca.secretRef`) |
 
 ## Development
 
