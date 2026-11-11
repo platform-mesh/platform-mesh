@@ -344,6 +344,7 @@ func traefikEnabled(values map[string]any) bool {
 
 // waitReady waits until the operator has rolled out the version and the
 // portal answers, and writes the CA certificate file.
+// TODO(mjudeikis): All this is wrong and needs to be reworked to properly check the readiness of all components using pm object statuses.
 func (o *Options) waitReady(ctx context.Context) error {
 	restConfig, err := clientcmd.BuildConfigFromFlags("", o.Kubeconfig)
 	if err != nil {
@@ -459,7 +460,7 @@ func (o *Options) waitReady(ctx context.Context) error {
 	return o.waitPortal(ctx, ca)
 }
 
-// writeCA writes the CA certificate of the installation to o.caFile().
+// writeCA writes the CA certificate of the installation to o.CAFile().
 func (o *Options) writeCA(ctx context.Context, client dynamic.Interface) ([]byte, error) {
 	u, err := client.Resource(secretGVR).Namespace(namespace).Get(ctx, caSecret, metav1.GetOptions{})
 	if err != nil {
@@ -474,7 +475,7 @@ func (o *Options) writeCA(ctx context.Context, client dynamic.Interface) ([]byte
 	if len(ca) == 0 {
 		return nil, fmt.Errorf("secret %s/%s has no %s", namespace, caSecret, corev1.TLSCertKey)
 	}
-	if err := os.WriteFile(o.caFile(), ca, 0o644); err != nil { //nolint:gosec // a public certificate
+	if err := os.WriteFile(o.CAFile(), ca, 0o644); err != nil { //nolint:gosec // a public certificate
 		return nil, err
 	}
 	return ca, nil
@@ -501,7 +502,7 @@ func (o *Options) waitPortal(ctx context.Context, ca []byte) error {
 	defer client.CloseIdleConnections()
 
 	return o.poll(ctx, "Waiting for the portal", func(ctx context.Context) (bool, string, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.url(), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.URL(), nil)
 		if err != nil {
 			return false, "", err
 		}

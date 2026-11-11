@@ -1,0 +1,115 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: upgrade
+
+# The upgrade test (tests/upgrade, `task test-upgrade`): installs the latest
+# release into a kind cluster, then upgrades it to this checkout, built into
+# a local registry. Both go through the code of `pmctl quickstart`.
+
+on:
+  pull_request:
+    paths:
+      - 'apis/**'
+      - 'golang-commons/**'
+      - 'subroutines/**'
+      - 'operators/**'
+      - 'services/**'
+      - 'charts/**'
+      - 'third_party/**'
+      - 'ocm/**'
+      - 'cli/**'
+      - 'hack/release/**'
+      - 'hack/charts/**'
+      - 'tests/upgrade/**'
+      - 'tests/Taskfile.yaml'
+      - 'component-constructor.yaml'
+      - 'go.mod'
+      - 'go.sum'
+      - 'go.work'
+      - 'go.work.sum'
+      - 'Taskfile.yaml'
+      - '.github/workflows/upgrade.yml'
+  workflow_dispatch:
+    inputs:
+      from:
+        description: "Release to upgrade from, e.g. v26.10.2 (default: the latest)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upgrade:
+    # Larger runner: on the 4-CPU default runner, the CPU requests of a full
+    # Platform Mesh install (kcp shard, cache server, proxies) don't fit on
+    # one kind node and pods stay Pending.
+    runs-on: ubuntu-latest-large
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # tags are needed to derive the version of the build
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.work
+          cache: true # zizmor: ignore[cache-poisoning]
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Run the upgrade test
+        shell: bash # use bash with implicit pipefail so `|& tee` doesn't mask a failing test
+        env:
+          UPGRADE_FROM: ${{ inputs.from }}
+          # Print what each step is waiting for: without a terminal there is no
+          # spinner, and a step is otherwise silent until it ends.
+          UPGRADE_VERBOSITY: "1"
+          # Optional components no profile installs: not building their images
+          # saves minutes.
+          UPGRADE_SKIP_COMPONENTS: kro-composition-operator,resource-broker,terminal-controller-manager
+          # Read by the ocm CLI when it copies components from ghcr.io.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          task test-upgrade |& tee upgrade.log
+
+      - name: Dump cluster diagnostics
+        if: failure()
+        env:
+          KUBECONFIG: tests/upgrade/.test/pm-upgrade/kubeconfig
+          KUBE_CONTEXT: kind-pm-upgrade
+        run: |
+          hack/dump-cluster-diagnostics.bash runtime-artifacts
+          # The output of every build and publish command.
+          cp ~/.cache/pmctl/quickstart/pm-upgrade/build.log runtime-artifacts/ || true
+
+      - name: Upload runtime artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upgrade-artifacts
+          path: |
+            runtime-artifacts/
+            upgrade.log
+          retention-days: 5

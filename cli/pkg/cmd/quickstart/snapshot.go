@@ -61,7 +61,10 @@ import (
 //	  -v <cluster>-registry-data:/var/lib/registry -p 127.0.0.1::5000 registry:2.8.3
 //	export OCM_REPO=http://<registry IP>:5000/platform-mesh
 //
-//	# 3. The image of every component in ocm/components.yaml, several at a time.
+//	# 3. The image of every component in ocm/components.yaml, several at a time,
+//	#    but those of --skip-components; for those, step 5 runs with
+//	#    SKIP_COMPONENTS=<name>,... and builds neither their charts nor
+//	#    the references to them.
 //	task images-<component> REGISTRY=127.0.0.1:<port> REPO=platform-mesh/platform-mesh \
 //	  VERSION=v$PM_VERSION PUSH=false PLATFORMS=linux/<arch>
 //	docker push 127.0.0.1:<port>/platform-mesh/platform-mesh/<image>:v$PM_VERSION
@@ -132,8 +135,9 @@ type snapshot struct {
 
 // component is an entry of ocm/components.yaml.
 type component struct {
-	Path  string `json:"path"`
-	Image string `json:"image"`
+	Path     string `json:"path"`
+	Image    string `json:"image"`
+	Optional bool   `json:"optional"`
 }
 
 // stateDir is where the snapshot state of a cluster is kept.
@@ -259,7 +263,7 @@ func (s *snapshot) resolveVersion(ctx context.Context) error {
 }
 
 // imageComponents returns the components of ocm/components.yaml that have an
-// image, by name.
+// image, by name, without the ones SkipComponents leaves out.
 func (s *snapshot) imageComponents() (map[string]component, error) {
 	path := filepath.Join(s.root, "ocm", "components.yaml")
 	data, err := os.ReadFile(path)
@@ -271,6 +275,16 @@ func (s *snapshot) imageComponents() (map[string]component, error) {
 	}
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+	for _, name := range s.o.SkipComponents {
+		c, ok := doc.Components[name]
+		switch {
+		case !ok:
+			return nil, fmt.Errorf("--skip-components: %q is not a component in %s", name, path)
+		case !c.Optional:
+			return nil, fmt.Errorf("--skip-components: %q is not optional in %s and cannot be left out", name, path)
+		}
+		delete(doc.Components, name)
 	}
 	for name, c := range doc.Components {
 		if c.Image == "" {
@@ -674,6 +688,9 @@ func (s *snapshot) runTool(ctx context.Context, name string, args ...string) err
 		"OCM_REPO=" + s.ocmRepo(),
 		"SIGNATURE=" + snapshotSignature,
 		"COMMIT=" + s.commit,
+		// The release commands leave out the charts and the references of
+		// the skipped components, as the images are not built.
+		"SKIP_COMPONENTS=" + strings.Join(s.o.SkipComponents, ","),
 	}
 	// exec resolves the command in the PATH of this process, not env's.
 	if !strings.ContainsRune(name, filepath.Separator) {

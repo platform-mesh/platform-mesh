@@ -71,6 +71,7 @@ components:
     path: operators/kro-composition-operator
     image: kro-composition-operator
     chart: charts/kro-composition-operator
+    optional: true # referenced by the aggregate, but no profile installs it
   platform-mesh-operator:
     path: operators/platform-mesh-operator
     image: platform-mesh-operator
@@ -81,6 +82,7 @@ components:
   resource-broker:
     path: operators/resource-broker
     image: resource-broker
+    optional: true # no chart: nothing installs it
   security-operator:
     path: operators/security-operator
     image: security-operator
@@ -89,7 +91,7 @@ components:
     path: operators/terminal-controller-manager
     image: terminal-controller-manager
     chart: charts/terminal-controller-manager
-    optional: true
+    optional: true # enabled: false in the profiles
 
   # --- services --------------------------------------------------------------
   iam-service:

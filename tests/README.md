@@ -15,6 +15,28 @@ The code here is part of the root Go module, so a test imports helpers as
 | **kcp in Docker** | `integration/<area>` | A sharded kcp (front-proxy, cache server, two shards) started by [kcp-testcontainers](https://github.com/kcp-dev/kcp-testcontainers). Every test of a run shares it. The operators run inside the test process; tests keep out of each other's way by working in their own workspaces. |
 | **kind** | `e2e/<area>` | One kind cluster with the whole stack deployed by Tilt. Tests treat it as a black box through `KUBECONFIG`, and `ADMIN_KUBECONFIG` for kcp. |
 
+## The upgrade test
+
+`upgrade/` is one test on an environment of its own: it creates a kind
+cluster, installs the latest release into it, then upgrades it to this
+checkout, built into a local registry. Both steps are the code behind
+`pmctl quickstart`, the second one `--version=main`, and each returns once
+the installation is ready.
+
+```sh
+task test-upgrade                                  # from the latest release
+task test-upgrade UPGRADE_FROM=v26.10.2            # from another one
+task test-upgrade UPGRADE_KEEP_CLUSTER=true        # keep the cluster afterwards
+```
+
+It needs docker, go and task, container addresses that are routable from the
+host (Linux, OrbStack), and port 8443 free. It builds every image of the
+checkout, so it takes a while. A failed run keeps the cluster; its kubeconfig
+is in `upgrade/.test/<cluster>/`. A plain `go test ./...` skips the test.
+
+The checks before and after the upgrade, and the data seeded before it and
+looked for afterwards, are placeholders in `upgrade_test.go` so far.
+
 ## Writing an integration test
 
 Ask for the shared kcp, create a workspace to work in, get a client for it.
