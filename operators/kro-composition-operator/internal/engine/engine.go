@@ -210,7 +210,7 @@ func (e *Engine) ReconcileRGD(ctx context.Context, clusterName, rgdName string) 
 
 	// Publish the composite type as a *bound* API (APIResourceSchema + per-RGD
 	// APIExport + self-binding) rather than a plain reflected CRD, so the graphql
-	// gateway and security-operator (both boundResource-driven) treat it as first-class.
+	// gateway and pm-openfga-operator (both boundResource-driven) treat it as first-class.
 	bound, err := e.publishComposite(ctx, wc.Client, g.CRD, rgd)
 	if err != nil {
 		// A refused schema change is terminal: the previously published schema stays served

@@ -17,7 +17,7 @@ control-plane objects, and the composed providers do the actual work.
   into an `APIResourceSchema`, exposes it through a per-RGD `APIExport`, and
   self-binds that export (empty export path → the local logical cluster). A plain
   reflected CRD is invisible to the platform's portal machinery: the
-  graphql-gateway schema and the security-operator's OpenFGA authorization model are
+  graphql-gateway schema and the pm-openfga-operator's OpenFGA authorization model are
   both generated from APIBinding `boundResources`, not from workspace CRDs. Being a
   boundResource is what makes the composite type first-class (portal list/detail +
   authz) with no extra wiring.
