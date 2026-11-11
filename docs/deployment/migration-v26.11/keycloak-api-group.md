@@ -71,7 +71,9 @@ in a later change.
 
 1. Upgrade to v26.11. `pm-keycloak-operator` must be enabled in the profile
    (it is in the shipped `kind-profile.yaml` / `production-profile.yaml`),
-   security-operator no longer takes `keycloak`/`idp` values.
+   security-operator (now pm-openfga-operator, see
+   [openfga-api-group.md](openfga-api-group.md)) no longer takes
+   `keycloak`/`idp` values.
 
 2. Check the migration step ran:
 

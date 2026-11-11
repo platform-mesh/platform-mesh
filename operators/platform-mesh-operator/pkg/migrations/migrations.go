@@ -74,6 +74,7 @@ func New() *Runner {
 		fgaAPIExportSplit{},
 		providerAPIExportSplit{},
 		keycloakAPIGroupSplit{},
+		openfgaAPIGroupSplit{},
 	}}
 }
 
