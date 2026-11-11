@@ -23,6 +23,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -57,7 +60,16 @@ platform-mesh-operator charts with the kind profile. The operator then rolls
 out the release's OCM component.
 
 Running it again against an existing cluster upgrades the installation to the
-given version. The kubeconfig of the cluster is written to a file of its own;
+given version, and applies that version's kind profile.
+
+With --version=main the installation is built from a checkout of the
+platform-mesh repository (--git-root, default: the one of the current
+directory), whatever is checked out there: the images, the charts and the OCM
+components are built with the checkout's own release tooling, published to a
+registry container next to the cluster, and installed from there. Over an
+installed release this is the upgrade test of that tree. It needs docker, go
+and task, and container addresses that are routable from the host (Linux,
+OrbStack). The kubeconfig of the cluster is written to a file of its own;
 ~/.kube/config is not touched.`
 
 var example = `  # Install the latest release
@@ -65,6 +77,9 @@ var example = `  # Install the latest release
 
   # Install a specific release
   pmctl quickstart --version=v26.10.2
+
+  # Upgrade the installation to the current checkout
+  pmctl quickstart --version=main
 
   # Use podman
   pmctl quickstart --container-runtime=podman
@@ -119,8 +134,13 @@ type Options struct {
 	genericiooptions.IOStreams
 	ClusterOptions
 
-	// Version is the Platform Mesh release, vYY.MM.P; empty means latest.
+	// Version is the Platform Mesh release, vYY.MM.P; empty means latest,
+	// "main" builds the checkout at GitRoot.
 	Version string
+	// GitRoot is the platform-mesh checkout --version=main builds.
+	GitRoot string
+	// ParallelBuilds is how many images --version=main builds at a time.
+	ParallelBuilds int
 	// NodeImage overrides the kind node image.
 	NodeImage string
 	// BaseDomain is the DNS name Platform Mesh is served under. It and
@@ -136,6 +156,8 @@ type Options struct {
 	RegistrationAllowed bool
 	// Timeout bounds the whole run.
 	Timeout time.Duration
+
+	progress progress
 }
 
 // NewOptions returns Options with defaults.
@@ -150,6 +172,7 @@ func NewOptions(streams genericiooptions.IOStreams) *Options {
 		ChartRepository:     "oci://ghcr.io/platform-mesh/helm-charts",
 		OCMRepository:       "ghcr.io/platform-mesh",
 		RegistrationAllowed: true,
+		ParallelBuilds:      2,
 		Timeout:             45 * time.Minute,
 	}
 }
@@ -174,7 +197,9 @@ func NewQuickstartCommand(streams genericiooptions.IOStreams) *cobra.Command {
 		},
 	}
 	o.AddFlags(cmd)
-	cmd.Flags().StringVar(&o.Version, "version", o.Version, "Platform Mesh release to install, e.g. v26.10.2 (default: the latest release).")
+	cmd.Flags().StringVar(&o.Version, "version", o.Version, "Platform Mesh release to install, e.g. v26.10.2, or \"main\" to build and install the checkout at --git-root (default: the latest release).")
+	cmd.Flags().StringVar(&o.GitRoot, "git-root", o.GitRoot, "platform-mesh checkout that --version=main builds (default: the repository of the current directory).")
+	cmd.Flags().IntVar(&o.ParallelBuilds, "parallel-build", o.ParallelBuilds, "Number of images --version=main builds at a time.")
 	cmd.Flags().StringVar(&o.NodeImage, "node-image", o.NodeImage, "kind node image (default: the one of the built-in kind version).")
 	cmd.Flags().StringVar(&o.BaseDomain, "base-domain", o.BaseDomain, "DNS name Platform Mesh is served under. It and its subdomains must resolve to 127.0.0.1.")
 	cmd.Flags().StringVar(&o.ChartRepository, "chart-repository", o.ChartRepository, "Repository of the Platform Mesh Helm charts: an oci:// reference or a local directory.")
@@ -193,7 +218,24 @@ func (o *Options) Complete(_ *cobra.Command, _ []string) error {
 	// the version without the prefix.
 	o.Version = strings.TrimPrefix(o.Version, "v")
 	o.ChartRepository = strings.TrimSuffix(o.ChartRepository, "/")
+
+	if o.fromCheckout() {
+		dir := o.GitRoot
+		if dir == "" {
+			dir = "."
+		}
+		root, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
+		if err != nil {
+			return fmt.Errorf("--version=%s needs a platform-mesh checkout, and %q is not in a git repository (see --git-root)", snapshotVersion, dir)
+		}
+		o.GitRoot = strings.TrimSpace(string(root))
+	}
 	return nil
+}
+
+// fromCheckout reports whether the installation is built from a checkout.
+func (o *Options) fromCheckout() bool {
+	return o.Version == snapshotVersion
 }
 
 // Validate checks the options.
@@ -213,6 +255,24 @@ func (o *Options) Validate() error {
 	if o.Timeout <= 0 {
 		return errors.New("--timeout must be positive")
 	}
+	if o.ParallelBuilds < 1 {
+		return errors.New("--parallel-build must be at least 1")
+	}
+	if o.fromCheckout() {
+		if o.ContainerRuntime != runtimeAuto && o.ContainerRuntime != "docker" {
+			return fmt.Errorf("--version=%s builds with docker, not %s", snapshotVersion, o.ContainerRuntime)
+		}
+		if _, err := os.Stat(filepath.Join(o.GitRoot, "ocm", "components.yaml")); err != nil {
+			return fmt.Errorf("%s is not a platform-mesh checkout: %w", o.GitRoot, err)
+		}
+		for _, tool := range []string{"docker", "go", "task"} {
+			if _, err := exec.LookPath(tool); err != nil {
+				return fmt.Errorf("--version=%s needs %s: %w", snapshotVersion, tool, err)
+			}
+		}
+	} else if o.GitRoot != "" {
+		return fmt.Errorf("--git-root is only used with --version=%s", snapshotVersion)
+	}
 	return nil
 }
 
@@ -230,18 +290,28 @@ func (o *Options) Run(ctx context.Context) error {
 			return fmt.Errorf("finding the latest release (use --version to name one): %w", err)
 		}
 	}
+
 	if err := o.createCluster(); err != nil {
 		return err
 	}
+
+	src := o.release()
+	if o.fromCheckout() {
+		if src, err = o.buildSnapshot(ctx); err != nil {
+			return err
+		}
+		o.Version = src.version
+	}
+
 	_, _ = fmt.Fprintf(o.ErrOut, "Installing Platform Mesh %s ...\n", o.Version)
-	if err := o.install(ctx, helm); err != nil {
+	if err := o.install(ctx, helm, src); err != nil {
 		return err
 	}
 	if err := o.waitReady(ctx); err != nil {
 		return err
 	}
 
-	o.printSummary()
+	o.printSummary(src)
 	return nil
 }
 
@@ -258,7 +328,11 @@ func (o *Options) logf(format string, args ...any) {
 	_, _ = fmt.Fprintf(o.ErrOut, ">>> "+format+"\n", args...)
 }
 
-func (o *Options) printSummary() {
+func (o *Options) printSummary(src *source) {
+	details := ""
+	for _, line := range src.details {
+		details += "  " + line + "\n"
+	}
 	_, _ = fmt.Fprintf(o.Out, `
 Platform Mesh %[1]s is ready.
 
@@ -268,7 +342,7 @@ Platform Mesh %[1]s is ready.
 
   Kubeconfig      %[5]s
   CA certificate  %[6]s
-
+%[9]s
 Next steps:
 
   export KUBECONFIG=%[5]s
@@ -280,5 +354,5 @@ The certificates are issued by a CA created for this installation: trust
 Remove the installation with:
 
   pmctl quickstart delete --name %[8]s
-`, o.Version, o.url(), o.BaseDomain, gatewayPort, o.Kubeconfig, o.caFile(), namespace, o.Name)
+`, o.Version, o.url(), o.BaseDomain, gatewayPort, o.Kubeconfig, o.caFile(), namespace, o.Name, details)
 }
