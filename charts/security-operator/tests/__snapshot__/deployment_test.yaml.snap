@@ -167,7 +167,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -229,6 +230,10 @@ operator match the snapshot:
                 - mountPath: /keycloak-credentials
                   name: keycloak-credentials
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
                 - mountPath: /data
                   name: core-module
                 - mountPath: /certs
@@ -253,6 +258,10 @@ operator match the snapshot:
                 - mountPath: /secrets
                   name: keycloak-password
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -275,6 +284,9 @@ operator match the snapshot:
             - name: keycloak-credentials
               secret:
                 secretName: keycloak-admin
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
             - configMap:
                 name: RELEASE-NAME-security-operator-core-module
               name: core-module
@@ -307,7 +319,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -407,7 +420,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -521,7 +535,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -580,6 +595,10 @@ operator match the snapshot:
                 - mountPath: /keycloak-credentials
                   name: keycloak-credentials
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -593,6 +612,9 @@ operator match the snapshot:
             - name: keycloak-credentials
               secret:
                 secretName: keycloak-admin
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
   11: |
     apiVersion: apps/v1
     kind: Deployment
@@ -620,7 +642,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -904,6 +927,7 @@ operator match the snapshot w. sentry:
                 - --core-module-path=/data/coreModule.fga
                 - --user-claim=email
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --domain-ca-lookup
                 - --webhooks-enabled=true
                 - --webhooks-port=9443
@@ -911,7 +935,8 @@ operator match the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -975,9 +1000,15 @@ operator match the snapshot w. sentry:
                   port: 8090
                 periodSeconds: 10
               volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
                 - mountPath: /keycloak-credentials
                   name: keycloak-credentials
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
                 - mountPath: /data
                   name: core-module
                 - mountPath: /certs
@@ -1005,6 +1036,10 @@ operator match the snapshot w. sentry:
                 - mountPath: /secrets
                   name: keycloak-password
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -1021,9 +1056,15 @@ operator match the snapshot w. sentry:
                   - key: password
                     path: keycloak-password
                 secretName: keycloak-admin
+            - name: external-api-server
+              secret:
+                secretName: security-operator-kubeconfig
             - name: keycloak-credentials
               secret:
                 secretName: keycloak-admin
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
             - configMap:
                 name: RELEASE-NAME-security-operator-core-module
               name: core-module
@@ -1055,10 +1096,12 @@ operator match the snapshot w. sentry:
             - args:
                 - model-generator
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -1117,6 +1160,8 @@ operator match the snapshot w. sentry:
                 - mountPath: /etc/kcp-kubeconfig
                   name: kcp-kubeconfig
                   readOnly: true
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -1127,6 +1172,9 @@ operator match the snapshot w. sentry:
             - name: kcp-kubeconfig
               secret:
                 secretName: kcp-kubeconfig
+            - name: external-api-server
+              secret:
+                secretName: security-operator-kubeconfig
   6: |
     apiVersion: v1
     data:
@@ -1164,7 +1212,8 @@ operator match the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -1308,10 +1357,12 @@ operator match the snapshot w. sentry:
             - args:
                 - system
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -1375,9 +1426,15 @@ operator match the snapshot w. sentry:
                 - mountPath: /etc/kcp-kubeconfig
                   name: kcp-kubeconfig
                   readOnly: true
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
                 - mountPath: /keycloak-credentials
                   name: keycloak-credentials
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -1388,9 +1445,15 @@ operator match the snapshot w. sentry:
             - name: kcp-kubeconfig
               secret:
                 secretName: kcp-kubeconfig
+            - name: external-api-server
+              secret:
+                secretName: security-operator-kubeconfig
             - name: keycloak-credentials
               secret:
                 secretName: keycloak-admin
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
   12: |
     apiVersion: apps/v1
     kind: Deployment
@@ -1418,7 +1481,8 @@ operator match the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0

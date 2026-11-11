@@ -5,7 +5,7 @@ A Helm chart for Kubernetes
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| caSecret | string | `""` |  |
+| caSecret | string | `"domain-certificate"` |  |
 | exposure.hostnames | list | `[]` | hostnames to be used for exposure |
 | gatewayApi.httpRoute.filters | list | `[{"type":"URLRewrite","urlRewrite":{"path":{"replacePrefixMatch":"/graphql","type":"ReplacePrefixMatch"}}}]` | list of HTTPRoute filters (default: URLRewrite only, no CORS) |
 | gatewayApi.httpRoute.parentRefs[0].name | string | `"k8sapi-gateway"` |  |
@@ -22,6 +22,7 @@ A Helm chart for Kubernetes
 | keycloak.client.id | string | `"iam-service"` |  |
 | keycloak.client.secret.key | string | `"client_secret"` |  |
 | keycloak.client.secret.name | string | `"iam-client-secret"` |  |
+| log.noJson | bool | `true` | Disable JSON log formatting |
 | openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` |  |
 | port | int | `8080` |  |
 | roles.raw.roles[0].groupResource | string | `"core.platform-mesh.io/Account"` |  |

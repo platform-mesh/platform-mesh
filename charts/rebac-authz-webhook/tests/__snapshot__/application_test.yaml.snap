@@ -61,7 +61,7 @@ it should render the application manifests:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --openfga-addr=openfga:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m
@@ -116,49 +116,6 @@ it should render the application manifests:
               secret:
                 secretName: rebac-authz-webhook-kubeconfig
   4: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: rebac-authz-webhook-ca-issuer
-      namespace: platform-mesh-system
-    spec:
-      selfSigned: {}
-  5: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: rebac-authz-webhook-ca
-      namespace: platform-mesh-system
-    spec:
-      commonName: rebac-authz-webhook-ca
-      isCA: true
-      issuerRef:
-        group: cert-manager.io
-        kind: Issuer
-        name: rebac-authz-webhook-ca-issuer
-      secretName: rebac-authz-webhook-webhook-ca
-  6: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: rebac-authz-webhook-issuer
-      namespace: platform-mesh-system
-    spec:
-      ca:
-        secretName: rebac-authz-webhook-webhook-ca
-  7: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: rebac-authz-webhook-cert
-      namespace: platform-mesh-system
-    spec:
-      dnsNames: []
-      ipAddresses: []
-      issuerRef:
-        name: rebac-authz-webhook-issuer
-      secretName: rebac-authz-webhook-cert
-  8: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -174,7 +131,7 @@ it should render the application manifests:
       selector:
         app: rebac-authz-webhook
       type: ClusterIP
-  9: |
+  5: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
@@ -243,7 +200,7 @@ it should render the application manifests with service account:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --openfga-addr=openfga:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m
@@ -298,49 +255,6 @@ it should render the application manifests with service account:
               secret:
                 secretName: rebac-authz-webhook-kubeconfig
   4: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: rebac-authz-webhook-ca-issuer
-      namespace: platform-mesh-system
-    spec:
-      selfSigned: {}
-  5: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: rebac-authz-webhook-ca
-      namespace: platform-mesh-system
-    spec:
-      commonName: rebac-authz-webhook-ca
-      isCA: true
-      issuerRef:
-        group: cert-manager.io
-        kind: Issuer
-        name: rebac-authz-webhook-ca-issuer
-      secretName: rebac-authz-webhook-webhook-ca
-  6: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: rebac-authz-webhook-issuer
-      namespace: platform-mesh-system
-    spec:
-      ca:
-        secretName: rebac-authz-webhook-webhook-ca
-  7: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: rebac-authz-webhook-cert
-      namespace: platform-mesh-system
-    spec:
-      dnsNames: []
-      ipAddresses: []
-      issuerRef:
-        name: rebac-authz-webhook-issuer
-      secretName: rebac-authz-webhook-cert
-  8: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -356,7 +270,7 @@ it should render the application manifests with service account:
       selector:
         app: rebac-authz-webhook
       type: ClusterIP
-  9: |
+  5: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
@@ -425,7 +339,7 @@ it should render the application manifests with service monitor:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --openfga-addr=openfga:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m
@@ -480,49 +394,6 @@ it should render the application manifests with service monitor:
               secret:
                 secretName: rebac-authz-webhook-kubeconfig
   4: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: rebac-authz-webhook-ca-issuer
-      namespace: platform-mesh-system
-    spec:
-      selfSigned: {}
-  5: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: rebac-authz-webhook-ca
-      namespace: platform-mesh-system
-    spec:
-      commonName: rebac-authz-webhook-ca
-      isCA: true
-      issuerRef:
-        group: cert-manager.io
-        kind: Issuer
-        name: rebac-authz-webhook-ca-issuer
-      secretName: rebac-authz-webhook-webhook-ca
-  6: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: rebac-authz-webhook-issuer
-      namespace: platform-mesh-system
-    spec:
-      ca:
-        secretName: rebac-authz-webhook-webhook-ca
-  7: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: rebac-authz-webhook-cert
-      namespace: platform-mesh-system
-    spec:
-      dnsNames: []
-      ipAddresses: []
-      issuerRef:
-        name: rebac-authz-webhook-issuer
-      secretName: rebac-authz-webhook-cert
-  8: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -538,7 +409,7 @@ it should render the application manifests with service monitor:
       selector:
         app: rebac-authz-webhook
       type: ClusterIP
-  9: |
+  5: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
@@ -607,7 +478,7 @@ it should render the application manifests with useInClusterClient:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --openfga-addr=openfga:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m
@@ -662,49 +533,6 @@ it should render the application manifests with useInClusterClient:
               secret:
                 secretName: rebac-authz-webhook-kubeconfig
   4: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: rebac-authz-webhook-ca-issuer
-      namespace: platform-mesh-system
-    spec:
-      selfSigned: {}
-  5: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: rebac-authz-webhook-ca
-      namespace: platform-mesh-system
-    spec:
-      commonName: rebac-authz-webhook-ca
-      isCA: true
-      issuerRef:
-        group: cert-manager.io
-        kind: Issuer
-        name: rebac-authz-webhook-ca-issuer
-      secretName: rebac-authz-webhook-webhook-ca
-  6: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: rebac-authz-webhook-issuer
-      namespace: platform-mesh-system
-    spec:
-      ca:
-        secretName: rebac-authz-webhook-webhook-ca
-  7: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: rebac-authz-webhook-cert
-      namespace: platform-mesh-system
-    spec:
-      dnsNames: []
-      ipAddresses: []
-      issuerRef:
-        name: rebac-authz-webhook-issuer
-      secretName: rebac-authz-webhook-cert
-  8: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -720,7 +548,7 @@ it should render the application manifests with useInClusterClient:
       selector:
         app: rebac-authz-webhook
       type: ClusterIP
-  9: |
+  5: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
@@ -789,7 +617,7 @@ it should render the cert-manager manifests with certManager enabled:
           containers:
             - args:
                 - serve
-                - --openfga-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --openfga-addr=openfga:8081
                 - --health-probe-bind-address=:8081
                 - --webhook-cache-miss-max-retries=1
                 - --webhook-cache-miss-ttl=5m
