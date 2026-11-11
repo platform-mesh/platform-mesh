@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -42,6 +43,9 @@ const (
 	prerequisitesChart = "platform-mesh-prerequisites"
 	operatorChart      = "platform-mesh-operator"
 
+	// gatewaySelector selects the Service of the gateway, Traefik from the
+	// prerequisites chart.
+	gatewaySelector = "app.kubernetes.io/name=traefik"
 	// caSecret is the Secret the operator chart's self-signed CA lives in.
 	caSecret = "domain-certificate-ca"
 
@@ -59,45 +63,48 @@ func (o *Options) chartRef(name string) string {
 	return o.ChartRepository + "/" + name
 }
 
-func (o *Options) prerequisitesValues(traefik bool) map[string]any {
-	values := map[string]any{
-		"keycloak-operator": map[string]any{"watchNamespaces": namespace},
-		"flux2": map[string]any{
-			"imageAutomationController": map[string]any{"create": false},
-			"imageReflectionController": map[string]any{"create": false},
+func (o *Options) prerequisitesValues(traefik bool) prerequisitesValues {
+	values := prerequisitesValues{
+		KeycloakOperator: keycloakOperatorValues{WatchNamespaces: namespace},
+		// Controllers nothing in Platform Mesh uses.
+		Flux2: flux2Values{
+			ImageAutomationController: fluxControllerValues{Create: false},
+			ImageReflectionController: fluxControllerValues{Create: false},
 		},
 	}
 	if traefik {
-		values["traefik"] = map[string]any{
-			"enabled": true,
-			"service": map[string]any{
-				"type": "NodePort",
-				"spec": map[string]any{"type": "NodePort", "clusterIP": gatewayClusterIP},
+		values.Traefik = &traefikValues{
+			Enabled: true,
+			Service: traefikServiceValues{
+				Type: string(corev1.ServiceTypeNodePort),
+				Spec: traefikServiceSpecValues{Type: string(corev1.ServiceTypeNodePort)},
 			},
-			"ports": map[string]any{
-				"websecure": map[string]any{"exposedPort": gatewayPort, "nodePort": gatewayNodePort},
+			Ports: traefikPortsValues{
+				WebSecure: traefikPortValues{ExposedPort: gatewayPort, NodePort: gatewayNodePort},
 			},
 		}
 	}
 	return values
 }
 
-func (o *Options) operatorValues() map[string]any {
-	return map[string]any{
-		"ocm": map[string]any{
-			"enabled":    true,
-			"profile":    "kind",
-			"version":    o.Version,
-			"repository": o.OCMRepository,
+// operatorValues are the operator chart's values for a gateway whose Service
+// has the given ClusterIP.
+func (o *Options) operatorValues(gatewayClusterIP string) operatorValues {
+	return operatorValues{
+		OCM: ocmValues{
+			Enabled:    true,
+			Profile:    "kind",
+			Version:    o.Version,
+			Repository: o.OCMRepository,
 		},
-		"gateway": map[string]any{
-			"baseDomain": o.BaseDomain,
-			"port":       gatewayPort,
-			"clusterIP":  gatewayClusterIP,
+		Gateway: gatewayValues{
+			BaseDomain: o.BaseDomain,
+			Port:       gatewayPort,
+			ClusterIP:  gatewayClusterIP,
 		},
-		"kcp":          map[string]any{"frontProxyPort": gatewayPort},
-		"certificates": map[string]any{"selfSigned": map[string]any{"enabled": true}},
-		"idp":          map[string]any{"registrationAllowed": o.RegistrationAllowed},
+		KCP:          kcpValues{FrontProxyPort: gatewayPort},
+		Certificates: certificatesValues{SelfSigned: selfSignedValues{Enabled: true}},
+		IDP:          idpValues{RegistrationAllowed: o.RegistrationAllowed},
 	}
 }
 
@@ -119,8 +126,14 @@ func (o *Options) install(ctx context.Context, helm *helmClient) error {
 			return err
 		}
 	}
+	var gatewayClusterIP string
 	err = o.step("Installing gateway", func() error {
-		return helm.installOrUpgrade(ctx, prerequisitesChart, o.chartRef(prerequisitesChart), o.Version, o.prerequisitesValues(true), true, helmTimeout)
+		err := helm.installOrUpgrade(ctx, prerequisitesChart, o.chartRef(prerequisitesChart), o.Version, o.prerequisitesValues(true), true, helmTimeout)
+		if err != nil {
+			return err
+		}
+		gatewayClusterIP, err = o.gatewayClusterIP(ctx)
+		return err
 	})
 	if err != nil {
 		return err
@@ -129,8 +142,32 @@ func (o *Options) install(ctx context.Context, helm *helmClient) error {
 	// Not waited for: the chart applies the PlatformMesh resource, and
 	// waitReady follows what the operator makes of it.
 	return o.step("Installing Platform Mesh operator", func() error {
-		return helm.installOrUpgrade(ctx, operatorChart, o.chartRef(operatorChart), o.Version, o.operatorValues(), false, helmTimeout)
+		return helm.installOrUpgrade(ctx, operatorChart, o.chartRef(operatorChart), o.Version, o.operatorValues(gatewayClusterIP), false, helmTimeout)
 	})
+}
+
+// gatewayClusterIP returns the ClusterIP of the gateway Service. The kind
+// profile points the Platform Mesh hostnames at it through host aliases, so
+// that pods reach the gateway under the names the host uses.
+func (o *Options) gatewayClusterIP(ctx context.Context) (string, error) {
+	restConfig, err := clientcmd.BuildConfigFromFlags("", o.Kubeconfig)
+	if err != nil {
+		return "", fmt.Errorf("loading %s: %w", o.Kubeconfig, err)
+	}
+	kube, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return "", err
+	}
+	services, err := kube.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: gatewaySelector})
+	if err != nil {
+		return "", fmt.Errorf("finding the gateway Service: %w", err)
+	}
+	for _, service := range services.Items {
+		if ip := service.Spec.ClusterIP; ip != "" && ip != corev1.ClusterIPNone {
+			return ip, nil
+		}
+	}
+	return "", fmt.Errorf("no Service with a ClusterIP matches %q in %s", gatewaySelector, namespace)
 }
 
 func traefikEnabled(values map[string]any) bool {

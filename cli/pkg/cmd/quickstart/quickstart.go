@@ -44,10 +44,6 @@ const (
 	// gatewayNodePort is the NodePort of the gateway Service; kind maps
 	// 127.0.0.1:gatewayPort to it.
 	gatewayNodePort = 31000
-	// gatewayClusterIP is the fixed ClusterIP of the gateway Service, in
-	// kind's default service subnet. The kind profile points the Platform
-	// Mesh hostnames at it through host aliases.
-	gatewayClusterIP = "10.96.188.4"
 
 	runtimeAuto = "auto"
 )

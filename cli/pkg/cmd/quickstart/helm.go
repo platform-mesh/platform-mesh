@@ -103,9 +103,13 @@ func (h *helmClient) lastRelease(name string) (*release.Release, error) {
 }
 
 // installOrUpgrade installs the chart as the release, or upgrades the release
-// if it exists. Values are the complete set: nothing is reused from the
+// if it exists. chartValues, one of the types in values.go, are the complete set: nothing is reused from the
 // previous revision. With wait it returns once the resources are ready.
-func (h *helmClient) installOrUpgrade(ctx context.Context, name, ref, version string, values map[string]any, wait bool, timeout time.Duration) error {
+func (h *helmClient) installOrUpgrade(ctx context.Context, name, ref, version string, chartValues any, wait bool, timeout time.Duration) error {
+	values, err := helmValues(chartValues)
+	if err != nil {
+		return err
+	}
 	cfg, err := h.config()
 	if err != nil {
 		return err
