@@ -18,7 +18,10 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"go.platform-mesh.io/platform-mesh/cli/pkg/cmd"
 
@@ -27,6 +30,20 @@ import (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
+	// Commands stop at the first interrupt; a second one kills the process.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
+
 	streams := genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
-	os.Exit(cli.Run(cmd.NewPMCtlCommand(streams)))
+	root := cmd.NewPMCtlCommand(streams)
+	root.SetContext(ctx)
+	return cli.Run(root)
 }

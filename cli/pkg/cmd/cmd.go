@@ -22,6 +22,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"go.platform-mesh.io/platform-mesh/cli/pkg/cmd/quickstart"
 	"go.platform-mesh.io/platform-mesh/cli/pkg/cmd/version"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -46,6 +47,7 @@ func NewPMCtlCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	root.SetErr(streams.ErrOut)
 
 	root.AddCommand(
+		quickstart.NewQuickstartCommand(streams),
 		version.NewVersionCommand(streams),
 	)
 
