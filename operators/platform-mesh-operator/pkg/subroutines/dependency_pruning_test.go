@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
@@ -289,4 +290,81 @@ func Test_pruneDisabledDependencies_MalformedInput(t *testing.T) {
 	// Malformed entries are left exactly as they were rather than silently reshaped.
 	assert.Equal(t, "should-be-a-list", services["wrong-type"].(map[string]any)["dependsOn"])
 	assert.Equal(t, []any{"bare-string"}, services["entry-not-a-map"].(map[string]any)["dependsOn"])
+}
+
+func Test_featureToggleConflicts(t *testing.T) {
+	services := map[string]any{
+		"pm-openfga-operator":      map[string]any{"enabled": true},
+		"pm-openfga-authz-webhook": map[string]any{"enabled": false},
+		"iam-service":              map[string]any{"enabled": true},
+		"pm-keycloak-operator":     map[string]any{"enabled": true},
+		"openfga":                  map[string]any{"enabled": false},
+		"portal":                   map[string]any{"enabled": true},
+		"infra": map[string]any{"enabled": true, "values": map[string]any{
+			"kcp":      map[string]any{"webhook": map[string]any{"enabled": true}},
+			"keycloak": map[string]any{"operator": map[string]any{"enabled": false}},
+		}},
+	}
+
+	t.Run("no toggles, no conflicts", func(t *testing.T) {
+		assert.Empty(t, featureToggleConflicts(&pmcorev1alpha1.PlatformMesh{}, services))
+	})
+
+	t.Run("lists the switches the toggle rules out that are on", func(t *testing.T) {
+		inst := &pmcorev1alpha1.PlatformMesh{Spec: pmcorev1alpha1.PlatformMeshSpec{
+			FeatureToggles: []pmcorev1alpha1.FeatureToggle{{Name: FeatureDisableOpenFGA}},
+		}}
+		assert.Equal(t, []string{
+			FeatureDisableOpenFGA + ": services.iam-service.enabled",
+			FeatureDisableOpenFGA + ": services.infra.values.kcp.webhook.enabled",
+			FeatureDisableOpenFGA + ": services.pm-openfga-operator.enabled",
+		}, featureToggleConflicts(inst, services), "iam-ui is absent, the webhook and openfga disabled")
+	})
+
+	t.Run("both toggles", func(t *testing.T) {
+		inst := &pmcorev1alpha1.PlatformMesh{Spec: pmcorev1alpha1.PlatformMeshSpec{
+			FeatureToggles: []pmcorev1alpha1.FeatureToggle{{Name: FeatureDisableKeycloak}, {Name: FeatureDisableOpenFGA}},
+		}}
+		assert.Equal(t, []string{
+			FeatureDisableKeycloak + ": services.iam-service.enabled",
+			FeatureDisableKeycloak + ": services.pm-keycloak-operator.enabled",
+			FeatureDisableOpenFGA + ": services.iam-service.enabled",
+			FeatureDisableOpenFGA + ": services.infra.values.kcp.webhook.enabled",
+			FeatureDisableOpenFGA + ": services.pm-openfga-operator.enabled",
+		}, featureToggleConflicts(inst, services))
+	})
+
+	t.Run("a path through a non-map counts as off", func(t *testing.T) {
+		inst := &pmcorev1alpha1.PlatformMesh{Spec: pmcorev1alpha1.PlatformMeshSpec{
+			FeatureToggles: []pmcorev1alpha1.FeatureToggle{{Name: FeatureDisableKeycloak}},
+		}}
+		assert.Empty(t, featureToggleConflicts(inst, map[string]any{"infra": map[string]any{"values": "broken"}}))
+	})
+}
+
+func (s *TemplateVarsTestSuite) Test_buildComponentsTemplateVars_RefusesTogglesConflictingWithProfile() {
+	profile := `
+infra: {}
+components:
+  services:
+    pm-keycloak-operator:
+      enabled: true
+      values: {}
+    infra:
+      enabled: true
+      values:
+        keycloak:
+          operator:
+            enabled: true
+    portal:
+      enabled: true
+      values: {}
+`
+	sub, inst := s.newSubroutineWithProfile(profile, config.RemoteClusterConfig{})
+	inst.Spec.FeatureToggles = []pmcorev1alpha1.FeatureToggle{{Name: FeatureDisableKeycloak}}
+
+	_, _, err := sub.buildComponentsTemplateVars(context.Background(), inst, apiextensionsv1.JSON{})
+	s.Require().Error(err)
+	s.Contains(err.Error(), FeatureDisableKeycloak+": services.infra.values.keycloak.operator.enabled")
+	s.Contains(err.Error(), FeatureDisableKeycloak+": services.pm-keycloak-operator.enabled")
 }

@@ -27,6 +27,7 @@ import (
 	"strings"
 	"text/template"
 
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
 
@@ -288,6 +289,24 @@ func disabledHelmReleases(infraProfile, services map[string]any, infraNamespace,
 	}
 
 	return disabled
+}
+
+// featureToggleConflicts returns "<toggle>: services.<path>" for every switch
+// FeatureToggleConflicts lists for inst's feature toggles that is on in
+// services, sorted. A path that does not resolve to a value counts as off.
+func featureToggleConflicts(inst *pmcorev1alpha1.PlatformMesh, services map[string]any) []string {
+	var conflicts []string
+	for _, toggle := range inst.Spec.FeatureToggles {
+		for _, path := range FeatureToggleConflicts[toggle.Name] {
+			value, found, err := unstructured.NestedFieldNoCopy(services, path...)
+			if err != nil || !found || isZeroValue(value) {
+				continue
+			}
+			conflicts = append(conflicts, toggle.Name+": services."+strings.Join(path, "."))
+		}
+	}
+	slices.Sort(conflicts)
+	return conflicts
 }
 
 // pruneDisabledDependencies drops dependsOn entries pointing at a disabled component. Flux
