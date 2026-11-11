@@ -27,10 +27,16 @@ spec:
     singular: invite
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - deprecated: true
+    deprecationWarning: core.platform-mesh.io/v1alpha1 Invite is deprecated, use keycloak.platform-mesh.io/v1alpha1
+      Invite
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Invite is the Schema for the invites API
+        description: |-
+          Invite is the Schema for the invites API
+
+          Deprecated: use keycloak.platform-mesh.io/v1alpha1 Invite.
         properties:
           apiVersion:
             description: |-

@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/controller/filter"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
@@ -64,7 +64,7 @@ func NewIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanag
 	}
 
 	lc := lifecycle.New(mgr, "IdentityProviderConfigurationReconciler", func() ctrlruntimeclient.Object {
-		return &pmcorev1alpha1.IdentityProviderConfiguration{}
+		return &pmkeycloakv1alpha1.IdentityProviderConfiguration{}
 	}, idpSubroutine).
 		WithConditions(conditions.NewManager())
 
@@ -95,7 +95,7 @@ func (r *IdentityProviderConfigurationReconciler) SetupWithManager(mgr mcmanager
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("identityprovider").
-		For(&pmcorev1alpha1.IdentityProviderConfiguration{}, mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
+		For(&pmkeycloakv1alpha1.IdentityProviderConfiguration{}, mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
 			return strings.HasPrefix(string(clusterName), config.SystemProviderName)
 		})).
 		WithOptions(opts).

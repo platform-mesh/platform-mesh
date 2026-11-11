@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,11 +56,11 @@ func (suite *IntegrationSuite) TestInviteEmailValidation() {
 
 	for _, tt := range tests {
 		suite.T().Run(tt.name, func(t *testing.T) {
-			invite := &pmcorev1alpha1.Invite{
+			invite := &pmkeycloakv1alpha1.Invite{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "email-validation-" + strings.ToLower(tt.name) + "-",
 				},
-				Spec: pmcorev1alpha1.InviteSpec{Email: tt.email},
+				Spec: pmkeycloakv1alpha1.InviteSpec{Email: tt.email},
 			}
 
 			err := suite.systemClient.Create(ctx, invite)

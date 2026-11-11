@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/subroutines"
@@ -155,14 +156,14 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 					Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "acme")).Once()
 				wsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
 					RunAndReturn(func(_ context.Context, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
-						inv := obj.(*pmcorev1alpha1.Invite)
+						inv := obj.(*pmkeycloakv1alpha1.Invite)
 						inv.Spec.Email = "owner@acme.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
 						return nil
 					}).Once()
 				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-						inv := obj.(*pmcorev1alpha1.Invite)
+						inv := obj.(*pmkeycloakv1alpha1.Invite)
 						inv.Spec.Email = "owner@acme.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
 						return nil
@@ -195,14 +196,14 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 					Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "beta")).Once()
 				wsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
 					RunAndReturn(func(_ context.Context, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
-						inv := obj.(*pmcorev1alpha1.Invite)
+						inv := obj.(*pmkeycloakv1alpha1.Invite)
 						inv.Spec.Email = "owner@beta.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
 						return nil
 					}).Once()
 				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-						inv := obj.(*pmcorev1alpha1.Invite)
+						inv := obj.(*pmkeycloakv1alpha1.Invite)
 						inv.Spec.Email = "owner@beta.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
 						return nil

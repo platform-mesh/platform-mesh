@@ -37,6 +37,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/errors"
@@ -605,7 +606,7 @@ func ApplyManifestFromFile(
 	err = k8sClient.Apply(ctx, ctrlruntimeclient.ApplyConfigurationFromUnstructured(&obj),
 		ctrlruntimeclient.FieldOwner("platform-mesh-operator"), ctrlruntimeclient.ForceOwnership)
 	if err != nil {
-		if obj.GetKind() == "IdentityProviderConfiguration" && obj.GetAPIVersion() == "core.platform-mesh.io/v1alpha1" {
+		if obj.GetKind() == "IdentityProviderConfiguration" && obj.GetAPIVersion() == pmkeycloakv1alpha1.SchemeGroupVersion.String() {
 			log.Warn().Err(err).Str("file", path).Str("kind", obj.GetKind()).Str("name", obj.GetName()).
 				Msg("Failed to apply IdentityProviderConfiguration (webhook may not be ready yet), will retry on next reconciliation")
 			return nil

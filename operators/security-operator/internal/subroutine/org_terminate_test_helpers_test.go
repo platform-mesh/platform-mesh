@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
 	"go.platform-mesh.io/security-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
@@ -96,6 +97,7 @@ func newOrgResourceFakeClient(t *testing.T, objs ...ctrlruntimeclient.Object) ct
 
 	scheme := runtime.NewScheme()
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmkeycloakv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
 
 	return fake.NewClientBuilder().
@@ -112,8 +114,8 @@ func orgStore(name string, finalizers ...string) *pmcorev1alpha1.Store {
 	return &pmcorev1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: name, Finalizers: finalizers}}
 }
 
-func orgIdentityProvider(name string, finalizers ...string) *pmcorev1alpha1.IdentityProviderConfiguration {
-	return &pmcorev1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: name, Finalizers: finalizers}}
+func orgIdentityProvider(name string, finalizers ...string) *pmkeycloakv1alpha1.IdentityProviderConfiguration {
+	return &pmkeycloakv1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: name, Finalizers: finalizers}}
 }
 
 func logicalClusterForOrg(name string) *kcpcorev1alpha1.LogicalCluster {

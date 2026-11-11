@@ -25,6 +25,7 @@ import (
 	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	gcerrors "go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -219,7 +220,7 @@ func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *res
 	templateData["welcomeAudiences"] = []string{}
 
 	var ipc unstructured.Unstructured
-	ipc.SetGroupVersionKind(schema.GroupVersionKind{Group: "core.platform-mesh.io", Version: "v1alpha1", Kind: "IdentityProviderConfiguration"})
+	ipc.SetGroupVersionKind(pmkeycloakv1alpha1.SchemeGroupVersion.WithKind("IdentityProviderConfiguration"))
 
 	err = pmSystemClient.Get(ctx, types.NamespacedName{Name: "welcome"}, &ipc)
 	if err == nil && !HasFeatureToggle(inst, FeatureDisableKeycloak) {

@@ -19,7 +19,7 @@ metadata:
   name: system.platform-mesh.io
 spec:
   latestResourceSchemas:
-  - v260217-2c67392.identityproviderconfigurations.core.platform-mesh.io
+  - v261110-ea292166.identityproviderconfigurations.core.platform-mesh.io
   - v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
   permissionClaims:
     - all: true

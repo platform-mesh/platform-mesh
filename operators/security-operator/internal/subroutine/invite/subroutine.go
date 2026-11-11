@@ -28,6 +28,7 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/security-operator/internal/client"
@@ -52,7 +53,7 @@ type subroutine struct {
 	keycloak           *http.Client
 	kcpClientGetter    client.KCPClientGetter
 	setDefaultPassword bool
-	limiter            workqueue.TypedRateLimiter[*pmcorev1alpha1.Invite]
+	limiter            workqueue.TypedRateLimiter[*pmkeycloakv1alpha1.Invite]
 }
 
 type keycloakUser struct {
@@ -89,7 +90,7 @@ func New(ctx context.Context, cfg *config.Config, kcpClientGetter client.KCPClie
 
 	httpClient := cCfg.Client(ctx)
 
-	lim, err := ratelimiter.NewObjectRateLimiter[*pmcorev1alpha1.Invite](
+	lim, err := ratelimiter.NewObjectRateLimiter[*pmkeycloakv1alpha1.Invite](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
@@ -110,7 +111,7 @@ var _ subroutines.Processor = &subroutine{}
 func (s *subroutine) GetName() string { return "Invite" }
 
 func (s *subroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
-	invite := obj.(*pmcorev1alpha1.Invite)
+	invite := obj.(*pmkeycloakv1alpha1.Invite)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	log.Debug().Str("email", invite.Spec.Email).Msg("Processing invite")

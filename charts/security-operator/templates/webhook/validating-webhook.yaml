@@ -12,13 +12,13 @@ webhooks:
     service:
       name: {{ include "common.entity.name" . }}-webhook
       namespace: {{ .Release.Namespace }}
-      path: "/validate-core-platform-mesh-io-v1alpha1-identityproviderconfiguration"
+      path: "/validate-keycloak-platform-mesh-io-v1alpha1-identityproviderconfiguration"
       port: {{ .Values.webhooks.port }}
   failurePolicy: Fail
   name: vidp.kb.io
   rules:
   - apiGroups:
-    - core.platform-mesh.io
+    - keycloak.platform-mesh.io
     apiVersions:
     - v1alpha1
     operations:

@@ -29,6 +29,7 @@ import (
 	"golang.org/x/oauth2"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger/testlogger"
 	"go.platform-mesh.io/security-operator/internal/subroutine/invite"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
@@ -74,8 +75,8 @@ func TestSubroutineProcess(t *testing.T) {
 	}{
 		{
 			desc: "user created with default password",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "password@acme.corp",
 				},
 			},
@@ -146,8 +147,8 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "user created and invitation email sent",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "example@acme.corp",
 				},
 			},
@@ -205,8 +206,8 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error listing users (500 from Keycloak)",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "error1@acme.corp",
 				},
 			},
@@ -234,8 +235,8 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error creating user (POST returns 400)",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "error2@acme.corp",
 				},
 			},
@@ -282,8 +283,8 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error fetching AccountInfo (not found)",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "missing@acme.corp",
 				},
 			},
@@ -297,8 +298,8 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "error verifying client (500 from Keycloak)",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "clienterror@acme.corp",
 				},
 			},
@@ -348,8 +349,8 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "client does not exist yet, should requeue",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "requeue@acme.corp",
 				},
 			},
@@ -402,8 +403,8 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "organization name is empty in AccountInfo",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "empty@acme.corp",
 				},
 			},
@@ -427,8 +428,8 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "AccountInfo OIDC is nil",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "oidcnil@acme.corp",
 				},
 			},
@@ -459,8 +460,8 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "organization not found in OIDC clients",
-			obj: &pmcorev1alpha1.Invite{
-				Spec: pmcorev1alpha1.InviteSpec{
+			obj: &pmkeycloakv1alpha1.Invite{
+				Spec: pmkeycloakv1alpha1.InviteSpec{
 					Email: "missingorg@acme.corp",
 				},
 			},
@@ -494,7 +495,7 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "user already exists, skipping invite",
-			obj:  &pmcorev1alpha1.Invite{Spec: pmcorev1alpha1.InviteSpec{Email: "existing@acme.corp"}},
+			obj:  &pmkeycloakv1alpha1.Invite{Spec: pmkeycloakv1alpha1.InviteSpec{Email: "existing@acme.corp"}},
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -517,7 +518,7 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "GET users returns invalid JSON",
-			obj:  &pmcorev1alpha1.Invite{Spec: pmcorev1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			obj:  &pmkeycloakv1alpha1.Invite{Spec: pmkeycloakv1alpha1.InviteSpec{Email: "test@acme.corp"}},
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -540,7 +541,7 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "GET clients returns invalid JSON",
-			obj:  &pmcorev1alpha1.Invite{Spec: pmcorev1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			obj:  &pmkeycloakv1alpha1.Invite{Spec: pmkeycloakv1alpha1.InviteSpec{Email: "test@acme.corp"}},
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -571,7 +572,7 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "POST users returns non-201 status",
-			obj:  &pmcorev1alpha1.Invite{Spec: pmcorev1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			obj:  &pmkeycloakv1alpha1.Invite{Spec: pmkeycloakv1alpha1.InviteSpec{Email: "test@acme.corp"}},
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -605,7 +606,7 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "second GET users returns non-200",
-			obj:  &pmcorev1alpha1.Invite{Spec: pmcorev1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			obj:  &pmkeycloakv1alpha1.Invite{Spec: pmkeycloakv1alpha1.InviteSpec{Email: "test@acme.corp"}},
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -645,7 +646,7 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "second GET users returns invalid JSON",
-			obj:  &pmcorev1alpha1.Invite{Spec: pmcorev1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			obj:  &pmkeycloakv1alpha1.Invite{Spec: pmkeycloakv1alpha1.InviteSpec{Email: "test@acme.corp"}},
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -685,7 +686,7 @@ func TestSubroutineProcess(t *testing.T) {
 		},
 		{
 			desc: "PUT execute-actions-email returns non-204",
-			obj:  &pmcorev1alpha1.Invite{Spec: pmcorev1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			obj:  &pmkeycloakv1alpha1.Invite{Spec: pmkeycloakv1alpha1.InviteSpec{Email: "test@acme.corp"}},
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
@@ -807,7 +808,7 @@ func TestInviteSubroutine_NoClusterInContext(t *testing.T) {
 	// Deliberately omit mccontext.WithCluster so ClusterFrom returns !ok.
 	ctx = l.WithContext(t.Context())
 
-	_, processErr := s.Process(ctx, &pmcorev1alpha1.Invite{Spec: pmcorev1alpha1.InviteSpec{Email: "test@test.com"}})
+	_, processErr := s.Process(ctx, &pmkeycloakv1alpha1.Invite{Spec: pmkeycloakv1alpha1.InviteSpec{Email: "test@test.com"}})
 	assert.Error(t, processErr)
 	assert.Contains(t, processErr.Error(), "failed to get cluster from context")
 }
@@ -833,7 +834,7 @@ func TestInviteSubroutine_GetClientFails(t *testing.T) {
 	ctx = l.WithContext(t.Context())
 	ctx = mccontext.WithCluster(ctx, "cluster1")
 
-	_, processErr := s.Process(ctx, &pmcorev1alpha1.Invite{Spec: pmcorev1alpha1.InviteSpec{Email: "test@test.com"}})
+	_, processErr := s.Process(ctx, &pmkeycloakv1alpha1.Invite{Spec: pmkeycloakv1alpha1.InviteSpec{Email: "test@test.com"}})
 	assert.Error(t, processErr)
 	assert.Contains(t, processErr.Error(), "failed to get client for cluster")
 }

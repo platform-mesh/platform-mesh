@@ -25,6 +25,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
 	"go.platform-mesh.io/security-operator/pkg/config"
@@ -49,7 +50,7 @@ const (
 )
 
 func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) (*IDPSubroutine, error) {
-	limiter, err := ratelimiter.NewObjectRateLimiter[*pmcorev1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
+	limiter, err := ratelimiter.NewObjectRateLimiter[*pmkeycloakv1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
@@ -77,7 +78,7 @@ type IDPSubroutine struct {
 	kubectlClientRedirectURLs []string
 	baseDomain                string
 	registrationAllowed       bool
-	limiter                   workqueue.TypedRateLimiter[*pmcorev1alpha1.IdentityProviderConfiguration]
+	limiter                   workqueue.TypedRateLimiter[*pmkeycloakv1alpha1.IdentityProviderConfiguration]
 }
 
 func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
@@ -120,10 +121,10 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Obj
 		return subroutines.OK(), nil
 	}
 
-	clients := []pmcorev1alpha1.IdentityProviderClientConfig{
+	clients := []pmkeycloakv1alpha1.IdentityProviderClientConfig{
 		{
 			ClientName:             workspaceName,
-			ClientType:             pmcorev1alpha1.IdentityProviderClientTypeConfidential,
+			ClientType:             pmkeycloakv1alpha1.IdentityProviderClientTypeConfidential,
 			RedirectURIs:           append(i.additionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, i.baseDomain)),
 			PostLogoutRedirectURIs: []string{fmt.Sprintf("https://%s.%s/logout*", workspaceName, i.baseDomain)},
 			SecretRef: corev1.SecretReference{
@@ -133,7 +134,7 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Obj
 		},
 		{
 			ClientName:   kubectlClientName,
-			ClientType:   pmcorev1alpha1.IdentityProviderClientTypePublic,
+			ClientType:   pmkeycloakv1alpha1.IdentityProviderClientTypePublic,
 			RedirectURIs: i.kubectlClientRedirectURLs,
 			SecretRef: corev1.SecretReference{
 				Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, kubectlClientName),
@@ -142,7 +143,7 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj ctrlruntimeclient.Obj
 		},
 	}
 
-	idp := &pmcorev1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
+	idp := &pmkeycloakv1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 	_, err = controllerutil.CreateOrPatch(ctx, orgsClient, idp, func() error {
 		idp.Spec.RegistrationAllowed = i.registrationAllowed
 
@@ -203,7 +204,7 @@ func (i *IDPSubroutine) Terminate(ctx context.Context, obj ctrlruntimeclient.Obj
 		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
 
-	pending, err := deleteOrgResource(ctx, orgsClient, &pmcorev1alpha1.IdentityProviderConfiguration{}, workspaceName)
+	pending, err := deleteOrgResource(ctx, orgsClient, &pmkeycloakv1alpha1.IdentityProviderConfiguration{}, workspaceName)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("deleting IdentityProviderConfiguration %s: %w", workspaceName, err)
 	}
@@ -214,7 +215,7 @@ func (i *IDPSubroutine) Terminate(ctx context.Context, obj ctrlruntimeclient.Obj
 	return subroutines.OK(), nil
 }
 
-func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl ctrlruntimeclient.Client, workspaceName string, idp *pmcorev1alpha1.IdentityProviderConfiguration) error {
+func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl ctrlruntimeclient.Client, workspaceName string, idp *pmkeycloakv1alpha1.IdentityProviderConfiguration) error {
 	accountInfo := pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
 	}
@@ -250,8 +251,8 @@ func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl ctrlruntimeclie
 }
 
 // ensureClient updates only clients managed by this subroutine
-func ensureClient(existing []pmcorev1alpha1.IdentityProviderClientConfig, desired pmcorev1alpha1.IdentityProviderClientConfig) []pmcorev1alpha1.IdentityProviderClientConfig {
-	idx := slices.IndexFunc(existing, func(c pmcorev1alpha1.IdentityProviderClientConfig) bool {
+func ensureClient(existing []pmkeycloakv1alpha1.IdentityProviderClientConfig, desired pmkeycloakv1alpha1.IdentityProviderClientConfig) []pmkeycloakv1alpha1.IdentityProviderClientConfig {
+	idx := slices.IndexFunc(existing, func(c pmkeycloakv1alpha1.IdentityProviderClientConfig) bool {
 		return c.ClientName == desired.ClientName
 	})
 

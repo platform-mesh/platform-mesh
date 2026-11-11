@@ -15,8 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  creationTimestamp: null
-  name: v260217-2c67392.identityproviderconfigurations.core.platform-mesh.io
+  name: v261110-ea292166.identityproviderconfigurations.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -26,10 +25,16 @@ spec:
     singular: identityproviderconfiguration
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - deprecated: true
+    deprecationWarning: core.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
+      is deprecated; use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
+    name: v1alpha1
     schema:
-      description: IdentityProviderConfiguration is the Schema for the identityproviderconfigurations
-        API
+      description: |-
+        IdentityProviderConfiguration is the Schema for the identityproviderconfigurations API
+
+        Deprecated: served for installations not yet migrated;
+        use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration.
       properties:
         apiVersion:
           description: |-
