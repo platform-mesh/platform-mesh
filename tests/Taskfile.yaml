@@ -78,3 +78,22 @@ tasks:
     desc: 'Only the Go e2e suites (no Playwright).'
     cmds:
       - go test -count=1 -timeout 60m ./e2e/... {{.ADDITIONAL_COMMAND_ARGS}}
+  # --- e2e of the backup-operator: it stops kcp and restores etcd, so it runs alone ---
+  e2e:backup:setup:
+    desc: 'Create the kind cluster for e2e:backup: Platform Mesh with a triton shard, etcd-druid S3 stores and the backup-operator (S3=minio for MinIO instead of LocalStack).'
+    cmds:
+      - ./e2e/backup/setup/setup.sh
+  e2e:backup:
+    desc: 'Run tests/e2e/backup against the cluster of KUBECONFIG (context KIND_CONTEXT, default kind-platform-mesh). ADMIN_KUBECONFIG defaults to the kcp admin kubeconfig of that cluster.'
+    env:
+      E2E_BACKUP: 'true'
+      KIND_CONTEXT: '{{.KIND_CONTEXT | default "kind-platform-mesh"}}'
+    cmds:
+      - |
+        export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+        if [ -z "${ADMIN_KUBECONFIG:-}" ]; then
+          ADMIN_KUBECONFIG="$(mktemp)"
+          export ADMIN_KUBECONFIG
+          kubectl --context "$KIND_CONTEXT" -n platform-mesh-system get secret kubeconfig-kcp-admin -o jsonpath='{.data.kubeconfig}' | base64 -d > "$ADMIN_KUBECONFIG"
+        fi
+        go test -count=1 -v -timeout 90m ./e2e/backup/ {{.ADDITIONAL_COMMAND_ARGS}}

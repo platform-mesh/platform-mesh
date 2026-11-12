@@ -28,6 +28,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | Operator | Description |
 |----------|-------------|
 | [account-operator](operators/account-operator) | Manages the core `Account` grouping resource and its owned namespace. |
+| [backup-operator](operators/backup-operator) | Backs up and restores the kcp etcd (through etcd-druid) and the kcp certificates and secrets. |
 | [extension-manager-operator](operators/extension-manager-operator) | Lifecycle management of `ContentConfiguration` resources for Micro Frontends. |
 | [security-operator](operators/security-operator) | Manages security-related configuration (authorization models, identity providers, tuples, stores, invites). |
 | [terminal-controller-manager](operators/terminal-controller-manager) | Manages browser-based terminal sessions (ephemeral pods) to kcp workspaces. |

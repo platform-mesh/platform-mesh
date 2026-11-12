@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "backup-operator.name" . }}
+  labels:
+    {{- include "backup-operator.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "backup-operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "backup-operator.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "backup-operator.name" . }}
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: manager
+          image: {{ include "common.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - operator
+            - --namespace={{ .Release.Namespace }}
+            - --leader-elect={{ .Values.leaderElect }}
+            - --health-probe-bind-address=:8081
+            - --log-level={{ .Values.log.level }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

@@ -15,6 +15,10 @@ The code here is part of the root Go module, so a test imports helpers as
 | **kcp in Docker** | `integration/<area>` | A sharded kcp (front-proxy, cache server, two shards) started by [kcp-testcontainers](https://github.com/kcp-dev/kcp-testcontainers). Every test of a run shares it. The operators run inside the test process; tests keep out of each other's way by working in their own workspaces. |
 | **kind** | `e2e/<area>` | One kind cluster with the whole stack deployed by Tilt. Tests treat it as a black box through `KUBECONFIG`, and `ADMIN_KUBECONFIG` for kcp. |
 
+`e2e/backup` is the exception: it stops kcp and restores etcd, so `go test
+./e2e/...` skips it. It runs alone with `task tests:e2e:backup`, on a kind
+cluster with etcd-druid S3 stores, see [e2e/backup](e2e/backup/README.md).
+
 ## The upgrade test
 
 `upgrade/` is one test on an environment of its own: it creates a kind
