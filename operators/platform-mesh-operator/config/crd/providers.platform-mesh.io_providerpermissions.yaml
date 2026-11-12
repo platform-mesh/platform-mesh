@@ -154,6 +154,8 @@ spec:
                           id:
                             description: ID is the role identifier (must match relation
                               name used in permissions)
+                            maxLength: 50
+                            pattern: ^[a-zA-Z_][a-zA-Z0-9_-]*$
                             type: string
                         required:
                         - description

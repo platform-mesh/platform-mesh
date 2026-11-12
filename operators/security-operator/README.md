@@ -41,6 +41,11 @@ own parent. The existing account `authenticated_user` relation can be used for
 cluster-scoped resources; using it on namespaces requires that relation to exist
 in the namespace model.
 
+Role IDs and additional permission names must not reuse a relation the generated
+type already defines (such as `parent`, `get` or `manage_iam_roles`) or an
+OpenFGA keyword (such as `or` or `self`). A role with ID `owner` or `member` and
+no definition refers to the generated relation of that name.
+
 For example, with existing account `authenticated_user` assignments, this gives
 authenticated users GET, LIST and WATCH access to cluster-scoped components while
 preserving the defaults for create, update, delete and patch:

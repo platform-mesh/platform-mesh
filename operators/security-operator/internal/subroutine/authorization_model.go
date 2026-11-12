@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -33,11 +34,11 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
-	"go.platform-mesh.io/security-operator/internal/util"
 	"go.platform-mesh.io/security-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
@@ -48,7 +49,8 @@ import (
 )
 
 const (
-	schemaVersion = "1.2"
+	schemaVersion                 = "1.2"
+	legacyTypeAnnotationCondition = "LegacyTypeAnnotationsValid"
 )
 
 // coreVerbRelationOverrides overrides the OpenFGA relation that a generated
@@ -97,20 +99,20 @@ var (
 {{ if eq .Scope "Cluster" }}
 extend type core_platform-mesh_io_account
 	relations
-		define create_{{ .Group }}_{{ .Name }}: {{ or .CreateRelation "owner" }}
-		define list_{{ .Group }}_{{ .Name }}: member
-		define watch_{{ .Group }}_{{ .Name }}: member
+		define {{ .CreateRelation }}: {{ or .Create "owner" }}
+		define {{ .ListRelation }}: member
+		define {{ .WatchRelation }}: member
 {{ end }}
 
 {{ if eq .Scope "Namespaced" }}
 extend type core_namespace
 	relations
-		define create_{{ .Group }}_{{ .Name }}: {{ or .CreateRelation "owner" }}
-		define list_{{ .Group }}_{{ .Name }}: member
-		define watch_{{ .Group }}_{{ .Name }}: member
+		define {{ .CreateRelation }}: {{ or .Create "owner" }}
+		define {{ .ListRelation }}: member
+		define {{ .WatchRelation }}: member
 {{ end }}
 
-type {{ .Group }}_{{ .Singular }}
+type {{ .TypeName }}
 	relations
 		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
 		define member: [role#assignee] or owner or member from parent
@@ -184,6 +186,8 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 		return subroutines.OK(), err
 	}
 
+	renames := typeRenames{}
+	var annotationErrs []string
 	moduleFiles := []language.ModuleFile{{
 		Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(store)),
 		Contents: store.Spec.CoreModule,
@@ -193,7 +197,12 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 			Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(&module)),
 			Contents: module.Spec.Model,
 		})
+		if err := renames.addAuthorizationModel(module); err != nil {
+			log.Error().Err(err).Msg("ignoring legacy FGA type annotation")
+			annotationErrs = append(annotationErrs, err.Error())
+		}
 	}
+	setLegacyTypeAnnotationCondition(store, annotationErrs)
 
 	if store.Name != "orgs" {
 		cfg := rest.CopyConfig(a.mgr.GetLocalManager().GetConfig())
@@ -214,25 +223,26 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 
 		discoveryClient := a.newDiscoveryClientFunc(cfg)
 
-		coreModules, err := discoverAndRender(discoveryClient, modelTpl, groupVersions)
+		coreModules, err := discoverAndRender(discoveryClient, modelTpl, groupVersions, renames)
 		if err != nil {
 			return subroutines.OK(), err
 		}
 		moduleFiles = append(moduleFiles, coreModules...)
 
-		privilegedModules, err := discoverAndRender(discoveryClient, privilegedTemplate, privilegedGroupVersions)
+		privilegedModules, err := discoverAndRender(discoveryClient, privilegedTemplate, privilegedGroupVersions, renames)
 		if err != nil {
 			return subroutines.OK(), err
 		}
 		moduleFiles = append(moduleFiles, privilegedModules...)
 	}
 
-	authorizationModel, err := language.TransformModuleFilesToModel(moduleFiles, schemaVersion)
+	authorizationModel, err := transformModules(moduleFiles)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to transform module files to model")
 		return subroutines.OK(), err
 	}
 
+	var current *openfgav1.AuthorizationModel
 	if store.Status.AuthorizationModelID != "" {
 		res, err := a.fga.ReadAuthorizationModel(ctx, &openfgav1.ReadAuthorizationModelRequest{
 			StoreId: store.Status.StoreID,
@@ -242,18 +252,26 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 			log.Error().Err(err).Msg("unable to read authorization model")
 			return subroutines.OK(), err
 		}
+		current = res.AuthorizationModel
+	}
 
-		res.AuthorizationModel.Id = ""
+	if err := a.migrateRenamedTypes(ctx, store.Status.StoreID, current, authorizationModel, renames); err != nil {
+		log.Error().Err(err).Msg("unable to migrate renamed FGA types")
+		return subroutines.OK(), err
+	}
+
+	if current != nil {
+		current.Id = ""
 
 		// Module list order does not affect permissions. Compare models in a
 		// canonical type order instead of relying on JSON serialization.
 		compareTypes := func(a, b *openfgav1.TypeDefinition) int {
 			return cmp.Compare(a.GetType(), b.GetType())
 		}
-		slices.SortFunc(res.AuthorizationModel.TypeDefinitions, compareTypes)
+		slices.SortFunc(current.TypeDefinitions, compareTypes)
 		slices.SortFunc(authorizationModel.TypeDefinitions, compareTypes)
 
-		if proto.Equal(res.AuthorizationModel, authorizationModel) {
+		if proto.Equal(current, authorizationModel) {
 			return subroutines.OK(), nil
 		}
 	}
@@ -274,33 +292,47 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlrunt
 	return subroutines.OK(), nil
 }
 
-func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template) (bytes.Buffer, error) {
+// setLegacyTypeAnnotationCondition reports the legacy type annotations the
+// store ignored. Only the modules carrying them skip the type migration.
+func setLegacyTypeAnnotationCondition(store *pmcorev1alpha1.Store, errs []string) {
+	if len(errs) == 0 {
+		meta.RemoveStatusCondition(&store.Status.Conditions, legacyTypeAnnotationCondition)
+		return
+	}
+	meta.SetStatusCondition(&store.Status.Conditions, metav1.Condition{
+		Type:               legacyTypeAnnotationCondition,
+		Status:             metav1.ConditionFalse,
+		ObservedGeneration: store.Generation,
+		Reason:             "InvalidAnnotation",
+		Message:            "tuples of these models are not migrated: " + strings.Join(errs, "; "),
+	})
+}
+
+func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template, renames typeRenames) (bytes.Buffer, error) {
 	scope := apiextensionsv1.ClusterScoped
 	if resource.Namespaced {
 		scope = apiextensionsv1.NamespaceScoped
 	}
 
-	group := "core"
-	if resource.Group != "" {
-		group = util.CapGroupToRelationLength(schema.GroupVersionResource{Group: resource.Group, Resource: resource.Name}, 50)
+	var buffer bytes.Buffer
+	input, err := newModelInput(resource.Group, resource.Name, resource.SingularName, string(scope))
+	if err != nil {
+		return buffer, err
 	}
 
-	var buffer bytes.Buffer
-	err := tpl.Execute(&buffer, modelInput{
-		Name:           resource.Name,
-		Group:          strings.ReplaceAll(group, ".", "_"), // TODO: group name length capping
-		Singular:       resource.SingularName,
-		Scope:          string(scope),
-		CreateRelation: createRelationOverride(resource.Group, resource.Name),
-	})
-	if err != nil {
+	input.Create = createRelationOverride(resource.Group, resource.Name)
+	if legacy, ok := legacyRename(resource.Group, resource.Name, resource.SingularName); ok {
+		renames.add(legacy, input.TypeName)
+	}
+
+	if err := tpl.Execute(&buffer, input); err != nil {
 		return buffer, err
 	}
 
 	return buffer, nil
 }
 
-func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, groupVersions []string) ([]language.ModuleFile, error) {
+func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, groupVersions []string, renames typeRenames) ([]language.ModuleFile, error) {
 	var files []language.ModuleFile
 	for _, gv := range groupVersions {
 		resourceList, err := dc.ServerResourcesForGroupVersion(gv)
@@ -322,7 +354,7 @@ func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, 
 				apiRes.Group = parsedGV.Group
 			}
 
-			buf, err := processAPIResourceIntoModel(apiRes, tpl)
+			buf, err := processAPIResourceIntoModel(apiRes, tpl, renames)
 			if err != nil {
 				return nil, fmt.Errorf("process api resource %s in %s: %w", apiRes.Name, gv, err)
 			}
@@ -334,4 +366,23 @@ func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, 
 		}
 	}
 	return files, nil
+}
+
+// transformModules builds the model and names the module file in each error.
+func transformModules(modules []language.ModuleFile) (*openfgav1.AuthorizationModel, error) {
+	model, err := language.TransformModuleFilesToModel(modules, schemaVersion)
+	var multi *language.ModuleValidationMultipleError
+	if err == nil || !errors.As(err, &multi) {
+		return model, err
+	}
+
+	errs := make([]error, 0, len(multi.Errors))
+	for _, e := range multi.Errors {
+		var single *language.ModuleTransformationSingleError
+		if errors.As(e, &single) && single.File != "" {
+			e = fmt.Errorf("%s: %s", single.File, single.Msg)
+		}
+		errs = append(errs, e)
+	}
+	return nil, errors.Join(errs...)
 }

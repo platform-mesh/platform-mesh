@@ -18,8 +18,10 @@ package subroutine_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
@@ -42,6 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
@@ -257,6 +260,85 @@ func TestAuthorizationModelGeneration_CollectionPermissions(t *testing.T) {
 	}
 }
 
+func TestAuthorizationModelGeneration_InvalidRelationName(t *testing.T) {
+	for id, msg := range map[string]string{
+		strings.Repeat("r", 51): "exceeds 50 characters",
+		"get":                   `relation "get" is reserved`,
+	} {
+		t.Run(msg, func(t *testing.T) {
+			ctx := context.Background()
+			scheme := runtime.NewScheme()
+			require.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
+			require.NoError(t, pmprovidersv1alpha1.AddToScheme(scheme))
+			require.NoError(t, kcpapisv1alpha1.AddToScheme(scheme))
+			require.NoError(t, kcpapisv1alpha2.AddToScheme(scheme))
+
+			accountInfo := &pmcorev1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: "account"}}
+			accountInfo.Spec.Organization.Name = "org"
+			accountInfo.Spec.Organization.OriginClusterId = "orgs"
+			apiExport := &kcpapisv1alpha2.APIExport{
+				ObjectMeta: metav1.ObjectMeta{Name: "metadata.dxp.sap.com"},
+				Spec:       kcpapisv1alpha2.APIExportSpec{Resources: []kcpapisv1alpha2.ResourceSchema{{Schema: "v1.components.metadata.dxp.sap.com"}}},
+			}
+			permissions := &pmprovidersv1alpha1.ProviderPermissions{
+				ObjectMeta: metav1.ObjectMeta{Name: "metadata", Generation: 2},
+				Spec: pmprovidersv1alpha1.ProviderPermissionsSpec{
+					APIExport: pmprovidersv1alpha1.APIExport{Ref: pmprovidersv1alpha1.APIExportReference{Name: apiExport.Name}},
+					Roles: []pmprovidersv1alpha1.ResourceRoles{{
+						GroupResource: "component.metadata.dxp.sap.com",
+						Roles:         []pmprovidersv1alpha1.RoleDefinition{{ID: id, Definition: "owner"}},
+					}},
+				},
+				Status: pmprovidersv1alpha1.ProviderPermissionsStatus{
+					ObservedGeneration: 1,
+					Conditions: []metav1.Condition{{
+						Type: "Applied", Status: metav1.ConditionTrue, ObservedGeneration: 1, Reason: "AuthorizationModelsGenerated",
+						LastTransitionTime: metav1.Now(),
+					}},
+				},
+			}
+			client := fake.NewClientBuilder().WithScheme(scheme).
+				WithObjects(accountInfo, apiExport, permissions, &pmcorev1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: "org"}},
+					&kcpapisv1alpha1.APIResourceSchema{
+						ObjectMeta: metav1.ObjectMeta{Name: "v1.components.metadata.dxp.sap.com"},
+						Spec: kcpapisv1alpha1.APIResourceSchemaSpec{
+							Group: "metadata.dxp.sap.com",
+							Names: apiextensionsv1.CustomResourceDefinitionNames{Singular: "component", Plural: "components"},
+							Scope: apiextensionsv1.ClusterScoped,
+						},
+					}).
+				WithStatusSubresource(&pmprovidersv1alpha1.ProviderPermissions{}).Build()
+			manager := mocks.NewMockManager(t)
+			cluster := mocks.NewMockCluster(t)
+			cluster.EXPECT().GetClient().Return(client)
+			manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+			manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
+			processor := subroutine.NewAuthorizationModelGenerationSubroutine(manager, mocks.NewMockLister(t))
+			binding := providerBoundBinding(apiExport.Name, "root:providers:metadata", "consumer", "provider")
+
+			_, err := processor.Process(ctx, binding)
+			require.ErrorContains(t, err, msg)
+
+			var got pmprovidersv1alpha1.ProviderPermissions
+			require.NoError(t, client.Get(ctx, types.NamespacedName{Name: "metadata"}, &got))
+			assert.Equal(t, int64(2), got.Status.ObservedGeneration)
+			applied := meta.FindStatusCondition(got.Status.Conditions, "Applied")
+			require.NotNil(t, applied)
+			assert.Equal(t, metav1.ConditionFalse, applied.Status)
+			assert.Equal(t, int64(2), applied.ObservedGeneration)
+			assert.Equal(t, err.Error(), applied.Message)
+			assert.True(t, apierrors.IsNotFound(client.Get(ctx, types.NamespacedName{Name: "metadata-dxp-sap-com-components-org"}, &pmcorev1alpha1.AuthorizationModel{})))
+
+			got.Spec.Roles[0].Roles[0].ID = "admin"
+			require.NoError(t, client.Update(ctx, &got))
+			_, err = processor.Process(ctx, binding)
+			require.NoError(t, err)
+			require.NoError(t, client.Get(ctx, types.NamespacedName{Name: "metadata"}, &got))
+			assert.True(t, meta.IsStatusConditionTrue(got.Status.Conditions, "Applied"))
+		})
+	}
+}
+
 func newApiBinding(name, path string) *kcpapisv1alpha2.APIBinding {
 	return &kcpapisv1alpha2.APIBinding{
 		Spec:   kcpapisv1alpha2.APIBindingSpec{Reference: kcpapisv1alpha2.BindingReference{Export: &kcpapisv1alpha2.ExportBindingReference{Name: name, Path: path}}},
@@ -302,6 +384,47 @@ func mockAccountInfo(cl *mocks.MockClient, orgName, originCluster string) {
 		}
 		return nil
 	}).Once()
+}
+
+// A cluster the multicluster provider has not engaged yet must be retried,
+// because controllers drop ErrClusterNotFound without a requeue.
+func TestAuthorizationModelGeneration_ClusterNotEngaged(t *testing.T) {
+	notEngaged := fmt.Errorf("cluster with name export not found: %w", multicluster.ErrClusterNotFound)
+	setup := func(t *testing.T) (*subroutine.AuthorizationModelGenerationSubroutine, *mocks.MockLister) {
+		manager := mocks.NewMockManager(t)
+		lister := mocks.NewMockLister(t)
+		cluster := mocks.NewMockCluster(t)
+		kcpClient := mocks.NewMockClient(t)
+		manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+		cluster.EXPECT().GetClient().Return(kcpClient)
+		mockAccountInfo(kcpClient, "org", "origin")
+		manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(nil, notEngaged)
+		return subroutine.NewAuthorizationModelGenerationSubroutine(manager, lister), lister
+	}
+
+	t.Run("process", func(t *testing.T) {
+		sub, _ := setup(t)
+		result, err := sub.Process(context.Background(), newApiBinding("foo", "bar"))
+		require.NoError(t, err)
+		assert.True(t, result.IsPending())
+		assert.Equal(t, 5*time.Second, result.Requeue())
+	})
+
+	t.Run("finalize", func(t *testing.T) {
+		sub, lister := setup(t)
+		lister.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
+		result, err := sub.Finalize(context.Background(), newApiBinding("foo", "bar"))
+		require.NoError(t, err)
+		assert.True(t, result.IsPending())
+	})
+
+	t.Run("other errors are returned", func(t *testing.T) {
+		manager := mocks.NewMockManager(t)
+		manager.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
+		_, err := subroutine.NewAuthorizationModelGenerationSubroutine(manager, mocks.NewMockLister(t)).
+			Process(context.Background(), newApiBinding("foo", "bar"))
+		require.ErrorIs(t, err, assert.AnError)
+	})
 }
 
 func TestAuthorizationModelGeneration_Process(t *testing.T) {

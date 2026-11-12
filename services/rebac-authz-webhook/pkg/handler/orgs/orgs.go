@@ -19,14 +19,12 @@ package orgs
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
+	fgautil "go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/rebac-authz-webhook/pkg/authorization"
-	"go.platform-mesh.io/rebac-authz-webhook/pkg/util"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -89,14 +87,17 @@ func (o *orgsAuthorizer) Handle(ctx context.Context, req authorization.Request) 
 
 	attrs := req.Spec.ResourceAttributes
 
-	group := util.CapGroupToRelationLength(schema.GroupVersionResource{Group: attrs.Group, Version: attrs.Version, Resource: attrs.Resource}, 50)
-	group = strings.ReplaceAll(group, ".", "_")
+	relation, err := fgautil.ConvertToRelationName(attrs.Verb, attrs.Group, attrs.Resource)
+	if err != nil {
+		klog.ErrorS(err, "failed to build relation for orgs store check")
+		return authorization.NoOpinion()
+	}
 
 	res, err := o.fga.Check(ctx, &openfgav1.CheckRequest{
 		StoreId: o.orgsStoreID,
 		TupleKey: &openfgav1.CheckRequestTupleKey{
 			Object:   rootOrgName,
-			Relation: fmt.Sprintf("%s_%s_%s", attrs.Verb, group, attrs.Resource),
+			Relation: relation,
 			User:     fmt.Sprintf("user:%s", req.Spec.User),
 		},
 	})

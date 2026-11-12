@@ -149,3 +149,60 @@ func TestBuildCheckInput_ColonInResourceName(t *testing.T) {
 			in.Object)
 	})
 }
+
+// The expected names are shared with golang-commons, the security-operator and
+// iam-service tests (platform-mesh#436).
+func TestBuildCheckInput_Names(t *testing.T) {
+	tests := []struct {
+		group, kind, plural, singular, verb string
+		wantObject, wantRelation            string
+	}{
+		{"alpha.inventory.platform-mesh.example.io", "Widget", "widgets", "widget", "get",
+			"alpha_inventory_platform-mesh_example_io_widget:cluster-a/foo", "get"},
+		{"alpha.inventory.platform-mesh.example.io", "Widget", "widgets", "widget", "create",
+			"core_platform-mesh_io_account:origin/origin-account", "create_alpha_inventory_p_widgets__5b19f5b12c13bbb9"},
+		{"bravo.inventory.platform-mesh.example.io", "Widget", "widgets", "widget", "get",
+			"bravo_inventory_platform-mesh_example_io_widget:cluster-a/foo", "get"},
+		{"bravo.inventory.platform-mesh.example.io", "Widget", "widgets", "widget", "list",
+			"core_platform-mesh_io_account:origin/origin-account", "list_bravo_inventory_p_widgets__ec8debda4e234e1a"},
+		{"security.a-long-provider-name.example.io", "Policy", "policies", "policy", "get",
+			"security_a-long-provider-name_example_io_policy:cluster-a/foo", "get"},
+		{"security.a-long-provider-name.example.io", "Sheep", "sheep", "sheep", "update",
+			"security_a-long-provider-name_example_io_sheep:cluster-a/foo", "update"},
+		{"generators.external-secrets.io", "BeyondtrustWorkloadCredentialsDynamicSecret", "beyondtrustworkloadcredentialsdynamicsecrets", "beyondtrustworkloadcredentialsdynamicsecret", "watch",
+			"core_platform-mesh_io_account:origin/origin-account", "watch_generato_beyondtrustworkl__ef326e0d811ac608"},
+		{"rbac.authorization.k8s.io", "ClusterRoleBinding", "clusterrolebindings", "clusterrolebinding", "delete",
+			"rbac_authorization_k8s_io_clusterrolebinding:cluster-a/foo", "delete"},
+		{"rbac.authorization.k8s.io", "ClusterRoleBinding", "clusterrolebindings", "clusterrolebinding", "create",
+			"core_platform-mesh_io_account:origin/origin-account", "create_rbac_aut_clusterrolebindi__30f40171639198c5"},
+		{"rbac.authorization.k8s.io", "ClusterRole", "clusterroles", "clusterrole", "watch",
+			"core_platform-mesh_io_account:origin/origin-account", "watch_rbac_authorization_k8s_io_clusterroles"},
+		{"authorization.k8s.io", "SelfSubjectAccessReview", "selfsubjectaccessreviews", "selfsubjectaccessreview", "create",
+			"core_platform-mesh_io_account:origin/origin-account", "create_authoriz_selfsubjectacces__bbffa37626ea5bb0"},
+		{"authorization.k8s.io", "SelfSubjectRulesReview", "selfsubjectrulesreviews", "selfsubjectrulesreview", "create",
+			"core_platform-mesh_io_account:origin/origin-account", "create_authoriz_selfsubjectrules__6bfa51ea938fdaae"},
+		{"authorization.k8s.io", "LocalSubjectAccessReview", "localsubjectaccessreviews", "localsubjectaccessreview", "create",
+			"core_platform-mesh_io_account:origin/origin-account", "create_authoriz_localsubjectacce__f9b8e0bd09e04636"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.verb+"/"+tt.group+"/"+tt.plural, func(t *testing.T) {
+			rm := meta.NewDefaultRESTMapper([]schema.GroupVersion{})
+			gv := schema.GroupVersion{Group: tt.group, Version: "v1"}
+			rm.AddSpecific(gv.WithKind(tt.kind), gv.WithResource(tt.plural), gv.WithResource(tt.singular), meta.RESTScopeRoot)
+
+			attrs := &authorizationv1.ResourceAttributes{
+				Group:    tt.group,
+				Version:  "v1",
+				Resource: tt.plural,
+				Verb:     tt.verb,
+				Name:     "foo",
+			}
+
+			in, err := contextual.BuildCheckInput(attrs, "alice", "cluster-a", testClusterInfo(rm))
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantObject, in.Object)
+			assert.Equal(t, tt.wantRelation, in.Relation)
+		})
+	}
+}
