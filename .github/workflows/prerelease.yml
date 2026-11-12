@@ -36,6 +36,10 @@ on:
         description: "Branch or commit to publish (default: the branch this workflow runs from)"
         required: false
         type: string
+      skip-components:
+        description: "Optional components (ocm/components.yaml) to leave out, e.g. terminal-controller-manager; separated by commas without spaces"
+        required: false
+        type: string
   # Uncomment for a nightly build of main.
   # schedule:
   #   - cron: '0 3 * * *'
@@ -94,3 +98,4 @@ jobs:
     with:
       version: ${{ needs.version.outputs.version }}
       ref: ${{ needs.version.outputs.sha }}
+      skip-components: ${{ inputs.skip-components }}

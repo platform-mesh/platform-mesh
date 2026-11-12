@@ -30,6 +30,8 @@ limitations under the License.
 //	COMMIT         git commit recorded as the component's source
 //	SIGNATURE      sign the component versions with this signature
 //	SKIP_PUSH      true keeps the archive local
+//	SKIP_COMPONENTS  optional components (ocm/components.yaml) to leave out,
+//	               separated by commas; the command does nothing for their charts
 package main
 
 import (
@@ -66,6 +68,17 @@ func run(ctx context.Context) error {
 	}
 	dir := filepath.Clean(os.Args[1])
 	chart := filepath.Base(dir)
+
+	skipped, err := releaseutils.SkippedComponents()
+	if err != nil {
+		return err
+	}
+	for _, c := range skipped {
+		if c.Chart != "" && filepath.Clean(c.Chart) == dir {
+			log.Printf("%s: chart of %s, which is left out (%s)", chart, c.Name, releaseutils.SkipComponentsEnv)
+			return nil
+		}
+	}
 
 	meta, err := readChart(dir)
 	if err != nil {
