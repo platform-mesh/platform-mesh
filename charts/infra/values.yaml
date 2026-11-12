@@ -164,12 +164,83 @@ kcp:
     extraArgs:
     - --feature-gates=WorkspaceAuthentication=true
 
+# OpenFGA authorization server. Deployed as a subchart (ghcr.io/openfga/helm-charts/openfga);
+# values below are passed straight to that chart. Its datastore points at the cnpg cluster
+# (platform-mesh-pg, see below), so cnpg must be enabled in the same release.
 openfga:
-  rbac:
-    writePrincipals:
-      - cluster.local/ns/platform-mesh-system/sa/iam-service
-      - cluster.local/ns/platform-mesh-system/sa/security-operator
-      - cluster.local/ns/platform-mesh-system/sa/account-operator
+  # -- Deploy OpenFGA. Requires cnpg.enabled (shared platform-mesh-pg cluster provides the DB).
+  enabled: true
+  autoscaling:
+    enabled: false
+  checkQueryCache:
+    enabled: true
+    limit: 10000
+    ttl: 10s
+  datastore:
+    applyMigrations: true
+    engine: postgres
+    existingSecret: cnpg-openfga-user
+    maxOpenConns: 30
+    migrationType: initContainer
+    migrations:
+      image:
+        pullPolicy: Always
+        repository: groundnuty/k8s-wait-for
+        tag: v2.0
+    secretKeys:
+      passwordKey: password
+      usernameKey: username
+    uri: postgres://platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local:5432/openfga?sslmode=verify-full&sslrootcert=/etc/openfga/cnpg-ca/ca.crt
+  extraEnvVars:
+  - name: OPENFGA_EXPERIMENTALS
+    value: enable-list-users
+  extraVolumeMounts:
+  - mountPath: /etc/openfga/cnpg-ca
+    name: cnpg-ca
+    readOnly: true
+  extraVolumes:
+  - name: cnpg-ca
+    secret:
+      secretName: platform-mesh-pg-ca
+      items:
+        - key: ca.crt
+          path: ca.crt
+  image:
+    # Keep in sync with the openfga image resource in third_party/openfga/component-constructor.yaml
+    # (the single source of truth). When the operator deploys infra via OCM, it overwrites
+    # image.tag/image.repository from that resource; this value is the fallback for a direct
+    # helm install/template of the chart.
+    # renovate: datasource=docker depName=docker.io/openfga/openfga
+    tag: v1.22.1
+  log:
+    level: info
+  migrate:
+    repository: openfga/openfga
+    annotations:
+      sidecar.istio.io/inject: "false"
+    extraVolumeMounts:
+    - mountPath: /etc/openfga/cnpg-ca
+      name: cnpg-ca
+      readOnly: true
+    extraVolumes:
+    - name: cnpg-ca
+      secret:
+        secretName: platform-mesh-pg-ca
+        items:
+        - key: ca.crt
+          path: ca.crt
+  podAnnotations:
+    traffic.sidecar.istio.io/excludeInboundPorts: "2112"
+  postgresql:
+    enabled: false
+  replicaCount: 1
+  telemetry:
+    trace:
+      enabled: false
+      otlp:
+        endpoint: observability-opentelemetry-collector.openmfp-observability.svc.cluster.local:4317
+        tls:
+          enabled: false
 
 keycloak:
   operator:

@@ -11,3 +11,8 @@ dependencies:
   - name: common
     version: 0.0.0
     repository: file://../common
+  - name: openfga
+    # renovate: datasource=docker depName=ghcr.io/openfga/helm-charts/openfga
+    version: 0.2.62
+    repository: oci://ghcr.io/openfga/helm-charts
+    condition: openfga.enabled

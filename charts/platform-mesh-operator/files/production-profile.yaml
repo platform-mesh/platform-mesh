@@ -152,7 +152,16 @@ data:
               for: infra
               path: kcp.etcd.backup.image.tag
               image-ref: combined
-          dependsOn: []
+          - name: openfga-image
+            resource: image
+            absoluteReferencePath:
+            - name: openfga
+            annotations:
+              repo: oci
+              artifact: image
+              for: infra
+              path: openfga.image.tag
+              image-ref: combined
           values:
             keycloak:
               operator:
@@ -190,6 +199,8 @@ data:
                 redirectUrls: ["http://localhost:8000/callback*"]
             dex:
               enabled: false
+            openfga:
+              enabled: true
             cnpg:
               enabled: true
               roles:

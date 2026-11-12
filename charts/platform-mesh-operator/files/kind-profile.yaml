@@ -149,6 +149,16 @@ data:
               for: infra
               path: kcp.etcd.backup.image.tag
               image-ref: combined
+          - name: openfga-image
+            resource: image
+            absoluteReferencePath:
+            - name: openfga
+            annotations:
+              repo: oci
+              artifact: image
+              for: infra
+              path: openfga.image.tag
+              image-ref: combined
           dependsOn: []
           values:
             keycloak:
@@ -196,6 +206,8 @@ data:
                   password: keycloak-password
                 openfga:
                   password: openfga-password
+            openfga:
+              enabled: true
             gatewayApi:
               enabled: true
               gatewayClassName: __GATEWAY_CLASS_NAME__
