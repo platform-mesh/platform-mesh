@@ -46,7 +46,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// This file is "pmctl quickstart --version=main": it builds the checkout into
+// This file is "pmctl quickstart --dev": it builds the checkout into
 // a local registry. No OCM library is involved; every step runs a command,
 // and the code here only picks the commands, their order and their inputs.
 // By hand, from the root of the checkout, it is roughly:
@@ -90,9 +90,6 @@ import (
 // stateDir; build.log there has every command as it was run, with its output.
 
 const (
-	// snapshotVersion is the --version that builds the checkout.
-	snapshotVersion = "main"
-
 	// imageRepo is the path of the images in the registry, as in a
 	// release: <registry>/platform-mesh/platform-mesh/<image>:v<version>.
 	imageRepo = "platform-mesh/platform-mesh"

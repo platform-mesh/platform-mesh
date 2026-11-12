@@ -49,7 +49,7 @@ func NewDeleteCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete the local Platform Mesh installation",
-		Long:  "Delete the kind cluster created by \"pmctl quickstart\", its kubeconfig and its CA certificate file, and the registry and build state of --version=main.",
+		Long:  "Delete the kind cluster created by \"pmctl quickstart\", its kubeconfig and its CA certificate file, and the registry and build state of --dev.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(cmd, args); err != nil {
@@ -86,7 +86,7 @@ func (o *DeleteOptions) Run(ctx context.Context) error {
 	if err := provider.Delete(o.Name, o.Kubeconfig); err != nil {
 		return fmt.Errorf("deleting kind cluster %q: %w", o.Name, err)
 	}
-	// What --version=main left behind: the registry and the build state.
+	// What --dev left behind: the registry and the build state.
 	if _, err := exec.LookPath("docker"); err == nil {
 		removeRegistry(ctx, o.Name)
 	}
