@@ -208,7 +208,7 @@ func (r *DeploymentSubroutine) Process(ctx context.Context, runtimeObj ctrlrunti
 	}
 
 	// Render and apply infra templates directly from gotemplates/infra/infra using profile
-	oErr := r.renderAndApplyInfraTemplates(ctx, inst, templateVars)
+	infraNamespace, infraRendered, oErr := r.renderAndApplyInfraTemplates(ctx, inst, templateVars)
 	if oErr != nil {
 		log.Error().Err(oErr).Msg("Failed to render and apply infra templates")
 		return subroutines.OK(), oErr
@@ -247,17 +247,16 @@ func (r *DeploymentSubroutine) Process(ctx context.Context, runtimeObj ctrlrunti
 	deploymentTech = strings.ToLower(deploymentTech)
 
 	// Render and apply components infra templates (HelmReleases for services)
-	disabled, oErr := r.renderAndApplyComponentsInfraTemplates(ctx, inst, templateVars)
+	componentsNamespace, componentsRendered, oErr := r.renderAndApplyComponentsInfraTemplates(ctx, inst, templateVars)
 	if oErr != nil {
 		log.Error().Err(oErr).Msg("Failed to render and apply components infra templates")
 		return subroutines.OK(), oErr
 	}
 	log.Debug().Msg("Successfully rendered and applied components infra templates")
 
-	// delete only disabled HelmReleases
-	oErr = deleteHelmReleases(ctx, r.clientInfra, disabled, log)
+	oErr = pruneHelmReleases(ctx, r.clientInfra, infraNamespace, infraRendered, componentsNamespace, componentsRendered, log)
 	if oErr != nil {
-		log.Error().Err(oErr).Msg("Failed to delete HelmReleases")
+		log.Error().Err(oErr).Msg("Failed to prune HelmReleases")
 		return subroutines.OK(), oErr
 	}
 
@@ -1067,22 +1066,26 @@ func (r *DeploymentSubroutine) mergeImageVersionsIntoHelmReleaseValues(obj *unst
 }
 
 // renderAndApplyInfraTemplates renders all templates in gotemplates/infra/infra and applies them.
-func (r *DeploymentSubroutine) renderAndApplyInfraTemplates(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON) error {
+// Returns the namespace the HelmReleases are rendered into and their keys.
+func (r *DeploymentSubroutine) renderAndApplyInfraTemplates(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON) (string, map[string]struct{}, error) {
 	log := logger.LoadLoggerFromContext(ctx).ChildLogger("subroutine", r.GetName())
 
 	tmplVars, err := r.templateVarsFromProfileInfra(ctx, inst, templateVars, r.cfgOperator)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to build template variables from profile")
-		return err
+		return "", nil, err
 	}
 
 	deploymentTech, _ := tmplVars["deploymentTechnology"].(string)
 	deploymentTech = strings.ToLower(deploymentTech)
 
 	skipFile := deploymentTechFileFilter(deploymentTech, log)
-	postProcess := r.infraManifestPostProcess(ctx, log)
+	infraNamespace, _ := tmplVars["helmReleaseNamespace"].(string)
+	rendered := make(map[string]struct{})
+	postProcess := r.infraManifestPostProcess(ctx, log, rendered)
 
-	return r.renderAndApplyTemplates(ctx, "infra/infra", tmplVars, r.clientInfra, log, "infra", skipFile, postProcess)
+	err = r.renderAndApplyTemplates(ctx, "infra/infra", tmplVars, r.clientInfra, log, "infra", skipFile, postProcess)
+	return infraNamespace, rendered, err
 }
 
 // renderAndApplyRuntimeTemplates renders all templates in gotemplates/infra/runtime and applies them.
@@ -1120,22 +1123,26 @@ func (r *DeploymentSubroutine) renderAndApplyRuntimeTemplates(ctx context.Contex
 
 // renderAndApplyComponentsInfraTemplates renders gotemplates/components/infra with profile-components.yaml
 // and applies the resulting manifests to the infra cluster.
-func (r *DeploymentSubroutine) renderAndApplyComponentsInfraTemplates(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON) (map[string]struct{}, error) {
+// Returns the namespace the HelmReleases are rendered into and their keys.
+func (r *DeploymentSubroutine) renderAndApplyComponentsInfraTemplates(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON) (string, map[string]struct{}, error) {
 	log := logger.LoadLoggerFromContext(ctx).ChildLogger("subroutine", r.GetName())
 
-	tmplVars, disabled, err := r.buildComponentsTemplateVars(ctx, inst, templateVars)
+	tmplVars, _, err := r.buildComponentsTemplateVars(ctx, inst, templateVars)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to build components template data for infra")
-		return nil, err
+		return "", nil, err
 	}
 
 	deploymentTech, _ := tmplVars["deploymentTechnology"].(string)
 	deploymentTech = strings.ToLower(deploymentTech)
 
 	skipFile := deploymentTechFileFilter(deploymentTech, log)
-	postProcess := r.infraManifestPostProcess(ctx, log)
+	componentsNamespace, _ := tmplVars["deploymentNamespace"].(string)
+	rendered := make(map[string]struct{})
+	postProcess := r.infraManifestPostProcess(ctx, log, rendered)
 
-	return disabled, r.renderAndApplyTemplates(ctx, "components/infra", tmplVars, r.clientInfra, log, "components-infra", skipFile, postProcess)
+	err = r.renderAndApplyTemplates(ctx, "components/infra", tmplVars, r.clientInfra, log, "components-infra", skipFile, postProcess)
+	return componentsNamespace, rendered, err
 }
 
 // renderAndApplyComponentsRuntimeTemplates renders gotemplates/components/runtime with profile-components.yaml

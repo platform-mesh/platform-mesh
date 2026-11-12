@@ -21,6 +21,7 @@ import (
 	"context"
 	stderrors "errors"
 	"io/fs"
+	"maps"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -51,6 +52,9 @@ var errSkipObject = stderrors.New("skip object")
 const (
 	// Field manager names for Server-Side Apply
 	fieldManagerDeployment = "platform-mesh-deployment"
+
+	// operatorCreatedLabel marks the HelmReleases and Applications the gotemplates render.
+	operatorCreatedLabel = "core.platform-mesh.io/operator-created"
 )
 
 // updateObjectMetadata updates labels and annotations from desired to existing.
@@ -343,35 +347,61 @@ func pruneDisabledDependencies(services map[string]any, disabled map[string]stru
 	}
 }
 
-// deleteHelmReleases deletes HelmRelease objects on the cluster for the given
-// set of keys ("namespace/name"). Not-found errors are silently ignored (idempotent).
-// Any other error is returned to the caller, which causes the reconcile to be requeued.
-func deleteHelmReleases(ctx context.Context, infraClient ctrlruntimeclient.Client, toDelete map[string]struct{}, log *logger.Logger) error {
-	helmReleaseGVK := schema.GroupVersionKind{
-		Group:   "helm.toolkit.fluxcd.io",
-		Version: "v2",
-		Kind:    "HelmRelease",
+// pruneHelmReleases deletes the operator-created HelmReleases in both namespaces
+// that were not rendered.
+// infraRendered and componentsRendered hold "namespace/name" keys.
+func pruneHelmReleases(
+	ctx context.Context,
+	infraClient ctrlruntimeclient.Client,
+	infraNamespace string,
+	infraRendered map[string]struct{},
+	componentsNamespace string,
+	componentsRendered map[string]struct{},
+	log *logger.Logger,
+) error {
+	// Both namespaces default to the same one, so each set alone would prune the other's releases.
+	keep := make(map[string]struct{})
+	maps.Copy(keep, infraRendered)
+	maps.Copy(keep, componentsRendered)
+
+	// Nothing rendered means ArgoCD or a broken profile, neither may uninstall a live stack.
+	if len(keep) == 0 {
+		return nil
 	}
-	for key := range toDelete {
-		parts := strings.SplitN(key, "/", 2)
-		if len(parts) != 2 {
-			continue
+
+	// An empty namespace lists, and would prune, cluster-wide.
+	if infraNamespace == "" || componentsNamespace == "" {
+		return errors.New("refusing to prune HelmReleases without a namespace")
+	}
+
+	for _, namespace := range slices.Compact([]string{infraNamespace, componentsNamespace}) {
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "helm.toolkit.fluxcd.io",
+			Version: "v2",
+			Kind:    "HelmReleaseList",
+		})
+		err := infraClient.List(ctx, list,
+			ctrlruntimeclient.InNamespace(namespace),
+			ctrlruntimeclient.MatchingLabels{operatorCreatedLabel: "true"},
+		)
+		if err != nil {
+			return errors.Wrap(err, "failed to list HelmReleases in %s", namespace)
 		}
-		namespace, name := parts[0], parts[1]
 
-		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(helmReleaseGVK)
-		obj.SetName(name)
-		obj.SetNamespace(namespace)
-
-		if err := infraClient.Delete(ctx, obj); err != nil {
-			if apierrors.IsNotFound(err) {
+		for i := range list.Items {
+			helmRelease := &list.Items[i]
+			if _, ok := keep[helmReleaseKey(helmRelease.GetNamespace(), helmRelease.GetName())]; ok {
 				continue
 			}
-			log.Error().Err(err).Str("namespace", namespace).Str("name", name).Msg("Failed to delete HelmRelease")
-			return errors.Wrap(err, "failed to delete HelmRelease %s/%s", namespace, name)
+			if err := infraClient.Delete(ctx, helmRelease); err != nil {
+				if apierrors.IsNotFound(err) {
+					continue
+				}
+				return errors.Wrap(err, "failed to delete HelmRelease %s/%s", helmRelease.GetNamespace(), helmRelease.GetName())
+			}
+			log.Info().Str("namespace", helmRelease.GetNamespace()).Str("name", helmRelease.GetName()).Msg("Deleted HelmRelease")
 		}
-		log.Info().Str("namespace", namespace).Str("name", name).Msg("Deleted HelmRelease")
 	}
 	return nil
 }
@@ -527,7 +557,7 @@ func deploymentTechFileFilter(deploymentTech string, log *logger.Logger) func(fi
 // before they are applied to the cluster. For ArgoCD Applications it preserves source fields set by
 // ResourceSubroutine; for FluxCD HelmReleases it merges Resource-managed image versions and respects
 // unsuspend state.
-func (r *DeploymentSubroutine) infraManifestPostProcess(ctx context.Context, log *logger.Logger) func(ctx context.Context, obj *unstructured.Unstructured) error {
+func (r *DeploymentSubroutine) infraManifestPostProcess(ctx context.Context, log *logger.Logger, rendered map[string]struct{}) func(ctx context.Context, obj *unstructured.Unstructured) error {
 	return func(ctx context.Context, obj *unstructured.Unstructured) error {
 		if obj.GetKind() == "Application" && obj.GetAPIVersion() == "argoproj.io/v1alpha1" {
 			// preserveExistingArgoSourceFields strips placeholder values from the patch when the
@@ -539,6 +569,7 @@ func (r *DeploymentSubroutine) infraManifestPostProcess(ctx context.Context, log
 			r.mergeImageVersionsIntoHelmValues(obj.Object, obj.GetName(), obj.GetNamespace(), log)
 		}
 		if obj.GetKind() == "HelmRelease" && obj.GetAPIVersion() == "helm.toolkit.fluxcd.io/v2" {
+			rendered[helmReleaseKey(obj.GetNamespace(), obj.GetName())] = struct{}{}
 			r.mergeImageVersionsIntoHelmReleaseValues(obj, obj.GetName(), obj.GetNamespace(), log)
 
 			// Diagnostic logging for suspended HelmReleases waiting on image injection
