@@ -23,7 +23,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"go.platform-mesh.io/platform-mesh/cli/pkg/cmd"
+	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/component-base/cli"
@@ -43,7 +43,7 @@ func run() int {
 	}()
 
 	streams := genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
-	root := cmd.NewPMCtlCommand(streams)
+	root := app.NewPMCtlCommand(streams)
 	root.SetContext(ctx)
 	return cli.Run(root)
 }

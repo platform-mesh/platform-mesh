@@ -49,7 +49,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.platform-mesh.io/platform-mesh/cli/pkg/cmd/quickstart"
+	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/quickstart"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/klog/v2"
