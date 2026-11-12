@@ -89,7 +89,7 @@ jobs:
           fetch-depth: 0 # release notes compare against the previous tag
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
       - name: Release notes
         run: go run ./hack/release/release-notes --end "$TAG" > release-notes.md
       - name: Create GitHub release

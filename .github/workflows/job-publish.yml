@@ -185,7 +185,7 @@ jobs:
           hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" > "$HOME/.ocmconfig"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
       - name: Install ocm (pinned in tools/Taskfile.yaml)
         run: |
           task tools:ocm
@@ -218,7 +218,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
       - name: Install ocm, helm, yq (pinned in tools/Taskfile.yaml)
         run: |
           task tools:ocm tools:helm tools:yq

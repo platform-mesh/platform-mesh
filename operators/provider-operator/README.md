@@ -36,7 +36,7 @@ The provider-operator reconciles two resources from `providers.platform-mesh.io`
 
 ### Prerequisites
 
-- Go, as pinned in the repository-root `go.work`
+- Go, as pinned in the repository-root `go.mod`
 - [Task](https://taskfile.dev)
 - docker, for the image
 

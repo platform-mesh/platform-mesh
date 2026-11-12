@@ -29,8 +29,8 @@ on:
       - 'charts/**'
       - 'contrib/tilt/**'
       - 'tests/**'
-      - 'go.work'
-      - 'go.work.sum'
+      - 'go.mod'
+      - 'go.sum'
       - 'Taskfile.yaml'
       - 'hack/dump-cluster-diagnostics.bash'
       - 'hack/kind.sh'
@@ -58,22 +58,25 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
           cache: true # zizmor: ignore[cache-poisoning]
-          # Key on every workspace module, not just the root go.sum: otherwise a
+          # Key on every module, not just the root go.sum: otherwise a
           # dependency change in services/* or operators/* keeps hitting a stale
           # cache, and Tilt's component builds download the gap mid-bring-up.
           cache-dependency-path: |
             **/go.sum
-            go.work.sum
 
       - name: Download Go modules
-        # Fetch the whole workspace build list up front, with retries, so a
+        # Fetch every module's dependencies up front, with retries, so a
         # transient proxy.golang.org error (e.g. an HTTP/2 stream reset) fails
         # or recovers here instead of breaking a Tilt component build.
         run: |
           for attempt in 1 2 3; do
-            go mod download && exit 0
+            if git ls-files '**/go.mod' go.mod | while read -r mod; do
+              (cd "$(dirname "$mod")" && go mod download) || exit 1
+            done; then
+              exit 0
+            fi
             echo "go mod download failed (attempt $attempt), retrying in 15s" >&2
             sleep 15
           done

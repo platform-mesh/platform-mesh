@@ -184,8 +184,9 @@ Nothing is built or published; a tag is all a Go module release is.
 Why they do not get `apis/vYY.MM.P` with every release:
 
 - A release does not need them. Inside this repository every component
-  resolves the three modules through `go.work`, i.e. from the working tree;
-  the versions in the `go.mod` files only matter to external consumers.
+  resolves the three modules through local `replace` directives, i.e. from the
+  working tree; the versions in the `go.mod` files only matter to external
+  consumers.
 - Go ties the major version to the import path: anything at v2 or above must
   be imported as `go.platform-mesh.io/apis/v26/...`, so CalVer tags would
   force a new import path for every consumer each January, whether the Go

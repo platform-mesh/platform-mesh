@@ -2,6 +2,12 @@ module go.platform-mesh.io/security-operator
 
 go 1.26.3
 
+replace (
+	go.platform-mesh.io/apis => ../../apis
+	go.platform-mesh.io/golang-commons => ../../golang-commons
+	go.platform-mesh.io/subroutines => ../../subroutines
+)
+
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.6.5
@@ -131,6 +137,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-// apis/static-assets is embedded from the in-repo module.
-replace go.platform-mesh.io/apis => ../../apis

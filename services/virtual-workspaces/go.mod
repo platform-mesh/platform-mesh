@@ -2,24 +2,10 @@ module go.platform-mesh.io/virtual-workspaces
 
 go 1.26.3
 
-require (
-	github.com/kcp-dev/client-go v0.33.5
-	github.com/kcp-dev/kcp v0.33.5
-	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.9.0
-	github.com/kcp-dev/sdk v0.33.5
-	github.com/kcp-dev/virtual-workspace-framework v0.33.5
-	github.com/spf13/cobra v1.10.2
-	github.com/spf13/pflag v1.0.10
-	github.com/stretchr/testify v1.12.1
-	go.platform-mesh.io/apis v0.1.0
-	k8s.io/apiextensions-apiserver v0.36.4
-	k8s.io/apimachinery v0.36.4
-	k8s.io/apiserver v0.36.4
-	k8s.io/client-go v0.36.4
-	k8s.io/klog/v2 v2.140.0
-	sigs.k8s.io/controller-runtime v0.24.1
-	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
+replace (
+	go.platform-mesh.io/apis => ../../apis
+	go.platform-mesh.io/golang-commons => ../../golang-commons
+	go.platform-mesh.io/subroutines => ../../subroutines
 )
 
 replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.8.1-0.20260714141811-833f063357f8
@@ -58,6 +44,26 @@ replace (
 	k8s.io/pod-security-admission => github.com/kcp-dev/kubernetes/staging/src/k8s.io/pod-security-admission v0.0.0-20260602065202-e006560fc76a
 	k8s.io/sample-apiserver => github.com/kcp-dev/kubernetes/staging/src/k8s.io/sample-apiserver v0.0.0-20260602065202-e006560fc76a
 	k8s.io/streaming => github.com/kcp-dev/kubernetes/staging/src/k8s.io/streaming v0.0.0-20260602065202-e006560fc76a
+)
+
+require (
+	github.com/kcp-dev/client-go v0.33.5
+	github.com/kcp-dev/kcp v0.33.5
+	github.com/kcp-dev/logicalcluster/v3 v3.0.5
+	github.com/kcp-dev/multicluster-provider v0.9.0
+	github.com/kcp-dev/sdk v0.33.5
+	github.com/kcp-dev/virtual-workspace-framework v0.33.5
+	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.10
+	github.com/stretchr/testify v1.12.1
+	go.platform-mesh.io/apis v0.1.0
+	k8s.io/apiextensions-apiserver v0.36.4
+	k8s.io/apimachinery v0.36.4
+	k8s.io/apiserver v0.36.4
+	k8s.io/client-go v0.36.4
+	k8s.io/klog/v2 v2.140.0
+	sigs.k8s.io/controller-runtime v0.24.1
+	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
 )
 
 require (
@@ -198,6 +204,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-// apis/static-assets is embedded from the in-repo module.
-replace go.platform-mesh.io/apis => ../../apis

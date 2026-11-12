@@ -29,8 +29,8 @@ version: "3"
 # test-e2e` (against a deployed Platform Mesh); `task test-upgrade` upgrades
 # the latest release to this checkout. See tests/README.md.
 #
-# The components below are linked locally through the repository-root go.work
-# file. Add a component by listing its name here; its directory is discovered
+# Shared modules are linked locally through replace directives in each go.mod.
+# Add a component by listing its name here; its directory is discovered
 # under ./, ./operators/ or ./services/.
 
 includes:
@@ -199,7 +199,7 @@ tasks:
       - for: {var: COMPONENTS}
         cmd: task lint-{{.ITEM}}
   tidy-check:
-    desc: Each go.mod must be self-contained (tidy + deps resolve without go.work).
+    desc: Check that every module is tidy and its dependencies resolve.
     cmds:
       - for: {var: COMPONENTS}
         cmd: task tidy-check-{{.ITEM}}
@@ -322,12 +322,12 @@ tasks:
     vars:
       # Defaults match the release pipeline's image naming; override on the CLI.
       REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
-      REPO: '{{.REPO | default "platform-mesh/platform-mesh"}}'   # ghcr namespace: <registry>/<repo>/<name>
-      VERSION: '{{.VERSION | default "dev"}}'                     # image tag; also pushed without leading "v"
-      PUSH: '{{.PUSH | default "false"}}'                          # true -> buildx --push, false -> --load
-      PLATFORMS: '{{.PLATFORMS | default "linux/amd64"}}'          # multi-arch (e.g. linux/amd64,linux/arm64) requires PUSH=true
-      CONTEXT: '{{.CONTEXT | default "."}}'                         # build context; repo root by default (shared go.work)
-      METADATA_FILE: '{{.METADATA_FILE | default ""}}'             # write buildx metadata (incl. containerimage.digest) here for signing
+      REPO: '{{.REPO | default "platform-mesh/platform-mesh"}}'  # ghcr namespace: <registry>/<repo>/<name>
+      VERSION: '{{.VERSION | default "dev"}}'                    # image tag; also pushed without leading "v"
+      PUSH: '{{.PUSH | default "false"}}'                        # true -> buildx --push, false -> --load
+      PLATFORMS: '{{.PLATFORMS | default "linux/amd64"}}'        # multi-arch (e.g. linux/amd64,linux/arm64) requires PUSH=true
+      CONTEXT: '{{.CONTEXT | default "."}}'                      # build context; repo root by default (local module replacements)
+      METADATA_FILE: '{{.METADATA_FILE | default ""}}'           # write buildx metadata (incl. containerimage.digest) here for signing
     cmds:
       - task: _image
         vars:
@@ -359,7 +359,7 @@ tasks:
         fi
 
   # Build (and optionally push) a single component image. Mirrors how the release
-  # workflows build the operator images (root context + shared go.work), so a
+  # workflows build the operator images (root context + local modules), so a
   # local `task images-<name>` reproduces the CI image.
   _image:
     internal: true
@@ -381,8 +381,8 @@ tasks:
         version='{{.VERSION}}'
         image='{{.REGISTRY}}/{{.REPO}}'/"$comp"
 
-        # Build context is the repo ROOT: the operator Dockerfiles use the shared
-        # go.work + apis module, so they COPY root-relative paths. A self-contained
+        # Build context is the repo ROOT: the operator Dockerfiles use local
+        # module replacements, so they COPY root-relative paths. A self-contained
         # component can override with CONTEXT=<dir>.
         context='{{.CONTEXT | default "."}}'
 
@@ -415,7 +415,7 @@ tasks:
   bump-deps:
     desc: 'Point every consumer at a released internal-module version (e.g. task bump-deps -- apis v0.0.1).'
     env:
-      GOWORK: "off"   # resolve the published version from the proxy, not the local workspace copy.
+      GOWORK: "off"
       GOSUMDB: "" # skip resolving on gosumbdb
       GOPROXY: "direct" # skip module proxy, get from source
     vars:
@@ -441,9 +441,6 @@ tasks:
           echo "   - $d"
           (cd "$d" && go get "$module@$version" && go mod tidy)
         done
-        # Re-sync the workspace with GOWORK reset (the task disables it above so
-        # the per-module bumps resolve the published version, not the local copy).
-        GOWORK= go work sync
 
   # ---------------------------------------------------------------------------
   # Dependency refresh via the Renovate CLI.
@@ -464,21 +461,13 @@ tasks:
       - task: generate
 
   # ---------------------------------------------------------------------------
-  # Workspace helpers
+  # Module helpers
   # ---------------------------------------------------------------------------
   tidy:
-    desc: Tidy every module's go.mod (standalone) and re-sync the workspace.
+    desc: Tidy every module's go.mod.
     cmds:
-      - go work sync
       - for: {var: COMPONENTS}
         cmd: task tidy-{{.ITEM}}
-      # ref: https://github.com/golang/go/issues/63901
-      # TLDR: go work sync doesn't actually everything.
-      # We force fill the go.work.sum by downloading all deps.
-      # Without this the go.work.sum is randomly updated when
-      # a developer pulls a dependency they didn't have in the module
-      # cache yet.
-      - go mod download all
   "tidy-*":
     desc: "Tidy one module's go.mod (e.g. task tidy-apis)."
     env:
@@ -489,14 +478,5 @@ tasks:
       - |
         comp='{{index .MATCH 0}}'
         dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
-        # Forward version-pin replaces from go.work into the module's go.mod so
-        # it resolves standalone, e.g. in docker builds.
-        replaces=$(GOWORK= go work edit -json | jq -r '.Replace[] | "\(.Old.Path)=\(.New.Path)@\(.New.Version)"')
         cd "$dir"
-        go mod edit $(printf ' -replace=%s' $replaces)
         go mod tidy
-        # Drop old replaces and those whose Old path isn't referenced by this module.
-        deps=$(go list -m -f '{{`{{.Path}}`}}' all)
-        for r in $(go mod edit -json | jq -r '.Replace[]?.Old.Path'); do
-          grep -qxF "$r" <<<"$deps" || go mod edit -dropreplace="$r"
-        done
