@@ -23,6 +23,12 @@ limitations under the License.
 // while: it builds every image of the checkout. A plain `go test ./...` skips
 // it.
 //
+// What has to survive the upgrade is described by the scenarios in
+// tests/upgrade/scenarios: each lists steps that seed data into the release
+// and steps that validate it. The test calls scenarios.Seed and
+// scenarios.Validate on the release, and scenarios.Validate again on the
+// checkout.
+//
 // Environment:
 //
 //	UPGRADE_TEST          true runs the test; `task test-upgrade` sets it
@@ -39,7 +45,10 @@ package upgrade
 
 import (
 	"context"
+	"crypto/x509"
+	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -50,8 +59,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/quickstart"
+	"go.platform-mesh.io/platform-mesh/tests/framework/keycloak"
+	"go.platform-mesh.io/platform-mesh/tests/upgrade/scenarios"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
 
@@ -60,7 +75,12 @@ const (
 	// the build of the checkout and the upgrade to it.
 	releaseTimeout = 45 * time.Minute
 	buildTimeout   = 90 * time.Minute
+
+	// namespace is where Platform Mesh is installed.
+	namespace = "platform-mesh-system"
 )
+
+var _ scenarios.Environment = &environment{}
 
 // environment is the installation under test.
 type environment struct {
@@ -75,10 +95,6 @@ type environment struct {
 	caFile string
 }
 
-// seeded is what seed leaves in the installation for checkSeeded to find
-// after the upgrade.
-type seeded struct{}
-
 // TestUpgrade runs the upgrade test from the specified release to the checkout.
 // It installs the release specified by UPGRADE_FROM, seeds data, upgrades to the checkout, and verifies that the seeded data survives.
 func TestUpgrade(t *testing.T) {
@@ -92,27 +108,27 @@ func TestUpgrade(t *testing.T) {
 	//    ready: PlatformMesh is Ready, the charts and their workloads are
 	//    rolled out, and the portal answers.
 	from := os.Getenv("UPGRADE_FROM")
-	step(t, "install release", func(t *testing.T) {
+	phase(t, "install release", func(t *testing.T) {
 		env.quickstart(t, from, false, releaseTimeout)
 	})
-	step(t, "verify release", func(t *testing.T) {
+	phase(t, "verify release", func(t *testing.T) {
 		verify(t, env)
 	})
-	var data seeded
-	step(t, "seed", func(t *testing.T) {
-		data = seed(t, env)
-	})
+	// ORDER MATTERS: seed and the first validation both come before the
+	// upgrade. The data has to be created by the release, and the
+	// validation has to hold on the release, or its failure after the
+	// upgrade says nothing about the upgrade.
+	phase(t, "seed", func(t *testing.T) { scenarios.Seed(t, env) })
+	phase(t, "validate release", func(t *testing.T) { scenarios.Validate(t, env) })
 
 	// 2. The checkout, over the release.
-	step(t, "upgrade to checkout", func(t *testing.T) {
+	phase(t, "upgrade to checkout", func(t *testing.T) {
 		env.quickstart(t, "", true, buildTimeout)
 	})
-	step(t, "verify checkout", func(t *testing.T) {
+	phase(t, "verify checkout", func(t *testing.T) {
 		verify(t, env)
 	})
-	step(t, "check seeded data", func(t *testing.T) {
-		checkSeeded(t, env, data)
-	})
+	phase(t, "validate checkout", func(t *testing.T) { scenarios.Validate(t, env) })
 }
 
 // verify checks that the installation works.
@@ -122,22 +138,6 @@ func verify(t *testing.T, _ *environment) {
 	// same before and after the upgrade (for example the Go suites of
 	// tests/e2e against env.kubeconfig, a login to the portal at env.url).
 	t.Skip("placeholder: no checks yet")
-}
-
-// seed creates what must survive the upgrade.
-func seed(t *testing.T, _ *environment) seeded {
-	t.Helper()
-	// TODO: create data in the release installation (an organization, an
-	// account, a user, a provider binding) and describe it in seeded.
-	t.Skip("placeholder: nothing is seeded yet")
-	return seeded{}
-}
-
-// checkSeeded checks that what seed created is still there and usable.
-func checkSeeded(t *testing.T, _ *environment, _ seeded) {
-	t.Helper()
-	// TODO: find what seed created, after the upgrade.
-	t.Skip("placeholder: nothing is seeded yet")
 }
 
 // setVerbosity sets the klog level of quickstart from UPGRADE_VERBOSITY. The
@@ -215,6 +215,67 @@ func (e *environment) quickstart(t *testing.T, version string, dev bool, timeout
 	e.caFile = o.CAFile()
 }
 
+// secret reads a secret of the installation.
+func (e *environment) secret(ctx context.Context, name string) (map[string][]byte, error) {
+	cfg, err := clientcmd.BuildConfigFromFlags("", e.kubeconfig)
+	if err != nil {
+		return nil, fmt.Errorf("loading %s: %w", e.kubeconfig, err)
+	}
+	kube, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	secret, err := kube.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("secret %s/%s: %w", namespace, name, err)
+	}
+	return secret.Data, nil
+}
+
+// kcp implements scenarios.Environment: the kcp admin config of the
+// installation, without a workspace path. The kubeconfig the
+// operator keeps in the cluster points at the front-proxy as the host
+// reaches it. It is read anew on every call: the upgrade may replace it.
+func (e *environment) KCP(ctx context.Context) (*rest.Config, error) {
+	data, err := e.secret(ctx, "kubeconfig-kcp-admin")
+	if err != nil {
+		return nil, err
+	}
+	raw, err := clientcmd.Load(data["kubeconfig"])
+	if err != nil {
+		return nil, fmt.Errorf("parsing the kcp admin kubeconfig: %w", err)
+	}
+	// The "base" context points at the front-proxy without a workspace.
+	cfg, err := clientcmd.NewNonInteractiveClientConfig(*raw, "base", &clientcmd.ConfigOverrides{}, nil).ClientConfig()
+	if err != nil {
+		return nil, fmt.Errorf("the base context of the kcp admin kubeconfig: %w", err)
+	}
+	cfg.Host = strings.TrimSuffix(cfg.Host, "/")
+	return cfg, nil
+}
+
+// Keycloak implements scenarios.Environment: the admin client of the
+// Keycloak of the installation, which is served under the address of the
+// portal.
+func (e *environment) Keycloak(ctx context.Context) (keycloak.Client, error) {
+	admin, err := e.secret(ctx, "keycloak-admin")
+	if err != nil {
+		return nil, err
+	}
+	if len(admin["username"]) == 0 || len(admin["password"]) == 0 {
+		return nil, errors.New("secret keycloak-admin has no username or password")
+	}
+	pem, err := os.ReadFile(e.caFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading the CA certificate: %w", err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("%s holds no certificate", e.caFile)
+	}
+	return keycloak.New(strings.TrimSuffix(e.url, "/")+"/keycloak", string(admin["username"]), string(admin["password"]), roots), nil
+}
+
 // delete removes the cluster and what quickstart left next to it.
 func (e *environment) delete(t *testing.T) {
 	t.Helper()
@@ -230,9 +291,9 @@ func (e *environment) delete(t *testing.T) {
 	}
 }
 
-// step runs fn as a subtest and stops the test if it fails: every step
+// phase runs fn as a subtest and stops the test if it fails: every phase
 // builds on the one before.
-func step(t *testing.T, name string, fn func(t *testing.T)) {
+func phase(t *testing.T, name string, fn func(t *testing.T)) {
 	t.Helper()
 	if !t.Run(name, fn) {
 		t.FailNow()

@@ -34,8 +34,32 @@ host (Linux, OrbStack), and port 8443 free. It builds every image of the
 checkout, so it takes a while. A failed run keeps the cluster; its kubeconfig
 is in `upgrade/.test/<cluster>/`. A plain `go test ./...` skips the test.
 
-The checks before and after the upgrade, and the data seeded before it and
-looked for afterwards, are placeholders in `upgrade_test.go` so far.
+What has to survive the upgrade is described by scenarios, in
+`upgrade/scenarios`. A scenario lists two sets of steps: steps that seed
+data into the release, and steps that validate it. A step is a function that
+is called again until it returns no error, like a reconciler, so it does one
+pass and never waits itself; `framework/steps` runs them. `upgrade_test.go`
+calls `scenarios.Seed` and `scenarios.Validate` on the release, and
+`scenarios.Validate` again on the checkout.
+
+```
+upgrade/
+  upgrade_test.go      TestUpgrade and the kind cluster it runs on
+  scenarios/
+    scenarios.go       the types, All() (the scenarios that run), Seed, Validate
+    tenant.go          the tenant scenario: its steps, in order
+    organization.go    its steps about the organization
+    invites.go         its steps about invites and their users
+    account.go         its steps about the account
+```
+
+The one scenario so far, `tenant`, is an organization with its owner, an
+invited user, an account and an object in its workspace. `tenant.go` says
+why the order of its steps matters. To add a scenario, write a file with a
+function returning it and list it in `All()`.
+
+The checks that an installation works at all, before and after the upgrade,
+are still a placeholder (`verify` in `upgrade_test.go`).
 
 ## Writing an integration test
 
@@ -87,6 +111,9 @@ The `framework/` directory holds what the suites share:
 - `framework/keycloak` manages the users of a realm (every organization has
   one, named like it) through Keycloak's admin API: look one up, give it a
   password, delete it.
+- `framework/steps` runs a test as a list of steps that work like
+  reconcilers: each is called again until it returns no error. The upgrade
+  scenarios are written with it.
 - `framework/manager` builds the multicluster managers the operators run on.
 - `framework/wait` and `framework/scheme` are the waits and the scheme
   every suite needs.
