@@ -79,6 +79,14 @@ type operatorValues struct {
 	KCP          kcpValues          `json:"kcp"`
 	Certificates certificatesValues `json:"certificates"`
 	IDP          idpValues          `json:"idp"`
+	// Image overrides the operator image; unset uses the chart's appVersion.
+	Image *imageValues `json:"image,omitempty"`
+}
+
+type imageValues struct {
+	Registry   string `json:"registry"`
+	Repository string `json:"repository"`
+	Tag        string `json:"tag"`
 }
 
 type ocmValues struct {
@@ -86,6 +94,12 @@ type ocmValues struct {
 	Profile    string `json:"profile"`
 	Version    string `json:"version"`
 	Repository string `json:"repository"`
+	// SignatureName is the OCM signature the component is verified with;
+	// empty keeps the chart's.
+	SignatureName string `json:"signatureName,omitempty"`
+	// InstallSigningCertificate set to false turns off the chart's own
+	// signing certificate Secret; unset keeps the chart's default.
+	InstallSigningCertificate *bool `json:"installSigningCertificate,omitempty"`
 }
 
 type gatewayValues struct {

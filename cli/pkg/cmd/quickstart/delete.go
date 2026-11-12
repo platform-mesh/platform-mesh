@@ -17,10 +17,12 @@ limitations under the License.
 package quickstart
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 
@@ -47,7 +49,7 @@ func NewDeleteCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete the local Platform Mesh installation",
-		Long:  "Delete the kind cluster created by \"pmctl quickstart\", its kubeconfig and its CA certificate file.",
+		Long:  "Delete the kind cluster created by \"pmctl quickstart\", its kubeconfig and its CA certificate file, and the registry and build state of --dev.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(cmd, args); err != nil {
@@ -56,7 +58,7 @@ func NewDeleteCommand(streams genericiooptions.IOStreams) *cobra.Command {
 			if err := o.Validate(); err != nil {
 				return err
 			}
-			return o.Run()
+			return o.Run(cmd.Context())
 		},
 	}
 	o.AddFlags(cmd)
@@ -76,13 +78,22 @@ func (o *DeleteOptions) Validate() error {
 
 // Run deletes the cluster and the files written next to it. A cluster that
 // does not exist is not an error.
-func (o *DeleteOptions) Run() error {
+func (o *DeleteOptions) Run(ctx context.Context) error {
 	provider, err := newKindProvider(o.ContainerRuntime)
 	if err != nil {
 		return err
 	}
 	if err := provider.Delete(o.Name, o.Kubeconfig); err != nil {
 		return fmt.Errorf("deleting kind cluster %q: %w", o.Name, err)
+	}
+	// What --dev left behind: the registry and the build state.
+	if _, err := exec.LookPath("docker"); err == nil {
+		removeRegistry(ctx, o.Name)
+	}
+	if state, err := stateDir(o.Name); err == nil {
+		if err := os.RemoveAll(state); err != nil {
+			return err
+		}
 	}
 	for _, f := range []string{o.Kubeconfig, o.caFile()} {
 		if err := os.Remove(f); err != nil && !errors.Is(err, fs.ErrNotExist) {

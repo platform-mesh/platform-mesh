@@ -191,8 +191,15 @@ func TestConsumerDeletionDuringMigration(t *testing.T) {
 	frameworkwait.Until(t, func() bool {
 		return len(frame.listAssignments(t)) == 0
 	}, wait.ForeverTestTimeout, time.Second, "assignment should be deleted")
-	frameworkwait.Until(t, func() bool {
-		return len(frame.listStagingWorkspaces(t)) == 0
+	start := time.Now()
+	frameworkwait.Eventually(t, func() (bool, string) {
+		remaining := frame.listStagingWorkspaces(t)
+		if len(remaining) == 0 {
+			return true, ""
+		}
+		backing := &kcptenancyv1alpha1.WorkspaceList{}
+		_ = frame.HomeClient.List(t.Context(), backing)
+		return false, "after " + time.Since(start).String() + "\nstaging workspaces:\n" + toYAML(t, remaining) + "\nbacking workspaces:\n" + toYAML(t, backing.Items)
 	}, wait.ForeverTestTimeout, time.Second, "both staging workspaces should be released")
 }
 

@@ -26,17 +26,21 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -46,6 +50,11 @@ const (
 	// gatewaySelector selects the Service of the gateway, Traefik from the
 	// prerequisites chart.
 	gatewaySelector = "app.kubernetes.io/name=traefik"
+	// profileConfigMap is the installation profile the operator reads.
+	profileConfigMap = "platform-mesh-profile"
+	// signingCertSecret holds the certificates OCM signatures are
+	// verified with, by signature name.
+	signingCertSecret = "ocm-signing-public-cert"
 	// caSecret is the Secret the operator chart's self-signed CA lives in.
 	caSecret = "domain-certificate-ca"
 
@@ -55,8 +64,42 @@ const (
 var (
 	componentGVR    = schema.GroupVersionResource{Group: "delivery.ocm.software", Version: "v1alpha1", Resource: "components"}
 	platformMeshGVR = schema.GroupVersionResource{Group: "core.platform-mesh.io", Version: "v1alpha1", Resource: "platformmeshes"}
+	helmReleaseGVR  = schema.GroupVersionResource{Group: "helm.toolkit.fluxcd.io", Version: "v2", Resource: "helmreleases"}
 	secretGVR       = corev1.SchemeGroupVersion.WithResource("secrets")
 )
+
+// source is what gets installed, and from where.
+type source struct {
+	// version of the charts and of the OCM component.
+	version string
+	// prerequisites and operator are the chart references: oci:// or a
+	// local directory.
+	prerequisites, operator string
+	// chartVersion is the version the charts are pulled at; empty for
+	// charts in a local directory.
+	chartVersion string
+	// ocmRepository is the OCM repository the component is resolved
+	// from; empty is Options.OCMRepository.
+	ocmRepository string
+	// image is the operator image; unset uses the chart's appVersion.
+	image *imageValues
+	// signingCert verifies the OCM signature named signature. Unset for a
+	// release: the operator chart brings the certificate of those.
+	signature   string
+	signingCert []byte
+	// details are further lines for the summary.
+	details []string
+}
+
+// release is the source of the published release o.Version.
+func (o *Options) release() *source {
+	return &source{
+		version:       o.Version,
+		prerequisites: o.chartRef(prerequisitesChart),
+		operator:      o.chartRef(operatorChart),
+		chartVersion:  o.Version,
+	}
+}
 
 // chartRef is the reference of a Platform Mesh chart in the chart repository.
 func (o *Options) chartRef(name string) string {
@@ -87,15 +130,16 @@ func (o *Options) prerequisitesValues(traefik bool) prerequisitesValues {
 	return values
 }
 
-// operatorValues are the operator chart's values for a gateway whose Service
-// has the given ClusterIP.
-func (o *Options) operatorValues(gatewayClusterIP string) operatorValues {
-	return operatorValues{
+// operatorValues are the operator chart's values for installing src with a
+// gateway whose Service has the given ClusterIP.
+func (o *Options) operatorValues(src *source, gatewayClusterIP string) operatorValues {
+	values := operatorValues{
 		OCM: ocmValues{
-			Enabled:    true,
-			Profile:    "kind",
-			Version:    o.Version,
-			Repository: o.OCMRepository,
+			Enabled:       true,
+			Profile:       "kind",
+			Version:       o.Version,
+			Repository:    o.OCMRepository,
+			SignatureName: src.signature,
 		},
 		Gateway: gatewayValues{
 			BaseDomain: o.BaseDomain,
@@ -105,12 +149,27 @@ func (o *Options) operatorValues(gatewayClusterIP string) operatorValues {
 		KCP:          kcpValues{FrontProxyPort: gatewayPort},
 		Certificates: certificatesValues{SelfSigned: selfSignedValues{Enabled: true}},
 		IDP:          idpValues{RegistrationAllowed: o.RegistrationAllowed},
+		Image:        src.image,
 	}
+	if src.ocmRepository != "" {
+		values.OCM.Repository = src.ocmRepository
+	}
+	if src.signingCert != nil {
+		// applySigningCert provides the certificate instead.
+		values.OCM.InstallSigningCertificate = new(false)
+	}
+	return values
 }
 
 // install installs the prerequisites and the operator chart, as the
-// installation guide does for kind.
-func (o *Options) install(ctx context.Context, helm *helmClient) error {
+// installation guide does for kind. Over an existing installation it is the
+// upgrade to src.
+func (o *Options) install(ctx context.Context, helm *helmClient, src *source) error {
+	kube, err := o.kubeClient()
+	if err != nil {
+		return err
+	}
+
 	// Traefik's GatewayClass needs the Gateway API CRDs the same chart
 	// brings, so the chart goes in twice: controllers and CRDs first, then
 	// Traefik. A release that already has Traefik is past the first pass.
@@ -120,7 +179,7 @@ func (o *Options) install(ctx context.Context, helm *helmClient) error {
 	}
 	if last == nil || !traefikEnabled(last.Config) {
 		err := o.step("Installing prerequisites", func() error {
-			return helm.installOrUpgrade(ctx, prerequisitesChart, o.chartRef(prerequisitesChart), o.Version, o.prerequisitesValues(false), true, helmTimeout)
+			return helm.installOrUpgrade(ctx, prerequisitesChart, src.prerequisites, src.chartVersion, o.prerequisitesValues(false), true, helmTimeout)
 		})
 		if err != nil {
 			return err
@@ -128,36 +187,144 @@ func (o *Options) install(ctx context.Context, helm *helmClient) error {
 	}
 	var gatewayClusterIP string
 	err = o.step("Installing gateway", func() error {
-		err := helm.installOrUpgrade(ctx, prerequisitesChart, o.chartRef(prerequisitesChart), o.Version, o.prerequisitesValues(true), true, helmTimeout)
+		err := helm.installOrUpgrade(ctx, prerequisitesChart, src.prerequisites, src.chartVersion, o.prerequisitesValues(true), true, helmTimeout)
 		if err != nil {
 			return err
 		}
-		gatewayClusterIP, err = o.gatewayClusterIP(ctx)
+		gatewayClusterIP, err = gatewayClusterIPOf(ctx, kube)
 		return err
 	})
 	if err != nil {
 		return err
 	}
 
-	// Not waited for: the chart applies the PlatformMesh resource, and
-	// waitReady follows what the operator makes of it.
+	last, err = helm.lastRelease(operatorChart)
+	if err != nil {
+		return err
+	}
+	upgrading := last != nil
+	values := o.operatorValues(src, gatewayClusterIP)
+
 	return o.step("Installing Platform Mesh operator", func() error {
-		return helm.installOrUpgrade(ctx, operatorChart, o.chartRef(operatorChart), o.Version, o.operatorValues(gatewayClusterIP), false, helmTimeout)
+		if upgrading {
+			// The chart refuses to upgrade over a profile it created
+			// without deletion protection.
+			if err := protectProfile(ctx, kube); err != nil {
+				return err
+			}
+		}
+		// Not waited for: the chart applies the PlatformMesh resource,
+		// and waitReady follows what the operator makes of it.
+		if err := helm.installOrUpgrade(ctx, operatorChart, src.operator, src.chartVersion, values, false, helmTimeout); err != nil {
+			return err
+		}
+		if src.signingCert != nil {
+			// Replaces the chart's own Secret, which the source turned
+			// off; applied after helm, which would remove it otherwise.
+			if err := applySigningCert(ctx, kube, src); err != nil {
+				return err
+			}
+		}
+		if !upgrading {
+			return nil
+		}
+		// Helm leaves the profile alone on an upgrade: it is the
+		// installation's own blueprint. A new version comes with a new
+		// kind profile though, which a user following the migration
+		// notes ends up with.
+		manifest, err := helm.render(ctx, operatorChart, src.operator, src.chartVersion, values)
+		if err != nil {
+			return err
+		}
+		return o.applyProfile(ctx, kube, manifest)
 	})
 }
 
-// gatewayClusterIP returns the ClusterIP of the gateway Service. The kind
-// profile points the Platform Mesh hostnames at it through host aliases, so
-// that pods reach the gateway under the names the host uses.
-func (o *Options) gatewayClusterIP(ctx context.Context) (string, error) {
+func (o *Options) kubeClient() (kubernetes.Interface, error) {
 	restConfig, err := clientcmd.BuildConfigFromFlags("", o.Kubeconfig)
 	if err != nil {
-		return "", fmt.Errorf("loading %s: %w", o.Kubeconfig, err)
+		return nil, fmt.Errorf("loading %s: %w", o.Kubeconfig, err)
 	}
-	kube, err := kubernetes.NewForConfig(restConfig)
+	return kubernetes.NewForConfig(restConfig)
+}
+
+// protectProfile marks the profile ConfigMap as kept by helm.
+// TODO(mjudeikis): Remove this once we get lifecycle handled.
+func protectProfile(ctx context.Context, kube kubernetes.Interface) error {
+	patch := []byte(`{"metadata":{"annotations":{"helm.sh/resource-policy":"keep"}}}`)
+	_, err := kube.CoreV1().ConfigMaps(namespace).Patch(ctx, profileConfigMap, types.MergePatchType, patch, metav1.PatchOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+// applySigningCert writes the Secret the OCM Component verifies the
+// signature of the source with.
+func applySigningCert(ctx context.Context, kube kubernetes.Interface, src *source) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: signingCertSecret, Namespace: namespace},
+		Data:       map[string][]byte{src.signature: src.signingCert},
+	}
+	_, err := kube.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+	if apierrors.IsAlreadyExists(err) {
+		_, err = kube.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
+	}
 	if err != nil {
-		return "", err
+		return fmt.Errorf("applying the signing certificate: %w", err)
 	}
+	return nil
+}
+
+// applyProfile replaces the data of the installed profile with the profile
+// in manifest, a rendering of the operator chart, and has the operator
+// reconcile it.
+func (o *Options) applyProfile(ctx context.Context, kube kubernetes.Interface, manifest string) error {
+	var profile *corev1.ConfigMap
+	for doc := range strings.SplitSeq(manifest, "\n---") {
+		var cm corev1.ConfigMap
+		if err := yaml.Unmarshal([]byte(doc), &cm); err != nil {
+			continue
+		}
+		if cm.Kind == "ConfigMap" && cm.Name == profileConfigMap {
+			profile = &cm
+			break
+		}
+	}
+	if profile == nil {
+		return fmt.Errorf("the %s chart renders no %s ConfigMap", operatorChart, profileConfigMap)
+	}
+
+	installed, err := kube.CoreV1().ConfigMaps(namespace).Get(ctx, profileConfigMap, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("reading the installed profile: %w", err)
+	}
+	installed.Data = profile.Data
+	installed.BinaryData = profile.BinaryData
+	if _, err := kube.CoreV1().ConfigMaps(namespace).Update(ctx, installed, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("applying the profile: %w", err)
+	}
+
+	restConfig, err := clientcmd.BuildConfigFromFlags("", o.Kubeconfig)
+	if err != nil {
+		return err
+	}
+	client, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return err
+	}
+	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"reconcile.fluxcd.io/requestedAt":%q}}}`, time.Now().UTC().Format(time.RFC3339))
+	_, err = client.Resource(platformMeshGVR).Namespace(namespace).Patch(ctx, "platform-mesh", types.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("requesting a reconcile of PlatformMesh: %w", err)
+	}
+	return nil
+}
+
+// gatewayClusterIPOf returns the ClusterIP of the gateway Service. The kind
+// profile points the Platform Mesh hostnames at it through host aliases, so
+// that pods reach the gateway under the names the host uses.
+func gatewayClusterIPOf(ctx context.Context, kube kubernetes.Interface) (string, error) {
 	services, err := kube.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: gatewaySelector})
 	if err != nil {
 		return "", fmt.Errorf("finding the gateway Service: %w", err)
@@ -202,13 +369,84 @@ func (o *Options) waitReady(ctx context.Context) error {
 		return err
 	}
 
+	// From here on the charts roll out; one that keeps failing ends the wait.
+	stall := newStallDetector(client, o.StallTimeout)
+
 	err = o.poll(ctx, "Waiting for Platform Mesh to become ready", func(ctx context.Context) (bool, string, error) {
+		if err := stall.check(ctx); err != nil {
+			return false, "", err
+		}
 		pm, err := client.Resource(platformMeshGVR).Namespace(namespace).Get(ctx, "platform-mesh", metav1.GetOptions{})
 		if err != nil {
 			return false, err.Error(), nil //nolint:nilerr // retried, the error is the status
 		}
 		status, message := condition(pm, "Ready")
 		return status == string(metav1.ConditionTrue), message, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Ready confirms the operator's subroutines, and over a running
+	// installation it is true before anything changed. The charts must
+	// have rolled to the version too; account-operator and portal stand
+	// in for all of them.
+	// TODO(mjudeikis): We need better readiness check, using PM main instance.
+	for _, release := range []string{"account-operator", "portal"} {
+		err = o.poll(ctx, "Rolling out "+release, func(ctx context.Context) (bool, string, error) {
+			if err := stall.check(ctx); err != nil {
+				return false, "", err
+			}
+			hr, err := client.Resource(helmReleaseGVR).Namespace(namespace).Get(ctx, release, metav1.GetOptions{})
+			if err != nil {
+				return false, err.Error(), nil //nolint:nilerr // retried, the error is the status
+			}
+			// Flux records the deployed chart in the release history,
+			// as <version>+<digest>.
+			history, _, _ := unstructured.NestedSlice(hr.Object, "status", "history")
+			deployed := ""
+			if len(history) > 0 {
+				if latest, ok := history[0].(map[string]any); ok {
+					deployed, _ = latest["chartVersion"].(string)
+					deployed, _, _ = strings.Cut(deployed, "+")
+				}
+			}
+			status, message := condition(hr, "Ready")
+			if deployed != o.Version {
+				return false, fmt.Sprintf("chart at %q: %s", deployed, message), nil
+			}
+			return status == string(metav1.ConditionTrue), message, nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// A chart is rolled out before its pods are: wait for those too.
+	kube, err := o.kubeClient()
+	if err != nil {
+		return err
+	}
+	err = o.poll(ctx, "Waiting for workloads", func(ctx context.Context) (bool, string, error) {
+		if err := stall.check(ctx); err != nil {
+			return false, "", err
+		}
+		deployments, err := kube.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return false, err.Error(), nil //nolint:nilerr // retried, the error is the status
+		}
+		var pending []string
+		for _, d := range deployments.Items {
+			want := int32(1)
+			if d.Spec.Replicas != nil {
+				want = *d.Spec.Replicas
+			}
+			status := d.Status
+			if status.ObservedGeneration < d.Generation || status.UpdatedReplicas < want || status.AvailableReplicas < want || status.Replicas > status.UpdatedReplicas {
+				pending = append(pending, d.Name)
+			}
+		}
+		return len(pending) == 0, "not rolled out: " + strings.Join(pending, ", "), nil
 	})
 	if err != nil {
 		return err

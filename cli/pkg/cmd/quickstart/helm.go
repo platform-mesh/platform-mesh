@@ -148,6 +148,33 @@ func (h *helmClient) installOrUpgrade(ctx context.Context, name, ref, version st
 	return nil
 }
 
+// render returns the manifest a first installation of the chart would
+// apply, without talking to the cluster.
+func (h *helmClient) render(ctx context.Context, name, ref, version string, chartValues any) (string, error) {
+	values, err := helmValues(chartValues)
+	if err != nil {
+		return "", err
+	}
+	cfg := &action.Configuration{RegistryClient: h.registry, Log: func(string, ...any) {}}
+
+	install := action.NewInstall(cfg)
+	install.Version = version
+	install.ReleaseName = name
+	install.Namespace = h.namespace
+	install.DryRun = true
+	install.ClientOnly = true
+	install.Replace = true
+	chrt, err := h.load(install, ref)
+	if err != nil {
+		return "", err
+	}
+	rel, err := install.RunWithContext(ctx, chrt, values)
+	if err != nil {
+		return "", fmt.Errorf("rendering %s: %w", name, err)
+	}
+	return rel.Manifest, nil
+}
+
 // load pulls the chart from an OCI reference, or reads it from a local path.
 func (h *helmClient) load(install *action.Install, ref string) (*chart.Chart, error) {
 	path, err := install.LocateChart(ref, h.settings)
