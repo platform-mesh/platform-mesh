@@ -1387,40 +1387,60 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
 	sub := subroutine.NewAuthorizationModelGenerationSubroutine(nil, mocks.NewMockLister(t))
 
+	// The finalizer goes with the export, as Process does: a binding that
+	// gets an AuthorizationModel needs the finalizer that removes it again.
 	tests := []struct {
 		name            string
+		exportName      string
 		bindingName     string
 		expectFinalizer bool
 	}{
 		{
-			name:            "returns finalizer when name has neither platform-mesh.io nor kcp.io",
+			name:            "returns finalizer for a provider export",
+			exportName:      "my-export",
 			bindingName:     "my-binding",
 			expectFinalizer: true,
 		},
 		{
-			name:            "returns no finalizer when name contains platform-mesh.io",
+			name:            "returns finalizer for a provider export under platform-mesh.io",
+			exportName:      "orchestrate.platform-mesh.io",
+			bindingName:     "orchestrate.platform-mesh.io-7yzub",
+			expectFinalizer: true,
+		},
+		{
+			name:            "returns finalizer for a provider export whatever the binding is called",
+			exportName:      "my-export",
+			bindingName:     "core.platform-mesh.io-awuzd",
+			expectFinalizer: true,
+		},
+		{
+			name:            "returns no finalizer for core.platform-mesh.io",
+			exportName:      "core.platform-mesh.io",
 			bindingName:     "core.platform-mesh.io-awuzd",
 			expectFinalizer: false,
 		},
 		{
-			name:            "returns no finalizer when name contains kcp.io",
+			name:            "returns no finalizer for provider-fga.platform-mesh.io",
+			exportName:      "provider-fga.platform-mesh.io",
+			bindingName:     "provider-fga.platform-mesh.io-x1y2z",
+			expectFinalizer: false,
+		},
+		{
+			name:            "returns no finalizer for tenancy.kcp.io",
+			exportName:      "tenancy.kcp.io",
 			bindingName:     "tenancy.kcp.io-dr0q1",
 			expectFinalizer: false,
 		},
 		{
-			name:            "returns no finalizer when name contains topology.kcp.io",
+			name:            "returns no finalizer for topology.kcp.io",
+			exportName:      "topology.kcp.io",
 			bindingName:     "topology.kcp.io-5oxoy",
-			expectFinalizer: false,
-		},
-		{
-			name:            "returns no finalizer when name contains platform-mesh.io in the middle",
-			bindingName:     "something.platform-mesh.io-suffix",
 			expectFinalizer: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			binding := newApiBinding("foo", "bar")
+			binding := newApiBinding(tt.exportName, "bar")
 			binding.Name = tt.bindingName
 			got := sub.Finalizers(binding)
 			if tt.expectFinalizer {
