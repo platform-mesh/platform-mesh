@@ -125,6 +125,8 @@ data:
               enabled: true
               gatewayClassName: __GATEWAY_CLASS_NAME__
               port: __EXTERNAL_PORT__
+              passthrough:
+                port: __EXTERNAL_PORT__
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
