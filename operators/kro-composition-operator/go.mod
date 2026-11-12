@@ -6,14 +6,14 @@ require (
 	github.com/go-logr/logr v1.4.4
 	github.com/gobuffalo/flect v1.0.3
 	github.com/kcp-dev/multicluster-provider v0.9.0
-	github.com/kcp-dev/sdk v0.33.5
+	github.com/kcp-dev/sdk v0.33.6
 	github.com/kubernetes-sigs/kro v0.9.4
 	github.com/stretchr/testify v1.12.1
-	k8s.io/api v0.36.4
-	k8s.io/apiextensions-apiserver v0.36.4
-	k8s.io/apimachinery v0.36.4
-	k8s.io/client-go v0.36.4
-	sigs.k8s.io/controller-runtime v0.24.1
+	k8s.io/api v0.37.2
+	k8s.io/apiextensions-apiserver v0.37.1
+	k8s.io/apimachinery v0.37.2
+	k8s.io/client-go v0.37.2
+	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
 )
 
@@ -59,7 +59,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.33.5 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.33.6 // indirect
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
@@ -95,8 +95,8 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/apiserver v0.36.4 // indirect
-	k8s.io/component-base v0.36.4 // indirect
+	k8s.io/apiserver v0.37.2 // indirect
+	k8s.io/component-base v0.37.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260821135717-be32def86098 // indirect
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect

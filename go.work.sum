@@ -148,7 +148,6 @@ codeberg.org/go-latex/latex v0.1.0/go.mod h1:LA0q/AyWIYrqVd+A9Upkgsb+IqPcmSTKc9D
 codeberg.org/go-pdf/fpdf v0.10.0 h1:u+w669foDDx5Ds43mpiiayp40Ov6sZalgcPMDBcZRd4=
 codeberg.org/go-pdf/fpdf v0.10.0/go.mod h1:Y0DGRAdZ0OmnZPvjbMp/1bYxmIPxm0ws4tfoPOc4LjU=
 cyphar.com/go-pathrs v0.2.5 h1:SnX9FBvnoyn3lUs1dkMgZ52bAETpirNu3FTRh5HlRik=
-cyphar.com/go-pathrs v0.2.5/go.mod h1:y8f1EMG7r+hCuFf/rXsKqMJrJAUoADZGNh5/vZPKcGc=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9 h1:VpgP7xuJadIUuKccphEpTJnWhS2jkQyMt6Y7pJCD7fY=
 gioui.org v0.0.0-20210308172011-57750fc8a0a6 h1:K72hopUosKG3ntOPNG4OzzbuhxGuVf06fa2la1/H/Ho=
 git.sr.ht/~sbinet/gg v0.6.0 h1:RIzgkizAk+9r7uPzf/VfbJHBMKUr0F5hRFxTUGMnt38=
@@ -548,6 +547,8 @@ github.com/go-openapi/swag/fileutils v0.25.4/go.mod h1:cdOT/PKbwcysVQ9Tpr0q20lQK
 github.com/go-openapi/swag/fileutils v0.27.1/go.mod h1:VvJFZLTZS0AI854gEQz5tk7dBESdLjiNUMSZ/th2ry8=
 github.com/go-openapi/swag/jsonname v0.25.4/go.mod h1:GPVEk9CWVhNvWhZgrnvRA6utbAltopbKwDu8mXNUMag=
 github.com/go-openapi/swag/jsonname v0.25.5/go.mod h1:jNqqikyiAK56uS7n8sLkdaNY/uq6+D2m2LANat09pKU=
+github.com/go-openapi/swag/jsonname v0.26.0 h1:gV1NFX9M8avo0YSpmWogqfQISigCmpaiNci8cGECU5w=
+github.com/go-openapi/swag/jsonname v0.26.0/go.mod h1:urBBR8bZNoDYGr653ynhIx+gTeIz0ARZxHkAPktJK2M=
 github.com/go-openapi/swag/jsonutils v0.25.4/go.mod h1:7OYGXpvVFPn4PpaSdPHJBtF0iGnbEaTk8AvBkoWnaAY=
 github.com/go-openapi/swag/jsonutils v0.27.1/go.mod h1:tdlEpZqdcQ17uj6J4YdK9vd8It5qWMwjWXOs0tjpRlk=
 github.com/go-openapi/swag/loading v0.25.4/go.mod h1:rpUM1ZiyEP9+mNLIQUdMiD7dCETXvkkC30z53i+ftTE=
@@ -759,8 +760,6 @@ github.com/kcp-dev/client-go v0.33.0 h1:BZA2xbSi76idNoe4I4fmNNoGV9q2UIeB82kS7QeY
 github.com/kcp-dev/client-go v0.33.0/go.mod h1:CXPF+AHW5FPdOcxdiZ88Q7+6AwA/YVlBlmqxMN1NN6U=
 github.com/kcp-dev/client-go v0.33.1 h1:GEvN2u4DQ9TWXnbYMEQUgqCCphjWAnfQNVEGshrgWew=
 github.com/kcp-dev/client-go v0.33.1/go.mod h1:gWK5Y4BWkkY/yhQXaNmetAcaAxZ5lEZcXyjl5gvQHYo=
-github.com/kcp-dev/client-go v0.33.6 h1:kU5UlaR/sDVFGkezBKljCRp+rp8FCDm83vNBmnAovZw=
-github.com/kcp-dev/client-go v0.33.6/go.mod h1:G/a/s4RQPyhtqcQ80CX5nIFcNYnhp2s7JZf6JB8OGT4=
 github.com/kcp-dev/code-generator/v3 v3.32.3 h1:xs5XBDfO8XMaQWGScS/e98UNbMJ2g7f2nhksvcOK17w=
 github.com/kcp-dev/code-generator/v3 v3.32.3/go.mod h1:1OaW64ALeGKyw8G8RRv2vHsXDPgOoDuiNBG0RW6dWNI=
 github.com/kcp-dev/code-generator/v3 v3.33.0 h1:yWBdQLeIYqr487874OeqCTk773WzPB3fwrGWW2ztjEk=
@@ -858,8 +857,6 @@ github.com/mfridman/tparse v0.18.0 h1:wh6dzOKaIwkUGyKgOntDW4liXSo37qg5AXbIhkMV3v
 github.com/mfridman/tparse v0.18.0/go.mod h1:gEvqZTuCgEhPbYk/2lS3Kcxg1GmTxxU7kTC8DvP0i/A=
 github.com/microcosm-cc/bluemonday v1.0.26 h1:xbqSvqzQMeEHCqMi64VAs4d8uy6Mequs3rQ0k/Khz58=
 github.com/microcosm-cc/bluemonday v1.0.26/go.mod h1:JyzOCs9gkyQyjs+6h10UEVSe02CGwkhd72Xdqh78TWs=
-github.com/miekg/dns v1.1.72 h1:vhmr+TF2A3tuoGNkLDFK9zi36F2LS+hKTRW0Uf8kbzI=
-github.com/miekg/dns v1.1.72/go.mod h1:+EuEPhdHOsfk6Wk5TT2CzssZdqkmFhf8r+aVyDEToIs=
 github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 h1:AMFGa4R4MiIpspGNG7Z948v4n35fFGB3RR3G/ry4FWs=
 github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 h1:+n/aFZefKZp7spd8DFdX7uMikMLXX4oubIzJF4kv/wI=
 github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible h1:aKW/4cBs+yK6gpqU3K/oIwk9Q/XICqd3zOX/UFuvqmk=

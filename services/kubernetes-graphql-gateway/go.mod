@@ -18,7 +18,7 @@ require (
 	github.com/graphql-go/handler v0.2.4
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/kcp-dev/multicluster-provider v0.9.0
-	github.com/kcp-dev/sdk v0.33.5
+	github.com/kcp-dev/sdk v0.33.6
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/client_model v0.6.3
 	github.com/rs/cors v1.11.1
@@ -34,16 +34,16 @@ require (
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.36.4
-	k8s.io/apiextensions-apiserver v0.36.4
-	k8s.io/apimachinery v0.36.4
-	k8s.io/apiserver v0.36.4
-	k8s.io/client-go v0.36.4
-	k8s.io/component-base v0.36.4
+	k8s.io/api v0.37.2
+	k8s.io/apiextensions-apiserver v0.37.1
+	k8s.io/apimachinery v0.37.2
+	k8s.io/apiserver v0.37.2
+	k8s.io/client-go v0.37.2
+	k8s.io/component-base v0.37.2
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/kube-openapi v0.0.0-20260821135717-be32def86098
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
-	sigs.k8s.io/controller-runtime v0.24.1
+	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
 )
 
@@ -81,7 +81,6 @@ require (
 	github.com/go-openapi/swag/stringutils v0.29.2 // indirect
 	github.com/go-openapi/swag/typeutils v0.29.2 // indirect
 	github.com/go-openapi/swag/yamlutils v0.29.2 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20260830191439-4932ad3515ea // indirect
@@ -91,7 +90,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.33.5 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.33.6 // indirect
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
@@ -104,12 +103,13 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/common v0.72.0 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
-	github.com/sirupsen/logrus v1.9.4 // indirect
+	github.com/rogpeppe/go-internal v1.16.0 // indirect
+	github.com/sirupsen/logrus v1.10.2 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	go.etcd.io/etcd/api/v3 v3.6.8 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.6.14 // indirect
-	go.etcd.io/etcd/client/v3 v3.6.8 // indirect
+	go.etcd.io/etcd/api/v3 v3.7.0 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.7.0 // indirect
+	go.etcd.io/etcd/client/v3 v3.7.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.72.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0 // indirect
@@ -138,8 +138,8 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/streaming v0.36.4 // indirect
-	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.34.0 // indirect
+	k8s.io/streaming v0.37.2 // indirect
+	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.36.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect

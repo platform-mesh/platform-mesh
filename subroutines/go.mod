@@ -7,8 +7,8 @@ require (
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
-	k8s.io/apimachinery v0.36.4
-	sigs.k8s.io/controller-runtime v0.24.1
+	k8s.io/apimachinery v0.37.2
+	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
 )
 
@@ -63,6 +63,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
@@ -72,9 +73,9 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/api v0.36.4 // indirect
-	k8s.io/apiextensions-apiserver v0.36.4 // indirect
-	k8s.io/client-go v0.36.4 // indirect
+	k8s.io/api v0.37.2 // indirect
+	k8s.io/apiextensions-apiserver v0.37.1 // indirect
+	k8s.io/client-go v0.37.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260821135717-be32def86098 // indirect
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
