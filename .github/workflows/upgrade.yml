@@ -60,7 +60,7 @@ jobs:
     # Larger runner: on the 8-CPU runner, the CPU requests of a full
     # Platform Mesh install (kcp shard, cache server, proxies) don't fit on
     # one kind node and pods stay Pending.
-    runs-on: ubuntu-8core-arm
+    runs-on: ubuntu-latest-large-arm
     timeout-minutes: 180
     permissions:
       contents: read
