@@ -48,24 +48,6 @@ const (
 	apiBindingFinalizer = "core.platform-mesh.io/apibinding-finalizer"
 )
 
-// internalAPIExports are the exports of Platform Mesh itself: no
-// AuthorizationModel is generated for a binding to one of them.
-var internalAPIExports = []string{
-	"core.platform-mesh.io", "system.platform-mesh.io", "providers.platform-mesh.io",
-	"ui.platform-mesh.io", "fga.platform-mesh.io", "provider-fga.platform-mesh.io",
-}
-
-// isInternalAPIBinding reports whether the binding is to an export of
-// Platform Mesh or kcp. Process and Finalizers have to agree on it: a binding
-// that gets an AuthorizationModel needs the finalizer that removes it again.
-func isInternalAPIBinding(binding *kcpapisv1alpha2.APIBinding) bool {
-	if binding.Spec.Reference.Export == nil {
-		return true
-	}
-	export := binding.Spec.Reference.Export.Name
-	return slices.Contains(internalAPIExports, export) || strings.HasSuffix(export, "kcp.io")
-}
-
 // toK8sName creates a valid Kubernetes metadata.name from the given parts.
 func toK8sName(parts ...string) string {
 	name := strings.ToLower(strings.Join(parts, "-"))
@@ -282,7 +264,8 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 
 // Finalizers implements subroutines.Finalizer.
 func (a *AuthorizationModelGenerationSubroutine) Finalizers(obj ctrlruntimeclient.Object) []string {
-	if isInternalAPIBinding(obj.(*kcpapisv1alpha2.APIBinding)) {
+	binding := obj.(*kcpapisv1alpha2.APIBinding)
+	if strings.Contains(binding.Name, "platform-mesh.io") || strings.Contains(binding.Name, "kcp.io") {
 		return []string{}
 	}
 	return []string{apiBindingFinalizer}
@@ -297,7 +280,12 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
 	binding := obj.(*kcpapisv1alpha2.APIBinding)
 
-	if isInternalAPIBinding(binding) {
+	internalAPIBindings := []string{
+		"core.platform-mesh.io", "system.platform-mesh.io", "providers.platform-mesh.io",
+		"ui.platform-mesh.io", "fga.platform-mesh.io", "provider-fga.platform-mesh.io",
+	}
+
+	if slices.Contains(internalAPIBindings, binding.Spec.Reference.Export.Name) || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
 		return subroutines.OK(), nil
 	}
 

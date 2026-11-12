@@ -30,8 +30,12 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/security-operator/internal/subroutine"
 	"go.platform-mesh.io/security-operator/internal/subroutine/mocks"
+	"go.platform-mesh.io/security-operator/pkg/config"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
@@ -243,6 +247,8 @@ func TestFinalize(t *testing.T) {
 		name        string
 		store       *pmcorev1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
+		listerMocks func(*mocks.MockLister)
+		mgrMocks    func(*testing.T, *mocks.MockManager)
 		expectError bool
 	}{
 		{
@@ -254,15 +260,73 @@ func TestFinalize(t *testing.T) {
 			},
 		},
 		{
-			name: "should deny deletion if at least one authorization model finalizer is present",
-			store: &pmcorev1alpha1.Store{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "store",
-					Finalizers: []string{"authzmodel.core.platform-mesh.io/somecluster.somemodel"},
-				},
-				Status: pmcorev1alpha1.StoreStatus{
-					StoreID: "id",
-				},
+			name:  "should deny deletion if at least one authorization model finalizer is present",
+			store: storeWithModelFinalizer(),
+			listerMocks: func(lister *mocks.MockLister) {
+				lister.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
+			},
+			expectError: true,
+		},
+		{
+			name:  "should delete the authorization models of the store and wait for them",
+			store: storeWithModelFinalizer(),
+			listerMocks: func(lister *mocks.MockLister) {
+				deleting := metav1.Now()
+				listAuthorizationModels(lister,
+					authorizationModel("mine", "provider", "store", "path", nil),
+					authorizationModel("already-deleting", "provider", "store", "path", &deleting),
+					authorizationModel("other-store", "provider", "other", "path", nil),
+					authorizationModel("other-cluster", "provider", "store", "elsewhere", nil),
+				)
+			},
+			mgrMocks: func(t *testing.T, mgr *mocks.MockManager) {
+				cluster := mocks.NewMockCluster(t)
+				client := mocks.NewMockClient(t)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(cluster, nil).Once()
+				cluster.EXPECT().GetClient().Return(client).Once()
+				client.EXPECT().Delete(mock.Anything, mock.MatchedBy(func(o ctrlruntimeclient.Object) bool {
+					return o.GetName() == "mine"
+				})).Return(nil).Once()
+			},
+			// No DeleteStore: the store stays until the models released it.
+			expectError: true,
+		},
+		{
+			name:  "should not fail on an authorization model that is gone already",
+			store: storeWithModelFinalizer(),
+			listerMocks: func(lister *mocks.MockLister) {
+				listAuthorizationModels(lister, authorizationModel("mine", "provider", "store", "path", nil))
+			},
+			mgrMocks: func(t *testing.T, mgr *mocks.MockManager) {
+				cluster := mocks.NewMockCluster(t)
+				client := mocks.NewMockClient(t)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(cluster, nil).Once()
+				cluster.EXPECT().GetClient().Return(client).Once()
+				client.EXPECT().Delete(mock.Anything, mock.Anything).Return(
+					apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "mine")).Once()
+			},
+			expectError: true,
+		},
+		{
+			name:  "should fail if the authorization models cannot be listed",
+			store: storeWithModelFinalizer(),
+			listerMocks: func(lister *mocks.MockLister) {
+				lister.EXPECT().List(mock.Anything, mock.Anything).Return(errors.New("error"))
+			},
+			expectError: true,
+		},
+		{
+			name:  "should fail if an authorization model cannot be deleted",
+			store: storeWithModelFinalizer(),
+			listerMocks: func(lister *mocks.MockLister) {
+				listAuthorizationModels(lister, authorizationModel("mine", "provider", "store", "path", nil))
+			},
+			mgrMocks: func(t *testing.T, mgr *mocks.MockManager) {
+				cluster := mocks.NewMockCluster(t)
+				client := mocks.NewMockClient(t)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("provider-fga#provider")).Return(cluster, nil).Once()
+				cluster.EXPECT().GetClient().Return(client).Once()
+				client.EXPECT().Delete(mock.Anything, mock.Anything).Return(errors.New("error")).Once()
 			},
 			expectError: true,
 		},
@@ -319,11 +383,18 @@ func TestFinalize(t *testing.T) {
 			}
 
 			manager := mocks.NewMockManager(t)
+			if test.mgrMocks != nil {
+				test.mgrMocks(t, manager)
+			}
 			kcpHelper := mocks.NewMockLister(t)
+			if test.listerMocks != nil {
+				test.listerMocks(kcpHelper)
+			}
 
 			subroutine := subroutine.NewStoreSubroutine(fga, manager, kcpHelper)
 
-			ctx := mccontext.WithCluster(context.Background(), multicluster.ClusterName(logicalcluster.Name("path").String()))
+			// The Store is reconciled through the fga provider.
+			ctx := mccontext.WithCluster(context.Background(), config.StoreClusterName("path"))
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {
@@ -333,4 +404,40 @@ func TestFinalize(t *testing.T) {
 			}
 		})
 	}
+}
+
+func storeWithModelFinalizer() *pmcorev1alpha1.Store {
+	return &pmcorev1alpha1.Store{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "store",
+			Finalizers: []string{"authzmodel.core.platform-mesh.io/somecluster.somemodel"},
+		},
+		Status: pmcorev1alpha1.StoreStatus{
+			StoreID: "id",
+		},
+	}
+}
+
+// authorizationModel is a model in the given provider cluster that extends
+// the given store.
+func authorizationModel(name, cluster, storeName, storeCluster string, deletionTimestamp *metav1.Time) pmcorev1alpha1.AuthorizationModel {
+	return pmcorev1alpha1.AuthorizationModel{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              name,
+			Annotations:       map[string]string{logicalcluster.AnnotationKey: cluster},
+			DeletionTimestamp: deletionTimestamp,
+		},
+		Spec: pmcorev1alpha1.AuthorizationModelSpec{
+			StoreRef: pmcorev1alpha1.WorkspaceStoreRef{Name: storeName, Cluster: storeCluster},
+		},
+	}
+}
+
+func listAuthorizationModels(lister *mocks.MockLister, models ...pmcorev1alpha1.AuthorizationModel) {
+	lister.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ context.Context, list ctrlruntimeclient.ObjectList, _ ...ctrlruntimeclient.ListOption) error {
+			list.(*pmcorev1alpha1.AuthorizationModelList).Items = models
+			return nil
+		},
+	).Once()
 }

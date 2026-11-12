@@ -29,10 +29,14 @@ import (
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/security-operator/internal/client"
+	"go.platform-mesh.io/security-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 type storeSubroutine struct {
@@ -69,6 +73,14 @@ func (s *storeSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 	// Store, tracked via finalizers instead of a list to avoid stale reads.
 	for _, f := range store.GetFinalizers() {
 		if strings.HasPrefix(f, authorizationModelFinalizerPrefix) {
+			// The models go with the Store: nothing else removes them when an
+			// organization is deleted. An APIBinding of a workspace that is
+			// being deleted cannot be finalized, so the generator does not
+			// get to do it. Each model releases its finalizer here once its
+			// tuples are gone.
+			if err := s.deleteAuthorizationModels(ctx, store); err != nil {
+				return subroutines.OK(), fmt.Errorf("deleting dependent authorization models: %w", err)
+			}
 			return subroutines.OK(), fmt.Errorf("waiting for dependent authorization model to be removed: %s", f)
 		}
 	}
@@ -83,6 +95,33 @@ func (s *storeSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Ob
 	}
 
 	return subroutines.OK(), nil
+}
+
+// deleteAuthorizationModels deletes the AuthorizationModels that extend the
+// Store, in the provider workspaces they live in.
+func (s *storeSubroutine) deleteAuthorizationModels(ctx context.Context, store *pmcorev1alpha1.Store) error {
+	models, err := getRelatedAuthorizationModels(ctx, s.kcpHelper, store)
+	if err != nil {
+		return fmt.Errorf("listing authorization models: %w", err)
+	}
+
+	for i := range models.Items {
+		model := &models.Items[i]
+		if model.GetDeletionTimestamp() != nil {
+			continue
+		}
+
+		modelCluster := logicalcluster.From(model).String()
+		cluster, err := s.mgr.GetCluster(ctx, config.MultiProviderName(config.ProviderFgaProviderName, modelCluster))
+		if err != nil {
+			return fmt.Errorf("getting cluster %q of authorization model %s: %w", modelCluster, model.Name, err)
+		}
+		if err := cluster.GetClient().Delete(ctx, model); err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("deleting authorization model %s in %q: %w", model.Name, modelCluster, err)
+		}
+	}
+
+	return nil
 }
 
 func (s *storeSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
