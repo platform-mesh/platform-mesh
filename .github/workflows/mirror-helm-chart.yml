@@ -68,32 +68,36 @@ jobs:
     permissions:
       packages: write # Push mirrored charts to GHCR; no repository access needed
     env:
+      HELM_REPO: ${{ inputs.helm_repo }}
+      CHART: ${{ inputs.chart }}
+      VERSION: ${{ inputs.version }}
       DESTINATION: ${{ inputs.destination_namespace || format('ghcr.io/{0}/charts', github.repository_owner) }}
     steps:
       - name: Pull chart from source Helm repo
         run: |
           set -euo pipefail
-          helm repo add src "${{ inputs.helm_repo }}"
+          helm repo add src "${HELM_REPO}"
           helm repo update src
-          helm pull "src/${{ inputs.chart }}" --version "${{ inputs.version }}" --destination .
-          ls -l "${{ inputs.chart }}-${{ inputs.version }}.tgz"
+          helm pull "src/${CHART}" --version "${VERSION}" --destination .
+          ls -l "${CHART}-${VERSION}.tgz"
 
       - name: Login to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USERNAME: ${{ github.actor }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io \
-            --username "${{ github.actor }}" \
+          echo "${GHCR_TOKEN}" | helm registry login ghcr.io \
+            --username "${GHCR_USERNAME}" \
             --password-stdin
 
       - name: Push chart to OCI
         run: |
           set -euo pipefail
-          helm push "${{ inputs.chart }}-${{ inputs.version }}.tgz" \
-            "oci://${DESTINATION}"
+          helm push "${CHART}-${VERSION}.tgz" "oci://${DESTINATION}"
 
       - name: Verify chart is pullable from OCI
         run: |
           set -euo pipefail
-          rm -f "${{ inputs.chart }}-${{ inputs.version }}.tgz"
-          helm pull "oci://${DESTINATION}/${{ inputs.chart }}" \
-            --version "${{ inputs.version }}" --destination .
-          test -f "${{ inputs.chart }}-${{ inputs.version }}.tgz"
+          rm -f "${CHART}-${VERSION}.tgz"
+          helm pull "oci://${DESTINATION}/${CHART}" --version "${VERSION}" --destination .
+          test -f "${CHART}-${VERSION}.tgz"
