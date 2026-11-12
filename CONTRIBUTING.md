@@ -8,6 +8,95 @@ We want to make contributing to this project as easy and transparent as possible
 
 We use GitHub to track issues and feature requests, as well as accept pull requests.
 
+## Folder layout
+
+Platform Mesh develops in this monorepo, with that a clean folder
+structure is important - both for developers to know where to look and
+for release engineering to know what to handle with care.
+
+In general Platform Mesh follows the Go conventions.
+
+### root module
+
+```
+.
+├── cmd/<name>/main.go  # entry point of a binary
+├── cmd/<name>/app/     # wiring that the entry point hooks into
+├── pkg/<lib>/          # libraries shared across the project
+├── hack/               # maintenance and development commands, scripts and assets
+├── apis/               # library submodule: API types
+├── golang-commons/     # library submodule: shared Go helpers
+├── subroutines/        # library submodule: reconciliation subroutines
+├── operators/<name>/   # submodule per operator (see Submodules)
+├── services/<name>/    # submodule per service (see Submodules)
+├── charts/             # Helm charts
+├── tests/              # integration and e2e test suites
+├── third_party/        # vendored upstream manifests
+├── tools/              # shared developer tooling
+├── docs/               # deployment and release documentation
+├── contrib/            # auxiliary files like the tilt setup
+├── installation/       # installation values files
+├── ocm/                # component registry and release plumbing
+└── bin/                # build output, not tracked
+```
+
+`cmd/` contains code for binaries: `cmd/<name>/main.go` is the entry
+point and `cmd/<name>/app` the package it hooks into - the command tree,
+its flags and the wiring that assembles the implementation. Keep `app`
+thin - it should just be wiring, with the implementation itself
+belonging in `pkg/`.
+
+`pkg/` contains libraries shared across the project.
+
+`hack/` contains Go commands, shell scripts and auxiliary files for
+maintenance and development.
+Prefer writing a Go command like `hack/release/release-notes` over shell scripts.
+
+### Submodules
+
+Platform Mesh contains many modules like `operators/platform-mesh-operator`.
+Operators that reconcile resources on the control plane are placed in
+`operators/`, services that offer an endpoint to users and operators are
+placed in `services/`. Both use the directory pattern of the root
+module:
+
+```
+<module>/                  # operators/<name> or services/<name>
+├── go.mod
+├── cmd/<name>/main.go     # entry point, calls into app
+├── cmd/<name>/app/        # wiring only: commands, flags, assembling the implementation
+├── pkg/<lib>/             # implementation, importable by other modules and by tests/
+├── internal/<lib>/        # implementation private to the module
+├── hack/                  # module-local maintenance and development scripts
+└── <assets>/              # non-Go material the module owns, see Assets
+```
+
+A module with more than one shipped binary has one directory per binary
+under `cmd/`. Development-only binaries are not shipped: put them in
+`hack/` of the module that owns them, as a Go command.
+
+**Libraries** (`apis`, `golang-commons`, `subroutines`) are free-form.
+They ship no binaries, so they have no `cmd/` and their packages sit
+wherever their maintainers judge them easiest to find.
+
+### Assets
+
+Non-Go material stays in the module that owns it, in a directory named
+for what it holds. The names below are guidance, not a fixed set:
+
+| Directory | Contents |
+|---|---|
+| `config/` | kustomize overlays and generated CRDs (`config/crd`, `config/rbac`, ...) |
+| `data/` | files a deployed component reads |
+| `docs/` | module documentation |
+| `examples/` | runnable examples, with the scripts they use |
+| `images/` | Docker contexts of a module's additional images |
+| `testdata/` | fixtures for Go tests; the `go` tool ignores this directory |
+
+Generator inputs and their tool configs (`*.proto`, `gqlgen.yml`,
+`oapi-codegen.yaml`, `PROJECT`) stay at the module root next to the
+`Taskfile.yaml` that runs them.
+
 ## Pull requests
 
 You are welcome to contribute with your pull requests. These steps explain the contribution process:
@@ -93,8 +182,9 @@ task tilt:ci && task test-e2e                       # e2e against a fresh Tilt e
 ```
 
 A unit test must not start a process (kcp, kube-apiserver, kind, docker). A test that needs a
-control plane goes into `tests/integration` (and wires the component through its public `pkg/app`
-package, not `internal/`) or, if it needs a deployed stack, into `tests/e2e`. See
+control plane goes into `tests/integration` (and wires the component through its public
+packages under `pkg/`, not `cmd/`) or, if it needs a deployed stack, into
+`tests/e2e`. See
 [tests/README.md](tests/README.md) for the framework and how to add a package.
 
 ## Generative AI
