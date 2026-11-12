@@ -20,7 +20,7 @@ The code here is part of the root Go module, so a test imports helpers as
 `upgrade/` is one test on an environment of its own: it creates a kind
 cluster, installs the latest release into it, then upgrades it to this
 checkout, built into a local registry. Both steps are the code behind
-`pmctl quickstart`, the second one `--version=main`, and each returns once
+`pmctl quickstart`, the second (target for upgrade) one `--dev`, and each returns once
 the installation is ready.
 
 ```sh
