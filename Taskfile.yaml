@@ -63,6 +63,7 @@ vars:
 
     # operators
     - account-operator
+    - backup-operator
     - extension-manager-operator
     - extension-manager-virtual-workspace
     - kro-composition-operator
