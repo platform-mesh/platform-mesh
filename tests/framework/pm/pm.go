@@ -16,19 +16,24 @@ limitations under the License.
 
 // Package pm gives the e2e tests the Platform Mesh they run against: the
 // runtime cluster from KUBECONFIG (context KIND_CONTEXT when set) and kcp
-// from ADMIN_KUBECONFIG. On a Tilt cluster, `task tilt:e2e` sets both.
+// from ADMIN_KUBECONFIG, and Keycloak from KEYCLOAK_BASE_URL. On a Tilt
+// cluster, `task tilt:e2e` sets them all.
 //
 //	cl, err := client.New(pm.Kube(t), client.Options{Scheme: scheme.New(t)})
 //	orgs, err := client.New(pm.KCP(t, "root:orgs"), client.Options{Scheme: scheme.New(t)})
+//	kc := pm.Keycloak(t)
 package pm
 
 import (
+	"crypto/x509"
 	"net/url"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"go.platform-mesh.io/platform-mesh/tests/framework/keycloak"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -66,6 +71,27 @@ func KCP(t testing.TB, path string) *rest.Config {
 		cfg.Host += "/clusters/" + path
 	}
 	return cfg
+}
+
+// Keycloak is the admin client of the Keycloak at KEYCLOAK_BASE_URL, logging
+// in with KEYCLOAK_ADMIN_USER and KEYCLOAK_ADMIN_PASSWORD. Its certificate is
+// checked against the CA in MKCERT_CA_PATH, or the system's when that is not
+// set.
+func Keycloak(t testing.TB) keycloak.Client {
+	t.Helper()
+	env := func(name string) string {
+		v := os.Getenv(name)
+		require.NotEmpty(t, v, "%s is not set (%s)", name, hint)
+		return v
+	}
+	var roots *x509.CertPool
+	if file := os.Getenv("MKCERT_CA_PATH"); file != "" {
+		pem, err := os.ReadFile(file) //nolint:gosec // the path is the caller's
+		require.NoError(t, err, "reading MKCERT_CA_PATH")
+		roots = x509.NewCertPool()
+		require.True(t, roots.AppendCertsFromPEM(pem), "MKCERT_CA_PATH %s holds no certificate", file)
+	}
+	return keycloak.New(env("KEYCLOAK_BASE_URL"), env("KEYCLOAK_ADMIN_USER"), env("KEYCLOAK_ADMIN_PASSWORD"), roots)
 }
 
 // Kubeconfig is the config of a kubeconfig a component wrote for use inside

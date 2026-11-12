@@ -77,7 +77,16 @@ The `framework/` directory holds what the suites share:
   types, and optionally the `orgs` workspace.
 - `framework/pm` hands the e2e tests the deployed Platform Mesh they run
   against: the runtime cluster from `KUBECONFIG` and kcp from
-  `ADMIN_KUBECONFIG`, which `task tilt:e2e` sets.
+  `ADMIN_KUBECONFIG`, and the Keycloak admin client from
+  `KEYCLOAK_BASE_URL`, all of which `task tilt:e2e` sets.
+- `framework/tenant` creates what a tenant owns on a deployed Platform
+  Mesh, without the portal: an organization, accounts in it, invites to it.
+  Organizations and accounts are created as their creator, whom the kcp
+  admin impersonates, because Platform Mesh makes whoever sends the request
+  the owner.
+- `framework/keycloak` manages the users of a realm (every organization has
+  one, named like it) through Keycloak's admin API: look one up, give it a
+  password, delete it.
 - `framework/manager` builds the multicluster managers the operators run on.
 - `framework/wait` and `framework/scheme` are the waits and the scheme
   every suite needs.
