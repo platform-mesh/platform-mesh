@@ -128,7 +128,8 @@ registry already fails; use the next one.
 
 A component marked `optional: true` in
 [`ocm/components.yaml`](../../ocm/components.yaml) may be left out of a
-build. Today that is `terminal-controller-manager`.
+build. Today those are `kro-composition-operator`, `resource-broker` and
+`terminal-controller-manager`.
 
 A release contains every component, optional ones included. A build leaves
 them out when it sets `SKIP_COMPONENTS=<name>[,<name>...]` for the release

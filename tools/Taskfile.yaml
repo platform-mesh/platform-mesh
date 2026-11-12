@@ -311,6 +311,20 @@ tasks:
     cmds:
       - "UNCOMPRESSED={{ .uncompressed }} GO_MODULE={{ .goModule }} {{.HACK}}/uget.sh {{ .source }} {{ .tool }} {{ .version }} '{{ .extractArg }}'"
       # Version-less name for callers that put bin/ on PATH.
+      - task: _link
+        vars: {tool: '{{ .tool }}', version: '{{ .version }}'}
+
+  # The version-less name of a tool. Up to date when the link is right, so a
+  # second task running at the same time does not replace it: `ln -sf` is an
+  # unlink and a symlink, and of two at once one fails with "already exists".
+  # Task has no lock across processes; whoever runs tasks side by side
+  # installs the tools first (pmctl does, before it builds images).
+  _link:
+    internal: true
+    silent: true
+    status:
+      - 'test "$(readlink {{.BIN}}/{{ .tool }})" = "{{.BIN}}/{{ .tool }}-{{ .version }}"'
+    cmds:
       - 'ln -sf {{.BIN}}/{{ .tool }}-{{ .version }} {{.BIN}}/{{ .tool }}'
 
   lint:

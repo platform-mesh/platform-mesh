@@ -60,6 +60,24 @@ jobs:
         with:
           go-version-file: go.work
           cache: true # zizmor: ignore[cache-poisoning]
+          # Key on every workspace module, not just the root go.sum: otherwise a
+          # dependency change in services/* or operators/* keeps hitting a stale
+          # cache, and Tilt's component builds download the gap mid-bring-up.
+          cache-dependency-path: |
+            **/go.sum
+            go.work.sum
+
+      - name: Download Go modules
+        # Fetch the whole workspace build list up front, with retries, so a
+        # transient proxy.golang.org error (e.g. an HTTP/2 stream reset) fails
+        # or recovers here instead of breaking a Tilt component build.
+        run: |
+          for attempt in 1 2 3; do
+            go mod download && exit 0
+            echo "go mod download failed (attempt $attempt), retrying in 15s" >&2
+            sleep 15
+          done
+          exit 1
 
       - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:

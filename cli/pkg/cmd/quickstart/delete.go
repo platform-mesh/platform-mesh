@@ -95,7 +95,7 @@ func (o *DeleteOptions) Run(ctx context.Context) error {
 			return err
 		}
 	}
-	for _, f := range []string{o.Kubeconfig, o.caFile()} {
+	for _, f := range []string{o.Kubeconfig, o.CAFile()} {
 		if err := os.Remove(f); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}

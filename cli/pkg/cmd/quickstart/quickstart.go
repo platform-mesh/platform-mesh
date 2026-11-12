@@ -83,6 +83,9 @@ var example = `  # Install the latest release
   # Upgrade the installation to the current checkout
   pmctl quickstart --dev
 
+  # The same, without building the optional components nothing installs
+  pmctl quickstart --dev --skip-components=kro-composition-operator,resource-broker,terminal-controller-manager
+
   # Use podman
   pmctl quickstart --container-runtime=podman
 
@@ -126,9 +129,10 @@ func (o *ClusterOptions) Validate() error {
 	}
 }
 
-// caFile is where the CA certificate of the installation is written to.
-func (o *ClusterOptions) caFile() string {
-	return o.Name + "-ca.crt"
+// CAFile is where the CA certificate of the installation is written to: next
+// to the kubeconfig.
+func (o *ClusterOptions) CAFile() string {
+	return filepath.Join(filepath.Dir(o.Kubeconfig), o.Name+"-ca.crt")
 }
 
 // Options holds the flags and dependencies of "pmctl quickstart".
@@ -146,6 +150,9 @@ type Options struct {
 	GitRoot string
 	// ParallelBuilds is how many images Dev builds at a time.
 	ParallelBuilds int
+	// SkipComponents are optional components of ocm/components.yaml that
+	// Dev leaves out of the build, as a release with SKIP_COMPONENTS does.
+	SkipComponents []string
 	// NodeImage overrides the kind node image.
 	NodeImage string
 	// BaseDomain is the DNS name Platform Mesh is served under. It and
@@ -210,6 +217,7 @@ func NewQuickstartCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd.Flags().BoolVar(&o.Dev, "dev", o.Dev, "Build and install the working tree of the checkout at --git-root instead of a release. Needs docker.")
 	cmd.Flags().StringVar(&o.GitRoot, "git-root", o.GitRoot, "platform-mesh checkout that --dev builds (default: the repository of the current directory).")
 	cmd.Flags().IntVar(&o.ParallelBuilds, "parallel-build", o.ParallelBuilds, "Number of images --dev builds at a time.")
+	cmd.Flags().StringSliceVar(&o.SkipComponents, "skip-components", o.SkipComponents, "Optional components of ocm/components.yaml that --dev does not build, e.g. terminal-controller-manager. They cannot be enabled in the installation.")
 	cmd.Flags().StringVar(&o.NodeImage, "node-image", o.NodeImage, "kind node image (default: the one of the built-in kind version).")
 	cmd.Flags().StringVar(&o.BaseDomain, "base-domain", o.BaseDomain, "DNS name Platform Mesh is served under. It and its subdomains must resolve to 127.0.0.1.")
 	cmd.Flags().StringVar(&o.ChartRepository, "chart-repository", o.ChartRepository, "Repository of the Platform Mesh Helm charts: an oci:// reference or a local directory.")
@@ -280,6 +288,9 @@ func (o *Options) Validate() error {
 	if !o.Dev {
 		if o.GitRoot != "" {
 			return errors.New("--git-root is only used with --dev")
+		}
+		if len(o.SkipComponents) > 0 {
+			return errors.New("--skip-components is only used with --dev")
 		}
 		return nil
 	}
@@ -355,8 +366,8 @@ func (o *Options) Run(ctx context.Context) error {
 	return nil
 }
 
-// url is the address of the portal.
-func (o *Options) url() string {
+// URL is the address of the portal.
+func (o *Options) URL() string {
 	return "https://" + net.JoinHostPort(o.BaseDomain, strconv.Itoa(gatewayPort)) + "/"
 }
 
@@ -394,5 +405,5 @@ The certificates are issued by a CA created for this installation: trust
 Remove the installation with:
 
   pmctl quickstart delete --name %[8]s
-`, o.Version, o.url(), o.BaseDomain, gatewayPort, o.Kubeconfig, o.caFile(), namespace, o.Name, details)
+`, o.Version, o.URL(), o.BaseDomain, gatewayPort, o.Kubeconfig, o.CAFile(), namespace, o.Name, details)
 }

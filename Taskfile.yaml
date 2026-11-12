@@ -26,7 +26,8 @@ version: "3"
 # Taskfile: lint, test, generate, build. The root simply fans out to them.
 # Integration and e2e tests live under tests/ in the root module: `task
 # test-integration` (components in-process against a kcp in Docker) and `task
-# test-e2e` (against a deployed Platform Mesh); see tests/README.md.
+# test-e2e` (against a deployed Platform Mesh); `task test-upgrade` upgrades
+# the latest release to this checkout. See tests/README.md.
 #
 # The components below are linked locally through the repository-root go.work
 # file. Add a component by listing its name here; its directory is discovered
@@ -231,6 +232,11 @@ tasks:
     cmds:
       - task: tests:e2e
         vars: {TEST_RUN_ID: '{{.TEST_RUN_ID}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}
+  test-upgrade:
+    desc: Run the upgrade test (tests/upgrade), from the latest release to this checkout, in a kind cluster of its own.
+    cmds:
+      - task: tests:upgrade
+        vars: {UPGRADE_FROM: '{{.UPGRADE_FROM}}', UPGRADE_CLUSTER: '{{.UPGRADE_CLUSTER}}', UPGRADE_KEEP_CLUSTER: '{{.UPGRADE_KEEP_CLUSTER}}', UPGRADE_PARALLEL_BUILD: '{{.UPGRADE_PARALLEL_BUILD}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}
   generate:
     desc: Run code generation for every component, then sync the generated CRDs into the charts.
     cmds:

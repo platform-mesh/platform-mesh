@@ -55,9 +55,9 @@ tasks:
     cmds:
       - 'echo "root: nothing to generate"'
   test:
-    desc: Unit tests of the root module. tests/integration and tests/e2e need an environment and have their own tasks (test-integration, test-e2e).
+    desc: Unit tests of the root module. tests/integration, tests/e2e and tests/upgrade need an environment and have their own tasks (test-integration, test-e2e, test-upgrade).
     cmds:
-      - go test $(go list ./... | grep -v -e /tests/integration/ -e /tests/e2e/)
+      - go test $(go list ./... | grep -v -e /tests/integration/ -e /tests/e2e/ -e /tests/upgrade)
   test-e2e:
     desc: No e2e tests in the root module.
     cmds:

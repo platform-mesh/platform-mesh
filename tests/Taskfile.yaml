@@ -51,6 +51,17 @@ tasks:
       KCP_VERSION: 'v{{.KCP_VERSION | default .REPO_KCP_VERSION | trimPrefix "v"}}'
     cmds:
       - go test -count=1 -p {{.P}} -timeout 40m {{.PKG}} {{.ADDITIONAL_COMMAND_ARGS}}
+  # --- upgrade: its own kind cluster, release first, then this checkout -------
+  upgrade:
+    desc: 'Run the upgrade test (tests/upgrade): install the latest release into a kind cluster of its own, then upgrade it to this checkout (UPGRADE_FROM= another release, UPGRADE_CLUSTER= cluster name, UPGRADE_KEEP_CLUSTER=true keeps it, UPGRADE_PARALLEL_BUILD= images built at a time).'
+    env:
+      UPGRADE_TEST: 'true'
+      UPGRADE_FROM: '{{.UPGRADE_FROM}}'
+      UPGRADE_CLUSTER: '{{.UPGRADE_CLUSTER}}'
+      UPGRADE_KEEP_CLUSTER: '{{.UPGRADE_KEEP_CLUSTER}}'
+      UPGRADE_PARALLEL_BUILD: '{{.UPGRADE_PARALLEL_BUILD}}'
+    cmds:
+      - go test -count=1 -v -timeout 180m ./upgrade/... {{.ADDITIONAL_COMMAND_ARGS}}
   # --- e2e: against a deployed Platform Mesh (KUBECONFIG, ADMIN_KUBECONFIG) --
   e2e:
     desc: 'Run tests/e2e Go suites against the cluster KUBECONFIG points at, then the portal suite (TEST_RUN_ID= for the sharded portal run).'
