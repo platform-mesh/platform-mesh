@@ -2,6 +2,15 @@ module go.platform-mesh.io/iam-service
 
 go 1.26.3
 
+replace (
+	go.platform-mesh.io/account-operator => ../../operators/account-operator
+	go.platform-mesh.io/apis => ../../apis
+	go.platform-mesh.io/golang-commons => ../../golang-commons
+	go.platform-mesh.io/subroutines => ../../subroutines
+)
+
+replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.8.1-0.20260714141811-833f063357f8
+
 require (
 	github.com/99designs/gqlgen v0.17.98
 	github.com/coreos/go-oidc v2.5.0+incompatible
@@ -33,17 +42,6 @@ require (
 )
 
 require (
-	github.com/go-openapi/swag/pools v0.29.2 // indirect
-	github.com/go-openapi/testify/v2 v2.8.0 // indirect
-	github.com/google/cel-go v0.31.0 // indirect
-	github.com/google/pprof v0.0.0-20260830191439-4932ad3515ea // indirect
-	github.com/onsi/ginkgo/v2 v2.33.1 // indirect
-	go.opentelemetry.io/otel/log v1.47.0 // indirect
-)
-
-replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.8.1-0.20260714141811-833f063357f8
-
-require (
 	github.com/agnivade/levenshtein v1.2.2 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -73,6 +71,7 @@ require (
 	github.com/go-openapi/swag/loading v0.29.2 // indirect
 	github.com/go-openapi/swag/mangling v0.29.2 // indirect
 	github.com/go-openapi/swag/netutils v0.29.2 // indirect
+	github.com/go-openapi/swag/pools v0.29.2 // indirect
 	github.com/go-openapi/swag/stringutils v0.29.2 // indirect
 	github.com/go-openapi/swag/typeutils v0.29.2 // indirect
 	github.com/go-openapi/swag/yamlutils v0.29.2 // indirect
@@ -106,6 +105,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.47.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.47.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect

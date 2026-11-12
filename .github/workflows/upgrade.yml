@@ -37,8 +37,6 @@ on:
       - 'component-constructor.yaml'
       - 'go.mod'
       - 'go.sum'
-      - 'go.work'
-      - 'go.work.sum'
       - 'Taskfile.yaml'
       - '.github/workflows/upgrade.yml'
   workflow_dispatch:
@@ -71,7 +69,7 @@ jobs:
           fetch-depth: 0 # tags are needed to derive the version of the build
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
           cache: true # zizmor: ignore[cache-poisoning]
       - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:

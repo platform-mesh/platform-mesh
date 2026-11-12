@@ -11,7 +11,7 @@
 
 Platform Mesh is an open, multi-tenant developer platform built on [kcp](https://github.com/kcp-dev/kcp). It provides account-based tenancy, relationship-based authorization (ReBAC via [OpenFGA](https://openfga.dev/)), and UI extensibility on top of a Kubernetes-like control plane.
 
-This repository is the Platform Mesh **monorepo**: it consolidates the shared libraries, operators, services, and tooling that make up the platform. Each component is its own Go module, linked together through the repository-root [`go.work`](go.work) workspace. The Helm charts (`charts/`), the OCM component definitions (`ocm/`) and the installation guide (`installation/`) live here as well.
+This repository is the Platform Mesh **monorepo**: it consolidates the shared libraries, operators, services, and tooling that make up the platform. Each component is its own Go module, linked to shared in-repo libraries through local `replace` directives in its `go.mod`. The Helm charts (`charts/`), the OCM component definitions (`ocm/`) and the installation guide (`installation/`) live here as well.
 
 ## Components
 
@@ -60,7 +60,7 @@ task test-account-operator
 task images-iam-service VERSION=v0.1.0 PUSH=false
 ```
 
-The modules are linked through the root [`go.work`](go.work), so cross-module changes resolve against local source during development.
+Local `replace` directives in each `go.mod` link the shared `apis`, `golang-commons`, and `subroutines` modules, so cross-module changes resolve against local source during development. These replacements do not affect external consumers.
 
 ### Tests
 

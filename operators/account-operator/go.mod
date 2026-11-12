@@ -2,6 +2,12 @@ module go.platform-mesh.io/account-operator
 
 go 1.26.3
 
+replace (
+	go.platform-mesh.io/apis => ../../apis
+	go.platform-mesh.io/golang-commons => ../../golang-commons
+	go.platform-mesh.io/subroutines => ../../subroutines
+)
+
 require (
 	github.com/go-logr/logr v1.4.4
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
@@ -85,7 +91,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
@@ -108,6 +113,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-// apis/static-assets is embedded from the in-repo module.
-replace go.platform-mesh.io/apis => ../../apis

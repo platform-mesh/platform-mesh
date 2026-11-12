@@ -2,6 +2,24 @@ module go.platform-mesh.io/platform-mesh
 
 go 1.26.3
 
+// Shared libraries and in-process integration test components use local source.
+replace (
+	go.platform-mesh.io/account-operator => ./operators/account-operator
+	go.platform-mesh.io/apis => ./apis
+	go.platform-mesh.io/extension-manager-operator => ./operators/extension-manager-operator
+	go.platform-mesh.io/golang-commons => ./golang-commons
+	go.platform-mesh.io/kro-composition-operator => ./operators/kro-composition-operator
+	go.platform-mesh.io/kubernetes-graphql-gateway => ./services/kubernetes-graphql-gateway
+	go.platform-mesh.io/resource-broker => ./operators/resource-broker
+	go.platform-mesh.io/security-operator => ./operators/security-operator
+	go.platform-mesh.io/subroutines => ./subroutines
+)
+
+// kcp-testcontainers requires controller-runtime v0.25, the rest of the repository
+// (and multicluster-provider v0.9.0) is on v0.24; pin until it lowers its
+// requirement.
+replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.24.1
+
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/google/go-github/v84 v84.0.0
@@ -45,25 +63,6 @@ require (
 	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
 	sigs.k8s.io/yaml v1.6.0
 )
-
-replace go.platform-mesh.io/apis => ./apis
-
-// The suites under tests/ run the components in-process; never published.
-replace (
-	go.platform-mesh.io/account-operator => ./operators/account-operator
-	go.platform-mesh.io/extension-manager-operator => ./operators/extension-manager-operator
-	go.platform-mesh.io/golang-commons => ./golang-commons
-	go.platform-mesh.io/kro-composition-operator => ./operators/kro-composition-operator
-	go.platform-mesh.io/kubernetes-graphql-gateway => ./services/kubernetes-graphql-gateway
-	go.platform-mesh.io/resource-broker => ./operators/resource-broker
-	go.platform-mesh.io/security-operator => ./operators/security-operator
-	go.platform-mesh.io/subroutines => ./subroutines
-)
-
-// kcp-testcontainers requires controller-runtime v0.25, the rest of the repository
-// (and multicluster-provider v0.9.0) is on v0.24; pin until it lowers its
-// requirement.
-replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.24.1
 
 require (
 	al.essio.dev/pkg/shellescape v1.5.1 // indirect
