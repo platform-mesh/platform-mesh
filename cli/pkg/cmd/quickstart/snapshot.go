@@ -326,6 +326,13 @@ func (s *snapshot) buildImages(ctx context.Context, components map[string]compon
 	}
 	platform := "linux/" + arch
 
+	// Every images-<component> task resolves the component with the yq of
+	// the checkout and installs it when missing. Installed once here: side
+	// by side, the installs get in each other's way.
+	if err := s.run(ctx, s.root, nil, "task", "tools:yq"); err != nil {
+		return fmt.Errorf("installing yq: %w", err)
+	}
+
 	// One step for all of them: they build side by side, and each is
 	// reported as it finishes.
 	return s.o.step(fmt.Sprintf("Building %d images, %d at a time", len(components), s.o.ParallelBuilds), func() error {
