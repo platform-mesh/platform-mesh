@@ -14,16 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package cmd assembles the pmctl command tree. Every subcommand lives in
+// Package app assembles the pmctl command tree. Every subcommand lives in
 // its own package below this one and exposes a New<Name>Command constructor
 // backed by an Options struct with Complete, Validate and Run.
-package cmd
+package app
 
 import (
 	"github.com/spf13/cobra"
 
-	"go.platform-mesh.io/platform-mesh/cli/pkg/cmd/quickstart"
-	"go.platform-mesh.io/platform-mesh/cli/pkg/cmd/version"
+	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/quickstart"
+	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/version"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 )

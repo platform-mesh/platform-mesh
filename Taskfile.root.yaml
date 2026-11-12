@@ -49,7 +49,7 @@ tasks:
         -X k8s.io/component-base/version.gitCommit={{.GIT_COMMIT}}
         -X k8s.io/component-base/version.buildDate={{.BUILD_DATE}}
     cmds:
-      - go build -ldflags '{{.LDFLAGS}}' -o {{.ROOT_DIR}}/bin/pmctl ./cli/cmd/pmctl
+      - go build -ldflags '{{.LDFLAGS}}' -o {{.ROOT_DIR}}/bin/pmctl ./cmd/pmctl
   generate:
     desc: Nothing to generate in the root module.
     cmds:
