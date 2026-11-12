@@ -19,65 +19,60 @@ package main
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	"go.yaml.in/yaml/v3"
 
 	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
 
+// constructorFile is a component-constructor.yaml, as far as this command
+// changes it. Everything else is kept in Rest as the YAML it was written as,
+// so writing the file back loses nothing and no value changes its type: the
+// ${VAR} placeholders ocm expands stay as they are, and an unquoted 1.20 does
+// not become 1.2. Comments and the order of the keys are not kept.
+type constructorFile struct {
+	Components []constructorComponent `yaml:"components"`
+	Rest       map[string]yaml.Node   `yaml:",inline"`
+}
+
+// constructorComponent is one component of a constructorFile.
+type constructorComponent struct {
+	References []componentReference `yaml:"componentReferences,omitempty"`
+	Rest       map[string]yaml.Node `yaml:",inline"`
+}
+
+// componentReference is a reference from one component to another.
+type componentReference struct {
+	Name string               `yaml:"name"`
+	Rest map[string]yaml.Node `yaml:",inline"`
+}
+
 // withoutReferences returns the constructor without the component references
-// named after one of the skipped components, and the names it dropped. The
-// rest of the document is kept as it is written: versions stay the strings
-// they are.
+// named after one of the skipped components, and the names it dropped.
 func withoutReferences(constructor []byte, skipped map[string]releaseutils.Component) ([]byte, []string, error) {
-	var doc yaml.Node
-	if err := yaml.Unmarshal(constructor, &doc); err != nil {
+	var file constructorFile
+	if err := yaml.Unmarshal(constructor, &file); err != nil {
 		return nil, nil, err
 	}
 
 	var dropped []string
-	if len(doc.Content) > 0 {
-		components := mappingValue(doc.Content[0], "components")
-		if components != nil {
-			for _, component := range components.Content {
-				references := mappingValue(component, "componentReferences")
-				if references == nil {
-					continue
-				}
-				kept := references.Content[:0]
-				for _, reference := range references.Content {
-					name := mappingValue(reference, "name")
-					if name != nil {
-						if _, skip := skipped[name.Value]; skip {
-							dropped = append(dropped, name.Value)
-							continue
-						}
-					}
-					kept = append(kept, reference)
-				}
-				references.Content = kept
+	for i := range file.Components {
+		component := &file.Components[i]
+		component.References = slices.DeleteFunc(component.References, func(ref componentReference) bool {
+			_, skip := skipped[ref.Name]
+			if skip {
+				dropped = append(dropped, ref.Name)
 			}
-		}
+			return skip
+		})
 	}
 
-	out, err := yaml.Marshal(&doc)
+	out, err := yaml.Marshal(&file)
 	if err != nil {
 		return nil, nil, err
 	}
 	return out, dropped, nil
-}
-
-// mappingValue returns the value of key in a mapping node, or nil.
-func mappingValue(node *yaml.Node, key string) *yaml.Node {
-	if node == nil || node.Kind != yaml.MappingNode {
-		return nil
-	}
-	for i := 0; i+1 < len(node.Content); i += 2 {
-		if node.Content[i].Value == key {
-			return node.Content[i+1]
-		}
-	}
-	return nil
 }
 
 // selectedConstructor returns the path of the constructor to build: the one

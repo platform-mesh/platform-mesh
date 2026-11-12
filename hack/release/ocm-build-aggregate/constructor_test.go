@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v3"
 
 	"go.platform-mesh.io/platform-mesh/hack/release/releaseutils"
 )
@@ -50,6 +51,15 @@ func TestWithoutReferences(t *testing.T) {
 	require.Contains(t, string(out), "github.com/platform-mesh/account-operator")
 	require.Contains(t, string(out), "version: ${PM_VERSION}")
 	require.Contains(t, string(out), "version: 0.10\n")
+
+	// What is left is the document that was written, minus the reference.
+	var got, want map[string]any
+	require.NoError(t, yaml.Unmarshal(out, &got))
+	require.NoError(t, yaml.Unmarshal([]byte(testConstructor), &want))
+	component := want["components"].([]any)[0].(map[string]any)
+	references := component["componentReferences"].([]any)
+	component["componentReferences"] = []any{references[0], references[2]}
+	require.Equal(t, want, got)
 }
 
 func TestWithoutReferencesNothingSkipped(t *testing.T) {
