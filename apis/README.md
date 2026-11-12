@@ -16,6 +16,7 @@ The operators and services in this monorepo import these types instead of redefi
 | `marketplace.platform-mesh.io` | `v1alpha1` | `MarketplaceEntry` |
 | `terminal.platform-mesh.io` | `v1alpha1` | `Terminal` |
 | `sharding.platform-mesh.io` | `v1alpha1` | `ResourceSharding` |
+| `backup.platform-mesh.io` | `v1alpha1` | `BackupStorage`, `Backup` |
 
 ## Getting started
 
