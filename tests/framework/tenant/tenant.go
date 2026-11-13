@@ -193,6 +193,8 @@ func ApplyAccountIn(ctx context.Context, kcp *rest.Config, parent, name, creator
 // ErrNotReady until the invite is Ready: the user exists in the Keycloak
 // realm org. The creator of an organization is invited by Platform Mesh,
 // with an invite named like the organization.
+//
+//nolint:staticcheck // the deprecated kind must keep working for existing integrations
 func ApplyInvite(ctx context.Context, kcp *rest.Config, org, name, email string) (*pmcorev1alpha1.Invite, error) {
 	path := OrganizationPath(org)
 	cl, err := NewClient(kcp, path)
@@ -234,6 +236,8 @@ func GetAccountIn(ctx context.Context, kcp *rest.Config, parent, name string) (*
 
 // GetInvite returns the invite name of the organization org, like
 // GetOrganization.
+//
+//nolint:staticcheck // the deprecated kind must keep working for existing integrations
 func GetInvite(ctx context.Context, kcp *rest.Config, org, name string) (*pmcorev1alpha1.Invite, error) {
 	path := OrganizationPath(org)
 	cl, err := NewClient(kcp, path)
@@ -284,6 +288,7 @@ func getAccountIn(ctx context.Context, kcp *rest.Config, path string, typ pmcore
 	return account, nil
 }
 
+//nolint:staticcheck // the deprecated kind must keep working for existing integrations
 func getInvite(ctx context.Context, cl ctrlruntimeclient.Client, path, name string) (*pmcorev1alpha1.Invite, error) {
 	invite := &pmcorev1alpha1.Invite{}
 	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name}, invite); err != nil {
@@ -317,6 +322,8 @@ func EnsureAccount(t testing.TB, kcp *rest.Config, org, name, creator string) *p
 
 // EnsureInvite is ApplyInvite for a test: it waits until the invite is
 // Ready.
+//
+//nolint:staticcheck // the deprecated kind must keep working for existing integrations
 func EnsureInvite(t testing.TB, kcp *rest.Config, org, name, email string) *pmcorev1alpha1.Invite {
 	t.Helper()
 	return eventually(t, InviteTimeout, "invite "+name+" in "+OrganizationPath(org), func() (*pmcorev1alpha1.Invite, error) {
@@ -344,6 +351,8 @@ func RequireAccount(t testing.TB, kcp *rest.Config, org, name string) *pmcorev1a
 
 // RequireInvite is GetInvite for a test: it fails t unless the invite
 // exists, and waits until it is Ready.
+//
+//nolint:staticcheck // the deprecated kind must keep working for existing integrations
 func RequireInvite(t testing.TB, kcp *rest.Config, org, name string) *pmcorev1alpha1.Invite {
 	t.Helper()
 	return eventually(t, InviteTimeout, "invite "+name+" in "+OrganizationPath(org), func() (*pmcorev1alpha1.Invite, error) {
