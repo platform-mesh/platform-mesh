@@ -98,6 +98,11 @@ func TestWorkspaceTypesDecode(t *testing.T) {
 	}
 }
 
+// The orgs WorkspaceType no longer binds these by default; the fixtures must.
+func TestOrgsBindings(t *testing.T) {
+	require.Equal(t, []string{"core.platform-mesh.io", "fga.platform-mesh.io"}, orgsBindings(t))
+}
+
 func TestRenderMissingKey(t *testing.T) {
 	out := Render(t, []byte("a: {{ .x }}\n{{- if eq .y \"true\" }}\nb: 1\n{{- end }}\n"), map[string]any{"x": "1", "y": "false"})
 	require.Equal(t, "a: 1\n", string(out))
