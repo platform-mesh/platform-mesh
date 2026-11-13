@@ -8,7 +8,7 @@ A Helm chart for Kubernetes
 |-----|------|---------|-------------|
 | certManager.caSecretName | string | `"rebac-authz-webhook-webhook-ca"` |  |
 | certManager.dnsNames | list | `[]` |  |
-| certManager.enabled | bool | `true` |  |
+| certManager.enabled | bool | `false` |  |
 | certManager.ipAddresses | list | `[]` |  |
 | clusterScopedName.prefix | string | `""` | Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one |
 | clusterScopedName.suffix | string | `""` | Suffix for the names of cluster-scoped resources |
@@ -22,10 +22,11 @@ A Helm chart for Kubernetes
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/rebac-authz-webhook"` | The image repository path (without registry) |
 | image.tag | string | `""` |  |
-| istio.dnsNames | list | `[]` |  |
+| istio.dnsNames[0] | string | `"rebac-authz-webhook.platform-mesh-system.svc.cluster.local"` |  |
 | istio.enabled | bool | `false` |  |
 | kcp.apiExportEndpointSliceName | string | `""` | kcp APIExportEndpointSliceName to watch. Empty string means auto-discover all slices |
 | kcp.kubeconfig.secret | string | `"rebac-authz-webhook-kubeconfig"` |  |
+| log.level | string | `"debug"` | Log level |
 | openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` |  |
 | service.annotations | object | `{}` |  |
 | service.clusterIP | string | `""` |  |

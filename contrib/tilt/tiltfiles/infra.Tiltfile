@@ -75,6 +75,12 @@ infra = profile_chart(
     NAMESPACE,
     TEMPLATE_VARS,
     overrides={
+        "gatewayApi": {
+            "baseDomain": BASE_DOMAIN,
+            "port": 8443,
+            "gatewayClassName": TEMPLATE_VARS["gatewayClassName"],
+            "passthrough": {"port": 8443},
+        },
         "kcp": {
             "external": {"port": PORT},
             "rootShard": {"shardBaseURL": "https://{}:{}/".format(KCP_ROOT_HOSTNAME, PORT), "resources": NO_REQUESTS},

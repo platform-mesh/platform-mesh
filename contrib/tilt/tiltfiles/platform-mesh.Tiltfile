@@ -58,6 +58,7 @@ pmo = chart(
             "platform-mesh-operator",
             {
                 "ocm": {"enabled": False},
+                "gateway": {"className": TEMPLATE_VARS["gatewayClassName"]},
                 "log": {"level": "debug"},
                 "extraArgs": [
                     "--subroutines-feature-toggles-enabled=true",

@@ -26,12 +26,17 @@ A Helm chart to deploy platform-mesh Account-Operator
 | kcp | object | `{"apiExportEndpointSliceName":"core.platform-mesh.io"}` | The kcp configuration |
 | kcp.apiExportEndpointSliceName | string | `"core.platform-mesh.io"` | kcp APIExportEndpointSliceName which is used for reconciliation |
 | kubeconfigSecret | string | `"account-operator-kubeconfig"` | Name of the Secret holding the kubeconfig used to reach the API server. This Secret is not created by this Helm chart and is not meant to be created by the user: in a regular Platform Mesh installation it is created and managed by the PM Operator, which provisions a `<component>-kubeconfig` Secret for each PM component. |
+| log.level | string | `"debug"` | Log level |
+| log.noJson | bool | `true` | Disable JSON log formatting |
 | operator.leaderElect | bool | `true` |  |
 | security.mountServiceAccountToken | bool | `true` | Mount the service account token |
 | subroutines.accountInfo.enabled | bool | `true` | Enable AccountInfo subroutine |
+| subroutines.fga.grpcAddr | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` | gRPC address of the OpenFGA service |
 | subroutines.workspace.enabled | bool | `true` | Enable workspace subroutine |
 | subroutines.workspaceReady.enabled | bool | `true` | Enable workspace ready subroutine |
 | subroutines.workspaceType.enabled | bool | `true` | Enable workspace type subroutine |
+| tracing.collector.endpoint | string | `"observability-opentelemetry-collector.observability.svc.cluster.local:4317"` | OpenTelemetry collector endpoint |
+| tracing.enabled | bool | `false` | Toggle to enable/disable OpenTelemetry tracing |
 | webhooks.additionalAccountTypes[0] | string | `"account"` |  |
 | webhooks.caDuration | string | `"2160h"` | CA certificate duration (default: 3 months) |
 | webhooks.caRenewBefore | string | `"720h"` | CA certificate renewal time before expiration (default: 30 days) |

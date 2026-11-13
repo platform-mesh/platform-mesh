@@ -41,6 +41,7 @@ match the default snapshot:
                 - --subroutines-pod-enabled=true
                 - --subroutines-service-enabled=true
                 - --subroutines-httproute-enabled=true
+                - --kcp-kubeconfig=/kcp-kubeconfig/kubeconfig
               env: null
               image: ghcr.io/platform-mesh/platform-mesh/terminal-controller-manager:0.0.0
               imagePullPolicy: IfNotPresent
@@ -81,14 +82,20 @@ match the default snapshot:
                   path: /readyz
                   port: 8090
                 periodSeconds: 10
-              volumeMounts: null
+              volumeMounts:
+                - mountPath: /kcp-kubeconfig
+                  name: kcp-kubeconfig
+                  readOnly: true
           securityContext:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
           serviceAccountName: terminal-controller-manager
           terminationGracePeriodSeconds: 10
-          volumes: null
+          volumes:
+            - name: kcp-kubeconfig
+              secret:
+                secretName: terminal-controller-manager-kubeconfig
   2: |
     apiVersion: v1
     kind: Namespace

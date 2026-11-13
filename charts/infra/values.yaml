@@ -210,16 +210,19 @@ keycloak:
       # -- Database username (written to keycloak-db-credentials secret)
       username: keycloak
       # -- Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value.
-      password: ""
+      # TODO: replace hardcoded passwords with a proper secrets management solution.
+      password: "keycloak-password"
     admin:
       # -- Bootstrap admin username (written to keycloak-admin secret)
       username: keycloak-admin
       # -- Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value.
-      password: ""
+      # TODO: replace hardcoded passwords with a proper secrets management solution.
+      password: "admin"
       # -- Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value.
-      secret: ""
+      # TODO: replace hardcoded passwords with a proper secrets management solution.
+      secret: "admin"
     # -- Secret with PEM CA for outbound HTTPS trust (e.g. local mkcert CA)
-    caSecret: ""
+    caSecret: "domain-certificate"
     # -- Enable plain HTTP on the Keycloak pod. Keycloak sits behind gatewayAPI, which
     # handles TLS termination.
     httpEnabled: true
@@ -254,9 +257,9 @@ keycloak:
   # -- service configuration
   service:
     # -- service name
-    name: keycloak
+    name: keycloak-service
     # -- service port
-    port: 80
+    port: 8080
 
   # -- domain configuration
   domain:
@@ -267,12 +270,10 @@ keycloak:
 
   keycloakConfig:
     # -- url of the keycloak server
-    url: http://keycloak.platform-mesh-system.svc.cluster.local/keycloak
+    url: http://keycloak-service.platform-mesh-system.svc.cluster.local:8080/keycloak
     userRegistration:
       # -- toggle to enable/disable user registration
       enabled: true
-    # -- redirect urls
-    redirectUrls: []
     # -- realm configuration
     realm:
       # -- realm name
@@ -377,7 +378,7 @@ cnpg:
       tag: "18.6-system-trixie"
       # -- PostgreSQL image digest (when set, overrides tag)
       digest: ""
-    instances: 2
+    instances: 1
     storage:
       size: 2Gi
     postgresql:
@@ -388,12 +389,14 @@ cnpg:
       # -- PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret.
       username: keycloak
       # -- REQUIRED: set to a strong random value.
-      password: ""
+      # TODO: replace hardcoded passwords with a proper secrets management solution.
+      password: "keycloak-password"
     openfga:
       # -- PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret.
       username: openfga
       # -- REQUIRED: set to a strong random value.
-      password: ""
+      # TODO: replace hardcoded passwords with a proper secrets management solution.
+      password: "openfga-password"
   databases:
     - name: keycloak
       owner: keycloak
@@ -407,43 +410,19 @@ gatewayApi:
   name: k8sapi-gateway
   # -- GatewayClass name
   gatewayClassName: ""
+  # -- Base domain used to build listener hostnames (terminate, wildstar, services).
+  # Required — must be set via the operator (derived from PlatformMesh spec.exposure.baseDomain).
+  baseDomain: ""
+  # -- External port for HTTPS terminate listeners.
+  port: 443
   # -- HTTPS Terminate configuration
   infrastructure: {}
-  # -- Gateway listeners. The HTTPS listener is hostname-less so all route hostnames share one listener (needed for HTTP/2 connection reuse on Istio).
-  listeners:
-    - name: terminate
-      port: 443
-      protocol: HTTPS
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - group: ""
-            kind: Secret
-            name: domain-certificate
-            namespace: platform-mesh-system
   passthrough:
     # -- Generate one TLS passthrough listener per kcp hostname (front proxy, root shard, shards). Disable to manage passthrough listeners yourself; kcp TLSRoutes then attach to a listener named "passthrough".
     enabled: true
-    # -- Port of the generated passthrough listeners
+    # -- Port of the generated passthrough listeners.
     port: 443
     # -- allowedRoutes of the generated passthrough listeners
     allowedRoutes:
       namespaces:
         from: All
-  # -- Additional listeners to be added to the Gateway resource (e.g. for HTTPBin)
-  listenersExtra:
-    - name: terminate-services
-    # -- hostname should match the pattern "*.services.{{ .baseDomain }}"
-      hostname: ""
-      port: 443
-      protocol: HTTPS
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - group: ""
-            kind: Secret
-            name: domain-certificate
-            namespace: platform-mesh-system
-      allowedRoutes:
-        namespaces:
-          from: All

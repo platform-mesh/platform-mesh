@@ -7,9 +7,26 @@ image:
   digest: ""
   pullPolicyOverride: IfNotPresent
 
+# -- Base domain for the portal deployment. The operator substitutes this value. All derived
+# -- URLs (cookieDomain, discoveryUrl, crdGatewayApiUrl, httpRoute hostnames) are built from it.
+baseDomain: ""
+
+# -- External HTTPS port for browser-facing URLs. The operator substitutes this value.
+# -- Does not affect the container listen port (which defaults to 8080 via common chart defaults).
+frontendPort: ""
+
+# -- Name of the Secret containing the domain TLS CA certificate (key: ca.crt).
+# -- When set together with webhookCaSecret, the chart renders a combine-ca init container
+# -- that merges both CAs into /etc/ssl/certs/ca-bundle.crt.
+caSecret: domain-certificate
+
+# -- Name of the Secret containing the rebac-authz-webhook CA certificate (key: ca.crt).
+# -- Required when caSecret is also set; the two are concatenated by the combine-ca init container.
+webhookCaSecret: rebac-authz-webhook-cert
+
 http:
   # -- protocol used by the portal backend. Must be set. Permissible values: http, https
-  protocol: ""
+  protocol: https
 
 validWebcomponentUrls: ".?"
 featureToggles: "enableSessionAutoRefresh=true"
@@ -21,27 +38,22 @@ environment: ""
 # -- development landscape toggle. Set to "true" only in local/dev environments to enable dev-only UI features. Permissible values: "true", "false"
 developmentLandcsape: "false"
 
-# -- frontend port
-frontendPort: 8000
-
-# -- cookie domain for auth session cookies. Must match the base domain of the portal deployment (e.g. example.com). Required.
-cookieDomain: ""
-
 # -- allows the configuration of a kubeconfig secret for external api servers
 kubeconfigSecret: ""
 kcp:
   # -- kcp API URL (e.g. https://localhost:8443 for local setup)
   url: ""
-  kubeconfigSecret: ""
+  kubeconfigSecret: portal-kubeconfig
 
 auth:
   default:
-    # -- discovery url used for the idp
-    discoveryUrl: ""
     # -- client id
-    clientId: ""
-    # -- baseDomain used by the portal
-    baseDomain: ""
+    clientId: welcome
+    # -- Secret key holding the client secret
+    clientSecretKey: attribute.client_secret
+    # -- Secret name holding the client secret
+    clientSecretName: portal-client-secret-welcome
+
 health:
   # -- health port to be used by probes
   port: 8080
@@ -63,7 +75,7 @@ validation:
   # -- Protocol used to reach the extension-manager validation webhook. Permissible values: http, https
   protocol: "http"
 
-# -- init containers to run before the main container
+# -- additional init containers to run before the main container (appended after combine-ca when enabled)
 initContainers: []
 
 gatewayApi:
@@ -71,9 +83,10 @@ gatewayApi:
   enabled: true
   httpRoute:
     pathPrefix: /
-    # -- hostnames for the HTTPRoute. When empty, the route matches all hostnames.
+    # -- hostnames for the HTTPRoute.
     hostnames: []
     parentRefs:
     - name: k8sapi-gateway
+      kind: Gateway
     # -- list of HTTPRoute filters (default: none)
     filters: []

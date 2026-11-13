@@ -1,26 +1,48 @@
-{{- if .Values.gatewayApi.enabled }}
+{{- if and .Values.gatewayApi.enabled .Values.gatewayApi.baseDomain }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ .Values.gatewayApi.name }}
   namespace: {{ .Release.Namespace }}
 spec:
-  gatewayClassName: {{ .Values.gatewayApi.gatewayClassName }}
+  gatewayClassName: {{ .Values.gatewayApi.gatewayClassName | quote }}
   listeners:
-    {{- $listeners := concat (.Values.gatewayApi.listeners | default list) (.Values.gatewayApi.listenersExtra | default list) }}
+    - name: terminate
+      hostname: {{ .Values.gatewayApi.baseDomain | quote }}
+      port: {{ .Values.gatewayApi.port }}
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: domain-certificate
+            namespace: {{ .Release.Namespace }}
+    - name: terminate-wildstar
+      hostname: {{ printf "*.%s" .Values.gatewayApi.baseDomain | quote }}
+      port: {{ .Values.gatewayApi.port }}
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: domain-certificate
+            namespace: {{ .Release.Namespace }}
+    - name: terminate-services
+      hostname: {{ printf "*.services.%s" .Values.gatewayApi.baseDomain | quote }}
+      port: {{ .Values.gatewayApi.port }}
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: domain-certificate
+            namespace: {{ .Release.Namespace }}
+      allowedRoutes:
+        namespaces:
+          from: All
     {{- if .Values.gatewayApi.passthrough.enabled }}
-    {{- $generated := include "kcp.passthroughListeners" . | fromYamlArray }}
-    {{- range $generated }}
-    {{- $name := .name }}
-    {{- range $listeners }}
-    {{- if eq .name $name }}
-    {{- fail (printf "gatewayApi listener %q is generated from the kcp hostnames; remove it from gatewayApi.listeners or set gatewayApi.passthrough.enabled=false" $name) }}
+    {{- include "kcp.passthroughListeners" . | nindent 4 }}
     {{- end }}
-    {{- end }}
-    {{- end }}
-    {{- $listeners = concat $listeners $generated }}
-    {{- end }}
-    {{- $listeners | toYaml | nindent 4 }}
 {{- with .Values.gatewayApi.infrastructure }}
   infrastructure:
     {{- toYaml . | nindent 4 }}
