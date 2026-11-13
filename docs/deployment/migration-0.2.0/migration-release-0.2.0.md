@@ -296,7 +296,7 @@ Missing configuration for realm.
 
 Wrong data in the `domain-certificate-ca` 'tls.key' must actually contain to CA!
 
-### invite users to orgnization
+### invite users to organization
 
 Create Invite resources in the respective org workspace:
 ```yaml
@@ -362,13 +362,13 @@ Symptop: UI issues.
 
 Fix: remove Kustomization resource `ui-configs` from the showroom-mcp chart.
 
-## remove store-tuples which grant access to every logged in user to the org (owner should invite them explicitely)
+## remove store-tuples which grant access to every logged in user to the org (owner should invite them explicitly)
 
 Previously, all logged-in users were members in any org, due to tuples configured in the `Store` resource.
 
 Fix: remove the tuples from store resources.
 
-After that, all new users must be explicitely added via the Members UI.
+After that, all new users must be explicitly added via the Members UI.
 
 ## iam-service graphql unauthorized
 

@@ -227,7 +227,7 @@ func (a *APIExportPolicySubroutine) parseAllowExpression(expr string) (workspace
 }
 
 // finds expressions which are present in the status but aren't in the spec
-// and do the cleanup of the tupels for removed expressions
+// and do the cleanup of the tuples for removed expressions
 func (a *APIExportPolicySubroutine) deleteRemovedExpressions(ctx context.Context, policy *pmcorev1alpha1.APIExportPolicy) error {
 	providerClusterID, err := a.getClusterIDFromPath(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {

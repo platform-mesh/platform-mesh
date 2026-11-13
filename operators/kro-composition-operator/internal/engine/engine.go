@@ -215,7 +215,7 @@ func (e *Engine) ReconcileRGD(ctx context.Context, clusterName, rgdName string) 
 	if err != nil {
 		// A refused schema change is terminal: the previously published schema stays served
 		// and only an RGD edit, which re-triggers this reconcile on its own, can resolve it.
-		// Requeueing would just repeat the same refusal.
+		// Requeuing would just repeat the same refusal.
 		if isBreakingSchemaChange(err) {
 			log.Info("refusing to republish the composite type", "reason", err.Error())
 			return writeRGDKindNotReady(ctx, wc.Client, rgd.Name, err.Error())

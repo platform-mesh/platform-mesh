@@ -60,7 +60,7 @@ func pendingIfClusterNotReady(ctx context.Context, err error) (subroutines.Resul
 		return subroutines.OK(), false
 	}
 	logger.LoadLoggerFromContext(ctx).Info().Err(err).
-		Msg("cluster not engaged by multicluster provider yet, requeueing")
+		Msg("cluster not engaged by multicluster provider yet, requeuing")
 	return subroutines.Pending(clusterNotReadyRequeue, "waiting for cluster to be engaged by the multicluster provider"), true
 }
 
