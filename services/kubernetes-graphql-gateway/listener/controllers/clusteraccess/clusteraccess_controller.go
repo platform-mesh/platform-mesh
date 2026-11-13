@@ -199,9 +199,11 @@ func (r *ClusterAccessReconciler) reconcileClusterAccess(
 		}
 	}
 
-	// Create resolver with enrichers configured for this cluster
+	// Create resolver with enrichers configured for this cluster.
+	// Scope uses the discovery list (apiResources) as its primary source and
+	// the RESTMapper as a fallback; see enricher.NewScope.
 	resolver := apischema.NewResolver(
-		enricher.NewScope(targetRM),
+		enricher.NewScope(targetRM, apiResources),
 		enricher.NewCategories(apiResources),
 	)
 	if ca.Spec.SchemaFilter != nil {

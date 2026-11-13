@@ -1,0 +1,137 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "synthetic test fixture",
+    "version": "v0"
+  },
+  "components": {
+    "schemas": {
+      "com.example.v1alpha1.Widget": {
+        "type": "object",
+        "description": "A synthetic namespaced resource used only for tests.",
+        "x-kubernetes-group-version-kind": [
+          {
+            "group": "example.com",
+            "version": "v1alpha1",
+            "kind": "Widget"
+          }
+        ],
+        "properties": {
+          "apiVersion": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+              }
+            ]
+          },
+          "spec": {
+            "type": "object",
+            "properties": {
+              "size": {
+                "type": "integer"
+              },
+              "color": {
+                "type": "string"
+              }
+            }
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "ready": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "com.example.v1alpha1.WidgetList": {
+        "type": "object",
+        "x-kubernetes-group-version-kind": [
+          {
+            "group": "example.com",
+            "version": "v1alpha1",
+            "kind": "WidgetList"
+          }
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/com.example.v1alpha1.Widget"
+            }
+          }
+        }
+      },
+      "com.example.v1alpha1.ClusterWidget": {
+        "type": "object",
+        "description": "A synthetic cluster-scoped resource used only for tests.",
+        "x-kubernetes-group-version-kind": [
+          {
+            "group": "example.com",
+            "version": "v1alpha1",
+            "kind": "ClusterWidget"
+          }
+        ],
+        "properties": {
+          "apiVersion": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+              }
+            ]
+          },
+          "spec": {
+            "type": "object",
+            "properties": {
+              "region": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "com.example.v1alpha1.ClusterWidgetList": {
+        "type": "object",
+        "x-kubernetes-group-version-kind": [
+          {
+            "group": "example.com",
+            "version": "v1alpha1",
+            "kind": "ClusterWidgetList"
+          }
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/com.example.v1alpha1.ClusterWidget"
+            }
+          }
+        }
+      },
+      "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

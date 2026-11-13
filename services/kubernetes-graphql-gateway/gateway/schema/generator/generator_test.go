@@ -494,7 +494,7 @@ func TestParseResources(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &SchemaGenerator{definitions: tt.definitions}
-			got := g.parseResources()
+			got := g.parseResources(context.Background())
 
 			require.Len(t, got, len(tt.want))
 			for i, want := range tt.want {
