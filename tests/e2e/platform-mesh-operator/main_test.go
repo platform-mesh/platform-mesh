@@ -127,14 +127,14 @@ func conditionsString(conds []metav1.Condition) string {
 }
 
 // updatePlatformMesh applies mutate to the live PlatformMesh, retrying on conflicts.
-func updatePlatformMesh(ctx context.Context, cl ctrlruntimeclient.Client, mutate func(*pmcorev1alpha1.PlatformMesh)) error {
+func updatePlatformMesh(ctx context.Context, cl ctrlruntimeclient.Client, mutate func(*pmcorev1alpha1.PlatformMesh), opts ...ctrlruntimeclient.UpdateOption) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		pm := &pmcorev1alpha1.PlatformMesh{}
 		if err := cl.Get(ctx, platformMeshKey(), pm); err != nil {
 			return err
 		}
 		mutate(pm)
-		return cl.Update(ctx, pm)
+		return cl.Update(ctx, pm, opts...)
 	})
 }
 

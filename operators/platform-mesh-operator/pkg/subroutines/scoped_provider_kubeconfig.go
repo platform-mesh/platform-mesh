@@ -82,13 +82,23 @@ func resolveAPIExport(ctx context.Context, kcpHelper KcpHelper, cfg *rest.Config
 	return &export, nil
 }
 
-func getPolicyRulesFromAPIExport(export *kcpapisv1alpha2.APIExport) ([]rbacv1.PolicyRule, error) {
+// getPolicyRulesFromAPIExport builds the scoped RBAC rules for an APIExport. With readOnly the
+// rules only allow reads and permission claims are left out.
+func getPolicyRulesFromAPIExport(export *kcpapisv1alpha2.APIExport, readOnly bool) ([]rbacv1.PolicyRule, error) {
 	var rules []rbacv1.PolicyRule
 
 	for _, res := range export.Spec.Resources {
 		group := res.Group
 		resource := res.Name
 		if resource == "" {
+			continue
+		}
+		if readOnly {
+			rules = append(rules, rbacv1.PolicyRule{
+				APIGroups: []string{group},
+				Resources: []string{resource},
+				Verbs:     []string{"get", "list", "watch"},
+			})
 			continue
 		}
 		rules = append(rules, rbacv1.PolicyRule{
@@ -106,7 +116,7 @@ func getPolicyRulesFromAPIExport(export *kcpapisv1alpha2.APIExport) ([]rbacv1.Po
 	for _, claim := range export.Spec.PermissionClaims {
 		group := claim.Group
 		resource := claim.Resource
-		if resource == "" {
+		if readOnly || resource == "" {
 			continue
 		}
 		verbs := claim.Verbs
@@ -128,11 +138,15 @@ func getPolicyRulesFromAPIExport(export *kcpapisv1alpha2.APIExport) ([]rbacv1.Po
 	}
 
 	if export.Name != "" {
+		contentVerbs := []string{"*"}
+		if readOnly {
+			contentVerbs = []string{"get", "list", "watch"}
+		}
 		rules = append(rules, rbacv1.PolicyRule{
 			APIGroups:     []string{"apis.kcp.io"},
 			Resources:     []string{"apiexports/content"},
 			ResourceNames: []string{export.Name},
-			Verbs:         []string{"*"},
+			Verbs:         contentVerbs,
 		})
 	}
 
@@ -529,7 +543,7 @@ func writeScopedKubeconfigToSecret(
 		if err != nil {
 			return errors.Wrap(err, "resolve APIExport")
 		}
-		rules, err := getPolicyRulesFromAPIExport(export)
+		rules, err := getPolicyRulesFromAPIExport(export, pc.ReadOnly)
 		if err != nil {
 			return errors.Wrap(err, "build RBAC from APIExport")
 		}
@@ -558,7 +572,7 @@ func writeScopedKubeconfigToSecret(
 			if err != nil {
 				return fmt.Errorf("resolve APIExport %s: %w", exportName, err)
 			}
-			rules, err := getPolicyRulesFromAPIExport(export)
+			rules, err := getPolicyRulesFromAPIExport(export, pc.ReadOnly)
 			if err != nil {
 				return fmt.Errorf("get policy rules from APIExport %s: %w", exportName, err)
 			}
