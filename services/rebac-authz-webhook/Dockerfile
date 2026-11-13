@@ -18,7 +18,7 @@
 # The service uses the local golang-commons module through go.mod replace
 # directives, so its source must be present in the build:
 #   docker build -f services/rebac-authz-webhook/Dockerfile .
-FROM --platform=$BUILDPLATFORM golang:1.27.3@sha256:2920bb124f1a2e12a1d39f0cab756ae0068441ee1da7655dec7f5e374944095b AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.4@sha256:5e8afd493a7124a8586e134d9b532731161d4b9becf9dee5a5956b107426f93d AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
