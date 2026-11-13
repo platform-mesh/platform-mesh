@@ -18,7 +18,7 @@ ocm:
   signatureName: platform-mesh.platform-mesh
   # -- Set to false when the OCM component is signed by a different trusted key.
   installSigningCertificate: true
-  
+
   # -- Enable/disable the individual OCM components. The operator reconciles only the enabled components.
   services:
     account-operator: true
