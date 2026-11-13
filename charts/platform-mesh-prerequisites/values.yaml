@@ -1,6 +1,12 @@
 # Set a component to false when it is supplied by the target cluster.
 flux2:
   enabled: true
+  imageAutomationController:
+    # -- Enable Flux image updates when using ImageUpdateAutomation resources. Platform Mesh uses OCM component versions instead.
+    create: false
+  imageReflectionController:
+    # -- Enable Flux image scanning when using ImageRepository or ImagePolicy resources.
+    create: false
   # Flux's default policies select every Pod in the release namespace and only
   # allow ingress from that namespace. The API server must reach cert-manager's
   # admission webhook, so do not install them alongside shared prerequisites.

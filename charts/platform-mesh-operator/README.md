@@ -3,6 +3,20 @@
 A Helm chart to automate bootstrapping of new environment
 
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+## Installation profiles
+
+`production` uses public DNS and the production topology. `kind` includes the
+frontend and its supporting services for local evaluation. `kind-headless` is
+a third, backend-only alternative for local Kubernetes, IAM, and authorization
+experiments with a smaller resource budget.
+
+The `kind-headless` profile should be used for environments with minimal resource availability,
+such as local development and CI/CD pipelines. It is not intended for production use.
+It disables optional frontend components.
+
+The `kind` profile is intended for local development and testing, providing a complete environment
+with frontend components.
+
 ## Profile lifecycle
 
 With `ocm.enabled=true`, Helm creates `platform-mesh-profile` once during install,
@@ -56,7 +70,7 @@ repeatedly apply install-mode renders must manage the profile separately.
 | ocm | object | `{"enabled":false,"installSigningCertificate":true,"profile":"production","repository":"ghcr.io/platform-mesh","signatureName":"platform-mesh.platform-mesh","version":"0.5.2"}` | When enabled, manages the OCM Repository/Component CRs and the PlatformMesh CR, and creates the profile ConfigMap once on Helm install if absent. Helm upgrades preserve the existing profile. Disable to supply PlatformMesh resources from a separate GitOps source. |
 | ocm.enabled | bool | `false` | Enable the bundled installation resources. Keep enabled on upgrades to continue managing the OCM and PlatformMesh resources. |
 | ocm.installSigningCertificate | bool | `true` | Set to false when the OCM component is signed by a different trusted key. |
-| ocm.profile | string | `"production"` | Initial profile, applied only on Helm install when no profile ConfigMap exists. Changes on upgrade do not update the profile. `production` assumes the infrastructure prerequisites already exist. |
+| ocm.profile | string | `"production"` | Initial profile, applied only on Helm install when no profile ConfigMap exists. Changes on upgrade do not update the profile. `production` assumes the infrastructure prerequisites already exist; `kind` includes the full local installation; `kind-headless` runs the backend without frontend services. |
 | ocm.repository | string | `"ghcr.io/platform-mesh"` | OCI registry (and optional path) the Platform Mesh OCM components are read from. Point this at a mirror, or at a fork's registry, to install from there. |
 | ocm.signatureName | string | `"platform-mesh.platform-mesh"` | Name of the OCM signature the components are verified against. |
 | ocm.version | string | `"0.5.2"` | Platform Mesh OCM component version to reconcile. |

@@ -7,7 +7,7 @@ crds:
 ocm:
   # -- Enable the bundled installation resources. Keep enabled on upgrades to continue managing the OCM and PlatformMesh resources.
   enabled: false
-  # -- Initial profile, applied only on Helm install when no profile ConfigMap exists. Changes on upgrade do not update the profile. `production` assumes the infrastructure prerequisites already exist.
+  # -- Initial profile, applied only on Helm install when no profile ConfigMap exists. Changes on upgrade do not update the profile. `production` assumes the infrastructure prerequisites already exist; `kind` includes the full local installation; `kind-headless` runs the backend without frontend services.
   profile: production
   # -- Platform Mesh OCM component version to reconcile.
   version: "0.5.2"

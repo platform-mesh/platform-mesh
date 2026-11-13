@@ -7,6 +7,10 @@ metadata:
 spec:
   instances: {{ .Values.keycloak.operator.instances }}
   image: {{ include "common.image" (dict "Values" (dict "image" .Values.keycloak.operator.image) "Chart" .Chart) }}
+  {{- with .Values.keycloak.operator.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   db:
     vendor: postgres
     host: {{ .Values.keycloak.operator.db.host }}
@@ -52,6 +56,4 @@ spec:
           - imagePullPolicy: IfNotPresent
             name: keycloak
             {{- include "common.operatorHealthAndReadyness" (dict "Values" .Values.keycloak.operator) | nindent 12 }}
-            resources:
-              {{- toYaml .Values.keycloak.operator.resources | nindent 14 }}
 {{- end }}

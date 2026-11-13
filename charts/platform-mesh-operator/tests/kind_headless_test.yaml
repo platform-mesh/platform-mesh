@@ -1,0 +1,65 @@
+suite: Backend-only Kind installation profile
+templates:
+  - installation-profile.yaml
+  - installation.yaml
+set:
+  ocm.enabled: true
+  ocm.profile: kind-headless
+  gateway.baseDomain: portal.localhost
+  gateway.clusterIP: 10.96.188.4
+tests:
+  - it: renders the complete headless profile
+    template: installation-profile.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: platform-mesh-profile
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?m)^    account-operator:\n(?:      .*\n)*      enabled: true$'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?m)^    portal:\n(?:      .*\n)*      enabled: false$'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?m)^    kubernetes-graphql-gateway:\n(?:      .*\n)*      enabled: false$'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?m)^    security-operator:\n(?:      .*\n)*      enabled: true$'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'memory: 64Mi'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: '__EXTERNAL_PORT__|__GATEWAY_SERVICE_CLUSTER_IP__'
+  - it: retains frontend services in the regular Kind profile
+    template: installation-profile.yaml
+    set:
+      ocm.profile: kind
+    asserts:
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?m)^    portal:\n(?:      .*\n)*      enabled: true$'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?m)^    kubernetes-graphql-gateway:\n(?:      .*\n)*      enabled: true$'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'cpu: 75m'
+  - it: requires the gateway address for the headless profile
+    template: installation.yaml
+    set:
+      gateway.clusterIP: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind-headless profile
+  - it: does not replace the profile when upgrading to headless
+    template: installation-profile.yaml
+    release:
+      upgrade: true
+    asserts:
+      - hasDocuments:
+          count: 0

@@ -1,0 +1,26 @@
+suite: Keycloak server resource contract
+templates:
+  - templates/keycloak/keycloak.yaml
+set:
+  keycloak.operator.enabled: true
+tests:
+  - it: leaves resource defaults to the Keycloak operator
+    asserts:
+      - notExists:
+          path: spec.resources
+      - notExists:
+          path: spec.unsupported.podTemplate.spec.containers[0].resources
+  - it: sets resources through the supported field for headless installations
+    set:
+      keycloak.operator.resources:
+        requests:
+          memory: 1Gi
+        limits:
+          memory: 2Gi
+    asserts:
+      - equal:
+          path: spec.resources.requests.memory
+          value: 1Gi
+      - equal:
+          path: spec.resources.limits.memory
+          value: 2Gi

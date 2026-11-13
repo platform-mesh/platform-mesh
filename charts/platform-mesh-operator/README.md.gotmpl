@@ -1,3 +1,17 @@
+## Installation profiles
+
+`production` uses public DNS and the production topology. `kind` includes the
+frontend and its supporting services for local evaluation. `kind-headless` is
+a third, backend-only alternative for local Kubernetes, IAM, and authorization
+experiments with a smaller resource budget.
+
+The `kind-headless` profile should be used for environments with minimal resource availability, 
+such as local development and CI/CD pipelines. It is not intended for production use.
+It disables optional frontend components.
+
+The `kind` profile is intended for local development and testing, providing a complete environment 
+with frontend components. 
+
 ## Profile lifecycle
 
 With `ocm.enabled=true`, Helm creates `platform-mesh-profile` once during install,

@@ -1,8 +1,8 @@
 {{- if .Values.ocm.enabled }}
 {{- $_ := required "gateway.baseDomain must be set when ocm.enabled=true" .Values.gateway.baseDomain }}
 {{- $gatewayClusterIP := .Values.gateway.clusterIP }}
-{{- if eq .Values.ocm.profile "kind" }}
-{{- $_ = required "gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind profile" $gatewayClusterIP }}
+{{- if has .Values.ocm.profile (list "kind" "kind-headless") }}
+{{- $_ = required (printf "gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the %s profile" .Values.ocm.profile) $gatewayClusterIP }}
 {{- end }}
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Repository
