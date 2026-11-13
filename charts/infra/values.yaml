@@ -258,50 +258,6 @@ keycloak:
     # -- service port
     port: 80
 
-  # -- domain configuration
-  domain:
-    # -- domain name
-    name: platform-mesh.io
-    # -- path prefix
-    pathPrefix: "/keycloak"
-
-  keycloakConfig:
-    # -- url of the keycloak server
-    url: http://keycloak.platform-mesh-system.svc.cluster.local/keycloak
-    userRegistration:
-      # -- toggle to enable/disable user registration
-      enabled: true
-    # -- redirect urls
-    redirectUrls: []
-    # -- realm configuration
-    realm:
-      # -- realm name
-      name: master
-    # -- client configuration
-    client:
-      # -- client name
-      name: welcome
-      # -- target secret options
-      targetSecret:
-        # -- secret name
-        name: portal-client-secret-welcome
-        # -- secret namespace
-        namespace: platform-mesh-system
-      # -- token lifespan
-      tokenLifespan: 3600
-    # -- admin user configuration
-    admin:
-      username:
-        # -- username
-        value: keycloak-admin
-      # -- admin password
-      password:
-        valueFrom:
-          secretKeyRef:
-            # -- name of the secret containing the password
-            name: keycloak-admin
-            # -- key of the password in the secret
-            key: secret
 
 dex:
   # -- Enable Dex as a local upstream OIDC identity provider

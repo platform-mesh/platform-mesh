@@ -26,8 +26,6 @@ kubeConfig:
 | gateway.grpcMaxRecvMsgSize | int | `4194304` |  |
 | gateway.healthCheck.enabled | bool | `true` |  |
 | gateway.healthCheck.port | int | `8080` |  |
-| gateway.introspectionAuthentication | bool | `true` |  |
-| gateway.logLevel | string | `"info"` | log level for the gateway. Permissible values: trace, debug, info, warn, error |
 | gateway.metricsPort | int | `8081` |  |
 | gateway.playground | bool | `false` | enable GraphQL playground UI (dev-only; exposes introspection) |
 | gateway.port | int | `8080` |  |
@@ -35,7 +33,6 @@ kubeConfig:
 | gateway.resources.requests.cpu | string | `"250m"` |  |
 | gateway.resources.requests.memory | string | `"1000Mi"` |  |
 | gateway.shouldImpersonate | bool | `false` |  |
-| gateway.usernameClaim | string | `"email"` |  |
 | gatewayApi.httpRoute | object | `{"enabled":true,"filters":[{"type":"URLRewrite","urlRewrite":{"path":{"replacePrefixMatch":"/api/clusters/","type":"ReplacePrefixMatch"}}}],"hostnames":[],"parentRefs":[{"name":"k8sapi-gateway"}],"pathPrefix":"/gateway/api/clusters/"}` | configuration for the HTTPRoute resource |
 | gatewayApi.httpRoute.filters | list | `[{"type":"URLRewrite","urlRewrite":{"path":{"replacePrefixMatch":"/api/clusters/","type":"ReplacePrefixMatch"}}}]` | list of HTTPRoute filters (default: URLRewrite only, no CORS) |
 | gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. When empty, the route matches all hostnames. |
@@ -85,7 +82,6 @@ kubeConfig:
 | schemaHandler | object | `{"schemasDir":"/app/schemas","sharedVolume":{"accessMode":"ReadWriteOnce","size":"500Mi","storageClassName":""},"type":"grpc"}` | Schema handler type: "grpc" or "file" |
 | schemaHandler.schemasDir | string | `"/app/schemas"` | Directory path for schema files (used when type is "file") |
 | schemaHandler.sharedVolume | object | `{"accessMode":"ReadWriteOnce","size":"500Mi","storageClassName":""}` | Shared volume configuration (used when type is "file") |
-| sentry.environment | string | `"production"` | environment label reported to Sentry (e.g. production, staging, development) |
 | singleKubeConfig | object | `{"createInClusterSecret":true,"enabled":true,"path":"/app/single-kubeconfig/kubeconfig","secretName":"single-kubeconfig"}` | Single-provider kubeconfig. Used when listener.provider=multi. |
 | singleKubeConfig.createInClusterSecret | bool | `true` | Auto-generate an in-cluster kubeconfig using the pod's service account. Set to false if providing your own secret via secretName. |
 

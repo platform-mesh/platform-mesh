@@ -30,10 +30,9 @@ A Helm chart for security-operator
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/security-operator"` | The image repository path (without registry) |
-| initContainer | object | `{"clients":[{"name":"security-operator","secretRef":{"name":"security-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}],"enabled":true,"keycloakBaseURL":"","keycloakClientId":"admin-cli","keycloakUser":"keycloak-admin"}` | Init container configuration for bootstrapping Keycloak service account clients |
+| initContainer | object | `{"clients":[{"name":"security-operator","secretRef":{"name":"security-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}],"enabled":true,"keycloakClientId":"admin-cli","keycloakUser":"keycloak-admin"}` | Init container configuration for bootstrapping Keycloak service account clients |
 | initContainer.clients | list | `[{"name":"security-operator","secretRef":{"name":"security-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}]` | Service account clients to create (beyond the default one from keycloak.client.secret) |
 | initContainer.enabled | bool | `true` | Enable the init container |
-| initContainer.keycloakBaseURL | string | `""` | Keycloak base URL (e.g., https://keycloak.example.com). If empty, derived from baseDomain. |
 | initContainer.keycloakClientId | string | `"admin-cli"` | Keycloak client ID for admin authentication |
 | initContainer.keycloakUser | string | `"keycloak-admin"` | Keycloak username for admin authentication |
 | initializer.extraArgs | list | `[]` |  |
@@ -48,7 +47,6 @@ A Helm chart for security-operator
 | keycloak.client.secret.name | string | `"security-operator-client-secret"` |  |
 | keycloakSecret | string | `"keycloak-admin"` | Name of the secret containing Keycloak admin credentials (keys: username, password, secret) |
 | kubeconfigSecret | string | `""` | The kubeconfig secret for operator and generator |
-| logLevel | string | `"info"` | Log level for all operator components. Permissible values: debug, info, warn, error |
 | openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` | OpenFGA gRPC endpoint (host:port) |
 | openfga.storeIDCacheTTL | string | `""` | TTL for the OpenFGA store ID cache (e.g. 5m, 1h). Empty uses app default (5m). |
 | operator.extraArgs | list | `[]` |  |

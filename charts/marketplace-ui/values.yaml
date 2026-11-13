@@ -11,25 +11,12 @@ deployment:
   maxUnavailable: 0
   maxSurge: 5
 
-port: 8080
-
 health:
   port: 8080
   startup:
     path: /healthz
   readiness:
     path: /healthz
-
-
-contentConfig:
-  # -- base domain for the marketplace content API (e.g. example.com). Required.
-  baseDomain: ""
-  # -- protocol for the marketplace content API. Permissible values: http, https
-  protocol: ""
-
-http:
-  # -- protocol used by the frontend. Must be set. Permissible values: http, https
-  protocol: ""
 
 gatewayApi:
   enabled: false
