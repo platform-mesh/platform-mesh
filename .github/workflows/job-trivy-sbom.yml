@@ -14,12 +14,14 @@
 
 # Local (vendored) copy of platform-mesh/.github's job-trivy-sbom.yml.
 #
-# The only change from upstream is IMAGE_REPO: upstream hardcodes the org-root
+# Registry handling differs from upstream: upstream hardcodes the org-root
 # registry (ghcr.io/<owner>), but this monorepo's `image-ocm` job publishes the
 # OCM component version to the per-repo registry (ghcr.io/<owner>/<repo>). By
 # reading from the same place `image-ocm` writes, trivy-sbom depends only on
 # `image-ocm` (which it already `needs`) — no dependency on the legacy org-root
 # `image-ocm-legacy` publish, and therefore no race between the two.
+# SARIF categories are component-specific and version-independent so GitHub
+# tracks each component's scan results independently across releases.
 
 name: Scan SBOM for Latest Component Version
 
@@ -122,4 +124,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: 'trivy.sarif'
-          category: 'trivy-sbom-release-scan'
+          category: trivy-sbom/${{ env.COMPONENT }}
