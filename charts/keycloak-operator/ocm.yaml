@@ -18,3 +18,26 @@ envsubst:
   KEYCLOAK_OPERATOR_IMAGE_REGISTRY: image.registry
   KEYCLOAK_OPERATOR_IMAGE_REPOSITORY: image.repository
   KEYCLOAK_OPERATOR_IMAGE_TAG: image.tag
+imageResources:
+- name: keycloak-operator-keycloak-image
+  resource: keycloak-image
+  resourceName: keycloak-image
+  absoluteReferencePath:
+  - name: keycloak-operator
+  - name: image
+  annotations:
+    repo: oci
+    artifact: image
+    for: keycloak-operator
+    path: keycloakImage.tag
+- name: keycloak-operator-image
+  resource: manager-image
+  resourceName: manager-image
+  absoluteReferencePath:
+  - name: keycloak-operator
+  - name: image
+  annotations:
+    repo: oci
+    artifact: image
+    for: keycloak-operator
+    path: image.tag

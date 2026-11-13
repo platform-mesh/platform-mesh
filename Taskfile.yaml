@@ -243,6 +243,11 @@ tasks:
       - for: {var: COMPONENTS}
         cmd: task generate-{{.ITEM}}
       - task: charts:sync-crds
+      - task: generate:ocm-configuration
+  "generate:ocm-configuration":
+    desc: Regenerate charts/platform-mesh-operator/templates/ocm.yaml from charts/*/ocm.yaml and third_party/*/ocm.yaml.
+    cmds:
+      - python3 hack/generate-ocm-configuration/main.py
   build:
     desc: Build every component.
     cmds:

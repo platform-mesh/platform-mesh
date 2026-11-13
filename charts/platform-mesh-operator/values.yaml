@@ -18,6 +18,28 @@ ocm:
   signatureName: platform-mesh.platform-mesh
   # -- Set to false when the OCM component is signed by a different trusted key.
   installSigningCertificate: true
+  
+  # -- Enable/disable the individual OCM components. The operator reconciles only the enabled components.
+  services:
+    account-operator: true
+    # -- disabled by default because cnpg operator is deployed by prerequisities helm-chart
+    cnpg-operator: false
+    extension-manager-operator: true
+    iam-service: true
+    iam-ui: true
+    infra: true
+    # -- disabled by default because keycloak operator is deployed by prerequisities helm-chart
+    keycloak-operator: false
+    kcp-operator: true
+    kubernetes-graphql-gateway: true
+    marketplace-ui: true
+    observability: false
+    openfga: true
+    portal: true
+    rebac-authz-webhook: true
+    security-operator: true
+    terminal-controller-manager: false
+    virtual-workspaces: true
 
 # -- Gateway/exposure configuration (used when ocm.enabled=true).
 gateway:
