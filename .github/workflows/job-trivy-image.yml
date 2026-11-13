@@ -16,7 +16,8 @@
 #
 # Kept in-repo so the per-component pipelines run image scanning from this
 # repository (no cross-repo dependency on platform-mesh/.github@main), pinned
-# alongside the rest of the workflows. Behaviour is identical to upstream.
+# alongside the rest of the workflows. Each image gets a stable SARIF category
+# so GitHub tracks its scan results independently across releases.
 
 name: Container Security Scan
 on:
@@ -24,6 +25,10 @@ on:
     inputs:
       imageRef:
         description: 'Full image reference to scan (e.g. ghcr.io/platform-mesh/security-operator:1.2.3)'
+        required: true
+        type: string
+      sarifCategory:
+        description: 'Stable, unique SARIF category for this image; must not include a version or digest'
         required: true
         type: string
       severity:
@@ -71,3 +76,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: 'trivy-results.sarif'
+          category: ${{ inputs.sarifCategory }}
