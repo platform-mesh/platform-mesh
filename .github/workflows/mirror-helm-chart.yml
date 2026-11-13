@@ -60,6 +60,11 @@ on:
 # No permissions by default; only the mirror job may publish packages.
 permissions: {}
 
+# Serialize publishes of the same chart version to the same destination.
+concurrency:
+  group: mirror-helm-chart-${{ inputs.destination_namespace || format('ghcr.io/{0}/charts', github.repository_owner) }}-${{ inputs.chart }}-${{ inputs.version }}
+  cancel-in-progress: false
+
 jobs:
   mirror:
     name: Mirror ${{ inputs.chart }}@${{ inputs.version }}
