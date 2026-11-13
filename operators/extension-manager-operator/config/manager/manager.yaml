@@ -81,7 +81,7 @@ spec:
         #   type: RuntimeDefault
       containers:
       - command:
-        - /manager
+        - /operator/extension-manager-operator
         args:
         - --leader-elect
         image: controller:latest

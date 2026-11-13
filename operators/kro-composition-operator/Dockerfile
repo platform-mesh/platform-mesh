@@ -34,7 +34,7 @@ RUN --mount=type=cache,target=/go/pkg/mod,id=gomod-kco \
     GOCACHE=/root/.cache/go-build \
     GOOS=${TARGETOS:-linux} \
     GOARCH=${TARGETARCH} \
-    go build -ldflags '-w -s' -o /workspace/manager ./cmd
+    go build -ldflags '-w -s' -o /workspace/kro-composition-operator ./cmd
 
 FROM scratch
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
@@ -42,7 +42,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENV USER_UID=1001
 ENV GROUP_UID=1001
-COPY --from=builder --chown=${USER_UID}:${GROUP_UID} /workspace/manager /operator/manager
+COPY --from=builder --chown=${USER_UID}:${GROUP_UID} /workspace/kro-composition-operator /operator/kro-composition-operator
 
 USER ${USER_UID}:${GROUP_UID}
-ENTRYPOINT ["/operator/manager"]
+ENTRYPOINT ["/operator/kro-composition-operator"]
