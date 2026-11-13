@@ -23,6 +23,13 @@ checkout, built into a local registry. Both steps are the code behind
 `pmctl quickstart`, the second (target for upgrade) one `--dev`, and each returns once
 the installation is ready.
 
+Around the upgrade the test runs the migrations the release needs, with the
+code behind `pmctl migrate`: `--phase before` on the release, `--phase after`
+on the checkout. A change that needs a migration (data that moves, a resource
+that is renamed) adds one to `cmd/pmctl/app/migrate` with the release it
+becomes necessary in as its cut-off, and the test then runs it for every
+release older than that.
+
 ```sh
 task test-upgrade                                  # from the latest release
 task test-upgrade UPGRADE_FROM=v26.10.2            # from another one

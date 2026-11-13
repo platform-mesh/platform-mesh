@@ -27,7 +27,8 @@ limitations under the License.
 // tests/upgrade/scenarios: each lists steps that seed data into the release,
 // steps that validate it, and steps that go on working with it. The test
 // calls scenarios.Seed and scenarios.Validate on the release, and on the
-// checkout scenarios.Validate again and then scenarios.After.
+// checkout scenarios.Validate again and then scenarios.After. Around the
+// upgrade it runs the migrations of "pmctl migrate" the release needs.
 //
 // Environment:
 //
@@ -60,6 +61,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/migrate"
 	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/quickstart"
 	"go.platform-mesh.io/platform-mesh/tests/framework/keycloak"
 	"go.platform-mesh.io/platform-mesh/tests/framework/pm"
@@ -121,9 +123,20 @@ func TestUpgrade(t *testing.T) {
 	phase(t, "seed", func(t *testing.T) { scenarios.Seed(t, env) })
 	phase(t, "validate release", func(t *testing.T) { scenarios.Validate(t, env) })
 
-	// 2. The checkout, over the release.
+	// 2. The migrations the release needs on its way to the checkout, as
+	//    "pmctl migrate" runs them. ORDER MATTERS: their first part runs on
+	//    the release and can stop a service until the upgrade, their second
+	//    part runs on the checkout.
+	phase(t, "migrate before upgrade", func(t *testing.T) {
+		from = env.migrate(t, from, migrate.PhaseBefore)
+	})
+
+	// 3. The checkout, over the release.
 	phase(t, "upgrade to checkout", func(t *testing.T) {
 		env.quickstart(t, "", true, buildTimeout)
+	})
+	phase(t, "migrate after upgrade", func(t *testing.T) {
+		env.migrate(t, from, migrate.PhaseAfter)
 	})
 	phase(t, "verify checkout", func(t *testing.T) {
 		verify(t, env)
@@ -216,6 +229,25 @@ func (e *environment) quickstart(t *testing.T, version string, dev bool, timeout
 
 	e.url = o.URL()
 	e.caFile = o.CAFile()
+}
+
+// migrate runs a phase of the migrations an installation at the version
+// from needs, and returns that version: with from empty it is the installed
+// one, which only the installation knows before the upgrade.
+func (e *environment) migrate(t *testing.T, from, phase string) string {
+	t.Helper()
+
+	o := migrate.NewOptions(streams())
+	o.Kubeconfig = e.kubeconfig
+	o.From = from
+	o.Phase = phase
+	// Next to the kubeconfig: kept with the cluster after a failed run.
+	o.BackupDir = filepath.Join(filepath.Dir(e.kubeconfig), "migrate")
+
+	require.NoError(t, o.Complete(nil, nil))
+	require.NoError(t, o.Validate())
+	require.NoError(t, o.Run(t.Context()))
+	return o.From
 }
 
 // Kube implements scenarios.Environment: the admin config of the kind

@@ -29,7 +29,7 @@ on:
       - 'charts/**'
       - 'third_party/**'
       - 'ocm/**'
-      - 'cli/**'
+      - 'cmd/**'
       - 'hack/release/**'
       - 'hack/charts/**'
       - 'tests/upgrade/**'
