@@ -75,8 +75,10 @@ type DeploymentSubroutine struct {
 }
 
 const (
-	profileConfigMapKey           = "profile.yaml"
-	defaultProfileConfigMapSuffix = "-profile"
+	profileConfigMapKey              = "profile.yaml"
+	defaultProfileConfigMapSuffix    = "-profile"
+	ocmConfigurationConfigMapName    = "platform-mesh-ocm-configuration"
+	ocmConfigurationConfigMapKey     = "ocm-configuration.yaml"
 	// argoPlaceholderRepoURL is set by templates and replaced by ResourceSubroutine with actual OCM values
 	argoPlaceholderRepoURL = "PLACEHOLDER_TO_BE_SET_BY_RESOURCE_SUBROUTINE"
 )
@@ -635,6 +637,18 @@ func (r *DeploymentSubroutine) buildComponentsTemplateVars(ctx context.Context, 
 		baseServices = services
 	} else {
 		baseServices = make(map[string]any)
+	}
+
+	// Merge generated OCM defaults as the lowest-priority layer under baseServices.
+	// Profile services and spec.Values override these defaults.
+	generatedDefaults, err := r.loadOCMConfiguration(ctx, inst.Namespace)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to load OCM configuration")
+	}
+	// TODO: remove it when all data from profile maps is moved away
+	baseServices, err = merge.MergeMaps(generatedDefaults, baseServices, log)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to merge OCM configuration with profile services")
 	}
 
 	// Build template data for rendering templates in spec.Values
@@ -1424,6 +1438,36 @@ func (r *DeploymentSubroutine) manageAuthorizationWebhookSecrets(ctx context.Con
 
 	// Update KCP Webhook secret with the latest CA bundle
 	return r.updateKcpWebhookSecret(ctx, inst)
+}
+
+// loadOCMConfiguration reads the OCM configuration ConfigMap from the cluster
+// and returns the services map it contains.
+func (r *DeploymentSubroutine) loadOCMConfiguration(ctx context.Context, namespace string) (map[string]any, error) {
+	cm := &corev1.ConfigMap{}
+	err := r.clientRuntime.Get(ctx, ctrlruntimeclient.ObjectKey{
+		Name:      ocmConfigurationConfigMapName,
+		Namespace: namespace,
+	}, cm)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return map[string]any{}, nil
+		}
+		return nil, errors.Wrap(err, "Failed to get OCM configuration ConfigMap")
+	}
+
+	data, ok := cm.Data[ocmConfigurationConfigMapKey]
+	if !ok || data == "" {
+		return map[string]any{}, nil
+	}
+
+	var result map[string]any
+	if err := yaml.Unmarshal([]byte(data), &result); err != nil {
+		return nil, errors.Wrap(err, "Failed to parse OCM configuration ConfigMap")
+	}
+	if result == nil {
+		return map[string]any{}, nil
+	}
+	return result, nil
 }
 
 func applyManifestFromFileWithMergedValues(ctx context.Context, fsys fs.FS, path string, k8sClient ctrlruntimeclient.Client, templateData map[string]any) error {

@@ -91,11 +91,6 @@ data:
         skipVerify: true
       services:
         account-operator:
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: account-operator
           syncWave: 4
           enabled: true
           values:
@@ -123,11 +118,6 @@ data:
                 host: observability-opentelemetry-collector.observability.svc.cluster.local:4317
               enabled: false
         extension-manager-operator:
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: extension-manager-operator
           syncWave: 4
           enabled: true
           values:
@@ -152,65 +142,6 @@ data:
         infra:
           enabled: true
           syncWave: 1
-          imageResources:
-          - name: keycloak-image
-            resource: keycloak-image
-            resourceName: keycloak-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: keycloak.operator.image.tag
-          - name: busybox-image
-            resource: busybox-image
-            resourceName: busybox-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: keycloak.operator.waitForDb.image.tag
-          - name: postgres-image
-            resource: postgres-image
-            resourceName: postgres-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: cnpg.cluster.image.tag
-          - name: dex-image
-            resource: dex-image
-            resourceName: dex-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: dex.image.tag
-          - name: kcp-server-image
-            resource: image
-            absoluteReferencePath:
-            - name: kcp
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: kcp.image.tag
-              image-ref: combined
-          - name: etcd-wrapper-image
-            resource: etcd-wrapper-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: kcp.etcd.image.tag
-              image-ref: combined
-          - name: etcdbrctl-image
-            resource: etcdbrctl-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: kcp.etcd.backup.image.tag
-              image-ref: combined
           dependsOn: []
           # The infra chart has no knob for the kcp cache-server, and kcp-operator defaults
           # it to 2 replicas x 500m / 1Gi with an external etcd. One replica is plenty for
@@ -344,22 +275,12 @@ data:
         iam-ui:
           enabled: true
           syncWave: 4
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: iam-ui
           values:
             exposure:
               hostnames:
               - "{{ .baseDomain }}"
               - "*.{{ .baseDomain }}"
         iam-service:
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: iam-service
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -378,41 +299,9 @@ data:
           syncWave: 1
           external: true
           enabled: true
-          imageResources:
-          - name: kcp-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: kcp-operator
-              # the upstream chart exposes only a single host-qualified
-              # image.repository + image.tag, so fold the registry into it.
-              image-ref: combined
           targetNamespace: kcp-operator
           values: {}
         keycloak-operator:
-          imageResources:
-          - name: keycloak-operator-keycloak-image
-            resource: keycloak-image
-            resourceName: keycloak-image
-            absoluteReferencePath:
-            - name: keycloak-operator
-            - name: image
-            annotations:
-              repo: oci
-              artifact: image
-              for: keycloak-operator
-              path: keycloakImage.tag
-          - name: keycloak-operator-image
-            resource: manager-image
-            resourceName: manager-image
-            absoluteReferencePath:
-            - name: keycloak-operator
-            - name: image
-            annotations:
-              repo: oci
-              artifact: image
-              for: keycloak-operator
-              path: image.tag
           enabled: false
           external: true
           skipHelmRelease: true
@@ -428,13 +317,6 @@ data:
                   memory: 64Mi
             watchNamespaces: platform-mesh-system
         cnpg-operator:
-          imageResources:
-          - name: cnpg-operator-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: cnpg-operator
-              image-ref: combined
           enabled: false
           external: true
           skipHelmRelease: true
@@ -444,11 +326,6 @@ data:
           - name: cnpg-operator
           values: {}
         kubernetes-graphql-gateway:
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: kubernetes-graphql-gateway
           syncWave: 4
           enabled: true
           values:
@@ -500,16 +377,6 @@ data:
           external: true
           syncWave: 2
           suspend: true
-          imageResources:
-          - name: openfga-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: openfga
-              # openfga's values.schema.json accepts only image.repository +
-              # image.tag (rejects registry/digest), so fold the registry into it.
-              image-ref: combined
-              unsuspend: "true"
           values:
             autoscaling:
               enabled: false
@@ -578,11 +445,6 @@ data:
                   tls:
                     enabled: false
         portal:
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: portal
           syncWave: 4
           enabled: true
           values:
@@ -635,11 +497,6 @@ data:
             kcp:
               kubeconfigSecret: portal-kubeconfig
         rebac-authz-webhook:
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: rebac-authz-webhook
           syncWave: 4
           enabled: true
           values:
@@ -698,11 +555,6 @@ data:
         terminal-controller-manager:
           enabled: false
         virtual-workspaces:
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: virtual-workspaces
           syncWave: 4
           enabled: true
           targetNamespace: platform-mesh-system
@@ -721,11 +573,6 @@ data:
               resourceSchemaWorkspace: "root:platform-mesh-system"
         marketplace-ui:
           enabled: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: marketplace-ui
           values:
             deployment:
               resources:
@@ -747,49 +594,10 @@ data:
               enabled: false
         terminal-controller-manager:
           enabled: false
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: terminal-controller-manager
-          - name: terminal-image
-            annotations:
-              path: terminal.image.tag
-              for: terminal-controller-manager
-              repo: oci
-              artifact: image
-            resource: terminal-image
-            referencePath:
-            - name: terminal-controller-manager
           values:
             kcp:
               kubeconfigSecret: terminal-controller-manager-kubeconfig
         observability:
-          imageResources:
-          - name: otel-collector-image
-            resource: otel-collector-image
-            resourceName: otel-collector-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: otelCollector.image.tag
-          - name: prometheus-server-image
-            resource: prometheus-server-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: prometheus.server.image.tag
-              image-ref: combined
-          - name: prometheus-config-reloader-image
-            resource: prometheus-config-reloader-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: prometheus.configmapReload.prometheus.image.tag
-              image-ref: combined
           syncWave: 4
           enabled: false
           targetNamespace: observability

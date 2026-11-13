@@ -19,3 +19,28 @@ envsubst:
   PROMETHEUS_IMAGE_TAG: prometheus.server.image.tag
   CONFIG_RELOADER_IMAGE_REPOSITORY: prometheus.configmapReload.prometheus.image.repository
   CONFIG_RELOADER_IMAGE_TAG: prometheus.configmapReload.prometheus.image.tag
+imageResources:
+- name: otel-collector-image
+  resource: otel-collector-image
+  resourceName: otel-collector-image
+  annotations:
+    repo: oci
+    artifact: image
+    for: observability
+    path: otelCollector.image.tag
+- name: prometheus-server-image
+  resource: prometheus-server-image
+  annotations:
+    repo: oci
+    artifact: image
+    for: observability
+    path: prometheus.server.image.tag
+    image-ref: combined
+- name: prometheus-config-reloader-image
+  resource: prometheus-config-reloader-image
+  annotations:
+    repo: oci
+    artifact: image
+    for: observability
+    path: prometheus.configmapReload.prometheus.image.tag
+    image-ref: combined
