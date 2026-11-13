@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build the manager binary.
+# Build the terminal-controller-manager binary.
 #
 # NOTE: the build context is the repository ROOT, not this directory.
 # The operator module is linked to the shared in-repo modules through the
@@ -40,13 +40,13 @@ RUN go mod download
 # was called. For example, if we call make docker-build in a local env which has the Apple Silicon M1 SO
 # the docker BUILDPLATFORM arg will be linux/arm64 when for Apple x86 it will be linux/amd64. Therefore,
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/manager main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/terminal-controller-manager main.go
 
-# Use distroless as minimal base image to package the manager binary
+# Use distroless as minimal base image to package the terminal-controller-manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329
 WORKDIR /
-COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/terminal-controller-manager /app/terminal-controller-manager
 USER 65532:65532
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["/app/terminal-controller-manager"]

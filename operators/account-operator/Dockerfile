@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build the manager binary.
+# Build the account-operator binary.
 #
 # NOTE: the build context is the repository ROOT, not this directory.
 # The operator module is linked to the shared in-repo modules through the
@@ -36,7 +36,7 @@ WORKDIR /workspace/operators/account-operator
 RUN go mod download
 
 # Build
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/manager main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/account-operator main.go
 
 FROM scratch
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
@@ -44,7 +44,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENV USER_UID=1001
 ENV GROUP_UID=1001
-COPY --from=builder --chown=${USER_UID}:${GROUP_UID}  /workspace/manager /operator/manager
+COPY --from=builder --chown=${USER_UID}:${GROUP_UID}  /workspace/account-operator /app/account-operator
 
 USER ${USER_UID}:${GROUP_UID}
-ENTRYPOINT ["/operator/manager"]
+ENTRYPOINT ["/app/account-operator"]
