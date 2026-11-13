@@ -1,0 +1,76 @@
+suite: idp events
+release:
+  name: security-operator
+tests:
+  - it: passes no event flags by default
+    template: templates/system-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --idp-events-enabled
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --idp-events-types=LOGIN
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --idp-events-expiration=168h
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --idp-events-reader-client=
+  - it: passes the event store and reader flags when set
+    template: templates/system-deployment.yaml
+    set:
+      idp:
+        events:
+          enabled: true
+          types: [LOGIN, REGISTER]
+          expiration: 72h
+          readerClient: contrib-eventing-keycloak-reader
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --idp-events-enabled
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --idp-events-types=LOGIN,REGISTER
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --idp-events-expiration=72h
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --idp-events-reader-client=contrib-eventing-keycloak-reader
+  - it: renders admin only for clients that set it
+    template: templates/init-container-config.yaml
+    set:
+      initContainer:
+        clients:
+          - name: security-operator
+            secretRef:
+              name: security-operator-client-secret
+              namespace: platform-mesh-system
+          - name: contrib-eventing-keycloak-reader
+            admin: false
+            secretRef:
+              name: contrib-eventing-keycloak-reader
+              namespace: platform-mesh-system
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'name: "contrib-eventing-keycloak-reader"\n\s+namespace: "platform-mesh-system"\n\s+admin: false\n$'
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: '(?s)admin:.*admin:'
+  - it: renders a quoted admin value
+    template: templates/init-container-config.yaml
+    set:
+      initContainer:
+        clients:
+          - name: contrib-eventing-keycloak-reader
+            admin: "false"
+            secretRef:
+              name: contrib-eventing-keycloak-reader
+              namespace: platform-mesh-system
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'namespace: "platform-mesh-system"\n\s+admin: false\n$'

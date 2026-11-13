@@ -73,6 +73,10 @@ type subroutine struct {
 }
 
 func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter) (*subroutine, error) {
+	if err := cfg.IDP.Events.Validate(); err != nil {
+		return nil, err
+	}
+
 	issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
@@ -278,6 +282,10 @@ func (s *subroutine) process(ctx context.Context, obj ctrlruntimeclient.Object) 
 	idpConfig.Status.ManagedClients = managedClients
 	if err := kcpClient.Status().Patch(ctx, idpConfig, ctrlruntimeclient.MergeFrom(original)); err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to patch IDP status: %w", err)
+	}
+
+	if err := s.ensureEvents(ctx, realmName, adminClient); err != nil {
+		return subroutines.OK(), err
 	}
 
 	return subroutines.OK(), nil

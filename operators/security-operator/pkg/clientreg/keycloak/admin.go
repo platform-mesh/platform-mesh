@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"go.platform-mesh.io/security-operator/pkg/clientreg"
@@ -280,6 +281,15 @@ type RealmConfig struct {
 	SMTPServer                  *SMTPConfig `json:"smtpServer,omitempty"`
 }
 
+// RealmEventsConfig is the part of a realm's events config that is managed
+// here. Fields left out of an update keep their value in Keycloak, except
+// eventsExpiration, which Keycloak resets to 0.
+type RealmEventsConfig struct {
+	EventsEnabled     bool     `json:"eventsEnabled"`
+	EventsExpiration  int64    `json:"eventsExpiration"`
+	EnabledEventTypes []string `json:"enabledEventTypes,omitempty"`
+}
+
 type SMTPConfig struct {
 	Host     string `json:"host,omitempty"`
 	Port     string `json:"port,omitempty"`
@@ -460,6 +470,235 @@ func (c *AdminClient) AssignRealmRoleToUser(ctx context.Context, userID string, 
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		return readErrorResponse(resp, "assign role to user")
+	}
+
+	return nil
+}
+
+// ListUserRealmRoles returns the realm roles mapped directly to the user.
+func (c *AdminClient) ListUserRealmRoles(ctx context.Context, userID string) ([]RoleInfo, error) {
+	reqURL := fmt.Sprintf("%s/admin/realms/%s/users/%s/role-mappings/realm", c.baseURL, c.realm, userID)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create get realm role mappings request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get realm role mappings: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp, "get realm role mappings")
+	}
+
+	var roles []RoleInfo
+	if err := json.NewDecoder(resp.Body).Decode(&roles); err != nil {
+		return nil, fmt.Errorf("failed to parse realm role mappings response: %w", err)
+	}
+
+	return roles, nil
+}
+
+func (c *AdminClient) RemoveRealmRoleFromUser(ctx context.Context, userID string, role RoleInfo) error {
+	reqURL := fmt.Sprintf("%s/admin/realms/%s/users/%s/role-mappings/realm", c.baseURL, c.realm, userID)
+
+	body, err := json.Marshal([]RoleInfo{role})
+	if err != nil {
+		return fmt.Errorf("failed to marshal role: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, reqURL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create remove role request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to remove role: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		return readErrorResponse(resp, "remove role from user")
+	}
+
+	return nil
+}
+
+// GetClientByClientID returns the client with the given clientId, or nil if
+// there is none.
+func (c *AdminClient) GetClientByClientID(ctx context.Context, clientID string) (*ClientInfo, error) {
+	reqURL := fmt.Sprintf("%s/admin/realms/%s/clients?clientId=%s", c.baseURL, c.realm, url.QueryEscape(clientID))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create get client request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp, "get client")
+	}
+
+	var clients []ClientInfo
+	if err := json.NewDecoder(resp.Body).Decode(&clients); err != nil {
+		return nil, fmt.Errorf("failed to parse client response: %w", err)
+	}
+
+	for _, client := range clients {
+		if client.ClientID == clientID {
+			return &client, nil
+		}
+	}
+
+	return nil, nil
+}
+
+// GetClientRole returns a role of the client with the given UUID, or nil if
+// the role does not exist.
+func (c *AdminClient) GetClientRole(ctx context.Context, clientUUID, roleName string) (*RoleInfo, error) {
+	reqURL := fmt.Sprintf("%s/admin/realms/%s/clients/%s/roles/%s", c.baseURL, c.realm, clientUUID, url.PathEscape(roleName))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create get client role request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client role: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp, "get client role")
+	}
+
+	var role RoleInfo
+	if err := json.NewDecoder(resp.Body).Decode(&role); err != nil {
+		return nil, fmt.Errorf("failed to parse client role response: %w", err)
+	}
+
+	return &role, nil
+}
+
+// ListUserClientRoles returns the roles of a client that are mapped directly
+// to the user.
+func (c *AdminClient) ListUserClientRoles(ctx context.Context, userID, clientUUID string) ([]RoleInfo, error) {
+	reqURL := fmt.Sprintf("%s/admin/realms/%s/users/%s/role-mappings/clients/%s", c.baseURL, c.realm, userID, clientUUID)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create get client role mappings request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client role mappings: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp, "get client role mappings")
+	}
+
+	var roles []RoleInfo
+	if err := json.NewDecoder(resp.Body).Decode(&roles); err != nil {
+		return nil, fmt.Errorf("failed to parse client role mappings response: %w", err)
+	}
+
+	return roles, nil
+}
+
+func (c *AdminClient) AssignClientRolesToUser(ctx context.Context, userID, clientUUID string, roles []RoleInfo) error {
+	reqURL := fmt.Sprintf("%s/admin/realms/%s/users/%s/role-mappings/clients/%s", c.baseURL, c.realm, userID, clientUUID)
+
+	body, err := json.Marshal(roles)
+	if err != nil {
+		return fmt.Errorf("failed to marshal roles: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create assign client roles request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to assign client roles: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		return readErrorResponse(resp, "assign client roles to user")
+	}
+
+	return nil
+}
+
+// GetEventsConfig returns the events config of the client's realm. Keycloak
+// lists all default event types when the realm has none set explicitly.
+func (c *AdminClient) GetEventsConfig(ctx context.Context) (*RealmEventsConfig, error) {
+	reqURL := fmt.Sprintf("%s/admin/realms/%s/events/config", c.baseURL, c.realm)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create get events config request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get events config: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp, "get events config")
+	}
+
+	var eventsConfig RealmEventsConfig
+	if err := json.NewDecoder(resp.Body).Decode(&eventsConfig); err != nil {
+		return nil, fmt.Errorf("failed to parse events config response: %w", err)
+	}
+
+	return &eventsConfig, nil
+}
+
+func (c *AdminClient) UpdateEventsConfig(ctx context.Context, eventsConfig RealmEventsConfig) error {
+	reqURL := fmt.Sprintf("%s/admin/realms/%s/events/config", c.baseURL, c.realm)
+
+	body, err := json.Marshal(eventsConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal events config: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, reqURL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create update events config request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to update events config: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		return readErrorResponse(resp, "update events config")
 	}
 
 	return nil

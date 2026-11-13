@@ -54,6 +54,14 @@ spec:
           {{- if .Values.idp.setDefaultPassword }}
           - --set-default-password
           {{- end }}
+          {{- if .Values.idp.events.enabled }}
+          - --idp-events-enabled
+          - --idp-events-types={{ join "," .Values.idp.events.types }}
+          - --idp-events-expiration={{ .Values.idp.events.expiration }}
+          {{- end }}
+          {{- with .Values.idp.events.readerClient }}
+          - --idp-events-reader-client={{ . }}
+          {{- end }}
           {{- with .Values.system.extraArgs }}
           {{- toYaml . | nindent 10 }}
           {{- end }}

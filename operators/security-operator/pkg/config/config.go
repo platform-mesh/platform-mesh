@@ -17,7 +17,10 @@ limitations under the License.
 package config
 
 import (
+	"errors"
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -84,6 +87,35 @@ type IDPConfig struct {
 
 	AccessTokenLifespan int
 	RegistrationAllowed bool
+
+	Events IDPEventsConfig
+}
+
+// IDPEventsConfig controls the Keycloak user event store of managed realms and
+// the client that may read those events.
+type IDPEventsConfig struct {
+	Enabled      bool
+	Types        []string
+	Expiration   time.Duration
+	ReaderClient string
+}
+
+func (c IDPEventsConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if len(c.Types) == 0 {
+		return errors.New("--idp-events-types must not be empty when --idp-events-enabled is set")
+	}
+	for _, t := range c.Types {
+		if t == "" || strings.TrimSpace(t) != t {
+			return fmt.Errorf("--idp-events-types contains an invalid entry %q", t)
+		}
+	}
+	if c.Expiration < time.Second {
+		return fmt.Errorf("--idp-events-expiration must be at least 1s, got %s", c.Expiration)
+	}
+	return nil
 }
 
 type APIExportEndpointSlices struct {
@@ -146,6 +178,10 @@ func NewConfig() Config {
 		IDP: IDPConfig{
 			KubectlClientRedirectURLs: []string{"http://localhost:8000", "http://localhost:18000"},
 			AccessTokenLifespan:       28800,
+			Events: IDPEventsConfig{
+				Types:      []string{"LOGIN"},
+				Expiration: 168 * time.Hour,
+			},
 		},
 		Keycloak: KeycloakConfig{
 			ClientID:     "security-operator",
@@ -201,6 +237,10 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&c.IDP.KubectlClientRedirectURLs, "idp-kubectl-client-redirect-urls", c.IDP.KubectlClientRedirectURLs, "Redirect URLs for the kubectl Keycloak client")
 	fs.IntVar(&c.IDP.AccessTokenLifespan, "idp-access-token-lifespan", c.IDP.AccessTokenLifespan, "Keycloak access token lifespan in seconds")
 	fs.BoolVar(&c.IDP.RegistrationAllowed, "idp-registration-allowed", c.IDP.RegistrationAllowed, "Enable Keycloak self-registration")
+	fs.BoolVar(&c.IDP.Events.Enabled, "idp-events-enabled", c.IDP.Events.Enabled, "Enable the Keycloak user event store in managed realms except master and welcome")
+	fs.StringSliceVar(&c.IDP.Events.Types, "idp-events-types", c.IDP.Events.Types, "Keycloak user event types to store, added to the types already enabled in a realm")
+	fs.DurationVar(&c.IDP.Events.Expiration, "idp-events-expiration", c.IDP.Events.Expiration, "Minimum retention of stored Keycloak user events; a longer retention or none (never expire) in a realm is kept")
+	fs.StringVar(&c.IDP.Events.ReaderClient, "idp-events-reader-client", c.IDP.Events.ReaderClient, "Client ID in the master realm that gets view-events and view-users on every managed realm except master and welcome (empty disables)")
 	fs.StringVar(&c.Keycloak.BaseURL, "keycloak-base-url", c.Keycloak.BaseURL, "Set Keycloak base URL")
 	fs.StringVar(&c.Keycloak.ClientID, "keycloak-client-id", c.Keycloak.ClientID, "Set Keycloak client ID")
 	fs.BoolVar(&c.Initializer.WorkspaceInitializerEnabled, "initializer-workspace-enabled", c.Initializer.WorkspaceInitializerEnabled, "Enable workspace initialization")

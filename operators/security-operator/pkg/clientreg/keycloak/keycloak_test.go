@@ -846,3 +846,473 @@ func TestAdminClient_AssignRealmRoleToUser(t *testing.T) {
 		})
 	}
 }
+
+func TestAdminClient_GetClientByClientID(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupServer func(t *testing.T) *httptest.Server
+		wantClient  *ClientInfo
+		wantErr     bool
+	}{
+		{
+			name:        "connection refused",
+			setupServer: closedServer,
+			wantErr:     true,
+		},
+		{
+			name: "non-OK response",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusForbidden)
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "decode error",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					fmt.Fprint(w, "not-json") //nolint:errcheck
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "not found returns nil",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					fmt.Fprint(w, "[]") //nolint:errcheck
+				}))
+			},
+		},
+		{
+			name: "ignores clients with a different clientId",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					json.NewEncoder(w).Encode([]ClientInfo{{ID: "uuid-2", ClientID: "other"}}) //nolint:errcheck
+				}))
+			},
+		},
+		{
+			name: "success",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodGet, r.Method)
+					assert.Equal(t, "/admin/realms/test-realm/clients", r.URL.Path)
+					assert.Equal(t, "my-client", r.URL.Query().Get("clientId"))
+					fmt.Fprint(w, listClientsJSON()) //nolint:errcheck
+				}))
+			},
+			wantClient: &ClientInfo{ID: "uuid-1", ClientID: "my-client"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := tt.setupServer(t)
+			defer srv.Close()
+			client, err := adminClient(t, srv).GetClientByClientID(context.Background(), "my-client")
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantClient, client)
+		})
+	}
+}
+
+func TestAdminClient_GetClientRole(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupServer func(t *testing.T) *httptest.Server
+		wantRole    *RoleInfo
+		wantErr     bool
+	}{
+		{
+			name:        "connection refused",
+			setupServer: closedServer,
+			wantErr:     true,
+		},
+		{
+			name: "not found returns nil",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNotFound)
+				}))
+			},
+		},
+		{
+			name: "non-OK non-404 response",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusForbidden)
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "decode error",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					fmt.Fprint(w, "not-json") //nolint:errcheck
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "success",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodGet, r.Method)
+					assert.Equal(t, "/admin/realms/test-realm/clients/client-uuid/roles/view-events", r.URL.Path)
+					json.NewEncoder(w).Encode(RoleInfo{ID: "role-1", Name: "view-events"}) //nolint:errcheck
+				}))
+			},
+			wantRole: &RoleInfo{ID: "role-1", Name: "view-events"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := tt.setupServer(t)
+			defer srv.Close()
+			role, err := adminClient(t, srv).GetClientRole(context.Background(), "client-uuid", "view-events")
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantRole, role)
+		})
+	}
+}
+
+func TestAdminClient_ListUserClientRoles(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupServer func(t *testing.T) *httptest.Server
+		wantRoles   []RoleInfo
+		wantErr     bool
+	}{
+		{
+			name:        "connection refused",
+			setupServer: closedServer,
+			wantErr:     true,
+		},
+		{
+			name: "non-OK response",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNotFound)
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "decode error",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					fmt.Fprint(w, "not-json") //nolint:errcheck
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "success",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodGet, r.Method)
+					assert.Equal(t, "/admin/realms/test-realm/users/user-1/role-mappings/clients/client-uuid", r.URL.Path)
+					json.NewEncoder(w).Encode([]RoleInfo{{ID: "role-1", Name: "view-events"}}) //nolint:errcheck
+				}))
+			},
+			wantRoles: []RoleInfo{{ID: "role-1", Name: "view-events"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := tt.setupServer(t)
+			defer srv.Close()
+			roles, err := adminClient(t, srv).ListUserClientRoles(context.Background(), "user-1", "client-uuid")
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantRoles, roles)
+		})
+	}
+}
+
+func TestAdminClient_AssignClientRolesToUser(t *testing.T) {
+	roles := []RoleInfo{{ID: "role-1", Name: "view-events"}, {ID: "role-2", Name: "view-users"}}
+	tests := []struct {
+		name        string
+		setupServer func(t *testing.T) *httptest.Server
+		wantErr     bool
+	}{
+		{
+			name:        "connection refused",
+			setupServer: closedServer,
+			wantErr:     true,
+		},
+		{
+			name: "non-204 response",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusForbidden)
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "success",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodPost, r.Method)
+					assert.Equal(t, "/admin/realms/test-realm/users/user-1/role-mappings/clients/client-uuid", r.URL.Path)
+					var got []RoleInfo
+					assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+					assert.Equal(t, roles, got)
+					w.WriteHeader(http.StatusNoContent)
+				}))
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := tt.setupServer(t)
+			defer srv.Close()
+			err := adminClient(t, srv).AssignClientRolesToUser(context.Background(), "user-1", "client-uuid", roles)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestAdminClient_GetEventsConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupServer func(t *testing.T) *httptest.Server
+		wantConfig  *RealmEventsConfig
+		wantErr     bool
+	}{
+		{
+			name:        "connection refused",
+			setupServer: closedServer,
+			wantErr:     true,
+		},
+		{
+			name: "non-OK response",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusForbidden)
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "decode error",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					fmt.Fprint(w, "not-json") //nolint:errcheck
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "success",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodGet, r.Method)
+					assert.Equal(t, "/admin/realms/test-realm/events/config", r.URL.Path)
+					fmt.Fprint(w, `{"eventsEnabled":true,"eventsExpiration":3600,"eventsListeners":["jboss-logging"],"enabledEventTypes":["LOGIN","LOGOUT"],"adminEventsEnabled":false}`) //nolint:errcheck
+				}))
+			},
+			wantConfig: &RealmEventsConfig{EventsEnabled: true, EventsExpiration: 3600, EnabledEventTypes: []string{"LOGIN", "LOGOUT"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := tt.setupServer(t)
+			defer srv.Close()
+			cfg, err := adminClient(t, srv).GetEventsConfig(context.Background())
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantConfig, cfg)
+		})
+	}
+}
+
+func TestAdminClient_UpdateEventsConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      RealmEventsConfig
+		setupServer func(t *testing.T) *httptest.Server
+		wantErr     bool
+	}{
+		{
+			name:        "connection refused",
+			setupServer: closedServer,
+			wantErr:     true,
+		},
+		{
+			name: "non-204 response",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusForbidden)
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name:   "sends only the managed fields",
+			config: RealmEventsConfig{EventsEnabled: true, EventsExpiration: 604800, EnabledEventTypes: []string{"LOGIN"}},
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodPut, r.Method)
+					assert.Equal(t, "/admin/realms/test-realm/events/config", r.URL.Path)
+					var got map[string]any
+					assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+					assert.Equal(t, map[string]any{"eventsEnabled": true, "eventsExpiration": float64(604800), "enabledEventTypes": []any{"LOGIN"}}, got)
+					w.WriteHeader(http.StatusNoContent)
+				}))
+			},
+		},
+		{
+			name:   "omits unchanged event types and sends a zero expiration",
+			config: RealmEventsConfig{EventsEnabled: true},
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var got map[string]any
+					assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+					assert.Equal(t, map[string]any{"eventsEnabled": true, "eventsExpiration": float64(0)}, got)
+					w.WriteHeader(http.StatusNoContent)
+				}))
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := tt.setupServer(t)
+			defer srv.Close()
+			err := adminClient(t, srv).UpdateEventsConfig(context.Background(), tt.config)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestAdminClient_ListUserRealmRoles(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupServer func(t *testing.T) *httptest.Server
+		wantRoles   []RoleInfo
+		wantErr     bool
+	}{
+		{
+			name:        "connection refused",
+			setupServer: closedServer,
+			wantErr:     true,
+		},
+		{
+			name: "non-OK response",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNotFound)
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "decode error",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					fmt.Fprint(w, "not-json") //nolint:errcheck
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "success",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodGet, r.Method)
+					assert.Equal(t, "/admin/realms/test-realm/users/user-1/role-mappings/realm", r.URL.Path)
+					json.NewEncoder(w).Encode([]RoleInfo{{ID: "role-1", Name: "admin"}}) //nolint:errcheck
+				}))
+			},
+			wantRoles: []RoleInfo{{ID: "role-1", Name: "admin"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := tt.setupServer(t)
+			defer srv.Close()
+			roles, err := adminClient(t, srv).ListUserRealmRoles(context.Background(), "user-1")
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantRoles, roles)
+		})
+	}
+}
+
+func TestAdminClient_RemoveRealmRoleFromUser(t *testing.T) {
+	role := RoleInfo{ID: "role-1", Name: "admin"}
+	tests := []struct {
+		name        string
+		setupServer func(t *testing.T) *httptest.Server
+		wantErr     bool
+	}{
+		{
+			name:        "connection refused",
+			setupServer: closedServer,
+			wantErr:     true,
+		},
+		{
+			name: "non-204 response",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusForbidden)
+				}))
+			},
+			wantErr: true,
+		},
+		{
+			name: "success",
+			setupServer: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodDelete, r.Method)
+					assert.Equal(t, "/admin/realms/test-realm/users/user-1/role-mappings/realm", r.URL.Path)
+					var got []RoleInfo
+					assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+					assert.Equal(t, []RoleInfo{role}, got)
+					w.WriteHeader(http.StatusNoContent)
+				}))
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := tt.setupServer(t)
+			defer srv.Close()
+			err := adminClient(t, srv).RemoveRealmRoleFromUser(context.Background(), "user-1", role)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}

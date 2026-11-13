@@ -18,6 +18,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +35,7 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal(t, 9443, cfg.Webhooks.Port)
 	assert.Equal(t, []string{"http://localhost:8000", "http://localhost:18000"}, cfg.IDP.KubectlClientRedirectURLs)
 	assert.Nil(t, cfg.AdditionalAudiences)
+	assert.Equal(t, IDPEventsConfig{Types: []string{"LOGIN"}, Expiration: 168 * time.Hour}, cfg.IDP.Events)
 }
 
 func TestConfigAddFlags(t *testing.T) {
@@ -49,6 +51,10 @@ func TestConfigAddFlags(t *testing.T) {
 		"--webhooks-port=10443",
 		"--additional-audiences=aud-a,aud-b",
 		"--rekey-orphaned-tuples-enabled=true",
+		"--idp-events-enabled",
+		"--idp-events-types=LOGIN,REGISTER",
+		"--idp-events-expiration=72h",
+		"--idp-events-reader-client=reader",
 	})
 
 	assert.NoError(t, err)
@@ -59,6 +65,41 @@ func TestConfigAddFlags(t *testing.T) {
 	assert.Equal(t, 10443, cfg.Webhooks.Port)
 	assert.Equal(t, []string{"aud-a", "aud-b"}, cfg.AdditionalAudiences)
 	assert.True(t, cfg.RekeyOrphanedTuplesEnabled)
+	assert.Equal(t, IDPEventsConfig{
+		Enabled:      true,
+		Types:        []string{"LOGIN", "REGISTER"},
+		Expiration:   72 * time.Hour,
+		ReaderClient: "reader",
+	}, cfg.IDP.Events)
+}
+
+func TestIDPEventsConfigValidate(t *testing.T) {
+	valid := IDPEventsConfig{Enabled: true, Types: []string{"LOGIN"}, Expiration: time.Hour}
+	tests := []struct {
+		name    string
+		mutate  func(c *IDPEventsConfig)
+		wantErr string
+	}{
+		{name: "valid", mutate: func(*IDPEventsConfig) {}},
+		{name: "disabled ignores other fields", mutate: func(c *IDPEventsConfig) { *c = IDPEventsConfig{ReaderClient: "reader"} }},
+		{name: "no types", mutate: func(c *IDPEventsConfig) { c.Types = nil }, wantErr: "--idp-events-types must not be empty"},
+		{name: "empty type", mutate: func(c *IDPEventsConfig) { c.Types = []string{"LOGIN", ""} }, wantErr: `invalid entry ""`},
+		{name: "type with spaces", mutate: func(c *IDPEventsConfig) { c.Types = []string{" LOGIN"} }, wantErr: `invalid entry " LOGIN"`},
+		{name: "zero expiration", mutate: func(c *IDPEventsConfig) { c.Expiration = 0 }, wantErr: "--idp-events-expiration must be at least 1s"},
+		{name: "sub-second expiration", mutate: func(c *IDPEventsConfig) { c.Expiration = 500 * time.Millisecond }, wantErr: "--idp-events-expiration must be at least 1s"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := valid
+			tt.mutate(&c)
+			err := c.Validate()
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
 }
 
 func TestConfigRekeyOrphanedTuplesDefaultsToDisabled(t *testing.T) {
