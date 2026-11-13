@@ -44,7 +44,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENV USER_UID=1001
 ENV GROUP_UID=1001
-COPY --from=builder --chown=${USER_UID}:${GROUP_UID}  /workspace/extension-manager-operator /operator/extension-manager-operator
+COPY --from=builder --chown=${USER_UID}:${GROUP_UID}  /workspace/extension-manager-operator /app/extension-manager-operator
 
 USER ${USER_UID}:${GROUP_UID}
-ENTRYPOINT ["/operator/extension-manager-operator"]
+ENTRYPOINT ["/app/extension-manager-operator"]

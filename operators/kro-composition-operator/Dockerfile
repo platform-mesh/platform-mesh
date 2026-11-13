@@ -42,7 +42,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENV USER_UID=1001
 ENV GROUP_UID=1001
-COPY --from=builder --chown=${USER_UID}:${GROUP_UID} /workspace/kro-composition-operator /operator/kro-composition-operator
+COPY --from=builder --chown=${USER_UID}:${GROUP_UID} /workspace/kro-composition-operator /app/kro-composition-operator
 
 USER ${USER_UID}:${GROUP_UID}
-ENTRYPOINT ["/operator/kro-composition-operator"]
+ENTRYPOINT ["/app/kro-composition-operator"]

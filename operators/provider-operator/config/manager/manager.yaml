@@ -72,10 +72,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-      - command:
-        - /operator/provider-operator
-        - operator
-        args:
+      - args:
+          - operator
           - --leader-elect
           - --health-probe-bind-address=:8081
         image: controller:latest

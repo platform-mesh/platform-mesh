@@ -72,9 +72,7 @@ spec:
         # seccompProfile:
         #   type: RuntimeDefault
       containers:
-      - command:
-        - /operator/platform-mesh-operator
-        args:
+      - args:
           - --leader-elect
           - --health-probe-bind-address=:8081
         image: controller:latest

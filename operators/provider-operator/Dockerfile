@@ -44,7 +44,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENV USER_UID=1001
 ENV GROUP_UID=1001
-COPY --from=builder --chown=${USER_UID}:${GROUP_UID}  /workspace/provider-operator /operator/provider-operator
+COPY --from=builder --chown=${USER_UID}:${GROUP_UID}  /workspace/provider-operator /app/provider-operator
 
 USER ${USER_UID}:${GROUP_UID}
-ENTRYPOINT ["/operator/provider-operator"]
+ENTRYPOINT ["/app/provider-operator"]

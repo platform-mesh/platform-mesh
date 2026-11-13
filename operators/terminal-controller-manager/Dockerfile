@@ -46,7 +46,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329
 WORKDIR /
-COPY --from=builder /workspace/terminal-controller-manager .
+COPY --from=builder /workspace/terminal-controller-manager /app/terminal-controller-manager
 USER 65532:65532
 
-ENTRYPOINT ["/terminal-controller-manager"]
+ENTRYPOINT ["/app/terminal-controller-manager"]
