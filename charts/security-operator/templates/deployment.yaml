@@ -45,7 +45,7 @@ spec:
       containers:
       - {{- include "common.podBasics" . | indent 8 }}
         {{- include "common.container.securityContext" . | indent 8 }}
-        {{- include "common.operatorHealthAndReadyness" . | indent 8}}
+        {{- include "common.operatorHealthAndReadiness" . | indent 8}}
         ports:
         {{- include "common.PortsMetricsHealth" . | nindent 10 }}
         {{- if .Values.webhooks.enabled }}

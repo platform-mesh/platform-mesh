@@ -21,7 +21,7 @@ The operator always runs with **multicluster-runtime** and optionally reconciles
 
 * The `KUBECONFIG` environment variable will be used for reconciling, defaulting to `ctrl.GetConfigOrDie()`.
 * The optional `--leader-elect` CLI switch enables leader election and will use `rest.InClusterConfig()` for election.
-* The opitonal `--kcp-api-export-endpoint-slice-name` enables the APIExport provider.
+* The optional `--kcp-api-export-endpoint-slice-name` enables the APIExport provider.
 
 In practice this means:
 * To reconcile against a kcp instance, configure `KUBECONFIG` to point to kcp and set `--kcp-api-export-endpoint-slice-name` accordingly. Optionally enable `--leader-election` when running as Pod in a k8s cluster to use in-cluster leader election.

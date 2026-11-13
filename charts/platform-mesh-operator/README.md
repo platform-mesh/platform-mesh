@@ -64,11 +64,11 @@ repeatedly apply install-mode renders must manage the profile separately.
 | remoteInfra.enabled | bool | `false` | Enables reconciliation of PlatformMesh resources on remote clusters |
 | remoteInfra.secretKey | string | `"kubeconfig"` |  |
 | remoteInfra.secretName | string | `"platform-mesh-kubeconfig"` | Name of the secret containing the kubeconfig for remote cluster access where the PlatformMesh resources will be deployed |
-| remoteRuntime.enabled | bool | `false` | Enables deployment to remote clusters. Set to true if the operator is not deployed on the same cluster where the Infra artefacts will be created. |
+| remoteRuntime.enabled | bool | `false` | Enables deployment to remote clusters. Set to true if the operator is not deployed on the same cluster where the Infra artifacts will be created. |
 | remoteRuntime.infra.secretKey | string | `"kubeconfig"` |  |
 | remoteRuntime.infra.secretName | string | `"platform-mesh-secret"` | Name of the secret containing Runtime cluster kubeconfig |
 | remoteRuntime.secretKey | string | `"kubeconfig"` |  |
-| remoteRuntime.secretName | string | `"platform-mesh-secret"` | Name of the secret containing the kubeconfig for the cluster where the created Infra artefacts will be created. NOTE: target deployment will alway be same as the cluster where the Platform Mesh resource lives. |
+| remoteRuntime.secretName | string | `"platform-mesh-secret"` | Name of the secret containing the kubeconfig for the cluster where the created Infra artifacts will be created. NOTE: target deployment will always be same as the cluster where the Platform Mesh resource lives. |
 | tracing.collector.endpoint | string | `"observability-opentelemetry-collector.observability.svc.cluster.local:4317"` |  |
 | tracing.enabled | bool | `false` |  |
 

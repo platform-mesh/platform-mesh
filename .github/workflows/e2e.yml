@@ -163,7 +163,7 @@ jobs:
           include-hidden-files: true # tests/.test is a hidden directory
           retention-days: 5
 
-      - name: Upload Playwright artefacts
+      - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

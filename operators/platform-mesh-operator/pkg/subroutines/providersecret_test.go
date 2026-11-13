@@ -586,7 +586,7 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingSecret() {
 	s.Assert().Equal(subroutines.OK(), res)
 }
 
-func (s *ProvidersecretTestSuite) TestFailedBuilidingKubeconfig() {
+func (s *ProvidersecretTestSuite) TestFailedBuildingKubeconfig() {
 	instance := &pmcorev1alpha1.PlatformMesh{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PlatformMesh",

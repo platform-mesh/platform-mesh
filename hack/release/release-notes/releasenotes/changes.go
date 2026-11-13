@@ -89,7 +89,7 @@ type ComponentChanges struct {
 // FirstParentLog returns the first-parent commits in start..end, newest first,
 // linking to repoURL.
 func FirstParentLog(ctx context.Context, repoURL, start, end string) ([]Change, error) {
-	// The format is a tformat, which git calles "terminator" semantics,
+	// The format is a tformat, which git calls "terminator" semantics,
 	// in which a terminator character is appended between entries
 	// instead of a separator.
 	out, err := releaseutils.Git(ctx, "log", "--first-parent", "--format=%H%x1f%s%x1f%b%x1e", start+".."+end)

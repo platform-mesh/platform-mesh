@@ -29,7 +29,7 @@ spec:
       {{- end }}
       containers:
       - {{- include "common.podBasics" . | indent 8 }}
-        {{- include "common.operatorHealthAndReadyness" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadiness" . | indent 8 }}
         volumeMounts:
           - name: certs
             mountPath: /config
