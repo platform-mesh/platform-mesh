@@ -65,6 +65,11 @@ func (s *MigrationTestSuite) TearDownTest() {
 	s.helperMock = nil
 }
 
+// acceptDeletionPolicy answers a Patch the way a kcp serving spec.deletionPolicy does.
+func acceptDeletionPolicy(_ context.Context, obj ctrlruntimeclient.Object, _ ctrlruntimeclient.Patch, _ ...ctrlruntimeclient.PatchOption) error {
+	return unstructured.SetNestedField(obj.(*unstructured.Unstructured).Object, "WaitForSuccessor", "spec", "deletionPolicy")
+}
+
 func legacyCoreBinding() unstructured.Unstructured {
 	b := unstructured.Unstructured{}
 	b.SetGroupVersionKind(schema.GroupVersionKind{Group: "apis.kcp.io", Version: "v1alpha2", Kind: "APIBinding"})
@@ -133,7 +138,7 @@ func (s *MigrationTestSuite) Test_fgaAPIExportSplit_MigratesLegacyBinding() {
 	orgsClientMock.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
 		func(ctx context.Context, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
 			patchedPolicy, _ = patch.Data(obj)
-			return nil
+			return acceptDeletionPolicy(ctx, obj, patch)
 		}).Once()
 	orgsClientMock.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
 	orgsClientMock.EXPECT().Get(mock.Anything, types.NamespacedName{Name: binding.GetName()}, mock.Anything).
@@ -269,7 +274,7 @@ func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_MigratesWithUIOpt
 	providerClientMock.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
 		func(ctx context.Context, obj ctrlruntimeclient.Object, patch ctrlruntimeclient.Patch, opts ...ctrlruntimeclient.PatchOption) error {
 			patchedPolicy, _ = patch.Data(obj)
-			return nil
+			return acceptDeletionPolicy(ctx, obj, patch)
 		}).Once()
 	providerClientMock.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
 	providerClientMock.EXPECT().Get(mock.Anything, types.NamespacedName{Name: binding.GetName()}, mock.Anything).
@@ -445,7 +450,7 @@ func (s *MigrationTestSuite) Test_migrateLegacyProviderBinding_KeepsAcceptedClai
 			ol.(*unstructured.UnstructuredList).Items = []unstructured.Unstructured{binding}
 			return nil
 		}).Once()
-	providerClientMock.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	providerClientMock.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(acceptDeletionPolicy).Once()
 	providerClientMock.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
 	providerClientMock.EXPECT().Get(mock.Anything, types.NamespacedName{Name: binding.GetName()}, mock.Anything).
 		Return(apierrors.NewNotFound(schema.GroupResource{Group: "apis.kcp.io", Resource: "apibindings"}, binding.GetName()))
