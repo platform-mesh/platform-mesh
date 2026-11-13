@@ -23,46 +23,38 @@ import (
 	"go.platform-mesh.io/platform-mesh/tests/framework/tenant"
 )
 
-// The steps of the tenant scenario (tenant.go) about the
-// invites to the organization and the users they create.
+// Steps about the invites to an organization. An invite makes its user a
+// user of the realm of the organization; validateUser and validateLogin
+// (organization.go) check on that.
 
-// seedInvite invites a second user to the organization.
-func seedInvite(ctx context.Context, env Environment) error {
-	kcp, err := env.KCP(ctx)
-	if err != nil {
+// seedInvite invites a user to the organization.
+func seedInvite(org, name, email string) stepFunc {
+	return func(ctx context.Context, env Environment) error {
+		kcp, err := env.KCP(ctx)
+		if err != nil {
+			return err
+		}
+		_, err = tenant.ApplyInvite(ctx, kcp, org, name, email)
 		return err
 	}
-	_, err = tenant.ApplyInvite(ctx, kcp, tenantOrg, tenantInvite, tenantColleague)
-	return err
 }
 
-// validateInvites: both invites are Ready and for the right user, the one
-// seedInvite created and the one Platform Mesh created for the owner, which
-// it names like the organization.
-func validateInvites(ctx context.Context, env Environment) error {
-	kcp, err := env.KCP(ctx)
-	if err != nil {
-		return err
-	}
-	for name, email := range map[string]string{tenantOrg: tenantOwner, tenantInvite: tenantColleague} {
-		invite, err := tenant.GetInvite(ctx, kcp, tenantOrg, name)
+// validateInvite: the invite is Ready and for the user. Platform Mesh
+// invites the owner of an organization itself, with an invite named like
+// the organization.
+func validateInvite(org, name, email string) stepFunc {
+	return func(ctx context.Context, env Environment) error {
+		kcp, err := env.KCP(ctx)
+		if err != nil {
+			return err
+		}
+		invite, err := tenant.GetInvite(ctx, kcp, org, name)
 		if err != nil {
 			return err
 		}
 		if invite.Spec.Email != email {
 			return steps.Terminal("invite %s is for %s, not %s", name, invite.Spec.Email, email)
 		}
+		return nil
 	}
-	return nil
-}
-
-// validateInvitedUser: the invited user is a user of the realm of the
-// organization.
-func validateInvitedUser(ctx context.Context, env Environment) error {
-	kc, err := env.Keycloak(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = kc.User(ctx, tenantOrg, tenantColleague)
-	return err
 }

@@ -36,9 +36,9 @@ import (
 	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 )
 
-const (
-	// Timeout bounds one step, Interval is the pause between two calls of
-	// it.
+// Timeout bounds one step, Interval is the pause between two calls of it.
+// They are variables for a caller that knows its steps to be quicker.
+var (
 	Timeout  = 10 * time.Minute
 	Interval = 2 * time.Second
 )

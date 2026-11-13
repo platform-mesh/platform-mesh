@@ -99,6 +99,22 @@ func As(kcp *rest.Config, email string) *rest.Config {
 	return cfg
 }
 
+// WithToken is the config of a user who logged in (keycloak.Client.Login):
+// it carries the ID token of the user and nothing of the admin kcp belongs
+// to, so kcp authenticates the request by the token alone.
+func WithToken(kcp *rest.Config, token string) *rest.Config {
+	return &rest.Config{
+		Host:        kcp.Host,
+		BearerToken: token,
+		TLSClientConfig: rest.TLSClientConfig{
+			CAData:     kcp.CAData,
+			CAFile:     kcp.CAFile,
+			ServerName: kcp.ServerName,
+			Insecure:   kcp.Insecure,
+		},
+	}
+}
+
 // scheme has client-go's built-in types, kcp's Workspace and the Platform
 // Mesh core types registered.
 var scheme = runtime.NewScheme()
@@ -150,6 +166,13 @@ func ApplyAccount(ctx context.Context, kcp *rest.Config, org, name, creator stri
 	return applyAccount(ctx, kcp, OrganizationPath(org), pmcorev1alpha1.AccountTypeAccount, name, creator)
 }
 
+// ApplyAccountIn is ApplyAccount for an account in the workspace at parent,
+// which is the workspace of an organization or, for a nested account, of
+// another account.
+func ApplyAccountIn(ctx context.Context, kcp *rest.Config, parent, name, creator string) (*pmcorev1alpha1.Account, error) {
+	return applyAccount(ctx, kcp, parent, pmcorev1alpha1.AccountTypeAccount, name, creator)
+}
+
 // ApplyInvite creates the invite name for the user with the email in the
 // organization org unless it exists. It returns an error wrapping
 // ErrNotReady until the invite is Ready: the user exists in the Keycloak
@@ -186,6 +209,12 @@ func GetOrganization(ctx context.Context, kcp *rest.Config, name string) (*pmcor
 // GetOrganization.
 func GetAccount(ctx context.Context, kcp *rest.Config, org, name string) (*pmcorev1alpha1.Account, error) {
 	return getAccountIn(ctx, kcp, OrganizationPath(org), pmcorev1alpha1.AccountTypeAccount, name)
+}
+
+// GetAccountIn is GetAccount for an account in the workspace at parent, like
+// ApplyAccountIn.
+func GetAccountIn(ctx context.Context, kcp *rest.Config, parent, name string) (*pmcorev1alpha1.Account, error) {
+	return getAccountIn(ctx, kcp, parent, pmcorev1alpha1.AccountTypeAccount, name)
 }
 
 // GetInvite returns the invite name of the organization org, like

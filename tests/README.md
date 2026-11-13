@@ -35,28 +35,55 @@ checkout, so it takes a while. A failed run keeps the cluster; its kubeconfig
 is in `upgrade/.test/<cluster>/`. A plain `go test ./...` skips the test.
 
 What has to survive the upgrade is described by scenarios, in
-`upgrade/scenarios`. A scenario lists two sets of steps: steps that seed
-data into the release, and steps that validate it. A step is a function that
-is called again until it returns no error, like a reconciler, so it does one
-pass and never waits itself; `framework/steps` runs them. `upgrade_test.go`
-calls `scenarios.Seed` and `scenarios.Validate` on the release, and
-`scenarios.Validate` again on the checkout.
+`upgrade/scenarios`. A scenario is something a user of the release has. It
+lists three sets of steps:
+
+- **Seed** creates it, on the release.
+- **Validate** finds it and checks that it works. It runs on the release
+  and again on the checkout, so it only reads.
+- **After** goes on working with it on the checkout, once Validate held
+  there: it changes, adds and deletes, which is where the new code has to
+  cope with what the old code wrote.
+
+A step is a function that is called again until it returns no error, like a
+reconciler, so it does one pass and never waits itself; `framework/steps`
+runs them.
+
+| Scenario | What the release has | What After does with it |
+|---|---|---|
+| `tenant` | An organization with its owner, an invited user, an account, an account nested in it, and data in both. Validate also pins that they are the same objects (UIDs, logical clusters, authorization store, OIDC client), and that the owner gets in logged in: kcp, IAM service, gateway. | Changes the data, invites a user, adds and deletes accounts. |
+| `roles` | A member role on an account, granted through the IAM service, and a guest without one. Both log in; kcp has to agree with what the IAM service reports. | Takes the role from the member, gives it to the guest, and back. |
+| `isolation` | Two organizations. Neither owner gets into the other one, by role or by token. | |
+| `offboarding` | An organization like any other. | Deletes its account and then the organization; the realm has to go too. |
+| `provider` | A provider workspace exporting an API, an `APIExportPolicy`, and an account that bound the API and created an object. The owner lists it through kcp and the gateway; a guest does not. | Creates and deletes another object. |
+| `platform` | `extraWorkspaces` and a scoped `extraProviderConnections` entry in the `PlatformMesh` object. The kubeconfig of the connection and the admin kubeconfig, as copied on the release, have to keep working. | Uses the kubeconfig of the connection again. |
+| `extensions` | A `ContentConfiguration` in an account, processed. | Changes it; the result has to follow. |
 
 ```
 upgrade/
   upgrade_test.go      TestUpgrade and the kind cluster it runs on
   scenarios/
-    scenarios.go       the types, All() (the scenarios that run), Seed, Validate
-    tenant.go          the tenant scenario: its steps, in order
-    organization.go    its steps about the organization
-    invites.go         its steps about invites and their users
-    account.go         its steps about the account
+    scenarios.go       the types, All() (the scenarios that run), Seed, Validate, After
+    <scenario>.go      one file per scenario: its names and its steps, in order
+    organization.go, invites.go, account.go, iam.go, gateway.go, identity.go
+                       the steps, shared by the scenarios
+    access.go          how steps reach the installation: as the admin, as a
+                       user the admin impersonates, as a user who logged in
+    state.go           what Seed remembers for Validate, in a Secret of the cluster
+    manifests/         the objects that are easier to read as YAML
 ```
 
-The one scenario so far, `tenant`, is an organization with its owner, an
-invited user, an account and an object in its workspace. `tenant.go` says
-why the order of its steps matters. To add a scenario, write a file with a
-function returning it and list it in `All()`.
+To add a scenario, write a file with a function returning it and list it in
+`All()`. Three things to keep in mind:
+
+- A scenario does not rely on another one: it brings its own organization.
+  One that fails does not stop the others.
+- Seed runs on the release with the Go types of this checkout. Create
+  objects, and patch them; never update an object of Platform Mesh through
+  its Go type, which drops every field the release has and the checkout
+  does not know.
+- Leave After so that Seed and Validate hold again on a kept cluster, or
+  say why not.
 
 The checks that an installation works at all, before and after the upgrade,
 are still a placeholder (`verify` in `upgrade_test.go`).
@@ -110,7 +137,8 @@ The `framework/` directory holds what the suites share:
   the owner.
 - `framework/keycloak` manages the users of a realm (every organization has
   one, named like it) through Keycloak's admin API: look one up, give it a
-  password, delete it.
+  password, delete it. It also logs a user in, the way a browser does, for
+  a test that needs the token of a user.
 - `framework/steps` runs a test as a list of steps that work like
   reconcilers: each is called again until it returns no error. The upgrade
   scenarios are written with it.

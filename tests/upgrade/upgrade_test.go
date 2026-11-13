@@ -24,10 +24,10 @@ limitations under the License.
 // it.
 //
 // What has to survive the upgrade is described by the scenarios in
-// tests/upgrade/scenarios: each lists steps that seed data into the release
-// and steps that validate it. The test calls scenarios.Seed and
-// scenarios.Validate on the release, and scenarios.Validate again on the
-// checkout.
+// tests/upgrade/scenarios: each lists steps that seed data into the release,
+// steps that validate it, and steps that go on working with it. The test
+// calls scenarios.Seed and scenarios.Validate on the release, and on the
+// checkout scenarios.Validate again and then scenarios.After.
 //
 // Environment:
 //
@@ -45,10 +45,12 @@ package upgrade
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -129,6 +131,9 @@ func TestUpgrade(t *testing.T) {
 		verify(t, env)
 	})
 	phase(t, "validate checkout", func(t *testing.T) { scenarios.Validate(t, env) })
+	// ORDER MATTERS: after the validation, because it changes and deletes
+	// what the validation looks for.
+	phase(t, "after upgrade", func(t *testing.T) { scenarios.After(t, env) })
 }
 
 // verify checks that the installation works.
@@ -215,11 +220,21 @@ func (e *environment) quickstart(t *testing.T, version string, dev bool, timeout
 	e.caFile = o.CAFile()
 }
 
-// secret reads a secret of the installation.
-func (e *environment) secret(ctx context.Context, name string) (map[string][]byte, error) {
+// Kube implements scenarios.Environment: the admin config of the kind
+// cluster.
+func (e *environment) Kube(context.Context) (*rest.Config, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags("", e.kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("loading %s: %w", e.kubeconfig, err)
+	}
+	return cfg, nil
+}
+
+// secret reads a secret of the installation.
+func (e *environment) secret(ctx context.Context, name string) (map[string][]byte, error) {
+	cfg, err := e.Kube(ctx)
+	if err != nil {
+		return nil, err
 	}
 	kube, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -265,6 +280,37 @@ func (e *environment) Keycloak(ctx context.Context) (keycloak.Client, error) {
 	if len(admin["username"]) == 0 || len(admin["password"]) == 0 {
 		return nil, errors.New("secret keycloak-admin has no username or password")
 	}
+	roots, err := e.roots()
+	if err != nil {
+		return nil, err
+	}
+	return keycloak.New(strings.TrimSuffix(e.url, "/")+"/keycloak", string(admin["username"]), string(admin["password"]), roots), nil
+}
+
+// Portal implements scenarios.Environment: the address of the portal and a
+// client that trusts the CA of the installation.
+func (e *environment) Portal(context.Context) (string, *http.Client, error) {
+	roots, err := e.roots()
+	if err != nil {
+		return "", nil, err
+	}
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12},
+			// A transport with a TLS config of its own speaks HTTP/1.1
+			// and offers no protocol in the handshake, and the gateway
+			// closes such a connection to the subdomain of an
+			// organization.
+			ForceAttemptHTTP2: true,
+		},
+	}
+	return strings.TrimSuffix(e.url, "/"), client, nil
+}
+
+// roots are the CAs the certificate of the portal is checked against: the
+// CA of the installation, which quickstart wrote to caFile.
+func (e *environment) roots() (*x509.CertPool, error) {
 	pem, err := os.ReadFile(e.caFile)
 	if err != nil {
 		return nil, fmt.Errorf("reading the CA certificate: %w", err)
@@ -273,7 +319,7 @@ func (e *environment) Keycloak(ctx context.Context) (keycloak.Client, error) {
 	if !roots.AppendCertsFromPEM(pem) {
 		return nil, fmt.Errorf("%s holds no certificate", e.caFile)
 	}
-	return keycloak.New(strings.TrimSuffix(e.url, "/")+"/keycloak", string(admin["username"]), string(admin["password"]), roots), nil
+	return roots, nil
 }
 
 // delete removes the cluster and what quickstart left next to it.

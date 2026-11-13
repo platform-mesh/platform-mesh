@@ -79,6 +79,14 @@ type Client interface {
 	// DeleteUser removes the user with the email from the realm; a user
 	// that is not there is not an error.
 	DeleteUser(ctx context.Context, realm, email string) error
+
+	// HasRealm tells whether there is a realm of the name.
+	HasRealm(ctx context.Context, realm string) (bool, error)
+
+	// Login logs the user in to the realm with the password, through the
+	// public client clientID and its redirect URI, the way a browser does,
+	// and returns the tokens. It needs no admin and changes nothing.
+	Login(ctx context.Context, realm, clientID, redirectURI, email, password string) (*Tokens, error)
 }
 
 // adminClient implements Client as the admin user of the master realm.
@@ -178,6 +186,32 @@ func (c *adminClient) DeleteUser(ctx context.Context, realm, email string) error
 		return fmt.Errorf("deleting user %s in realm %s: %w", email, realm, err)
 	}
 	return nil
+}
+
+// HasRealm implements Client.
+func (c *adminClient) HasRealm(ctx context.Context, realm string) (bool, error) {
+	token, err := c.token(ctx)
+	if err != nil {
+		return false, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.realmURL(realm), nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	res, err := c.http.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("looking up realm %s: %w", realm, err)
+	}
+	defer res.Body.Close() //nolint:errcheck
+	switch res.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	default:
+		return false, fmt.Errorf("looking up realm %s: %s", realm, res.Status)
+	}
 }
 
 func (c *adminClient) realmURL(realm string) string {

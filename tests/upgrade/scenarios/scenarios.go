@@ -16,25 +16,49 @@ limitations under the License.
 
 // Package scenarios holds what the upgrade test (tests/upgrade) expects to
 // survive an upgrade of Platform Mesh. A scenario is something a user of the
-// release has: it lists steps that seed it into the release, and steps that
-// validate that it is there and works. The upgrade test calls Seed and
-// Validate on the release, and Validate again after the upgrade. The steps
-// are run by tests/framework/steps: each is called until it returns nil.
+// release has: it lists steps that seed it into the release, steps that
+// validate that it is there and works, and steps that go on working with it
+// after the upgrade. The upgrade test calls Seed and Validate on the release,
+// and Validate again and then After on the checkout. The steps are run by
+// tests/framework/steps: each is called until it returns nil.
 //
 // The files:
 //
-//	scenarios.go     the types, All (the scenarios that run), Seed and Validate
-//	tenant.go        the tenant scenario: its names and its steps, in order
-//	organization.go  steps of the tenant scenario about the organization
-//	invites.go       steps of the tenant scenario about invites and their users
-//	account.go       steps of the tenant scenario about the account
+//	scenarios.go     the types, All (the scenarios that run), Seed, Validate, After
 //
-// To add a scenario, write a file with a function returning it, like Tenant,
-// and list it in All.
+//	tenant.go        scenario: an organization with users, accounts and data
+//	roles.go         scenario: roles granted through the IAM service
+//	isolation.go     scenario: two organizations that must not see each other
+//	offboarding.go   scenario: an organization that is deleted after the upgrade
+//	provider.go      scenario: a provider API bound and used by an account
+//	platform.go      scenario: what the operator of the installation configured
+//	extensions.go    scenario: UI configuration of an account
+//
+//	organization.go  steps about an organization and its users
+//	invites.go       steps about invites
+//	account.go       steps about an account and the data in its workspace
+//	iam.go           steps about roles, through the IAM service
+//	gateway.go       steps that read through the GraphQL gateway
+//	identity.go      steps that pin what must not change in an upgrade
+//	access.go        how the steps reach the installation: as the admin, as
+//	                 a user, over GraphQL
+//	state.go         what a scenario remembers from Seed for Validate
+//	manifests.go     the objects kept as YAML, in manifests/
+//
+// A scenario file names what the scenario creates and puts its steps in
+// order; the step files hold the steps, as functions of those names, so
+// that scenarios share them. To add a scenario, write a file with a function
+// returning it, like Tenant, and list it in All.
+//
+// Seed runs on the release with the Go types of this checkout. So a step
+// creates objects and patches them, but never updates an object of Platform
+// Mesh through its Go type: that drops every field the release has and the
+// checkout does not know (see declare in platform.go).
 package scenarios
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"go.platform-mesh.io/platform-mesh/tests/framework/keycloak"
@@ -51,6 +75,14 @@ type Environment interface {
 	KCP(ctx context.Context) (*rest.Config, error)
 	// Keycloak is the admin client of the Keycloak of the installation.
 	Keycloak(ctx context.Context) (keycloak.Client, error)
+	// Kube is the admin config of the cluster Platform Mesh is installed
+	// into, where its PlatformMesh object and its secrets are.
+	Kube(ctx context.Context) (*rest.Config, error)
+	// Portal is the address of the portal, for example
+	// https://portal.example.com:8443, and an HTTP client that trusts its
+	// certificate. The services of an organization are served under it,
+	// on the subdomain of the organization.
+	Portal(ctx context.Context) (string, *http.Client, error)
 }
 
 // A Step is a step (tests/framework/steps) on an Environment: one thing a
@@ -76,6 +108,13 @@ type Scenario struct {
 	// not change the installation, and it must not create what it looks
 	// for: what is gone has to fail it.
 	Validate []Step
+	// After goes on working with the data, on the checkout, once Validate
+	// held there: it changes it, adds to it, deletes it, as the user would
+	// after the upgrade. This is where the new code has to cope with what
+	// the old code wrote. It runs once. What it leaves behind, Seed has
+	// to be able to bring back to what Validate expects, for the next
+	// run on a kept cluster.
+	After []Step
 }
 
 // All returns the scenarios the upgrade test runs.
@@ -86,6 +125,12 @@ type Scenario struct {
 func All() []Scenario {
 	return []Scenario{
 		Tenant(),
+		Roles(),
+		Isolation(),
+		Offboarding(),
+		Provider(),
+		Platform(),
+		Extensions(),
 	}
 }
 
@@ -99,6 +144,12 @@ func Seed(t *testing.T, env Environment) {
 func Validate(t *testing.T, env Environment) {
 	t.Helper()
 	run(t, env, func(s Scenario) []Step { return s.Validate })
+}
+
+// After runs the after steps of every scenario against env.
+func After(t *testing.T, env Environment) {
+	t.Helper()
+	run(t, env, func(s Scenario) []Step { return s.After })
 }
 
 // run runs every scenario as a subtest of its name. A scenario that fails
