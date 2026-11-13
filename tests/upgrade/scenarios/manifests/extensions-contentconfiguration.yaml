@@ -1,0 +1,47 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# A navigation entry of the tenant's own, for the page of its account in the
+# portal.
+apiVersion: ui.platform-mesh.io/v1alpha1
+kind: ContentConfiguration
+metadata:
+  name: upgrade-seed
+  labels:
+    ui.platform-mesh.io/entity: core_platform-mesh_io_account
+spec:
+  inlineConfiguration:
+    contentType: json
+    content: |-
+      {
+        "name": "upgrade-seed",
+        "luigiConfigFragment": {
+          "data": {
+            "nodes": [
+              {
+                "entityType": "main.core_platform-mesh_io_account",
+                "pathSegment": "upgrade-seed",
+                "label": "Seeded by tests/upgrade",
+                "icon": "lab",
+                "order": 900,
+                "url": "/assets/platform-mesh-portal-ui-wc.js#generic-detail-view",
+                "webcomponent": {
+                  "selfRegistered": true,
+                  "type": "module"
+                }
+              }
+            ]
+          }
+        }
+      }

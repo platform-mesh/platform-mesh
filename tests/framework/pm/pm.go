@@ -26,7 +26,6 @@ package pm
 
 import (
 	"crypto/x509"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -86,31 +85,19 @@ func Keycloak(t testing.TB) keycloak.Client {
 	}
 	var roots *x509.CertPool
 	if file := os.Getenv("MKCERT_CA_PATH"); file != "" {
-		pem, err := os.ReadFile(file) //nolint:gosec // the path is the caller's
-		require.NoError(t, err, "reading MKCERT_CA_PATH")
-		roots = x509.NewCertPool()
-		require.True(t, roots.AppendCertsFromPEM(pem), "MKCERT_CA_PATH %s holds no certificate", file)
+		var err error
+		roots, err = Roots(file)
+		require.NoError(t, err, "MKCERT_CA_PATH")
 	}
 	return keycloak.New(env("KEYCLOAK_BASE_URL"), env("KEYCLOAK_ADMIN_USER"), env("KEYCLOAK_ADMIN_PASSWORD"), roots)
 }
 
-// Kubeconfig is the config of a kubeconfig a component wrote for use inside
-// the cluster. Its server (the front-proxy Service, or a virtual workspace
-// URL) is replaced by the front-proxy of ADMIN_KUBECONFIG so the test host
-// can reach it; a /services/ virtual workspace path becomes
-// /clusters/<fallbackPath>. Credentials and CA data are kept.
+// Kubeconfig is Reachable for an e2e test: the config of a kubeconfig a
+// component wrote for use inside the cluster, with its server replaced by
+// the front-proxy of ADMIN_KUBECONFIG so the test host can reach it.
 func Kubeconfig(t testing.TB, kubeconfig []byte, fallbackPath string) *rest.Config {
 	t.Helper()
-	cfg, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-	require.NoError(t, err, "rest config from kubeconfig")
-	server, err := url.Parse(cfg.Host)
-	require.NoError(t, err, "parsing server %q", cfg.Host)
-	front, err := url.Parse(KCP(t, "").Host)
-	require.NoError(t, err, "parsing the front-proxy URL")
-	server.Scheme, server.Host = front.Scheme, front.Host
-	if strings.HasPrefix(server.Path, "/services/") {
-		server.Path = "/clusters/" + fallbackPath
-	}
-	cfg.Host = server.String()
+	cfg, err := Reachable(KCP(t, ""), kubeconfig, fallbackPath)
+	require.NoError(t, err)
 	return cfg
 }

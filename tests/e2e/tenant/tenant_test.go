@@ -77,7 +77,7 @@ func TestOrganizationAccountAndUsers(t *testing.T) {
 
 	created := tenant.EnsureOrganization(t, kcp, org, owner)
 	require.Equal(t, pmcorev1alpha1.AccountTypeOrg, created.Spec.Type)
-	requireWorkspaceReady(t, orgs, org)
+	wait.WorkspaceReadyWithin(t, orgs, org, time.Minute, time.Second)
 
 	// The creator is invited by Platform Mesh and has to set a password
 	// on the first login; EnsureUser does that for them.
@@ -92,7 +92,7 @@ func TestOrganizationAccountAndUsers(t *testing.T) {
 	require.Empty(t, user.RequiredActions, "the creator should be able to log in without further steps")
 
 	tenant.EnsureAccount(t, kcp, org, account, owner)
-	requireWorkspaceReady(t, tenant.Client(t, kcp, tenant.OrganizationPath(org)), account)
+	wait.WorkspaceReadyWithin(t, tenant.Client(t, kcp, tenant.OrganizationPath(org)), account, time.Minute, time.Second)
 	// The account workspace answers.
 	require.NoError(t, tenant.Client(t, kcp, tenant.AccountPath(org, account)).List(ctx, &pmcorev1alpha1.AccountInfoList{}))
 
@@ -128,15 +128,4 @@ func TestOrganizationAccountAndUsers(t *testing.T) {
 	_, err = kc.User(ctx, org, owner)
 	require.Error(t, err, "the realm of the organization should be gone")
 	require.NotErrorIs(t, err, keycloak.ErrNotFound, "the realm of the organization should be gone")
-}
-
-func requireWorkspaceReady(t *testing.T, cl ctrlruntimeclient.Client, name string) {
-	t.Helper()
-	wait.Eventually(t, func() (bool, string) {
-		ws := &kcptenancyv1alpha1.Workspace{}
-		if err := cl.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: name}, ws); err != nil {
-			return false, fmt.Sprintf("getting workspace: %v", err)
-		}
-		return ws.Status.Phase == "Ready", fmt.Sprintf("phase %q", ws.Status.Phase)
-	}, time.Minute, time.Second, "workspace %s should be Ready", name)
 }

@@ -2,6 +2,16 @@
 
 This procedure moves OpenFGA from its bundled PostgreSQL instance to the shared CNPG cluster. It requires a maintenance window.
 
+`pmctl migrate` does steps 1 to 4 for an installation whose profile is the `platform-mesh-profile` ConfigMap, managed directly in the cluster:
+
+```shell
+pmctl migrate --from v26.10.x                 # before the upgrade: stop OpenFGA, dump, restore, compare
+# upgrade to 26.11 with the profile of step 5 and 6
+pmctl migrate --from v26.10.x --phase after   # after the upgrade: OpenFGA runs on CNPG and has the data
+```
+
+It leaves OpenFGA stopped until the upgrade, and keeps the dump and the profile as it was in `--backup-dir`. The rest of this document is the same procedure by hand, for a profile that is managed elsewhere.
+
 Run the commands from the repository root in the same shell. Apply profile changes through the source that owns the profile. The examples below use a directly managed `platform-mesh-profile` ConfigMap.
 
 ## 1. Prepare CNPG and save the current profile
