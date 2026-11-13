@@ -18,26 +18,15 @@ package scenarios
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"slices"
-	"strings"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/platform-mesh/tests/framework/pm"
 	"go.platform-mesh.io/platform-mesh/tests/framework/steps"
 	"go.platform-mesh.io/platform-mesh/tests/framework/tenant"
+	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -63,17 +52,18 @@ const (
 	platformExport    = "platform.upgrade.platform-mesh.io"
 	platformSecret    = "upgrade-platform-kubeconfig"
 
+	platformExportManifest = "platform-export.yaml"
+	platformGadgetManifest = "platform-gadget.yaml"
+
 	// platformState is what the scenario remembers under (state.go): the
 	// kubeconfigs as they were on the release, under these keys.
-	platformState             = "platform"
-	platformStateConnection   = "connection"
-	platformStateAdmin        = "admin"
-	platformMeshNamespace     = "platform-mesh-system"
-	platformMeshName          = "platform-mesh"
-	platformAdminSecret       = "kubeconfig-kcp-admin"
-	platformKubeconfigKey     = "kubeconfig"
-	platformAdminContext      = "base"
-	platformGadgetAfterSuffix = "-after"
+	platformState           = "platform"
+	platformStateConnection = "connection"
+	platformStateAdmin      = "admin"
+
+	// gadgetAfter names the copy of the Gadget that After creates and
+	// deletes.
+	gadgetAfter = "-after"
 )
 
 // Platform is the platform scenario.
@@ -97,103 +87,53 @@ func Platform() Scenario {
 			{Name: "platform mesh is ready", Run: validatePlatformMesh(path)},
 			// 4. After the connection: its kubeconfig is used, and
 			//    then remembered together with the one of the admin.
-			{Name: "gadget with the kubeconfig of the connection", Run: seedGadget(path)},
+			{Name: "gadget with the kubeconfig of the connection", Run: withConnection(path, currentKubeconfig, createGadget(""))},
 			{Name: "remember the kubeconfigs", Run: seedKubeconfigs()},
 		},
 
 		Validate: []Step{
 			{Name: "platform mesh is ready", Run: validatePlatformMesh(path)},
 			{Name: "extra workspace", Run: validateWorkspace(providersPath, platformWorkspace)},
-			{Name: "export in the extra workspace", Run: validateManifest(path, "platform-export.yaml")},
-			{Name: "kubeconfig of the connection", Run: validateConnection(path, currentKubeconfig)},
-			{Name: "kubeconfig of the connection, as of the release", Run: validateConnection(path, rememberedKubeconfig)},
+			{Name: "export in the extra workspace", Run: validateManifest(path, platformExportManifest)},
+			{Name: "kubeconfig of the connection", Run: withConnection(path, currentKubeconfig, readGadget)},
+			{Name: "kubeconfig of the connection, as of the release", Run: withConnection(path, rememberedKubeconfig, readGadget)},
 			{Name: "kubeconfig of the admin, as of the release", Run: validateAdminKubeconfig()},
 		},
 
 		// A Gadget is created, read and deleted again with the
 		// kubeconfig of the connection: Validate holds afterwards.
 		After: []Step{
-			{Name: "second gadget with the kubeconfig of the connection", Run: seedSecondGadget(path)},
-			{Name: "delete the second gadget", Run: deleteSecondGadget(path)},
+			{Name: "second gadget with the kubeconfig of the connection", Run: withConnection(path, currentKubeconfig, createGadget(gadgetAfter))},
+			{Name: "delete the second gadget", Run: withConnection(path, currentKubeconfig, deleteGadget(gadgetAfter))},
 		},
 	}
 }
 
-// kubeScheme has the types of the cluster Platform Mesh is installed into
-// that the scenario works with.
-var kubeScheme = runtime.NewScheme()
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(kubeScheme))
-	utilruntime.Must(pmcorev1alpha1.AddToScheme(kubeScheme))
+func declaresWorkspace(mesh *pmcorev1alpha1.PlatformMesh, path string) bool {
+	return slices.ContainsFunc(mesh.Spec.Kcp.ExtraWorkspaces, func(w pmcorev1alpha1.WorkspaceDeclaration) bool { return w.Path == path })
 }
 
-// kubeClient is a client for the cluster Platform Mesh is installed into.
-func kubeClient(ctx context.Context, env Environment) (ctrlruntimeclient.Client, error) {
-	cfg, err := env.Kube(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: kubeScheme})
+func declaresConnection(mesh *pmcorev1alpha1.PlatformMesh) bool {
+	return slices.ContainsFunc(mesh.Spec.Kcp.ExtraProviderConnections, func(c pmcorev1alpha1.ProviderConnection) bool { return c.Secret == platformSecret })
 }
 
-// platformMesh reads the PlatformMesh object.
-func platformMesh(ctx context.Context, cl ctrlruntimeclient.Client) (*pmcorev1alpha1.PlatformMesh, error) {
-	pm := &pmcorev1alpha1.PlatformMesh{}
-	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: platformMeshNamespace, Name: platformMeshName}, pm); err != nil {
-		return nil, err
-	}
-	return pm, nil
-}
-
-// declare appends an entry to the list at spec.kcp.<list> of the PlatformMesh
-// object unless declared reports that it is there.
-//
-// The object is patched, and with the list alone. It is not updated through
-// its Go type: Seed runs on the release with the types of this checkout,
-// and an update would drop every field the release has and the checkout
-// does not know, of an object that configures the whole installation.
+// declare appends the entry to spec.kcp.<list> of the PlatformMesh object
+// unless declared reports that it is there. It patches the list alone
+// (pm.AppendToPlatformMesh): Seed runs on the release with the types of
+// this checkout, and must not write the object back through them.
 func declare(ctx context.Context, env Environment, list string, entry any, declared func(*pmcorev1alpha1.PlatformMesh) bool) error {
 	cl, err := kubeClient(ctx, env)
 	if err != nil {
 		return err
 	}
-	pm, err := platformMesh(ctx, cl)
+	mesh, err := pm.GetPlatformMesh(ctx, cl)
 	if err != nil {
 		return err
 	}
-	if declared(pm) {
+	if declared(mesh) {
 		return nil
 	}
-	// A merge patch replaces a list as a whole, so it carries the entries
-	// that are there, read as they are and not through their Go type, and
-	// the resourceVersion they were read at: a change in between fails
-	// the patch, and the step is called again.
-	raw := &unstructured.Unstructured{}
-	raw.SetGroupVersionKind(pmcorev1alpha1.SchemeGroupVersion.WithKind("PlatformMesh"))
-	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(pm), raw); err != nil {
-		return err
-	}
-	entries, _, err := unstructured.NestedSlice(raw.Object, "spec", "kcp", list)
-	if err != nil {
-		return fmt.Errorf("spec.kcp.%s of the PlatformMesh object: %w", list, err)
-	}
-	patch, err := json.Marshal(map[string]any{
-		"metadata": map[string]any{"resourceVersion": raw.GetResourceVersion()},
-		"spec":     map[string]any{"kcp": map[string]any{list: append(entries, entry)}},
-	})
-	if err != nil {
-		return err
-	}
-	return cl.Patch(ctx, raw, ctrlruntimeclient.RawPatch(types.MergePatchType, patch))
-}
-
-func declaresWorkspace(pm *pmcorev1alpha1.PlatformMesh, path string) bool {
-	return slices.ContainsFunc(pm.Spec.Kcp.ExtraWorkspaces, func(w pmcorev1alpha1.WorkspaceDeclaration) bool { return w.Path == path })
-}
-
-func declaresConnection(pm *pmcorev1alpha1.PlatformMesh) bool {
-	return slices.ContainsFunc(pm.Spec.Kcp.ExtraProviderConnections, func(c pmcorev1alpha1.ProviderConnection) bool { return c.Secret == platformSecret })
+	return pm.AppendToPlatformMesh(ctx, cl, entry, "spec", "kcp", list)
 }
 
 // seedExtraWorkspace declares the workspace at path, of the type provider,
@@ -203,9 +143,9 @@ func seedExtraWorkspace(path string) stepFunc {
 		err := declare(ctx, env, "extraWorkspaces", pmcorev1alpha1.WorkspaceDeclaration{
 			Path: path,
 			Type: pmcorev1alpha1.WorkspaceTypeReference{Name: "provider", Path: "root"},
-		}, func(pm *pmcorev1alpha1.PlatformMesh) bool { return declaresWorkspace(pm, path) })
+		}, func(mesh *pmcorev1alpha1.PlatformMesh) bool { return declaresWorkspace(mesh, path) })
 		if err != nil {
-			return fmt.Errorf("declaring the extra workspace %s: %w", path, err)
+			return err
 		}
 		return workspaceReady(ctx, env, providersPath, platformWorkspace)
 	}
@@ -219,22 +159,11 @@ func seedPlatformExport(path string) stepFunc {
 		if err != nil {
 			return err
 		}
-		if err := create(ctx, cl, "platform-export.yaml"); err != nil {
+		if err := create(ctx, cl, platformExportManifest); err != nil {
 			return err
 		}
-		objects, err := existing(ctx, cl, "platform-export.yaml")
-		if err != nil {
-			return err
-		}
-		for _, obj := range objects {
-			if obj.GetKind() != "APIBinding" {
-				continue
-			}
-			if phase, _, _ := unstructured.NestedString(obj.Object, "status", "phase"); phase != "Bound" {
-				return fmt.Errorf("binding %s in %s is %q, not Bound", obj.GetName(), path, phase)
-			}
-		}
-		return nil
+		// The binding is named like the export it binds.
+		return wait.CheckAPIBindingBound(ctx, cl, platformExport)
 	}
 }
 
@@ -250,7 +179,7 @@ func seedProviderConnection(path string) stepFunc {
 			AdminAuth:      ptr.To(false),
 		}, declaresConnection)
 		if err != nil {
-			return fmt.Errorf("declaring the provider connection to %s: %w", path, err)
+			return err
 		}
 		_, err = currentKubeconfig(ctx, env)
 		return err
@@ -265,21 +194,12 @@ func validatePlatformMesh(path string) stepFunc {
 		if err != nil {
 			return err
 		}
-		pm, err := platformMesh(ctx, cl)
-		if err != nil {
-			return err
-		}
-		if !declaresWorkspace(pm, path) || !declaresConnection(pm) {
+		mesh, err := pm.CheckPlatformMeshReady(ctx, cl)
+		if mesh != nil && (!declaresWorkspace(mesh, path) || !declaresConnection(mesh)) {
 			return steps.Terminal("the PlatformMesh object no longer declares the extra workspace %s (%t) and its provider connection (%t)",
-				path, declaresWorkspace(pm, path), declaresConnection(pm))
+				path, declaresWorkspace(mesh, path), declaresConnection(mesh))
 		}
-		// Ready for what the object says now, not for what it said
-		// before the scenario declared its part.
-		ready := meta.FindStatusCondition(pm.Status.Conditions, "Ready")
-		if ready == nil || ready.Status != metav1.ConditionTrue || ready.ObservedGeneration != pm.Generation {
-			return fmt.Errorf("the PlatformMesh object is not Ready at generation %d: %+v", pm.Generation, ready)
-		}
-		return nil
+		return err
 	}
 }
 
@@ -289,7 +209,11 @@ type kubeconfigSource func(ctx context.Context, env Environment) ([]byte, error)
 // currentKubeconfig is the kubeconfig in the Secret of the provider
 // connection, as the operator keeps it.
 func currentKubeconfig(ctx context.Context, env Environment) ([]byte, error) {
-	return secretKubeconfig(ctx, env, platformSecret)
+	cl, err := kubeClient(ctx, env)
+	if err != nil {
+		return nil, err
+	}
+	return pm.SecretKubeconfig(ctx, cl, platformSecret)
 }
 
 // rememberedKubeconfig is the kubeconfig of the provider connection as
@@ -302,21 +226,6 @@ func rememberedKubeconfig(ctx context.Context, env Environment) ([]byte, error) 
 	return []byte(state[platformStateConnection]), nil
 }
 
-func secretKubeconfig(ctx context.Context, env Environment, name string) ([]byte, error) {
-	cl, err := kubeClient(ctx, env)
-	if err != nil {
-		return nil, err
-	}
-	secret := &corev1.Secret{}
-	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: platformMeshNamespace, Name: name}, secret); err != nil {
-		return nil, err
-	}
-	if len(secret.Data[platformKubeconfigKey]) == 0 {
-		return nil, fmt.Errorf("secret %s has no %s", name, platformKubeconfigKey)
-	}
-	return secret.Data[platformKubeconfigKey], nil
-}
-
 // seedKubeconfigs remembers the kubeconfig of the provider connection and
 // the one of the kcp admin, as they are on the release.
 func seedKubeconfigs() stepFunc {
@@ -325,7 +234,11 @@ func seedKubeconfigs() stepFunc {
 		if err != nil {
 			return err
 		}
-		admin, err := secretKubeconfig(ctx, env, platformAdminSecret)
+		cl, err := kubeClient(ctx, env)
+		if err != nil {
+			return err
+		}
+		admin, err := pm.SecretKubeconfig(ctx, cl, pm.AdminKubeconfigSecret)
 		if err != nil {
 			return err
 		}
@@ -336,97 +249,55 @@ func seedKubeconfigs() stepFunc {
 	}
 }
 
-// connectionClient is a client for the workspace at path with the
-// credentials of a kubeconfig of the provider connection. The kubeconfig
-// is written for use inside the cluster: its server is replaced by the
-// front-proxy as the test reaches it, and the virtual workspace of the
-// export by the workspace itself. The credentials are the ones of the
-// kubeconfig.
-func connectionClient(ctx context.Context, env Environment, kubeconfig []byte, path string) (ctrlruntimeclient.Client, error) {
-	cfg, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("the kubeconfig of the provider connection: %w", err)
-	}
-	return reachable(ctx, env, cfg, path)
-}
-
-// reachable returns a client with the credentials of cfg for the workspace
-// at path, through the front-proxy as the test reaches it.
-func reachable(ctx context.Context, env Environment, cfg *rest.Config, path string) (ctrlruntimeclient.Client, error) {
-	kcp, err := env.KCP(ctx)
-	if err != nil {
-		return nil, err
-	}
-	front, err := url.Parse(kcp.Host)
-	if err != nil {
-		return nil, err
-	}
-	cfg = rest.CopyConfig(cfg)
-	cfg.Host = strings.TrimSuffix(front.Scheme+"://"+front.Host, "/")
-	// The CA of the kubeconfig is the one of the address inside the
-	// cluster; the one of the front-proxy as reached from here is the
-	// admin's.
-	cfg.CAData, cfg.CAFile = kcp.CAData, kcp.CAFile
-	return tenant.NewClient(cfg, path)
-}
-
-func gadget(suffix string) (*unstructured.Unstructured, error) {
-	objects, err := manifest("platform-gadget.yaml")
-	if err != nil {
-		return nil, err
-	}
-	objects[0].SetName(objects[0].GetName() + suffix)
-	return objects[0], nil
-}
-
-// seedGadget creates the Gadget of the manifest in the workspace at path,
-// with the kubeconfig of the provider connection.
-func seedGadget(path string) stepFunc {
-	return func(ctx context.Context, env Environment) error {
-		return createGadget(ctx, env, path, "")
-	}
-}
-
-func createGadget(ctx context.Context, env Environment, path, suffix string) error {
-	kubeconfig, err := currentKubeconfig(ctx, env)
-	if err != nil {
-		return err
-	}
-	cl, err := connectionClient(ctx, env, kubeconfig, path)
-	if err != nil {
-		return err
-	}
-	obj, err := gadget(suffix)
-	if err != nil {
-		return err
-	}
-	if err := ctrlruntimeclient.IgnoreAlreadyExists(cl.Create(ctx, obj)); err != nil {
-		return fmt.Errorf("creating gadget %s in %s with the kubeconfig of the provider connection: %w", obj.GetName(), path, err)
-	}
-	return cl.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(obj), obj)
-}
-
-// validateConnection: the kubeconfig of the provider connection, from the
-// source, reads the Gadget of seedGadget in the workspace at path.
-func validateConnection(path string, source kubeconfigSource) stepFunc {
+// withConnection is a step that runs do with a client for the workspace at
+// path that has the credentials of a kubeconfig of the provider connection,
+// from the source. The kubeconfig is written for use inside the cluster;
+// pm.Reachable makes it work from here.
+func withConnection(path string, source kubeconfigSource, do func(ctx context.Context, cl ctrlruntimeclient.Client) error) stepFunc {
 	return func(ctx context.Context, env Environment) error {
 		kubeconfig, err := source(ctx, env)
 		if err != nil {
 			return err
 		}
-		cl, err := connectionClient(ctx, env, kubeconfig, path)
+		kcp, err := env.KCP(ctx)
 		if err != nil {
 			return err
 		}
-		obj, err := gadget("")
+		cfg, err := pm.Reachable(kcp, kubeconfig, path)
 		if err != nil {
 			return err
 		}
-		if err := cl.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(obj), obj); err != nil {
-			return fmt.Errorf("reading gadget %s in %s with the kubeconfig of the provider connection: %w", obj.GetName(), path, err)
+		cl, err := pm.NewClient(cfg)
+		if err != nil {
+			return err
+		}
+		if err := do(ctx, cl); err != nil {
+			return fmt.Errorf("with the kubeconfig of the provider connection: %w", err)
 		}
 		return nil
 	}
+}
+
+// createGadget creates the Gadget of the manifest, under its name with the
+// suffix, and reads it back.
+func createGadget(suffix string) func(ctx context.Context, cl ctrlruntimeclient.Client) error {
+	return func(ctx context.Context, cl ctrlruntimeclient.Client) error {
+		return createCopy(ctx, cl, platformGadgetManifest, suffix)
+	}
+}
+
+// deleteGadget deletes the Gadget createGadget made with the suffix, and
+// waits until it is gone.
+func deleteGadget(suffix string) func(ctx context.Context, cl ctrlruntimeclient.Client) error {
+	return func(ctx context.Context, cl ctrlruntimeclient.Client) error {
+		return deleteCopy(ctx, cl, platformGadgetManifest, suffix)
+	}
+}
+
+// readGadget reads the Gadget of the manifest.
+func readGadget(ctx context.Context, cl ctrlruntimeclient.Client) error {
+	_, err := existing(ctx, cl, platformGadgetManifest)
+	return err
 }
 
 // validateAdminKubeconfig: the kubeconfig of the kcp admin, as
@@ -437,15 +308,10 @@ func validateAdminKubeconfig() stepFunc {
 		if err != nil {
 			return err
 		}
-		raw, err := clientcmd.Load([]byte(state[platformStateAdmin]))
+		cfg, err := pm.AdminConfig([]byte(state[platformStateAdmin]))
 		if err != nil {
-			return fmt.Errorf("the remembered kubeconfig of the kcp admin: %w", err)
+			return err
 		}
-		cfg, err := clientcmd.NewNonInteractiveClientConfig(*raw, platformAdminContext, &clientcmd.ConfigOverrides{}, nil).ClientConfig()
-		if err != nil {
-			return fmt.Errorf("the %s context of the remembered kubeconfig of the kcp admin: %w", platformAdminContext, err)
-		}
-		cfg.Host = strings.TrimSuffix(cfg.Host, "/")
 		cl, err := tenant.NewClient(cfg, tenant.OrgsPath)
 		if err != nil {
 			return err
@@ -454,36 +320,5 @@ func validateAdminKubeconfig() stepFunc {
 			return fmt.Errorf("listing the organizations with the kubeconfig of the kcp admin as of the release: %w", err)
 		}
 		return nil
-	}
-}
-
-// seedSecondGadget creates a second Gadget with the kubeconfig of the
-// provider connection, and reads it back.
-func seedSecondGadget(path string) stepFunc {
-	return func(ctx context.Context, env Environment) error {
-		return createGadget(ctx, env, path, platformGadgetAfterSuffix)
-	}
-}
-
-// deleteSecondGadget deletes the Gadget of seedSecondGadget with the
-// kubeconfig of the provider connection, and waits until it is gone.
-func deleteSecondGadget(path string) stepFunc {
-	return func(ctx context.Context, env Environment) error {
-		kubeconfig, err := currentKubeconfig(ctx, env)
-		if err != nil {
-			return err
-		}
-		cl, err := connectionClient(ctx, env, kubeconfig, path)
-		if err != nil {
-			return err
-		}
-		obj, err := gadget(platformGadgetAfterSuffix)
-		if err != nil {
-			return err
-		}
-		if err := ctrlruntimeclient.IgnoreNotFound(cl.Delete(ctx, obj)); err != nil {
-			return fmt.Errorf("deleting gadget %s in %s: %w", obj.GetName(), path, err)
-		}
-		return gone(cl.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(obj), obj), fmt.Sprintf("gadget %s in %s", obj.GetName(), path))
 	}
 }

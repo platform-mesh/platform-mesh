@@ -28,7 +28,6 @@ import (
 	"go.platform-mesh.io/platform-mesh/tests/framework/tenant"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -220,9 +219,7 @@ func validateForeignToken(from, email, org string) stepFunc {
 // deleteOrganization deletes the organization and waits until it is gone,
 // with its workspace.
 func deleteOrganization(org string) stepFunc {
-	return func(ctx context.Context, env Environment) error {
-		return deleteAccountIn(ctx, env, tenant.OrgsPath, org)
-	}
+	return deleteAccount(tenant.OrgsPath, org)
 }
 
 // sameAccounts returns an error unless the accounts the client lists are
@@ -242,23 +239,4 @@ func sameAccounts(ctx context.Context, cl ctrlruntimeclient.Client, who string, 
 		return steps.Terminal("%s sees the accounts %v, not %v", who, got, want)
 	}
 	return nil
-}
-
-// deleteAccountIn deletes the Account name in the workspace at parent, an
-// organization or an account, and returns an error until it is gone with
-// its workspace.
-func deleteAccountIn(ctx context.Context, env Environment, parent, name string) error {
-	cl, err := adminClient(ctx, env, parent)
-	if err != nil {
-		return err
-	}
-	account := &pmcorev1alpha1.Account{ObjectMeta: metav1.ObjectMeta{Name: name}}
-	if err := ctrlruntimeclient.IgnoreNotFound(cl.Delete(ctx, account)); err != nil {
-		return fmt.Errorf("deleting account %s in %s: %w", name, parent, err)
-	}
-	key := ctrlruntimeclient.ObjectKey{Name: name}
-	if err := gone(cl.Get(ctx, key, account), fmt.Sprintf("account %s in %s", name, parent)); err != nil {
-		return err
-	}
-	return gone(cl.Get(ctx, key, newWorkspace()), fmt.Sprintf("workspace %s in %s", name, parent))
 }

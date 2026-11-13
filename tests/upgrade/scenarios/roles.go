@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"go.platform-mesh.io/platform-mesh/tests/framework/iam"
 	"go.platform-mesh.io/platform-mesh/tests/framework/tenant"
 
 	corev1 "k8s.io/api/core/v1"
@@ -79,7 +80,7 @@ func Roles() Scenario {
 			{Name: "account", Run: seedAccount(org, rolesAccount, rolesOwner)},
 			{Name: "data in the account", Run: seedData(account)},
 			// 4. After the account and both users: the role.
-			{Name: "member role", Run: grantRole(rolesOrg, rolesAccount, rolesOwner, rolesMember, roleMember)},
+			{Name: "member role", Run: grantRole(rolesOrg, rolesAccount, rolesOwner, rolesMember, iam.RoleMember)},
 			{Name: "identities", Run: seedIdentity(rolesOrg, identity...)},
 		},
 
@@ -91,8 +92,8 @@ func Roles() Scenario {
 			// What the IAM service reports, and then what kcp enforces:
 			// the two have to agree, and both come from the tuples.
 			{Name: "roles of the account", Run: validateRoles(rolesOrg, rolesAccount, rolesOwner, map[string][]string{
-				rolesOwner:  {roleOwner},
-				rolesMember: {roleMember},
+				rolesOwner:  {iam.RoleOwner},
+				rolesMember: {iam.RoleMember},
 			})},
 			{Name: "member reads the account", Run: validateReads(rolesOrg, rolesMember, account)},
 			{Name: "member does not write", Run: validateDoesNotWrite(rolesOrg, rolesMember, account)},
@@ -104,19 +105,19 @@ func Roles() Scenario {
 			// 1. Roles change hands, on the store the release filled:
 			//    a tuple of the release is deleted, and a new one
 			//    written next to the old ones.
-			{Name: "take the role from the member", Run: revokeRole(rolesOrg, rolesAccount, rolesOwner, rolesMember, roleMember)},
+			{Name: "take the role from the member", Run: revokeRole(rolesOrg, rolesAccount, rolesOwner, rolesMember, iam.RoleMember)},
 			{Name: "member is kept out", Run: eventuallyDoesNotRead(rolesOrg, rolesMember, account)},
-			{Name: "give the role to the guest", Run: grantRole(rolesOrg, rolesAccount, rolesOwner, rolesGuest, roleMember)},
+			{Name: "give the role to the guest", Run: grantRole(rolesOrg, rolesAccount, rolesOwner, rolesGuest, iam.RoleMember)},
 			{Name: "guest reads the account", Run: validateReads(rolesOrg, rolesGuest, account)},
 			{Name: "roles of the account", Run: validateRoles(rolesOrg, rolesAccount, rolesOwner, map[string][]string{
-				rolesOwner: {roleOwner},
-				rolesGuest: {roleMember},
+				rolesOwner: {iam.RoleOwner},
+				rolesGuest: {iam.RoleMember},
 			})},
 			// 2. And back, so that Validate holds again on a kept
 			//    cluster.
-			{Name: "take the role from the guest", Run: revokeRole(rolesOrg, rolesAccount, rolesOwner, rolesGuest, roleMember)},
+			{Name: "take the role from the guest", Run: revokeRole(rolesOrg, rolesAccount, rolesOwner, rolesGuest, iam.RoleMember)},
 			{Name: "guest is kept out", Run: eventuallyDoesNotRead(rolesOrg, rolesGuest, account)},
-			{Name: "give the role back to the member", Run: grantRole(rolesOrg, rolesAccount, rolesOwner, rolesMember, roleMember)},
+			{Name: "give the role back to the member", Run: grantRole(rolesOrg, rolesAccount, rolesOwner, rolesMember, iam.RoleMember)},
 			{Name: "member reads the account", Run: validateReads(rolesOrg, rolesMember, account)},
 		},
 	}

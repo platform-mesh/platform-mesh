@@ -122,7 +122,7 @@ func Tenant() Scenario {
 			{Name: "stranger is kept out", Run: validateDenied(tenantOrg, tenantStranger)},
 			{Name: "owner logs in", Run: validateLogin(tenantOrg, tenantOwner, tenantAccount)},
 			{Name: "owner is known to the IAM service", Run: validateWhoAmI(tenantOrg, tenantOwner)},
-			{Name: "owner reads through the gateway", Run: validateGateway(tenantOrg, tenantOwner, tenantAccount)},
+			{Name: "owner reads through the gateway", Run: validateGateway(tenantOrg, tenantOwner, org, accounts, tenantAccount)},
 		},
 
 		// ORDER MATTERS little: each step works on what Seed left, not

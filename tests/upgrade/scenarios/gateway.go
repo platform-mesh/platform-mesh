@@ -18,50 +18,39 @@ package scenarios
 
 import (
 	"context"
-	"fmt"
 	"slices"
 
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/platform-mesh/tests/framework/gateway"
 	"go.platform-mesh.io/platform-mesh/tests/framework/steps"
-	"go.platform-mesh.io/platform-mesh/tests/framework/tenant"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// Steps that read through the GraphQL gateway, which is how the portal
-// reads: it serves every workspace as a GraphQL schema generated from the
-// APIs of the workspace, and sends the queries on to kcp as the user.
+// Steps that read through the GraphQL gateway (tests/framework/gateway),
+// which is how the portal reads.
 
-// gatewayPath is where the gateway serves the workspace at path.
-func gatewayPath(path string) string { return "/gateway/api/clusters/" + path + "/graphql" }
+// accounts is the Account API as the schema of the gateway spells it, with
+// the kind in the plural.
+var accounts = pmcorev1alpha1.SchemeGroupVersion.WithKind("Accounts")
 
-// validateGateway: the user, logged in, lists the accounts of the
-// organization through the gateway, and they are the ones named.
-func validateGateway(org, email string, accounts ...string) stepFunc {
+// validateGateway: the user, logged in to the organization, lists the
+// objects of the kind in the workspace at path through the gateway, and
+// they are the ones named. kinds is the kind as the gateway spells it (see
+// gateway.List). The gateway answers only for an API it has in the schema
+// it generated for the workspace.
+func validateGateway(org, email, path string, kinds schema.GroupVersionKind, names ...string) stepFunc {
 	return func(ctx context.Context, env Environment) error {
 		token, err := login(ctx, env, org, email)
 		if err != nil {
 			return err
 		}
-		var answer struct {
-			Core struct {
-				V1alpha1 struct {
-					Accounts struct {
-						Items []struct{ Metadata struct{ Name string } }
-					} `json:"Accounts"`
-				} `json:"v1alpha1"`
-			} `json:"core_platform_mesh_io"`
+		got, err := gateway.List(ctx, env, org, path, token, kinds)
+		if err != nil {
+			return err
 		}
-		query := `{ core_platform_mesh_io { v1alpha1 { Accounts { items { metadata { name } } } } } }`
-		path := tenant.OrganizationPath(org)
-		if err := graphQL(ctx, env, org, gatewayPath(path), token, query, &answer); err != nil {
-			return fmt.Errorf("the accounts of %s through the gateway: %w", path, err)
-		}
-		got := make([]string, 0, len(answer.Core.V1alpha1.Accounts.Items))
-		for _, item := range answer.Core.V1alpha1.Accounts.Items {
-			got = append(got, item.Metadata.Name)
-		}
-		slices.Sort(got)
-		want := slices.Sorted(slices.Values(accounts))
-		if !slices.Equal(got, want) {
-			return steps.Terminal("the gateway lists the accounts %v of %s, not %v", got, path, want)
+		if want := slices.Sorted(slices.Values(names)); !slices.Equal(got, want) {
+			return steps.Terminal("the gateway lists the %s %v of %s, not %v", kinds.Kind, got, path, want)
 		}
 		return nil
 	}

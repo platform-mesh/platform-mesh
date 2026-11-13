@@ -40,10 +40,16 @@ limitations under the License.
 //	iam.go           steps about roles, through the IAM service
 //	gateway.go       steps that read through the GraphQL gateway
 //	identity.go      steps that pin what must not change in an upgrade
-//	access.go        how the steps reach the installation: as the admin, as
-//	                 a user, over GraphQL
+//	access.go        how the steps reach the installation, as the admin or
+//	                 as a user, and how they tell denied from broken
 //	state.go         what a scenario remembers from Seed for Validate
 //	manifests.go     the objects kept as YAML, in manifests/
+//
+// The steps are thin: what they do to the installation is in tests/framework
+// (tenant, iam, gateway, pm, wait, fixtures), as functions that do one pass
+// and return an error, which the e2e tests share. What is here is what makes
+// it an upgrade scenario: which steps, in which order, and what has to hold
+// across the upgrade.
 //
 // A scenario file names what the scenario creates and puts its steps in
 // order; the step files hold the steps, as functions of those names, so
@@ -53,37 +59,20 @@ limitations under the License.
 // Seed runs on the release with the Go types of this checkout. So a step
 // creates objects and patches them, but never updates an object of Platform
 // Mesh through its Go type: that drops every field the release has and the
-// checkout does not know (see declare in platform.go).
+// checkout does not know (see pm.AppendToPlatformMesh).
 package scenarios
 
 import (
-	"context"
-	"net/http"
 	"testing"
 
-	"go.platform-mesh.io/platform-mesh/tests/framework/keycloak"
+	"go.platform-mesh.io/platform-mesh/tests/framework/pm"
 	"go.platform-mesh.io/platform-mesh/tests/framework/steps"
-
-	"k8s.io/client-go/rest"
 )
 
-// Environment is the installation the steps work on. The upgrade test
-// implements it for the kind cluster it installs Platform Mesh into.
-type Environment interface {
-	// KCP is the kcp admin config of the installation, without a
-	// workspace path: what the tests/framework/tenant functions take.
-	KCP(ctx context.Context) (*rest.Config, error)
-	// Keycloak is the admin client of the Keycloak of the installation.
-	Keycloak(ctx context.Context) (keycloak.Client, error)
-	// Kube is the admin config of the cluster Platform Mesh is installed
-	// into, where its PlatformMesh object and its secrets are.
-	Kube(ctx context.Context) (*rest.Config, error)
-	// Portal is the address of the portal, for example
-	// https://portal.example.com:8443, and an HTTP client that trusts its
-	// certificate. The services of an organization are served under it,
-	// on the subdomain of the organization.
-	Portal(ctx context.Context) (string, *http.Client, error)
-}
+// Environment is the installation the steps work on: a deployed Platform
+// Mesh as the framework knows it. The upgrade test implements it for the
+// kind cluster it installs Platform Mesh into.
+type Environment = pm.Installation
 
 // A Step is a step (tests/framework/steps) on an Environment: one thing a
 // scenario does to the installation, or expects of it. It does one pass and

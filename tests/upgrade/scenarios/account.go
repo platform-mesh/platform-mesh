@@ -24,13 +24,12 @@ import (
 
 	"go.platform-mesh.io/platform-mesh/tests/framework/steps"
 	"go.platform-mesh.io/platform-mesh/tests/framework/tenant"
+	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-
-	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 // Steps about an account and what its tenant keeps in its workspace. An
@@ -160,11 +159,16 @@ func changeData(path string) stepFunc {
 	}
 }
 
-// deleteAccount deletes the account in the workspace at parent and waits
-// until it is gone, with its workspace.
+// deleteAccount deletes the account in the workspace at parent, which for
+// an organization is tenant.OrgsPath, and waits until it is gone, with its
+// workspace.
 func deleteAccount(parent, name string) stepFunc {
 	return func(ctx context.Context, env Environment) error {
-		return deleteAccountIn(ctx, env, parent, name)
+		kcp, err := env.KCP(ctx)
+		if err != nil {
+			return err
+		}
+		return tenant.DeleteAccountIn(ctx, kcp, parent, name)
 	}
 }
 
@@ -200,8 +204,6 @@ func holds(got, want map[string]string) bool {
 	return true
 }
 
-func newWorkspace() *kcptenancyv1alpha1.Workspace { return &kcptenancyv1alpha1.Workspace{} }
-
 // workspaceReady returns an error unless the Workspace name in the
 // workspace at path is Ready.
 func workspaceReady(ctx context.Context, env Environment, path, name string) error {
@@ -209,12 +211,5 @@ func workspaceReady(ctx context.Context, env Environment, path, name string) err
 	if err != nil {
 		return err
 	}
-	ws := newWorkspace()
-	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name}, ws); err != nil {
-		return err
-	}
-	if ws.Status.Phase != "Ready" {
-		return fmt.Errorf("workspace %s in %s is %s", name, path, ws.Status.Phase)
-	}
-	return nil
+	return wait.CheckWorkspaceReady(ctx, cl, name)
 }

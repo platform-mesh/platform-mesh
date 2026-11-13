@@ -17,23 +17,21 @@ limitations under the License.
 package scenarios
 
 import (
-	"bytes"
 	"context"
 	"embed"
-	"errors"
 	"fmt"
-	"io"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"go.platform-mesh.io/platform-mesh/tests/framework/fixtures"
+	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // The objects a scenario creates that are not a few fields long are kept as
 // YAML in manifests/, the way a user would apply them. They are read as
-// unstructured objects, so their types need not be in the scheme of the
-// clients.
+// unstructured objects (fixtures.DecodeYAML), so that what is written is
+// what the file says and not what a Go type makes of it.
 
 //go:embed manifests/*.yaml
 var manifests embed.FS
@@ -44,19 +42,14 @@ func manifest(name string) ([]*unstructured.Unstructured, error) {
 	if err != nil {
 		return nil, err
 	}
-	var objects []*unstructured.Unstructured
-	decoder := utilyaml.NewYAMLOrJSONDecoder(bytes.NewReader(data), 4096)
-	for {
-		obj := &unstructured.Unstructured{}
-		if err := decoder.Decode(&obj.Object); errors.Is(err, io.EOF) {
-			return objects, nil
-		} else if err != nil {
-			return nil, fmt.Errorf("manifest %s: %w", name, err)
-		}
-		if len(obj.Object) != 0 {
-			objects = append(objects, obj)
-		}
+	objects, err := fixtures.DecodeYAML(data)
+	if err != nil {
+		return nil, fmt.Errorf("manifest %s: %w", name, err)
 	}
+	if len(objects) == 0 {
+		return nil, fmt.Errorf("manifest %s holds no object", name)
+	}
+	return objects, nil
 }
 
 // create creates the objects of the manifest with the client, in the order
@@ -67,8 +60,8 @@ func create(ctx context.Context, cl ctrlruntimeclient.Client, name string) error
 		return err
 	}
 	for _, obj := range objects {
-		if err := cl.Create(ctx, obj); err != nil && !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("creating %s %s: %w", obj.GetKind(), obj.GetName(), err)
+		if err := fixtures.Create(ctx, cl, obj); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -91,6 +84,44 @@ func existing(ctx context.Context, cl ctrlruntimeclient.Client, name string) ([]
 		objects[i] = got
 	}
 	return objects, nil
+}
+
+// copyOf returns the first object of the manifest under another name: its
+// own with the suffix. The After steps create and delete such copies, so
+// that what Seed created stays as Validate expects it.
+func copyOf(name, suffix string) (*unstructured.Unstructured, error) {
+	objects, err := manifest(name)
+	if err != nil {
+		return nil, err
+	}
+	objects[0].SetName(objects[0].GetName() + suffix)
+	return objects[0], nil
+}
+
+// createCopy creates the copy of the first object of the manifest with the
+// client, unless it exists, and reads it back.
+func createCopy(ctx context.Context, cl ctrlruntimeclient.Client, name, suffix string) error {
+	obj, err := copyOf(name, suffix)
+	if err != nil {
+		return err
+	}
+	if err := fixtures.Create(ctx, cl, obj); err != nil {
+		return err
+	}
+	return cl.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(obj), obj)
+}
+
+// deleteCopy deletes the copy createCopy made with the client, and returns
+// an error until it is gone.
+func deleteCopy(ctx context.Context, cl ctrlruntimeclient.Client, name, suffix string) error {
+	obj, err := copyOf(name, suffix)
+	if err != nil {
+		return err
+	}
+	if err := ctrlruntimeclient.IgnoreNotFound(cl.Delete(ctx, obj)); err != nil {
+		return fmt.Errorf("deleting %s %s: %w", obj.GetKind(), obj.GetName(), err)
+	}
+	return wait.CheckGone(cl.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(obj), obj), obj.GetKind()+" "+obj.GetName())
 }
 
 // seedManifest creates the objects of the manifest in the workspace at
@@ -116,19 +147,4 @@ func validateManifest(path, name string) stepFunc {
 		_, err = existing(ctx, cl, name)
 		return err
 	}
-}
-
-// ready returns an error unless the object has the condition Ready with the
-// status True.
-func ready(obj *unstructured.Unstructured) error {
-	conditions, _, _ := unstructured.NestedSlice(obj.Object, "status", "conditions")
-	for _, c := range conditions {
-		if c, ok := c.(map[string]any); ok && c["type"] == "Ready" {
-			if c["status"] == "True" {
-				return nil
-			}
-			return fmt.Errorf("%s %s is not ready: %v: %v", obj.GetKind(), obj.GetName(), c["reason"], c["message"])
-		}
-	}
-	return fmt.Errorf("%s %s has no Ready condition yet", obj.GetKind(), obj.GetName())
 }

@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"strings"
 
+	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 	"go.platform-mesh.io/platform-mesh/tests/framework/steps"
 	"go.platform-mesh.io/platform-mesh/tests/framework/tenant"
+	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,12 +46,19 @@ const (
 	extensionsOwner   = "owner@upgrade-ui.example.com"
 	extensionsAccount = "portal"
 
+	// extensionsManifest holds the ContentConfiguration, of the name
+	// extensionsName.
 	extensionsManifest = "extensions-contentconfiguration.yaml"
+	extensionsName     = "upgrade-seed"
 	// extensionsEntry is in the content of the manifest, and so has to be
 	// in the result; extensionsLabel is what After changes its label to.
 	extensionsEntry = `"pathSegment":"upgrade-seed"`
 	extensionsLabel = "Changed after the upgrade"
 )
+
+// contentConfigurations is the ContentConfiguration API as the schema of
+// the gateway spells it.
+var contentConfigurations = pmuiv1alpha1.SchemeGroupVersion.WithKind("ContentConfigurations")
 
 // Extensions is the extensions scenario.
 func Extensions() Scenario {
@@ -73,7 +82,7 @@ func Extensions() Scenario {
 			{Name: "organization", Run: validateOrganization(extensionsOrg, extensionsOwner)},
 			{Name: "account", Run: validateAccount(org, extensionsAccount)},
 			{Name: "content configuration", Run: validateContentConfiguration(account, extensionsEntry)},
-			{Name: "owner reads it through the gateway", Run: validateGatewayContentConfiguration(extensionsOrg, extensionsOwner, account)},
+			{Name: "owner reads it through the gateway", Run: validateGateway(extensionsOrg, extensionsOwner, account, contentConfigurations, extensionsName)},
 		},
 
 		// ORDER MATTERS: the second step waits for what the first one
@@ -114,7 +123,7 @@ func contentConfigurationResult(ctx context.Context, env Environment, path strin
 	if err != nil {
 		return "", err
 	}
-	if err := ready(objects[0]); err != nil {
+	if err := wait.CheckObjectReady(objects[0]); err != nil {
 		return "", err
 	}
 	result, _, _ := unstructured.NestedString(objects[0].Object, "status", "configurationResult")
@@ -136,40 +145,6 @@ func validateContentConfiguration(path, text string) stepFunc {
 		}
 		if !strings.Contains(result, strings.Join(strings.Fields(text), "")) {
 			return fmt.Errorf("the result of the content configuration in %s lacks %s: %s", path, text, result)
-		}
-		return nil
-	}
-}
-
-// validateGatewayContentConfiguration: the user, logged in, reads the
-// ContentConfiguration in the workspace at path through the GraphQL
-// gateway.
-func validateGatewayContentConfiguration(org, email, path string) stepFunc {
-	return func(ctx context.Context, env Environment) error {
-		token, err := login(ctx, env, org, email)
-		if err != nil {
-			return err
-		}
-		want, err := manifest(extensionsManifest)
-		if err != nil {
-			return err
-		}
-		var answer struct {
-			Group struct {
-				V1alpha1 struct {
-					ContentConfigurations struct {
-						Items []struct{ Metadata struct{ Name string } }
-					} `json:"ContentConfigurations"`
-				} `json:"v1alpha1"`
-			} `json:"ui_platform_mesh_io"`
-		}
-		query := `{ ui_platform_mesh_io { v1alpha1 { ContentConfigurations { items { metadata { name } } } } } }`
-		if err := graphQL(ctx, env, org, gatewayPath(path), token, query, &answer); err != nil {
-			return fmt.Errorf("the content configurations of %s through the gateway: %w", path, err)
-		}
-		items := answer.Group.V1alpha1.ContentConfigurations.Items
-		if len(items) != 1 || items[0].Metadata.Name != want[0].GetName() {
-			return steps.Terminal("the gateway lists the content configurations %v of %s, not just %s", items, path, want[0].GetName())
 		}
 		return nil
 	}

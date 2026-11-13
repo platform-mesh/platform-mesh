@@ -62,6 +62,7 @@ import (
 
 	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/quickstart"
 	"go.platform-mesh.io/platform-mesh/tests/framework/keycloak"
+	"go.platform-mesh.io/platform-mesh/tests/framework/pm"
 	"go.platform-mesh.io/platform-mesh/tests/upgrade/scenarios"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,9 +78,6 @@ const (
 	// the build of the checkout and the upgrade to it.
 	releaseTimeout = 45 * time.Minute
 	buildTimeout   = 90 * time.Minute
-
-	// namespace is where Platform Mesh is installed.
-	namespace = "platform-mesh-system"
 )
 
 var _ scenarios.Environment = &environment{}
@@ -240,33 +238,23 @@ func (e *environment) secret(ctx context.Context, name string) (map[string][]byt
 	if err != nil {
 		return nil, err
 	}
-	secret, err := kube.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	secret, err := kube.CoreV1().Secrets(pm.Namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("secret %s/%s: %w", namespace, name, err)
+		return nil, fmt.Errorf("secret %s/%s: %w", pm.Namespace, name, err)
 	}
 	return secret.Data, nil
 }
 
-// kcp implements scenarios.Environment: the kcp admin config of the
-// installation, without a workspace path. The kubeconfig the
-// operator keeps in the cluster points at the front-proxy as the host
-// reaches it. It is read anew on every call: the upgrade may replace it.
+// KCP implements scenarios.Environment: the kcp admin config of the
+// installation, without a workspace path. The kubeconfig the operator keeps
+// in the cluster points at the front-proxy as the host reaches it. It is
+// read anew on every call: the upgrade may replace it.
 func (e *environment) KCP(ctx context.Context) (*rest.Config, error) {
-	data, err := e.secret(ctx, "kubeconfig-kcp-admin")
+	data, err := e.secret(ctx, pm.AdminKubeconfigSecret)
 	if err != nil {
 		return nil, err
 	}
-	raw, err := clientcmd.Load(data["kubeconfig"])
-	if err != nil {
-		return nil, fmt.Errorf("parsing the kcp admin kubeconfig: %w", err)
-	}
-	// The "base" context points at the front-proxy without a workspace.
-	cfg, err := clientcmd.NewNonInteractiveClientConfig(*raw, "base", &clientcmd.ConfigOverrides{}, nil).ClientConfig()
-	if err != nil {
-		return nil, fmt.Errorf("the base context of the kcp admin kubeconfig: %w", err)
-	}
-	cfg.Host = strings.TrimSuffix(cfg.Host, "/")
-	return cfg, nil
+	return pm.AdminConfig(data["kubeconfig"])
 }
 
 // Keycloak implements scenarios.Environment: the admin client of the
@@ -311,15 +299,7 @@ func (e *environment) Portal(context.Context) (string, *http.Client, error) {
 // roots are the CAs the certificate of the portal is checked against: the
 // CA of the installation, which quickstart wrote to caFile.
 func (e *environment) roots() (*x509.CertPool, error) {
-	pem, err := os.ReadFile(e.caFile)
-	if err != nil {
-		return nil, fmt.Errorf("reading the CA certificate: %w", err)
-	}
-	roots := x509.NewCertPool()
-	if !roots.AppendCertsFromPEM(pem) {
-		return nil, fmt.Errorf("%s holds no certificate", e.caFile)
-	}
-	return roots, nil
+	return pm.Roots(e.caFile)
 }
 
 // delete removes the cluster and what quickstart left next to it.

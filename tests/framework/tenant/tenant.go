@@ -41,23 +41,19 @@ package tenant
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	"go.platform-mesh.io/platform-mesh/tests/framework/keycloak"
+	"go.platform-mesh.io/platform-mesh/tests/framework/pm"
 	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -80,8 +76,9 @@ const (
 )
 
 // ErrNotReady is wrapped by the errors Apply* and Get* return for an object
-// that exists but is not Ready yet: calling again later can succeed.
-var ErrNotReady = errors.New("not ready")
+// that exists but is not Ready yet: calling again later can succeed. It is
+// wait.ErrNotReady.
+var ErrNotReady = wait.ErrNotReady
 
 // OrganizationPath is the workspace of the organization org.
 func OrganizationPath(org string) string { return OrgsPath + ":" + org }
@@ -115,30 +112,48 @@ func WithToken(kcp *rest.Config, token string) *rest.Config {
 	}
 }
 
-// scheme has client-go's built-in types, kcp's Workspace and the Platform
-// Mesh core types registered.
-var scheme = runtime.NewScheme()
+// KubectlClient is the public OIDC client every organization has for
+// kubectl, and kubectlRedirect a redirect URI it accepts. Login logs in
+// through it, like `kubectl oidc-login` does.
+const (
+	KubectlClient   = "kubectl"
+	kubectlRedirect = "http://localhost:8000"
 
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
+	// accountInfo is the name of the AccountInfo every workspace of an
+	// organization or account has.
+	accountInfo = "account"
+)
+
+// Login logs the user with the email in to the realm of the organization
+// org, with the password, and returns their ID token: what kcp and the
+// services of Platform Mesh take (see WithToken). It is the whole login of
+// a user, through the OIDC client the organization names in its
+// AccountInfo; the user has to be able to log in without further steps
+// (keycloak.Client.EnsureUser).
+func Login(ctx context.Context, kcp *rest.Config, kc keycloak.Client, org, email, password string) (string, error) {
+	admin, err := NewClient(kcp, OrganizationPath(org))
+	if err != nil {
+		return "", err
+	}
+	info := &pmcorev1alpha1.AccountInfo{}
+	if err := admin.Get(ctx, ctrlruntimeclient.ObjectKey{Name: accountInfo}, info); err != nil {
+		return "", fmt.Errorf("the AccountInfo of organization %s: %w", org, err)
+	}
+	if info.Spec.OIDC == nil || info.Spec.OIDC.Clients[KubectlClient].ClientID == "" {
+		return "", fmt.Errorf("the AccountInfo of organization %s names no %s client", org, KubectlClient)
+	}
+	tokens, err := kc.Login(ctx, org, info.Spec.OIDC.Clients[KubectlClient].ClientID, kubectlRedirect, email, password)
+	if err != nil {
+		return "", err
+	}
+	return tokens.IDToken, nil
 }
 
-// NewClient returns a client for the workspace at path, with client-go's
-// built-in types, kcp's Workspace and the Platform Mesh core types
-// registered.
+// NewClient returns a client for the workspace at path, with the scheme of
+// the framework (scheme.Platform). Clients are kept and handed out again:
+// see pm.NewClient.
 func NewClient(kcp *rest.Config, path string) (ctrlruntimeclient.Client, error) {
-	cfg := rest.CopyConfig(kcp)
-	cfg.Host = strings.TrimSuffix(cfg.Host, "/") + "/clusters/" + path
-	if cfg.Timeout == 0 {
-		cfg.Timeout = time.Minute
-	}
-	cl, err := ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: scheme})
-	if err != nil {
-		return nil, fmt.Errorf("creating client for %s: %w", cfg.Host, err)
-	}
-	return cl, nil
+	return pm.NewClient(pm.Workspace(kcp, path))
 }
 
 // Client is NewClient for a test.
@@ -263,7 +278,7 @@ func getAccountIn(ctx context.Context, kcp *rest.Config, path string, typ pmcore
 	if account.Spec.Type != typ {
 		return nil, fmt.Errorf("account %s in %s has type %s, not %s", name, path, account.Spec.Type, typ)
 	}
-	if err := notReady(account.Status.Conditions); err != nil {
+	if err := wait.CheckReady(account.Status.Conditions); err != nil {
 		return account, fmt.Errorf("account %s in %s: %w", name, path, err)
 	}
 	return account, nil
@@ -274,26 +289,10 @@ func getInvite(ctx context.Context, cl ctrlruntimeclient.Client, path, name stri
 	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name}, invite); err != nil {
 		return nil, fmt.Errorf("invite %s in %s: %w", name, path, err)
 	}
-	if err := notReady(invite.Status.Conditions); err != nil {
+	if err := wait.CheckReady(invite.Status.Conditions); err != nil {
 		return invite, fmt.Errorf("invite %s in %s: %w", name, path, err)
 	}
 	return invite, nil
-}
-
-// notReady is nil when the Ready condition is True, and otherwise an error
-// wrapping ErrNotReady that lists the conditions.
-func notReady(conds []metav1.Condition) error {
-	if meta.IsStatusConditionTrue(conds, "Ready") {
-		return nil
-	}
-	if len(conds) == 0 {
-		return fmt.Errorf("%w: status.conditions is empty", ErrNotReady)
-	}
-	lines := make([]string, 0, len(conds))
-	for _, c := range conds {
-		lines = append(lines, fmt.Sprintf("type=%s status=%s reason=%s message=%s", c.Type, c.Status, c.Reason, c.Message))
-	}
-	return fmt.Errorf("%w:\n%s", ErrNotReady, strings.Join(lines, "\n"))
 }
 
 // --- for tests: wait until Ready ---------------------------------------------
@@ -352,23 +351,34 @@ func RequireInvite(t testing.TB, kcp *rest.Config, org, name string) *pmcorev1al
 	})
 }
 
-// eventually calls get until it returns no error. Only ErrNotReady is
-// waited for; any other error fails t at once.
+// eventually waits for get to return an object that is Ready (wait.For).
 func eventually[T any](t testing.TB, timeout time.Duration, what string, get func() (T, error)) T {
 	t.Helper()
-	var obj T
-	wait.Eventually(t, func() (bool, string) {
-		var err error
-		obj, err = get()
-		if err == nil {
-			return true, ""
-		}
-		if !errors.Is(err, ErrNotReady) {
-			require.NoError(t, err)
-		}
-		return false, err.Error()
-	}, timeout, tick, "%s should be Ready", what)
-	return obj
+	return wait.For(t, timeout, tick, what+" should be Ready", get)
+}
+
+// DeleteAccountIn deletes the Account name in the workspace at parent, an
+// organization, an account or, for an organization, OrgsPath. It is one
+// pass: it returns an error until the account is gone with its workspace,
+// so it is called again until it returns nil.
+func DeleteAccountIn(ctx context.Context, kcp *rest.Config, parent, name string) error {
+	cl, err := NewClient(kcp, parent)
+	if err != nil {
+		return err
+	}
+	account := &pmcorev1alpha1.Account{ObjectMeta: metav1.ObjectMeta{Name: name}}
+	if err := ctrlruntimeclient.IgnoreNotFound(cl.Delete(ctx, account)); err != nil {
+		return fmt.Errorf("deleting account %s in %s: %w", name, parent, err)
+	}
+	key := ctrlruntimeclient.ObjectKey{Name: name}
+	err = cl.Get(ctx, key, account)
+	if err == nil {
+		return fmt.Errorf("account %s in %s is still there, finalizers %v, %v", name, parent, account.Finalizers, wait.CheckReady(account.Status.Conditions))
+	}
+	if err := wait.CheckGone(err, fmt.Sprintf("account %s in %s", name, parent)); err != nil {
+		return err
+	}
+	return wait.CheckGone(cl.Get(ctx, key, &kcptenancyv1alpha1.Workspace{}), fmt.Sprintf("workspace %s in %s", name, parent))
 }
 
 // DeleteAccount deletes the account name of the organization org and waits
@@ -387,19 +397,10 @@ func DeleteOrganization(t testing.TB, kcp *rest.Config, name string) {
 
 func deleteAccount(t testing.TB, kcp *rest.Config, path, name string, timeout time.Duration) {
 	t.Helper()
-	cl := Client(t, kcp, path)
-	account := &pmcorev1alpha1.Account{ObjectMeta: metav1.ObjectMeta{Name: name}}
-	if err := cl.Delete(t.Context(), account); !apierrors.IsNotFound(err) {
-		require.NoError(t, err, "deleting account %s in %s", name, path)
-	}
 	wait.Eventually(t, func() (bool, string) {
-		err := cl.Get(t.Context(), ctrlruntimeclient.ObjectKeyFromObject(account), account)
-		if apierrors.IsNotFound(err) {
-			return true, ""
+		if err := DeleteAccountIn(t.Context(), kcp, path, name); err != nil {
+			return false, err.Error()
 		}
-		if err != nil {
-			return false, fmt.Sprintf("getting account: %v", err)
-		}
-		return false, fmt.Sprintf("still there, finalizers %v, %v", account.Finalizers, notReady(account.Status.Conditions))
+		return true, ""
 	}, timeout, tick, "account %s in %s should be gone", name, path)
 }

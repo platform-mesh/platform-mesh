@@ -68,7 +68,7 @@ func Terminal(format string, args ...any) error {
 // once the one before it returned nil, so a step can rely on what the steps
 // before it left behind. Run fails t, and runs no further step, when a step
 // returns a terminal error or does not return nil within Timeout.
-func Run[E any](t *testing.T, env E, steps ...Step[E]) {
+func Run[E any](t testing.TB, env E, steps ...Step[E]) {
 	t.Helper()
 	for _, step := range steps {
 		start, calls := time.Now(), 0

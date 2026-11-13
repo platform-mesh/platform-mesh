@@ -30,6 +30,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 // Steps that pin what an upgrade must not change. That an object is there
@@ -122,7 +124,7 @@ func accountIdentity(parent, name string) identity {
 		if err := cl.Get(ctx, key, account); err != nil {
 			return nil, fmt.Errorf("account %s in %s: %w", name, parent, err)
 		}
-		ws := newWorkspace()
+		ws := &kcptenancyv1alpha1.Workspace{}
 		if err := cl.Get(ctx, key, ws); err != nil {
 			return nil, fmt.Errorf("workspace %s in %s: %w", name, parent, err)
 		}
@@ -155,7 +157,7 @@ func organizationIdentity(org string) identity {
 		}
 		return map[string]string{
 			"store " + org + " id":             store.Status.StoreID,
-			"client kubectl of " + org + " id": idp.Status.ManagedClients[kubectlClient].ClientID,
+			"client kubectl of " + org + " id": idp.Status.ManagedClients[tenant.KubectlClient].ClientID,
 		}, nil
 	}
 }

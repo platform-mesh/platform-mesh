@@ -66,7 +66,8 @@ upgrade/
     scenarios.go       the types, All() (the scenarios that run), Seed, Validate, After
     <scenario>.go      one file per scenario: its names and its steps, in order
     organization.go, invites.go, account.go, iam.go, gateway.go, identity.go
-                       the steps, shared by the scenarios
+                       the steps, shared by the scenarios; thin, on top of
+                       the framework
     access.go          how steps reach the installation: as the admin, as a
                        user the admin impersonates, as a user who logged in
     state.go           what Seed remembers for Validate, in a Secret of the cluster
@@ -126,10 +127,14 @@ The `framework/` directory holds what the suites share:
   `platform-mesh-system` workspace tree the operators expect: the
   operator's API exports and schemas, the bindings to them, the workspace
   types, and optionally the `orgs` workspace.
-- `framework/pm` hands the e2e tests the deployed Platform Mesh they run
-  against: the runtime cluster from `KUBECONFIG` and kcp from
-  `ADMIN_KUBECONFIG`, and the Keycloak admin client from
-  `KEYCLOAK_BASE_URL`, all of which `task tilt:e2e` sets.
+- `framework/pm` is the deployed Platform Mesh a test runs against. For the
+  e2e tests it builds it from the environment: the runtime cluster from
+  `KUBECONFIG`, kcp from `ADMIN_KUBECONFIG`, the Keycloak admin client from
+  `KEYCLOAK_BASE_URL`, all of which `task tilt:e2e` sets. A test that
+  deploys Platform Mesh itself implements `pm.Installation`. It also holds
+  the clients (`pm.NewClient`, with the one scheme of the framework, kept
+  between calls), and what there is to do with the `PlatformMesh` object
+  and the kubeconfigs the operator writes.
 - `framework/tenant` creates what a tenant owns on a deployed Platform
   Mesh, without the portal: an organization, accounts in it, invites to it.
   Organizations and accounts are created as their creator, whom the kcp
@@ -139,12 +144,24 @@ The `framework/` directory holds what the suites share:
   one, named like it) through Keycloak's admin API: look one up, give it a
   password, delete it. It also logs a user in, the way a browser does, for
   a test that needs the token of a user.
+- `framework/iam` and `framework/gateway` act as a logged-in user
+  (`tenant.Login`) on the IAM service (roles of an account) and through
+  the GraphQL gateway (what the portal reads); `framework/graphql` is the
+  client under both.
 - `framework/steps` runs a test as a list of steps that work like
   reconcilers: each is called again until it returns no error. The upgrade
   scenarios are written with it.
 - `framework/manager` builds the multicluster managers the operators run on.
 - `framework/wait` and `framework/scheme` are the waits and the scheme
   every suite needs.
+
+The helpers come in two forms. The base form takes a context, does one
+pass and returns an error: `wait.CheckWorkspaceReady`, `tenant.ApplyAccount`,
+`fixtures.Create`. It is what a step calls, and what anything with a loop
+of its own calls. The form for a test takes `t`, waits on the base form and
+fails the test on a timeout: `wait.WorkspaceReady`, `tenant.EnsureAccount`,
+`fixtures.Apply`. Write a new helper as the base form first; do not write
+the check a second time in a test.
 
 ## Running the integration tests
 

@@ -22,6 +22,7 @@ import (
 
 	"go.platform-mesh.io/platform-mesh/tests/framework/steps"
 	"go.platform-mesh.io/platform-mesh/tests/framework/tenant"
+	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -57,8 +58,15 @@ const (
 	providersPath = "root:providers"
 )
 
-// widgets is the API of the provider.
-var widgets = schema.GroupVersionKind{Group: providerExport, Version: "v1alpha1", Kind: "Widget"}
+// widgets is the API of the provider, widgetsInGateway the same as the
+// schema of the gateway spells it, and consumerWidget the name of the Widget
+// in manifests/consumer-widget.yaml.
+var (
+	widgets          = schema.GroupVersionKind{Group: providerExport, Version: "v1alpha1", Kind: "Widget"}
+	widgetsInGateway = widgets.GroupVersion().WithKind("Widgets")
+)
+
+const consumerWidget = "upgrade-seed"
 
 // Provider is the provider scenario.
 func Provider() Scenario {
@@ -106,7 +114,9 @@ func Provider() Scenario {
 			{Name: "binding in the account", Run: validateBinding(account)},
 			{Name: "widget in the account", Run: validateWidget(account)},
 			{Name: "owner lists the widgets", Run: validateListsWidgets(consumerOrg, consumerOwner, account)},
-			{Name: "owner lists the widgets through the gateway", Run: validateGatewayWidgets(consumerOrg, consumerOwner, account)},
+			// The gateway serves the widgets only if it has generated
+			// the schema of the account with the API of the provider.
+			{Name: "owner lists the widgets through the gateway", Run: validateGateway(consumerOrg, consumerOwner, account, widgetsInGateway, consumerWidget)},
 			{Name: "guest is kept from the widgets", Run: validateNoWidgets(consumerOrg, consumerGuest, account)},
 		},
 
@@ -175,7 +185,7 @@ func policyReady(ctx context.Context, cl ctrlruntimeclient.Client) error {
 	if err != nil {
 		return err
 	}
-	return ready(policies[0])
+	return wait.CheckObjectReady(policies[0])
 }
 
 // seedBinding binds the export of the provider in the workspace at path, as
@@ -206,14 +216,11 @@ func bindingBound(ctx context.Context, env Environment, path string) error {
 	if err != nil {
 		return err
 	}
-	bindings, err := existing(ctx, cl, "consumer-binding.yaml")
+	bindings, err := manifest("consumer-binding.yaml")
 	if err != nil {
 		return err
 	}
-	if phase, _, _ := unstructured.NestedString(bindings[0].Object, "status", "phase"); phase != "Bound" {
-		return fmt.Errorf("binding %s in %s is %q, not Bound", bindings[0].GetName(), path, phase)
-	}
-	return nil
+	return wait.CheckAPIBindingBound(ctx, cl, bindings[0].GetName())
 }
 
 // seedWidget creates the Widget of the manifest in the workspace at path,
@@ -292,37 +299,6 @@ func validateNoWidgets(org, email, path string) stepFunc {
 	}
 }
 
-// validateGatewayWidgets: the user, logged in, lists the Widgets in the
-// workspace at path through the GraphQL gateway. The gateway serves them
-// only if it has generated the schema of the workspace with the API of the
-// provider in it.
-func validateGatewayWidgets(org, email, path string) stepFunc {
-	return func(ctx context.Context, env Environment) error {
-		token, err := login(ctx, env, org, email)
-		if err != nil {
-			return err
-		}
-		var answer struct {
-			Group struct {
-				V1alpha1 struct {
-					Widgets struct {
-						Items []struct{ Metadata struct{ Name string } }
-					} `json:"Widgets"`
-				} `json:"v1alpha1"`
-			} `json:"seed_upgrade_platform_mesh_io"`
-		}
-		query := `{ seed_upgrade_platform_mesh_io { v1alpha1 { Widgets { items { metadata { name } } } } } }`
-		if err := graphQL(ctx, env, org, gatewayPath(path), token, query, &answer); err != nil {
-			return fmt.Errorf("the widgets of %s through the gateway: %w", path, err)
-		}
-		names := make([]string, 0, len(answer.Group.V1alpha1.Widgets.Items))
-		for _, item := range answer.Group.V1alpha1.Widgets.Items {
-			names = append(names, item.Metadata.Name)
-		}
-		return oneWidget(names, "the gateway lists")
-	}
-}
-
 // oneWidget returns a terminal error unless names is the one Widget of the
 // manifest.
 func oneWidget(names []string, who string) error {
@@ -336,16 +312,8 @@ func oneWidget(names []string, who string) error {
 	return nil
 }
 
-// secondWidget is the Widget After creates: the one of the manifest under
-// another name.
-func secondWidget() (*unstructured.Unstructured, error) {
-	objects, err := manifest("consumer-widget.yaml")
-	if err != nil {
-		return nil, err
-	}
-	objects[0].SetName(objects[0].GetName() + "-after")
-	return objects[0], nil
-}
+// widgetAfter names the copy of the Widget that After creates and deletes.
+const widgetAfter = "-after"
 
 // seedSecondWidget creates a second Widget in the workspace at path, as the
 // user, logged in, and reads it back.
@@ -355,15 +323,7 @@ func seedSecondWidget(org, email, path string) stepFunc {
 		if err != nil {
 			return err
 		}
-		widget, err := secondWidget()
-		if err != nil {
-			return err
-		}
-		key := ctrlruntimeclient.ObjectKeyFromObject(widget)
-		if err := ctrlruntimeclient.IgnoreAlreadyExists(cl.Create(ctx, widget)); err != nil {
-			return fmt.Errorf("%s creating widget %s in %s: %w", email, key, path, err)
-		}
-		return cl.Get(ctx, key, widget)
+		return createCopy(ctx, cl, "consumer-widget.yaml", widgetAfter)
 	}
 }
 
@@ -375,14 +335,6 @@ func deleteSecondWidget(org, email, path string) stepFunc {
 		if err != nil {
 			return err
 		}
-		widget, err := secondWidget()
-		if err != nil {
-			return err
-		}
-		key := ctrlruntimeclient.ObjectKeyFromObject(widget)
-		if err := ctrlruntimeclient.IgnoreNotFound(cl.Delete(ctx, widget)); err != nil {
-			return fmt.Errorf("%s deleting widget %s in %s: %w", email, key, path, err)
-		}
-		return gone(cl.Get(ctx, key, widget), fmt.Sprintf("widget %s in %s", key, path))
+		return deleteCopy(ctx, cl, "consumer-widget.yaml", widgetAfter)
 	}
 }

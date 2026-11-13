@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // What a scenario remembers from Seed for Validate: a Secret in the cluster
@@ -39,18 +39,10 @@ const (
 	stateKey       = "state.json"
 )
 
-func stateSecrets(ctx context.Context, env Environment) (*kubernetes.Clientset, error) {
-	cfg, err := env.Kube(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return kubernetes.NewForConfig(cfg)
-}
-
 // remember keeps data under name unless something is kept under it already:
 // what is remembered first, on the release, stays.
 func remember(ctx context.Context, env Environment, name string, data map[string]string) error {
-	kube, err := stateSecrets(ctx, env)
+	cl, err := kubeClient(ctx, env)
 	if err != nil {
 		return err
 	}
@@ -64,8 +56,7 @@ func remember(ctx context.Context, env Environment, name string, data map[string
 		ObjectMeta: metav1.ObjectMeta{Namespace: stateNamespace, Name: statePrefix + name},
 		Data:       map[string][]byte{stateKey: encoded},
 	}
-	_, err = kube.CoreV1().Secrets(stateNamespace).Create(ctx, secret, metav1.CreateOptions{})
-	if err != nil && !apierrors.IsAlreadyExists(err) {
+	if err := cl.Create(ctx, secret); err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("remembering %s: %w", name, err)
 	}
 	return nil
@@ -73,12 +64,12 @@ func remember(ctx context.Context, env Environment, name string, data map[string
 
 // recall returns what remember kept under name.
 func recall(ctx context.Context, env Environment, name string) (map[string]string, error) {
-	kube, err := stateSecrets(ctx, env)
+	cl, err := kubeClient(ctx, env)
 	if err != nil {
 		return nil, err
 	}
-	secret, err := kube.CoreV1().Secrets(stateNamespace).Get(ctx, statePrefix+name, metav1.GetOptions{})
-	if err != nil {
+	secret := &corev1.Secret{}
+	if err := cl.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: stateNamespace, Name: statePrefix + name}, secret); err != nil {
 		return nil, fmt.Errorf("recalling %s: %w", name, err)
 	}
 	data := map[string]string{}
@@ -91,12 +82,12 @@ func recall(ctx context.Context, env Environment, name string) (map[string]strin
 // forget drops what remember kept under name, so that the next Seed
 // remembers anew.
 func forget(ctx context.Context, env Environment, name string) error {
-	kube, err := stateSecrets(ctx, env)
+	cl, err := kubeClient(ctx, env)
 	if err != nil {
 		return err
 	}
-	err = kube.CoreV1().Secrets(stateNamespace).Delete(ctx, statePrefix+name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: stateNamespace, Name: statePrefix + name}}
+	if err := ctrlruntimeclient.IgnoreNotFound(cl.Delete(ctx, secret)); err != nil {
 		return fmt.Errorf("forgetting %s: %w", name, err)
 	}
 	return nil
