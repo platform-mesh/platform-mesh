@@ -286,10 +286,19 @@ def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=
         component_binary(name, path, deps, IMAGE_PREFIX + name, labels=labels)
         blob = writable_rootfs(blob, IMAGE_PREFIX + name)
     k8s_yaml(blob)
-    # RBAC, certificates, routes: everything the chart renders besides pods.
-    objects = select_objects(blob, lambda o: True)
+    # CRDs get their own resource so a service restart / re-render can't
+    # GC them (Tilt deleting a CRD cascades through CR finalizers and
+    # wedges the cluster; see platform-mesh-operator-crds for the pattern).
+    is_crd = kind_in(['CustomResourceDefinition'])
+    crd_objects = select_objects(blob, is_crd)
+    # RBAC, certificates, routes: everything the chart renders besides pods and CRDs.
+    objects = select_objects(blob, lambda o: not is_crd(o))
     workloads = workloads or [name]
     resource_deps = ['platform-mesh-operator'] + resource_deps
+    if crd_objects:
+        crds_resource = name + '-crds'
+        k8s_resource(new_name=crds_resource, objects=crd_objects, labels=labels)
+        resource_deps = resource_deps + [crds_resource]
     if workloads[0] != name:
         k8s_resource(workloads[0], new_name=name, objects=objects, resource_deps=resource_deps, labels=labels)
     else:

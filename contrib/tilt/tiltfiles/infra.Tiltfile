@@ -36,10 +36,19 @@ kcp_operator = remote_chart(
     NAMESPACE,
 )
 k8s_yaml(kcp_operator)
+# CRDs get their own resource so restarting kcp-operator can't GC them
+# (would cascade through CR finalizers and wedge the cluster).
+is_crd = kind_in(["CustomResourceDefinition"])
+k8s_resource(
+    new_name="kcp-operator-crds",
+    objects=select_objects(kcp_operator, is_crd),
+    resource_deps=["cert-manager-startupapicheck"],
+    labels=["infra"],
+)
 k8s_resource(
     "kcp-operator",
-    objects=select_objects(kcp_operator, lambda o: True),
-    resource_deps=["cert-manager-startupapicheck"],
+    objects=select_objects(kcp_operator, lambda o: not is_crd(o)),
+    resource_deps=["cert-manager-startupapicheck", "kcp-operator-crds"],
     labels=["infra"],
 )
 
