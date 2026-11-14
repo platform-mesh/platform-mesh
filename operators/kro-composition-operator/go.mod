@@ -17,9 +17,8 @@ require (
 	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
 )
 
-// kcp-dev/multicluster-provider/client carries an internal replace directive that
-// breaks `go work sync`; pin it to the real module version, matching the sibling
-// components and the root go.work.
+// Pin kcp-dev/multicluster-provider/client to the real module version,
+// matching the sibling components.
 replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.8.1-0.20260714141811-833f063357f8
 
 require (

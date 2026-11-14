@@ -14,12 +14,14 @@
 
 # Local (vendored) copy of platform-mesh/.github's job-trivy-sbom.yml.
 #
-# The only change from upstream is IMAGE_REPO: upstream hardcodes the org-root
+# Registry handling differs from upstream: upstream hardcodes the org-root
 # registry (ghcr.io/<owner>), but this monorepo's `image-ocm` job publishes the
 # OCM component version to the per-repo registry (ghcr.io/<owner>/<repo>). By
 # reading from the same place `image-ocm` writes, trivy-sbom depends only on
 # `image-ocm` (which it already `needs`) — no dependency on the legacy org-root
 # `image-ocm-legacy` publish, and therefore no race between the two.
+# SARIF categories are component-specific and version-independent so GitHub
+# tracks each component's scan results independently across releases.
 
 name: Scan SBOM for Latest Component Version
 
@@ -62,33 +64,32 @@ jobs:
       packages: read # Needed to pull the image/SBOM to scan
       security-events: write # Needed to upload Trivy SARIF to code scanning
     steps:
-      - name: Install ocm and oras
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install OCM CLI
         run: |
-          curl -sSL https://ocm.software/install.sh | sudo bash
-          curl -sSL "https://github.com/oras-project/oras/releases/download/v1.3.2/oras_1.3.2_linux_amd64.tar.gz" \
-            | sudo tar -xz -C /usr/local/bin oras
+          task tools:ocm
+          echo "$PWD/bin" >> "$GITHUB_PATH"
 
-      - name: Log in to registry
-        run: |
-          REGISTRY_HOST="${IMAGE_REPO%%/*}"
-          echo "${REGISTRY_TOKEN}" | \
-            oras login "${REGISTRY_HOST}" -u "${GITHUB_ACTOR}" --password-stdin
+      - name: Configure registry credentials
+        env:
+          GITHUB_TOKEN: ${{ env.REGISTRY_TOKEN }}
+          REGISTRY_USERNAME: ${{ github.actor }}
+        run: hack/release/ocm-config.sh "$IMAGE_REPO" > "$HOME/.ocmconfig"
 
       - name: Fetch SBOM for component version
         env:
           COMPONENT_VERSION: ${{ inputs.componentVersion }}
         run: |
-          DIGEST=$(ocm get cv "${IMAGE_REPO}//${COMPONENT}:${COMPONENT_VERSION}" -o json \
-            | jq -r '.items[].component.resources[] | select(.name == "sbom-cyclonedx") | .access.localReference')
-
-          if [ -z "${DIGEST}" ] || [ "${DIGEST}" = "null" ]; then
-            echo "No SBOM resource found for ${COMPONENT_VERSION}"
-            exit 1
-          fi
-
-          oras blob fetch \
-            --output "sbom.json" \
-            "${IMAGE_REPO}/component-descriptors/${COMPONENT}@${DIGEST}"
+          set -euo pipefail
+          ocm download resource "${IMAGE_REPO}//${COMPONENT}:${COMPONENT_VERSION}" \
+            --identity name=sbom-cyclonedx \
+            --extraction-policy disable \
+            --output sbom.json
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -122,4 +123,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: 'trivy.sarif'
-          category: 'trivy-sbom-release-scan'
+          category: trivy-sbom/${{ env.COMPONENT }}

@@ -1,0 +1,138 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/pm-keycloak-operator
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+
+# -- environment indicator, used for logging and observability
+environment: ""
+# -- region indicator, used for logging and observability
+region: ""
+
+deployment:
+  # -- Number of old ReplicaSets to retain for rollback
+  revisionHistoryLimit: 3
+  resources:
+    limits:
+      cpu: 260m
+      memory: 512Mi
+    requests:
+      cpu: 150m
+      memory: 128Mi
+
+webhooks:
+  # -- Enable validating admission webhooks
+  enabled: true
+
+  # -- Register the ValidatingWebhookConfiguration resources
+  register: false
+
+  # -- Webhook server port (must match controller-runtime webhook server)
+  port: 9443
+
+  # -- The directory for webhook certificates (mounted from the serving cert secret)
+  certDir: /certs
+
+  # -- CA certificate duration (default: 3 months)
+  caDuration: 2160h
+  # -- CA certificate renewal time before expiration (default: 30 days)
+  caRenewBefore: 720h
+  # -- Serving certificate duration (default: 3 months)
+  certDuration: 2160h
+  # -- Serving certificate renewal time before expiration (default: 30 days)
+  certRenewBefore: 720h
+
+# -- The kubeconfig secret for the operator
+kubeconfigSecret: ""
+
+# -- Name of the secret containing Keycloak admin credentials (keys: username, password, secret)
+keycloakSecret: "keycloak-admin"
+# -- Name of the secret containing the CA certificate for outbound TLS trust (key: tls.crt or ca.crt)
+caSecret: ""
+
+# -- Enable domain CA lookup for TLS verification on kcp side
+domainCALookup: true
+
+# -- Base domain of the platform deployment (e.g. platform.example.com). Used to derive internal service URLs when explicit URLs are not set. Required.
+baseDomain: ""
+
+# JWT configuration
+jwt:
+  userIdClaim: "email"
+
+# Identity provider configuration. This is MUST be set for email verification to work
+idp:
+  smtp:
+    # -- SMTP server hostname
+    server: ""
+    # -- SMTP server port
+    port: ""
+    # -- Email address used as the sender for IDP notifications
+    fromAddress: ""
+  # -- Additional redirect URLs to allow for OAuth clients (e.g. for local development callbacks)
+  additionalRedirectUrls: []
+  # -- (Development only) Allow self-registration of new users via IDP. Must be false in production.
+  registrationAllowed: false
+  # -- (Development only) Allow login without email verification. Must be false in production.
+  allowUnverifiedEmails: false
+  # -- (Development only) Set a default password for new users. Must be false in production.
+  setDefaultPassword: false
+
+
+keycloak:
+  # -- base URL of the Keycloak instance (e.g. https://example.com/keycloak). Required.
+  baseUrl: ""
+  client:
+    secret:
+      name: pm-keycloak-operator-client-secret
+      key: client_secret
+
+initializer:
+  # -- The kubeconfig secret for the initializer
+  kubeconfigSecret: "keycloak-initializer-kubeconfig"
+  extraArgs: []
+  subroutines:
+    # -- Enable IDPSubroutine (Keycloak identity provider configuration)
+    idpEnabled: true
+    # -- Enable InviteSubroutine (creates Invite resources for org creator)
+    inviteEnabled: true
+    # -- Enable WorkspaceAuthConfigurationSubroutine (JWT authentication setup)
+    workspaceAuthEnabled: true
+
+terminator:
+  # -- The kubeconfig secret for the terminator
+  kubeconfigSecret: "keycloak-terminator-kubeconfig"
+  extraArgs: []
+
+# -- Init container configuration for bootstrapping Keycloak service account clients
+initContainer:
+  # -- Enable the init container
+  enabled: true
+  # -- Keycloak client ID for admin authentication
+  keycloakClientId: admin-cli
+  # -- Keycloak username for admin authentication
+  keycloakUser: keycloak-admin
+  # -- Service account clients to create (beyond the default one from keycloak.client.secret)
+  clients:
+  - name: pm-keycloak-operator
+    secretRef:
+      name: pm-keycloak-operator-client-secret
+      namespace: platform-mesh-system
+  - name: iam-service
+    secretRef:
+      name: iam-client-secret
+      namespace: platform-mesh-system
+
+operator:
+  extraArgs: []
+
+hostAliases:
+  enabled: false
+
+clusterScopedName:
+  # -- Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one
+  prefix: ""
+  # -- Suffix for the names of cluster-scoped resources
+  suffix: ""

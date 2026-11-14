@@ -1,0 +1,337 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package subroutine
+
+import (
+	"bytes"
+	"cmp"
+	"context"
+	"fmt"
+	"net/url"
+	"slices"
+	"strings"
+	"text/template"
+
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	language "github.com/openfga/language/pkg/go/transformer"
+	"google.golang.org/protobuf/proto"
+
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
+	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
+	"go.platform-mesh.io/pm-openfga-operator/internal/util"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
+	"go.platform-mesh.io/subroutines"
+
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+)
+
+const (
+	schemaVersion = "1.2"
+)
+
+// coreVerbRelationOverrides overrides the OpenFGA relation that a generated
+// permission resolves to for platform-controlled (core-discovered) resources.
+//
+// Keyed by GVK.GroupKind() -> verb -> relation. Only the operator's own
+// generation consults this map; it is NOT reachable by tenant-authored
+// ProviderPermissions, so widening a relation here cannot be used for
+// privilege escalation across modules.
+//
+// Current use: allow authenticated members to create SelfSubjectAccessReview /
+// SelfSubjectRulesReview so iam-service (and any caller) can run a native SSAR
+// against its own workspace. kcp has no system:basic-user grant, and the
+// authorization webhook does not exclude authorization.k8s.io, so without this
+// the SSAR-create check itself resolves to the default create->owner and
+// members are denied. This is the platform analog of upstream Kubernetes baking
+// self-review access into system:basic-user.
+//
+// Roadmap (kept as data, not inline branches, so only the SOURCE changes later):
+//   - Phase 2: externalize this map to operator config / Helm values so admins
+//     can adjust it without a code release.
+//   - Phase 3: promote to an admin-owned, RBAC-gated, cluster-scoped CRD (e.g.
+//     AuthorizationDefaults) read alongside ProviderPermissions. It MUST NOT be
+//     APIExport-exported into tenant workspaces; the RBAC gate + non-tenant
+//     location is the safety story for verbatim injection.
+var coreVerbRelationOverrides = map[schema.GroupKind]map[string]string{
+	{Group: "authorization.k8s.io", Kind: "selfsubjectaccessreviews"}: {"create": "member"},
+	{Group: "authorization.k8s.io", Kind: "selfsubjectrulesreviews"}:  {"create": "member"},
+}
+
+// createRelationOverride returns the relation the create_<group>_<resource>
+// permission should resolve to, or "" to use the template default ("owner").
+func createRelationOverride(group, resource string) string {
+	if verbs, ok := coreVerbRelationOverrides[schema.GroupKind{Group: group, Kind: resource}]; ok {
+		return verbs["create"]
+	}
+	return ""
+}
+
+var (
+	privilegedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
+	groupVersions           = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1", "apis.kcp.io/v1alpha1", "ui.platform-mesh.io/v1alpha1"}
+
+	privilegedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
+
+{{ if eq .Scope "Cluster" }}
+extend type core_platform-mesh_io_account
+	relations
+		define create_{{ .Group }}_{{ .Name }}: {{ or .CreateRelation "owner" }}
+		define list_{{ .Group }}_{{ .Name }}: member
+		define watch_{{ .Group }}_{{ .Name }}: member
+{{ end }}
+
+{{ if eq .Scope "Namespaced" }}
+extend type core_namespace
+	relations
+		define create_{{ .Group }}_{{ .Name }}: {{ or .CreateRelation "owner" }}
+		define list_{{ .Group }}_{{ .Name }}: member
+		define watch_{{ .Group }}_{{ .Name }}: member
+{{ end }}
+
+type {{ .Group }}_{{ .Singular }}
+	relations
+		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
+		define member: [role#assignee] or owner or member from parent
+		define owner: [role#assignee] or owner from parent
+
+		define get: member
+		define update: owner
+		define delete: owner
+		define patch: owner
+		define watch: member
+		define bind: owner
+		define escalate: owner
+
+		define manage_iam_roles: owner
+		define get_iam_roles: member
+		define get_iam_users: member
+`))
+)
+
+type NewDiscoveryClientFunc func(cfg *rest.Config) discovery.DiscoveryInterface
+
+type authorizationModelSubroutine struct {
+	fga                    openfgav1.OpenFGAServiceClient
+	mgr                    mcmanager.Manager
+	lister                 iclient.Lister
+	newDiscoveryClientFunc NewDiscoveryClientFunc
+}
+
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, lister iclient.Lister, newDiscoveryClientFunc NewDiscoveryClientFunc, log *logger.Logger) *authorizationModelSubroutine {
+	return &authorizationModelSubroutine{
+		fga:                    fga,
+		mgr:                    mgr,
+		lister:                 lister,
+		newDiscoveryClientFunc: newDiscoveryClientFunc,
+	}
+}
+
+var _ subroutines.Processor = &authorizationModelSubroutine{}
+
+func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
+
+func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, store *pmopenfgav1alpha1.Store) (pmopenfgav1alpha1.AuthorizationModelList, error) {
+	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
+	if !ok {
+		return pmopenfgav1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
+	}
+
+	allAuthorizationModels := pmopenfgav1alpha1.AuthorizationModelList{}
+	if err := lister.List(ctx, &allAuthorizationModels); err != nil {
+		return pmopenfgav1alpha1.AuthorizationModelList{}, err
+	}
+
+	var extendingModules pmopenfgav1alpha1.AuthorizationModelList
+	for _, model := range allAuthorizationModels.Items {
+		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != config.LogicalClusterName(storeClusterKey) {
+			continue
+		}
+
+		extendingModules.Items = append(extendingModules.Items, model)
+	}
+	return extendingModules, nil
+}
+
+func (a *authorizationModelSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	log := logger.LoadLoggerFromContext(ctx)
+	store := obj.(*pmopenfgav1alpha1.Store)
+
+	extendingModules, err := getRelatedAuthorizationModels(ctx, a.lister, store)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to get related authorization models")
+		return subroutines.OK(), err
+	}
+
+	moduleFiles := []language.ModuleFile{{
+		Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(store)),
+		Contents: store.Spec.CoreModule,
+	}}
+	for _, module := range extendingModules.Items {
+		moduleFiles = append(moduleFiles, language.ModuleFile{
+			Name:     fmt.Sprintf("%s.fga", ctrlruntimeclient.ObjectKeyFromObject(&module)),
+			Contents: module.Spec.Model,
+		})
+	}
+
+	if store.Name != "orgs" {
+		cfg := rest.CopyConfig(a.mgr.GetLocalManager().GetConfig())
+
+		parsed, err := url.Parse(cfg.Host)
+		if err != nil {
+			log.Error().Err(err).Msg("unable to parse host from config")
+			return subroutines.OK(), err
+		}
+
+		parsed.Path, err = url.JoinPath("clusters", fmt.Sprintf("root:orgs:%s", store.Name))
+		if err != nil {
+			log.Error().Err(err).Msg("unable to join path")
+			return subroutines.OK(), err
+		}
+
+		cfg.Host = parsed.String()
+
+		discoveryClient := a.newDiscoveryClientFunc(cfg)
+
+		coreModules, err := discoverAndRender(discoveryClient, modelTpl, groupVersions)
+		if err != nil {
+			return subroutines.OK(), err
+		}
+		moduleFiles = append(moduleFiles, coreModules...)
+
+		privilegedModules, err := discoverAndRender(discoveryClient, privilegedTemplate, privilegedGroupVersions)
+		if err != nil {
+			return subroutines.OK(), err
+		}
+		moduleFiles = append(moduleFiles, privilegedModules...)
+	}
+
+	authorizationModel, err := language.TransformModuleFilesToModel(moduleFiles, schemaVersion)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to transform module files to model")
+		return subroutines.OK(), err
+	}
+
+	if store.Status.AuthorizationModelID != "" {
+		res, err := a.fga.ReadAuthorizationModel(ctx, &openfgav1.ReadAuthorizationModelRequest{
+			StoreId: store.Status.StoreID,
+			Id:      store.Status.AuthorizationModelID,
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("unable to read authorization model")
+			return subroutines.OK(), err
+		}
+
+		res.AuthorizationModel.Id = ""
+
+		// Module list order does not affect permissions. Compare models in a
+		// canonical type order instead of relying on JSON serialization.
+		compareTypes := func(a, b *openfgav1.TypeDefinition) int {
+			return cmp.Compare(a.GetType(), b.GetType())
+		}
+		slices.SortFunc(res.AuthorizationModel.TypeDefinitions, compareTypes)
+		slices.SortFunc(authorizationModel.TypeDefinitions, compareTypes)
+
+		if proto.Equal(res.AuthorizationModel, authorizationModel) {
+			return subroutines.OK(), nil
+		}
+	}
+
+	res, err := a.fga.WriteAuthorizationModel(ctx, &openfgav1.WriteAuthorizationModelRequest{
+		StoreId:         store.Status.StoreID,
+		TypeDefinitions: authorizationModel.TypeDefinitions,
+		SchemaVersion:   schemaVersion,
+		Conditions:      authorizationModel.Conditions,
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("unable to write authorization model")
+		return subroutines.OK(), err
+	}
+
+	store.Status.AuthorizationModelID = res.AuthorizationModelId
+
+	return subroutines.OK(), nil
+}
+
+func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template) (bytes.Buffer, error) {
+	scope := apiextensionsv1.ClusterScoped
+	if resource.Namespaced {
+		scope = apiextensionsv1.NamespaceScoped
+	}
+
+	group := "core"
+	if resource.Group != "" {
+		group = util.CapGroupToRelationLength(schema.GroupVersionResource{Group: resource.Group, Resource: resource.Name}, 50)
+	}
+
+	var buffer bytes.Buffer
+	err := tpl.Execute(&buffer, modelInput{
+		Name:           resource.Name,
+		Group:          strings.ReplaceAll(group, ".", "_"), // TODO: group name length capping
+		Singular:       resource.SingularName,
+		Scope:          string(scope),
+		CreateRelation: createRelationOverride(resource.Group, resource.Name),
+	})
+	if err != nil {
+		return buffer, err
+	}
+
+	return buffer, nil
+}
+
+func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, groupVersions []string) ([]language.ModuleFile, error) {
+	var files []language.ModuleFile
+	for _, gv := range groupVersions {
+		resourceList, err := dc.ServerResourcesForGroupVersion(gv)
+		if err != nil {
+			return nil, fmt.Errorf("discover resources for %s: %w", gv, err)
+		}
+
+		parsedGV, err := schema.ParseGroupVersion(resourceList.GroupVersion)
+		if err != nil {
+			return nil, fmt.Errorf("parse group version %s: %w", resourceList.GroupVersion, err)
+		}
+
+		for _, apiRes := range resourceList.APIResources {
+			if strings.Contains(apiRes.Name, "/") { // skip subresources
+				continue
+			}
+
+			if parsedGV.Group != "" && apiRes.Group == "" {
+				apiRes.Group = parsedGV.Group
+			}
+
+			buf, err := processAPIResourceIntoModel(apiRes, tpl)
+			if err != nil {
+				return nil, fmt.Errorf("process api resource %s in %s: %w", apiRes.Name, gv, err)
+			}
+
+			files = append(files, language.ModuleFile{
+				Name:     fmt.Sprintf("internal_core_types_%s.fga", apiRes.Name),
+				Contents: buf.String(),
+			})
+		}
+	}
+	return files, nil
+}

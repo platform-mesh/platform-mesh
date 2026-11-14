@@ -45,7 +45,7 @@ const (
 
 // WorkspaceReadySubroutine checks that the Account's Workspace is ready. This
 // currently cannot be done the Workspace subroutine because it would block
-// subsequent AccountInfo creation and the security-operator's initializer
+// subsequent AccountInfo creation and the pm-openfga-operator's initializer
 // expects the AccountInfo to exist to release the Workspace(and thus it
 // getting ready).
 type WorkspaceReadySubroutine struct {

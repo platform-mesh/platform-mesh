@@ -32,14 +32,18 @@ import (
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 const (
 	corePlatformMeshIOExport        = "core.platform-mesh.io"
+	fgaPlatformMeshIOExport         = "fga.platform-mesh.io"
 	providerFgaPlatformMeshIOExport = "provider-fga.platform-mesh.io"
 	uiPlatformMeshIOExport          = "ui.platform-mesh.io"
+	// featureDisableOpenFGA mirrors subroutines.FeatureDisableOpenFGA (import cycle).
+	featureDisableOpenFGA = "feature-disable-openfga"
 )
 
 // uiBindingClaims accepts the claims of ui.platform-mesh.io, which virtual-workspaces
@@ -129,6 +133,12 @@ func deleteWithSuccessorWait(ctx context.Context, client ctrlruntimeclient.Clien
 	policyPatch := ctrlruntimeclient.RawPatch(types.MergePatchType, []byte(`{"spec":{"deletionPolicy":"WaitForSuccessor"}}`))
 	if err := client.Patch(ctx, binding, policyPatch); err != nil {
 		return gcerrors.Wrap(err, "Failed to set deletionPolicy=WaitForSuccessor on binding %s", binding.GetName())
+	}
+
+	// kcp before v0.33.0 prunes the field, deleting then removes every instance with the binding.
+	policy, _, _ := unstructured.NestedString(binding.Object, "spec", "deletionPolicy")
+	if policy != string(kcpapisv1alpha2.APIBindingDeletionPolicyWaitForSuccessor) {
+		return gcerrors.New("kcp did not accept deletionPolicy=WaitForSuccessor on binding %s, not deleting it", binding.GetName())
 	}
 
 	if err := client.Delete(ctx, binding); err != nil && !apierrors.IsNotFound(err) {
@@ -252,7 +262,7 @@ func (providerAPIExportSplit) Run(ctx context.Context, deps Deps) error {
 		if ws.Name == "system" || ws.Status.Phase != kcpcorev1alpha1.LogicalClusterPhaseReady {
 			continue
 		}
-		if err := migrateLegacyProviderBinding(ctx, deps.KcpHelper, deps.Config, ws.Name, uiPath, uiOptedIn); err != nil {
+		if err := migrateLegacyProviderBinding(ctx, deps.KcpHelper, deps.Config, ws.Name, uiPath, uiOptedIn, !hasFeatureToggle(deps.Instance, featureDisableOpenFGA)); err != nil {
 			return gcerrors.Wrap(err, "Failed to migrate legacy provider binding for %s", ws.Name)
 		}
 	}
@@ -263,8 +273,9 @@ func (providerAPIExportSplit) Run(ctx context.Context, deps Deps) error {
 // migrateLegacyProviderBinding swaps a single provider workspace off the old, pre-split
 // core.platform-mesh.io binding. If opted into ui.platform-mesh.io, it shares identity and kcp
 // adopts the instances automatically; otherwise they're deleted as before.
+// openFGA is false when the provider-fga export is not applied (feature-disable-openfga).
 func migrateLegacyProviderBinding(
-	ctx context.Context, kcpHelper KcpClientFactory, config *rest.Config, providerName, uiPath string, uiOptedIn bool,
+	ctx context.Context, kcpHelper KcpClientFactory, config *rest.Config, providerName, uiPath string, uiOptedIn, openFGA bool,
 ) error {
 	log := logger.LoadLoggerFromContext(ctx).ChildLogger("migration", "provider-apiexport-split")
 
@@ -281,7 +292,7 @@ func migrateLegacyProviderBinding(
 
 	// Before the legacy binding goes, so kcp can adopt the AuthorizationModels; also covers
 	// provider workspaces that were already migrated without it.
-	if !hasBindingToExport(bindings, providerFgaPlatformMeshIOExport) {
+	if openFGA && !hasBindingToExport(bindings, providerFgaPlatformMeshIOExport) {
 		if err := applyBinding(ctx, providerClient, providerFgaPlatformMeshIOExport, providerFgaPlatformMeshIOExport, "root:platform-mesh-system", nil); err != nil {
 			return gcerrors.Wrap(err, "Failed to apply %s binding for provider workspace %s", providerFgaPlatformMeshIOExport, providerName)
 		}

@@ -20,7 +20,9 @@ package fixtures
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"slices"
@@ -40,15 +42,24 @@ const apisGroup = "apis.kcp.io"
 // Empty documents are skipped.
 func Decode(t testing.TB, raw []byte) []*unstructured.Unstructured {
 	t.Helper()
+	objs, err := DecodeYAML(raw)
+	require.NoError(t, err)
+	return objs
+}
+
+// DecodeYAML is Decode for a caller without a test at hand.
+func DecodeYAML(raw []byte) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	decoder := utilyaml.NewYAMLOrJSONDecoder(bytes.NewReader(raw), 4096)
 	for {
 		obj := map[string]any{}
 		err := decoder.Decode(&obj)
 		if errors.Is(err, io.EOF) {
-			return objs
+			return objs, nil
 		}
-		require.NoError(t, err, "decoding YAML")
+		if err != nil {
+			return nil, fmt.Errorf("decoding YAML: %w", err)
+		}
 		if len(obj) == 0 {
 			continue
 		}
@@ -60,13 +71,18 @@ func Decode(t testing.TB, raw []byte) []*unstructured.Unstructured {
 // be typed or unstructured.
 func Apply(t testing.TB, cl ctrlruntimeclient.Client, objs ...ctrlruntimeclient.Object) {
 	t.Helper()
+	require.NoError(t, Create(t.Context(), cl, objs...))
+}
+
+// Create is Apply for a caller without a test at hand: it creates objs in
+// order, leaves what exists as it is, and returns the first other error.
+func Create(ctx context.Context, cl ctrlruntimeclient.Client, objs ...ctrlruntimeclient.Object) error {
 	for _, obj := range objs {
-		err := cl.Create(t.Context(), obj)
-		if apierrors.IsAlreadyExists(err) {
-			continue
+		if err := cl.Create(ctx, obj); err != nil && !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("creating %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
 		}
-		require.NoError(t, err, "creating %s %s", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
 	}
+	return nil
 }
 
 // ApplyFS applies every file in fsys matching glob into cl's workspace,

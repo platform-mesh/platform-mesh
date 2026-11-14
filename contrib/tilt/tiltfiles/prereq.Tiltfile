@@ -17,7 +17,7 @@
 
 load("ext://namespace", "namespace_create")
 load("../helpers.py", "REPO", "chart", "kind_in", "named", "select_objects", "suffixed")
-load("./settings.Tiltfile", "BASE_DOMAIN", "FRONTEND_CORS", "KUBECTL", "NAMESPACE", "PORT")
+load("./settings.Tiltfile", "BASE_DOMAIN", "FRONTEND_CORS", "KEYCLOAK", "KUBECTL", "NAMESPACE", "PORT")
 
 namespace_create(NAMESPACE)
 k8s_resource(new_name="namespace", objects=[NAMESPACE + ":namespace"], labels=["prereq"])
@@ -30,6 +30,7 @@ prereq = chart(
     set=[
         "flux2.enabled=false",
         "ocm-k8s-toolkit.enabled=false",
+        "keycloak-operator.enabled=" + str(KEYCLOAK).lower(),
         "keycloak-operator.watchNamespaces=" + NAMESPACE,
         "traefik.enabled=true",
         "traefik.service.type=NodePort",
@@ -100,13 +101,14 @@ k8s_resource(
     resource_deps=["namespace"],
     labels=["prereq"],
 )
-k8s_resource(
-    PREREQ_RELEASE + "keycloak-operator",
-    new_name="keycloak-operator",
-    objects=select_objects(prereq, named("keycloak")),
-    resource_deps=["namespace"],
-    labels=["prereq"],
-)
+if KEYCLOAK:
+    k8s_resource(
+        PREREQ_RELEASE + "keycloak-operator",
+        new_name="keycloak-operator",
+        objects=select_objects(prereq, named("keycloak")),
+        resource_deps=["namespace"],
+        labels=["prereq"],
+    )
 k8s_resource(
     "etcd-druid", objects=select_objects(prereq, named("druid")), resource_deps=["namespace"], labels=["prereq"]
 )

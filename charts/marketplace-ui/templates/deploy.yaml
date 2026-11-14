@@ -26,7 +26,7 @@ spec:
         runAsGroup: 101
       containers:
       - {{- include "common.podBasics" . | indent 8 }}
-        {{- include "common.operatorHealthAndReadyness" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadiness" . | indent 8 }}
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false

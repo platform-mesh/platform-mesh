@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
           cache: true # zizmor: ignore[cache-poisoning]
 
       - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
@@ -92,10 +92,8 @@ jobs:
           # (v261030-566cb8a8.<resource>, 7+ hex chars; hack/apigen.sh). Names
           # written before that wrapper hash the HEAD commit instead and get
           # renamed once when their schema next regenerates; `-I` drops hunks
-          # made only of such lines. go.work.sum is rewritten by the Go
-          # toolchain as a side effect of running the generators (see `task
-          # tidy`) and is not generator output.
-          if ! git diff --exit-code -I 'v[0-9]{6}-[0-9a-f]{7,}\.' -- . ':!go.work.sum'; then
+          # made only of such lines.
+          if ! git diff --exit-code -I 'v[0-9]{6}-[0-9a-f]{7,}\.'; then
             echo "::error title=verify::$hint"
             exit 1
           fi
