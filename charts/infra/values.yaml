@@ -108,8 +108,6 @@ kcp:
 
   webhook:
     enabled: true
-    caData: ""
-    server: https://pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz
     authorizationWebhookSecretName: kcp-webhook-secret
     port: 9443
     version: v1

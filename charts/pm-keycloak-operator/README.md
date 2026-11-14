@@ -28,9 +28,9 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | idp.smtp.server | string | `""` | SMTP server hostname |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
-| image.repository | string | `"platform-mesh/platform-mesh/security-operator"` | The image repository path (without registry) |
-| initContainer | object | `{"clients":[{"name":"security-operator","secretRef":{"name":"security-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}],"enabled":true,"keycloakClientId":"admin-cli","keycloakUser":"keycloak-admin"}` | Init container configuration for bootstrapping Keycloak service account clients |
-| initContainer.clients | list | `[{"name":"security-operator","secretRef":{"name":"security-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}]` | Service account clients to create (beyond the default one from keycloak.client.secret) |
+| image.repository | string | `"platform-mesh/platform-mesh/pm-keycloak-operator"` | The image repository path (without registry) |
+| initContainer | object | `{"clients":[{"name":"pm-keycloak-operator","secretRef":{"name":"pm-keycloak-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}],"enabled":true,"keycloakClientId":"admin-cli","keycloakUser":"keycloak-admin"}` | Init container configuration for bootstrapping Keycloak service account clients |
+| initContainer.clients | list | `[{"name":"pm-keycloak-operator","secretRef":{"name":"pm-keycloak-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}]` | Service account clients to create (beyond the default one from keycloak.client.secret) |
 | initContainer.enabled | bool | `true` | Enable the init container |
 | initContainer.keycloakClientId | string | `"admin-cli"` | Keycloak client ID for admin authentication |
 | initContainer.keycloakUser | string | `"keycloak-admin"` | Keycloak username for admin authentication |
@@ -44,9 +44,7 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | keycloak.client.secret.key | string | `"client_secret"` |  |
 | keycloak.client.secret.name | string | `"pm-keycloak-operator-client-secret"` |  |
 | keycloakSecret | string | `"keycloak-admin"` | Name of the secret containing Keycloak admin credentials (keys: username, password, secret) |
-| kubeconfigSecret | string | `""` | The kubeconfig secret for operator and generator |
-| openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` | OpenFGA gRPC endpoint (host:port) |
-| openfga.storeIDCacheTTL | string | `""` | TTL for the OpenFGA store ID cache (e.g. 5m, 1h). Empty uses app default (5m). |
+| kubeconfigSecret | string | `""` | The kubeconfig secret for the operator |
 | operator.extraArgs | list | `[]` |  |
 | region | string | `""` | region indicator, used for logging and observability |
 | terminator.extraArgs | list | `[]` |  |

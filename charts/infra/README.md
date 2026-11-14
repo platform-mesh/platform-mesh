@@ -142,10 +142,8 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.shards[0].name | string | `"nereus"` |  |
 | kcp.shards[1].name | string | `"triton"` |  |
 | kcp.webhook.authorizationWebhookSecretName | string | `"kcp-webhook-secret"` |  |
-| kcp.webhook.caData | string | `""` |  |
 | kcp.webhook.enabled | bool | `true` |  |
 | kcp.webhook.port | int | `9443` |  |
-| kcp.webhook.server | string | `"https://pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz"` |  |
 | kcp.webhook.version | string | `"v1"` |  |
 | keycloak.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | keycloak.gatewayApi.hostnames | list | `[]` | hostnames for the Keycloak HTTPRoute |
