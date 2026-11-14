@@ -104,7 +104,7 @@ func (g *SchemaGenerator) Generate(ctx context.Context) (*graphql.Schema, error)
 	rootMutation := graphql.NewObject(graphql.ObjectConfig{Name: "Mutation", Fields: graphql.Fields{}})
 	rootSubscription := graphql.NewObject(graphql.ObjectConfig{Name: "Subscription", Fields: graphql.Fields{}})
 
-	resources := g.parseResources()
+	resources := g.parseResources(ctx)
 	groups := groupByAPIGroup(resources)
 
 	sortedGroups := make([]string, 0, len(groups))
@@ -147,7 +147,8 @@ func (g *SchemaGenerator) Generate(ctx context.Context) (*graphql.Schema, error)
 }
 
 // parseResources extracts and validates all resources from definitions.
-func (g *SchemaGenerator) parseResources() []*Resource {
+func (g *SchemaGenerator) parseResources(ctx context.Context) []*Resource {
+	logger := log.FromContext(ctx)
 	var resources []*Resource
 
 	for key, def := range g.definitions {
@@ -158,6 +159,13 @@ func (g *SchemaGenerator) parseResources() []*Resource {
 
 		scope, err := apischema.ExtractScope(def)
 		if err != nil {
+			// A resource with a valid GVK but no resolvable scope is dropped
+			// here. This usually means the listener's scope enricher could not
+			// determine the resource's scope (see listener enricher.Scope), so
+			// the whole API group can silently disappear from the schema. Log
+			// loudly rather than skipping silently.
+			logger.Error(err, "skipping resource: scope extension missing; it will be absent from the GraphQL schema",
+				"key", key, "gvk", gvk.String())
 			continue
 		}
 
