@@ -49,7 +49,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		KnownUsers func(childComplexity int, sortBy *SortByInput, page *PageInput) int
+		KnownUsers func(childComplexity int, context ResourceContext, search *string, sortBy *SortByInput, page *PageInput) int
 		Me         func(childComplexity int) int
 		Roles      func(childComplexity int, context ResourceContext) int
 		User       func(childComplexity int, userID string) int
@@ -104,7 +104,7 @@ type MutationResolver interface {
 type QueryResolver interface {
 	Roles(ctx context.Context, context ResourceContext) ([]*Role, error)
 	Users(ctx context.Context, context ResourceContext, roleFilters []string, sortBy *SortByInput, page *PageInput) (*UserConnection, error)
-	KnownUsers(ctx context.Context, sortBy *SortByInput, page *PageInput) (*UserConnection, error)
+	KnownUsers(ctx context.Context, context ResourceContext, search *string, sortBy *SortByInput, page *PageInput) (*UserConnection, error)
 	User(ctx context.Context, userID string) (*User, error)
 	Me(ctx context.Context) (*User, error)
 }
@@ -185,7 +185,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.KnownUsers(childComplexity, args["sortBy"].(*SortByInput), args["page"].(*PageInput)), true
+		return e.ComplexityRoot.Query.KnownUsers(childComplexity, args["context"].(ResourceContext), args["search"].(*string), args["sortBy"].(*SortByInput), args["page"].(*PageInput)), true
 	case "Query.me":
 		if e.ComplexityRoot.Query.Me == nil {
 			break
@@ -556,8 +556,8 @@ type Query {
     roles(context: ResourceContext!): [Role]! @authorized(permission: "get_iam_roles")
     """ returns all users that have roles assigned for a particular groupResource/resource."""
     users(context: ResourceContext!, roleFilters: [String!], sortBy: SortByInput, page: PageInput): UserConnection! @authorized(permission: "get_iam_users")
-    """ returns all users known to the system, regardless of whether they have roles assigned."""
-    knownUsers(sortBy: SortByInput, page: PageInput): UserConnection!
+    """ returns all users known to the system, regardless of whether they have roles assigned. search matches username, email, first and last name."""
+    knownUsers(context: ResourceContext!, search: String, sortBy: SortByInput, page: PageInput): UserConnection! @authorized(permission: "manage_iam_roles")
     """ returns a specific user by userId"""
     user(userId: String!): User
     """ returns my user information"""
@@ -868,22 +868,38 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Query_knownUsers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sortBy",
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "context",
+		func(ctx context.Context, v any) (ResourceContext, error) {
+			return ec.unmarshalNResourceContext2goᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐResourceContext(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["context"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "search",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["search"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "sortBy",
 		func(ctx context.Context, v any) (*SortByInput, error) {
 			return ec.unmarshalOSortByInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐSortByInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["sortBy"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "page",
+	args["sortBy"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "page",
 		func(ctx context.Context, v any) (*PageInput, error) {
 			return ec.unmarshalOPageInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐPageInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["page"] = arg1
+	args["page"] = arg3
 	return args, nil
 }
 
@@ -1377,9 +1393,27 @@ func (ec *executionContext) _Query_knownUsers(ctx context.Context, field graphql
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().KnownUsers(ctx, fc.Args["sortBy"].(*SortByInput), fc.Args["page"].(*PageInput))
+			return ec.Resolvers.Query().KnownUsers(ctx, fc.Args["context"].(ResourceContext), fc.Args["search"].(*string), fc.Args["sortBy"].(*SortByInput), fc.Args["page"].(*PageInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				permission, err := ec.unmarshalNString2string(ctx, "manage_iam_roles")
+				if err != nil {
+					var zeroVal *UserConnection
+					return zeroVal, err
+				}
+				if ec.Directives.Authorized == nil {
+					var zeroVal *UserConnection
+					return zeroVal, errors.New("directive authorized is not implemented")
+				}
+				return ec.Directives.Authorized(ctx, nil, directive0, permission)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *UserConnection) graphql.Marshaler {
 			return ec.marshalNUserConnection2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐUserConnection(ctx, selections, v)
 		},
