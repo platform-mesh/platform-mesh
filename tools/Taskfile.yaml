@@ -47,9 +47,11 @@ vars:
   ENVTEST_VERSION: v0.24.1
   ENVTEST: '{{.BIN}}/setup-envtest-{{.ENVTEST_VERSION}}'
 
+  # renovate: datasource=github-releases depName=golangci/golangci-lint
   GOLANGCI_LINT_VERSION: 2.15.0
   GOLANGCI_LINT: '{{.BIN}}/golangci-lint-{{.GOLANGCI_LINT_VERSION}}'
 
+  # renovate: datasource=github-releases depName=vladopajic/go-test-coverage
   GO_TEST_COVERAGE_VERSION: v2.18.9
   GO_TEST_COVERAGE: '{{.BIN}}/go-test-coverage-{{.GO_TEST_COVERAGE_VERSION}}'
 
@@ -58,6 +60,7 @@ vars:
   KCP_FRONT_PROXY: '{{.BIN}}/kcp-front-proxy-{{.KCP_VERSION}}'
   SHARDED_TEST_SERVER: '{{.BIN}}/sharded-test-server-{{.KCP_VERSION}}'
 
+  # renovate: datasource=github-releases depName=kubernetes-sigs/kind
   KIND_VERSION: v0.33.0
   KIND: '{{.BIN}}/kind-{{.KIND_VERSION}}'
 
@@ -65,12 +68,15 @@ vars:
   TILT_VERSION: 0.37.8
   TILT: '{{.BIN}}/tilt-{{.TILT_VERSION}}'
 
+  # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
   KUSTOMIZE_VERSION: v5.4.3
   KUSTOMIZE: '{{.BIN}}/kustomize-{{.KUSTOMIZE_VERSION}}'
 
+  # renovate: datasource=github-releases depName=vektra/mockery
   MOCKERY_VERSION: 3.9.0
   MOCKERY: '{{.BIN}}/mockery-{{.MOCKERY_VERSION}}'
 
+  # renovate: datasource=go depName=github.com/oapi-codegen/oapi-codegen/v2
   OAPI_CODEGEN_VERSION: v2.7.1
   OAPI_CODEGEN: '{{.BIN}}/oapi-codegen-{{.OAPI_CODEGEN_VERSION}}'
 
@@ -97,6 +103,7 @@ vars:
   OPENAPI_GEN_VERSION: d427ff9ee9ad05f5da435abbb7c5929cb713ac56 # most recent commit as of writing this
   OPENAPI_GEN: '{{.BIN}}/openapi-gen-{{.OPENAPI_GEN_VERSION}}'
 
+  # renovate: datasource=go depName=github.com/pivotal-cf/yaml-patch
   YAML_PATCH_VERSION: v0.0.11
   YAML_PATCH: '{{.BIN}}/yaml-patch-{{.YAML_PATCH_VERSION}}'
 

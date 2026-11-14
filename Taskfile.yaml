@@ -463,6 +463,7 @@ tasks:
     cmds:
       - task: deps:local-update
       - hack/deps-local.sh apply
+      - UGET_UPDATE=true task tools:all
       - hack/verify-go-version.sh --fix
       - task: tidy
       - task: generate

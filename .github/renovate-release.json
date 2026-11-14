@@ -2,12 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
+    "group:all",
     "helpers:pinGitHubActionDigests",
     "docker:pinDigests",
     ":gitSignOff"
   ],
   "branchPrefix": "deps/",
-  "separateMajorMinor": false,
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
@@ -24,6 +24,12 @@
   "vulnerabilityAlerts": {
     "enabled": false
   },
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**"
+  ],
   "ignoreDeps": [
     "github.com/kcp-dev/multicluster-provider",
     "github.com/kcp-dev/multicluster-provider/client",
@@ -43,34 +49,43 @@
     "gomodTidy",
     "gomodUpdateImportPaths"
   ],
+  "kubernetes": {
+    "managerFilePatterns": [
+      "**/{config,manifests,test,tests,testdata,__tests__,__fixtures__}/**/*.{yaml,yml}",
+      "**/kind*.{yaml,yml}"
+    ]
+  },
+  "flux": {
+    "managerFilePatterns": [
+      "**/{config,manifests,test,tests,testdata,__tests__,__fixtures__}/**/*.{yaml,yml}"
+    ]
+  },
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Tool versions pinned in tools/Taskfile.yaml",
+      "description": "OCM resource and tool versions have no native manager.",
       "managerFilePatterns": [
-        "/(^|/)tools/Taskfile\\.yaml$/"
+        "**/component-constructor.yaml",
+        "tools/Taskfile.yaml"
       ],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[A-Z0-9_]+_VERSION:\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
-      ],
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "description": "Third-party versions shipped with Platform Mesh (third_party/*/component-constructor.yaml, aggregate references)",
-      "managerFilePatterns": [
-        "/(^|/)third_party/[^/]+/component-constructor\\.yaml$/",
-        "/^component-constructor\\.yaml$/"
-      ],
-      "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*version:\\s*\"?(?<currentValue>[^\"\\s]+)\"?",
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*imageReference:\\s*\"?\\S+?:(?<currentValue>[^\"@\\s]+)",
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*helmChart:\\s*[^:\\s]+:(?<currentValue>\\S+)"
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*(?:version|[A-Z0-9_]+_VERSION):\\s*[\"']?(?<currentValue>[^\"'\\s@:]+)[\"']?",
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*(?:imageReference|helmChart):\\s*[\"']?[^\"'\\s]+:(?<currentValue>[^\"'\\s@]+)"
       ],
       "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
     }
   ],
   "packageRules": [
+    {
+      "description": "Vendored Flux controllers, CRDs and RBAC must be upgraded together.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchFileNames": [
+        "operators/platform-mesh-operator/test/e2e/kind/yaml/flux2-*/flux2-install.yaml"
+      ],
+      "enabled": false
+    },
     {
       "description": "Plain-tag pins - the regex manager cannot write digests, and chart values keep digests in a separate field.",
       "matchManagers": [
@@ -80,31 +95,10 @@
       "pinDigests": false
     },
     {
-      "description": "Everything in one branch, the release cycle takes all updates at once.",
-      "groupName": "all dependencies",
-      "groupSlug": "all",
+      "description": "Local component images are stamped by the release process, in chart values and in the manifests alike.",
       "matchPackageNames": [
-        "*"
-      ],
-      "matchUpdateTypes": [
-        "major",
-        "minor",
-        "patch",
-        "pin",
-        "digest",
-        "pinDigest",
-        "lockFileMaintenance",
-        "replacement",
-        "rollback"
-      ]
-    },
-    {
-      "description": "Skip kcp's kube fork, its version is welded to the kcp modules.",
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchPackageNames": [
-        "github.com/kcp-dev/kubernetes{/,}**"
+        "ghcr.io/platform-mesh/**",
+        "platform-mesh/**"
       ],
       "enabled": false
     },
@@ -114,11 +108,39 @@
         "gomod"
       ],
       "matchPackageNames": [
+        "github.com/kcp-dev/kubernetes{/,}**",
+        "github.com/kcp-dev/multicluster-provider{/,}**",
         "k8s.io/**",
-        "sigs.k8s.io/**",
-        "github.com/kcp-dev/multicluster-provider{/,}**"
+        "sigs.k8s.io/**"
       ],
       "enabled": false
+    },
+    {
+      "description": "controller-gen's version is derived from go.mod, so it has to move on its own.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchFileNames": [
+        "go.mod"
+      ],
+      "matchPackageNames": [
+        "sigs.k8s.io/controller-tools"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "kustomize release tags carry a prefix: kustomize/vX.Y.Z.",
+      "matchPackageNames": [
+        "kubernetes-sigs/kustomize"
+      ],
+      "extractVersion": "^kustomize/(?<version>.+)$"
+    },
+    {
+      "description": "kind node images must match the kube version of the kcp train; kcp 0.33.x is k8s 1.33-based.",
+      "matchPackageNames": [
+        "kindest/node"
+      ],
+      "allowedVersions": "<1.34.0"
     },
     {
       "description": "capped at the last k8s-0.36-era release; raise when the kcp train moves.",
@@ -134,15 +156,10 @@
       "allowedVersions": "<1.7.0"
     },
     {
-      "description": "Local component image tags in chart values are stamped by the release process.",
-      "matchManagers": [
-        "helm-values"
-      ],
       "matchPackageNames": [
-        "ghcr.io/platform-mesh/**",
-        "platform-mesh/**"
+        "github.com/fluxcd/source-controller/api"
       ],
-      "enabled": false
+      "allowedVersions": "<1.10.0"
     },
     {
       "description": "opensearch-go v5 is a breaking migration (search-operator code changes), needs manual bump.",
@@ -174,12 +191,6 @@
         "github.com/google/cel-go"
       ],
       "allowedVersions": "<0.32.0"
-    },
-    {
-      "matchPackageNames": [
-        "github.com/fluxcd/source-controller/api"
-      ],
-      "allowedVersions": "<1.10.0"
     },
     {
       "description": "Allow pre-release updates for OCM component",
