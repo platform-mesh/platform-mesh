@@ -24,6 +24,7 @@ import (
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/config"
 	"go.platform-mesh.io/kubernetes-graphql-gateway/gateway/gateway/endpoint"
 
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -31,6 +32,7 @@ import (
 type Registry struct {
 	mu        sync.RWMutex
 	endpoints map[string]*endpoint.Endpoint
+	failed    sets.Set[string]
 	config    config.Gateway
 }
 
@@ -38,6 +40,7 @@ type Registry struct {
 func New(cfg config.Gateway) *Registry {
 	return &Registry{
 		endpoints: make(map[string]*endpoint.Endpoint),
+		failed:    sets.New[string](),
 		config:    cfg,
 	}
 }
@@ -66,19 +69,23 @@ func (r *Registry) OnSchemaChanged(ctx context.Context, clusterName string, sche
 		r.config.Metrics,
 		r.config.ClusterOptions,
 	)
-	if err != nil {
-		logger.Error(err, "Failed to create endpoint", "cluster", clusterName)
-		return
-	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if old, exists := r.endpoints[clusterName]; exists {
 		old.Close()
-		logger.V(4).Info("Replaced existing endpoint", "cluster", clusterName)
+		delete(r.endpoints, clusterName)
+		logger.V(4).Info("Removed existing endpoint", "cluster", clusterName)
 	}
 
+	if err != nil {
+		logger.Error(err, "Failed to create endpoint", "cluster", clusterName)
+		r.failed.Insert(clusterName)
+		return
+	}
+
+	r.failed.Delete(clusterName)
 	r.endpoints[clusterName] = ep
 	logger.Info("Successfully loaded endpoint", "cluster", clusterName)
 }
@@ -93,6 +100,7 @@ func (r *Registry) OnSchemaDeleted(ctx context.Context, clusterName string) {
 
 	logger.V(4).Info("Removing endpoint", "cluster", clusterName)
 
+	r.failed.Delete(clusterName)
 	old, exists := r.endpoints[clusterName]
 	if !exists {
 		logger.V(2).Info("Attempted to remove non-existent endpoint", "cluster", clusterName)
@@ -110,4 +118,11 @@ func (r *Registry) GetEndpoint(name string) (*endpoint.Endpoint, bool) {
 	defer r.mu.RUnlock()
 	ep, exists := r.endpoints[name]
 	return ep, exists
+}
+
+// LoadFailed reports whether the last schema received for a cluster could not be loaded.
+func (r *Registry) LoadFailed(name string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.failed.Has(name)
 }
