@@ -1,0 +1,25 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/backup-operator
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+  # -- Image tag; defaults to the chart appVersion when empty
+  tag: ""
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Enable leader election
+leaderElect: true
+
+log:
+  # -- log level. Permissible values: debug, info, warn, error
+  level: info
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    memory: 256Mi

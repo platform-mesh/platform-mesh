@@ -1,0 +1,125 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: backupstorages.backup.platform-mesh.io
+spec:
+  group: backup.platform-mesh.io
+  names:
+    kind: BackupStorage
+    listKind: BackupStorageList
+    plural: backupstorages
+    singular: backupstorage
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.bucket
+      name: Bucket
+      type: string
+    - jsonPath: .spec.endpoint
+      name: Endpoint
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: BackupStorage is the bucket where Backups write their archive.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: BackupStorageSpec describes an S3 compatible bucket where
+              backups are stored.
+            properties:
+              bucket:
+                description: Bucket is the name of the bucket.
+                minLength: 1
+                type: string
+              credentialsSecretRef:
+                description: CredentialsSecretRef points to a Secret with the keys
+                  accessKeyID and secretAccessKey.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              encryptionKeySecretRef:
+                description: |-
+                  EncryptionKeySecretRef points to a Secret with the key "key": 32 random bytes.
+                  Secrets and certificates are encrypted with it before upload.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              endpoint:
+                description: Endpoint of the S3 API, for example http://minio:9000.
+                  Empty means AWS S3.
+                type: string
+              forcePathStyle:
+                description: ForcePathStyle uses path style URLs, needed by most S3
+                  compatible servers.
+                type: boolean
+              prefix:
+                description: Prefix is put in front of every object key of a backup.
+                type: string
+              region:
+                default: us-east-1
+                type: string
+            required:
+            - bucket
+            - credentialsSecretRef
+            - encryptionKeySecretRef
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources: {}

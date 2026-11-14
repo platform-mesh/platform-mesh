@@ -62,6 +62,7 @@ vars:
 
     # operators
     - account-operator
+    - backup-operator
     - extension-manager-operator
     - kro-composition-operator
     - platform-mesh-operator
