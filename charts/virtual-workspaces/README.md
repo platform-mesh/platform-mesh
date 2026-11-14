@@ -40,7 +40,6 @@ A Helm chart to deploy platform-mesh virtual-workspaces
 | kubeconfigSecretName | string | `"account-operator-kubeconfig"` |  |
 | requestHeaderClientCASecretName | string | `"root-requestheader-client-ca"` |  |
 | service.port | int | `8443` |  |
-| virtualWorkspaceSecretName | string | `"virtual-workspaces-cert"` |  |
 
 ## Overriding Values
 

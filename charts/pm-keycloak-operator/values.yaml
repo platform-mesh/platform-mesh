@@ -22,12 +22,6 @@ deployment:
       cpu: 150m
       memory: 128Mi
 
-# -- Log level for all operator components. Permissible values: debug, info, warn, error
-logLevel: info
-
-# -- Feature gates rendered into --feature-gates. Known gates: LegacyAPIs (default true; also serves the deprecated core.platform-mesh.io IdentityProviderConfigurations and Invites).
-featureGates: {}
-
 webhooks:
   # -- Enable validating admission webhooks
   enabled: true
@@ -116,8 +110,6 @@ terminator:
 initContainer:
   # -- Enable the init container
   enabled: true
-  # -- Keycloak base URL (e.g., https://keycloak.example.com). If empty, derived from baseDomain.
-  keycloakBaseURL: ""
   # -- Keycloak client ID for admin authentication
   keycloakClientId: admin-cli
   # -- Keycloak username for admin authentication
@@ -132,6 +124,8 @@ initContainer:
     secretRef:
       name: iam-client-secret
       namespace: platform-mesh-system
+
+featureGates: {}
 
 operator:
   extraArgs: []

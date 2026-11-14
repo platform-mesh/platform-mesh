@@ -142,33 +142,12 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.shards[0].name | string | `"nereus"` |  |
 | kcp.shards[1].name | string | `"triton"` |  |
 | kcp.webhook.authorizationWebhookSecretName | string | `"kcp-webhook-secret"` |  |
-| kcp.webhook.caData | string | `""` |  |
 | kcp.webhook.enabled | bool | `true` |  |
 | kcp.webhook.port | int | `9443` |  |
-| kcp.webhook.server | string | `"https://pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz"` |  |
 | kcp.webhook.version | string | `"v1"` |  |
-| keycloak.domain | object | `{"name":"platform-mesh.io","pathPrefix":"/keycloak"}` | domain configuration |
-| keycloak.domain.name | string | `"platform-mesh.io"` | domain name |
-| keycloak.domain.pathPrefix | string | `"/keycloak"` | path prefix |
 | keycloak.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | keycloak.gatewayApi.hostnames | list | `[]` | hostnames for the Keycloak HTTPRoute |
 | keycloak.gatewayApi.pathPrefix | string | `"/keycloak"` | path prefix for the Keycloak HTTPRoute |
-| keycloak.keycloakConfig.admin | object | `{"password":{"valueFrom":{"secretKeyRef":{"key":"secret","name":"keycloak-admin"}}},"username":{"value":"keycloak-admin"}}` | admin user configuration |
-| keycloak.keycloakConfig.admin.password | object | `{"valueFrom":{"secretKeyRef":{"key":"secret","name":"keycloak-admin"}}}` | admin password |
-| keycloak.keycloakConfig.admin.password.valueFrom.secretKeyRef.key | string | `"secret"` | key of the password in the secret |
-| keycloak.keycloakConfig.admin.password.valueFrom.secretKeyRef.name | string | `"keycloak-admin"` | name of the secret containing the password |
-| keycloak.keycloakConfig.admin.username.value | string | `"keycloak-admin"` | username |
-| keycloak.keycloakConfig.client | object | `{"name":"welcome","targetSecret":{"name":"portal-client-secret-welcome","namespace":"platform-mesh-system"},"tokenLifespan":3600}` | client configuration |
-| keycloak.keycloakConfig.client.name | string | `"welcome"` | client name |
-| keycloak.keycloakConfig.client.targetSecret | object | `{"name":"portal-client-secret-welcome","namespace":"platform-mesh-system"}` | target secret options |
-| keycloak.keycloakConfig.client.targetSecret.name | string | `"portal-client-secret-welcome"` | secret name |
-| keycloak.keycloakConfig.client.targetSecret.namespace | string | `"platform-mesh-system"` | secret namespace |
-| keycloak.keycloakConfig.client.tokenLifespan | int | `3600` | token lifespan |
-| keycloak.keycloakConfig.realm | object | `{"name":"master"}` | realm configuration |
-| keycloak.keycloakConfig.realm.name | string | `"master"` | realm name |
-| keycloak.keycloakConfig.redirectUrls | list | `[]` | redirect urls |
-| keycloak.keycloakConfig.url | string | `"http://keycloak.platform-mesh-system.svc.cluster.local/keycloak"` | url of the keycloak server |
-| keycloak.keycloakConfig.userRegistration.enabled | bool | `true` | toggle to enable/disable user registration |
 | keycloak.operator.admin.password | string | `""` | Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
 | keycloak.operator.admin.secret | string | `""` | Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
 | keycloak.operator.admin.username | string | `"keycloak-admin"` | Bootstrap admin username (written to keycloak-admin secret) |
