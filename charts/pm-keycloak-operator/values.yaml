@@ -125,6 +125,8 @@ initContainer:
       name: iam-client-secret
       namespace: platform-mesh-system
 
+featureGates: {}
+
 operator:
   extraArgs: []
 
