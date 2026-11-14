@@ -79,6 +79,8 @@ const (
 	defaultProfileConfigMapSuffix = "-profile"
 	// argoPlaceholderRepoURL is set by templates and replaced by ResourceSubroutine with actual OCM values
 	argoPlaceholderRepoURL = "PLACEHOLDER_TO_BE_SET_BY_RESOURCE_SUBROUTINE"
+	// kcpWebhookSecretManifest is the kcp webhook secret in k8sManifests.
+	kcpWebhookSecretManifest = "pm-openfga-authz-webhook/kcp-webhook-secret.yaml"
 )
 
 func NewDeploymentSubroutine(clientRuntime ctrlruntimeclient.Client, clientInfra ctrlruntimeclient.Client, cfg *pmconfig.CommonServiceConfig, operatorCfg *config.OperatorConfig) *DeploymentSubroutine {
@@ -206,7 +208,7 @@ func (r *DeploymentSubroutine) Process(ctx context.Context, runtimeObj ctrlrunti
 	}
 
 	// Render and apply infra templates directly from gotemplates/infra/infra using profile
-	oErr := r.renderAndApplyInfraTemplates(ctx, inst, templateVars)
+	infraNamespace, infraRendered, oErr := r.renderAndApplyInfraTemplates(ctx, inst, templateVars)
 	if oErr != nil {
 		log.Error().Err(oErr).Msg("Failed to render and apply infra templates")
 		return subroutines.OK(), oErr
@@ -245,17 +247,16 @@ func (r *DeploymentSubroutine) Process(ctx context.Context, runtimeObj ctrlrunti
 	deploymentTech = strings.ToLower(deploymentTech)
 
 	// Render and apply components infra templates (HelmReleases for services)
-	disabled, oErr := r.renderAndApplyComponentsInfraTemplates(ctx, inst, templateVars)
+	componentsNamespace, componentsRendered, oErr := r.renderAndApplyComponentsInfraTemplates(ctx, inst, templateVars)
 	if oErr != nil {
 		log.Error().Err(oErr).Msg("Failed to render and apply components infra templates")
 		return subroutines.OK(), oErr
 	}
 	log.Debug().Msg("Successfully rendered and applied components infra templates")
 
-	// delete only disabled HelmReleases
-	oErr = deleteHelmReleases(ctx, r.clientInfra, disabled, log)
+	oErr = pruneHelmReleases(ctx, r.clientInfra, infraNamespace, infraRendered, componentsNamespace, componentsRendered, log)
 	if oErr != nil {
-		log.Error().Err(oErr).Msg("Failed to delete HelmReleases")
+		log.Error().Err(oErr).Msg("Failed to prune HelmReleases")
 		return subroutines.OK(), oErr
 	}
 
@@ -270,6 +271,7 @@ func (r *DeploymentSubroutine) Process(ctx context.Context, runtimeObj ctrlrunti
 		}
 	}
 
+	// Kept without OpenFGA as well: the portal mounts the webhook CA.
 	webhookResult, oErr := r.manageAuthorizationWebhookSecrets(ctx, inst)
 	if oErr != nil {
 		log.Info().Msg("Failed to manage authorization webhook secrets")
@@ -530,7 +532,6 @@ func (r *DeploymentSubroutine) buildRuntimeTemplateVars(ctx context.Context, ins
 			baseVars["services"] = services
 		}
 	}
-
 	// Add instance-specific fields
 	baseVars["releaseNamespace"] = inst.Namespace
 	if deployNs, ok := baseVars["deploymentNamespace"].(string); ok && deployNs != "" {
@@ -688,6 +689,10 @@ func (r *DeploymentSubroutine) buildComponentsTemplateVars(ctx context.Context, 
 	componentsNamespace := inst.Namespace
 	if deployNs, ok := values["deploymentNamespace"].(string); ok && deployNs != "" {
 		componentsNamespace = deployNs
+	}
+
+	if conflicts := featureToggleConflicts(inst, mergedServices); len(conflicts) > 0 {
+		return nil, nil, errors.New("Profile enables what a feature toggle disables: %s", strings.Join(conflicts, ", "))
 	}
 
 	// Drop dependencies on switched-off components: they are never rendered, so Flux would
@@ -1061,22 +1066,26 @@ func (r *DeploymentSubroutine) mergeImageVersionsIntoHelmReleaseValues(obj *unst
 }
 
 // renderAndApplyInfraTemplates renders all templates in gotemplates/infra/infra and applies them.
-func (r *DeploymentSubroutine) renderAndApplyInfraTemplates(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON) error {
+// Returns the namespace the HelmReleases are rendered into and their keys.
+func (r *DeploymentSubroutine) renderAndApplyInfraTemplates(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON) (string, map[string]struct{}, error) {
 	log := logger.LoadLoggerFromContext(ctx).ChildLogger("subroutine", r.GetName())
 
 	tmplVars, err := r.templateVarsFromProfileInfra(ctx, inst, templateVars, r.cfgOperator)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to build template variables from profile")
-		return err
+		return "", nil, err
 	}
 
 	deploymentTech, _ := tmplVars["deploymentTechnology"].(string)
 	deploymentTech = strings.ToLower(deploymentTech)
 
 	skipFile := deploymentTechFileFilter(deploymentTech, log)
-	postProcess := r.infraManifestPostProcess(ctx, log)
+	infraNamespace, _ := tmplVars["helmReleaseNamespace"].(string)
+	rendered := make(map[string]struct{})
+	postProcess := r.infraManifestPostProcess(ctx, log, rendered)
 
-	return r.renderAndApplyTemplates(ctx, "infra/infra", tmplVars, r.clientInfra, log, "infra", skipFile, postProcess)
+	err = r.renderAndApplyTemplates(ctx, "infra/infra", tmplVars, r.clientInfra, log, "infra", skipFile, postProcess)
+	return infraNamespace, rendered, err
 }
 
 // renderAndApplyRuntimeTemplates renders all templates in gotemplates/infra/runtime and applies them.
@@ -1114,22 +1123,26 @@ func (r *DeploymentSubroutine) renderAndApplyRuntimeTemplates(ctx context.Contex
 
 // renderAndApplyComponentsInfraTemplates renders gotemplates/components/infra with profile-components.yaml
 // and applies the resulting manifests to the infra cluster.
-func (r *DeploymentSubroutine) renderAndApplyComponentsInfraTemplates(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON) (map[string]struct{}, error) {
+// Returns the namespace the HelmReleases are rendered into and their keys.
+func (r *DeploymentSubroutine) renderAndApplyComponentsInfraTemplates(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON) (string, map[string]struct{}, error) {
 	log := logger.LoadLoggerFromContext(ctx).ChildLogger("subroutine", r.GetName())
 
-	tmplVars, disabled, err := r.buildComponentsTemplateVars(ctx, inst, templateVars)
+	tmplVars, _, err := r.buildComponentsTemplateVars(ctx, inst, templateVars)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to build components template data for infra")
-		return nil, err
+		return "", nil, err
 	}
 
 	deploymentTech, _ := tmplVars["deploymentTechnology"].(string)
 	deploymentTech = strings.ToLower(deploymentTech)
 
 	skipFile := deploymentTechFileFilter(deploymentTech, log)
-	postProcess := r.infraManifestPostProcess(ctx, log)
+	componentsNamespace, _ := tmplVars["deploymentNamespace"].(string)
+	rendered := make(map[string]struct{})
+	postProcess := r.infraManifestPostProcess(ctx, log, rendered)
 
-	return disabled, r.renderAndApplyTemplates(ctx, "components/infra", tmplVars, r.clientInfra, log, "components-infra", skipFile, postProcess)
+	err = r.renderAndApplyTemplates(ctx, "components/infra", tmplVars, r.clientInfra, log, "components-infra", skipFile, postProcess)
+	return componentsNamespace, rendered, err
 }
 
 // renderAndApplyComponentsRuntimeTemplates renders gotemplates/components/runtime with profile-components.yaml
@@ -1160,7 +1173,7 @@ func (r *DeploymentSubroutine) createKCPWebhookSecret(ctx context.Context, inst 
 	}
 
 	// Continue to create the secret
-	obj, err := unstructuredFromFS(r.k8sManifests, "rebac-auth-webhook/kcp-webhook-secret.yaml", map[string]any{}, log)
+	obj, err := unstructuredFromFS(r.k8sManifests, kcpWebhookSecretManifest, map[string]any{}, log)
 	if err != nil {
 		return err
 	}
@@ -1173,11 +1186,39 @@ func (r *DeploymentSubroutine) createKCPWebhookSecret(ctx context.Context, inst 
 	return nil
 }
 
+// kcpWebhookServers returns the server of every cluster in the kubeconfig
+// of the kcp webhook secret manifest, keyed by cluster name.
+func (r *DeploymentSubroutine) kcpWebhookServers(log *logger.Logger) (map[string]string, error) {
+	obj, err := unstructuredFromFS(r.k8sManifests, kcpWebhookSecretManifest, map[string]any{}, log)
+	if err != nil {
+		return nil, err
+	}
+	raw, found, err := unstructured.NestedString(obj.Object, "stringData", "kubeconfig")
+	if err != nil {
+		return nil, fmt.Errorf("reading kubeconfig of %s: %w", kcpWebhookSecretManifest, err)
+	}
+	if !found {
+		return nil, fmt.Errorf("kubeconfig not found in %s", kcpWebhookSecretManifest)
+	}
+	kubeconfig, err := clientcmd.Load([]byte(raw))
+	if err != nil {
+		return nil, fmt.Errorf("loading kubeconfig of %s: %w", kcpWebhookSecretManifest, err)
+	}
+
+	servers := make(map[string]string, len(kubeconfig.Clusters))
+	for name, cluster := range kubeconfig.Clusters {
+		if cluster != nil {
+			servers[name] = cluster.Server
+		}
+	}
+	return servers, nil
+}
+
 func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 	operatorCfg := pmconfig.LoadConfigFromContext(ctx).(config.OperatorConfig)
 
-	// Retrieve the ca.crt from the rebac-authz-webhook-cert secret
+	// Retrieve the ca.crt from the pm-openfga-authz-webhook-cert secret
 	caSecretName := operatorCfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName
 	webhookCertSecret, err := GetSecret(r.clientRuntime, caSecretName, inst.Namespace)
 	if err != nil {
@@ -1227,6 +1268,12 @@ func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst 
 		return subroutines.OK(), err
 	}
 
+	servers, err := r.kcpWebhookServers(log)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to read the servers of the kcp webhook secret manifest")
+		return subroutines.OK(), err
+	}
+
 	// Update the certificate-authority-data in all clusters only if it actually changed
 	updated := false
 	for clusterName, cluster := range kubeconfig.Clusters {
@@ -1235,6 +1282,12 @@ func (r *DeploymentSubroutine) updateKcpWebhookSecret(ctx context.Context, inst 
 			kubeconfig.Clusters[clusterName] = cluster
 			updated = true
 			log.Debug().Str("cluster", clusterName).Msg("Updated certificate-authority-data in cluster")
+		}
+		// The secret is only created when missing, so an existing one keeps the server it was created with.
+		if server, ok := servers[clusterName]; ok && cluster != nil && cluster.Server != server {
+			cluster.Server = server
+			updated = true
+			log.Debug().Str("cluster", clusterName).Str("server", server).Msg("Updated server in cluster")
 		}
 	}
 
@@ -1411,7 +1464,7 @@ func (r *DeploymentSubroutine) hasIstioProxyInjected(ctx context.Context, labelS
 func (r *DeploymentSubroutine) manageAuthorizationWebhookSecrets(ctx context.Context, inst *pmcorev1alpha1.PlatformMesh) (subroutines.Result, error) {
 	// The serving certificate is signed by a long-lived CA, so renewing it keeps the CA that kcp trusts.
 	for _, file := range []string{"selfsigned-issuer.yaml", "ca-cert.yaml", "ca-issuer.yaml", "webhook-cert.yaml"} {
-		if err := applyManifestFromFileWithMergedValues(ctx, r.k8sManifests, "rebac-auth-webhook/"+file, r.clientRuntime, map[string]any{}); err != nil {
+		if err := applyManifestFromFileWithMergedValues(ctx, r.k8sManifests, "pm-openfga-authz-webhook/"+file, r.clientRuntime, map[string]any{}); err != nil {
 			return subroutines.OK(), err
 		}
 	}

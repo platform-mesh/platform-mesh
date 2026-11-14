@@ -136,7 +136,7 @@ jobs:
           set -euo pipefail
           # Older bump PRs for the same chart are dead once any of them merges.
           # Match on the title suffix, not the branch prefix: chart names overlap
-          # (security-operator vs. security-operator-crds).
+          # (platform-mesh-operator vs. platform-mesh-operator-crds).
           gh pr list --state open --author "app/platform-mesh-publisher" \
             --json number,title,headRefName --limit 100 \
           | jq -r --arg chart "$CHART" --arg branch "$BRANCH" '

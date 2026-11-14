@@ -29,7 +29,11 @@ spec:
     # virtual workspace, which only serves clusters bound to that export.
     - export: ui.platform-mesh.io
       path: root:platform-mesh-system
-{{- if eq .featureEnableTerminalControllerManager "true" }}
+{{- if not .featureDisableKeycloak }}
+    - export: keycloak.platform-mesh.io
+      path: root:platform-mesh-system
+{{- end }}
+{{- if .featureEnableTerminalControllerManager }}
     - export: terminal.platform-mesh.io
       path: root:platform-mesh-system
 {{- end }}
@@ -50,5 +54,7 @@ spec:
     with:
       - name: universal
         path: root
-      - name: security
+{{- if not .featureDisableOpenFGA }}
+      - name: openfga
         path: root
+{{- end }}

@@ -31,10 +31,16 @@ spec:
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
+    deprecated: true
+    deprecationWarning: core.platform-mesh.io/v1alpha1 Store is deprecated, use openfga.platform-mesh.io/v1alpha1
+      Store
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Store is the Schema for the stores API.
+        description: |-
+          Store is the Schema for the stores API.
+
+          Deprecated: use openfga.platform-mesh.io/v1alpha1 Store.
         properties:
           apiVersion:
             description: |-

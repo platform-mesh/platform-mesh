@@ -39,9 +39,10 @@ yq=${YQ:-yq}
 tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
 
-# The deployed manifests are Go templates: quote the expressions so the file
-# parses as YAML. The copied values keep the expression as a string.
-sed -E "s/([:[:space:]])(\{\{[^}]*\}\})/\1'\2'/g" "$dep" > "$tmp"
+# The deployed manifests are Go templates: drop the control lines (feature
+# toggles) and quote the expressions so the file parses as YAML. The copied
+# values keep the expression as a string.
+sed -E -e '/^\s*\{\{-? *(if|else|end|range|with)\b.*\}\}\s*$/d' -e "s/([:[:space:]])(\{\{[^}]*\}\})/\1'\2'/g" "$dep" > "$tmp"
 
 toplevel=$(git rev-parse --show-toplevel)
 NOTE="Copied from ${dep#"$toplevel"/} by hack/sync-export-claims.sh (task generate). Do not edit here."

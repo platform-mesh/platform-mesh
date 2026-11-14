@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
 	fgamocks "go.platform-mesh.io/iam-service/pkg/fga/mocks"
@@ -170,7 +171,7 @@ func TestService_AssignRolesToUsers_WithInvites_UserDoesNotExist(t *testing.T) {
 
 	// Create scheme with security operator API
 	scheme := runtime.NewScheme()
-	err := pmcorev1alpha1.AddToScheme(scheme)
+	err := pmkeycloakv1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	mockWsClient := fake.NewClientBuilder().
@@ -590,7 +591,7 @@ func TestService_AssignRolesToUsers_WithInvites_InvalidEmail(t *testing.T) {
 
 	// Create scheme with security operator API
 	scheme := runtime.NewScheme()
-	err := pmcorev1alpha1.AddToScheme(scheme)
+	err := pmkeycloakv1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	mockWsClient := fake.NewClientBuilder().

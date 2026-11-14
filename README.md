@@ -29,7 +29,8 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 |----------|-------------|
 | [account-operator](operators/account-operator) | Manages the core `Account` grouping resource and its owned namespace. |
 | [extension-manager-operator](operators/extension-manager-operator) | Lifecycle management of `ContentConfiguration` resources for Micro Frontends. |
-| [security-operator](operators/security-operator) | Manages security-related configuration (authorization models, identity providers, tuples, stores, invites). |
+| [pm-keycloak-operator](operators/pm-keycloak-operator) | Manages the Keycloak identity provider: realms and OIDC clients (`IdentityProviderConfiguration`), user invites (`Invite`) and the per-organization kcp authentication configuration. |
+| [pm-openfga-operator](operators/pm-openfga-operator) | Manages OpenFGA authorization: stores, authorization models, tuples (`Store`, `AuthorizationModel`) and provider access to organizations (`APIExportPolicy`). |
 | [terminal-controller-manager](operators/terminal-controller-manager) | Manages browser-based terminal sessions (ephemeral pods) to kcp workspaces. |
 
 ### Services
@@ -38,7 +39,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 |---------|-------------|
 | [iam-service](services/iam-service) | GraphQL API for user and role management, driving OpenFGA and the identity provider (Keycloak). |
 | [virtual-workspaces](services/virtual-workspaces) | Custom kcp-based virtual workspaces that expose tailored data to UIs. |
-| [rebac-authz-webhook](services/rebac-authz-webhook) | Kubernetes authorization webhook backed by OpenFGA (ReBAC). |
+| [pm-openfga-authz-webhook](services/pm-openfga-authz-webhook) | kcp authorization webhook backed by OpenFGA (ReBAC). |
 | [kubernetes-graphql-gateway](services/kubernetes-graphql-gateway) | Exposes Kubernetes resources as a GraphQL API for UIs and tools. |
 
 ## Getting started

@@ -76,22 +76,22 @@ spec:
         crd: {}
     - group: core.platform-mesh.io
       name: apiexportpolicies
-      schema: v260622-69fb9437.apiexportpolicies.core.platform-mesh.io
+      schema: v261111-1e4f8d47.apiexportpolicies.core.platform-mesh.io
       storage:
         crd: {}
     - group: core.platform-mesh.io
       name: authorizationmodels
-      schema: v260622-69fb9437.authorizationmodels.core.platform-mesh.io
+      schema: v261111-4a97ee37.authorizationmodels.core.platform-mesh.io
       storage:
         crd: {}
     - group: core.platform-mesh.io
       name: identityproviderconfigurations
-      schema: v260622-69fb9437.identityproviderconfigurations.core.platform-mesh.io
+      schema: v261111-3fc0b5de.identityproviderconfigurations.core.platform-mesh.io
       storage:
         crd: {}
     - group: core.platform-mesh.io
       name: invites
-      schema: v260622-69fb9437.invites.core.platform-mesh.io
+      schema: v261111-07dc9650.invites.core.platform-mesh.io
       storage:
         crd: {}
     - group: core.platform-mesh.io
@@ -101,7 +101,7 @@ spec:
         crd: {}
     - group: core.platform-mesh.io
       name: stores
-      schema: v260622-69fb9437.stores.core.platform-mesh.io
+      schema: v261111-f39e9489.stores.core.platform-mesh.io
       storage:
         crd: {}
 status: {}

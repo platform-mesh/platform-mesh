@@ -169,6 +169,8 @@ spec:
 | `feature-disable-email-verification` | Disables email verification requirement in WorkspaceAuthenticationConfiguration |
 | `feature-disable-contentconfigurations` | Disables loading of all ContentConfiguration manifests during KCP setup |
 | `feature-disable-idp-webhook` | - Disables the IDP validating webhook. This removes important security validation for IdentityProviderConfiguration resources. Production deployments should run with this webhook enabled. |
+| `feature-disable-openfga` | Runs Platform Mesh without OpenFGA: the `openfga`/`provider-openfga` APIExports and bindings, the `orgs` Store, the `openfga` WorkspaceType on organizations and accounts and the ReBAC authorization webhook kubeconfig are not applied. The profile must have `openfga`, `pm-openfga-operator`, `pm-openfga-authz-webhook`, `iam-service`, `iam-ui` and kcp's authorization webhook disabled, otherwise the deployment is refused. Disabling the `openfga` service removes its HelmRelease only, the CNPG `openfga` role and database keep the data. |
+| `feature-disable-keycloak` | Runs Platform Mesh without the Keycloak identity provider: the `welcome` IdentityProviderConfiguration, the `orgs-authentication` WorkspaceAuthenticationConfiguration and the IDP validating webhook are not applied. Platform Mesh then neither configures nor maintains an identity provider, users authenticate through the external IdPs configured on the instance. The profile must have `pm-keycloak-operator`, `iam-service`, `iam-ui` and the Keycloak instance disabled, otherwise the deployment is refused. Disabling the instance removes the Keycloak CR only, the CNPG `keycloak` role and database keep the data. |
 
 ### Wait Configuration
 
@@ -215,7 +217,7 @@ The operator binary accepts the following CLI flags (defined in `internal/config
 | `--subroutines-deployment-enabled` | `true` | Enable deployment subroutine |
 | `--subroutines-deployment-enable-istio` | `true` | Enable Istio integration |
 | `--authorization-webhook-secret-name` | `kcp-webhook-secret` | Authorization webhook secret name |
-| `--authorization-webhook-secret-ca-name` | `rebac-authz-webhook-cert` | Authorization webhook CA secret name |
+| `--authorization-webhook-secret-ca-name` | `pm-openfga-authz-webhook-cert` | Authorization webhook CA secret name |
 | `--subroutines-kcp-setup-enabled` | `true` | Enable KCP setup subroutine |
 | `--domain-certificate-ca-secret-name` | `domain-certificate` | Domain certificate CA secret name |
 | `--domain-certificate-ca-secret-key` | `ca.crt` | Domain certificate CA secret key |

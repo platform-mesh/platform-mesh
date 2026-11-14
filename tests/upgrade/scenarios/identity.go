@@ -140,6 +140,8 @@ func accountIdentity(parent, name string) identity {
 // organizationIdentity is what the users and roles of the organization hang
 // on, beyond accountIdentity: its authorization store, and the OIDC client
 // that kubeconfigs handed out to its users name.
+//
+//nolint:staticcheck // the deprecated kind must keep working for existing integrations
 func organizationIdentity(org string) identity {
 	return func(ctx context.Context, env Environment) (map[string]string, error) {
 		cl, err := adminClient(ctx, env, tenant.OrgsPath)

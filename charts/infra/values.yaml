@@ -109,7 +109,7 @@ kcp:
   webhook:
     enabled: true
     caData: ""
-    server: https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz
+    server: https://pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz
     authorizationWebhookSecretName: kcp-webhook-secret
     port: 9443
     version: v1
@@ -168,7 +168,7 @@ openfga:
   rbac:
     writePrincipals:
       - cluster.local/ns/platform-mesh-system/sa/iam-service
-      - cluster.local/ns/platform-mesh-system/sa/security-operator
+      - cluster.local/ns/platform-mesh-system/sa/pm-openfga-operator
       - cluster.local/ns/platform-mesh-system/sa/account-operator
 
 keycloak:

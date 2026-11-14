@@ -83,10 +83,15 @@ components:
     path: operators/resource-broker
     image: resource-broker
     optional: true # no chart: nothing installs it
-  security-operator:
-    path: operators/security-operator
-    image: security-operator
-    chart: charts/security-operator
+  pm-keycloak-operator:
+    path: operators/pm-keycloak-operator
+    image: pm-keycloak-operator
+    chart: charts/pm-keycloak-operator
+    e2e: false # no e2e suite; test-e2e is a no-op
+  pm-openfga-operator:
+    path: operators/pm-openfga-operator
+    image: pm-openfga-operator
+    chart: charts/pm-openfga-operator
   terminal-controller-manager:
     path: operators/terminal-controller-manager
     image: terminal-controller-manager
@@ -102,10 +107,10 @@ components:
     path: services/kubernetes-graphql-gateway
     image: kubernetes-graphql-gateway
     chart: charts/kubernetes-graphql-gateway
-  rebac-authz-webhook:
-    path: services/rebac-authz-webhook
-    image: rebac-authz-webhook
-    chart: charts/rebac-authz-webhook
+  pm-openfga-authz-webhook:
+    path: services/pm-openfga-authz-webhook
+    image: pm-openfga-authz-webhook
+    chart: charts/pm-openfga-authz-webhook
   virtual-workspaces:
     path: services/virtual-workspaces
     image: virtual-workspaces

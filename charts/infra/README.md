@@ -145,7 +145,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.webhook.caData | string | `""` |  |
 | kcp.webhook.enabled | bool | `true` |  |
 | kcp.webhook.port | int | `9443` |  |
-| kcp.webhook.server | string | `"https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz"` |  |
+| kcp.webhook.server | string | `"https://pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz"` |  |
 | kcp.webhook.version | string | `"v1"` |  |
 | keycloak.domain | object | `{"name":"platform-mesh.io","pathPrefix":"/keycloak"}` | domain configuration |
 | keycloak.domain.name | string | `"platform-mesh.io"` | domain name |
@@ -207,7 +207,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | keycloak.service.name | string | `"keycloak"` | service name |
 | keycloak.service.port | int | `80` | service port |
 | openfga.rbac.writePrincipals[0] | string | `"cluster.local/ns/platform-mesh-system/sa/iam-service"` |  |
-| openfga.rbac.writePrincipals[1] | string | `"cluster.local/ns/platform-mesh-system/sa/security-operator"` |  |
+| openfga.rbac.writePrincipals[1] | string | `"cluster.local/ns/platform-mesh-system/sa/pm-openfga-operator"` |  |
 | openfga.rbac.writePrincipals[2] | string | `"cluster.local/ns/platform-mesh-system/sa/account-operator"` |  |
 
 ## Overriding Values

@@ -24,7 +24,7 @@ on:
   workflow_call:
     inputs:
       imageRef:
-        description: 'Full image reference to scan (e.g. ghcr.io/platform-mesh/security-operator:1.2.3)'
+        description: 'Full image reference to scan (e.g. ghcr.io/platform-mesh/pm-openfga-operator:1.2.3)'
         required: true
         type: string
       sarifCategory:

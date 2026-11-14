@@ -1,0 +1,145 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package controller
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	platformeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/controller/filter"
+	"go.platform-mesh.io/golang-commons/controller/lifecycle/ratelimiter"
+	"go.platform-mesh.io/golang-commons/logger"
+	iclient "go.platform-mesh.io/pm-keycloak-operator/internal/client"
+	"go.platform-mesh.io/pm-keycloak-operator/internal/metrics"
+	"go.platform-mesh.io/pm-keycloak-operator/internal/subroutine"
+	"go.platform-mesh.io/pm-keycloak-operator/pkg/config"
+	"go.platform-mesh.io/subroutines"
+	"go.platform-mesh.io/subroutines/lifecycle"
+
+	"k8s.io/client-go/util/workqueue"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
+
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+)
+
+// ControllerOptions configures optional lifecycle behaviour
+type ControllerOptions struct {
+	Name            string
+	InitializerName string
+	TerminatorName  string
+}
+
+type OrgLogicalClusterController struct {
+	engageOpts  mcbuilder.EngageOptions
+	log         *logger.Logger
+	name        string
+	lifecycle   *lifecycle.Lifecycle
+	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
+}
+
+func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.KCPClientGetter, cfg config.Config, inClusterClient ctrlruntimeclient.Client, mgr mcmanager.Manager, opts ControllerOptions) (*OrgLogicalClusterController, error) {
+	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
+	}
+
+	subs, err := orgSubroutines(cfg, mgr, kcpClientGetter, inClusterClient)
+	if err != nil {
+		return nil, err
+	}
+	lc := lifecycle.New(mgr, opts.Name, func() ctrlruntimeclient.Object {
+		return &kcpcorev1alpha1.LogicalCluster{}
+	}, subs...)
+
+	if opts.InitializerName != "" {
+		lc = lc.WithInitializer(opts.InitializerName)
+	}
+	if opts.TerminatorName != "" {
+		lc = lc.WithTerminator(opts.TerminatorName)
+	}
+
+	return &OrgLogicalClusterController{
+		log:         log,
+		name:        opts.Name,
+		lifecycle:   lc,
+		rateLimiter: rl,
+	}, nil
+}
+
+// orgSubroutines builds the organization subroutine chain from the initializer toggles.
+func orgSubroutines(cfg config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, inClusterClient ctrlruntimeclient.Client) ([]subroutines.Subroutine, error) {
+	var subs []subroutines.Subroutine
+
+	if cfg.Initializer.IDPEnabled {
+		idpSub, err := subroutine.NewIDPSubroutine(mgr, kcpClientGetter, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("creating IDP subroutine: %w", err)
+		}
+		subs = append(subs, idpSub)
+	}
+	if cfg.Initializer.InviteEnabled {
+		inviteSub, err := subroutine.NewInviteSubroutine(mgr, kcpClientGetter)
+		if err != nil {
+			return nil, fmt.Errorf("creating Invite subroutine: %w", err)
+		}
+		subs = append(subs, inviteSub)
+	}
+	if cfg.Initializer.WorkspaceAuthEnabled {
+		subs = append(subs, subroutine.NewWorkspaceAuthConfigurationSubroutine(inClusterClient, mgr, kcpClientGetter, cfg))
+	}
+	return subs, nil
+}
+
+func (r *OrgLogicalClusterController) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+	start := time.Now()
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	labelResult := "success"
+	if err != nil {
+		labelResult = "error"
+	}
+	metrics.ReconcileTotal.WithLabelValues(r.name, labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues(r.name).Observe(time.Since(start).Seconds())
+	return result, err
+}
+
+// WithEngageOptions limits which clusters the controller engages with; by default it engages all.
+func (r *OrgLogicalClusterController) WithEngageOptions(opts mcbuilder.EngageOptions) *OrgLogicalClusterController {
+	r.engageOpts = opts
+	return r
+}
+
+func (r *OrgLogicalClusterController) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
+		RateLimiter:             r.rateLimiter,
+	}
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named(r.name).
+		For(&kcpcorev1alpha1.LogicalCluster{}, r.engageOpts).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
+		Complete(r)
+}

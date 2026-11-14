@@ -27,11 +27,16 @@ spec:
     singular: identityproviderconfiguration
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - deprecated: true
+    deprecationWarning: core.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
+      is deprecated, use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: IdentityProviderConfiguration is the Schema for the identityproviderconfigurations
-          API
+        description: |-
+          IdentityProviderConfiguration is the Schema for the identityproviderconfigurations API
+
+          Deprecated: use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration.
         properties:
           apiVersion:
             description: |-

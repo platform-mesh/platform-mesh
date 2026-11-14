@@ -12,38 +12,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: apis.kcp.io/v1alpha1
+apiVersion: apis.kcp.io/v1alpha2
 kind: APIExport
 metadata:
   creationTimestamp: null
   name: system.platform-mesh.io
 spec:
-  latestResourceSchemas:
-  - v260217-2c67392.identityproviderconfigurations.core.platform-mesh.io
-  - v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
+  resources:
+  - group: core.platform-mesh.io
+    name: identityproviderconfigurations
+    schema: v261110-3fc0b5de.identityproviderconfigurations.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
+    name: apiexportpolicies
+    schema: v261110-1e4f8d47.apiexportpolicies.core.platform-mesh.io
+    storage:
+      crd: {}
   permissionClaims:
-    - all: true
-      group: tenancy.kcp.io
+    - group: tenancy.kcp.io
       identityHash: {{ .apiExportRootTenancyKcpIoIdentityHash }}
       resource: workspaces
-    - all: true
-      group: tenancy.kcp.io
+      verbs:
+      - '*'
+    - group: tenancy.kcp.io
       identityHash: {{ .apiExportRootTenancyKcpIoIdentityHash }}
       resource: workspacetypes
+      verbs:
+      - '*'
     - resource: apibindings
       group: apis.kcp.io
-      all: true
       identityHash: ""
+      verbs:
+      - '*'
     - resource: apiexports
       group: apis.kcp.io
-      all: true
       identityHash: ""
+      verbs:
+      - '*'
     - resource: apiresourceschemas
       group: apis.kcp.io
-      all: true
       identityHash: ""
+      verbs:
+      - '*'
     - resource: logicalclusters
       group: core.kcp.io
-      all: true
       identityHash: ""
+      verbs:
+      - '*'
 status: {}

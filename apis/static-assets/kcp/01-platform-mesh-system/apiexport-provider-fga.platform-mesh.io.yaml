@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if not .featureDisableOpenFGA }}
 apiVersion: apis.kcp.io/v1alpha2
 kind: APIExport
 metadata:
@@ -25,7 +26,8 @@ spec:
   resources:
   - group: core.platform-mesh.io
     name: authorizationmodels
-    schema: v260112-5925c7e.authorizationmodels.core.platform-mesh.io
+    schema: v261110-4a97ee37.authorizationmodels.core.platform-mesh.io
     storage:
       crd: {}
 status: {}
+{{- end }}

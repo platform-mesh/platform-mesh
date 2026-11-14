@@ -634,12 +634,12 @@ data:
               protocol: https
             kcp:
               kubeconfigSecret: portal-kubeconfig
-        rebac-authz-webhook:
+        pm-openfga-authz-webhook:
           imageResources:
           - annotations:
               repo: oci
               artifact: image
-              for: rebac-authz-webhook
+              for: pm-openfga-authz-webhook
           syncWave: 4
           enabled: true
           values:
@@ -656,13 +656,13 @@ data:
               enabled: true
             istio:
               dnsNames:
-              - rebac-authz-webhook.platform-mesh-system.svc.cluster.local
+              - pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local
               exposed: false
             log:
               level: debug
             openfga:
               url: openfga:8081
-        security-operator:
+        pm-openfga-operator:
           syncWave: 4
           enabled: true
           values:
@@ -688,13 +688,13 @@ data:
               enabled: true
               entries: *hostAliasesEntries
             initializer:
-              kubeconfigSecret: security-initializer-kubeconfig
-            kubeconfigSecret: security-operator-kubeconfig
+              kubeconfigSecret: openfga-initializer-kubeconfig
+            kubeconfigSecret: pm-openfga-operator-kubeconfig
             log:
               level: debug
               noJson: true
             terminator:
-              kubeconfigSecret: security-terminator-kubeconfig
+              kubeconfigSecret: openfga-terminator-kubeconfig
         terminal-controller-manager:
           enabled: false
         virtual-workspaces:

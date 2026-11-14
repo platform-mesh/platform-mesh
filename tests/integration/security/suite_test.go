@@ -25,16 +25,19 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
-	securityresources "go.platform-mesh.io/apis/static-assets/resources/security-operator"
+	kcpmanifests "go.platform-mesh.io/apis/static-assets/kcp"
+	coreresources "go.platform-mesh.io/apis/static-assets/resources/account-operator"
+	openfgaresources "go.platform-mesh.io/apis/static-assets/resources/pm-openfga-operator"
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh/tests/framework/fixtures"
 	"go.platform-mesh.io/platform-mesh/tests/framework/kcp"
 	"go.platform-mesh.io/platform-mesh/tests/framework/manager"
 	"go.platform-mesh.io/platform-mesh/tests/framework/scheme"
-	"go.platform-mesh.io/security-operator/pkg/app"
-	"go.platform-mesh.io/security-operator/pkg/config"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/app"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,10 +53,10 @@ import (
 )
 
 const (
-	coreExport        = "core.platform-mesh.io"
-	providersExport   = "providers.platform-mesh.io"
-	fgaExport         = "fga.platform-mesh.io"
-	providerFgaExport = "provider-fga.platform-mesh.io"
+	coreExport            = "core.platform-mesh.io"
+	providersExport       = "providers.platform-mesh.io"
+	openfgaExport         = "openfga.platform-mesh.io"
+	providerOpenfgaExport = "provider-openfga.platform-mesh.io"
 )
 
 // IntegrationSuite shares one platform-mesh-system and one model-generator
@@ -76,21 +79,24 @@ func (s *IntegrationSuite) SetupSuite() {
 	var err error
 	s.env, err = kcp.Security(t.Context())
 	require.NoError(t, err)
-	s.scheme = scheme.New(t, pmcorev1alpha1.AddToScheme, pmprovidersv1alpha1.AddToScheme)
+	s.scheme = scheme.New(t, pmcorev1alpha1.AddToScheme, pmopenfgav1alpha1.AddToScheme, pmprovidersv1alpha1.AddToScheme)
 	s.platform = fixtures.Install(t, s.env,
 		fixtures.WithScheme(s.scheme),
-		fixtures.WithResources(securityresources.Resources, "*.yaml"),
-		// The deployed manifests serve Stores and AuthorizationModels from
-		// exports of their own (sharing core's identity); apigen puts the
-		// whole group into core.platform-mesh.io.
-		fixtures.WithExport(fgaExport, coreExport, "stores"),
-		fixtures.WithExport(providerFgaExport, coreExport, "authorizationmodels"),
+		// core from account-operator's apigen output, providers from the
+		// deployed manifests (no component generates a copy of them).
+		fixtures.WithResources(coreresources.Resources, "*.yaml"),
+		fixtures.WithResources(kcpmanifests.Resources, "01-platform-mesh-system/apiexport-providers.platform-mesh.io.yaml"),
+		fixtures.WithResources(kcpmanifests.Resources, "01-platform-mesh-system/apiresourceschema-provider*.providers.platform-mesh.io.yaml"),
+		fixtures.WithResources(openfgaresources.Resources, "*.yaml"),
+		// The deployed manifests serve AuthorizationModels from an export of
+		// their own; apigen puts the whole group into openfga.platform-mesh.io.
+		fixtures.WithExport(providerOpenfgaExport, openfgaExport, "authorizationmodels"),
 		// platform-mesh-system plays the provider in these tests, so it binds
 		// provider-fga and holds the AuthorizationModels.
-		fixtures.WithBindings(coreExport, providersExport, providerFgaExport),
+		fixtures.WithBindings(coreExport, providersExport, providerOpenfgaExport),
 		// Orgs hold their Store; in production the security-operator's org
 		// initializer (not run here) binds fga.platform-mesh.io for them.
-		fixtures.WithDefaultBindings("org", fgaExport),
+		fixtures.WithDefaultBindings("org", openfgaExport),
 		fixtures.WithOrgs(),
 	)
 	s.systemClient = s.platform.SystemClient
@@ -106,13 +112,13 @@ func (s *IntegrationSuite) setupControllers(t *testing.T) {
 	log, err := logger.New(logcfg)
 	require.NoError(t, err, "creating operator logger")
 
-	byExport := manager.Providers(t, s.env, s.platform.System, s.scheme, coreExport, providersExport, fgaExport, providerFgaExport)
+	byExport := manager.Providers(t, s.env, s.platform.System, s.scheme, coreExport, providersExport, openfgaExport, providerOpenfgaExport)
 	// The operator finds its clusters by provider name prefix (config.MultiProviderName).
 	providers := map[string]*apiexport.Provider{
-		config.CoreProviderName:        byExport[coreExport],
-		config.ProvidersProviderName:   byExport[providersExport],
-		config.FgaProviderName:         byExport[fgaExport],
-		config.ProviderFgaProviderName: byExport[providerFgaExport],
+		config.CoreProviderName:            byExport[coreExport],
+		config.ProvidersProviderName:       byExport[providersExport],
+		config.OpenfgaProviderName:         byExport[openfgaExport],
+		config.ProviderOpenfgaProviderName: byExport[providerOpenfgaExport],
 	}
 	mgr, _ := manager.New(t, s.env, s.platform.System, s.scheme, providers)
 
@@ -145,7 +151,7 @@ func (s *IntegrationSuite) createAccount(t *testing.T, cl ctrlruntimeclient.Clie
 // createTestStore creates a minimal Store, which must exist before an
 // AuthorizationModel can bind to it.
 func (s *IntegrationSuite) createTestStore(t *testing.T, cl ctrlruntimeclient.Client, storeName string) {
-	store := &pmcorev1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: storeName}}
+	store := &pmopenfgav1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: storeName}}
 	if err := cl.Create(t.Context(), store); err != nil && !apierrors.IsAlreadyExists(err) {
 		s.Require().NoError(err)
 	}

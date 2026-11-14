@@ -20,7 +20,9 @@ load("../helpers.py", "TILT_DIR", "kind_in", "profile_chart", "profile_values_fi
 load(
     "./settings.Tiltfile",
     "BASE_DOMAIN",
+    "KEYCLOAK",
     "KUBECTL",
+    "OPENFGA",
     "NAMESPACE",
     "PORT",
     "TEMPLATE_VARS",
@@ -41,22 +43,23 @@ k8s_resource(
     labels=["infra"],
 )
 
-openfga = remote_chart(
-    "openfga",
-    "oci://ghcr.io/openfga/helm-charts",
-    third_party_version("openfga", "chart"),
-    NAMESPACE,
-    values=[profile_values_file("openfga", TEMPLATE_VARS)],
-)
-k8s_yaml(openfga)
-# openfga now uses the shared CNPG postgres (see the openfga-cnpg migration);
-# it no longer ships its own postgres, so wait on "postgres-ready".
-k8s_resource(
-    "openfga",
-    objects=select_objects(openfga, lambda o: True),
-    resource_deps=["namespace", "postgres-ready"],
-    labels=["infra"],
-)
+if OPENFGA:
+    openfga = remote_chart(
+        "openfga",
+        "oci://ghcr.io/openfga/helm-charts",
+        third_party_version("openfga", "chart"),
+        NAMESPACE,
+        values=[profile_values_file("openfga", TEMPLATE_VARS)],
+    )
+    k8s_yaml(openfga)
+    # openfga now uses the shared CNPG postgres (see the openfga-cnpg migration);
+    # it no longer ships its own postgres, so wait on the "postgres-ready" resource.
+    k8s_resource(
+        "openfga",
+        objects=select_objects(openfga, lambda o: True),
+        resource_deps=["namespace", "postgres-ready"],
+        labels=["infra"],
+    )
 
 # The profile's 8443 literals mean "external port"; here that is the NodePort.
 
@@ -84,8 +87,10 @@ infra = profile_chart(
             "cacheServer": {"replicas": 1, "resources": NO_REQUESTS},
             "frontProxy": {"resources": NO_REQUESTS},
             "etcd": {"resources": NO_REQUESTS, "backup": {"resources": NO_REQUESTS}},
+            # The ReBAC authorization webhook is pm-openfga-authz-webhook, which needs OpenFGA.
+            "webhook": {"enabled": OPENFGA},
         },
-        "keycloak": {"operator": {"resources": NO_REQUESTS}},
+        "keycloak": {"operator": {"enabled": KEYCLOAK, "resources": NO_REQUESTS}},
     },
 )
 k8s_yaml(infra)
@@ -169,6 +174,7 @@ k8s_resource(
     extra_pod_selectors=[{"cnpg.io/cluster": "platform-mesh-pg"}],
     pod_readiness="wait",
 )
+
 # "postgres" turns Ready as soon as any cnpg.io/cluster pod is Ready, which
 # includes the short-lived initdb pod while initdb is still running. Consumers
 # (openfga's migrate-database init container, keycloak) then hit a database
@@ -184,17 +190,22 @@ local_resource(
     + KUBECTL
     + " wait databases.postgresql.cnpg.io --all --for=jsonpath='{.status.applied}'=true --timeout=5m",
 )
-k8s_resource(
-    new_name="keycloak",
-    objects=select_objects(
-        infra,
-        lambda o: o["kind"] == "Keycloak" or (o["kind"] == "Secret" and o["metadata"]["name"].startswith("keycloak-")),
-    ),
-    resource_deps=["keycloak-operator", "postgres-ready", "domain-certificate-ready"],
-    labels=["infra"],
-    extra_pod_selectors=[{"app": "keycloak"}],
-    pod_readiness="wait",
-)
+
+# Without Keycloak the chart still renders its HTTPRoute (it serves external
+# Keycloaks too); /keycloak then answers 503.
+if KEYCLOAK:
+    k8s_resource(
+        new_name="keycloak",
+        objects=select_objects(
+            infra,
+            lambda o: o["kind"] == "Keycloak" or (o["kind"] == "Secret" and o["metadata"]["name"].startswith("keycloak-")),
+        ),
+        resource_deps=["keycloak-operator", "postgres-ready", "domain-certificate-ready"],
+        labels=["infra"],
+        extra_pod_selectors=[{"app": "keycloak"}],
+        pod_readiness="wait",
+    )
+
 k8s_resource(
     new_name="gateway",
     objects=select_objects(infra, kind_in(["Gateway", "HTTPRoute", "TLSRoute"])),

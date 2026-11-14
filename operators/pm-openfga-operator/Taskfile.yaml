@@ -1,0 +1,158 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: "3"
+
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
+
+vars:
+  CRD_DIRECTORY: config/crd/bases
+
+tasks:
+  default:
+    cmds:
+      - task --list-all
+
+  ## Development
+  mockery:
+    deps: [tools:mockery]
+    cmds:
+      - "{{.MOCKERY}}"
+  manifests:
+    cmds:
+      - task: tools:generate-crds
+        vars:
+          PATH: /openfga/...
+          OUTPUT: '{{.CRD_DIRECTORY}}'
+  generate:
+    deps: [tools:yq]
+    cmds:
+      - task: manifests
+      - task: mockery
+      - task: tools:generate-deepcopy
+        vars:
+          PATH: /openfga/...
+      - "{{.APIGEN}} --input-dir {{.CRD_DIRECTORY}} --output-dir {{.TOPLEVEL}}/apis/static-assets/resources/pm-openfga-operator --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      # The deployed export's permission claims, copied so the generated
+      # export matches what the platform-mesh-operator installs.
+      - YQ={{.YQ}} {{.HACK}}/sync-export-claims.sh {{.TOPLEVEL}}/apis/static-assets/resources/pm-openfga-operator/apiexport-openfga.platform-mesh.io.yaml {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiexport-openfga.platform-mesh.io.yaml
+  build:
+    cmds:
+      - go build ./...
+  docker-build:
+    cmds:
+      - docker build .
+  ## Testing
+  clean:
+    cmds:
+      - rm -rf -- .test
+  fmt:
+    cmds:
+      - go fmt ./...
+  lint:
+    cmds:
+      - task: fmt
+      - task: tools:lint
+  test:
+    desc: Run unit tests.
+    cmds:
+      - go test -count=1 ./...
+  cover:
+    cmds:
+      - go test -count=1 -coverprofile=./cover.out -covermode=atomic ./...
+  validate:
+    cmds:
+      - task: lint
+      - task: test
+  assert-coverage:
+    deps: [tools:go-test-coverage]
+    cmds:
+      - task: cover
+      - "{{.GO_TEST_COVERAGE}} --profile cover.out --config ./.testcoverage.yml"
+  install:
+    cmds:
+      - kubectl apply -f config/crd/bases
+  uninstall:
+    cmds:
+      - kubectl delete -f config/crd/bases
+  run:
+    cmds:
+      - go run ./cmd/main.go operator
+
+  fuzz:
+    desc: "Run fuzz tests with a configurable duration (default 30s per target)"
+    vars:
+      FUZZTIME: '{{.FUZZTIME | default "30s"}}'
+    cmds:
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzStoreRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAuthorizationModelRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAPIExportPolicyRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+
+  docker:kind:load:
+    desc: "Build container image with current tag from kind cluster and load it into kind"
+    vars:
+      CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+      IMAGE_NAME:
+        sh: kubectl get deployment pm-openfga-operator -n {{.DEPLOYMENT_NAMESPACE}} -o jsonpath='{.spec.template.spec.containers[0].image}'
+    cmds:
+      - |
+        if [ -z "{{.IMAGE_NAME}}" ]; then
+          echo "Error: Could not determine IMAGE_NAME from deployment pm-openfga-operator in namespace {{.DEPLOYMENT_NAMESPACE}}"
+          exit 1
+        fi
+      - echo "Building image {{.IMAGE_NAME}} using {{.CONTAINER_RUNTIME}}"
+      - |
+        cd ../.. && {{.CONTAINER_RUNTIME}} build -f operators/pm-openfga-operator/Dockerfile -t {{.IMAGE_NAME}} .
+      - |
+        if [ "{{.CONTAINER_RUNTIME}}" = "podman" ]; then
+          {{.CONTAINER_RUNTIME}} save {{.IMAGE_NAME}} -o /tmp/kind-image.tar
+          kind load image-archive /tmp/kind-image.tar --name {{.KIND_CLUSTER}}
+          rm -f /tmp/kind-image.tar
+        else
+          kind load docker-image {{.IMAGE_NAME}} --name {{.KIND_CLUSTER}}
+        fi
+      - echo "Image loaded into kind cluster {{.KIND_CLUSTER}}"
+  docker:kind:restart:
+    desc: "Restart pm-openfga-operator deployments to pick up new image"
+    vars:
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+    cmds:
+      - kubectl rollout restart deployment/pm-openfga-operator -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/pm-openfga-operator-generator -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/pm-openfga-operator-initializer -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/pm-openfga-operator-terminator -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/pm-openfga-operator-system -n {{.DEPLOYMENT_NAMESPACE}}
+      - echo "All deployments restarted"
+  docker:kind:
+    desc: "Build container image, load it into kind cluster, and restart deployments"
+    vars:
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+      CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
+    cmds:
+      - task: docker:kind:load
+        vars:
+          DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
+          CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME}}'
+          KIND_CLUSTER: '{{.KIND_CLUSTER}}'
+      - task: docker:kind:restart
+        vars:
+          DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
