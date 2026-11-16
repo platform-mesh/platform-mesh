@@ -301,6 +301,8 @@ dex:
     pathPrefix: /dex
     # -- list of HTTPRoute filters (default: none)
     filters: []
+  # -- Connector for the OAuth2 password grant, which issues tokens without a browser; `local` is the static password database (default: grant disabled)
+  passwordConnector: ""
   staticClient:
     # -- OIDC client ID for Keycloak identity broker
     id: keycloak-broker

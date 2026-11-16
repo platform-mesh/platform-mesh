@@ -13,6 +13,9 @@ data:
       http: 0.0.0.0:{{ .Values.dex.service.port }}
     oauth2:
       skipApprovalScreen: true
+      {{- with .Values.dex.passwordConnector }}
+      passwordConnector: {{ . | quote }}
+      {{- end }}
     enablePasswordDB: true
     staticPasswords:
     {{- range .Values.dex.staticPasswords }}
