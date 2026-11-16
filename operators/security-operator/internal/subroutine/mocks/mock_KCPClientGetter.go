@@ -33,10 +33,19 @@ func NewMockKCPClientGetter(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockKCPClientGetter {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockKCPClientGetter{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -90,7 +99,7 @@ type MockKCPClientGetter_NewClientForLogicalCluster_Call struct {
 // NewClientForLogicalCluster is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cluster string
-func (_e *MockKCPClientGetter_Expecter) NewClientForLogicalCluster(ctx interface{}, cluster interface{}) *MockKCPClientGetter_NewClientForLogicalCluster_Call {
+func (_e *MockKCPClientGetter_Expecter) NewClientForLogicalCluster(ctx any, cluster any) *MockKCPClientGetter_NewClientForLogicalCluster_Call {
 	return &MockKCPClientGetter_NewClientForLogicalCluster_Call{Call: _e.mock.On("NewClientForLogicalCluster", ctx, cluster)}
 }
 
@@ -157,7 +166,7 @@ type MockKCPClientGetter_NewClientFromContext_Call struct {
 
 // NewClientFromContext is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockKCPClientGetter_Expecter) NewClientFromContext(ctx interface{}) *MockKCPClientGetter_NewClientFromContext_Call {
+func (_e *MockKCPClientGetter_Expecter) NewClientFromContext(ctx any) *MockKCPClientGetter_NewClientFromContext_Call {
 	return &MockKCPClientGetter_NewClientFromContext_Call{Call: _e.mock.On("NewClientFromContext", ctx)}
 }
 

@@ -3,7 +3,7 @@ module go.platform-mesh.io/golang-commons
 go 1.26.0
 
 require (
-	github.com/99designs/gqlgen v0.17.91
+	github.com/99designs/gqlgen v0.17.98
 	github.com/getsentry/sentry-go v0.47.0
 	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/go-logr/logr v1.4.4
@@ -21,8 +21,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/pflag v1.0.10
-	github.com/stretchr/testify v1.11.1
-	github.com/vektah/gqlparser/v2 v2.5.34
+	github.com/stretchr/testify v1.12.1
+	github.com/vektah/gqlparser/v2 v2.5.64
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.45.0
@@ -33,7 +33,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.0
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/grpc v1.83.2
-	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
+	google.golang.org/protobuf v1.36.12
 	k8s.io/api v0.36.4
 	k8s.io/apimachinery v0.36.4
 	k8s.io/client-go v0.36.4
@@ -88,8 +88,8 @@ require (
 	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/matryer/is v1.4.1 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.21 // indirect
+	github.com/mattn/go-colorable v0.1.16 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -120,7 +120,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20260709172345-9ea1abe57597 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect

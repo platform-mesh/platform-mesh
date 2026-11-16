@@ -35,10 +35,19 @@ func NewClusterCacheProvider(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *ClusterCacheProvider {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &ClusterCacheProvider{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -89,7 +98,7 @@ type ClusterCacheProvider_ClusterName_Call struct {
 
 // ClusterName is a helper method to define mock.On call
 //   - clusterPath string
-func (_e *ClusterCacheProvider_Expecter) ClusterName(clusterPath interface{}) *ClusterCacheProvider_ClusterName_Call {
+func (_e *ClusterCacheProvider_Expecter) ClusterName(clusterPath any) *ClusterCacheProvider_ClusterName_Call {
 	return &ClusterCacheProvider_ClusterName_Call{Call: _e.mock.On("ClusterName", clusterPath)}
 }
 
@@ -142,7 +151,7 @@ type ClusterCacheProvider_Engage_Call struct {
 //   - context1 context.Context
 //   - clusterName multicluster.ClusterName
 //   - cluster1 cluster.Cluster
-func (_e *ClusterCacheProvider_Expecter) Engage(context1 interface{}, clusterName interface{}, cluster1 interface{}) *ClusterCacheProvider_Engage_Call {
+func (_e *ClusterCacheProvider_Expecter) Engage(context1 any, clusterName any, cluster1 any) *ClusterCacheProvider_Engage_Call {
 	return &ClusterCacheProvider_Engage_Call{Call: _e.mock.On("Engage", context1, clusterName, cluster1)}
 }
 
@@ -212,7 +221,7 @@ type ClusterCacheProvider_Get_Call struct {
 
 // Get is a helper method to define mock.On call
 //   - clusterName multicluster.ClusterName
-func (_e *ClusterCacheProvider_Expecter) Get(clusterName interface{}) *ClusterCacheProvider_Get_Call {
+func (_e *ClusterCacheProvider_Expecter) Get(clusterName any) *ClusterCacheProvider_Get_Call {
 	return &ClusterCacheProvider_Get_Call{Call: _e.mock.On("Get", clusterName)}
 }
 
@@ -263,7 +272,7 @@ type ClusterCacheProvider_Start_Call struct {
 
 // Start is a helper method to define mock.On call
 //   - context1 context.Context
-func (_e *ClusterCacheProvider_Expecter) Start(context1 interface{}) *ClusterCacheProvider_Start_Call {
+func (_e *ClusterCacheProvider_Expecter) Start(context1 any) *ClusterCacheProvider_Start_Call {
 	return &ClusterCacheProvider_Start_Call{Call: _e.mock.On("Start", context1)}
 }
 

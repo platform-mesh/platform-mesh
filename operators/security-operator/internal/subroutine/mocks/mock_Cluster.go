@@ -40,10 +40,19 @@ func NewMockCluster(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockCluster {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockCluster{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -271,7 +280,7 @@ type MockCluster_GetEventRecorder_Call struct {
 
 // GetEventRecorder is a helper method to define mock.On call
 //   - name string
-func (_e *MockCluster_Expecter) GetEventRecorder(name interface{}) *MockCluster_GetEventRecorder_Call {
+func (_e *MockCluster_Expecter) GetEventRecorder(name any) *MockCluster_GetEventRecorder_Call {
 	return &MockCluster_GetEventRecorder_Call{Call: _e.mock.On("GetEventRecorder", name)}
 }
 
@@ -288,8 +297,8 @@ func (_c *MockCluster_GetEventRecorder_Call) Run(run func(name string)) *MockClu
 	return _c
 }
 
-func (_c *MockCluster_GetEventRecorder_Call) Return(v events.EventRecorder) *MockCluster_GetEventRecorder_Call {
-	_c.Call.Return(v)
+func (_c *MockCluster_GetEventRecorder_Call) Return(eventRecorder events.EventRecorder) *MockCluster_GetEventRecorder_Call {
+	_c.Call.Return(eventRecorder)
 	return _c
 }
 
@@ -324,7 +333,7 @@ type MockCluster_GetEventRecorderFor_Call struct {
 
 // GetEventRecorderFor is a helper method to define mock.On call
 //   - name string
-func (_e *MockCluster_Expecter) GetEventRecorderFor(name interface{}) *MockCluster_GetEventRecorderFor_Call {
+func (_e *MockCluster_Expecter) GetEventRecorderFor(name any) *MockCluster_GetEventRecorderFor_Call {
 	return &MockCluster_GetEventRecorderFor_Call{Call: _e.mock.On("GetEventRecorderFor", name)}
 }
 
@@ -559,7 +568,7 @@ type MockCluster_Start_Call struct {
 
 // Start is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockCluster_Expecter) Start(ctx interface{}) *MockCluster_Start_Call {
+func (_e *MockCluster_Expecter) Start(ctx any) *MockCluster_Start_Call {
 	return &MockCluster_Start_Call{Call: _e.mock.On("Start", ctx)}
 }
 
