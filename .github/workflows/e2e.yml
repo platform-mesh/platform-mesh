@@ -100,7 +100,8 @@ jobs:
         # The account-kubeconfig e2e runs kubectl with the downloaded OIDC kubeconfig.
         run: |
           set -euo pipefail
-          ( set -x; cd "$(mktemp -d)" && curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-linux_amd64.tar.gz" && tar zxvf krew-linux_amd64.tar.gz && KREW_ROOT="$HOME/.krew" ./krew-linux_amd64 install krew )
+          arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+          ( set -x; cd "$(mktemp -d)" && curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-linux_${arch}.tar.gz" && tar zxvf "krew-linux_${arch}.tar.gz" && KREW_ROOT="$HOME/.krew" "./krew-linux_${arch}" install krew )
           echo "$HOME/.krew/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.krew/bin:$PATH"
           kubectl krew install oidc-login
