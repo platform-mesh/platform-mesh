@@ -27,7 +27,6 @@ kcp authorization webhook of a Platform Mesh installation, backed by OpenFGA
 | kcp.apiExportEndpointSliceName | string | `""` | kcp APIExportEndpointSliceName to watch. Empty string means auto-discover all slices |
 | kcp.kubeconfig.secret | string | `"pm-openfga-authz-webhook-kubeconfig"` |  |
 | openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` |  |
-| service.annotations | object | `{}` |  |
 | service.clusterIP | string | `""` |  |
 | service.metricsPort | int | `8080` |  |
 | service.port | int | `9443` |  |

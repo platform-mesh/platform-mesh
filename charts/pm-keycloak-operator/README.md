@@ -29,10 +29,9 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/pm-keycloak-operator"` | The image repository path (without registry) |
-| initContainer | object | `{"clients":[{"name":"pm-keycloak-operator","secretRef":{"name":"pm-keycloak-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}],"enabled":true,"keycloakBaseURL":"","keycloakClientId":"admin-cli","keycloakUser":"keycloak-admin"}` | Init container configuration for bootstrapping Keycloak service account clients |
+| initContainer | object | `{"clients":[{"name":"pm-keycloak-operator","secretRef":{"name":"pm-keycloak-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}],"enabled":true,"keycloakClientId":"admin-cli","keycloakUser":"keycloak-admin"}` | Init container configuration for bootstrapping Keycloak service account clients |
 | initContainer.clients | list | `[{"name":"pm-keycloak-operator","secretRef":{"name":"pm-keycloak-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}]` | Service account clients to create (beyond the default one from keycloak.client.secret) |
 | initContainer.enabled | bool | `true` | Enable the init container |
-| initContainer.keycloakBaseURL | string | `""` | Keycloak base URL (e.g., https://keycloak.example.com). If empty, derived from baseDomain. |
 | initContainer.keycloakClientId | string | `"admin-cli"` | Keycloak client ID for admin authentication |
 | initContainer.keycloakUser | string | `"keycloak-admin"` | Keycloak username for admin authentication |
 | initializer.extraArgs | list | `[]` |  |
@@ -46,7 +45,6 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | keycloak.client.secret.name | string | `"pm-keycloak-operator-client-secret"` |  |
 | keycloakSecret | string | `"keycloak-admin"` | Name of the secret containing Keycloak admin credentials (keys: username, password, secret) |
 | kubeconfigSecret | string | `""` | The kubeconfig secret for the operator |
-| logLevel | string | `"info"` | Log level for all operator components. Permissible values: debug, info, warn, error |
 | operator.extraArgs | list | `[]` |  |
 | region | string | `""` | region indicator, used for logging and observability |
 | terminator.extraArgs | list | `[]` |  |

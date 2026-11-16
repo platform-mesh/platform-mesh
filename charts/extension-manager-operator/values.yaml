@@ -29,9 +29,6 @@ istio:
   # -- enable Istio VirtualService
   enabled: false
 
-## @param kubeconfigSecret The secret containing the kubeconfig for the operator
-kubeconfigSecret: ""
-
 kcp:
   kubeconfig:
     secret: extension-manager-operator-kubeconfig
@@ -45,10 +42,6 @@ gatewayApi:
   enabled: false
   # -- Name of the Gateway resource
   name: k8sapi-gateway
-  # -- HTTPS Terminate configuration
-  main:
-    gateway:
-      port: 8443
   httpRoute:
     # -- list of HTTPRoute filters (default: none)
     filters: []
