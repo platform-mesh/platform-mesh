@@ -5,9 +5,9 @@ metadata:
   name: {{ .Values.gatewayApi.name }}
   namespace: {{ .Release.Namespace }}
 spec:
-  gatewayClassName: {{ .Values.gatewayApi.gatewayClassName }}
+  gatewayClassName: {{ .Values.gatewayApi.gatewayClassName | default .Values.exposure.gatewayClassName }}
   listeners:
-    {{- $listeners := concat (.Values.gatewayApi.listeners | default list) (.Values.gatewayApi.listenersExtra | default list) }}
+    {{- $listeners := include "infra.gateway.listeners" . | fromYamlArray }}
     {{- if .Values.gatewayApi.passthrough.enabled }}
     {{- $generated := include "kcp.passthroughListeners" . | fromYamlArray }}
     {{- range $generated }}

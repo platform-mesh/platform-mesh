@@ -6,7 +6,10 @@ A Helm chart for Kubernetes
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | caSecret | string | `""` |  |
-| exposure.hostnames | list | `[]` | hostnames to be used for exposure |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
+| exposure.hostnames | list | `[]` | Explicit exposure hostnames; an empty list derives the base domain and its wildcard. |
+| exposure.port | int | `443` | Public URL port. Operator-owned in Platform Mesh. |
+| exposure.protocol | string | `"https"` | Public URL protocol. Operator-owned in Platform Mesh. |
 | gatewayApi.httpRoute.filters | list | `[{"type":"URLRewrite","urlRewrite":{"path":{"replacePrefixMatch":"/graphql","type":"ReplacePrefixMatch"}}}]` | list of HTTPRoute filters (default: URLRewrite only, no CORS) |
 | gatewayApi.httpRoute.parentRefs[0].name | string | `"k8sapi-gateway"` |  |
 | gatewayApi.httpRoute.pathPrefix | string | `"/iam/graphql"` |  |
@@ -18,7 +21,7 @@ A Helm chart for Kubernetes
 | image.repository | string | `"platform-mesh/platform-mesh/iam-service"` | The image repository path (without registry) |
 | jwt.userIdClaim | string | `"email"` |  |
 | kcp.kubeconfig.secretName | string | `"iam-service-kubeconfig"` |  |
-| keycloak.baseUrl | string | `""` | base URL of the Keycloak instance (e.g. https://example.com/keycloak). Required. |
+| keycloak.baseUrl | string | `""` | Explicit Keycloak base URL for an external identity provider; empty derives the public URL plus /keycloak when exposure.baseDomain is set. Required without a base domain. |
 | keycloak.client.id | string | `"iam-service"` |  |
 | keycloak.client.secret.key | string | `"client_secret"` |  |
 | keycloak.client.secret.name | string | `"iam-client-secret"` |  |

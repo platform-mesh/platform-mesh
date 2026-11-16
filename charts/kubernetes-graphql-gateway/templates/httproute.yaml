@@ -5,7 +5,7 @@ metadata:
   name: {{ include "common.entity.name" . }}
   namespace: {{ .Release.Namespace }}
 spec:
-  {{- with .Values.gatewayApi.httpRoute.hostnames }}
+  {{- with (include "common.exposure.hostnames" (dict "Values" .Values "hostnames" .Values.gatewayApi.httpRoute.hostnames) | fromYamlArray) }}
   hostnames:
   {{- range . }}
   - {{ . | quote }}

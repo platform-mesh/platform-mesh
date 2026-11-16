@@ -19,6 +19,7 @@ kubeConfig:
 | clusterScopedName.suffix | string | `""` | Suffix for the names of cluster-scoped resources |
 | crds.enabled | bool | `true` |  |
 | deployment | object | `{"maxSurge":5,"maxUnavailable":0,"replicas":1,"revisionHistoryLimit":3}` | Default deployment settings applied to both the gateway and listener Deployments. Each setting can be overridden per-deployment via `gateway.deployment.<field>` or `listener.deployment.<field>` (see those blocks in this file). When a per-deployment override is unset, the value from this block is used. |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
 | extraVolumeMounts | list | `[]` |  |
 | extraVolumes | list | `[]` |  |
 | gateway.deployment | object | `{}` | Per-deployment overrides for the gateway Deployment. Any field set here takes precedence over the matching field in the top-level `deployment` block. Unset fields fall back to the top-level defaults. Example:   gateway:     deployment:       replicas: 3 |
@@ -38,7 +39,7 @@ kubeConfig:
 | gateway.usernameClaim | string | `"email"` |  |
 | gatewayApi.httpRoute | object | `{"enabled":true,"filters":[{"type":"URLRewrite","urlRewrite":{"path":{"replacePrefixMatch":"/api/clusters/","type":"ReplacePrefixMatch"}}}],"hostnames":[],"parentRefs":[{"name":"k8sapi-gateway"}],"pathPrefix":"/gateway/api/clusters/"}` | configuration for the HTTPRoute resource |
 | gatewayApi.httpRoute.filters | list | `[{"type":"URLRewrite","urlRewrite":{"path":{"replacePrefixMatch":"/api/clusters/","type":"ReplacePrefixMatch"}}}]` | list of HTTPRoute filters (default: URLRewrite only, no CORS) |
-| gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. When empty, the route matches all hostnames. |
+| gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. Empty derives the base domain and wildcard, or matches all hostnames without a contract. |
 | health.liveness.failureThreshold | int | `1` |  |
 | health.liveness.path | string | `"/healthz"` |  |
 | health.liveness.periodSeconds | int | `10` |  |

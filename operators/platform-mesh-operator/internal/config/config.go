@@ -33,12 +33,13 @@ type KCPConfig struct {
 	ClusterAdminSecretName string
 }
 
-// ExposureConfig holds operator-level networking values the operator injects as template vars
-// when it renders installation profiles. Only meaningful for local installs;
+// ExposureConfig holds operator-level networking settings for chart runtime inputs
+// and legacy template variables.
 type ExposureConfig struct {
+	// GatewayClassName selects the Gateway API controller for first-party charts.
+	GatewayClassName string
 	// GatewayServiceClusterIP is the ClusterIP of the gateway controller Service. It anchors the
-	// in-cluster host aliases the kind installation profile renders so kind pods resolve the public
-	// hostnames to the in-cluster gateway.
+	// legacy template variables. Kind profile aliases use the gateway IP substituted at bootstrap.
 	GatewayServiceClusterIP string
 }
 
@@ -141,6 +142,7 @@ func NewOperatorConfig() OperatorConfig {
 			ClusterAdminSecretName: "kcp-cluster-admin-client-cert",
 		},
 		Exposure: ExposureConfig{
+			GatewayClassName: "traefik",
 			// Default for a standard kind cluster service CIDR.
 			GatewayServiceClusterIP: "10.96.188.4",
 		},
@@ -192,7 +194,8 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.KCP.FrontProxyPort, "kcp-front-proxy-port", c.KCP.FrontProxyPort, "Set KCP front-proxy port")
 	fs.StringVar(&c.KCP.ClusterAdminSecretName, "kcp-cluster-admin-secret-name", c.KCP.ClusterAdminSecretName, "Set cluster-admin secret name")
 
-	fs.StringVar(&c.Exposure.GatewayServiceClusterIP, "gateway-service-cluster-ip", c.Exposure.GatewayServiceClusterIP, "Set the gateway controller Service ClusterIP used in local installation profile host aliases")
+	fs.StringVar(&c.Exposure.GatewayServiceClusterIP, "gateway-service-cluster-ip", c.Exposure.GatewayServiceClusterIP, "Set the gateway controller Service ClusterIP for legacy template variables")
+	fs.StringVar(&c.Exposure.GatewayClassName, "gateway-class-name", c.Exposure.GatewayClassName, "Set the GatewayClass used by first-party charts")
 
 	fs.BoolVar(&c.IDP.RegistrationAllowed, "idp-registration-allowed", c.IDP.RegistrationAllowed, "Allow IDP registration")
 	fs.StringSliceVar(&c.IDP.WelcomeAdditionalRedirectUris, "idp-welcome-additional-redirect-uris", c.IDP.WelcomeAdditionalRedirectUris, "Additional redirect URIs for the welcome client (comma-separated)")

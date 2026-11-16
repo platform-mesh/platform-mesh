@@ -4,7 +4,7 @@ metadata:
   name: {{ include "common.entity.name" . }}
   namespace: {{ .Release.Namespace }}
 spec:
-  {{- with .Values.exposure.hostnames }}
+  {{- with (include "common.exposure.hostnames" . | fromYamlArray) }}
   hostnames:
   {{- range . }}
   - {{ . | quote }}

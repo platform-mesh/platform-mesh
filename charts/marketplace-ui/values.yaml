@@ -21,12 +21,6 @@ health:
     path: /healthz
 
 
-contentConfig:
-  # -- base domain for the marketplace content API (e.g. example.com). Required.
-  baseDomain: ""
-  # -- protocol for the marketplace content API. Permissible values: http, https
-  protocol: ""
-
 http:
   # -- protocol used by the frontend. Must be set. Permissible values: http, https
   protocol: ""
@@ -41,5 +35,7 @@ gatewayApi:
     filters: []
 
 exposure:
-  # -- hostnames to be used for exposure
+  # -- Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh.
+  baseDomain: ""
+  # -- Explicit hostnames; empty derives the base domain and wildcard.
   hostnames: []

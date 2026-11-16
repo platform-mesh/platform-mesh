@@ -6,7 +6,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   config.yaml: |
-    keycloakBaseURL: {{ .Values.keycloak.baseUrl }}
+    keycloakBaseURL: {{ .Values.initContainer.keycloakBaseURL | default (include "pm-keycloak-operator.keycloakBaseUrl" .) | quote }}
     keycloakClientID: {{ .Values.initContainer.keycloakClientId | quote }}
     keycloakUser: {{ .Values.initContainer.keycloakUser | quote }}
     passwordFile: "/secrets/keycloak-password"

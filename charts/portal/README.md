@@ -10,17 +10,20 @@ Helm Chart for the Platform Mesh Portal
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| auth.default.baseDomain | string | `""` | baseDomain used by the portal |
+| auth.default.baseDomain | string | `""` | Explicit portal base domain; empty derives exposure.baseDomain. |
 | auth.default.clientId | string | `""` | client id |
-| auth.default.discoveryUrl | string | `""` | discovery url used for the idp |
-| cookieDomain | string | `""` | cookie domain for auth session cookies. Must match the base domain of the portal deployment (e.g. example.com). Required. |
+| auth.default.discoveryUrl | string | `""` | Explicit discovery URL; empty derives the public Keycloak realm discovery URL. |
+| cookieDomain | string | `""` | cookie domain for auth session cookies. Must match the base domain of the portal deployment (e.g. example.com). Empty derives exposure.baseDomain. |
 | developmentLandcsape | string | `"false"` | development landscape toggle. Set to "true" only in local/dev environments to enable dev-only UI features. Permissible values: "true", "false" |
 | environment | string | `""` | environment label propagated to observability (e.g. logs, traces). Permissible values: any string (e.g. production, staging, development) |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
+| exposure.port | int | `443` | Public URL port. Operator-owned in Platform Mesh. |
+| exposure.protocol | string | `"https"` | Public URL protocol. Operator-owned in Platform Mesh. |
 | featureToggles | string | `"enableSessionAutoRefresh=true"` |  |
-| frontendPort | int | `8000` | frontend port |
+| frontendPort | string | `nil` | Explicit frontend port; empty derives exposure.port, or 8000 without a contract |
 | gatewayApi.enabled | bool | `true` | toggle to enable the Gateway API |
 | gatewayApi.httpRoute.filters | list | `[]` | list of HTTPRoute filters (default: none) |
-| gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. When empty, the route matches all hostnames. |
+| gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. Empty derives the base domain and wildcard, or matches all hostnames without a contract. |
 | gatewayApi.httpRoute.parentRefs[0].name | string | `"k8sapi-gateway"` |  |
 | gatewayApi.httpRoute.pathPrefix | string | `"/"` |  |
 | health.port | int | `8080` | health port to be used by probes |

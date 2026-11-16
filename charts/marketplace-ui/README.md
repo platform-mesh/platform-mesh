@@ -5,11 +5,10 @@ Helm Chart for the marketplace-ui
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| contentConfig.baseDomain | string | `""` | base domain for the marketplace content API (e.g. example.com). Required. |
-| contentConfig.protocol | string | `""` | protocol for the marketplace content API. Permissible values: http, https |
 | deployment.maxSurge | int | `5` |  |
 | deployment.maxUnavailable | int | `0` |  |
-| exposure.hostnames | list | `[]` | hostnames to be used for exposure |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
+| exposure.hostnames | list | `[]` | Explicit hostnames; empty derives the base domain and wildcard. |
 | gatewayApi.enabled | bool | `false` |  |
 | gatewayApi.httpRoute.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | gatewayApi.httpRoute.parentRefs[0].name | string | `"k8sapi-gateway"` |  |

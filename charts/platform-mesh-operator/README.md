@@ -42,7 +42,7 @@ repeatedly apply install-mode renders must manage the profile separately.
 | gateway | object | `{"baseDomain":"","className":"","clusterIP":"","port":8443}` | Gateway/exposure configuration (used when ocm.enabled=true). |
 | gateway.baseDomain | string | `""` | Public DNS name used for Platform Mesh endpoints. |
 | gateway.className | string | `""` | Name of the GatewayClass the Platform Mesh Gateway attaches to. Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation. |
-| gateway.clusterIP | string | `""` | ClusterIP of the gateway controller Service. Required when ocm.profile=kind, where component pods resolve the Platform Mesh hostnames to it through host aliases; production uses public DNS. |
+| gateway.clusterIP | string | `""` | ClusterIP of the gateway controller Service. Required with the kind profile for its shared host aliases; production uses public DNS. |
 | gateway.port | int | `8443` | External HTTPS port exposed by the Gateway. |
 | idp.registrationAllowed | bool | `false` |  |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
@@ -50,8 +50,8 @@ repeatedly apply install-mode renders must manage the profile separately.
 | image.repository | string | `"platform-mesh/platform-mesh/platform-mesh-operator"` | The image repository path (without registry) |
 | istio.enabled | bool | `false` |  |
 | jwt.userIdClaim | string | `"email"` |  |
-| kcp | object | `{"frontProxyPort":443}` | KCP connectivity configuration (used when ocm.enabled=true). |
-| kcp.frontProxyPort | int | `443` | Internal port of the KCP front-proxy Service. Production Services expose 443; the kind profile uses 8443. |
+| kcp | object | `{"frontProxyPort":null}` | KCP connectivity configuration (used when ocm.enabled=true). |
+| kcp.frontProxyPort | string | `nil` | Internal KCP front-proxy Service port; empty uses gateway.port, matching the derived FrontProxy external port. |
 | log.level | string | `"info"` | log level. Permissible values: debug, info, warn, error |
 | ocm | object | `{"enabled":false,"installSigningCertificate":true,"profile":"production","repository":"ghcr.io/platform-mesh","signatureName":"platform-mesh.platform-mesh","version":"0.5.2"}` | When enabled, manages the OCM Repository/Component CRs and the PlatformMesh CR, and creates the profile ConfigMap once on Helm install if absent. Helm upgrades preserve the existing profile. Disable to supply PlatformMesh resources from a separate GitOps source. |
 | ocm.enabled | bool | `false` | Enable the bundled installation resources. Keep enabled on upgrades to continue managing the OCM and PlatformMesh resources. |

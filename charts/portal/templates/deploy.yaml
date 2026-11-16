@@ -23,14 +23,14 @@ spec:
         {{- include "common.container.securityContext" . | indent 8 }}
         env:
         - name: HTTP_PROTOCOL
-          value: {{ .Values.http.protocol }}
+          value: {{ include "portal.protocol" . | quote }}
         {{- with .Values.auth.default }}
         - name: DISCOVERY_ENDPOINT
-          value: {{ .discoveryUrl }}
+          value: {{ include "portal.discoveryUrl" $ | quote }}
         - name: OIDC_CLIENT_ID_DEFAULT
           value: {{ .clientId }}
         - name: BASE_DOMAINS_DEFAULT
-          value: {{ .baseDomain }}
+          value: {{ include "portal.baseDomain" $ | quote }}
         {{- end }}
         {{- if .Values.developmentLandcsape }}
         - name: DEVELOPMENT_INSTANCE
@@ -54,13 +54,13 @@ spec:
           value: "{{ .Chart.AppVersion }}"
         - name: IMAGE_NAME
           value: "{{ include "common.image.name" . }}"
-        {{- if .Values.cookieDomain }}
+        {{- with (include "portal.cookieDomain" .) }}
         - name: COOKIE_DOMAIN
-          value: {{ .Values.cookieDomain }}
+          value: {{ . | quote }}
         {{- end }}
-        {{- if .Values.frontendPort }}
+        {{- with (include "portal.frontendPort" .) }}
         - name: FRONTEND_PORT
-          value: "{{ .Values.frontendPort }}"
+          value: {{ . | quote }}
         {{- end }}
         {{- if .Values.environment }}
         - name: ENVIRONMENT
@@ -70,6 +70,7 @@ spec:
         - name: VALID_WEBCOMPONENT_URLS
           value: '{{ .Values.validWebcomponentUrls }}'
         {{- end }}
+        {{- include "portal.runtimeEnv" . | nindent 8 }}
         {{ range .Values.extraEnvVars }}
         - name: {{ .name }}
           value: {{ .value | toJson }}

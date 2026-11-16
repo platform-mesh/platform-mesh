@@ -1,3 +1,11 @@
+exposure:
+  # -- Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh.
+  baseDomain: ""
+  # -- Public URL protocol. Operator-owned in Platform Mesh.
+  protocol: https
+  # -- Public URL port. Operator-owned in Platform Mesh.
+  port: 443
+
 image:
   # -- The image registry
   registry: ghcr.io
@@ -21,10 +29,10 @@ environment: ""
 # -- development landscape toggle. Set to "true" only in local/dev environments to enable dev-only UI features. Permissible values: "true", "false"
 developmentLandcsape: "false"
 
-# -- frontend port
-frontendPort: 8000
+# -- Explicit frontend port; empty derives exposure.port, or 8000 without a contract
+frontendPort: null
 
-# -- cookie domain for auth session cookies. Must match the base domain of the portal deployment (e.g. example.com). Required.
+# -- cookie domain for auth session cookies. Must match the base domain of the portal deployment (e.g. example.com). Empty derives exposure.baseDomain.
 cookieDomain: ""
 
 # -- allows the configuration of a kubeconfig secret for external api servers
@@ -36,11 +44,11 @@ kcp:
 
 auth:
   default:
-    # -- discovery url used for the idp
+    # -- Explicit discovery URL; empty derives the public Keycloak realm discovery URL.
     discoveryUrl: ""
     # -- client id
     clientId: ""
-    # -- baseDomain used by the portal
+    # -- Explicit portal base domain; empty derives exposure.baseDomain.
     baseDomain: ""
 health:
   # -- health port to be used by probes
@@ -71,7 +79,7 @@ gatewayApi:
   enabled: true
   httpRoute:
     pathPrefix: /
-    # -- hostnames for the HTTPRoute. When empty, the route matches all hostnames.
+    # -- hostnames for the HTTPRoute. Empty derives the base domain and wildcard, or matches all hostnames without a contract.
     hostnames: []
     parentRefs:
     - name: k8sapi-gateway

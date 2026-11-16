@@ -61,8 +61,6 @@ if OPENFGA:
         labels=["infra"],
     )
 
-# The profile's 8443 literals mean "external port"; here that is the NodePort.
-
 # Resources for pods created by operators from CRs, where _strip_resources cannot reach.
 # Requests near zero rather than empty, since kcp-operator defaults
 # empty shard resources to 1 CPU / 1 GiB and the infra chart's etcd
@@ -78,10 +76,11 @@ infra = profile_chart(
     NAMESPACE,
     TEMPLATE_VARS,
     overrides={
+        # Traefik's Service exposes 8443; public URLs use the NodePort in the contract.
+        "gatewayApi": {"listenerPort": 8443},
         "kcp": {
-            "external": {"port": PORT},
-            "rootShard": {"shardBaseURL": "https://{}:{}/".format(KCP_ROOT_HOSTNAME, PORT), "resources": NO_REQUESTS},
-            "shards": [{"name": "triton", "hostname": KCP_TRITON_HOSTNAME, "spec": {"resources": NO_REQUESTS}}],
+            "rootShard": {"resources": NO_REQUESTS},
+            "shards": [{"name": "triton", "spec": {"resources": NO_REQUESTS}}],
             # kcp-operator defaults both to 2; one is enough on a single node.
             "proxy": {"replicas": 1},
             "cacheServer": {"replicas": 1, "resources": NO_REQUESTS},
