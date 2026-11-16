@@ -60,6 +60,11 @@ tasks:
   test:
     deps:
       - task: helmtest
+      - task: bootstrap-test
+  bootstrap-test:
+    desc: Test the infra chart credential bootstrap script.
+    cmds:
+      - python3 -B -m unittest discover -s charts/infra/tests -p '*_test.py'
   update-changed:
     deps:
       - task: docs

@@ -4,6 +4,26 @@ hostAliases:
 externalSecrets:
   enabled: false
 
+credentials:
+  # -- Generate missing CNPG role credential Secrets before PostgreSQL starts. Disable when credentials are provisioned externally.
+  enabled: true
+  image:
+    # -- Credential bootstrap image registry
+    registry: docker.io
+    # -- Credential bootstrap image repository (without registry)
+    repository: library/python
+    # -- Credential bootstrap image tag
+    tag: 3.14.0-alpine3.22
+    # -- Credential bootstrap image digest (when set, overrides tag)
+    digest: "sha256:8373231e1e906ddfb457748bfc032c4c06ada8c759b7b62d9c73ec2a3c56e710"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
 kcp:
   image:
     repository: ghcr.io/kcp-dev/kcp
@@ -207,17 +227,21 @@ keycloak:
       port: 5432
       # -- Database name
       database: keycloak
-      # -- Database username (written to keycloak-db-credentials secret)
+      # -- Database username for explicit password configuration; must match the shared CNPG role
       username: keycloak
-      # -- Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value.
+      # -- Explicit database password. Empty uses the shared CNPG role Secret, or db.existingSecret for an external database.
       password: ""
+      # -- Existing database Secret with username/password keys. Empty selects the shared CNPG Secret or the explicit password Secret.
+      existingSecret: ""
     admin:
       # -- Bootstrap admin username (written to keycloak-admin secret)
       username: keycloak-admin
-      # -- Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value.
+      # -- Explicit bootstrap password. Empty delegates strong admin credential generation to the Keycloak operator.
       password: ""
-      # -- Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value.
+      # -- Optional legacy client secret field for explicitly configured admin credentials
       secret: ""
+      # -- Existing admin Secret with username/password keys. Set this when upgrading an existing Keycloak database.
+      existingSecret: ""
     # -- Secret with PEM CA for outbound HTTPS trust (e.g. local mkcert CA)
     caSecret: ""
     # -- Enable plain HTTP on the Keycloak pod. Keycloak sits behind gatewayAPI, which
@@ -310,20 +334,14 @@ dex:
   staticClient:
     # -- OIDC client ID for Keycloak identity broker
     id: keycloak-broker
-    # -- OIDC client secret for Keycloak identity broker (local dev only)
-    secret: local-dev-broker-secret
+    # -- OIDC client secret for Keycloak identity broker. Required when Dex is enabled.
+    secret: ""
     # -- Display name for the static OIDC client
     name: Keycloak Broker
     # -- Allowed redirect URIs (Keycloak broker callback URLs)
     redirectURIs: []
-  staticPasswords:
-    # -- Local test user for Dex password connector (dex@portal.localhost/dex/dex)
-    - email: dex@portal.localhost
-      # bcrypt hash of password "dex"
-      hash: "$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm"
-      username: dex
-      userID: "08a868f8-4b4b-42f3-9d23-5f46eda2c3a0"
-      groups: []
+  # -- Optional Dex users with bcrypt password hashes. No users are provided by default.
+  staticPasswords: []
 
 cnpg:
   enabled: false
@@ -348,12 +366,12 @@ cnpg:
     keycloak:
       # -- PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret.
       username: keycloak
-      # -- REQUIRED: set to a strong random value.
+      # -- Password override. Empty lets the database bootstrap Job generate and preserve the role Secret.
       password: ""
     openfga:
       # -- PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret.
       username: openfga
-      # -- REQUIRED: set to a strong random value.
+      # -- Password override. Empty lets the database bootstrap Job generate and preserve the role Secret.
       password: ""
   databases:
     - name: keycloak

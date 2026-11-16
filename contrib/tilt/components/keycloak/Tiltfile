@@ -14,14 +14,18 @@
 
 load("../../lib/component.Tiltfile", "component")
 load("../../lib/infra.Tiltfile", "infra_objects")
+load("../../lib/settings.Tiltfile", "BASE_DOMAIN", "PORT")
 
 # The Keycloak instance, run by keycloak-operator.
 COMPONENT = component(
     name="keycloak",
     label="infra",
-    needs=["keycloak-operator", "postgres", "domain-certificate"],
+    needs=["keycloak-operator", "postgres", "gateway", "export-ca"],
     runtime=infra_objects(
         extra_pod_selectors=[{"app": "keycloak"}],
         pod_readiness="wait",
     ),
+    ready=[
+        'curl -fsS --connect-timeout 5 --max-time 10 --cacert .secret/ca.crt --retry 60 --retry-delay 2 --retry-all-errors --output /dev/null "https://{}:{}/keycloak/realms/master/.well-known/openid-configuration"'.format(BASE_DOMAIN, PORT),
+    ],
 )

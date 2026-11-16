@@ -43,7 +43,7 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | keycloak.baseUrl | string | `""` | base URL of the Keycloak instance (e.g. https://example.com/keycloak). Required. |
 | keycloak.client.secret.key | string | `"client_secret"` |  |
 | keycloak.client.secret.name | string | `"pm-keycloak-operator-client-secret"` |  |
-| keycloakSecret | string | `"keycloak-admin"` | Name of the secret containing Keycloak admin credentials (keys: username, password, secret) |
+| keycloakSecret | string | `"keycloak-admin"` | Name of the Secret containing Keycloak admin credentials (keys: username, password) |
 | kubeconfigSecret | string | `""` | The kubeconfig secret for the operator |
 | operator.extraArgs | list | `[]` |  |
 | region | string | `""` | region indicator, used for logging and observability |

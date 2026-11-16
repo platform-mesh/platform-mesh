@@ -136,6 +136,10 @@ Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository f
 
 Please refer to our [Code of Conduct](https://github.com/platform-mesh/.github/blob/main/CODE_OF_CONDUCT.md) for information on the expected conduct for contributing to Platform Mesh.
 
+## Installation credentials
+
+Fresh installations use native Keycloak admin credentials and generated database passwords. See [credential configuration and upgrades](docs/deployment/credentials.md).
+
 ## Licensing
 
 Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available via the [REUSE tool](https://api.reuse.software/info/github.com/platform-mesh/platform-mesh).

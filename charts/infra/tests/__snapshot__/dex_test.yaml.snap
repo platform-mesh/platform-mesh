@@ -12,13 +12,9 @@ match snapshots with dex enabled:
           skipApprovalScreen: true
         enablePasswordDB: true
         staticPasswords:
-        - email: "dex@portal.localhost"
-          hash: "$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm"
-          username: "dex"
-          userID: "08a868f8-4b4b-42f3-9d23-5f46eda2c3a0"
         staticClients:
         - id: "keycloak-broker"
-          secret: "local-dev-broker-secret"
+          secret: "dex-test-client-secret"
           name: "Keycloak Broker"
           redirectURIs:
     kind: ConfigMap

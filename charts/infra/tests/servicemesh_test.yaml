@@ -124,6 +124,8 @@ tests:
     keycloak:
       operator:
         enabled: true
+        db:
+          existingSecret: test-keycloak-db
         image:
           registry: ghcr.io
           repository: platform-mesh/custom-images/keycloak
@@ -138,6 +140,8 @@ tests:
     keycloak:
       operator:
         enabled: true
+        db:
+          existingSecret: test-keycloak-db
     hostAliases:
       enabled: true
       entries:
@@ -158,6 +162,8 @@ tests:
     keycloak:
       operator:
         enabled: true
+        db:
+          existingSecret: test-keycloak-db
         caSecret: domain-certificate-ca
   asserts:
   - equal:

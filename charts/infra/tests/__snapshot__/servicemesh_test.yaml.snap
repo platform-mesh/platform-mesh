@@ -11,17 +11,17 @@ keycloak operator enabled renders all resources:
           value: /keycloak
       bootstrapAdmin:
         user:
-          secret: keycloak-admin
+          secret: keycloak-initial-admin
       db:
         database: keycloak
         host: platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local
         passwordSecret:
           key: password
-          name: keycloak-db-credentials
+          name: test-keycloak-db
         port: 5432
         usernameSecret:
           key: username
-          name: keycloak-db-credentials
+          name: test-keycloak-db
         vendor: postgres
       hostname:
         backchannelDynamic: true

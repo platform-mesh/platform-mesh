@@ -50,7 +50,7 @@ webhooks:
 # -- The kubeconfig secret for the operator
 kubeconfigSecret: ""
 
-# -- Name of the secret containing Keycloak admin credentials (keys: username, password, secret)
+# -- Name of the Secret containing Keycloak admin credentials (keys: username, password)
 keycloakSecret: "keycloak-admin"
 # -- Name of the secret containing the CA certificate for outbound TLS trust (key: tls.crt or ca.crt)
 caSecret: ""

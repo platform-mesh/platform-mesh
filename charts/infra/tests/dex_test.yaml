@@ -4,6 +4,14 @@ release:
   name: infra
   namespace: platform-mesh-system
 tests:
+- it: requires explicit client credentials when Dex is enabled
+  templates:
+    - dex/configmap.yaml
+  set:
+    dex.enabled: true
+  asserts:
+    - failedTemplate:
+        errorMessage: dex.staticClient.secret is required when Dex is enabled
 - it: dex disabled by default
   templates:
     - dex/configmap.yaml
@@ -17,6 +25,8 @@ tests:
   set:
     dex:
       enabled: true
+      staticClient:
+        secret: dex-test-client-secret
     gatewayApi:
       enabled: true
   templates:
@@ -109,6 +119,8 @@ tests:
   set:
     dex:
       enabled: true
+      staticClient:
+        secret: dex-test-client-secret
     gatewayApi:
       enabled: false
   templates:
@@ -120,6 +132,8 @@ tests:
   set:
     dex:
       enabled: true
+      staticClient:
+        secret: dex-test-client-secret
   templates:
     - dex/deployment.yaml
   asserts:
@@ -129,6 +143,8 @@ tests:
   set:
     dex:
       enabled: true
+      staticClient:
+        secret: dex-test-client-secret
   templates:
     - dex/service.yaml
   asserts:

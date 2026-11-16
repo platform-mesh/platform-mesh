@@ -17,8 +17,8 @@ load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
 COMPONENT = component(
     name="pm-keycloak-operator",
     label="iam",
-    needs=["platform-mesh-operator"],
-    alongside=["platformmesh", "keycloak"],
+    needs=["platform-mesh-operator", "keycloak"],
+    alongside=["platformmesh"],
     runtime=go_service(
         path="operators/pm-keycloak-operator",
         # No SMTP on kind: invited users get the default password "password" (temporary,

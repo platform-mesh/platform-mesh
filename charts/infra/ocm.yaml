@@ -18,6 +18,10 @@ envsubst:
   BUSYBOX_IMAGE_REGISTRY: keycloak.operator.waitForDb.image.registry
   BUSYBOX_IMAGE_REPOSITORY: keycloak.operator.waitForDb.image.repository
   BUSYBOX_IMAGE_TAG: keycloak.operator.waitForDb.image.tag
+  CREDENTIALS_IMAGE_REGISTRY: credentials.image.registry
+  CREDENTIALS_IMAGE_REPOSITORY: credentials.image.repository
+  CREDENTIALS_IMAGE_TAG: credentials.image.tag
+  CREDENTIALS_IMAGE_DIGEST: credentials.image.digest
   POSTGRES_IMAGE_REGISTRY: cnpg.cluster.image.registry
   POSTGRES_IMAGE_REPOSITORY: cnpg.cluster.image.repository
   POSTGRES_IMAGE_TAG: cnpg.cluster.image.tag

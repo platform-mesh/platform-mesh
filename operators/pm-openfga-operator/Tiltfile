@@ -17,8 +17,8 @@ load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
 COMPONENT = component(
     name="pm-openfga-operator",
     label="authz",
-    needs=["platform-mesh-operator"],
-    alongside=["platformmesh", "openfga"],
+    needs=["platform-mesh-operator", "openfga"],
+    alongside=["platformmesh"],
     runtime=go_service(
         path="operators/pm-openfga-operator",
         workloads=[

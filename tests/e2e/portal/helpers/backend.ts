@@ -236,6 +236,9 @@ function keycloakApiRequest(method: 'GET' | 'POST' | 'PUT', url: string, body?: 
 }
 
 function getKeycloakAdminToken(): string {
+  if (!keycloakAdminPassword) {
+    throw new Error('KEYCLOAK_ADMIN_PASSWORD is required. Source contrib/tilt/env.sh to load it from the configured Keycloak admin Secret.');
+  }
   const response = execFileSync('curl', [
     '-sk',
     '-X',

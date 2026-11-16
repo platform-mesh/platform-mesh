@@ -44,6 +44,7 @@ NO_REQUESTS = {"requests": {"cpu": "1m", "memory": "1Mi"}}
 
 # Component -> predicate for the objects of the chart it owns.
 INFRA_OWNED = {
+    "infra-credentials": lambda o: o["metadata"]["name"].endswith("-credentials-bootstrap"),
     "kcp": kind_in(["RootShard", "FrontProxy", "CacheServer", "Etcd", "Kubeconfig", "Issuer", "Certificate"]),
     "kcp-triton": kind_in(["Shard"]),
     "postgres": lambda o: kind_in(["Cluster", "Database"])(o) or o["metadata"]["name"].startswith("cnpg-"),

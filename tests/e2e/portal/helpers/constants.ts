@@ -16,8 +16,8 @@ const inviteName = process.env.INVITE_NAME || `invite-${runId}`;
 const accountReadyTimeoutSeconds = process.env.ACCOUNT_READY_TIMEOUT_SECONDS || '180';
 const orgReadyTimeoutSeconds = process.env.ORG_READY_TIMEOUT_SECONDS || '300';
 const keycloakBaseUrl = process.env.KEYCLOAK_BASE_URL || 'https://portal.localhost:8443/keycloak';
-const keycloakAdminUser = process.env.KEYCLOAK_ADMIN_USER || 'keycloak-admin';
-const keycloakAdminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin';
+const keycloakAdminUser = process.env.KEYCLOAK_ADMIN_USER || 'temp-admin';
+const keycloakAdminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || '';
 // The suite runs from tests/e2e/portal; the repository root is three levels up.
 const repoRoot = path.resolve(process.cwd(), '..', '..', '..');
 const kcpRootCaPath = process.env.KCP_ROOT_CA_PATH || path.join(repoRoot, 'contrib', 'tilt', '.secret', 'kcp-root-ca.crt');

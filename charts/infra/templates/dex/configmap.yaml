@@ -36,7 +36,7 @@ data:
     {{- end }}
     staticClients:
     - id: {{ .Values.dex.staticClient.id | quote }}
-      secret: {{ .Values.dex.staticClient.secret | quote }}
+      secret: {{ required "dex.staticClient.secret is required when Dex is enabled" .Values.dex.staticClient.secret | quote }}
       name: {{ .Values.dex.staticClient.name | quote }}
       redirectURIs:
       {{- range .Values.dex.staticClient.redirectURIs }}
