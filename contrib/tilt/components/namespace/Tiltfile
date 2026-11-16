@@ -19,12 +19,12 @@ load("../../lib/settings.Tiltfile", "NAMESPACE")
 
 def _deploy(c, ctx):
     namespace_create(NAMESPACE)
-    k8s_resource(new_name=c.name, objects=[NAMESPACE + ":namespace"], labels=[c.group])
+    k8s_resource(new_name=c.name, objects=[NAMESPACE + ":namespace"], labels=[c.label])
 
 
 # The namespace everything of Platform Mesh runs in.
 COMPONENT = component(
     name="namespace",
-    group="prereq",
+    label="prereq",
     runtime=_deploy,
 )

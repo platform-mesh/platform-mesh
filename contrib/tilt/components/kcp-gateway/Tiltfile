@@ -35,7 +35,7 @@ def _answers(ctx):
 # time to set up and sync, the gateway controller to program the routes.
 COMPONENT = component(
     name="kcp-gateway",
-    group="infra",
+    label="infra",
     needs=["kcp", "gateway", "export-kcp-ca"],
     ready=[_answers],
 )

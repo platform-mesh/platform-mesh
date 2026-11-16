@@ -22,7 +22,7 @@ _BOOTSTRAP = os.path.join(TILT_DIR, "hack/httpbin-provider-bootstrap.sh")
 
 def _deploy(c, ctx):
     namespace_create(HTTPBIN_NAMESPACE)
-    k8s_resource(new_name="httpbin-namespace", objects=[HTTPBIN_NAMESPACE + ":namespace"], labels=[c.group])
+    k8s_resource(new_name="httpbin-namespace", objects=[HTTPBIN_NAMESPACE + ":namespace"], labels=[c.label])
 
     api_syncagent = remote_chart(
         "api-syncagent",
@@ -45,13 +45,13 @@ def _deploy(c, ctx):
     k8s_resource(
         new_name="api-syncagent-crds",
         objects=select_objects(api_syncagent, kind_in(["CustomResourceDefinition"])),
-        labels=[c.group],
+        labels=[c.label],
     )
     k8s_resource(
         "api-syncagent",
         objects=select_objects(api_syncagent, lambda o: o["kind"] != "CustomResourceDefinition"),
         resource_deps=["httpbin-namespace", "export-httpbin-kubeconfig", "example-httpbin-operator"],
-        labels=[c.group],
+        labels=[c.label],
     )
 
     httpbin = chart(
@@ -84,14 +84,14 @@ def _deploy(c, ctx):
         "example-httpbin-operator",
         objects=select_objects(httpbin, lambda o: True),
         resource_deps=["httpbin-namespace", "api-syncagent-crds", ctx.ready("gateway")],
-        labels=[c.group],
+        labels=[c.label],
     )
 
     # Not after platformmesh: the PlatformMesh binds this export into every
     # account, so platform-mesh-operator only gets Ready once the export exists.
     local_resource(
         "httpbin-provider-bootstrap",
-        labels=[c.group],
+        labels=[c.label],
         allow_parallel=True,
         resource_deps=[ctx.ready("kcp"), ctx.ready("kcp-gateway"), ctx.ready("export-kcp-admin-kubeconfig")],
         deps=[os.path.join(TILT_DIR, p) for p in ["manifests/httpbin-provider", "manifests/httpbin-workspace.yaml"]]
@@ -104,7 +104,7 @@ def _deploy(c, ctx):
     # apiexportpolicies exist in root:orgs once the kcp setup has finished.
     local_resource(
         "httpbin-apiexportpolicy",
-        labels=[c.group],
+        labels=[c.label],
         allow_parallel=True,
         resource_deps=[ctx.ready("platformmesh"), "httpbin-provider-bootstrap"],
         deps=[os.path.join(TILT_DIR, "manifests/httpbin-apiexportpolicy.yaml")],
@@ -121,7 +121,7 @@ def _deploy(c, ctx):
         "kubeconfig",
         ".secret/httpbin-provider.kubeconfig",
         [ctx.ready("platformmesh")],
-        c.group,
+        c.label,
         namespace=HTTPBIN_NAMESPACE,
     )
 
@@ -133,7 +133,7 @@ def _deploy(c, ctx):
                    --for=jsonpath='{.spec.resources[?(@.name=="httpbins")].schema}' --timeout=5m"""
         ],
         ["api-syncagent", "httpbin-apiexportpolicy"],
-        c.group,
+        c.label,
     )
     return "httpbin-api-ready"
 
@@ -143,7 +143,7 @@ def _deploy(c, ctx):
 # kubeconfig Secret and binds the export into every account.
 COMPONENT = component(
     name="httpbin",
-    group="e2e",
+    label="e2e",
     needs=["gateway", "kcp", "kcp-gateway", "export-kcp-admin-kubeconfig", "platformmesh"],
     runtime=_deploy,
 )

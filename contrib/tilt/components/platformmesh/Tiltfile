@@ -74,7 +74,7 @@ def _deploy(c, ctx):
         new_name=c.name,
         objects=["platform-mesh:platformmesh", "platform-mesh-profile:configmap"],
         resource_deps=ctx.deps,
-        labels=[c.group],
+        labels=[c.label],
     )
 
 
@@ -87,7 +87,7 @@ def _deploy(c, ctx):
 # written their kubeconfig secrets (as under Flux).
 COMPONENT = component(
     name="platformmesh",
-    group="core",
+    label="core",
     needs=["platform-mesh-operator"],
     runtime=_deploy,
     ready=[wait("platformmesh/platform-mesh", "condition=Ready", timeout="20m")],

@@ -34,7 +34,7 @@ def _webhook_answers(ctx):
 # The CloudNativePG operator.
 COMPONENT = component(
     name="cnpg",
-    group="prereq",
+    label="prereq",
     needs=["namespace"],
     runtime=prereq_workload(
         PREREQ_RELEASE + "cloudnative-pg",

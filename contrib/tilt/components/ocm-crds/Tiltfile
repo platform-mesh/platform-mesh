@@ -40,7 +40,7 @@ def _deploy(c, ctx):
         new_name=c.name,
         objects=select_objects(crds, lambda o: True),
         resource_deps=ctx.deps,
-        labels=[c.group],
+        labels=[c.label],
     )
 
 
@@ -48,6 +48,6 @@ def _deploy(c, ctx):
 # says, so the OCM CRDs must exist; the controller behind them is not needed.
 COMPONENT = component(
     name="ocm-crds",
-    group="prereq",
+    label="prereq",
     runtime=_deploy,
 )

@@ -16,7 +16,7 @@ load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
 
 COMPONENT = component(
     name="extension-manager-operator",
-    group="ui",
+    label="ui",
     needs=["platform-mesh-operator"],
     alongside=["platformmesh"],
     runtime=go_service(

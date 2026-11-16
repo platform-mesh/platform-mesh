@@ -26,7 +26,7 @@ def _deploy(c, ctx):
             infra_blob(ctx), lambda o: o["kind"] == "ConfigMap" and o["metadata"]["name"] == "dex"
         ),
         resource_deps=ctx.deps,
-        labels=[c.group],
+        labels=[c.label],
     )
 
 
@@ -35,7 +35,7 @@ def _deploy(c, ctx):
 # (lib/infra.Tiltfile), the PlatformMesh and the portal at it.
 COMPONENT = component(
     name="dex",
-    group="infra",
+    label="infra",
     needs=["gateway"],
     runtime=_deploy,
 )

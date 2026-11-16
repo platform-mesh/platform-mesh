@@ -24,7 +24,7 @@ load("../../lib/infra.Tiltfile", "infra_objects")
 # them on the Cluster being Ready and every Database having been applied.
 COMPONENT = component(
     name="postgres",
-    group="infra",
+    label="infra",
     needs=["cnpg"],
     runtime=infra_objects(
         extra_pod_selectors=[{"cnpg.io/cluster": "platform-mesh-pg"}],

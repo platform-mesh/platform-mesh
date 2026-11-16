@@ -17,7 +17,7 @@ load("../../lib/component.Tiltfile", "component", "remote_chart_service")
 # OpenFGA on the shared CNPG postgres (see the openfga-cnpg migration).
 COMPONENT = component(
     name="openfga",
-    group="infra",
+    label="infra",
     needs=["namespace", "postgres"],
     runtime=remote_chart_service("oci://ghcr.io/openfga/helm-charts", profile_values=True),
 )

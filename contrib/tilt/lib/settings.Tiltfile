@@ -35,9 +35,9 @@ config.define_string_list(
     usage="components to leave out, with everything that depends on them, e.g. keycloak,openfga (comma-separated, repeatable)",
 )
 config.define_string_list(
-    "bundles",
+    "groups",
     args=True,
-    usage="bundles or components to run, with everything they need (default: full, see bundles.Tiltfile)",
+    usage="groups or components to run, with everything they need (default: see groups.Tiltfile)",
 )
 
 WITH_BACKENDS = ["dex"]
@@ -69,7 +69,7 @@ NAMESPACE = "platform-mesh-system"
 HTTPBIN_NAMESPACE = cfg.get("httpbin-namespace", DEFAULT_HTTPBIN_NAMESPACE)
 FRONTEND_CORS = cfg.get("frontend-cors", False)
 # What to run: validated and resolved against the components by the root Tiltfile.
-WANTED = split_list(cfg.get("bundles", []))
+WANTED = split_list(cfg.get("groups", []))
 WITHOUT = split_list(cfg.get("without", []))
 # --with=dex: Dex is the "dex" component, and replaces Keycloak as identity provider.
 WITH = split_list(cfg.get("with", []))

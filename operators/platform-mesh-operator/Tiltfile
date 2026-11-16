@@ -19,7 +19,7 @@ load("../../contrib/tilt/lib/settings.Tiltfile", "GO_DEPS", "KCP_FRONT_PROXY_URL
 
 def _deploy(c, ctx):
     image = IMAGE_PREFIX + c.name
-    component_binary(c.name, "operators/platform-mesh-operator", deps=GO_DEPS, image=image, labels=[c.group])
+    component_binary(c.name, "operators/platform-mesh-operator", deps=GO_DEPS, image=image, labels=[c.label])
 
     # ocm.enabled=false renders only the operator (no OCM/Flux objects,
     # PlatformMesh or profile) and drops the kcp flags and CA mount, which
@@ -62,7 +62,7 @@ def _deploy(c, ctx):
         c.name,
         objects=select_objects(blob, lambda o: True),
         resource_deps=ctx.deps,
-        labels=[c.group],
+        labels=[c.label],
     )
 
 
@@ -73,7 +73,7 @@ def _deploy(c, ctx):
 # kcp-webhook-secret, and PMO's kcp setup retries until the front proxy answers.
 COMPONENT = component(
     name="platform-mesh-operator",
-    group="core",
+    label="core",
     needs=["kcp-operator", "domain-certificate", "ocm-crds"],
     runtime=_deploy,
 )

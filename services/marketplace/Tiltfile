@@ -16,7 +16,7 @@ load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
 
 COMPONENT = component(
     name="virtual-workspaces",
-    group="api",
+    label="api",
     needs=["platform-mesh-operator"],
     alongside=["platformmesh"],
     runtime=go_service(

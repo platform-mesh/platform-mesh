@@ -18,19 +18,19 @@ load("../../lib/component.Tiltfile", "component", "export_secret")
 COMPONENTS = [
     component(
         name="export-ca",
-        group="dev",
+        label="dev",
         needs=["domain-certificate"],
         runtime=export_secret("domain-certificate", "ca.crt", ".secret/ca.crt"),
     ),
     component(
         name="export-kcp-ca",
-        group="dev",
+        label="dev",
         needs=["kcp"],
         runtime=export_secret("root-ca", "tls.crt", ".secret/kcp-root-ca.crt"),
     ),
     component(
         name="export-kcp-admin-kubeconfig",
-        group="dev",
+        label="dev",
         needs=["kcp"],
         runtime=export_secret("kubeconfig-kcp-admin", "kubeconfig", ".secret/kcp-admin.kubeconfig"),
     ),

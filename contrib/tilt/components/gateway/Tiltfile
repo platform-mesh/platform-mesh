@@ -18,7 +18,7 @@ load("../../lib/infra.Tiltfile", "infra_objects")
 # The Gateway and the routes of the infra chart (kcp, Keycloak).
 COMPONENT = component(
     name="gateway",
-    group="infra",
+    label="infra",
     needs=["traefik", "domain-certificate"],
     runtime=infra_objects(),
 )

@@ -19,7 +19,7 @@ load("../../lib/prereq.Tiltfile", "prereq_workload")
 # Runs the etcd clusters of the kcp shards.
 COMPONENT = component(
     name="etcd-druid",
-    group="prereq",
+    label="prereq",
     needs=["namespace"],
     runtime=prereq_workload("etcd-druid", objects=named("druid")),
 )

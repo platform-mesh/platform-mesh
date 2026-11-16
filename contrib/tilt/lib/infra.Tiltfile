@@ -141,7 +141,7 @@ def infra_objects(objects=None, **kwargs):
             new_name=c.name,
             objects=select_objects(infra_blob(ctx), objects or INFRA_OWNED[c.name]),
             resource_deps=ctx.deps,
-            labels=[c.group],
+            labels=[c.label],
             **kwargs
         )
 

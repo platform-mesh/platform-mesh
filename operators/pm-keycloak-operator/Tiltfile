@@ -16,7 +16,7 @@ load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
 
 COMPONENT = component(
     name="pm-keycloak-operator",
-    group="iam",
+    label="iam",
     needs=["platform-mesh-operator"],
     alongside=["platformmesh", "keycloak"],
     runtime=go_service(

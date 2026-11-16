@@ -24,14 +24,14 @@ def _deploy(c, ctx):
         new_name="cert-manager",
         objects=select_objects(blob, named("cert-manager")),
         resource_deps=ctx.deps,
-        labels=[c.group],
+        labels=[c.label],
     )
     for part in ["cainjector", "webhook"]:
         k8s_resource(
             PREREQ_RELEASE + "cert-manager-" + part,
             new_name="cert-manager-" + part,
             resource_deps=ctx.deps,
-            labels=[c.group],
+            labels=[c.label],
         )
 
     # startupapicheck is a Job that issues a test Certificate: it is the only
@@ -40,14 +40,14 @@ def _deploy(c, ctx):
         PREREQ_RELEASE + "cert-manager-startupapicheck",
         new_name="cert-manager-startupapicheck",
         resource_deps=["cert-manager", "cert-manager-webhook", "cert-manager-cainjector"],
-        labels=[c.group],
+        labels=[c.label],
     )
     return "cert-manager-startupapicheck"
 
 
 COMPONENT = component(
     name="cert-manager",
-    group="prereq",
+    label="prereq",
     needs=["namespace"],
     runtime=_deploy,
 )

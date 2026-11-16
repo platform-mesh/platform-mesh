@@ -29,13 +29,13 @@ def _deploy(c, ctx):
     blob = prereq_blob(ctx)
 
     # Gateway API and Traefik CRDs, both from the traefik-crds subchart.
-    k8s_resource(new_name="gateway-crds", objects=select_objects(blob, _is_gateway_crd), labels=[c.group])
+    k8s_resource(new_name="gateway-crds", objects=select_objects(blob, _is_gateway_crd), labels=[c.label])
     k8s_resource(
         PREREQ_RELEASE + "traefik",
         new_name="traefik",
         objects=select_objects(blob, _is_traefik),
         resource_deps=ctx.deps + ["gateway-crds"],
-        labels=[c.group],
+        labels=[c.label],
     )
 
     # Applied once traefik is up: right after gateway-crds the Gateway kinds are
@@ -44,7 +44,7 @@ def _deploy(c, ctx):
         new_name="gatewayclass",
         objects=select_objects(blob, _is_gatewayclass),
         resource_deps=["traefik"],
-        labels=[c.group],
+        labels=[c.label],
     )
     return "gatewayclass"
 
@@ -52,7 +52,7 @@ def _deploy(c, ctx):
 # The gateway controller behind every hostname, on the kind node's NodePort.
 COMPONENT = component(
     name="traefik",
-    group="prereq",
+    label="prereq",
     needs=["namespace"],
     runtime=_deploy,
 )

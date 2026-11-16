@@ -24,10 +24,10 @@ def _deploy(c, ctx):
             infra_blob(ctx), kind_in(["FrontProxy", "CacheServer", "Etcd", "Kubeconfig", "Issuer", "Certificate"])
         ),
         resource_deps=ctx.deps,
-        labels=[c.group],
+        labels=[c.label],
     )
     k8s_resource(
-        new_name="kcp-root", objects=["root:rootshard"], resource_deps=["kcp"], labels=[c.group], pod_readiness="ignore"
+        new_name="kcp-root", objects=["root:rootshard"], resource_deps=["kcp"], labels=[c.label], pod_readiness="ignore"
     )
     return "kcp-root"
 
@@ -35,7 +35,7 @@ def _deploy(c, ctx):
 # kcp: root shard, front proxy, cache server and their etcds, run by kcp-operator.
 COMPONENT = component(
     name="kcp",
-    group="infra",
+    label="infra",
     needs=["kcp-operator", "etcd-druid", "domain-certificate"],
     runtime=_deploy,
     # Wait on operator conditions because bootstrap replaces kcp pods.

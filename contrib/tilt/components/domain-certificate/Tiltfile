@@ -37,7 +37,7 @@ _ISSUED = (
 # The local CA and the wildcard certificate of the base domain.
 COMPONENT = component(
     name="domain-certificate",
-    group="prereq",
+    label="prereq",
     needs=["cert-manager"],
     runtime=prereq_objects(kind_in(["Issuer", "Certificate"])),
     ready=[_ISSUED],

@@ -16,7 +16,7 @@ load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
 
 COMPONENT = component(
     name="pm-openfga-authz-webhook",
-    group="authz",
+    label="authz",
     needs=["platform-mesh-operator"],
     alongside=["platformmesh", "openfga"],
     runtime=go_service(

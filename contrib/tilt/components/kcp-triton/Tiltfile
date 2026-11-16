@@ -24,14 +24,14 @@ def _deploy(c, ctx):
         new_name=c.name,
         objects=["triton:shard"],
         resource_deps=[ctx.deployed("kcp")],
-        labels=[c.group],
+        labels=[c.label],
         pod_readiness="ignore",
     )
     gate(
         c.name + "-ready",
         [wait(_SHARD, "create"), wait(_SHARD, "condition=Available", timeout="15m")],
         [c.name] + ctx.deps,
-        c.group,
+        c.label,
     )
     return c.name + "-ready"
 
@@ -39,7 +39,7 @@ def _deploy(c, ctx):
 # Second kcp shard, exercised by the e2e tests only.
 COMPONENT = component(
     name="kcp-triton",
-    group="e2e",
+    label="e2e",
     needs=["kcp"],
     runtime=_deploy,
 )

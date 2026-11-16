@@ -22,7 +22,7 @@
 #
 #     COMPONENT = component(
 #         name    = "iam-service",
-#         group   = "iam",
+#         label   = "iam",
 #         needs   = ["platform-mesh-operator"],
 #         runtime = go_service(path="services/iam-service"),
 #     )
@@ -43,11 +43,11 @@ load("./helpers.py", "TILT_DIR", "profile_values_file", "remote_chart", "select_
 load("./settings.Tiltfile", "CONTEXT", "GO_DEPS", "KUBECTL", "NAMESPACE", "TEMPLATE_VARS", "third_party_version")
 
 
-def component(name, group, needs=[], alongside=[], runtime=None, ready=[]):
+def component(name, label, needs=[], alongside=[], runtime=None, ready=[]):
     """Declare a component.
 
     name:      component name, also the name of its main Tilt resource
-    group:     label in the Tilt UI
+    label:     heading its resources are listed under in the Tilt UI
     needs:     components that must be ready before this one is deployed
     alongside: components that must be deployed too, in no particular order
                (iam-service is pointless without Keycloak, but does not wait
@@ -71,7 +71,7 @@ def component(name, group, needs=[], alongside=[], runtime=None, ready=[]):
     """
     if not runtime and not ready:
         fail("component {}: needs a runtime, ready conditions or both".format(name))
-    return struct(name=name, group=group, needs=needs, alongside=alongside, runtime=runtime, ready=ready)
+    return struct(name=name, label=label, needs=needs, alongside=alongside, runtime=runtime, ready=ready)
 
 
 # --- readiness
@@ -82,11 +82,11 @@ def wait(target, condition, timeout="5m", kubectl=KUBECTL):
     return "{} wait {} --for={} --timeout={}".format(kubectl, target, condition, timeout)
 
 
-def gate(name, cmds, resource_deps, group):
+def gate(name, cmds, resource_deps, label):
     """A resource that turns green once every command has succeeded."""
     local_resource(
         name,
-        labels=[group],
+        labels=[label],
         resource_deps=resource_deps,
         allow_parallel=True,
         dir=TILT_DIR,
@@ -118,7 +118,7 @@ def go_service(path, workloads=[], overrides={}, deps=GO_DEPS):
             overrides=overrides,
             workloads=workloads,
             resource_deps=ctx.deps,
-            labels=[c.group],
+            labels=[c.label],
         )
 
     return run
@@ -135,7 +135,7 @@ def chart_service(workloads=[], overrides={}):
             overrides=overrides,
             workloads=workloads,
             resource_deps=ctx.deps,
-            labels=[c.group],
+            labels=[c.label],
         )
 
     return run
@@ -157,7 +157,7 @@ def remote_chart_service(repo, profile_values=False):
             values=[profile_values_file(c.name, TEMPLATE_VARS)] if profile_values else [],
         )
         k8s_yaml(blob)
-        k8s_resource(c.name, objects=select_objects(blob, lambda o: True), resource_deps=ctx.deps, labels=[c.group])
+        k8s_resource(c.name, objects=select_objects(blob, lambda o: True), resource_deps=ctx.deps, labels=[c.label])
 
     return run
 
@@ -165,11 +165,11 @@ def remote_chart_service(repo, profile_values=False):
 EXPORT_SECRET = os.path.join(TILT_DIR, "hack/export-secret.sh")
 
 
-def export_secret_resource(name, secret, key, dest, resource_deps, group, namespace=NAMESPACE):
+def export_secret_resource(name, secret, key, dest, resource_deps, label, namespace=NAMESPACE):
     """A resource writing one key of a cluster Secret to TILT_DIR/<dest>."""
     local_resource(
         name,
-        labels=[group],
+        labels=[label],
         resource_deps=resource_deps,
         allow_parallel=True,
         deps=[EXPORT_SECRET],
@@ -183,7 +183,7 @@ def export_secret(secret, key, dest):
     """Runtime: one key of a Secret in the platform namespace, written to TILT_DIR/<dest>."""
 
     def run(c, ctx):
-        export_secret_resource(c.name, secret, key, dest, ctx.deps, c.group)
+        export_secret_resource(c.name, secret, key, dest, ctx.deps, c.label)
 
     return run
 
@@ -191,20 +191,20 @@ def export_secret(secret, key, dest):
 # --- selection and deployment
 
 
-def expand(names, bundles):
-    """Component names for a list of bundle and component names, bundles nesting."""
+def expand(names, groups):
+    """Component names for a list of group and component names, groups nesting."""
     out = []
     todo = list(names)
     for _ in range(1000):
         if not todo:
             break
         name = todo.pop(0)
-        if name in bundles:
-            todo = list(bundles[name]) + todo
+        if name in groups:
+            todo = list(groups[name]) + todo
         elif name not in out:
             out.append(name)
     if todo:
-        fail("bundles do not resolve, is one of them part of itself?")
+        fail("groups do not resolve, is one of them part of itself?")
     return out
 
 
@@ -213,7 +213,7 @@ def select(components, wanted, without):
     for name in wanted + without:
         if name not in components:
             fail(
-                "unknown bundle or component {}: bundles are in contrib/tilt/bundles.Tiltfile, components are {}".format(
+                "unknown group or component {}: groups are in contrib/tilt/groups.Tiltfile, components are {}".format(
                     name, ", ".join(sorted(components.keys()))
                 )
             )
@@ -276,7 +276,7 @@ def deploy(components, selected):
             last = (c.runtime(c, ctx) or c.name) if c.runtime else None
             if c.ready:
                 cmds = [r(ctx) if type(r) == "function" else r for r in c.ready]
-                gate(c.name + "-ready", cmds, [last] if last else ctx.deps, c.group)
+                gate(c.name + "-ready", cmds, [last] if last else ctx.deps, c.label)
             deployed[name] = last or c.name + "-ready"
             ready[name] = c.name + "-ready" if c.ready else last
     stuck = [name for name in selected if name not in ready]

@@ -16,7 +16,7 @@ load("../../lib/component.Tiltfile", "component", "remote_chart_service")
 
 COMPONENT = component(
     name="kcp-operator",
-    group="infra",
+    label="infra",
     needs=["cert-manager"],
     runtime=remote_chart_service("https://kcp-dev.github.io/helm-charts"),
 )

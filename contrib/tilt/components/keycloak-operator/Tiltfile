@@ -18,7 +18,7 @@ load("../../lib/prereq.Tiltfile", "PREREQ_RELEASE", "prereq_workload")
 
 COMPONENT = component(
     name="keycloak-operator",
-    group="prereq",
+    label="prereq",
     needs=["namespace"],
     runtime=prereq_workload(PREREQ_RELEASE + "keycloak-operator", objects=named("keycloak")),
 )

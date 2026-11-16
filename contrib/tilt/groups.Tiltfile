@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Bundles: named sets of components for `task tilt:up -- <bundle>...`.
+# Groups: named sets of components for `task tilt:up -- <group>...`.
 #
-# A bundle lists what it adds; everything those components need is deployed
-# with them (needs/alongside of each component), and a bundle may name another
-# bundle. Component names work wherever a bundle name does.
+# A group lists what it adds; everything those components need is deployed
+# with them (needs/alongside of each component), and a group may name another
+# group. Component names work wherever a group name does.
 
-BUNDLES = {
+GROUPS = {
     # kcp behind the gateway, and the credentials to reach it from the host.
     "kcp": ["kcp-gateway", "export-ca", "export-kcp-ca", "export-kcp-admin-kubeconfig"],
     # The smallest Platform Mesh: operator, PlatformMesh and accounts.
@@ -33,8 +33,12 @@ BUNDLES = {
     "ui": ["api", "iam", "extension-manager-operator", "portal", "marketplace-ui"],
     # Fixtures of the e2e suites: HTTPBin provider and a second kcp shard.
     "e2e": ["httpbin", "kcp-triton"],
-    # Everything; what CI and `task tilt:e2e` expect.
+    # Everything; what `task tilt:e2e` expects.
     "full": ["ui", "e2e"],
 }
 
-DEFAULT = ["full"]
+# What runs when nothing is named. `tilt ci` (task tilt:ci) brings up
+# everything for the e2e suites; `tilt up` leaves the HTTPBin fixture out,
+# it is of no use in the development loop.
+DEFAULT_CI = ["full"]
+DEFAULT_UP = ["ui", "kcp-triton"]

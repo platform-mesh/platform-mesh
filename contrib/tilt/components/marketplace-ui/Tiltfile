@@ -16,7 +16,7 @@ load("../../lib/component.Tiltfile", "chart_service", "component")
 
 COMPONENT = component(
     name="marketplace-ui",
-    group="ui",
+    label="ui",
     needs=["platform-mesh-operator"],
     alongside=["platformmesh"],
     runtime=chart_service(),

@@ -31,7 +31,7 @@ def _deploy(c, ctx):
 
 COMPONENT = component(
     name="account-operator",
-    group="core",
+    label="core",
     needs=["platform-mesh-operator"],
     alongside=["platformmesh"],
     runtime=_deploy,

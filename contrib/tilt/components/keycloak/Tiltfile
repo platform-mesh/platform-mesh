@@ -18,7 +18,7 @@ load("../../lib/infra.Tiltfile", "infra_objects")
 # The Keycloak instance, run by keycloak-operator.
 COMPONENT = component(
     name="keycloak",
-    group="infra",
+    label="infra",
     needs=["keycloak-operator", "postgres", "domain-certificate"],
     runtime=infra_objects(
         extra_pod_selectors=[{"app": "keycloak"}],

@@ -16,7 +16,7 @@ load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
 
 COMPONENT = component(
     name="iam-service",
-    group="iam",
+    label="iam",
     needs=["platform-mesh-operator"],
     alongside=["platformmesh", "keycloak", "openfga"],
     runtime=go_service(

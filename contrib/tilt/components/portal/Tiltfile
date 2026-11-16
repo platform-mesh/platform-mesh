@@ -41,7 +41,7 @@ def _deploy(c, ctx):
 
 COMPONENT = component(
     name="portal",
-    group="ui",
+    label="ui",
     needs=["platform-mesh-operator"],
     alongside=["platformmesh"],
     runtime=_deploy,

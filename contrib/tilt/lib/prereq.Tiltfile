@@ -71,7 +71,7 @@ def prereq_workload(workload, objects):
             new_name=c.name,
             objects=select_objects(prereq_blob(ctx), objects),
             resource_deps=ctx.deps,
-            labels=[c.group],
+            labels=[c.label],
         )
 
     return run
@@ -85,7 +85,7 @@ def prereq_objects(objects):
             new_name=c.name,
             objects=select_objects(prereq_blob(ctx), objects),
             resource_deps=ctx.deps,
-            labels=[c.group],
+            labels=[c.label],
         )
 
     return run

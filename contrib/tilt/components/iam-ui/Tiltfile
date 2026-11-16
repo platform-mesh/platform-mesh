@@ -17,7 +17,7 @@ load("../../lib/component.Tiltfile", "chart_service", "component")
 # User and role management UI, see services/iam-service.
 COMPONENT = component(
     name="iam-ui",
-    group="iam",
+    label="iam",
     needs=["platform-mesh-operator"],
     alongside=["platformmesh", "keycloak", "openfga"],
     runtime=chart_service(),
