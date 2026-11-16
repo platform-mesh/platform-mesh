@@ -1,3 +1,13 @@
+exposure:
+  # -- Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh.
+  baseDomain: ""
+  # -- Public URL protocol. Operator-owned in Platform Mesh.
+  protocol: https
+  # -- Public URL port. Operator-owned in Platform Mesh.
+  port: 443
+  # -- GatewayClass selected by operator configuration. Operator-owned in Platform Mesh.
+  gatewayClassName: ""
+
 hostAliases:
   enabled: false
 
@@ -16,9 +26,10 @@ kcp:
     # -- Existing CA to sign from directly. Secret must be of type kubernetes.io/tls and contain the CA certificate and its private key. Mutually exclusive with issuerRef.
     caSecretRef: {}
   external:
-    # -- External hostname for kcp. Required — must be set via profile map or PlatformMesh resource (e.g. kcp.api.example.com).
+    # -- External hostname for kcp. Empty derives kcp.api.<exposure.baseDomain>; required without a contract (e.g. kcp.api.example.com).
     hostname: ""
-    port: 8443
+    # -- Explicit external port; empty derives exposure.port, or 8443 without a contract.
+    port: null
   auth:
     adminCert:
       enabled: true
@@ -119,9 +130,9 @@ kcp:
 
   rootShard:
     replicas: 1
-    # -- Hostname for the root shard. Defaults to "root.kcp.<kcp.external.hostname>" when unset.
+    # -- Hostname for the root shard. Derives root.kcp.<exposure.baseDomain>; without a contract, defaults to root.kcp.<kcp.external.hostname>.
     hostname: ""
-    # -- Base URL the root shard advertises. Defaults to "https://<rootShard.hostname>:<kcp.external.port>/" when unset.
+    # -- Base URL the root shard advertises. Derives the HTTPS root-shard URL with protocol-aware port handling; explicit values override derivation.
     shardBaseURL: ""
     # -- Optional resource requests and limits for the root shard
     resources: {}
@@ -196,9 +207,7 @@ keycloak:
         tag: "1.38"
         # -- wait-for-db init container image digest (when set, overrides tag)
         digest: ""
-    # -- Keycloak hostname (used in the Keycloak CR hostname.hostname field).
-    # Must not include a path — the operator auto-derives http-relative-path from
-    # any path component, which conflicts with the value baked into the image.
+    # -- Explicit public Keycloak URL (Keycloak CR hostname.hostname). Empty derives the exposure URL plus /keycloak. Include /keycloak in a full URL to match the serving path and OIDC issuer.
     hostname: ""
     db:
       # -- PostgreSQL host
@@ -407,12 +416,14 @@ gatewayApi:
   name: k8sapi-gateway
   # -- GatewayClass name
   gatewayClassName: ""
+  # -- Shared Gateway listener port; empty derives exposure.port. Set when the gateway Service port differs from the public port (e.g. NodePort).
+  listenerPort: null
   # -- HTTPS Terminate configuration
   infrastructure: {}
   # -- Gateway listeners. The HTTPS listener is hostname-less so all route hostnames share one listener (needed for HTTP/2 connection reuse on Istio).
   listeners:
     - name: terminate
-      port: 443
+      port: null
       protocol: HTTPS
       tls:
         mode: Terminate
@@ -424,8 +435,8 @@ gatewayApi:
   passthrough:
     # -- Generate one TLS passthrough listener per kcp hostname (front proxy, root shard, shards). Disable to manage passthrough listeners yourself; kcp TLSRoutes then attach to a listener named "passthrough".
     enabled: true
-    # -- Port of the generated passthrough listeners
-    port: 443
+    # -- Port of the generated passthrough listeners; empty derives exposure.port, or 443 without a contract
+    port: null
     # -- allowedRoutes of the generated passthrough listeners
     allowedRoutes:
       namespaces:
@@ -433,9 +444,9 @@ gatewayApi:
   # -- Additional listeners to be added to the Gateway resource (e.g. for HTTPBin)
   listenersExtra:
     - name: terminate-services
-    # -- hostname should match the pattern "*.services.{{ .baseDomain }}"
+    # -- Empty derives *.services.<exposure.baseDomain> for the terminate-services listener
       hostname: ""
-      port: 443
+      port: null
       protocol: HTTPS
       tls:
         mode: Terminate

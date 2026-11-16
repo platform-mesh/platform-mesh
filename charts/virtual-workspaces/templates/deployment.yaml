@@ -52,7 +52,7 @@ spec:
           {{- with .Values.deployment.contentForLabel }}
           - --content-for-label={{ . }}
           {{- end }}
-          {{- with .Values.deployment.serverUrl }}
+          {{- with (include "virtual-workspaces.serverUrl" .) }}
           - --server-url={{ . }}
           {{- end }}
           {{- with .Values.deployment.resourceSchemaName }}

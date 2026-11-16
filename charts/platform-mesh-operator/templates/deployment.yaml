@@ -29,10 +29,11 @@ spec:
         {{- include "common.healthAndReadiness" . | indent 8 }}
         args:
           - operator
+          - --gateway-class-name={{ .Values.gateway.className | default "traefik" }}
           {{- include "common.commonOperatorArgs" . | indent 8 }}
           {{- if .Values.ocm.enabled }}
-          - --kcp-front-proxy-port={{ .Values.kcp.frontProxyPort }}
-          - --kcp-url=https://frontproxy-front-proxy.{{ .Release.Namespace }}:{{ .Values.kcp.frontProxyPort }}
+          - --kcp-front-proxy-port={{ .Values.kcp.frontProxyPort | default .Values.gateway.port }}
+          - --kcp-url=https://frontproxy-front-proxy.{{ .Release.Namespace }}:{{ .Values.kcp.frontProxyPort | default .Values.gateway.port }}
           {{- end }}
           - --subroutines-deployment-enable-istio={{ (include "common.istioEnabled" .) }}
           {{- with .Values.jwt.userIdClaim }}

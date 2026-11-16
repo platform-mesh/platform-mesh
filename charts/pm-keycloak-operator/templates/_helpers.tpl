@@ -15,10 +15,10 @@ Feature gate arguments from .Values.featureGates.
 Keycloak connection arguments shared by every command.
 */}}
 {{- define "pm-keycloak-operator.keycloakArgs" -}}
-{{- with .Values.keycloak.baseUrl }}
+{{- with (include "pm-keycloak-operator.keycloakBaseUrl" .) }}
 - --keycloak-base-url={{ . }}
 {{- end }}
-{{- with .Values.baseDomain }}
+{{- with (include "pm-keycloak-operator.baseDomain" .) }}
 - --base-domain={{ . }}
 {{- end }}
 {{- end -}}
@@ -30,4 +30,12 @@ Keycloak connection arguments shared by every command.
 {{- if hasKey .Values.featureGates "LegacyAPIs" -}}
 {{- if .Values.featureGates.LegacyAPIs }}true{{ end -}}
 {{- else -}}true{{- end -}}
+{{- end -}}
+
+{{- define "pm-keycloak-operator.keycloakBaseUrl" -}}
+{{- .Values.keycloak.baseUrl | default (include "common.exposure.url" (dict "exposure" .Values.exposure "path" "/keycloak")) -}}
+{{- end -}}
+
+{{- define "pm-keycloak-operator.baseDomain" -}}
+{{- .Values.baseDomain | default (include "common.exposure.authority" (dict "exposure" .Values.exposure)) -}}
 {{- end -}}

@@ -6,7 +6,7 @@ metadata:
   namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
 spec:
   hostnames:
-  - {{ .Values.kcp.external.hostname }}
+  - {{ (include "kcp.externalHostname" .) }}
   parentRefs:
   - group: gateway.networking.k8s.io
     kind: Gateway
@@ -18,5 +18,5 @@ spec:
       kind: Service
       name: frontproxy-front-proxy
       namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
-      port: {{ .Values.kcp.external.port }}
+      port: {{ (include "kcp.externalPort" . | int) }}
 {{- end }}

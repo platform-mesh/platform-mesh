@@ -3,7 +3,11 @@ kind: HTTPRoute
 metadata:
   name: keycloak
 spec:
-  {{- with .Values.keycloak.gatewayApi.hostnames }}
+  {{- $hostnames := .Values.keycloak.gatewayApi.hostnames }}
+  {{- if and (not $hostnames) .Values.exposure.baseDomain }}
+    {{- $hostnames = list (include "common.exposure.host" (dict "exposure" .Values.exposure)) }}
+  {{- end }}
+  {{- with $hostnames }}
   hostnames:
   {{- range . }}
   - {{ . | quote }}

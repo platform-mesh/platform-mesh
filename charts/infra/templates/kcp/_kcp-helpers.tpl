@@ -219,16 +219,16 @@ passthrough
 {{- /* One passthrough listener per kcp hostname; Istio rejects same-port listeners that share an empty hostname. */ -}}
 {{- define "kcp.passthroughListeners" -}}
 {{- $pt := .Values.gatewayApi.passthrough -}}
-{{- $external := .Values.kcp.external.hostname -}}
+{{- $external := include "kcp.externalHostname" . -}}
 {{- $hosts := list (dict "suffix" "" "hostname" $external) -}}
-{{- $hosts = append $hosts (dict "suffix" "root" "hostname" (.Values.kcp.rootShard.hostname | default (printf "root.kcp.%s" $external))) -}}
+{{- $hosts = append $hosts (dict "suffix" "root" "hostname" (include "kcp.rootHostname" .)) -}}
 {{- range .Values.kcp.shards -}}
-{{- $hosts = append $hosts (dict "suffix" .name "hostname" (.hostname | default (printf "%s.kcp.%s" .name $external))) -}}
+{{- $hosts = append $hosts (dict "suffix" .name "hostname" (include "kcp.shardHostname" (dict "root" $ "shard" .))) -}}
 {{- end -}}
 {{- range $hosts }}
 - name: {{ include "kcp.passthroughSectionName" (dict "root" $ "suffix" .suffix) }}
   hostname: {{ .hostname | quote }}
-  port: {{ $pt.port }}
+  port: {{ $pt.port | default $.Values.gatewayApi.listenerPort | default $.Values.exposure.port | default 443 }}
   protocol: TLS
   tls:
     mode: Passthrough

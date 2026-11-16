@@ -70,14 +70,6 @@ data:
             autoGenerateCert:
               enabled: true
     components:
-      hostAliasesEntries: &hostAliasesEntries
-        - ip: "{{ .gatewayServiceClusterIP }}"
-          hostnames:
-            - "{{ .baseDomain }}"
-            - "kcp.api.{{ .baseDomain }}"
-            - "root.kcp.{{ .baseDomain }}"
-            - "nereus.kcp.{{ .baseDomain }}"
-            - "triton.kcp.{{ .baseDomain }}"
       deploymentTechnology: fluxcd
       ocm:
         component:
@@ -104,9 +96,6 @@ data:
                 requests:
                   cpu: 20m
                   memory: 64Mi
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             crds:
               enabled: false
             kcp:
@@ -138,9 +127,6 @@ data:
                   memory: 64Mi
             crds:
               enabled: false
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             kcp:
               enabled: true
               apiExportEndpointSliceName: "ui.platform-mesh.io"
@@ -241,45 +227,11 @@ data:
               enabled: true
             gatewayApi:
               enabled: true
-              listeners:
-                - name: terminate
-                  hostname: "portal.localhost"
-                  port: 8443
-                  protocol: HTTPS
-                  tls:
-                    mode: Terminate
-                    certificateRefs:
-                      - kind: Secret
-                        name: domain-certificate
-                        namespace: platform-mesh-system
-                - name: terminate-wildstar
-                  hostname: "*.portal.localhost"
-                  port: 8443
-                  protocol: HTTPS
-                  tls:
-                    mode: Terminate
-                    certificateRefs:
-                      - kind: Secret
-                        name: domain-certificate
-                        namespace: platform-mesh-system
-                - name: passthrough
-                  port: 8443
-                  protocol: TLS
-                  tls:
-                    mode: Passthrough
-                  allowedRoutes:
-                    namespaces:
-                      from: All
-              listenersExtra: []
               passthrough:
                 enabled: false
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             keycloak:
               enabled: true
               operator:
-                hostname: https://portal.localhost:8443/keycloak/
                 enabled: true
                 # same as helm-charts local-setup, the infra chart creates keycloak-db-credentials only when this is set
                 db:
@@ -311,21 +263,13 @@ data:
               keycloakConfig:
                 url: http://keycloak-service.platform-mesh-system.svc.cluster.local:8080/keycloak
               gatewayApi:
-                hostnames:
-                - "{{ .baseDomain }}"
             kcp:
-              external:
-                hostname: kcp.api.{{ .baseDomain }}
               auth:
                 serviceAccount:
                   enabled: true
-              frontProxy:
-                port: 8443
               image:
                 tag: v0.33.1
               rootShard:
-                hostname: "root.kcp.{{ .baseDomain }}"
-                shardBaseURL: https://root.kcp.{{ .baseDomain }}:8443/
                 extraArgs:
                 - --feature-gates=WorkspaceAuthentication=true
                 # kcp-operator defaults to 1 CPU / 1Gi requests and a 2 CPU limit; the
@@ -349,11 +293,7 @@ data:
               repo: oci
               artifact: image
               for: iam-ui
-          values:
-            exposure:
-              hostnames:
-              - "{{ .baseDomain }}"
-              - "*.{{ .baseDomain }}"
+          values: {}
         iam-service:
           imageResources:
           - annotations:
@@ -367,11 +307,6 @@ data:
             caSecret: domain-certificate
             extraArgs:
             - --no-json
-            keycloak:
-              baseUrl: "https://{{ .baseDomainPort }}/keycloak"
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
         kcp:
           external: true
         kcp-operator:
@@ -454,9 +389,6 @@ data:
           values:
             gatewayApi:
               enabled: true
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             istio:
               enabled: false
             kubeConfig:
@@ -478,23 +410,8 @@ data:
                   memory: 128Mi
                 limits:
                   memory: 600Mi
-              virtualWorkspacesConfig:
-                content:
-                  virtualWorkspaces:
-                  - kubeconfig: /app/kubeconfig/kubeconfig
-                    name: contentconfigurations
-                    url: "{{ .internalFrontProxyUrl }}/services/contentconfigurations"
-                  - kubeconfig: /app/kubeconfig/kubeconfig
-                    name: marketplace
-                    url: "{{ .internalFrontProxyUrl }}/services/marketplace"
-                enabled: true
             tracing:
               enabled: false
-            trust:
-              default:
-                audience: default
-                jwksUrl: http://keycloak-headless.platform-mesh-system:8080/keycloak/realms/default/protocol/openid-connect/certs
-                trustedIssuer: 'https://{{ .baseDomainPort }}/keycloak/realms/default'
         openfga:
           enabled: true
           external: true
@@ -593,19 +510,11 @@ data:
                   memory: 64Mi
             auth:
               default:
-                baseDomain: '{{ .baseDomain }}'
                 clientId: welcome
                 clientSecretKey: attribute.client_secret
                 clientSecretName: portal-client-secret-welcome
-                discoveryUrl: 'https://{{ .baseDomainPort }}/keycloak/realms/${org-name}/.well-known/openid-configuration'
-            cookieDomain: '{{ .baseDomain }}'
-            crdGatewayApiUrl: 'https://${org-subdomain}{{ .baseDomain }}/api/kubernetes-graphql-gateway/root:orgs:${org-name}/graphql'
             environment: kind
             extraEnvVars:
-            - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
-              value: https://${org-subdomain}portal.localhost:8443/iam/graphql
-            - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
-              value: https://${org-subdomain}portal.localhost:8443/gateway/api/clusters/root:orgs:${org-name}/graphql
             - name: NODE_EXTRA_CA_CERTS
               value: /etc/ssl/certs/domain-ca.crt
             extraVolumes:
@@ -617,21 +526,12 @@ data:
               mountPath: /etc/ssl/certs/domain-ca.crt
               subPath: tls.crt
               readOnly: true
-            frontendPort: '8443'
             gatewayApi:
               enabled: true
               httpRoute:
                 parentRefs:
                 - name: k8sapi-gateway
                   kind: Gateway
-                hostnames:
-                - "{{ .baseDomain }}"
-                - "*.{{ .baseDomain }}"
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
-            http:
-              protocol: https
             kcp:
               kubeconfigSecret: portal-kubeconfig
         pm-openfga-authz-webhook:
@@ -648,9 +548,6 @@ data:
                 requests:
                   cpu: 20m
                   memory: 64Mi
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             certManager:
               createCA: true
               enabled: true
@@ -666,14 +563,11 @@ data:
           syncWave: 4
           enabled: true
           values:
-            baseDomain: '{{ .baseDomainPort }}'
             caSecret: domain-certificate
             crds:
               enabled: false
             openfga:
               endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
-            keycloak:
-              baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
             idp:
               smtp:
                 # REQUIRED: configure a production SMTP server
@@ -684,9 +578,6 @@ data:
               registrationAllowed: false
               allowUnverifiedEmails: false
               setDefaultPassword: false
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             initializer:
               kubeconfigSecret: openfga-initializer-kubeconfig
             kubeconfigSecret: pm-openfga-operator-kubeconfig
@@ -708,15 +599,11 @@ data:
           targetNamespace: platform-mesh-system
           values:
             virtualWorkspaceSecretName: virtual-workspaces-cert
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             deployment:
               resources:
                 requests:
                   cpu: 20m
                   memory: 64Mi
-              serverUrl: "{{ .internalFrontProxyUrl }}"
               resourceSchemaName: "v250704-6d57f16.contentconfigurations.ui.platform-mesh.io"
               resourceSchemaWorkspace: "root:platform-mesh-system"
         marketplace-ui:
@@ -734,13 +621,6 @@ data:
                   memory: 64Mi
             gatewayApi:
               enabled: true
-            contentConfig:
-              baseDomain: '{{ .baseDomain }}'
-              protocol: https
-            exposure:
-              hostnames:
-              - "{{ .baseDomain }}"
-              - "*.{{ .baseDomain }}"
             http:
               protocol: https
             istio:

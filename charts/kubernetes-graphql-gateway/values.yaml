@@ -1,3 +1,7 @@
+exposure:
+  # -- Public hostname without protocol or port; empty preserves standalone behavior. pm-operator sets this value based on the PlatformMesh.spec.Exposure.host.
+  baseDomain: ""
+
 rbac:
   enabled: true
 
@@ -176,7 +180,7 @@ gatewayApi:
   httpRoute:
     enabled: true
     pathPrefix: /gateway/api/clusters/
-    # -- hostnames for the HTTPRoute. When empty, the route matches all hostnames.
+    # -- hostnames for the HTTPRoute. Empty derives the base domain and wildcard, or matches all hostnames without a contract.
     hostnames: []
     parentRefs:
     - name: k8sapi-gateway

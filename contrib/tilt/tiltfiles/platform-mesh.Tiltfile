@@ -150,7 +150,7 @@ service(
     workloads=["kubernetes-graphql-gateway", "kubernetes-graphql-gateway-listener"],
 )
 service("virtual-workspaces", NAMESPACE, TEMPLATE_VARS, path="services/virtual-workspaces", deps=GO_DEPS)
-service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"frontendPort": str(PORT)})
+service("portal", NAMESPACE, TEMPLATE_VARS)
 service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
 
 # Relationship-based authorization on OpenFGA: stores, models and the kcp

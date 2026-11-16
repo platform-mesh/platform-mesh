@@ -27,7 +27,7 @@ spec:
           protocol: TCP
         args:
           - serve
-          - --keycloak-base-url={{ .Values.keycloak.baseUrl }}
+          - --keycloak-base-url={{ include "iam-service.keycloak.baseUrl" . }}
           - --keycloak-client-id={{ .Values.keycloak.client.id }}
           - --roles-file-path=/roles/roles.yaml
           - --jwt-user-id-claim={{ .Values.jwt.userIdClaim  }}

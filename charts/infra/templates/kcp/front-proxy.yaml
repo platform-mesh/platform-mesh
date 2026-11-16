@@ -30,8 +30,8 @@ spec:
 {{ toYaml .Values.kcp.frontProxy.additionalPathMappings | indent 4 }}
   external:
     # replace the hostname with the external DNS name for your kcp instance
-    hostname: {{ .Values.kcp.external.hostname }}
-    port: {{ .Values.kcp.external.port }}
+    hostname: {{ (include "kcp.externalHostname" .) }}
+    port: {{ (include "kcp.externalPort" . | int) }}
   rootShard:
     ref:
       name: root

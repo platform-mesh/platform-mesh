@@ -23,7 +23,7 @@ spec:
   ingress:
     enabled: false
   hostname:
-    hostname: {{ .Values.keycloak.operator.hostname }}
+    hostname: {{ include "infra.keycloak.hostname" . | quote }}
     strict: false
     backchannelDynamic: true
   proxy:

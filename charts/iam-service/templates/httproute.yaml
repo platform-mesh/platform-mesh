@@ -4,7 +4,7 @@ metadata:
   name: {{ include "common.entity.name" . }}
 spec:
   hostnames:
-  {{- range .Values.exposure.hostnames }}
+  {{- range (include "common.exposure.hostnames" . | fromYamlArray) }}
     - {{ . | quote }}
   {{- end }}
   parentRefs:

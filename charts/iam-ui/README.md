@@ -7,7 +7,8 @@ Helm Chart for the iam-ui
 |-----|------|---------|-------------|
 | deployment.maxSurge | int | `5` |  |
 | deployment.maxUnavailable | int | `0` |  |
-| exposure.hostnames | list | `[]` | hostnames to be used for exposure |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
+| exposure.hostnames | list | `[]` | Explicit exposure hostnames; an empty list derives the base domain and its wildcard. |
 | gatewayApi.httpRoute.parentRefs[0].name | string | `"k8sapi-gateway"` |  |
 | gatewayApi.httpRoute.pathPrefix | string | `"/ui/iam"` |  |
 | health.port | int | `8080` |  |
