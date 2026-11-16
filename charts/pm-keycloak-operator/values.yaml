@@ -22,6 +22,9 @@ deployment:
       cpu: 150m
       memory: 128Mi
 
+# -- Feature gates rendered into --feature-gates. Known gates: LegacyAPIs (default true; also serves the deprecated core.platform-mesh.io IdentityProviderConfigurations and Invites).
+featureGates: {}
+
 webhooks:
   # -- Enable validating admission webhooks
   enabled: true
@@ -124,8 +127,6 @@ initContainer:
     secretRef:
       name: iam-client-secret
       namespace: platform-mesh-system
-
-featureGates: {}
 
 operator:
   extraArgs: []
