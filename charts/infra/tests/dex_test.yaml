@@ -71,6 +71,30 @@ tests:
     - matchRegex:
         path: data["config.yaml"]
         pattern: 'oauth2:\n  skipApprovalScreen: true\n  passwordConnector: "local"'
+- it: dex expiry not rendered by default
+  set:
+    dex:
+      enabled: true
+  templates:
+    - dex/configmap.yaml
+  asserts:
+    - notMatchRegex:
+        path: data["config.yaml"]
+        pattern: expiry
+- it: dex expiry rendered when set
+  set:
+    dex:
+      enabled: true
+      expiry:
+        refreshTokens:
+          disableRotation: true
+          reuseInterval: 8760h
+  templates:
+    - dex/configmap.yaml
+  asserts:
+    - matchRegex:
+        path: data["config.yaml"]
+        pattern: '\nexpiry:\n  refreshTokens:\n    disableRotation: true\n    reuseInterval: 8760h\nenablePasswordDB: true'
 - it: dex deployment restarts on config change
   set:
     dex:

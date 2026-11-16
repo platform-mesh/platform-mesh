@@ -25,6 +25,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.roles.openfga.password | string | `""` | REQUIRED: set to a strong random value. |
 | cnpg.roles.openfga.username | string | `"openfga"` | PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret. |
 | dex.enabled | bool | `false` | Enable Dex as a local upstream OIDC identity provider |
+| dex.expiry | object | `{}` | Dex `expiry` settings (token lifetimes, refresh token rotation), rendered as given (default: Dex defaults) |
 | dex.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | dex.gatewayApi.hostnames | list | `[]` | hostnames for the Dex HTTPRoute |
 | dex.gatewayApi.pathPrefix | string | `"/dex"` | path prefix for the Dex HTTPRoute |
@@ -72,10 +73,10 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.auth.oidc.clientID | string | `""` |  |
 | kcp.auth.oidc.enabled | bool | `false` |  |
 | kcp.auth.oidc.groupsClaim | string | `"groups"` |  |
-| kcp.auth.oidc.groupsPrefix | string | `""` | Prefix prepended to every group of the OIDC issuer (default: none set) |
+| kcp.auth.oidc.groupsPrefix | string | `""` |  |
 | kcp.auth.oidc.issuerUrl | string | `""` |  |
 | kcp.auth.oidc.usernameClaim | string | `"email"` |  |
-| kcp.auth.oidc.usernamePrefix | string | `""` | Prefix prepended to every username of the OIDC issuer (default: none set) |
+| kcp.auth.oidc.usernamePrefix | string | `""` |  |
 | kcp.auth.serviceAccount.enabled | bool | `true` |  |
 | kcp.cacheServer.etcd.name | string | `"etcd-cache"` |  |
 | kcp.cacheServer.etcd.service.name | string | `"etcd-cache-client"` |  |
