@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   release-note:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     if: github.event.pull_request.user.type != 'Bot'
     steps:

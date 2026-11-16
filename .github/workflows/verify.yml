@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     env:
       # `task dco` walks BASE..HEAD: on a pull request the PR's own commits,
       # in the merge queue the commits being merged.
