@@ -3,7 +3,7 @@ name: example-httpbin-operator
 description: A Helm chart for deploying the httpbin operator and its CRDs
 type: application
 version: 0.0.0
-appVersion: "v0.6.18"
+appVersion: "v0.6.19"
 sources:
   - https://github.com/platform-mesh/example-httpbin-operator
 dependencies:
