@@ -31,6 +31,9 @@ GROUPS = {
     "api": ["core", "kubernetes-graphql-gateway", "virtual-workspaces"],
     # The portal and what it talks to.
     "ui": ["api", "iam", "extension-manager-operator", "portal", "marketplace-ui"],
+    # Optional kcp virtual workspaces behind the front proxy: permission-aware
+    # workspace discovery and the MCP server on top of it.
+    "vw": ["kcp-access-vw", "kcp-mcp-vw"],
     # Fixtures of the e2e suites: HTTPBin provider and a second kcp shard.
     "e2e": ["httpbin", "kcp-triton"],
     # Everything; what `task tilt:e2e` expects.
@@ -38,7 +41,7 @@ GROUPS = {
 }
 
 # What runs when nothing is named. `tilt ci` (task tilt:ci) brings up
-# everything for the e2e suites; `tilt up` leaves their fixtures (the "e2e"
+# everything the e2e suites need; `tilt up` leaves their fixtures (the "e2e"
 # group) out, they are of no use in the development loop.
 DEFAULT_CI = ["full"]
 DEFAULT_UP = ["ui"]

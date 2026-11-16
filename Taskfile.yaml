@@ -140,7 +140,7 @@ tasks:
         cat <<'EOF'
         Tilt development environment
 
-          task tilt:up                         start kind and Tilt with everything but the e2e fixtures
+          task tilt:up                         start kind and Tilt with everything but the e2e fixtures (groups ui and vw)
           task tilt:up -- full                 same with the fixtures, as task tilt:e2e needs them
           task tilt:up -- core                 only a group and what it needs; several can be given,
                                                and component names work too (task tilt:up -- core iam-service)
@@ -174,10 +174,11 @@ tasks:
           iam     authz + Keycloak, pm-keycloak-operator, iam-service, iam-ui
           api     core + kubernetes-graphql-gateway, virtual-workspaces
           ui      api + iam + portal, marketplace-ui, extension-manager-operator
+          vw      kcp access and MCP virtual workspaces (charts kcp-access-vw, kcp-mcp-vw)
           e2e     HTTPBin provider fixture and a second kcp shard
           full    ui + e2e (default of tilt:ci; what task tilt:e2e expects)
 
-        task tilt:up without a group runs ui: everything but the e2e fixtures.
+        task tilt:up without a group runs ui and vw; task tilt:ci runs full.
 
         Tiltfile options (after `--`): --frontend-cors, --without, --with, --context, --cluster-id, --httpbin-namespace
         EOF

@@ -1,0 +1,38 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "chart_objects", "component", "wait")
+load("../../lib/infra.Tiltfile", "KCP_API_HOSTNAME")
+load("../../lib/settings.Tiltfile", "PORT")
+
+# The MCP virtual workspace (kcp-dev/contrib-virtual-workspaces): an MCP server
+# over the workspaces a caller may access, at /services/mcp of the front proxy
+# (lib/infra.Tiltfile adds the route). Sessions are scoped through the access
+# virtual workspace.
+#
+# Not set up here: native OIDC validation (oidc.*, oauth.* of the chart) and
+# the mcp-virtual-workspace-impersonator ClusterRole the server needs in every
+# workspace it should act in; see charts/kcp-mcp-vw/README.md.
+COMPONENT = component(
+    name="kcp-mcp-vw",
+    label="api",
+    needs=["kcp-gateway", "kcp-access-vw"],
+    runtime=chart_objects(
+        values={
+            "external": {"hostname": KCP_API_HOSTNAME, "port": PORT},
+            "resources": {"requests": {"cpu": "1m", "memory": "1Mi"}},
+        },
+    ),
+    ready=[wait("virtualworkspace/mcp-vw", "condition=Available", timeout="10m")],
+)

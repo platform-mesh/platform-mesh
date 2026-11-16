@@ -39,7 +39,7 @@
 #              that are deployed along and turns into resource_deps on their
 #              ready resources. No component names a foreign resource.
 
-load("./helpers.py", "TILT_DIR", "chart", "profile_values_file", "remote_chart", "select_objects", "service")
+load("./helpers.py", "TILT_DIR", "chart", "profile_values_file", "remote_chart", "select_objects", "service", "write_values")
 load("./settings.Tiltfile", "CONTEXT", "GO_DEPS", "KUBECTL", "NAMESPACE", "TEMPLATE_VARS", "third_party_version")
 
 
@@ -143,11 +143,14 @@ def chart_service(workloads=[], overrides={}):
     return run
 
 
-def chart_objects():
-    """charts/<name> with its default values, for charts without workloads (CRDs)."""
+def chart_objects(values={}):
+    """charts/<name> for charts without workloads of their own (CRDs, objects an operator acts on).
+
+    values: Helm values over the chart's defaults; these charts are not in the kind-profile
+    """
 
     def run(c, ctx):
-        blob = chart(c.name, NAMESPACE)
+        blob = chart(c.name, NAMESPACE, values=[write_values(c.name, values)] if values else [])
         k8s_yaml(blob)
         k8s_resource(
             new_name=c.name,

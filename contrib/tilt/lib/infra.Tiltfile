@@ -17,7 +17,7 @@
 # with its kind-profile values, each component claims its objects and the
 # objects of components that are not selected are dropped.
 
-load("./helpers.py", "kind_in", "profile_chart", "select_objects")
+load("./helpers.py", "CHARTS", "kind_in", "profile_chart", "select_objects")
 load(
     "./settings.Tiltfile",
     "BASE_DOMAIN",
@@ -53,6 +53,34 @@ INFRA_OWNED = {
     or (o["kind"] == "Secret" and o["metadata"]["name"].startswith("keycloak-")),
     "gateway": kind_in(["Gateway", "HTTPRoute", "TLSRoute"]),
 }
+
+
+# Component -> (front-proxy path, kcp-operator VirtualWorkspace) of the virtual
+# workspaces served behind the front proxy (charts kcp-access-vw, kcp-mcp-vw).
+_VIRTUAL_WORKSPACES = {
+    "kcp-access-vw": ("/services/access", "access-vw"),
+    "kcp-mcp-vw": ("/services/mcp", "mcp-vw"),
+}
+
+
+def _front_proxy(ctx):
+    """Values of kcp.frontProxy, routing to the selected virtual workspaces."""
+    values = {"resources": NO_REQUESTS}
+    selected = [vw for name, vw in _VIRTUAL_WORKSPACES.items() if ctx.selected(name)]
+    if selected:
+        # Lists replace on override: repeat the chart's own mappings.
+        defaults = read_yaml(CHARTS + "/infra/values.yaml")["kcp"]["frontProxy"]["additionalPathMappings"]
+        values["additionalPathMappings"] = defaults + [
+            {
+                "path": path,
+                "backend": "https://{}-virtual-workspace.{}.svc.cluster.local:6443".format(name, NAMESPACE),
+                "backend_server_ca": "/etc/kcp/tls/ca/tls.crt",
+                "proxy_client_cert": "/etc/kcp-front-proxy/requestheader-client/tls.crt",
+                "proxy_client_key": "/etc/kcp-front-proxy/requestheader-client/tls.key",
+            }
+            for path, name in selected
+        ]
+    return values
 
 
 def _selected_only(blob, ctx):
@@ -103,7 +131,7 @@ def infra_blob(ctx):
                 # kcp-operator defaults both to 2; one is enough on a single node.
                 "proxy": {"replicas": 1},
                 "cacheServer": {"replicas": 1, "resources": NO_REQUESTS},
-                "frontProxy": {"resources": NO_REQUESTS},
+                "frontProxy": _front_proxy(ctx),
                 "etcd": {"resources": NO_REQUESTS, "backup": {"resources": NO_REQUESTS}},
                 # The ReBAC authorization webhook is pm-openfga-authz-webhook.
                 "webhook": {"enabled": ctx.selected("pm-openfga-authz-webhook")},
