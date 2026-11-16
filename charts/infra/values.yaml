@@ -36,6 +36,8 @@ kcp:
       clientID: ""
       groupsClaim: groups
       usernameClaim: email
+      usernamePrefix: ""
+      groupsPrefix: ""
       caFileRef:
         name: domain-certificate-ca
         key: tls.crt
