@@ -23,6 +23,12 @@ data:
       hash: {{ .hash | quote }}
       username: {{ .username | quote }}
       userID: {{ .userID | quote }}
+      {{- with .groups }}
+      groups:
+      {{- range . }}
+      - {{ . | quote }}
+      {{- end }}
+      {{- end }}
     {{- end }}
     staticClients:
     - id: {{ .Values.dex.staticClient.id | quote }}
