@@ -102,6 +102,9 @@ if DEX:
         "gatewayApi": {"hostnames": [BASE_DOMAIN]},
         # The password grant issues tokens without a browser.
         "passwordConnector": "local",
+        # Dex v2.46.1 deadlocks its memory storage when it rotates a refresh token;
+        # without rotation and inside the reuse interval it returns before that.
+        "expiry": {"refreshTokens": {"disableRotation": True, "reuseInterval": "8760h"}},
         "staticPasswords": DEX_USERS,
         "staticClient": {
             "id": DEX_CLIENT_ID,

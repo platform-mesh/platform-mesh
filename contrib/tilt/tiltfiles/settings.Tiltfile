@@ -125,6 +125,8 @@ DEX_ISSUER = "https://{}/dex".format(BASE_DOMAIN_PORT)
 DEX_CLIENT_ID = "platform-mesh"
 # Local development only.
 DEX_CLIENT_SECRET = "local-dev-platform-mesh-secret"
+# Dex adds e-mail and groups to a token only for their scopes, offline_access gives a refresh token.
+DEX_SCOPE = "openid email profile groups offline_access"
 # bcrypt of "password".
 DEX_PASSWORD_HASH = "$2a$10$iwYOwbUyunwL.Ahtr9zBq.ruc.rjYSDPwBnX.CDAsMlUA1alMoeqW"
 DEX_USERS = [

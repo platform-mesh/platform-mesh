@@ -21,6 +21,7 @@ load(
     "../helpers.py",
     "chart",
     "component_binary",
+    "profile_values",
     "render",
     "select_objects",
     "service",
@@ -32,7 +33,9 @@ load(
     "BASE_DOMAIN",
     "DEX",
     "DEX_CLIENT_ID",
+    "DEX_CLIENT_SECRET",
     "DEX_ISSUER",
+    "DEX_SCOPE",
     "FEATURE_TOGGLES",
     "GO_DEPS",
     "HTTPBIN_NAMESPACE",
@@ -177,6 +180,13 @@ service(
 portal_overrides = {"frontendPort": str(PORT)}
 if DEX:
     portal_overrides["auth"] = {"default": {"discoveryUrl": DEX_ISSUER + "/.well-known/openid-configuration"}}
+    portal_overrides["extraEnvVars"] = profile_values("portal", TEMPLATE_VARS).get("extraEnvVars", []) + [
+        {"name": "OIDC_STATIC_CLIENT_ID", "value": DEX_CLIENT_ID},
+        {"name": "OIDC_STATIC_CLIENT_SECRET", "value": DEX_CLIENT_SECRET},
+        {"name": "OIDC_SCOPE", "value": DEX_SCOPE},
+        # Dex has no wildcard redirect URIs; only the base domain's callback is registered.
+        {"name": "OIDC_CALLBACK_ON_BASE_DOMAIN", "value": "true"},
+    ]
 
 service("portal", NAMESPACE, TEMPLATE_VARS, overrides=portal_overrides)
 
