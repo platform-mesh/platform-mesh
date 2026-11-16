@@ -42,6 +42,7 @@ spec:
         image: {{ include "common.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
+          - "--httpbin-image={{ include "common.image" (dict "Values" (dict "image" .Values.httpbinImage) "Chart" .Chart) }}"
         {{- if .Values.operator.args }}
         {{- toYaml .Values.operator.args | nindent 10 }}
         {{- end }}
