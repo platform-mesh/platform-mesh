@@ -24,8 +24,9 @@ type ClientMetadata struct {
 	GrantTypes              []string `json:"grant_types,omitempty"`
 	ResponseTypes           []string `json:"response_types,omitempty"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
-	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris,omitempty"`
-	Scope                   string   `json:"scope,omitempty"`
+	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris"`
+	Scope                   *string  `json:"scope,omitempty"`
+	SubjectType             string   `json:"subject_type,omitempty"`
 	Contacts                []string `json:"contacts,omitempty"`
 	LogoURI                 string   `json:"logo_uri,omitempty"`
 	ClientURI               string   `json:"client_uri,omitempty"`

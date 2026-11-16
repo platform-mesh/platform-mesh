@@ -66,6 +66,7 @@ func IsNotFound(err error) bool {
 
 var ErrNoTokenProvider = errors.New("oidc: token provider is required for this operation")
 var ErrNoRegistrationURI = errors.New("oidc: registration client URI is required")
+var ErrRegistrationNotAttempted = errors.New("oidc: registration was not attempted")
 
 func newHTTPErrorFromResponse(resp *http.Response, operation OperationType) *HTTPError {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))

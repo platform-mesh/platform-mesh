@@ -17,7 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // AccountInfoSpec defines the desired state of Account
@@ -53,6 +55,38 @@ type FGAInfo struct {
 type OIDCInfo struct {
 	IssuerURL string                `json:"issuerUrl"`
 	Clients   map[string]ClientInfo `json:"clients"`
+	// identity is the UID-bound public projection of the selected identity
+	// tenant. It is absent for legacy email-based identity configuration.
+	// +optional
+	Identity *OIDCIdentityContext `json:"identity,omitempty"`
+}
+
+type IdentityTenantReference struct {
+	// logicalCluster is the immutable KCP logical cluster ID, not a path.
+	// +kubebuilder:validation:MinLength=1
+	LogicalCluster string `json:"logicalCluster"`
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Type=string
+	UID types.UID `json:"uid"`
+}
+
+type OIDCIdentityContext struct {
+	Tenant IdentityTenantReference `json:"tenant"`
+	// +kubebuilder:validation:MinLength=1
+	ProviderClassRef string `json:"providerClassRef"`
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Type=string
+	ProviderClassUID types.UID `json:"providerClassUID"`
+	// +kubebuilder:validation:MinLength=1
+	ConfigurationRevision string `json:"configurationRevision"`
+	// +optional
+	DiscoveryURL string `json:"discoveryUrl,omitempty"`
+	// +kubebuilder:validation:Enum=Dedicated;Shared
+	IssuerMode string `json:"issuerMode"`
+	// +kubebuilder:validation:Enum=Public;Pairwise
+	SubjectMode string `json:"subjectMode"`
 }
 
 type StoreInfo struct {
@@ -61,6 +95,16 @@ type StoreInfo struct {
 
 type ClientInfo struct {
 	ClientID string `json:"clientId"`
+	// +kubebuilder:validation:Enum=Portal;CLI;Application
+	// +optional
+	Purpose string `json:"purpose,omitempty"`
+	// +listType=set
+	// +optional
+	Scopes []string `json:"scopes,omitempty"`
+	// credentialsSecretRef is resolved in identity.tenant.logicalCluster,
+	// not in the AccountInfo's own workspace.
+	// +optional
+	CredentialsSecretRef *corev1.SecretReference `json:"credentialsSecretRef,omitempty"`
 }
 
 // AccountInfoStatus defines the observed state of AccountInfo

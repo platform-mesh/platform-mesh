@@ -1,0 +1,135 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: keycloakproviderconfigurations.keycloak.platform-mesh.io
+spec:
+  group: keycloak.platform-mesh.io
+  names:
+    kind: KeycloakProviderConfiguration
+    listKind: KeycloakProviderConfigurationList
+    plural: keycloakproviderconfigurations
+    singular: keycloakproviderconfiguration
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          KeycloakProviderConfiguration configures the independently deployed default
+          implementation of the identity.platform-mesh.io API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              KeycloakProviderConfigurationSpec is an administrator-owned configuration.
+              Secret references resolve only in the provider's runtime namespace.
+            properties:
+              accessTokenLifespan:
+                default: 28800
+                minimum: 60
+                type: integer
+              adminUrl:
+                minLength: 1
+                type: string
+              caSecretRef:
+                description: caSecretRef optionally contains ca.crt for the provider
+                  transport.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              credentialsSecretRef:
+                description: credentialsSecretRef contains client_id and client_secret
+                  for the master realm.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              outputNamespace:
+                default: default
+                description: |-
+                  outputNamespace is the namespace in each tenant's own KCP workspace for
+                  consumer credentials. It does not select a different workspace.
+                type: string
+              publicUrl:
+                minLength: 1
+                type: string
+              registrationAllowed:
+                type: boolean
+              smtp:
+                additionalProperties:
+                  type: string
+                description: SMTP contains non-secret Keycloak SMTP configuration.
+                type: object
+              smtpSecretRef:
+                description: smtpSecretRef optionally supplies password for SMTP.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+            required:
+            - adminUrl
+            - credentialsSecretRef
+            - publicUrl
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true

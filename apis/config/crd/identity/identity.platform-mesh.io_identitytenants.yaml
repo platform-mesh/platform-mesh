@@ -1,0 +1,471 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: identitytenants.identity.platform-mesh.io
+spec:
+  group: identity.platform-mesh.io
+  names:
+    kind: IdentityTenant
+    listKind: IdentityTenantList
+    plural: identitytenants
+    singular: identitytenant
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: IdentityTenant is the aggregate identity configuration for one
+          tenant.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: IdentityTenantSpec defines the desired identity configuration
+              for a tenant.
+            properties:
+              adoptionRef:
+                description: |-
+                  adoptionRef requests adoption of an existing provider tenant. Admission
+                  policy is responsible for restricting who may set this field.
+                type: string
+              clients:
+                description: clients are the OIDC clients managed for this tenant.
+                items:
+                  description: OIDCClient describes a desired OAuth/OIDC client.
+                  properties:
+                    credentialsSecretRef:
+                      description: |-
+                        credentialsSecretRef identifies the client credentials Secret in the
+                        installation-managed namespace, not a user-selected workspace or namespace.
+                      properties:
+                        name:
+                          default: ""
+                          description: |-
+                            Name of the referent.
+                            This field is effectively required, but due to backwards compatibility is
+                            allowed to be empty. Instances of this type with an empty value here are
+                            almost certainly wrong.
+                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    displayName:
+                      description: displayName is the human-readable name shown to
+                        users.
+                      type: string
+                    grantTypes:
+                      description: grantTypes lists OAuth 2.0 grant types enabled
+                        for this client.
+                      items:
+                        type: string
+                      minItems: 1
+                      type: array
+                      x-kubernetes-list-type: set
+                    name:
+                      description: name is the stable key for this client within its
+                        tenant.
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                      type: string
+                    postLogoutRedirectUris:
+                      description: postLogoutRedirectURIs lists exact URLs allowed
+                        after logout.
+                      items:
+                        type: string
+                      type: array
+                    purpose:
+                      description: purpose describes the intended use of this client.
+                      enum:
+                      - Portal
+                      - CLI
+                      - Application
+                      type: string
+                    redirectUris:
+                      description: redirectURIs lists exact callback URLs allowed
+                        for this client.
+                      items:
+                        type: string
+                      type: array
+                    responseTypes:
+                      description: responseTypes lists OAuth 2.0 response types enabled
+                        for this client.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
+                    scopes:
+                      description: scopes lists the OAuth scopes available to this
+                        client.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
+                    tokenEndpointAuthMethod:
+                      description: tokenEndpointAuthMethod selects how the client
+                        authenticates to the token endpoint.
+                      enum:
+                      - none
+                      - client_secret_basic
+                      - client_secret_post
+                      type: string
+                  required:
+                  - grantTypes
+                  - name
+                  - purpose
+                  - tokenEndpointAuthMethod
+                  type: object
+                  x-kubernetes-validations:
+                  - message: name and purpose are immutable
+                    rule: self.name == oldSelf.name && self.purpose == oldSelf.purpose
+                  - message: confidential clients require a credentials Secret
+                    rule: self.tokenEndpointAuthMethod == 'none' || (has(self.credentialsSecretRef)
+                      && has(self.credentialsSecretRef.name) && size(self.credentialsSecretRef.name)
+                      > 0)
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              deletionPolicy:
+                default: Delete
+                description: deletionPolicy controls whether provider-side tenant
+                  resources are removed.
+                enum:
+                - Delete
+                - Retain
+                type: string
+              organization:
+                description: organization is the associated organization name, when
+                  applicable.
+                type: string
+              providerClassRef:
+                description: providerClassRef is the name of the IdentityProviderClass
+                  to use.
+                maxLength: 253
+                minLength: 1
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                type: string
+              purpose:
+                description: purpose selects the kind of tenant identity being provisioned.
+                enum:
+                - Welcome
+                - Organization
+                type: string
+              registrationAllowed:
+                description: registrationAllowed controls whether new registrations
+                  are permitted.
+                type: boolean
+            required:
+            - clients
+            - providerClassRef
+            - purpose
+            type: object
+            x-kubernetes-validations:
+            - message: providerClassRef, purpose, and organization are immutable
+              rule: self.providerClassRef == oldSelf.providerClassRef && self.purpose
+                == oldSelf.purpose && ((!has(self.organization) && !has(oldSelf.organization))
+                || (has(self.organization) && has(oldSelf.organization) && self.organization
+                == oldSelf.organization))
+            - message: adoptionRef is immutable
+              rule: (!has(self.adoptionRef) && !has(oldSelf.adoptionRef)) || (has(self.adoptionRef)
+                && has(oldSelf.adoptionRef) && self.adoptionRef == oldSelf.adoptionRef)
+          status:
+            description: IdentityTenantStatus reports provider-resolved identity and
+              client details.
+            properties:
+              boundProviderClassUID:
+                description: |-
+                  boundProviderClassUID identifies the exact provider class instance used.
+                  A recreated class with the same name must not silently replace this binding.
+                type: string
+              clients:
+                description: clients contains provider-managed client details and
+                  Secret references.
+                items:
+                  description: ManagedClient reports the provider-side identity client
+                    and its Secret references.
+                  properties:
+                    clientId:
+                      description: clientID is the provider-assigned OAuth client
+                        identifier.
+                      type: string
+                    conditions:
+                      description: conditions represent the current state of this
+                        client.
+                      items:
+                        description: Condition contains details for one aspect of
+                          the current state of this API Resource.
+                        properties:
+                          lastTransitionTime:
+                            description: |-
+                              lastTransitionTime is the last time the condition transitioned from one status to another.
+                              This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                            format: date-time
+                            type: string
+                          message:
+                            description: |-
+                              message is a human readable message indicating details about the transition.
+                              This may be an empty string.
+                            maxLength: 32768
+                            type: string
+                          observedGeneration:
+                            description: |-
+                              observedGeneration represents the .metadata.generation that the condition was set based upon.
+                              For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                              with respect to the current state of the instance.
+                            format: int64
+                            minimum: 0
+                            type: integer
+                          reason:
+                            description: |-
+                              reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                              Producers of specific condition types may define expected values and meanings for this field,
+                              and whether the values are considered a guaranteed API.
+                              The value should be a CamelCase string.
+                              This field may not be empty.
+                            maxLength: 1024
+                            minLength: 1
+                            pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                            type: string
+                          status:
+                            description: status of the condition, one of True, False,
+                              Unknown.
+                            enum:
+                            - "True"
+                            - "False"
+                            - Unknown
+                            type: string
+                          type:
+                            description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                            maxLength: 316
+                            pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                            type: string
+                        required:
+                        - lastTransitionTime
+                        - message
+                        - reason
+                        - status
+                        - type
+                        type: object
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - type
+                      x-kubernetes-list-type: map
+                    credentialsSecretRef:
+                      description: |-
+                        credentialsSecretRef points to the client Secret in the installation-managed
+                        namespace of this tenant's own KCP workspace.
+                      properties:
+                        name:
+                          description: name is unique within a namespace to reference
+                            a secret resource.
+                          type: string
+                        namespace:
+                          description: namespace defines the space within which the
+                            secret name must be unique.
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    deletionPending:
+                      description: deletionPending indicates that provider-side cleanup
+                        is still in progress.
+                      type: boolean
+                    externalId:
+                      description: externalID is the provider-assigned client identifier.
+                      type: string
+                    managementSecretRef:
+                      description: |-
+                        managementSecretRef points to the management credentials Secret in the
+                        private runtime namespace.
+                      properties:
+                        name:
+                          default: ""
+                          description: |-
+                            Name of the referent.
+                            This field is effectively required, but due to backwards compatibility is
+                            allowed to be empty. Instances of this type with an empty value here are
+                            almost certainly wrong.
+                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    name:
+                      description: name is the stable client key from the tenant spec.
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration is the last spec generation
+                        processed for this client.
+                      format: int64
+                      type: integer
+                    registrationClientUri:
+                      description: registrationClientURI is the provider's client
+                        management endpoint.
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              conditions:
+                description: conditions represent the current state of the tenant.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              controllerName:
+                description: controllerName identifies the controller currently managing
+                  this tenant.
+                type: string
+              discoveryUrl:
+                description: discoveryURL is the resolved OpenID Connect discovery
+                  document URL.
+                type: string
+              externalId:
+                description: externalID is the provider-assigned tenant identifier.
+                type: string
+              issuerUrl:
+                description: issuerURL is the resolved OpenID Connect issuer URL.
+                type: string
+              observedConfigurationRevision:
+                description: observedConfigurationRevision identifies the applied
+                  provider configuration.
+                type: string
+              observedGeneration:
+                description: observedGeneration is the last spec generation processed
+                  by the controller.
+                format: int64
+                type: integer
+              registrationEndpoint:
+                description: registrationEndpoint is the resolved dynamic client registration
+                  endpoint.
+                type: string
+              subjectMode:
+                description: subjectMode describes whether subjects are public or
+                  pairwise.
+                enum:
+                - Public
+                - Pairwise
+                type: string
+              tenantClaims:
+                description: tenantClaims contains provider-resolved tenant-specific
+                  claim constraints.
+                items:
+                  description: TenantClaim is a claim name and the values resolved
+                    for a particular tenant.
+                  properties:
+                    name:
+                      description: name is the claim name.
+                      type: string
+                    values:
+                      description: values are the tenant-specific claim values.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
+                  required:
+                  - name
+                  - values
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+            type: object
+            x-kubernetes-validations:
+            - message: boundProviderClassUID cannot be changed once set
+              rule: '!has(oldSelf.boundProviderClassUID) || (has(self.boundProviderClassUID)
+                && self.boundProviderClassUID == oldSelf.boundProviderClassUID)'
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

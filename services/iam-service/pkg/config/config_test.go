@@ -40,6 +40,8 @@ func TestNewServiceConfigDefaults(t *testing.T) {
 	require.Equal(t, 100, cfg.Keycloak.PageSize)
 	require.True(t, cfg.Keycloak.Cache.Enabled)
 	require.Equal(t, time.Hour, cfg.Keycloak.Cache.TTL)
+	require.Empty(t, cfg.IdentityDirectory.Endpoint)
+	require.Equal(t, 10*time.Second, cfg.IdentityDirectory.Timeout)
 	require.Equal(t, 10, cfg.Pagination.DefaultLimit)
 	require.Equal(t, 1, cfg.Pagination.DefaultPage)
 	require.Equal(t, "LastName", cfg.Sorting.DefaultField)
@@ -65,6 +67,11 @@ func TestAddFlagsParsesIntoServiceConfig(t *testing.T) {
 		"--keycloak-page-size=200",
 		"--keycloak-cache-enabled=false",
 		"--keycloak-user-cache-ttl=90m",
+		"--identity-directory-endpoint=https://directory.example.org",
+		"--identity-directory-client-cert-file=/etc/identity/tls.crt",
+		"--identity-directory-client-key-file=/etc/identity/tls.key",
+		"--identity-directory-ca-file=/etc/identity/ca.crt",
+		"--identity-directory-timeout=15s",
 		"--pagination-default-limit=50",
 		"--pagination-default-page=3",
 		"--sorting-default-field=FirstName",
@@ -84,6 +91,11 @@ func TestAddFlagsParsesIntoServiceConfig(t *testing.T) {
 	require.Equal(t, 200, cfg.Keycloak.PageSize)
 	require.False(t, cfg.Keycloak.Cache.Enabled)
 	require.Equal(t, 90*time.Minute, cfg.Keycloak.Cache.TTL)
+	require.Equal(t, "https://directory.example.org", cfg.IdentityDirectory.Endpoint)
+	require.Equal(t, "/etc/identity/tls.crt", cfg.IdentityDirectory.ClientCertFile)
+	require.Equal(t, "/etc/identity/tls.key", cfg.IdentityDirectory.ClientKeyFile)
+	require.Equal(t, "/etc/identity/ca.crt", cfg.IdentityDirectory.CAFile)
+	require.Equal(t, 15*time.Second, cfg.IdentityDirectory.Timeout)
 	require.Equal(t, 50, cfg.Pagination.DefaultLimit)
 	require.Equal(t, 3, cfg.Pagination.DefaultPage)
 	require.Equal(t, "FirstName", cfg.Sorting.DefaultField)

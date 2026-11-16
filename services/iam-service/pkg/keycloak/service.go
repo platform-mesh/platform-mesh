@@ -131,6 +131,12 @@ func (s *Service) UserByMail(ctx context.Context, userID string) (*graph.User, e
 	return user, nil
 }
 
+// LookupEmail adapts the legacy Keycloak email lookup to the provider-neutral
+// user directory contract used by IAM.
+func (s *Service) LookupEmail(ctx context.Context, email string) (*graph.User, error) {
+	return s.UserByMail(ctx, email)
+}
+
 func (s *Service) GetUsers(ctx context.Context) ([]*graph.User, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
@@ -165,6 +171,12 @@ func (s *Service) GetUsers(ctx context.Context) ([]*graph.User, error) {
 
 	metrics.KeycloakRequests.WithLabelValues("get_users", "success").Inc()
 	return users, nil
+}
+
+// ListUsers adapts the legacy Keycloak listing operation to the
+// provider-neutral user directory contract used by IAM.
+func (s *Service) ListUsers(ctx context.Context) ([]*graph.User, error) {
+	return s.GetUsers(ctx)
 }
 
 // fetchUserFromKeycloak fetches a single user from Keycloak by email

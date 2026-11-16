@@ -51,6 +51,51 @@ type permissionClaimsManifest struct {
 	} `yaml:"spec"`
 }
 
+type identityAPIExportManifest struct {
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	Metadata   struct {
+		Name string `yaml:"name"`
+	} `yaml:"metadata"`
+	Spec struct {
+		Resources []struct {
+			Group  string `yaml:"group"`
+			Name   string `yaml:"name"`
+			Schema string `yaml:"schema"`
+		} `yaml:"resources"`
+	} `yaml:"spec"`
+}
+
+type identityEndpointSliceManifest struct {
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	Metadata   struct {
+		Name string `yaml:"name"`
+	} `yaml:"metadata"`
+	Spec struct {
+		Export struct {
+			Path string `yaml:"path"`
+			Name string `yaml:"name"`
+		} `yaml:"export"`
+	} `yaml:"spec"`
+}
+
+type identityBindingManifest struct {
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	Metadata   struct {
+		Name string `yaml:"name"`
+	} `yaml:"metadata"`
+	Spec struct {
+		Reference struct {
+			Export struct {
+				Path string `yaml:"path"`
+				Name string `yaml:"name"`
+			} `yaml:"export"`
+		} `yaml:"reference"`
+	} `yaml:"spec"`
+}
+
 type permissionClaim struct {
 	Resource        string   `yaml:"resource"`
 	Verbs           []string `yaml:"verbs"`
@@ -166,6 +211,44 @@ func TestIDPSecretPermissionClaims(t *testing.T) {
 
 	systemBinding := readManifest(t, "01-platform-mesh-system/apibinding-system.platform-mesh.io.yaml")
 	require.Nil(t, findSecretClaim(systemBinding))
+}
+
+func TestIdentityAPIExportUsesGeneratedSchemasAndStableEndpointSlice(t *testing.T) {
+	t.Parallel()
+
+	rawExport, err := fs.ReadFile(kcpmanifests.Resources, "01-platform-mesh-system/apiexport-identity.platform-mesh.io.yaml")
+	require.NoError(t, err)
+	var export identityAPIExportManifest
+	require.NoError(t, yaml.Unmarshal(rawExport, &export))
+	require.Equal(t, "apis.kcp.io/v1alpha2", export.APIVersion)
+	require.Equal(t, "APIExport", export.Kind)
+	require.Equal(t, "identity.platform-mesh.io", export.Metadata.Name)
+	require.Len(t, export.Spec.Resources, 3)
+	for _, resource := range export.Spec.Resources {
+		require.Equal(t, "identity.platform-mesh.io", resource.Group)
+		_, err := fs.Stat(kcpmanifests.Resources, "01-platform-mesh-system/apiresourceschema-"+resource.Name+"."+resource.Group+".yaml")
+		require.NoError(t, err)
+	}
+
+	rawSlice, err := fs.ReadFile(kcpmanifests.Resources, "01-platform-mesh-system/apiexportendpointslice-identity.platform-mesh.io.yaml")
+	require.NoError(t, err)
+	var endpointSlice identityEndpointSliceManifest
+	require.NoError(t, yaml.Unmarshal(rawSlice, &endpointSlice))
+	require.Equal(t, "apis.kcp.io/v1alpha1", endpointSlice.APIVersion)
+	require.Equal(t, "APIExportEndpointSlice", endpointSlice.Kind)
+	require.Equal(t, "identity.platform-mesh.io", endpointSlice.Metadata.Name)
+	require.Equal(t, "root:platform-mesh-system", endpointSlice.Spec.Export.Path)
+	require.Equal(t, export.Metadata.Name, endpointSlice.Spec.Export.Name)
+
+	rawBinding, err := fs.ReadFile(kcpmanifests.Resources, "03-orgs/apibinding-identity.platform-mesh.io.yaml")
+	require.NoError(t, err)
+	var binding identityBindingManifest
+	require.NoError(t, yaml.Unmarshal(rawBinding, &binding))
+	require.Equal(t, "apis.kcp.io/v1alpha2", binding.APIVersion)
+	require.Equal(t, "APIBinding", binding.Kind)
+	require.Equal(t, export.Metadata.Name, binding.Metadata.Name)
+	require.Equal(t, "root:platform-mesh-system", binding.Spec.Reference.Export.Path)
+	require.Equal(t, export.Metadata.Name, binding.Spec.Reference.Export.Name)
 }
 
 func (s *HelperTestSuite) TestGetWorkspaceName() {

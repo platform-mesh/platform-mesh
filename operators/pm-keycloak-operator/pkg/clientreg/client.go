@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -55,7 +56,7 @@ func (c *client) Register(ctx context.Context, registrationEndpoint string, meta
 
 	token, err := c.tokenProvider.TokenForRegistration(ctx)
 	if err != nil {
-		return ClientInformation{}, fmt.Errorf("failed to get registration token: %w", err)
+		return ClientInformation{}, fmt.Errorf("%w: failed to get registration token: %w", ErrRegistrationNotAttempted, err)
 	}
 
 	return c.doRegister(ctx, registrationEndpoint, token, metadata)
@@ -86,12 +87,7 @@ func (c *client) doRegister(ctx context.Context, registrationEndpoint, token str
 		return ClientInformation{}, newHTTPErrorFromResponse(resp, OperationRegister)
 	}
 
-	var info ClientInformation
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return ClientInformation{}, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return info, nil
+	return decodeClientInformation(resp.Body)
 }
 
 func (c *client) Read(ctx context.Context, clientID, registrationClientURI, registrationAccessToken string) (ClientInformation, error) {
@@ -122,12 +118,7 @@ func (c *client) doRead(ctx context.Context, registrationClientURI, token string
 		return ClientInformation{}, newHTTPErrorFromResponse(resp, OperationRead)
 	}
 
-	var info ClientInformation
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return ClientInformation{}, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return info, nil
+	return decodeClientInformation(resp.Body)
 }
 
 func (c *client) Update(ctx context.Context, registrationClientURI, registrationAccessToken string, metadata ClientMetadata) (ClientInformation, error) {
@@ -164,11 +155,25 @@ func (c *client) doUpdate(ctx context.Context, registrationClientURI, token stri
 		return ClientInformation{}, newHTTPErrorFromResponse(resp, OperationUpdate)
 	}
 
+	return decodeClientInformation(resp.Body)
+}
+
+func decodeClientInformation(body io.Reader) (ClientInformation, error) {
+	const maxResponseBytes = 1 << 20
+	data, err := io.ReadAll(io.LimitReader(body, maxResponseBytes+1))
+	if err != nil {
+		return ClientInformation{}, fmt.Errorf("read client registration response: %w", err)
+	}
+	if len(data) > maxResponseBytes {
+		return ClientInformation{}, fmt.Errorf("client registration response exceeds size limit")
+	}
 	var info ClientInformation
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+	if err := json.Unmarshal(data, &info); err != nil {
 		return ClientInformation{}, fmt.Errorf("failed to parse response: %w", err)
 	}
-
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return ClientInformation{}, fmt.Errorf("client registration response must be an object")
+	}
 	return info, nil
 }
 

@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
@@ -53,6 +54,26 @@ import (
 )
 
 var secretKubeconfigData, _ = fs.ReadFile(testfixtures.Resources, "kubeconfig.yaml")
+
+func TestDefaultIdentityProviderConnectionsUseScopedExports(t *testing.T) {
+	expected := map[string][]string{
+		"pm-keycloak-identity-provider-kubeconfig":  {"identity.platform-mesh.io", "keycloak.platform-mesh.io"},
+		"pm-keycloak-identity-directory-kubeconfig": {"identity.platform-mesh.io"},
+	}
+	found := make(map[string]bool, len(expected))
+	for _, connection := range DefaultProviderConnections {
+		wantExports, ok := expected[connection.Secret]
+		if !ok {
+			continue
+		}
+		require.NotNil(t, connection.AdminAuth)
+		require.False(t, *connection.AdminAuth)
+		require.Equal(t, "root:platform-mesh-system", connection.Path)
+		require.Equal(t, wantExports, connection.APIExportNames)
+		found[connection.Secret] = true
+	}
+	require.Len(t, found, len(expected))
+}
 
 type fakeHelm struct{ ready bool }
 

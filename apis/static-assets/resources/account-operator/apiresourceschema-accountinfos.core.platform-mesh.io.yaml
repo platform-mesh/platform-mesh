@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260126-7c674ee.accountinfos.core.platform-mesh.io
+  name: v261115-18877db2.accountinfos.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -102,9 +102,95 @@ spec:
                     properties:
                       clientId:
                         type: string
+                      credentialsSecretRef:
+                        description: |-
+                          credentialsSecretRef is resolved in identity.tenant.logicalCluster,
+                          not in the AccountInfo's own workspace.
+                        properties:
+                          name:
+                            description: name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      purpose:
+                        enum:
+                        - Portal
+                        - CLI
+                        - Application
+                        type: string
+                      scopes:
+                        items:
+                          type: string
+                        type: array
+                        x-kubernetes-list-type: set
                     required:
                     - clientId
                     type: object
+                  type: object
+                identity:
+                  description: |-
+                    identity is the UID-bound public projection of the selected identity
+                    tenant. It is absent for legacy email-based identity configuration.
+                  properties:
+                    configurationRevision:
+                      minLength: 1
+                      type: string
+                    discoveryUrl:
+                      type: string
+                    issuerMode:
+                      enum:
+                      - Dedicated
+                      - Shared
+                      type: string
+                    providerClassRef:
+                      minLength: 1
+                      type: string
+                    providerClassUID:
+                      description: |-
+                        UID is a type that holds unique ID values, including UUIDs.  Because we
+                        don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+                        intent and helps make sure that UIDs and names do not get conflated.
+                      minLength: 1
+                      type: string
+                    subjectMode:
+                      enum:
+                      - Public
+                      - Pairwise
+                      type: string
+                    tenant:
+                      properties:
+                        logicalCluster:
+                          description: logicalCluster is the immutable KCP logical
+                            cluster ID, not a path.
+                          minLength: 1
+                          type: string
+                        name:
+                          minLength: 1
+                          type: string
+                        uid:
+                          description: |-
+                            UID is a type that holds unique ID values, including UUIDs.  Because we
+                            don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+                            intent and helps make sure that UIDs and names do not get conflated.
+                          minLength: 1
+                          type: string
+                      required:
+                      - logicalCluster
+                      - name
+                      - uid
+                      type: object
+                  required:
+                  - configurationRevision
+                  - issuerMode
+                  - providerClassRef
+                  - providerClassUID
+                  - subjectMode
+                  - tenant
                   type: object
                 issuerUrl:
                   type: string

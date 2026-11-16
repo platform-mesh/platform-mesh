@@ -28,4 +28,9 @@ spec:
     schema: v261111-786b8a52.invites.keycloak.platform-mesh.io
     storage:
       crd: {}
+  - group: keycloak.platform-mesh.io
+    name: keycloakproviderconfigurations
+    schema: v261115-69afabc0.keycloakproviderconfigurations.keycloak.platform-mesh.io
+    storage:
+      crd: {}
 status: {}

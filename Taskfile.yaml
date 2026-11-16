@@ -43,6 +43,11 @@ includes:
   charts:
     taskfile: charts/Taskfile.yaml
     dir: .
+  # This staged operator module is not yet a published image/chart component.
+  # Keep its source checks in the monorepo workflows without adding it to OCM.
+  identity-provider-operator:
+    taskfile: operators/identity-provider-operator/Taskfile.yaml
+    dir: operators/identity-provider-operator
   # The integration tests: `task tests:integration` (kcp in Docker), `task
   # tests:e2e` (deployed stack) and the Playwright portal suite
   # (`task tests:portal-e2e:setup`, `task tests:portal-e2e:httpbins`, ...).
@@ -205,11 +210,13 @@ tasks:
     cmds:
       - for: {var: COMPONENTS}
         cmd: task lint-{{.ITEM}}
+      - task: identity-provider-operator:lint
   tidy-check:
     desc: Check that every module is tidy and its dependencies resolve.
     cmds:
       - for: {var: COMPONENTS}
         cmd: task tidy-check-{{.ITEM}}
+      - task: identity-provider-operator:tidy-check
   boilerplate:
     desc: Verifies the boilerplate comment in each source file.
     cmds:
@@ -229,6 +236,7 @@ tasks:
     cmds:
       - for: {var: COMPONENTS}
         cmd: task test-{{.ITEM}}
+      - task: identity-provider-operator:test
   test-integration:
     desc: Run the integration tests (tests/integration) against a kcp in Docker.
     cmds:
@@ -249,12 +257,14 @@ tasks:
     cmds:
       - for: {var: COMPONENTS}
         cmd: task generate-{{.ITEM}}
+      - task: identity-provider-operator:generate
       - task: charts:sync-crds
   build:
     desc: Build every component.
     cmds:
       - for: {var: COMPONENTS}
         cmd: task build-{{.ITEM}}
+      - task: identity-provider-operator:build
   pmctl:
     desc: Build the pmctl CLI into bin/pmctl (VERSION= to override the stamped version). Also built by `task build-root`.
     cmds:
@@ -279,22 +289,38 @@ tasks:
     cmds:
       - task: _run
         vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: test}
+  test-identity-provider-operator:
+    desc: Run tests for the staged identity provider operator module.
+    cmds:
+      - task: identity-provider-operator:test
   "lint-*":
     desc: "Lint one component (e.g. task lint-account-operator)."
     cmds:
       - task: _run
         vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: lint}
+  lint-identity-provider-operator:
+    desc: Lint the staged identity provider operator module.
+    cmds:
+      - task: identity-provider-operator:lint
   "generate-*":
     desc: "Run code generation for one component (e.g. task generate-account-operator)."
     deps: [tools:controller-gen, tools:apigen, tools:mockery]
     cmds:
       - task: _run
         vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: generate}
+  generate-identity-provider-operator:
+    desc: Run generation checks for the staged identity provider operator module.
+    cmds:
+      - task: identity-provider-operator:generate
   "build-*":
     desc: "Build one component (e.g. task build-account-operator)."
     cmds:
       - task: _run
         vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: build}
+  build-identity-provider-operator:
+    desc: Build the staged identity provider operator module.
+    cmds:
+      - task: identity-provider-operator:build
   "tidy-check-*":
     desc: "Verify one module is self-contained (e.g. task tidy-check-apis)."
     env:
@@ -306,6 +332,12 @@ tasks:
         comp='{{index .MATCH 0}}'
         dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         cd "$dir" && go mod tidy -diff && go list -m all >/dev/null
+  tidy-check-identity-provider-operator:
+    desc: Verify the staged identity provider operator module is tidy.
+    env:
+      GOWORK: "off"
+    cmds:
+      - task: identity-provider-operator:tidy-check
   "boilerplate-*":
     desc: "Verify boilerplate for one component (e.g. task boilerplate-apis)."
     vars:
@@ -318,6 +350,13 @@ tasks:
         # --skip args from hack/boilerplate/skip.txt, ignoring blank lines and '#' comment lines.
         skip_args=$(grep -vE '^[[:space:]]*(#|$)' "$root/hack/boilerplate/skip.txt" | sed 's/^/--skip /' | tr '\n' ' ')
         cd "$dir" && "$root/hack/verify_boilerplate.py" --boilerplate-dir "$root/hack/boilerplate/" $skip_args
+  boilerplate-identity-provider-operator:
+    desc: Verify boilerplate in the staged identity provider operator module.
+    cmds:
+      - |
+        root=$PWD
+        skip_args=$(grep -vE '^[[:space:]]*(#|$)' "$root/hack/boilerplate/skip.txt" | sed 's/^/--skip /' | tr '\n' ' ')
+        cd operators/identity-provider-operator && "$root/hack/verify_boilerplate.py" --boilerplate-dir "$root/hack/boilerplate/" $skip_args
   "verify-*":
     desc: "Run all checks for one component (e.g. task verify-account-operator)."
     cmds:
@@ -475,6 +514,7 @@ tasks:
     cmds:
       - for: {var: COMPONENTS}
         cmd: task tidy-{{.ITEM}}
+      - task: identity-provider-operator:tidy
   "tidy-*":
     desc: "Tidy one module's go.mod (e.g. task tidy-apis)."
     env:
@@ -487,3 +527,9 @@ tasks:
         dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
         cd "$dir"
         go mod tidy
+  tidy-identity-provider-operator:
+    desc: Tidy the staged identity provider operator module.
+    env:
+      GOWORK: "off"
+    cmds:
+      - task: identity-provider-operator:tidy
