@@ -1,0 +1,6 @@
+Dockerfile.cross
+
+# local kind config
+kind-config.yaml
+test/tester.go
+test/v2/gojsonschema.go
