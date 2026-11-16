@@ -101,7 +101,7 @@ task tilt:ci  # bring up tilt until all resources are green, then exits
 task tilt:e2e # runs the tests/e2e Go suites, then the portal e2e tests, against a tilt PM instance brought up by tilt:ci
 ```
 
-`task tilt:up` runs everything except the HTTPBin provider fixture of the e2e suites; `task tilt:ci` includes it, as does `task tilt:up -- full`. To run only the part you work on, name groups or components; whatever they need comes along:
+`task tilt:up` runs everything except the fixtures of the e2e suites (the HTTPBin provider and a second kcp shard); `task tilt:ci` includes them, as does `task tilt:up -- full`. To run only the part you work on, name groups or components; whatever they need comes along:
 
 ```sh
 task tilt:up -- core                # kcp, platform-mesh-operator, PlatformMesh, account-operator

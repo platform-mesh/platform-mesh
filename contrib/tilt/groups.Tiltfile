@@ -38,7 +38,7 @@ GROUPS = {
 }
 
 # What runs when nothing is named. `tilt ci` (task tilt:ci) brings up
-# everything for the e2e suites; `tilt up` leaves the HTTPBin fixture out,
-# it is of no use in the development loop.
+# everything for the e2e suites; `tilt up` leaves their fixtures (the "e2e"
+# group) out, they are of no use in the development loop.
 DEFAULT_CI = ["full"]
-DEFAULT_UP = ["ui", "kcp-triton"]
+DEFAULT_UP = ["ui"]

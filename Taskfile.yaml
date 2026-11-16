@@ -140,8 +140,8 @@ tasks:
         cat <<'EOF'
         Tilt development environment
 
-          task tilt:up                         start kind and Tilt with everything but the HTTPBin e2e fixture
-          task tilt:up -- full                 same with the fixture, as task tilt:e2e needs it
+          task tilt:up                         start kind and Tilt with everything but the e2e fixtures
+          task tilt:up -- full                 same with the fixtures, as task tilt:e2e needs them
           task tilt:up -- core                 only a group and what it needs; several can be given,
                                                and component names work too (task tilt:up -- core iam-service)
           task tilt:up -- --frontend-cors      allow browser calls from a frontend
@@ -177,7 +177,7 @@ tasks:
           e2e     HTTPBin provider fixture and a second kcp shard
           full    ui + e2e (default of tilt:ci; what task tilt:e2e expects)
 
-        task tilt:up without a group runs full minus the HTTPBin fixture.
+        task tilt:up without a group runs ui: everything but the e2e fixtures.
 
         Tiltfile options (after `--`): --frontend-cors, --without, --with, --context, --cluster-id, --httpbin-namespace
         EOF

@@ -16,7 +16,7 @@
 # (lib/component.Tiltfile has the contract); this file selects the components
 # to run and deploys them:
 #
-#   task tilt:up                        everything but the HTTPBin e2e fixture
+#   task tilt:up                        everything but the e2e fixtures (the "ui" group)
 #   task tilt:ci                        everything (the "full" group)
 #   task tilt:up -- core                a group (groups.Tiltfile)
 #   task tilt:up -- core iam-service    groups and single components
