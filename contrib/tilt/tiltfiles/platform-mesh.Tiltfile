@@ -30,6 +30,8 @@ load(
 load(
     "./settings.Tiltfile",
     "BASE_DOMAIN",
+    "DEX",
+    "DEX_ISSUER",
     "FEATURE_TOGGLES",
     "GO_DEPS",
     "HTTPBIN_NAMESPACE",
@@ -149,6 +151,7 @@ service(
     deps=GO_DEPS,
     workloads=["kubernetes-graphql-gateway", "kubernetes-graphql-gateway-listener"],
 )
+
 service(
     "extension-manager-virtual-workspace",
     NAMESPACE,
@@ -156,8 +159,15 @@ service(
     path="operators/extension-manager-operator/virtual-workspace",
     deps=GO_DEPS,
 )
+
+
+portal_overrides = {"frontendPort": str(PORT)}
+if DEX:
+    portal_overrides["auth"] = {"default": {"discoveryUrl": DEX_ISSUER + "/.well-known/openid-configuration"}}
+
+service("portal", NAMESPACE, TEMPLATE_VARS, overrides=portal_overrides)
+
 service("marketplace", NAMESPACE, TEMPLATE_VARS, path="services/marketplace", deps=GO_DEPS)
-service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"frontendPort": str(PORT)})
 service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
 
 # Relationship-based authorization on OpenFGA: stores, models and the kcp

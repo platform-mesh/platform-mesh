@@ -119,3 +119,34 @@ TEMPLATE_VARS = {
     "internalFrontProxyUrl": KCP_FRONT_PROXY_URL,
     "gatewayClassName": "traefik",
 }
+
+# Dex as identity provider of kcp (--with=dex): static users.
+DEX_ISSUER = "https://{}/dex".format(BASE_DOMAIN_PORT)
+DEX_CLIENT_ID = "platform-mesh"
+# Local development only.
+DEX_CLIENT_SECRET = "local-dev-platform-mesh-secret"
+# bcrypt of "password".
+DEX_PASSWORD_HASH = "$2a$10$iwYOwbUyunwL.Ahtr9zBq.ruc.rjYSDPwBnX.CDAsMlUA1alMoeqW"
+DEX_USERS = [
+    {
+        "email": "admin@portal.localhost",
+        "username": "admin",
+        "userID": "69b09731-2f2e-454e-b08c-2186ec99c75e",
+        "hash": DEX_PASSWORD_HASH,
+        "groups": ["platform-mesh:admins"],
+    },
+    {
+        "email": "dev@portal.localhost",
+        "username": "dev",
+        "userID": "186d270a-8446-4c96-bbb8-6aa95ffdb6e7",
+        "hash": DEX_PASSWORD_HASH,
+        "groups": ["platform-mesh:developers"],
+    },
+    {
+        "email": "viewer@portal.localhost",
+        "username": "viewer",
+        "userID": "9858cb7f-f74f-4932-818f-56d69459dac1",
+        "hash": DEX_PASSWORD_HASH,
+        "groups": ["platform-mesh:viewers"],
+    },
+]
