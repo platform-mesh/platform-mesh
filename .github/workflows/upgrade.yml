@@ -24,6 +24,7 @@ on:
       - 'apis/**'
       - 'golang-commons/**'
       - 'subroutines/**'
+      - 'libs/**'
       - 'operators/**'
       - 'services/**'
       - 'charts/**'

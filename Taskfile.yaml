@@ -59,10 +59,12 @@ vars:
     - apis
     - subroutines
     - golang-commons
+    - libs
 
     # operators
     - account-operator
     - extension-manager-operator
+    - extension-manager-virtual-workspace
     - kro-composition-operator
     - platform-mesh-operator
     - pm-keycloak-operator
@@ -74,14 +76,15 @@ vars:
     # services
     - iam-service
     - kubernetes-graphql-gateway
+    - marketplace
     - pm-openfga-authz-webhook
-    - virtual-workspaces
 
 
   LIBRARIES:
     - apis
     - subroutines
     - golang-commons
+    - libs
 
   # Renovate CLI image. Cannot be placed in tools/ as vars from other
   # taskfile are not visible.

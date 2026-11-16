@@ -149,7 +149,20 @@ service(
     deps=GO_DEPS,
     workloads=["kubernetes-graphql-gateway", "kubernetes-graphql-gateway-listener"],
 )
-service("virtual-workspaces", NAMESPACE, TEMPLATE_VARS, path="services/virtual-workspaces", deps=GO_DEPS)
+service(
+    "extension-manager-virtual-workspace",
+    NAMESPACE,
+    TEMPLATE_VARS,
+    path="operators/extension-manager-operator/virtual-workspace",
+    deps=GO_DEPS + ["libs"],
+)
+service(
+    "marketplace",
+    NAMESPACE,
+    TEMPLATE_VARS,
+    path="services/marketplace",
+    deps=GO_DEPS + ["libs"],
+)
 service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"frontendPort": str(PORT)})
 service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
 

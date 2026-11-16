@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: extension-manager-virtual-workspace
+spec:
+  ports:
+    - port: {{ .Values.service.port }}
+      protocol: TCP
+      targetPort: {{ .Values.service.port }}
+  selector:
+    {{- include "common.labelMatcher" . | indent 6 }}

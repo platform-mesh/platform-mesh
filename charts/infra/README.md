@@ -115,12 +115,12 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.etcd.sharedConfig.autoCompactionRetention | string | `"30m"` |  |
 | kcp.external.hostname | string | `""` | External hostname for kcp. Required — must be set via profile map or PlatformMesh resource (e.g. kcp.api.example.com). |
 | kcp.external.port | int | `8443` |  |
-| kcp.frontProxy.additionalPathMappings[0].backend | string | `"https://virtual-workspaces.platform-mesh-system:8443"` |  |
+| kcp.frontProxy.additionalPathMappings[0].backend | string | `"https://extension-manager-virtual-workspace.platform-mesh-system:8443"` |  |
 | kcp.frontProxy.additionalPathMappings[0].backend_server_ca | string | `"/etc/kcp/tls/ca/tls.crt"` |  |
 | kcp.frontProxy.additionalPathMappings[0].path | string | `"/services/contentconfigurations"` |  |
 | kcp.frontProxy.additionalPathMappings[0].proxy_client_cert | string | `"/etc/kcp-front-proxy/requestheader-client/tls.crt"` |  |
 | kcp.frontProxy.additionalPathMappings[0].proxy_client_key | string | `"/etc/kcp-front-proxy/requestheader-client/tls.key"` |  |
-| kcp.frontProxy.additionalPathMappings[1].backend | string | `"https://virtual-workspaces.platform-mesh-system:8443"` |  |
+| kcp.frontProxy.additionalPathMappings[1].backend | string | `"https://marketplace.platform-mesh-system:8443"` |  |
 | kcp.frontProxy.additionalPathMappings[1].backend_server_ca | string | `"/etc/kcp/tls/ca/tls.crt"` |  |
 | kcp.frontProxy.additionalPathMappings[1].path | string | `"/services/marketplace"` |  |
 | kcp.frontProxy.additionalPathMappings[1].proxy_client_cert | string | `"/etc/kcp-front-proxy/requestheader-client/tls.crt"` |  |

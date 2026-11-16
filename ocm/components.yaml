@@ -57,6 +57,12 @@ components:
   apis: # imports golang-commons and subroutines
     path: apis
     library: true
+  # One module for the code shared between components of this repository;
+  # each library is a directory in it (libs/virtual-workspaces: server code of
+  # the marketplace and extension-manager virtual workspaces).
+  libs:
+    path: libs
+    library: true
 
   # --- operators -------------------------------------------------------------
   account-operator:
@@ -67,6 +73,13 @@ components:
     path: operators/extension-manager-operator
     image: extension-manager-operator
     chart: charts/extension-manager-operator
+  # The contentconfigurations virtual workspace: a module of its own inside
+  # the operator's directory, because it builds against the kcp fork of
+  # Kubernetes and the operator does not.
+  extension-manager-virtual-workspace:
+    path: operators/extension-manager-operator/virtual-workspace
+    image: extension-manager-virtual-workspace
+    chart: charts/extension-manager-virtual-workspace
   kro-composition-operator:
     path: operators/kro-composition-operator
     image: kro-composition-operator
@@ -111,9 +124,9 @@ components:
     path: services/pm-openfga-authz-webhook
     image: pm-openfga-authz-webhook
     chart: charts/pm-openfga-authz-webhook
-  virtual-workspaces:
-    path: services/virtual-workspaces
-    image: virtual-workspaces
-    chart: charts/virtual-workspaces
+  marketplace:
+    path: services/marketplace
+    image: marketplace
+    chart: charts/marketplace
 
   # --- tests -----------------------------------------------------------------

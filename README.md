@@ -22,6 +22,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | [apis](apis) | Shared CRD Go types, deepcopy, and scheme for the `*.platform-mesh.io` API groups. |
 | [golang-commons](golang-commons) | Reusable Go libraries (JWT, context, error handling, logging, controllers) shared across components. |
 | [subroutines](subroutines) | Lifecycle engine for Kubernetes/kcp controllers with Result-based flow control, conditions, and observability. |
+| [libs](libs) | One module for code shared between components of this repository. Currently [virtual-workspaces](libs/virtual-workspaces): server code of the kcp virtual workspaces (bootstrap, authentication, path resolution, storage). |
 
 ### Operators
 
@@ -29,6 +30,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 |----------|-------------|
 | [account-operator](operators/account-operator) | Manages the core `Account` grouping resource and its owned namespace. |
 | [extension-manager-operator](operators/extension-manager-operator) | Lifecycle management of `ContentConfiguration` resources for Micro Frontends. |
+| [extension-manager-virtual-workspace](operators/extension-manager-operator/virtual-workspace) | kcp virtual workspace serving the `ContentConfiguration` resources that apply to a workspace. |
 | [pm-keycloak-operator](operators/pm-keycloak-operator) | Manages the Keycloak identity provider: realms and OIDC clients (`IdentityProviderConfiguration`), user invites (`Invite`) and the per-organization kcp authentication configuration. |
 | [pm-openfga-operator](operators/pm-openfga-operator) | Manages OpenFGA authorization: stores, authorization models, tuples (`Store`, `AuthorizationModel`) and provider access to organizations (`APIExportPolicy`). |
 | [terminal-controller-manager](operators/terminal-controller-manager) | Manages browser-based terminal sessions (ephemeral pods) to kcp workspaces. |
@@ -38,7 +40,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | Service | Description |
 |---------|-------------|
 | [iam-service](services/iam-service) | GraphQL API for user and role management, driving OpenFGA and the identity provider (Keycloak). |
-| [virtual-workspaces](services/virtual-workspaces) | Custom kcp-based virtual workspaces that expose tailored data to UIs. |
+| [marketplace](services/marketplace) | kcp virtual workspace serving `MarketplaceEntry` resources to the marketplace UI. |
 | [pm-openfga-authz-webhook](services/pm-openfga-authz-webhook) | kcp authorization webhook backed by OpenFGA (ReBAC). |
 | [kubernetes-graphql-gateway](services/kubernetes-graphql-gateway) | Exposes Kubernetes resources as a GraphQL API for UIs and tools. |
 
@@ -61,7 +63,7 @@ task test-account-operator
 task images-iam-service VERSION=v0.1.0 PUSH=false
 ```
 
-Local `replace` directives in each `go.mod` link the shared `apis`, `golang-commons`, and `subroutines` modules, so cross-module changes resolve against local source during development. These replacements do not affect external consumers.
+Local `replace` directives in each `go.mod` link the shared `apis`, `golang-commons`, `subroutines` and `libs` modules, so cross-module changes resolve against local source during development. These replacements do not affect external consumers.
 
 ### Tests
 

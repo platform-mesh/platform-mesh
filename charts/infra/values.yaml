@@ -150,12 +150,12 @@ kcp:
     #     memory: 128Mi
     additionalPathMappings:
       - path: /services/contentconfigurations
-        backend: https://virtual-workspaces.platform-mesh-system:8443
+        backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
         backend_server_ca: /etc/kcp/tls/ca/tls.crt
         proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
         proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       - path: /services/marketplace
-        backend: https://virtual-workspaces.platform-mesh-system:8443
+        backend: https://marketplace.platform-mesh-system:8443
         backend_server_ca: /etc/kcp/tls/ca/tls.crt
         proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
         proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key

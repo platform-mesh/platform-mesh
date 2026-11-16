@@ -697,17 +697,16 @@ data:
               kubeconfigSecret: openfga-terminator-kubeconfig
         terminal-controller-manager:
           enabled: false
-        virtual-workspaces:
+        extension-manager-virtual-workspace:
           imageResources:
           - annotations:
               repo: oci
               artifact: image
-              for: virtual-workspaces
+              for: extension-manager-virtual-workspace
           syncWave: 4
           enabled: true
           targetNamespace: platform-mesh-system
           values:
-            virtualWorkspaceSecretName: virtual-workspaces-cert
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
@@ -719,6 +718,25 @@ data:
               serverUrl: "{{ .internalFrontProxyUrl }}"
               resourceSchemaName: "v250704-6d57f16.contentconfigurations.ui.platform-mesh.io"
               resourceSchemaWorkspace: "root:platform-mesh-system"
+        marketplace:
+          imageResources:
+          - annotations:
+              repo: oci
+              artifact: image
+              for: marketplace
+          syncWave: 4
+          enabled: true
+          targetNamespace: platform-mesh-system
+          values:
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
+            deployment:
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 64Mi
+              serverUrl: "{{ .internalFrontProxyUrl }}"
         marketplace-ui:
           enabled: true
           imageResources:

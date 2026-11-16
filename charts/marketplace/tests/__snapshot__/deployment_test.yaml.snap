@@ -1,0 +1,146 @@
+marketplace match the snapshot:
+  1: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: marketplace
+    spec:
+      dnsNames:
+        - frontproxy-front-proxy
+        - frontproxy-front-proxy.NAMESPACE
+        - frontproxy-front-proxy.NAMESPACE.svc.cluster.local
+        - marketplace
+        - marketplace.NAMESPACE
+        - marketplace.NAMESPACE.svc.cluster.local
+        - my.example.com
+        - my.example2.com
+      duration: 2160h0m0s
+      issuerRef:
+        group: cert-manager.io
+        kind: Issuer
+        name: root-server-ca
+      privateKey:
+        algorithm: RSA
+        size: 4096
+      renewBefore: 168h0m0s
+      secretName: marketplace-cert
+      usages:
+        - server auth
+  2: |
+    apiVersion: gateway.platform-mesh.io/v1alpha1
+    kind: ClusterAccess
+    metadata:
+      name: marketplace
+    spec:
+      auth:
+        kubeconfigSecretRef:
+          key: kubeconfig
+          name: virtual-workspace-clusteraccess-kubeconfig
+          namespace: NAMESPACE
+      introspectionPath: /clusters/*
+      path: null
+      requestPathTemplate: /clusters/{clusterTarget}
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: marketplace
+    spec:
+      replicas: null
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: marketplace
+      template:
+        metadata:
+          annotations: null
+          labels:
+            app: marketplace
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - start
+                - --tls-cert-file=/certs/tls.crt
+                - --tls-private-key-file=/certs/tls.key
+                - --kubeconfig=/api-kubeconfig/kubeconfig
+                - --bind-address=0.0.0.0
+                - --authentication-kubeconfig=/api-authentication-kubeconfig/kubeconfig
+                - --authentication-skip-lookup
+                - --client-ca-file=/client-ca/tls.crt
+                - --requestheader-client-ca-file=/requestheader-client-ca/tls.crt
+                - --requestheader-username-headers=X-Remote-User
+                - --requestheader-group-headers=X-Remote-Group
+                - --requestheader-extra-headers-prefix=X-Remote-Extra-
+                - --secure-port=8443
+                - --content-for-label=ui.platform-mesh.io/content-for
+                - --server-url=https://frontproxy-front-proxy.platform-mesh-system:8443
+                - --resource-apiexport-endpointslice-name=ui.platform-mesh.io
+              image: ghcr.io/platform-mesh/platform-mesh/marketplace:0.0.0
+              imagePullPolicy: IfNotPresent
+              name: marketplace
+              ports:
+                - containerPort: 8443
+                  name: vws
+                  protocol: TCP
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /api-authentication-kubeconfig
+                  name: authentication
+                - mountPath: /client-ca
+                  name: client-ca-secret
+                - mountPath: /certs
+                  name: vws-cert
+                - mountPath: /requestheader-client-ca
+                  name: requestheader-client-ca
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: marketplace
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: account-operator-kubeconfig
+            - name: authentication
+              secret:
+                secretName: portal-kubeconfig
+            - name: client-ca-secret
+              secret:
+                secretName: frontproxy-merged-client-ca
+            - name: vws-cert
+              secret:
+                secretName: marketplace-cert
+            - name: requestheader-client-ca
+              secret:
+                secretName: root-requestheader-client-ca
+  4: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: marketplace
+  5: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: marketplace
+    spec:
+      ports:
+        - port: 8443
+          protocol: TCP
+          targetPort: 8443
+      selector:
+        app: marketplace

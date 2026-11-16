@@ -75,8 +75,11 @@ components:
       - name: portal
         componentName: github.com/platform-mesh/portal
         version: ${PM_VERSION}
-      - name: virtual-workspaces
-        componentName: github.com/platform-mesh/virtual-workspaces
+      - name: extension-manager-virtual-workspace
+        componentName: github.com/platform-mesh/extension-manager-virtual-workspace
+        version: ${PM_VERSION}
+      - name: marketplace
+        componentName: github.com/platform-mesh/marketplace
         version: ${PM_VERSION}
       - name: iam-service
         componentName: github.com/platform-mesh/iam-service
