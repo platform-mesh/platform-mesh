@@ -22,7 +22,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | [apis](apis) | Shared CRD Go types, deepcopy, and scheme for the `*.platform-mesh.io` API groups. |
 | [golang-commons](golang-commons) | Reusable Go libraries (JWT, context, error handling, logging, controllers) shared across components. |
 | [subroutines](subroutines) | Lifecycle engine for Kubernetes/kcp controllers with Result-based flow control, conditions, and observability. |
-| [libs](libs) | One module for code shared between components of this repository. Currently [virtual-workspaces](libs/virtual-workspaces): server code of the kcp virtual workspaces (bootstrap, authentication, path resolution, storage). |
+| [golang-commons/virtual-workspaces](golang-commons/virtual-workspaces) | Server code shared by the kcp virtual workspaces (bootstrap, authentication, path resolution, storage). A module of its own, because it builds against the kcp fork of Kubernetes. |
 
 ### Operators
 
@@ -63,7 +63,7 @@ task test-account-operator
 task images-iam-service VERSION=v0.1.0 PUSH=false
 ```
 
-Local `replace` directives in each `go.mod` link the shared `apis`, `golang-commons`, `subroutines` and `libs` modules, so cross-module changes resolve against local source during development. These replacements do not affect external consumers.
+Local `replace` directives in each `go.mod` link the shared `apis`, `golang-commons`, `subroutines` and `golang-commons/virtual-workspaces` modules, so cross-module changes resolve against local source during development. These replacements do not affect external consumers.
 
 ### Tests
 

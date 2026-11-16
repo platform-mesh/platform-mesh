@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"go.platform-mesh.io/extension-manager-operator/virtual-workspace/pkg/config"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/server"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/server"
 
 	"k8s.io/klog/v2"
 )

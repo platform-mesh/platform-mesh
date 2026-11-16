@@ -22,12 +22,12 @@ import (
 	"path"
 
 	resources "go.platform-mesh.io/apis/static-assets/resources/marketplace"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/apidefinition"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/authorization"
+	vwspath "go.platform-mesh.io/golang-commons/virtual-workspaces/path"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/proxy"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/storage"
 	"go.platform-mesh.io/marketplace/pkg/config"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/apidefinition"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/authorization"
-	vwspath "go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/path"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/proxy"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/storage"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"

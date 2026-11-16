@@ -13,7 +13,7 @@ A list in a workspace returns the ContentConfigurations that have a configuratio
 
 ## Why it is a module of its own
 
-The ContentConfiguration API belongs to the extension-manager-operator, so the virtual workspace lives in its directory. It is a separate Go module and image because the kcp virtual workspace framework needs the kcp fork of Kubernetes, which the operator does not build against. `pkg/contentconfiguration` holds the workspace; the virtual workspace API server around it (bootstrap, authentication, authorization, path resolution, storage) comes from the shared library [libs/virtual-workspaces](../../../libs/virtual-workspaces).
+The ContentConfiguration API belongs to the extension-manager-operator, so the virtual workspace lives in its directory. It is a separate Go module and image because the kcp virtual workspace framework needs the kcp fork of Kubernetes, which the operator does not build against. `pkg/contentconfiguration` holds the workspace; the virtual workspace API server around it (bootstrap, authentication, authorization, path resolution, storage) comes from the shared library [golang-commons/virtual-workspaces](../../../golang-commons/virtual-workspaces).
 
 ## Development
 

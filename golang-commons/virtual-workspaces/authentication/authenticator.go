@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/storage"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/storage"
 
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authentication/request/bearertoken"

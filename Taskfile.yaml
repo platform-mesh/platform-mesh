@@ -59,7 +59,7 @@ vars:
     - apis
     - subroutines
     - golang-commons
-    - libs
+    - virtual-workspaces
 
     # operators
     - account-operator
@@ -84,7 +84,7 @@ vars:
     - apis
     - subroutines
     - golang-commons
-    - libs
+    - virtual-workspaces
 
   # Renovate CLI image. Cannot be placed in tools/ as vars from other
   # taskfile are not visible.

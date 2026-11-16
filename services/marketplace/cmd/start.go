@@ -22,8 +22,8 @@ import (
 	"github.com/spf13/cobra"
 
 	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/server"
 	"go.platform-mesh.io/marketplace/pkg/marketplace"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/server"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

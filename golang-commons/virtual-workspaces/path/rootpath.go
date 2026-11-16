@@ -20,9 +20,9 @@ import (
 	"context"
 	"strings"
 
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/authorization"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/proxy"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/storage"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/authorization"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/proxy"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/storage"
 
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/klog/v2"

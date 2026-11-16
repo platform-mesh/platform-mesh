@@ -28,7 +28,6 @@ WORKDIR /workspace
 COPY apis/ apis/
 COPY golang-commons/ golang-commons/
 COPY subroutines/ subroutines/
-COPY libs/ libs/
 COPY operators/extension-manager-operator/virtual-workspace/ operators/extension-manager-operator/virtual-workspace/
 
 WORKDIR /workspace/operators/extension-manager-operator/virtual-workspace

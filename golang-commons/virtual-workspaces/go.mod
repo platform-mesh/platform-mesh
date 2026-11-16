@@ -1,4 +1,4 @@
-module go.platform-mesh.io/platform-mesh/libs
+module go.platform-mesh.io/golang-commons/virtual-workspaces
 
 go 1.26.3
 

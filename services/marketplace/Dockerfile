@@ -28,7 +28,6 @@ WORKDIR /workspace
 COPY apis/ apis/
 COPY golang-commons/ golang-commons/
 COPY subroutines/ subroutines/
-COPY libs/ libs/
 COPY services/marketplace/ services/marketplace/
 
 WORKDIR /workspace/services/marketplace

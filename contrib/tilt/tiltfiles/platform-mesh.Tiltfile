@@ -154,15 +154,9 @@ service(
     NAMESPACE,
     TEMPLATE_VARS,
     path="operators/extension-manager-operator/virtual-workspace",
-    deps=GO_DEPS + ["libs"],
+    deps=GO_DEPS,
 )
-service(
-    "marketplace",
-    NAMESPACE,
-    TEMPLATE_VARS,
-    path="services/marketplace",
-    deps=GO_DEPS + ["libs"],
-)
+service("marketplace", NAMESPACE, TEMPLATE_VARS, path="services/marketplace", deps=GO_DEPS)
 service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"frontendPort": str(PORT)})
 service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
 

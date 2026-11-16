@@ -5,7 +5,7 @@ go 1.26.3
 replace (
 	go.platform-mesh.io/apis => ../../apis
 	go.platform-mesh.io/golang-commons => ../../golang-commons
-	go.platform-mesh.io/platform-mesh/libs => ../../libs
+	go.platform-mesh.io/golang-commons/virtual-workspaces => ../../golang-commons/virtual-workspaces
 	go.platform-mesh.io/subroutines => ../../subroutines
 )
 
@@ -57,7 +57,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
 	go.platform-mesh.io/apis v0.1.0
-	go.platform-mesh.io/platform-mesh/libs v0.0.0-00010101000000-000000000000
+	go.platform-mesh.io/golang-commons/virtual-workspaces v0.0.0-00010101000000-000000000000
 	k8s.io/apimachinery v0.36.4
 	k8s.io/apiserver v0.36.4
 	k8s.io/klog/v2 v2.140.0

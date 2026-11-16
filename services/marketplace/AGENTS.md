@@ -12,7 +12,7 @@
 ## Project Structure
 - `cmd`: CLI entrypoint; `cmd/start.go` hands the marketplace workspace to the server.
 - `pkg/marketplace`: the virtual workspace (`server.go`) and the storage filter computing the entries (`filter.go`).
-- `libs/virtual-workspaces` (repo root, in the shared module `go.platform-mesh.io/platform-mesh/libs`): the shared virtual workspace API server — `server` (flags, bootstrap), `authentication`, `authorization`, `proxy`, `storage`, `path`, `apidefinition`.
+- `golang-commons/virtual-workspaces` (repo root, module `go.platform-mesh.io/golang-commons/virtual-workspaces`): the shared virtual workspace API server — `server` (flags, bootstrap), `authentication`, `authorization`, `proxy`, `storage`, `path`, `apidefinition`.
 - `pkg/config`: flags of the marketplace workspace.
 - `config/crd`, `apis/static-assets/resources/marketplace`: generated resource output.
 
@@ -22,7 +22,7 @@ This is a kcp virtual workspace server serving one resource, `MarketplaceEntry`.
 - `pkg/marketplace/server.go` bootstraps a dynamic virtual workspace from the embedded, generated APIResourceSchema.
 - `pkg/marketplace/filter.go` replaces the list: entries are computed per request from ProviderMetadata, APIExports and the APIBindings of the requested workspace.
 - The custom authenticator validates bearer tokens by probing the upstream kcp `/version` endpoint for the resolved cluster path; authorization is intentionally lightweight.
-- The server packages live in `libs/virtual-workspaces` and are shared with `operators/extension-manager-operator/virtual-workspace` (the contentconfigurations virtual workspace); run both modules' tests after changing them.
+- The server packages live in `golang-commons/virtual-workspaces` and are shared with `operators/extension-manager-operator/virtual-workspace` (the contentconfigurations virtual workspace); run both modules' tests after changing them.
 
 ## Commands
 - `go test ./...` — default test command.

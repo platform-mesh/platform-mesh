@@ -21,11 +21,11 @@ import (
 	"path"
 
 	"go.platform-mesh.io/extension-manager-operator/virtual-workspace/pkg/config"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/apidefinition"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/authorization"
-	vwspath "go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/path"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/proxy"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/storage"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/apidefinition"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/authorization"
+	vwspath "go.platform-mesh.io/golang-commons/virtual-workspaces/path"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/proxy"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/storage"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

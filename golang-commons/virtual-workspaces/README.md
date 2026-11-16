@@ -19,11 +19,11 @@ Go packages for building a [kcp](https://github.com/kcp-dev/kcp) virtual workspa
 
 ## kcp fork of Kubernetes
 
-The kcp virtual workspace framework builds against the kcp fork of Kubernetes, which [`../go.mod`](../go.mod) selects with a `replace` directive for every `k8s.io` module. Go ignores the `replace` directives of a dependency, so each module importing these packages has to carry the same block; keep the three in step when the kcp version changes.
+This is a Go module of its own (`go.platform-mesh.io/golang-commons/virtual-workspaces`), not a package of `golang-commons`: The kcp virtual workspace framework builds against the kcp fork of Kubernetes, which `go.mod` selects with a `replace` directive for every `k8s.io` module. Go ignores the `replace` directives of a dependency, so each module importing this module has to carry the same block; keep the three in step when the kcp version changes.
 
 ## Development
 
 ```sh
-task lint-libs
-task test-libs
+task lint-virtual-workspaces
+task test-virtual-workspaces
 ```

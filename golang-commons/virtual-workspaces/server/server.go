@@ -23,7 +23,7 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/authentication"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/authentication"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"

@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"go.platform-mesh.io/extension-manager-operator/virtual-workspace/pkg/contentconfiguration"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/server"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/server"
 
 	"k8s.io/apimachinery/pkg/runtime"
 

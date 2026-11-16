@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.platform-mesh.io/extension-manager-operator/virtual-workspace/pkg/config"
-	"go.platform-mesh.io/platform-mesh/libs/virtual-workspaces/storage"
+	"go.platform-mesh.io/golang-commons/virtual-workspaces/storage"
 
 	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

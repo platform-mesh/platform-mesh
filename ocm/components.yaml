@@ -57,11 +57,12 @@ components:
   apis: # imports golang-commons and subroutines
     path: apis
     library: true
-  # One module for the code shared between components of this repository;
-  # each library is a directory in it (libs/virtual-workspaces: server code of
-  # the marketplace and extension-manager virtual workspaces).
-  libs:
-    path: libs
+  # Server code shared by the virtual workspaces (marketplace,
+  # extension-manager-virtual-workspace). A module of its own inside
+  # golang-commons, because it builds against the kcp fork of Kubernetes and
+  # golang-commons must not.
+  virtual-workspaces:
+    path: golang-commons/virtual-workspaces
     library: true
 
   # --- operators -------------------------------------------------------------

@@ -7,7 +7,7 @@ A kcp virtual workspace that serves `MarketplaceEntry` resources (`marketplace.p
 
 A list in a workspace returns one entry per APIExport of every provider: the provider's `ProviderMetadata`, the `APIExport`, and the name of the `APIBinding` in that workspace if the export is bound there. Nothing is stored; entries are computed per request.
 
-`pkg/marketplace` holds the workspace; the virtual workspace API server around it (bootstrap, authentication, authorization, path resolution, storage) comes from the shared library [libs/virtual-workspaces](../../libs/virtual-workspaces). The module builds against the kcp fork of Kubernetes, which `go.mod` selects with `replace` directives for every `k8s.io` module.
+`pkg/marketplace` holds the workspace; the virtual workspace API server around it (bootstrap, authentication, authorization, path resolution, storage) comes from the shared library [golang-commons/virtual-workspaces](../../golang-commons/virtual-workspaces). The module builds against the kcp fork of Kubernetes, which `go.mod` selects with `replace` directives for every `k8s.io` module.
 
 ## Running locally
 
