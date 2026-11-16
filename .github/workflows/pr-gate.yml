@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   pr-gate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

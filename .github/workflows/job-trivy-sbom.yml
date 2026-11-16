@@ -58,7 +58,7 @@ env:
 
 jobs:
   scan-sbom:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read # Needed for actions/checkout
       packages: read # Needed to pull the image/SBOM to scan
