@@ -305,6 +305,8 @@ dex:
     filters: []
   # -- Connector for the OAuth2 password grant, which issues tokens without a browser; `local` is the static password database (default: grant disabled)
   passwordConnector: ""
+  # -- Dex `expiry` settings (token lifetimes, refresh token rotation), rendered as given (default: Dex defaults)
+  expiry: {}
   staticClient:
     # -- OIDC client ID for Keycloak identity broker
     id: keycloak-broker
