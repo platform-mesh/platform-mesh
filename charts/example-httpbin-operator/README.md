@@ -17,6 +17,10 @@ A Helm chart for deploying the httpbin operator and its CRDs
 | controllerManager.serviceAccountName | string | `"example-httpbin-operator-controller-manager"` |  |
 | enabled | bool | `true` |  |
 | fullnameOverride | string | `""` |  |
+| httpbinImage.digest | string | `""` | The httpbin image digest (when set, overrides tag: registry/repository@digest) |
+| httpbinImage.registry | string | `"ghcr.io"` | The httpbin image registry |
+| httpbinImage.repository | string | `"platform-mesh/example-httpbin-operator/httpbin"` | The httpbin image repository path (without registry) |
+| httpbinImage.tag | string | `""` | The httpbin image tag (defaults to appVersion) |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |
