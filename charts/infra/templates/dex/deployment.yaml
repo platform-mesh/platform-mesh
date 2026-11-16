@@ -15,6 +15,9 @@ spec:
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
+      annotations:
+        {{- /* Dex reads its config once at start. */}}
+        checksum/config: {{ include (print $.Template.BasePath "/dex/configmap.yaml") . | sha256sum }}
       labels:
         app.kubernetes.io/name: dex
         app.kubernetes.io/instance: {{ .Release.Name }}
