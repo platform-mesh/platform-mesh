@@ -1,6 +1,6 @@
 module go.platform-mesh.io/extension-manager-operator/virtual-workspace
 
-go 1.26.3
+go 1.26.0
 
 replace (
 	go.platform-mesh.io/apis => ../../../apis

@@ -1,6 +1,6 @@
 module go.platform-mesh.io/golang-commons/virtual-workspaces
 
-go 1.26.3
+go 1.26.0
 
 replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.8.1-0.20260714141811-833f063357f8
 
