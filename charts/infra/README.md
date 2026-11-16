@@ -39,6 +39,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.image.repository | string | `"dexidp/dex"` | Dex image repository (without registry) |
 | dex.image.tag | string | `"v2.46.1"` | Dex image tag |
 | dex.issuer | string | `""` | Dex issuer URL (must match external browser-reachable URL) |
+| dex.passwordConnector | string | `""` | Connector for the OAuth2 password grant, which issues tokens without a browser; `local` is the static password database (default: grant disabled) |
 | dex.resources.limits.cpu | string | `"200m"` |  |
 | dex.resources.limits.memory | string | `"256Mi"` |  |
 | dex.resources.requests.cpu | string | `"50m"` |  |
