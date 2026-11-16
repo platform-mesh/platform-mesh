@@ -45,23 +45,29 @@ if [ -z "$BASE_DOMAIN" ] || [ -z "$_tilt_port" ]; then
     echo "PlatformMesh exposure.baseDomain or exposure.port is empty" >&2
 fi
 
-_tilt_encoded="$(_pm_kubectl get secret keycloak-admin -o jsonpath='{.data.username}')" || return 1
-KEYCLOAK_ADMIN_USER="$(echo "$_tilt_encoded" | base64 -d)" || return 1
-export KEYCLOAK_ADMIN_USER
-
-_tilt_encoded="$(_pm_kubectl get secret keycloak-admin -o jsonpath='{.data.password}')" || return 1
-KEYCLOAK_ADMIN_PASSWORD="$(echo "$_tilt_encoded" | base64 -d)" || return 1
-export KEYCLOAK_ADMIN_PASSWORD
-
-if [ -z "$KEYCLOAK_ADMIN_USER" ] || [ -z "$KEYCLOAK_ADMIN_PASSWORD" ]; then
-    echo "secret keycloak-admin has no username or password" >&2
-fi
-
 PORTAL_BASE_URL="https://$BASE_DOMAIN:$_tilt_port/"
 export PORTAL_BASE_URL
 
-KEYCLOAK_BASE_URL="${PORTAL_BASE_URL}keycloak"
-export KEYCLOAK_BASE_URL
+# Tilt started without keycloak
+_tilt_keycloak="$(_pm_kubectl get secret keycloak-admin --ignore-not-found -o name)"
+if [ -n "$_tilt_keycloak" ]; then
+    _tilt_encoded="$(_pm_kubectl get secret keycloak-admin -o jsonpath='{.data.username}')" || return 1
+    KEYCLOAK_ADMIN_USER="$(echo "$_tilt_encoded" | base64 -d)" || return 1
+    export KEYCLOAK_ADMIN_USER
+
+    _tilt_encoded="$(_pm_kubectl get secret keycloak-admin -o jsonpath='{.data.password}')" || return 1
+    KEYCLOAK_ADMIN_PASSWORD="$(echo "$_tilt_encoded" | base64 -d)" || return 1
+    export KEYCLOAK_ADMIN_PASSWORD
+
+    if [ -z "$KEYCLOAK_ADMIN_USER" ] || [ -z "$KEYCLOAK_ADMIN_PASSWORD" ]; then
+        echo "secret keycloak-admin has no username or password" >&2
+    fi
+
+    KEYCLOAK_BASE_URL="${PORTAL_BASE_URL}keycloak"
+    export KEYCLOAK_BASE_URL
+else
+    unset KEYCLOAK_ADMIN_USER KEYCLOAK_ADMIN_PASSWORD KEYCLOAK_BASE_URL
+fi
 
 KCP_URL="https://kcp.api.$BASE_DOMAIN:$_tilt_port"
 export KCP_URL
@@ -85,4 +91,4 @@ export KCP_ROOT_CA_PATH
 MKCERT_CA_PATH="${MKCERT_CA_PATH:-$_tilt_secret/ca.crt}"
 export MKCERT_CA_PATH
 
-unset _tilt_repo _tilt_secret _tilt_port _tilt_encoded
+unset _tilt_repo _tilt_secret _tilt_port _tilt_encoded _tilt_keycloak
