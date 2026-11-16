@@ -31,6 +31,7 @@ load(
     "./settings.Tiltfile",
     "BASE_DOMAIN",
     "DEX",
+    "DEX_CLIENT_ID",
     "DEX_ISSUER",
     "FEATURE_TOGGLES",
     "GO_DEPS",
@@ -101,6 +102,17 @@ k8s_resource(
     labels=["platform-mesh"],
 )
 
+authentication = ""
+if DEX:
+    authentication = "\n".join(
+        [
+            "  authentication:",
+            "    oidc:",
+            "      issuerURL: " + DEX_ISSUER,
+            "      clientID: " + DEX_CLIENT_ID,
+        ]
+    )
+
 # Separate resource so re-triggering the operator never delete-recreates
 # the CR.
 k8s_yaml(
@@ -111,6 +123,7 @@ k8s_yaml(
             "PORT": PORT,
             "HTTPBIN_NAMESPACE": HTTPBIN_NAMESPACE,
             "FEATURE_TOGGLES": "\n".join(["    - name: " + t for t in FEATURE_TOGGLES]),
+            "AUTHENTICATION": authentication,
         },
     )
 )
