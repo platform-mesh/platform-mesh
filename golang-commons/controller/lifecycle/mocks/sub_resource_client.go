@@ -34,10 +34,19 @@ func NewSubResourceWriter(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *SubResourceWriter {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &SubResourceWriter{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -87,9 +96,9 @@ type SubResourceWriter_Apply_Call struct {
 //   - ctx context.Context
 //   - obj runtime.ApplyConfiguration
 //   - opts ...client.SubResourceApplyOption
-func (_e *SubResourceWriter_Expecter) Apply(ctx interface{}, obj interface{}, opts ...interface{}) *SubResourceWriter_Apply_Call {
+func (_e *SubResourceWriter_Expecter) Apply(ctx any, obj any, opts ...any) *SubResourceWriter_Apply_Call {
 	return &SubResourceWriter_Apply_Call{Call: _e.mock.On("Apply",
-		append([]interface{}{ctx, obj}, opts...)...)}
+		append([]any{ctx, obj}, opts...)...)}
 }
 
 func (_c *SubResourceWriter_Apply_Call) Run(run func(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption)) *SubResourceWriter_Apply_Call {
@@ -160,9 +169,9 @@ type SubResourceWriter_Create_Call struct {
 //   - obj client.Object
 //   - subResource client.Object
 //   - opts ...client.SubResourceCreateOption
-func (_e *SubResourceWriter_Expecter) Create(ctx interface{}, obj interface{}, subResource interface{}, opts ...interface{}) *SubResourceWriter_Create_Call {
+func (_e *SubResourceWriter_Expecter) Create(ctx any, obj any, subResource any, opts ...any) *SubResourceWriter_Create_Call {
 	return &SubResourceWriter_Create_Call{Call: _e.mock.On("Create",
-		append([]interface{}{ctx, obj, subResource}, opts...)...)}
+		append([]any{ctx, obj, subResource}, opts...)...)}
 }
 
 func (_c *SubResourceWriter_Create_Call) Run(run func(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption)) *SubResourceWriter_Create_Call {
@@ -238,9 +247,9 @@ type SubResourceWriter_Patch_Call struct {
 //   - obj client.Object
 //   - patch client.Patch
 //   - opts ...client.SubResourcePatchOption
-func (_e *SubResourceWriter_Expecter) Patch(ctx interface{}, obj interface{}, patch interface{}, opts ...interface{}) *SubResourceWriter_Patch_Call {
+func (_e *SubResourceWriter_Expecter) Patch(ctx any, obj any, patch any, opts ...any) *SubResourceWriter_Patch_Call {
 	return &SubResourceWriter_Patch_Call{Call: _e.mock.On("Patch",
-		append([]interface{}{ctx, obj, patch}, opts...)...)}
+		append([]any{ctx, obj, patch}, opts...)...)}
 }
 
 func (_c *SubResourceWriter_Patch_Call) Run(run func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption)) *SubResourceWriter_Patch_Call {
@@ -315,9 +324,9 @@ type SubResourceWriter_Update_Call struct {
 //   - ctx context.Context
 //   - obj client.Object
 //   - opts ...client.SubResourceUpdateOption
-func (_e *SubResourceWriter_Expecter) Update(ctx interface{}, obj interface{}, opts ...interface{}) *SubResourceWriter_Update_Call {
+func (_e *SubResourceWriter_Expecter) Update(ctx any, obj any, opts ...any) *SubResourceWriter_Update_Call {
 	return &SubResourceWriter_Update_Call{Call: _e.mock.On("Update",
-		append([]interface{}{ctx, obj}, opts...)...)}
+		append([]any{ctx, obj}, opts...)...)}
 }
 
 func (_c *SubResourceWriter_Update_Call) Run(run func(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption)) *SubResourceWriter_Update_Call {

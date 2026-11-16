@@ -32,10 +32,19 @@ func NewMockTokenRefresher(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockTokenRefresher {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockTokenRefresher{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -87,7 +96,7 @@ type MockTokenRefresher_RefreshToken_Call struct {
 // RefreshToken is a helper method to define mock.On call
 //   - ctx context.Context
 //   - clientID string
-func (_e *MockTokenRefresher_Expecter) RefreshToken(ctx interface{}, clientID interface{}) *MockTokenRefresher_RefreshToken_Call {
+func (_e *MockTokenRefresher_Expecter) RefreshToken(ctx any, clientID any) *MockTokenRefresher_RefreshToken_Call {
 	return &MockTokenRefresher_RefreshToken_Call{Call: _e.mock.On("RefreshToken", ctx, clientID)}
 }
 

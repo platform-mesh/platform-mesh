@@ -36,10 +36,19 @@ func NewMockDiscoveryInterface(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockDiscoveryInterface {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockDiscoveryInterface{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -467,7 +476,7 @@ type MockDiscoveryInterface_ServerResourcesForGroupVersion_Call struct {
 
 // ServerResourcesForGroupVersion is a helper method to define mock.On call
 //   - groupVersion string
-func (_e *MockDiscoveryInterface_Expecter) ServerResourcesForGroupVersion(groupVersion interface{}) *MockDiscoveryInterface_ServerResourcesForGroupVersion_Call {
+func (_e *MockDiscoveryInterface_Expecter) ServerResourcesForGroupVersion(groupVersion any) *MockDiscoveryInterface_ServerResourcesForGroupVersion_Call {
 	return &MockDiscoveryInterface_ServerResourcesForGroupVersion_Call{Call: _e.mock.On("ServerResourcesForGroupVersion", groupVersion)}
 }
 

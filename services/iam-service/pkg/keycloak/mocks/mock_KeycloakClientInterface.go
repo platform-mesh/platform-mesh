@@ -33,10 +33,19 @@ func NewKeycloakClientInterface(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *KeycloakClientInterface {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &KeycloakClientInterface{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -98,9 +107,9 @@ type KeycloakClientInterface_GetUsersWithResponse_Call struct {
 //   - realm string
 //   - params *keycloak.GetUsersParams
 //   - reqEditors ...keycloak.RequestEditorFn
-func (_e *KeycloakClientInterface_Expecter) GetUsersWithResponse(ctx interface{}, realm interface{}, params interface{}, reqEditors ...interface{}) *KeycloakClientInterface_GetUsersWithResponse_Call {
+func (_e *KeycloakClientInterface_Expecter) GetUsersWithResponse(ctx any, realm any, params any, reqEditors ...any) *KeycloakClientInterface_GetUsersWithResponse_Call {
 	return &KeycloakClientInterface_GetUsersWithResponse_Call{Call: _e.mock.On("GetUsersWithResponse",
-		append([]interface{}{ctx, realm, params}, reqEditors...)...)}
+		append([]any{ctx, realm, params}, reqEditors...)...)}
 }
 
 func (_c *KeycloakClientInterface_GetUsersWithResponse_Call) Run(run func(ctx context.Context, realm string, params *keycloak.GetUsersParams, reqEditors ...keycloak.RequestEditorFn)) *KeycloakClientInterface_GetUsersWithResponse_Call {

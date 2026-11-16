@@ -37,10 +37,19 @@ func NewLogicalClusterInterface(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *LogicalClusterInterface {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &LogicalClusterInterface{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -95,7 +104,7 @@ type LogicalClusterInterface_Apply_Call struct {
 //   - ctx context.Context
 //   - logicalCluster *v1alpha1.LogicalClusterApplyConfiguration
 //   - opts v1.ApplyOptions
-func (_e *LogicalClusterInterface_Expecter) Apply(ctx interface{}, logicalCluster interface{}, opts interface{}) *LogicalClusterInterface_Apply_Call {
+func (_e *LogicalClusterInterface_Expecter) Apply(ctx any, logicalCluster any, opts any) *LogicalClusterInterface_Apply_Call {
 	return &LogicalClusterInterface_Apply_Call{Call: _e.mock.On("Apply", ctx, logicalCluster, opts)}
 }
 
@@ -169,7 +178,7 @@ type LogicalClusterInterface_ApplyStatus_Call struct {
 //   - ctx context.Context
 //   - logicalCluster *v1alpha1.LogicalClusterApplyConfiguration
 //   - opts v1.ApplyOptions
-func (_e *LogicalClusterInterface_Expecter) ApplyStatus(ctx interface{}, logicalCluster interface{}, opts interface{}) *LogicalClusterInterface_ApplyStatus_Call {
+func (_e *LogicalClusterInterface_Expecter) ApplyStatus(ctx any, logicalCluster any, opts any) *LogicalClusterInterface_ApplyStatus_Call {
 	return &LogicalClusterInterface_ApplyStatus_Call{Call: _e.mock.On("ApplyStatus", ctx, logicalCluster, opts)}
 }
 
@@ -243,7 +252,7 @@ type LogicalClusterInterface_Create_Call struct {
 //   - ctx context.Context
 //   - logicalCluster *v1alpha10.LogicalCluster
 //   - opts v1.CreateOptions
-func (_e *LogicalClusterInterface_Expecter) Create(ctx interface{}, logicalCluster interface{}, opts interface{}) *LogicalClusterInterface_Create_Call {
+func (_e *LogicalClusterInterface_Expecter) Create(ctx any, logicalCluster any, opts any) *LogicalClusterInterface_Create_Call {
 	return &LogicalClusterInterface_Create_Call{Call: _e.mock.On("Create", ctx, logicalCluster, opts)}
 }
 
@@ -306,7 +315,7 @@ type LogicalClusterInterface_Delete_Call struct {
 //   - ctx context.Context
 //   - name string
 //   - opts v1.DeleteOptions
-func (_e *LogicalClusterInterface_Expecter) Delete(ctx interface{}, name interface{}, opts interface{}) *LogicalClusterInterface_Delete_Call {
+func (_e *LogicalClusterInterface_Expecter) Delete(ctx any, name any, opts any) *LogicalClusterInterface_Delete_Call {
 	return &LogicalClusterInterface_Delete_Call{Call: _e.mock.On("Delete", ctx, name, opts)}
 }
 
@@ -369,7 +378,7 @@ type LogicalClusterInterface_DeleteCollection_Call struct {
 //   - ctx context.Context
 //   - opts v1.DeleteOptions
 //   - listOpts v1.ListOptions
-func (_e *LogicalClusterInterface_Expecter) DeleteCollection(ctx interface{}, opts interface{}, listOpts interface{}) *LogicalClusterInterface_DeleteCollection_Call {
+func (_e *LogicalClusterInterface_Expecter) DeleteCollection(ctx any, opts any, listOpts any) *LogicalClusterInterface_DeleteCollection_Call {
 	return &LogicalClusterInterface_DeleteCollection_Call{Call: _e.mock.On("DeleteCollection", ctx, opts, listOpts)}
 }
 
@@ -443,7 +452,7 @@ type LogicalClusterInterface_Get_Call struct {
 //   - ctx context.Context
 //   - name string
 //   - opts v1.GetOptions
-func (_e *LogicalClusterInterface_Expecter) Get(ctx interface{}, name interface{}, opts interface{}) *LogicalClusterInterface_Get_Call {
+func (_e *LogicalClusterInterface_Expecter) Get(ctx any, name any, opts any) *LogicalClusterInterface_Get_Call {
 	return &LogicalClusterInterface_Get_Call{Call: _e.mock.On("Get", ctx, name, opts)}
 }
 
@@ -516,7 +525,7 @@ type LogicalClusterInterface_List_Call struct {
 // List is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts v1.ListOptions
-func (_e *LogicalClusterInterface_Expecter) List(ctx interface{}, opts interface{}) *LogicalClusterInterface_List_Call {
+func (_e *LogicalClusterInterface_Expecter) List(ctx any, opts any) *LogicalClusterInterface_List_Call {
 	return &LogicalClusterInterface_List_Call{Call: _e.mock.On("List", ctx, opts)}
 }
 
@@ -594,9 +603,9 @@ type LogicalClusterInterface_Patch_Call struct {
 //   - data []byte
 //   - opts v1.PatchOptions
 //   - subresources ...string
-func (_e *LogicalClusterInterface_Expecter) Patch(ctx interface{}, name interface{}, pt interface{}, data interface{}, opts interface{}, subresources ...interface{}) *LogicalClusterInterface_Patch_Call {
+func (_e *LogicalClusterInterface_Expecter) Patch(ctx any, name any, pt any, data any, opts any, subresources ...any) *LogicalClusterInterface_Patch_Call {
 	return &LogicalClusterInterface_Patch_Call{Call: _e.mock.On("Patch",
-		append([]interface{}{ctx, name, pt, data, opts}, subresources...)...)}
+		append([]any{ctx, name, pt, data, opts}, subresources...)...)}
 }
 
 func (_c *LogicalClusterInterface_Patch_Call) Run(run func(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string)) *LogicalClusterInterface_Patch_Call {
@@ -686,7 +695,7 @@ type LogicalClusterInterface_Update_Call struct {
 //   - ctx context.Context
 //   - logicalCluster *v1alpha10.LogicalCluster
 //   - opts v1.UpdateOptions
-func (_e *LogicalClusterInterface_Expecter) Update(ctx interface{}, logicalCluster interface{}, opts interface{}) *LogicalClusterInterface_Update_Call {
+func (_e *LogicalClusterInterface_Expecter) Update(ctx any, logicalCluster any, opts any) *LogicalClusterInterface_Update_Call {
 	return &LogicalClusterInterface_Update_Call{Call: _e.mock.On("Update", ctx, logicalCluster, opts)}
 }
 
@@ -760,7 +769,7 @@ type LogicalClusterInterface_UpdateStatus_Call struct {
 //   - ctx context.Context
 //   - logicalCluster *v1alpha10.LogicalCluster
 //   - opts v1.UpdateOptions
-func (_e *LogicalClusterInterface_Expecter) UpdateStatus(ctx interface{}, logicalCluster interface{}, opts interface{}) *LogicalClusterInterface_UpdateStatus_Call {
+func (_e *LogicalClusterInterface_Expecter) UpdateStatus(ctx any, logicalCluster any, opts any) *LogicalClusterInterface_UpdateStatus_Call {
 	return &LogicalClusterInterface_UpdateStatus_Call{Call: _e.mock.On("UpdateStatus", ctx, logicalCluster, opts)}
 }
 
@@ -833,7 +842,7 @@ type LogicalClusterInterface_Watch_Call struct {
 // Watch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts v1.ListOptions
-func (_e *LogicalClusterInterface_Expecter) Watch(ctx interface{}, opts interface{}) *LogicalClusterInterface_Watch_Call {
+func (_e *LogicalClusterInterface_Expecter) Watch(ctx any, opts any) *LogicalClusterInterface_Watch_Call {
 	return &LogicalClusterInterface_Watch_Call{Call: _e.mock.On("Watch", ctx, opts)}
 }
 

@@ -40,10 +40,19 @@ func NewClusterInterface(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *ClusterInterface {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &ClusterInterface{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -225,7 +234,7 @@ type ClusterInterface_Cluster_Call struct {
 
 // Cluster is a helper method to define mock.On call
 //   - path logicalcluster.Path
-func (_e *ClusterInterface_Expecter) Cluster(path interface{}) *ClusterInterface_Cluster_Call {
+func (_e *ClusterInterface_Expecter) Cluster(path any) *ClusterInterface_Cluster_Call {
 	return &ClusterInterface_Cluster_Call{Call: _e.mock.On("Cluster", path)}
 }
 

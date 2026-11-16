@@ -33,10 +33,19 @@ func NewFGAStoreHelper(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *FGAStoreHelper {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &FGAStoreHelper{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -89,7 +98,7 @@ type FGAStoreHelper_GetModelIDForTenant_Call struct {
 //   - ctx context.Context
 //   - conn openfgav1.OpenFGAServiceClient
 //   - tenantID string
-func (_e *FGAStoreHelper_Expecter) GetModelIDForTenant(ctx interface{}, conn interface{}, tenantID interface{}) *FGAStoreHelper_GetModelIDForTenant_Call {
+func (_e *FGAStoreHelper_Expecter) GetModelIDForTenant(ctx any, conn any, tenantID any) *FGAStoreHelper_GetModelIDForTenant_Call {
 	return &FGAStoreHelper_GetModelIDForTenant_Call{Call: _e.mock.On("GetModelIDForTenant", ctx, conn, tenantID)}
 }
 
@@ -161,7 +170,7 @@ type FGAStoreHelper_GetStoreIDForTenant_Call struct {
 //   - ctx context.Context
 //   - conn openfgav1.OpenFGAServiceClient
 //   - tenantID string
-func (_e *FGAStoreHelper_Expecter) GetStoreIDForTenant(ctx interface{}, conn interface{}, tenantID interface{}) *FGAStoreHelper_GetStoreIDForTenant_Call {
+func (_e *FGAStoreHelper_Expecter) GetStoreIDForTenant(ctx any, conn any, tenantID any) *FGAStoreHelper_GetStoreIDForTenant_Call {
 	return &FGAStoreHelper_GetStoreIDForTenant_Call{Call: _e.mock.On("GetStoreIDForTenant", ctx, conn, tenantID)}
 }
 
@@ -222,7 +231,7 @@ type FGAStoreHelper_IsDuplicateWriteError_Call struct {
 
 // IsDuplicateWriteError is a helper method to define mock.On call
 //   - err error
-func (_e *FGAStoreHelper_Expecter) IsDuplicateWriteError(err interface{}) *FGAStoreHelper_IsDuplicateWriteError_Call {
+func (_e *FGAStoreHelper_Expecter) IsDuplicateWriteError(err any) *FGAStoreHelper_IsDuplicateWriteError_Call {
 	return &FGAStoreHelper_IsDuplicateWriteError_Call{Call: _e.mock.On("IsDuplicateWriteError", err)}
 }
 

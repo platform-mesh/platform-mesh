@@ -34,10 +34,19 @@ func NewRetriever(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *Retriever {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &Retriever{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -91,7 +100,7 @@ type Retriever_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - accountPath multicluster.ClusterName
-func (_e *Retriever_Expecter) Get(ctx interface{}, accountPath interface{}) *Retriever_Get_Call {
+func (_e *Retriever_Expecter) Get(ctx any, accountPath any) *Retriever_Get_Call {
 	return &Retriever_Get_Call{Call: _e.mock.On("Get", ctx, accountPath)}
 }
 

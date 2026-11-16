@@ -40,10 +40,19 @@ func NewCluster(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *Cluster {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &Cluster{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -271,7 +280,7 @@ type Cluster_GetEventRecorder_Call struct {
 
 // GetEventRecorder is a helper method to define mock.On call
 //   - name string
-func (_e *Cluster_Expecter) GetEventRecorder(name interface{}) *Cluster_GetEventRecorder_Call {
+func (_e *Cluster_Expecter) GetEventRecorder(name any) *Cluster_GetEventRecorder_Call {
 	return &Cluster_GetEventRecorder_Call{Call: _e.mock.On("GetEventRecorder", name)}
 }
 
@@ -288,8 +297,8 @@ func (_c *Cluster_GetEventRecorder_Call) Run(run func(name string)) *Cluster_Get
 	return _c
 }
 
-func (_c *Cluster_GetEventRecorder_Call) Return(v events.EventRecorder) *Cluster_GetEventRecorder_Call {
-	_c.Call.Return(v)
+func (_c *Cluster_GetEventRecorder_Call) Return(eventRecorder events.EventRecorder) *Cluster_GetEventRecorder_Call {
+	_c.Call.Return(eventRecorder)
 	return _c
 }
 
@@ -324,7 +333,7 @@ type Cluster_GetEventRecorderFor_Call struct {
 
 // GetEventRecorderFor is a helper method to define mock.On call
 //   - name string
-func (_e *Cluster_Expecter) GetEventRecorderFor(name interface{}) *Cluster_GetEventRecorderFor_Call {
+func (_e *Cluster_Expecter) GetEventRecorderFor(name any) *Cluster_GetEventRecorderFor_Call {
 	return &Cluster_GetEventRecorderFor_Call{Call: _e.mock.On("GetEventRecorderFor", name)}
 }
 
@@ -559,7 +568,7 @@ type Cluster_Start_Call struct {
 
 // Start is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Cluster_Expecter) Start(ctx interface{}) *Cluster_Start_Call {
+func (_e *Cluster_Expecter) Start(ctx any) *Cluster_Start_Call {
 	return &Cluster_Start_Call{Call: _e.mock.On("Start", ctx)}
 }
 

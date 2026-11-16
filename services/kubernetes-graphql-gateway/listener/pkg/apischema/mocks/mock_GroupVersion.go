@@ -30,10 +30,19 @@ func NewMockGroupVersion(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockGroupVersion {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockGroupVersion{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -86,7 +95,7 @@ type MockGroupVersion_Schema_Call struct {
 
 // Schema is a helper method to define mock.On call
 //   - contentType string
-func (_e *MockGroupVersion_Expecter) Schema(contentType interface{}) *MockGroupVersion_Schema_Call {
+func (_e *MockGroupVersion_Expecter) Schema(contentType any) *MockGroupVersion_Schema_Call {
 	return &MockGroupVersion_Schema_Call{Call: _e.mock.On("Schema", contentType)}
 }
 

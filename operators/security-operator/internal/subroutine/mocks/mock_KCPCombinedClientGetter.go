@@ -33,10 +33,19 @@ func NewMockKCPCombinedClientGetter(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockKCPCombinedClientGetter {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockKCPCombinedClientGetter{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -86,9 +95,9 @@ type MockKCPCombinedClientGetter_List_Call struct {
 //   - ctx context.Context
 //   - list client.ObjectList
 //   - opts ...client.ListOption
-func (_e *MockKCPCombinedClientGetter_Expecter) List(ctx interface{}, list interface{}, opts ...interface{}) *MockKCPCombinedClientGetter_List_Call {
+func (_e *MockKCPCombinedClientGetter_Expecter) List(ctx any, list any, opts ...any) *MockKCPCombinedClientGetter_List_Call {
 	return &MockKCPCombinedClientGetter_List_Call{Call: _e.mock.On("List",
-		append([]interface{}{ctx, list}, opts...)...)}
+		append([]any{ctx, list}, opts...)...)}
 }
 
 func (_c *MockKCPCombinedClientGetter_List_Call) Run(run func(ctx context.Context, list client.ObjectList, opts ...client.ListOption)) *MockKCPCombinedClientGetter_List_Call {
@@ -162,7 +171,7 @@ type MockKCPCombinedClientGetter_NewClientForLogicalCluster_Call struct {
 // NewClientForLogicalCluster is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cluster string
-func (_e *MockKCPCombinedClientGetter_Expecter) NewClientForLogicalCluster(ctx interface{}, cluster interface{}) *MockKCPCombinedClientGetter_NewClientForLogicalCluster_Call {
+func (_e *MockKCPCombinedClientGetter_Expecter) NewClientForLogicalCluster(ctx any, cluster any) *MockKCPCombinedClientGetter_NewClientForLogicalCluster_Call {
 	return &MockKCPCombinedClientGetter_NewClientForLogicalCluster_Call{Call: _e.mock.On("NewClientForLogicalCluster", ctx, cluster)}
 }
 
@@ -229,7 +238,7 @@ type MockKCPCombinedClientGetter_NewClientFromContext_Call struct {
 
 // NewClientFromContext is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockKCPCombinedClientGetter_Expecter) NewClientFromContext(ctx interface{}) *MockKCPCombinedClientGetter_NewClientFromContext_Call {
+func (_e *MockKCPCombinedClientGetter_Expecter) NewClientFromContext(ctx any) *MockKCPCombinedClientGetter_NewClientFromContext_Call {
 	return &MockKCPCombinedClientGetter_NewClientFromContext_Call{Call: _e.mock.On("NewClientFromContext", ctx)}
 }
 
