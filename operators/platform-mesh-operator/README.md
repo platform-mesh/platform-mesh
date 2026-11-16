@@ -147,6 +147,37 @@ spec:
 
 These are merged with the profile's `components` and `infra` sections when rendering Go templates.
 
+### Authentication
+
+An external OIDC issuer replaces Keycloak as the identity provider of kcp and the portal:
+
+```yaml
+spec:
+  featureToggles:
+  - name: feature-disable-keycloak
+  authentication:
+    oidc:
+      issuerURL: https://issuer.example.com/dex
+      clientID: platform-mesh
+      usernameClaim: email    # default
+      groupsClaim: groups     # default
+      usernamePrefix: ""      # optional
+      groupsPrefix: ""        # optional
+```
+
+The operator turns it into values of two services of the profile, when the profile has them:
+
+| Service | Values |
+|---------|--------|
+| `infra` | `kcp.auth.oidc`: `enabled`, `issuerUrl`, `clientID`, `usernameClaim`, `groupsClaim`, `usernamePrefix`, `groupsPrefix` |
+| `portal` | `auth.default.discoveryUrl`: `<issuerURL>/.well-known/openid-configuration` |
+
+They are merged over the profile and below `spec.values`, which keeps the last word.
+The issuer's certificate authority is `kcp.auth.oidc.caFileRef` of the infra chart.
+
+`spec.authentication.oidc` without `feature-disable-keycloak` is refused:
+Keycloak and an external issuer are alternatives.
+
 ### Feature Toggles
 
 Certain features can be enabled or disabled using feature toggles in the PlatformMesh resource specification:
