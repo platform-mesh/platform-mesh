@@ -638,6 +638,11 @@ func (r *DeploymentSubroutine) buildComponentsTemplateVars(ctx context.Context, 
 		baseServices = make(map[string]any)
 	}
 
+	// Before spec.Values is merged, which keeps the last word.
+	if err := applyOIDCAuthentication(inst, baseServices, log); err != nil {
+		return nil, nil, err
+	}
+
 	// Build template data for rendering templates in spec.Values
 	templateData := make(map[string]any)
 	for k, v := range exposureTemplateVars {
