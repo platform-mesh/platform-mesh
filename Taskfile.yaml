@@ -101,7 +101,7 @@ tasks:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
-      - KIND={{.KIND}} hack/kind.sh up
+      - KIND={{.KIND}} hack/kind.sh up --config contrib/tilt/kind.yaml
       - contrib/tilt/hack/print-urls.sh
       # Arguments after `--` go to the Tiltfile, e.g. task tilt:up -- --frontend-cors
       - "{{.TILT}} up -f ./contrib/tilt/Tiltfile -- {{.CLI_ARGS}}"
@@ -115,7 +115,7 @@ tasks:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
-      - KIND={{.KIND}} hack/kind.sh up
+      - KIND={{.KIND}} hack/kind.sh up --config contrib/tilt/kind.yaml
       - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile {{.CLI_ARGS}}"
 
   tilt:help:
@@ -156,6 +156,7 @@ tasks:
     desc: Run the e2e suites (tests/e2e Go, then the portal) against the Tilt environment.
     cmds:
       - |
+        kubectl oidc-login --version &>/dev/null || echo "e2e tests need kubectl oidc-login installed: https://github.com/int128/kubelogin#setup"
         . contrib/tilt/env.sh || exit 1
         # tests/e2e reads the kind cluster from KUBECONFIG (context KIND_CONTEXT).
         export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
