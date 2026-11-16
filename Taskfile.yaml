@@ -161,6 +161,15 @@ tasks:
       - |
         kubectl oidc-login --version &>/dev/null || echo "e2e tests need kubectl oidc-login installed: https://github.com/int128/kubelogin#setup"
         . contrib/tilt/env.sh || exit 1
+        toggles="$(kubectl --context "$KIND_CONTEXT" -n "$PLATFORM_NAMESPACE" get platformmesh platform-mesh -o jsonpath='{.spec.featureToggles[*].name}')" || exit 1
+        for toggle in feature-disable-keycloak feature-disable-openfga; do
+          case " $toggles " in
+            *" $toggle "*)
+              echo "tilt:e2e needs Keycloak and OpenFGA, the environment has $toggle" >&2
+              exit 1
+              ;;
+          esac
+        done
         # tests/e2e reads the kind cluster from KUBECONFIG (context KIND_CONTEXT).
         export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
         task tests:e2e TEST_RUN_ID="$(date +%s)"
