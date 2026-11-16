@@ -12,15 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
+load("../../contrib/tilt/lib/component.Tiltfile", "chart_objects", "component", "go_service")
+load("../../contrib/tilt/lib/helpers.py", "kind_in")
 
-COMPONENT = component(
-    name="kubernetes-graphql-gateway",
-    label="api",
-    needs=["platform-mesh-operator"],
-    alongside=["platformmesh"],
-    runtime=go_service(
-        path="services/kubernetes-graphql-gateway",
-        workloads=["kubernetes-graphql-gateway", "kubernetes-graphql-gateway-listener"],
+COMPONENTS = [
+    # The ClusterAccess CRD (charts/kubernetes-graphql-gateway-crds). A component
+    # of its own because other charts ship ClusterAccess objects
+    # (virtual-workspaces) and must not wait for the gateway to be running.
+    component(
+        name="kubernetes-graphql-gateway-crds",
+        label="api",
+        runtime=chart_objects(),
     ),
-)
+    component(
+        name="kubernetes-graphql-gateway",
+        label="api",
+        needs=["platform-mesh-operator", "kubernetes-graphql-gateway-crds", "gateway"],
+        alongside=["platformmesh"],
+        runtime=go_service(
+            path="services/kubernetes-graphql-gateway",
+            workloads=["kubernetes-graphql-gateway", "kubernetes-graphql-gateway-listener"],
+            # Deployed by the component above. Not crds.enabled=false: that
+            # also drops the ClusterAccess rules from the ClusterRole.
+            exclude=kind_in(["CustomResourceDefinition"]),
+        ),
+    ),
+]

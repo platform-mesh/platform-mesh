@@ -17,7 +17,8 @@ load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
 COMPONENT = component(
     name="iam-service",
     label="iam",
-    needs=["platform-mesh-operator"],
+    # "gateway": the chart ships an HTTPRoute.
+    needs=["platform-mesh-operator", "gateway"],
     alongside=["platformmesh", "keycloak", "openfga"],
     runtime=go_service(
         path="services/iam-service",

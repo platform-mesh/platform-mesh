@@ -270,7 +270,7 @@ def writable_rootfs(blob, image):
     return encode_yaml_stream(out)
 
 
-def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=[], resource_deps=[], labels=['platform-mesh']):
+def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=[], resource_deps=[], labels=['platform-mesh'], exclude=None):
     """Deploy charts/<name> with its kind-profile values, hot-reloaded when path is given.
 
     path:          module directory relative to the repo root; None for
@@ -280,8 +280,11 @@ def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=
     workloads:     Tilt's names for the chart's workloads if not [<name>];
                    the first one is shown as <name> and carries the objects
     resource_deps: resources every workload of the chart waits for
+    exclude:       predicate for objects of the chart that are deployed elsewhere
     """
     blob = profile_chart(name, namespace, tvars, overrides)
+    if exclude:
+        blob = encode_yaml_stream([o for o in decode_yaml_stream(blob) if o and not exclude(o)])
     if path:
         component_binary(name, path, deps, IMAGE_PREFIX + name, labels=labels)
         blob = writable_rootfs(blob, IMAGE_PREFIX + name)

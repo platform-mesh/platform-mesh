@@ -18,7 +18,8 @@ load("../../lib/component.Tiltfile", "chart_service", "component")
 COMPONENT = component(
     name="iam-ui",
     label="iam",
-    needs=["platform-mesh-operator"],
+    # "gateway": the chart ships an HTTPRoute.
+    needs=["platform-mesh-operator", "gateway"],
     alongside=["platformmesh", "keycloak", "openfga"],
     runtime=chart_service(),
 )

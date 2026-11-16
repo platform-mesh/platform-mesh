@@ -42,7 +42,8 @@ def _deploy(c, ctx):
 COMPONENT = component(
     name="portal",
     label="ui",
-    needs=["platform-mesh-operator"],
+    # "gateway": the chart ships an HTTPRoute.
+    needs=["platform-mesh-operator", "gateway"],
     alongside=["platformmesh"],
     runtime=_deploy,
 )

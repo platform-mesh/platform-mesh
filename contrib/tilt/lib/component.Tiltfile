@@ -39,7 +39,7 @@
 #              that are deployed along and turns into resource_deps on their
 #              ready resources. No component names a foreign resource.
 
-load("./helpers.py", "TILT_DIR", "profile_values_file", "remote_chart", "select_objects", "service")
+load("./helpers.py", "TILT_DIR", "chart", "profile_values_file", "remote_chart", "select_objects", "service")
 load("./settings.Tiltfile", "CONTEXT", "GO_DEPS", "KUBECTL", "NAMESPACE", "TEMPLATE_VARS", "third_party_version")
 
 
@@ -97,7 +97,7 @@ def gate(name, cmds, resource_deps, label):
 # --- runtime constructors
 
 
-def go_service(path, workloads=[], overrides={}, deps=GO_DEPS):
+def go_service(path, workloads=[], overrides={}, deps=GO_DEPS, exclude=None):
     """A Go component of this repository: compiled on the host, hot-reloaded
     into the thin runtime image and deployed from charts/<name> with its
     kind-profile values.
@@ -106,6 +106,7 @@ def go_service(path, workloads=[], overrides={}, deps=GO_DEPS):
     workloads: Tilt's names for the chart's workloads if not [<name>]
     overrides: Tilt-only values merged over the profile's
     deps:      extra repo-root-relative source dirs that trigger a rebuild
+    exclude:   predicate for objects of the chart another component deploys
     """
 
     def run(c, ctx):
@@ -119,6 +120,7 @@ def go_service(path, workloads=[], overrides={}, deps=GO_DEPS):
             workloads=workloads,
             resource_deps=ctx.deps,
             labels=[c.label],
+            exclude=exclude,
         )
 
     return run
@@ -134,6 +136,22 @@ def chart_service(workloads=[], overrides={}):
             TEMPLATE_VARS,
             overrides=overrides,
             workloads=workloads,
+            resource_deps=ctx.deps,
+            labels=[c.label],
+        )
+
+    return run
+
+
+def chart_objects():
+    """charts/<name> with its default values, for charts without workloads (CRDs)."""
+
+    def run(c, ctx):
+        blob = chart(c.name, NAMESPACE)
+        k8s_yaml(blob)
+        k8s_resource(
+            new_name=c.name,
+            objects=select_objects(blob, lambda o: True),
             resource_deps=ctx.deps,
             labels=[c.label],
         )
