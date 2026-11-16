@@ -12,8 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("./helpers.py", "chart_deps")
-load("./tiltfiles/settings.Tiltfile", "CONTEXT")
+# Platform Mesh on kind. Every component declares itself in its own Tiltfile
+# (lib/component.Tiltfile has the contract); this file selects the components
+# to run and deploys them:
+#
+#   task tilt:up                        everything (the "full" bundle)
+#   task tilt:up -- core                a bundle (bundles.Tiltfile)
+#   task tilt:up -- core iam-service    bundles and single components
+#   task tilt:up -- --without=keycloak  leave a component and its dependents out
+#   task tilt:up -- --with=dex          add Dex as identity provider, without Keycloak
+
+load("./bundles.Tiltfile", "BUNDLES", "DEFAULT")
+load("./lib/component.Tiltfile", "deploy", "expand", "select")
+load("./lib/helpers.py", "REPO", "chart_deps")
+load("./lib/settings.Tiltfile", "CONTEXT", "WANTED", "WITH", "WITHOUT")
 
 allow_k8s_contexts(CONTEXT)
 if config.tilt_subcommand in ("up", "ci") and k8s_context() != CONTEXT:
@@ -30,7 +42,26 @@ ci_settings(readiness_timeout="15m")
 
 chart_deps()
 
-include("./tiltfiles/prereq.Tiltfile")
-include("./tiltfiles/infra.Tiltfile")
-include("./tiltfiles/platform-mesh.Tiltfile")
-include("./tiltfiles/dev.Tiltfile")
+# Components live next to their code, or in components/ when there is none here.
+components = {}
+tiltfiles = str(
+    local(
+        "ls operators/*/Tiltfile services/*/Tiltfile contrib/tilt/components/*/Tiltfile",
+        dir=REPO,
+        quiet=True,
+        echo_off=True,
+    )
+).split()
+for path in tiltfiles:
+    symbols = load_dynamic(os.path.join(REPO, path))
+    declared = symbols.get("COMPONENTS", []) + ([symbols["COMPONENT"]] if "COMPONENT" in symbols else [])
+    if not declared:
+        fail("{} declares no COMPONENT".format(path))
+    for c in declared:
+        if c.name in components:
+            fail("{}: component {} is declared twice".format(path, c.name))
+        components[c.name] = c
+
+selected = select(components, expand((WANTED or DEFAULT) + WITH, BUNDLES), WITHOUT)
+print("components: " + " ".join(selected))
+deploy(components, selected)

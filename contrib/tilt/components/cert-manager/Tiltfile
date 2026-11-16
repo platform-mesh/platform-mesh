@@ -1,0 +1,53 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "component")
+load("../../lib/helpers.py", "named", "select_objects")
+load("../../lib/prereq.Tiltfile", "PREREQ_RELEASE", "prereq_blob")
+
+
+def _deploy(c, ctx):
+    blob = prereq_blob(ctx)
+    k8s_resource(
+        PREREQ_RELEASE + "cert-manager",
+        new_name="cert-manager",
+        objects=select_objects(blob, named("cert-manager")),
+        resource_deps=ctx.deps,
+        labels=[c.group],
+    )
+    for part in ["cainjector", "webhook"]:
+        k8s_resource(
+            PREREQ_RELEASE + "cert-manager-" + part,
+            new_name="cert-manager-" + part,
+            resource_deps=ctx.deps,
+            labels=[c.group],
+        )
+
+    # startupapicheck is a Job that issues a test Certificate: it is the only
+    # signal that cainjector has patched the webhook CA and Issuers can be applied.
+    k8s_resource(
+        PREREQ_RELEASE + "cert-manager-startupapicheck",
+        new_name="cert-manager-startupapicheck",
+        resource_deps=["cert-manager", "cert-manager-webhook", "cert-manager-cainjector"],
+        labels=[c.group],
+    )
+    return "cert-manager-startupapicheck"
+
+
+COMPONENT = component(
+    name="cert-manager",
+    group="prereq",
+    needs=["namespace"],
+    runtime=_deploy,
+)

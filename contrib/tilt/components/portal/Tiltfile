@@ -1,0 +1,48 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "chart_service", "component")
+load("../../lib/helpers.py", "profile_values")
+load(
+    "../../lib/settings.Tiltfile",
+    "DEX_CLIENT_ID",
+    "DEX_CLIENT_SECRET",
+    "DEX_ISSUER",
+    "DEX_SCOPES",
+    "PORT",
+    "TEMPLATE_VARS",
+)
+
+
+def _deploy(c, ctx):
+    overrides = {"frontendPort": str(PORT)}
+    if ctx.selected("dex"):
+        overrides["auth"] = {"default": {"discoveryUrl": DEX_ISSUER + "/.well-known/openid-configuration"}}
+        overrides["extraEnvVars"] = profile_values("portal", TEMPLATE_VARS).get("extraEnvVars", []) + [
+            {"name": "OIDC_STATIC_CLIENT_ID", "value": DEX_CLIENT_ID},
+            {"name": "OIDC_STATIC_CLIENT_SECRET", "value": DEX_CLIENT_SECRET},
+            {"name": "OIDC_SCOPE", "value": " ".join(DEX_SCOPES)},
+            # Dex has no wildcard redirect URIs; only the base domain's callback is registered.
+            {"name": "OIDC_CALLBACK_ON_BASE_DOMAIN", "value": "true"},
+        ]
+    return chart_service(overrides=overrides)(c, ctx)
+
+
+COMPONENT = component(
+    name="portal",
+    group="ui",
+    needs=["platform-mesh-operator"],
+    alongside=["platformmesh"],
+    runtime=_deploy,
+)

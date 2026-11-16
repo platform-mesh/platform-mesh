@@ -1,0 +1,44 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "component")
+load("../../lib/helpers.py", "kind_in")
+load("../../lib/prereq.Tiltfile", "prereq_objects")
+load("../../lib/settings.Tiltfile", "KUBECTL")
+
+_CERTIFICATES = "certificate/platform-mesh-gateway-ca certificate/platform-mesh-gateway"
+
+# Tilt reports the Certificates as ready once applied; wait for cert-manager to
+# issue them, and on failure print why (e.g. IncorrectIssuer when a stale
+# Certificate from an older install writes to the same Secret).
+_ISSUED = (
+    KUBECTL
+    + " wait "
+    + _CERTIFICATES
+    + " --for=condition=Ready --timeout=5m || { "
+    + KUBECTL
+    + " get "
+    + _CERTIFICATES
+    + " -o jsonpath='{range .items[*]}{.metadata.name}: {.status.conditions[?(@.type==\"Ready\")].reason}"
+    + " {.status.conditions[?(@.type==\"Ready\")].message}{\"\\n\"}{end}' >&2; exit 1; }"
+)
+
+# The local CA and the wildcard certificate of the base domain.
+COMPONENT = component(
+    name="domain-certificate",
+    group="prereq",
+    needs=["cert-manager"],
+    runtime=prereq_objects(kind_in(["Issuer", "Certificate"])),
+    ready=[_ISSUED],
+)

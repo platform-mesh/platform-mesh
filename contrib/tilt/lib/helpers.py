@@ -26,9 +26,9 @@ load('ext://restart_process', 'docker_build_with_restart')
 # `go env` honours a GOARCH override from the environment.
 BUILD_GOARCH = str(local('go env GOARCH', quiet=True, echo_off=True)).strip()
 
-# os.getcwd() during load is this file's directory; Tilt otherwise resolves
-# relative paths against the Tiltfile that called the helper.
-TILT_DIR = os.getcwd()
+# os.getcwd() during load is this file's directory (contrib/tilt/lib); Tilt
+# otherwise resolves relative paths against the Tiltfile that called the helper.
+TILT_DIR = os.path.dirname(os.getcwd())
 REPO = os.path.abspath(os.path.join(TILT_DIR, '..', '..'))
 CHARTS = os.path.join(REPO, 'charts')
 KIND_PROFILE = CHARTS + '/platform-mesh-operator/files/kind-profile.yaml'
@@ -279,7 +279,7 @@ def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=
     overrides:     Tilt-only values merged over the profile's
     workloads:     Tilt's names for the chart's workloads if not [<name>];
                    the first one is shown as <name> and carries the objects
-    resource_deps: added to the implicit platform-mesh-operator dependency
+    resource_deps: resources every workload of the chart waits for
     """
     blob = profile_chart(name, namespace, tvars, overrides)
     if path:
@@ -289,7 +289,6 @@ def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=
     # RBAC, certificates, routes: everything the chart renders besides pods.
     objects = select_objects(blob, lambda o: True)
     workloads = workloads or [name]
-    resource_deps = ['platform-mesh-operator'] + resource_deps
     if workloads[0] != name:
         k8s_resource(workloads[0], new_name=name, objects=objects, resource_deps=resource_deps, labels=labels)
     else:

@@ -1,0 +1,53 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "component")
+load("../../lib/helpers.py", "chart", "select_objects")
+load("../../lib/settings.Tiltfile", "NAMESPACE")
+
+_SUBCHARTS = [
+    "flux2",
+    "ocm-k8s-toolkit",
+    "cert-manager",
+    "traefik",
+    "traefik-crds",
+    "cnpg",
+    "keycloak-operator",
+    "etcd-druid",
+]
+
+
+def _deploy(c, ctx):
+    crds = chart(
+        "platform-mesh-prerequisites",
+        NAMESPACE,
+        set=["{}.enabled={}".format(dep, dep == "ocm-k8s-toolkit") for dep in _SUBCHARTS],
+    )
+    crds = encode_yaml_stream([o for o in decode_yaml_stream(crds) if o["kind"] == "CustomResourceDefinition"])
+    k8s_yaml(crds)
+    k8s_resource(
+        new_name=c.name,
+        objects=select_objects(crds, lambda o: True),
+        resource_deps=ctx.deps,
+        labels=[c.group],
+    )
+
+
+# PMO watches delivery.ocm.software Resources at startup whatever the profile
+# says, so the OCM CRDs must exist; the controller behind them is not needed.
+COMPONENT = component(
+    name="ocm-crds",
+    group="prereq",
+    runtime=_deploy,
+)

@@ -1,0 +1,94 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "component", "wait")
+load("../../lib/helpers.py", "render")
+load(
+    "../../lib/settings.Tiltfile",
+    "BASE_DOMAIN",
+    "DEX_CLIENT_ID",
+    "DEX_ISSUER",
+    "DEX_KUBECTL_SCOPES",
+    "HTTPBIN_NAMESPACE",
+    "PORT",
+)
+
+# Backends Platform Mesh can run without, and the feature toggle that makes
+# platform-mesh-operator skip their kcp manifests.
+_DISABLE = {
+    "keycloak": "feature-disable-keycloak",
+    "openfga": "feature-disable-openfga",
+}
+
+
+def _deploy(c, ctx):
+    toggles = ["feature-accounts-in-accounts"] + [
+        toggle for backend, toggle in _DISABLE.items() if not ctx.selected(backend)
+    ]
+    if ctx.selected("keycloak"):
+        # No SMTP on kind: nothing verifies the e-mail of a user who signs up in
+        # the welcome realm. Org realms get the same from pm-keycloak-operator's
+        # idp.allowUnverifiedEmails (operators/pm-keycloak-operator/Tiltfile).
+        toggles.append("feature-disable-email-verification")
+    authentication = ""
+    if ctx.selected("dex"):
+        authentication = "\n".join(
+            [
+                "  authentication:",
+                "    oidc:",
+                "      issuerURL: " + DEX_ISSUER,
+                "      clientID: " + DEX_CLIENT_ID,
+                "      kubectlScopes: [{}]".format(", ".join(DEX_KUBECTL_SCOPES)),
+            ]
+        )
+    manifest = render(
+        "manifests/platformmesh.yaml",
+        {
+            "BASE_DOMAIN": BASE_DOMAIN,
+            "PORT": PORT,
+            "HTTPBIN_NAMESPACE": HTTPBIN_NAMESPACE,
+            "FEATURE_TOGGLES": "\n".join(["    - name: " + t for t in toggles]),
+            "AUTHENTICATION": authentication,
+        },
+    )
+    if not ctx.selected("httpbin"):
+        # spec.kcp only holds the HTTPBin provider connection and binding.
+        objects = decode_yaml_stream(manifest)
+        for o in objects:
+            if o["kind"] == "PlatformMesh":
+                o["spec"].pop("kcp")
+        manifest = encode_yaml_stream(objects)
+    k8s_yaml(manifest)
+    k8s_resource(
+        new_name=c.name,
+        objects=["platform-mesh:platformmesh", "platform-mesh-profile:configmap"],
+        resource_deps=ctx.deps,
+        labels=[c.group],
+    )
+
+
+# The PlatformMesh and its (empty) profile. A component of its own so
+# re-triggering the operator never delete-recreates the CR.
+#
+# Ready means kcp workspaces, APIExports and every *-kubeconfig secret exist.
+# Services cannot wait for it, PMO's kcp setup needs their charts' webhook
+# Certificates, so they need platform-mesh-operator only and start once it has
+# written their kubeconfig secrets (as under Flux).
+COMPONENT = component(
+    name="platformmesh",
+    group="core",
+    needs=["platform-mesh-operator"],
+    runtime=_deploy,
+    ready=[wait("platformmesh/platform-mesh", "condition=Ready", timeout="20m")],
+)

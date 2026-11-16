@@ -1,0 +1,149 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("ext://namespace", "namespace_create")
+load("../../lib/component.Tiltfile", "component", "export_secret_resource", "gate")
+load("../../lib/helpers.py", "TILT_DIR", "chart", "kind_in", "remote_chart", "select_objects", "write_values")
+load("../../lib/settings.Tiltfile", "BASE_DOMAIN", "HTTPBIN_NAMESPACE", "KCP_URL", "NAMESPACE", "PORT", "third_party_version")
+
+_BOOTSTRAP = os.path.join(TILT_DIR, "hack/httpbin-provider-bootstrap.sh")
+
+
+def _deploy(c, ctx):
+    namespace_create(HTTPBIN_NAMESPACE)
+    k8s_resource(new_name="httpbin-namespace", objects=[HTTPBIN_NAMESPACE + ":namespace"], labels=[c.group])
+
+    api_syncagent = remote_chart(
+        "api-syncagent",
+        "https://kcp-dev.github.io/helm-charts",
+        third_party_version("api-syncagent", "chart"),
+        HTTPBIN_NAMESPACE,
+        values=[
+            write_values(
+                "api-syncagent",
+                {
+                    "apiExportEndpointSliceName": "orchestrate.platform-mesh.io",
+                    "agentName": "kcp-api-syncagent",
+                    "kcpKubeconfig": "httpbin-kubeconfig",
+                    "image": {"tag": third_party_version("api-syncagent", "image")},
+                },
+            )
+        ],
+    )
+    k8s_yaml(api_syncagent)
+    k8s_resource(
+        new_name="api-syncagent-crds",
+        objects=select_objects(api_syncagent, kind_in(["CustomResourceDefinition"])),
+        labels=[c.group],
+    )
+    k8s_resource(
+        "api-syncagent",
+        objects=select_objects(api_syncagent, lambda o: o["kind"] != "CustomResourceDefinition"),
+        resource_deps=["httpbin-namespace", "export-httpbin-kubeconfig", "example-httpbin-operator"],
+        labels=[c.group],
+    )
+
+    httpbin = chart(
+        "example-httpbin-operator",
+        HTTPBIN_NAMESPACE,
+        values=[
+            write_values(
+                "example-httpbin-operator",
+                {
+                    "operator": {
+                        "args": [
+                            "--local-http-route",
+                            "--local-http-route-port={}".format(PORT),
+                            "--local-http-route-gateway-name=k8sapi-gateway",
+                            "--local-http-route-gateway-namespace=" + NAMESPACE,
+                            "--domain=httpbin.services." + BASE_DOMAIN,
+                        ]
+                    },
+                    "apiSyncagent": {
+                        "rbac": {"enable": True},
+                        "publishedResources": {"enable": True},
+                        "serviceAccount": {"name": "api-syncagent", "namespace": HTTPBIN_NAMESPACE},
+                    },
+                },
+            )
+        ],
+    )
+    k8s_yaml(httpbin)
+    k8s_resource(
+        "example-httpbin-operator",
+        objects=select_objects(httpbin, lambda o: True),
+        resource_deps=["httpbin-namespace", "api-syncagent-crds", ctx.ready("gateway")],
+        labels=[c.group],
+    )
+
+    # Not after platformmesh: the PlatformMesh binds this export into every
+    # account, so platform-mesh-operator only gets Ready once the export exists.
+    local_resource(
+        "httpbin-provider-bootstrap",
+        labels=[c.group],
+        allow_parallel=True,
+        resource_deps=[ctx.ready("kcp"), ctx.ready("kcp-gateway"), ctx.ready("export-kcp-admin-kubeconfig")],
+        deps=[os.path.join(TILT_DIR, p) for p in ["manifests/httpbin-provider", "manifests/httpbin-workspace.yaml"]]
+        + [_BOOTSTRAP],
+        env={"KCP_URL": KCP_URL},
+        dir=TILT_DIR,
+        cmd=[_BOOTSTRAP],
+    )
+
+    # apiexportpolicies exist in root:orgs once the kcp setup has finished.
+    local_resource(
+        "httpbin-apiexportpolicy",
+        labels=[c.group],
+        allow_parallel=True,
+        resource_deps=[ctx.ready("platformmesh"), "httpbin-provider-bootstrap"],
+        deps=[os.path.join(TILT_DIR, "manifests/httpbin-apiexportpolicy.yaml")],
+        dir=TILT_DIR,
+        cmd="kubectl --kubeconfig .secret/kcp-admin.kubeconfig --server {}/clusters/root:orgs apply -f manifests/httpbin-apiexportpolicy.yaml".format(
+            KCP_URL
+        ),
+    )
+
+    # Written by platform-mesh-operator (extraProviderConnections); the e2e tests read it.
+    export_secret_resource(
+        "export-httpbin-kubeconfig",
+        "httpbin-kubeconfig",
+        "kubeconfig",
+        ".secret/httpbin-provider.kubeconfig",
+        [ctx.ready("platformmesh")],
+        c.group,
+        namespace=HTTPBIN_NAMESPACE,
+    )
+
+    gate(
+        "httpbin-api-ready",
+        [
+            """kubectl --kubeconfig .secret/httpbin-provider.kubeconfig \
+                   wait apiexport/orchestrate.platform-mesh.io \
+                   --for=jsonpath='{.spec.resources[?(@.name=="httpbins")].schema}' --timeout=5m"""
+        ],
+        ["api-syncagent", "httpbin-apiexportpolicy"],
+        c.group,
+    )
+    return "httpbin-api-ready"
+
+
+# HTTPBin e2e fixture: provider workspace, api-syncagent and the example HTTPBin
+# operator. The PlatformMesh (components/platformmesh) writes the provider
+# kubeconfig Secret and binds the export into every account.
+COMPONENT = component(
+    name="httpbin",
+    group="e2e",
+    needs=["gateway", "kcp", "kcp-gateway", "export-kcp-admin-kubeconfig", "platformmesh"],
+    runtime=_deploy,
+)
