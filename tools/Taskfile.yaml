@@ -305,7 +305,8 @@ tasks:
       # for mockery. Taskfiles do not allow envs to be inherited by subtasks, so we
       # have to declare these here globally.
       MY_OS: { sh: uname -s }
-      MY_ARCH: { sh: uname -m }
+      # Linux arm reports aarch64, release assets and checksums use arm64.
+      MY_ARCH: { sh: 'uname -m | sed "s/aarch64/arm64/"' }
       # tilt's release assets say "mac", not "darwin"
       TILT_OS: { sh: 'uname -s | sed "s/Darwin/mac/;s/Linux/linux/"' }
     cmds:

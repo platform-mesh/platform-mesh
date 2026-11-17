@@ -46,7 +46,7 @@ const (
 	featureDisableOpenFGA = "feature-disable-openfga"
 )
 
-// uiBindingClaims accepts the claims of ui.platform-mesh.io, which virtual-workspaces
+// uiBindingClaims accepts the claims of ui.platform-mesh.io, which marketplace
 // needs to pair a provider's APIExports with its ProviderMetadata and to tell which of
 // them a consumer has bound.
 func uiBindingClaims() []any {

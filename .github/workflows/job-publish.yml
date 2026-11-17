@@ -76,7 +76,7 @@ jobs:
   # Which images to build, from ocm/components.yaml.
   # ──────────────────────────────────────────────
   components:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     outputs:
       images: ${{ steps.c.outputs.images }}
     steps:
@@ -100,7 +100,7 @@ jobs:
   # ──────────────────────────────────────────────
   image:
     needs: components
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     permissions:
       contents: read
@@ -201,7 +201,7 @@ jobs:
   # ──────────────────────────────────────────────
   aggregate:
     needs: image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     permissions:
       contents: read
@@ -250,7 +250,7 @@ jobs:
   # ──────────────────────────────────────────────
   verify:
     needs: aggregate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
       contents: read

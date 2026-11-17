@@ -30,9 +30,6 @@ deployment:
       cpu: 150m
       memory: 128Mi
 
-# -- Log level for all operator components. Permissible values: debug, info, warn, error
-logLevel: info
-
 # -- Feature gates rendered into --feature-gates. Known gates: LegacyAPIs (default true; also serves the deprecated core.platform-mesh.io IdentityProviderConfigurations and Invites).
 featureGates: {}
 

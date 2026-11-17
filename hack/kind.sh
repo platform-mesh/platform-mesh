@@ -22,9 +22,10 @@
 #
 # up is idempotent:
 # - creates the cluster if absent (--config and --image only apply then)
+# - checks that the node ports mapped in --config are published on the host
 # - exports its kubeconfig (to PATH when --kubeconfig is given, otherwise to
 #   kind's default, $KUBECONFIG or ~/.kube/config)
-# - makes CoreDNS answer *.sslip.io itself, once
+# - makes CoreDNS answer sslip.io with the node's address
 #
 # Environment:
 #   KIND               kind binary (default: kind on PATH)
@@ -45,18 +46,21 @@ USAGE
     exit 2
 }
 
-# kind forwards DNS to the host resolver, which commonly drops answers that
-# point at private IPs (rebinding protection). Resolve sslip.io in-cluster.
+# A for sslip.io is answered with the node IP, which routes to the
+# gateway so the pm.127-0-0-1.sslip.io resolves within the cluster
+# without hostaliases.
+# For the host this resolved to 127.0.0.1 via sslip.io itself.
+# AAAA is answered empty since the cluster has no IPv6.
 coredns_sslip_block='sslip.io:53 {
     errors
     template IN A sslip.io {
-        match "[.-](?P<a>[0-9]{1,3})-(?P<b>[0-9]{1,3})-(?P<c>[0-9]{1,3})-(?P<d>[0-9]{1,3})[.]sslip[.]io[.]$"
-        answer "{{ .Name }} 60 IN A {{ .Group.a }}.{{ .Group.b }}.{{ .Group.c }}.{{ .Group.d }}"
-        fallthrough
+        match "[.]sslip[.]io[.]$"
+        answer "{{ .Name }} 60 IN A __NODE_IP__"
     }
-    forward . /etc/resolv.conf
-}
-'
+    template IN AAAA sslip.io {
+        rcode NOERROR
+    }
+}'
 
 kind="${KIND:-kind}"
 kubectl="${KUBECTL:-kubectl}"
@@ -70,22 +74,60 @@ kc() {
     "$kubectl" ${kubeconfig_args[@]+"${kubeconfig_args[@]}"} --context "kind-$cluster_name" "$@"
 }
 
+# The host port kind published for node port $1, empty if none
+published_port() {
+    local node rt
+    node="$("$kind" get nodes --name "$cluster_name" 2> /dev/null | head -n 1)" || true
+    [[ -n "$node" ]] || return 0
+    for rt in docker podman; do
+        installed "$rt" || continue
+        "$rt" inspect "$node" > /dev/null 2>&1 || continue
+        "$rt" port "$node" "$1/tcp" 2> /dev/null || true
+        return 0
+    done
+}
+
+# A cluster created without the port mappings cannot gain them later.
+check_published_ports() {
+    local ports port
+    ports="$(grep -o 'containerPort: [0-9]\{1,\}' "$config" | cut -d ' ' -f2)" || true
+    for port in $ports; do
+        [[ -n "$(published_port "$port")" ]] || die \
+            "kind cluster $cluster_name publishes no host port for node port $port; recreate it: hack/kind.sh down --name $cluster_name"
+    done
+}
+
 patch_coredns() {
-    local corefile tmp
+    local node_ip block corefile stripped tmp
+    node_ip="$(kc get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')" \
+        || die "reading the node InternalIP of $cluster_name failed"
+    case "$node_ip" in
+        "" | *" "*) die "the kind node of $cluster_name needs exactly one InternalIP, got '$node_ip'" ;;
+    esac
+    block="${coredns_sslip_block/__NODE_IP__/$node_ip}"
+
     corefile="$(kc -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}')" \
         || die "reading coredns Corefile failed"
 
-    if grep -q sslip.io <<< "$corefile"; then
-        log "coredns already resolves sslip.io"
+    # A block of an earlier run is dropped rather than left in front of this one:
+    # CoreDNS refuses to serve a zone twice and the blocks answer different addresses.
+    stripped="$(awk '
+        /^sslip[.]io:53 \{/ {skip = 1; next}
+        skip && /^\}/ {skip = 0; next}
+        skip {next}
+        {print}' <<< "$corefile")"
+
+    if [[ "$(printf '%s\n%s' "$block" "$stripped")" == "$corefile" ]]; then
+        log "coredns already resolves sslip.io to $node_ip"
         return 0
     fi
 
-    log "adding sslip.io server block to coredns"
+    log "making coredns resolve sslip.io to $node_ip"
     tmp="$(mktemp -d)" || die "mktemp failed"
     # shellcheck disable=SC2064 # expand $tmp now
     trap "rm -rf '$tmp'" EXIT INT
 
-    printf '%s%s\n' "$coredns_sslip_block" "$corefile" > "$tmp/Corefile" || die "writing Corefile failed"
+    printf '%s\n%s\n' "$block" "$stripped" > "$tmp/Corefile" || die "writing Corefile failed"
     kc -n kube-system create configmap coredns \
         --from-file=Corefile="$tmp/Corefile" --dry-run=client -o yaml \
         | kc apply -f - || die "updating coredns configmap failed"
@@ -105,6 +147,8 @@ cmd_up() {
         if [[ -n "$image" ]]; then args+=(--image "$image"); fi
         "$kind" "${args[@]}" || die "kind create cluster failed"
     fi
+
+    if [[ -n "$config" ]]; then check_published_ports; fi
 
     "$kind" export kubeconfig --name "$cluster_name" ${kubeconfig_args[@]+"${kubeconfig_args[@]}"} || die "kind export kubeconfig failed"
     patch_coredns

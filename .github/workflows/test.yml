@@ -34,7 +34,7 @@ jobs:
   # The changed-component list and the integration flag gate the jobs below,
   # so they come from a job of its own.
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     outputs:
       components: ${{ steps.changes.outputs.components }}
       tests: ${{ steps.changes.outputs.tests }}
@@ -51,7 +51,7 @@ jobs:
   test:
     needs: changes
     if: needs.changes.outputs.components != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -85,7 +85,7 @@ jobs:
   integration:
     needs: changes
     if: needs.changes.outputs.tests == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

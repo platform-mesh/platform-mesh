@@ -1,0 +1,10 @@
+apiVersion: v2
+name: extension-manager-virtual-workspace
+description: A Helm chart to deploy the Platform Mesh contentconfigurations virtual workspace, which serves the ContentConfigurations that apply to a workspace behind the kcp front-proxy at /services/contentconfigurations
+type: application
+version: 0.0.0
+appVersion: "0.0.0"
+dependencies:
+  - name: common
+    version: 0.0.0
+    repository: file://../common
