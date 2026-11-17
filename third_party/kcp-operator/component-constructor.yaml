@@ -24,7 +24,7 @@ components:
         # renovate: datasource=helm depName=kcp-operator registryUrl=https://kcp-dev.github.io/helm-charts
         version: 0.7.12
         access:
-          type: helm
+          type: Helm/v1
           helmRepository: https://kcp-dev.github.io/helm-charts
           # renovate: datasource=helm depName=kcp-operator registryUrl=https://kcp-dev.github.io/helm-charts
           helmChart: kcp-operator:0.7.12
