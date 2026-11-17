@@ -57,6 +57,10 @@ const (
 	signingCertSecret = "ocm-signing-public-cert"
 	// caSecret is the Secret the operator chart's self-signed CA lives in.
 	caSecret = "domain-certificate-ca"
+	// kcpKubeconfigSecret is the Secret the operator keeps the admin
+	// kubeconfig of kcp in, under kcpKubeconfigKey.
+	kcpKubeconfigSecret = "kubeconfig-kcp-admin"
+	kcpKubeconfigKey    = "kubeconfig"
 
 	helmTimeout = 15 * time.Minute
 )
@@ -343,7 +347,7 @@ func traefikEnabled(values map[string]any) bool {
 }
 
 // waitReady waits until the operator has rolled out the version and the
-// portal answers, and writes the CA certificate file.
+// portal answers, and writes the CA certificate and kcp kubeconfig files.
 // TODO(mjudeikis): All this is wrong and needs to be reworked to properly check the readiness of all components using pm object statuses.
 func (o *Options) waitReady(ctx context.Context) error {
 	restConfig, err := clientcmd.BuildConfigFromFlags("", o.Kubeconfig)
@@ -457,7 +461,25 @@ func (o *Options) waitReady(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := o.writeKCPKubeconfig(ctx, kube); err != nil {
+		return err
+	}
 	return o.waitPortal(ctx, ca)
+}
+
+// writeKCPKubeconfig writes the admin kubeconfig of kcp to o.KCPKubeconfig().
+// The operator keeps it in a Secret, and it points at the address kcp has on
+// the host already.
+func (o *Options) writeKCPKubeconfig(ctx context.Context, kube kubernetes.Interface) error {
+	secret, err := kube.CoreV1().Secrets(namespace).Get(ctx, kcpKubeconfigSecret, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("reading the kcp kubeconfig: %w", err)
+	}
+	kubeconfig := secret.Data[kcpKubeconfigKey]
+	if len(kubeconfig) == 0 {
+		return fmt.Errorf("secret %s/%s has no %s", namespace, kcpKubeconfigSecret, kcpKubeconfigKey)
+	}
+	return os.WriteFile(o.KCPKubeconfig(), kubeconfig, 0o600)
 }
 
 // writeCA writes the CA certificate of the installation to o.CAFile().
