@@ -54,6 +54,9 @@ const (
 	OrgsWorkspace = "orgs"
 
 	workspaceTypeTimeout = 30 * time.Second
+
+	// orgsBindingGlob matches the APIBindings the manifests apply to :root:orgs.
+	orgsBindingGlob = "03-orgs/apibinding-*.yaml"
 )
 
 // workspaceTypeFiles are the WorkspaceTypes of :root, in creation order.
@@ -63,9 +66,13 @@ var workspaceTypeFiles = []string{
 	"02-root/workspace-type-account.yaml",
 }
 
-// manifestData renders the WorkspaceType templates with every feature off.
+// manifestData renders the manifest templates with every feature off and
+// no identity hashes.
 var manifestData = map[string]any{
-	"featureEnableTerminalControllerManager": "false",
+	"featureEnableTerminalControllerManager": false,
+	"apiExportRootTenancyKcpIoIdentityHash":  "",
+	"featureDisableKeycloak":                 true,
+	"featureDisableOpenFGA":                  true,
 }
 
 // Platform is a platform-mesh-system tree in a kcp.
@@ -137,7 +144,8 @@ func WithDefaultBindings(typeName string, exports ...string) Option {
 	}
 }
 
-// WithOrgs creates :root:orgs. It implies WithWorkspaceTypes.
+// WithOrgs creates :root:orgs and binds the exports the manifests bind
+// there. It implies WithWorkspaceTypes.
 func WithOrgs() Option {
 	return func(o *options) { o.workspaceTypes, o.orgs = true, true }
 }
@@ -209,6 +217,18 @@ func Install(t testing.TB, instance *kcptc.Instance, opts ...Option) *Platform {
 		_, err = instance.CreateWorkspace(t.Context(), p.Orgs.String(), kcptc.With(kcptesting.WithType(root, "orgs")), kcptc.WaitForReachable())
 		require.NoError(t, err, "creating workspace %s", p.Orgs)
 		p.OrgsClient = p.Cluster.Cluster(p.Orgs)
+		for _, name := range orgsBindings(t) {
+			export := &kcpapisv1alpha2.APIExport{}
+			err = p.SystemClient.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: name}, export)
+			if apierrors.IsNotFound(err) {
+				t.Logf("%s: not binding %s:%s, not installed", p.Orgs, p.System, name)
+				continue
+			}
+			require.NoError(t, err, "getting APIExport %s", name)
+			Apply(t, p.OrgsClient, BindingFor(export, p.System))
+			wait.APIBindingBound(t, p.OrgsClient, name)
+			served[name] = true
+		}
 		for _, name := range systemDefaultBindings(t, p, "orgs") {
 			served[name] = true
 		}
@@ -367,6 +387,25 @@ func installWorkspaceTypes(t testing.TB, p *Platform, extra map[string][]string)
 			}, workspaceTypeTimeout, 500*time.Millisecond, "WorkspaceType %s should be created", wst.GetName())
 		}
 	}
+}
+
+// orgsBindings returns the platform-mesh-system exports the manifests bind in :root:orgs.
+func orgsBindings(t testing.TB) []string {
+	t.Helper()
+	files, err := fs.Glob(kcpmanifests.Resources, orgsBindingGlob)
+	require.NoError(t, err, "matching %q", orgsBindingGlob)
+	var exports []string
+	for _, file := range files {
+		raw, err := fs.ReadFile(kcpmanifests.Resources, file)
+		require.NoError(t, err, "reading %s", file)
+		for _, binding := range Decode(t, Render(t, raw, manifestData)) {
+			export, _, err := unstructured.NestedString(binding.Object, "spec", "reference", "export", "name")
+			require.NoError(t, err, "%s: reading the bound export", file)
+			require.NotEmpty(t, export, "%s: no bound export", file)
+			exports = append(exports, export)
+		}
+	}
+	return exports
 }
 
 // systemDefaultBindings returns the platform-mesh-system exports WorkspaceType name binds by default.

@@ -2,6 +2,14 @@ module go.platform-mesh.io/extension-manager-operator
 
 go 1.26.3
 
+replace (
+	go.platform-mesh.io/apis => ../../apis
+	go.platform-mesh.io/golang-commons => ../../golang-commons
+	go.platform-mesh.io/subroutines => ../../subroutines
+)
+
+replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.8.1-0.20260714141811-833f063357f8
+
 require (
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/go-http-utils/headers v0.0.0-20181008091004-fed159eddc2a
@@ -30,8 +38,6 @@ require (
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
 )
-
-replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.8.1-0.20260714141811-833f063357f8
 
 require (
 	github.com/99designs/gqlgen v0.17.98 // indirect
@@ -126,6 +132,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-// apis/static-assets is embedded from the in-repo module.
-replace go.platform-mesh.io/apis => ../../apis

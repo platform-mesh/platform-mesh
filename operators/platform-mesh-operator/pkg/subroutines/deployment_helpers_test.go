@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	pmconfig "go.platform-mesh.io/golang-commons/config"
@@ -27,6 +29,7 @@ import (
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -654,3 +657,112 @@ func (s *DeploymentHelpersTestSuite) Test_mergeImageVersionsIntoHelmReleaseValue
 }
 
 func boolPtr(b bool) *bool { return &b }
+
+func Test_pruneHelmReleases(t *testing.T) {
+	t.Parallel()
+
+	helmReleaseGVK := schema.GroupVersionKind{
+		Group:   "helm.toolkit.fluxcd.io",
+		Version: "v2",
+		Kind:    "HelmRelease",
+	}
+	helmRelease := func(namespace, name string, operatorCreated bool) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(helmReleaseGVK)
+		obj.SetNamespace(namespace)
+		obj.SetName(name)
+		if operatorCreated {
+			obj.SetLabels(map[string]string{operatorCreatedLabel: "true"})
+		}
+		return obj
+	}
+
+	all := []string{
+		"components-ns/iam-service",
+		"components-ns/managed-provider",
+		"components-ns/security-operator",
+		"infra-ns/cert-manager",
+		"other-ns/security-operator",
+	}
+
+	cases := map[string]struct {
+		infraNamespace      string
+		infraRendered       map[string]struct{}
+		componentsNamespace string
+		componentsRendered  map[string]struct{}
+		wantErr             bool
+		want                []string
+	}{
+		"deletes operator-created releases that were not rendered": {
+			infraNamespace:      "infra-ns",
+			componentsNamespace: "components-ns",
+			componentsRendered:  map[string]struct{}{"components-ns/iam-service": {}},
+			want: []string{
+				"components-ns/iam-service",
+				"components-ns/managed-provider",
+				"other-ns/security-operator",
+			},
+		},
+		"keeps everything that is rendered": {
+			infraNamespace:      "infra-ns",
+			infraRendered:       map[string]struct{}{"infra-ns/cert-manager": {}},
+			componentsNamespace: "components-ns",
+			componentsRendered: map[string]struct{}{
+				"components-ns/iam-service":       {},
+				"components-ns/security-operator": {},
+			},
+			want: all,
+		},
+		"a shared namespace keeps the releases of both sets": {
+			infraNamespace:      "components-ns",
+			infraRendered:       map[string]struct{}{"components-ns/iam-service": {}},
+			componentsNamespace: "components-ns",
+			componentsRendered:  map[string]struct{}{"components-ns/security-operator": {}},
+			want:                all,
+		},
+		"deletes nothing when nothing was rendered": {
+			infraNamespace:      "infra-ns",
+			componentsNamespace: "components-ns",
+			want:                all,
+		},
+		"refuses an empty namespace": {
+			componentsNamespace: "components-ns",
+			componentsRendered:  map[string]struct{}{"components-ns/iam-service": {}},
+			wantErr:             true,
+			want:                all,
+		},
+	}
+
+	for title, cas := range cases {
+		t.Run(title, func(t *testing.T) {
+			t.Parallel()
+
+			fakeClient := fake.NewClientBuilder().
+				WithObjects(
+					helmRelease("components-ns", "iam-service", true),
+					helmRelease("components-ns", "managed-provider", false),
+					helmRelease("components-ns", "security-operator", true),
+					helmRelease("infra-ns", "cert-manager", true),
+					helmRelease("other-ns", "security-operator", true),
+				).
+				Build()
+
+			err := pruneHelmReleases(t.Context(), fakeClient, cas.infraNamespace, cas.infraRendered, cas.componentsNamespace, cas.componentsRendered, testLogger(t))
+			if cas.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			list := &unstructured.UnstructuredList{}
+			list.SetGroupVersionKind(helmReleaseGVK.GroupVersion().WithKind("HelmReleaseList"))
+			require.NoError(t, fakeClient.List(t.Context(), list))
+
+			got := make([]string, 0, len(list.Items))
+			for i := range list.Items {
+				got = append(got, helmReleaseKey(list.Items[i].GetNamespace(), list.Items[i].GetName()))
+			}
+			assert.ElementsMatch(t, cas.want, got, "only unkept operator-created releases in the given namespaces may go")
+		})
+	}
+}

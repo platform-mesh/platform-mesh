@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if not .featureDisableKeycloak }}
 apiVersion: tenancy.kcp.io/v1alpha1
 kind: WorkspaceAuthenticationConfiguration
 metadata:
@@ -37,14 +38,15 @@ spec:
           claim: groups
           prefix: ""
         username:
-      {{- if eq .featureDisableEmailVerification "true" }}
+      {{- if .featureDisableEmailVerification }}
           expression: claims.{{ .userClaim }}
       {{- else }}
           claim: {{ .userClaim }}
           prefix: ""
       {{- end }}
-      {{- if eq .featureDisableEmailVerification "true" }}
+      {{- if .featureDisableEmailVerification }}
       claimValidationRules:
         - expression: "claims.?email_verified.orValue(true) == true || claims.?email_verified.orValue(true) == false"
           message: "Allowing both verified and unverified emails"
       {{- end }}
+{{- end }}

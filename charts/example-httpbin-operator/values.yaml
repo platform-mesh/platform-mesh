@@ -32,6 +32,16 @@ image:
   digest: ""
   pullPolicy: IfNotPresent
 
+httpbinImage:
+  # -- The httpbin image registry
+  registry: ghcr.io
+  # -- The httpbin image repository path (without registry)
+  repository: platform-mesh/example-httpbin-operator/httpbin
+  # -- The httpbin image tag (defaults to appVersion)
+  tag: ""
+  # -- The httpbin image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+
 controllerManager:
   serviceAccountName: example-httpbin-operator-controller-manager
   serviceAccount:

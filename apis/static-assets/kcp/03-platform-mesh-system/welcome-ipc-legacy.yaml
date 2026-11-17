@@ -1,0 +1,53 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Deprecated twin of welcome-ipc.yaml: the portal (portal-server-lib) still
+# reads identityproviderconfigurations.core.platform-mesh.io/welcome for its
+# OIDC client. Created already marked migrated, so only the
+# keycloak.platform-mesh.io object's reconciler touches the realm and mirrors
+# its status in here. Remove once the portal reads keycloak.platform-mesh.io.
+{{- if not .featureDisableKeycloak }}
+apiVersion: core.platform-mesh.io/v1alpha1
+kind: IdentityProviderConfiguration
+metadata:
+  name: welcome
+  annotations:
+    keycloak.platform-mesh.io/migrated: "true"
+spec:
+  registrationAllowed: {{ .registrationAllowed }}
+  clients:
+  - clientType: confidential
+    clientName: welcome
+    postLogoutRedirectUris:
+    - https://{{ .baseDomainPort }}/logout*
+    {{- range .welcomeAdditionalPostLogoutRedirectUris }}
+    - {{ . }}
+    {{- end }}
+    redirectUris:
+    - https://{{ .baseDomainPort }}/callback*
+    {{- range .welcomeAdditionalRedirectUris }}
+    - {{ . }}
+    {{- end }}
+    secretRef:
+      name: portal-client-secret-welcome
+      namespace: default
+  - clientType: public
+    clientName: welcome-kubectl
+    redirectUris:
+      - http://localhost:8000/*
+      - http://localhost:18000/*
+    secretRef:
+      name: welcome-kubectl-client-secret
+      namespace: default
+{{- end }}

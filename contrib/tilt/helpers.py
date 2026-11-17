@@ -315,9 +315,8 @@ def component_binary(name, path, deps, image, extra_dirs={}, labels=['platform-m
     # leak into the second (whose context is the extension's own directory) and
     # match nothing. A per-component context needs neither.
     bin_dir = os.path.join(TILT_DIR, 'bin', name)
-    # Build from the repo root so the go.work workspace (apis/, subroutines/,
-    # golang-commons/) is in scope.
-    cmd = 'mkdir -p {bin} && CGO_ENABLED=0 GOOS=linux GOARCH={arch} go build -o {bin}/entrypoint ./{path}'.format(
+    # Build inside the component module to not be affected by the root-level go.mod file.
+    cmd = 'mkdir -p {bin} && (cd {path} && CGO_ENABLED=0 GOOS=linux GOARCH={arch} go build -o {bin}/entrypoint .)'.format(
         bin=bin_dir, arch=BUILD_GOARCH, path=path)
     for src, dst in extra_dirs.items():
         cmd += ' && mkdir -p {bin}/{dst} && rsync -a --delete {src}/ {bin}/{dst}/'.format(bin=bin_dir, src=src, dst=dst)

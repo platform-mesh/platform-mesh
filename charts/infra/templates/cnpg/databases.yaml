@@ -5,6 +5,9 @@ kind: Database
 metadata:
   name: {{ .name }}-db
   namespace: {{ $.Release.Namespace }}
+  annotations:
+    # Uninstalling the release must not delete the postgres data.
+    helm.sh/resource-policy: keep
 spec:
   name: {{ .name }}
   owner: {{ .owner }}

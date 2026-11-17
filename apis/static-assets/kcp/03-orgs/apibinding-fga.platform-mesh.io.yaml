@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if not .featureDisableOpenFGA }}
 apiVersion: apis.kcp.io/v1alpha2
 kind: APIBinding
 metadata:
@@ -21,3 +22,4 @@ spec:
     export:
       name: fga.platform-mesh.io
       path: root:platform-mesh-system
+{{- end }}

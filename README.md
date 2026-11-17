@@ -11,7 +11,7 @@
 
 Platform Mesh is an open, multi-tenant developer platform built on [kcp](https://github.com/kcp-dev/kcp). It provides account-based tenancy, relationship-based authorization (ReBAC via [OpenFGA](https://openfga.dev/)), and UI extensibility on top of a Kubernetes-like control plane.
 
-This repository is the Platform Mesh **monorepo**: it consolidates the shared libraries, operators, services, and tooling that make up the platform. Each component is its own Go module, linked together through the repository-root [`go.work`](go.work) workspace. The Helm charts (`charts/`), the OCM component definitions (`ocm/`) and the installation guide (`installation/`) live here as well.
+This repository is the Platform Mesh **monorepo**: it consolidates the shared libraries, operators, services, and tooling that make up the platform. Each component is its own Go module, linked to shared in-repo libraries through local `replace` directives in its `go.mod`. The Helm charts (`charts/`), the OCM component definitions (`ocm/`) and the installation guide (`installation/`) live here as well.
 
 ## Components
 
@@ -22,6 +22,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | [apis](apis) | Shared CRD Go types, deepcopy, and scheme for the `*.platform-mesh.io` API groups. |
 | [golang-commons](golang-commons) | Reusable Go libraries (JWT, context, error handling, logging, controllers) shared across components. |
 | [subroutines](subroutines) | Lifecycle engine for Kubernetes/kcp controllers with Result-based flow control, conditions, and observability. |
+| [golang-commons/virtual-workspaces](golang-commons/virtual-workspaces) | Server code shared by the kcp virtual workspaces (bootstrap, authentication, path resolution, storage). A module of its own, because it builds against the kcp fork of Kubernetes. |
 
 ### Operators
 
@@ -29,7 +30,9 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 |----------|-------------|
 | [account-operator](operators/account-operator) | Manages the core `Account` grouping resource and its owned namespace. |
 | [extension-manager-operator](operators/extension-manager-operator) | Lifecycle management of `ContentConfiguration` resources for Micro Frontends. |
-| [security-operator](operators/security-operator) | Manages security-related configuration (authorization models, identity providers, tuples, stores, invites). |
+| [extension-manager-virtual-workspace](operators/extension-manager-operator/virtual-workspace) | kcp virtual workspace serving the `ContentConfiguration` resources that apply to a workspace. |
+| [pm-keycloak-operator](operators/pm-keycloak-operator) | Manages the Keycloak identity provider: realms and OIDC clients (`IdentityProviderConfiguration`), user invites (`Invite`) and the per-organization kcp authentication configuration. |
+| [pm-openfga-operator](operators/pm-openfga-operator) | Manages OpenFGA authorization: stores, authorization models, tuples (`Store`, `AuthorizationModel`) and provider access to organizations (`APIExportPolicy`). |
 | [terminal-controller-manager](operators/terminal-controller-manager) | Manages browser-based terminal sessions (ephemeral pods) to kcp workspaces. |
 
 ### Services
@@ -37,8 +40,8 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | Service | Description |
 |---------|-------------|
 | [iam-service](services/iam-service) | GraphQL API for user and role management, driving OpenFGA and the identity provider (Keycloak). |
-| [virtual-workspaces](services/virtual-workspaces) | Custom kcp-based virtual workspaces that expose tailored data to UIs. |
-| [rebac-authz-webhook](services/rebac-authz-webhook) | Kubernetes authorization webhook backed by OpenFGA (ReBAC). |
+| [marketplace](services/marketplace) | kcp virtual workspace serving `MarketplaceEntry` resources to the marketplace UI. |
+| [pm-openfga-authz-webhook](services/pm-openfga-authz-webhook) | kcp authorization webhook backed by OpenFGA (ReBAC). |
 | [kubernetes-graphql-gateway](services/kubernetes-graphql-gateway) | Exposes Kubernetes resources as a GraphQL API for UIs and tools. |
 
 ## Getting started
@@ -60,7 +63,7 @@ task test-account-operator
 task images-iam-service VERSION=v0.1.0 PUSH=false
 ```
 
-The modules are linked through the root [`go.work`](go.work), so cross-module changes resolve against local source during development.
+Local `replace` directives in each `go.mod` link the shared `apis`, `golang-commons`, `subroutines` and `golang-commons/virtual-workspaces` modules, so cross-module changes resolve against local source during development. These replacements do not affect external consumers.
 
 ### Tests
 

@@ -1,0 +1,145 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/pm-openfga-operator
+  # -- The image digest (when set, overrides tag: registry/repository@digest)
+  digest: ""
+
+# -- environment indicator, used for logging and observability
+environment: ""
+# -- region indicator, used for logging and observability
+region: ""
+
+deployment:
+  # -- Number of old ReplicaSets to retain for rollback
+  revisionHistoryLimit: 3
+  resources:
+    limits:
+      cpu: 260m
+      memory: 512Mi
+    requests:
+      cpu: 150m
+      memory: 128Mi
+
+# -- Log level for all operator components. Permissible values: debug, info, warn, error
+logLevel: info
+
+# -- Feature gates rendered into --feature-gates. Known gates: LegacyAPIs (default true; also serves the deprecated core.platform-mesh.io Stores, AuthorizationModels and APIExportPolicies).
+featureGates: {}
+
+# -- The kubeconfig secret for operator and generator
+kubeconfigSecret: ""
+
+# -- Name of the secret containing the CA certificate for outbound TLS trust (key: tls.crt or ca.crt)
+caSecret: ""
+
+initializer:
+  # -- The kubeconfig secret for the initializer
+  kubeconfigSecret: "openfga-initializer-kubeconfig"
+  extraArgs: []
+  subroutines:
+    # -- Enable WorkspaceInitializer subroutine (FGA Store + AccountInfo setup)
+    workspaceEnabled: true
+
+terminator:
+  # -- The kubeconfig secret for the terminator
+  kubeconfigSecret: "openfga-terminator-kubeconfig"
+  extraArgs: []
+
+generator:
+  # -- Extra arguments passed to the generator binary
+  extraArgs: []
+system:
+  # -- The kubeconfig secret for the system component
+  kubeconfigSecret: ""
+  # -- Extra arguments passed to the system binary
+  extraArgs: []
+
+openfga:
+  # -- OpenFGA gRPC endpoint (host:port)
+  endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
+  # -- TTL for the OpenFGA store ID cache (e.g. 5m, 1h). Empty uses app default (5m).
+  storeIDCacheTTL: ""
+  # -- Extra arguments passed to the fga binary
+
+operator:
+  extraArgs: []
+
+hostAliases:
+  enabled: false
+
+coreModule: |-
+
+  module core
+
+  type user
+
+  type role
+    relations
+      define assignee: [user,user:*]
+
+  type core_platform-mesh_io_account
+    relations
+      define parent: [core_platform-mesh_io_account]
+
+      define owner: [role#assignee] or owner from parent
+      define member: [role#assignee] or owner
+
+      define get: member
+      define update: member
+      define patch: member
+      define delete: owner
+
+      define create_core_platform-mesh_io_accounts: member
+      define list_core_platform-mesh_io_accounts: member
+      define watch_core_platform-mesh_io_accounts: member
+
+      # org and account specific
+      define watch: member
+
+      define create_core_platform-mesh_io_accountinfos: member
+      define list_core_platform-mesh_io_accountinfos: member
+      define watch_core_platform-mesh_io_accountinfos: member
+
+      define list_core_kcp_io_logicalclusters: member
+      define watch_core_kcp_io_logicalclusters: member
+
+      # IAM specific
+      define manage_iam_roles: owner
+      define get_iam_roles: member
+      define get_iam_users: member
+
+      # APIExport binding control
+      define bind_inherited: [apis_kcp_io_apiexport] or bind_inherited from parent
+      define bind: [apis_kcp_io_apiexport] or bind_inherited
+
+  type core_platform-mesh_io_accountinfo
+    relations
+      define parent: [core_platform-mesh_io_account]
+
+      define member: member from parent
+      define owner: owner from parent
+
+      define get: member
+      define watch: member
+
+      # IAM specific
+      define manage_iam_roles: owner
+      define get_iam_roles: member
+      define get_iam_users: member
+
+  type core_kcp_io_logicalcluster
+    relations
+      define parent: [core_platform-mesh_io_account]
+
+      define member: member from parent
+
+      define get: member
+      define watch: member
+
+clusterScopedName:
+  # -- Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one
+  prefix: ""
+  # -- Suffix for the names of cluster-scoped resources
+  suffix: ""

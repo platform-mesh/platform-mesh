@@ -34,11 +34,43 @@ var DefaultCASecretKey = "ca.crt"
 var AccountOperatorMutatingWebhookName = "account-operator.webhooks.core.platform-mesh.io"
 var AccountOperatorValidatingWebhookName = "organization-validator.webhooks.core.platform-mesh.io"
 
-var SecurityOperatorWebhookCASecretName = "security-operator-ca-secret"
+// KeycloakOperatorWebhookCASecretName is the CA secret of the pm-keycloak-operator webhook chart PKI.
+var KeycloakOperatorWebhookCASecretName = "pm-keycloak-operator-ca-secret"
 var IdentityProviderValidatingWebhookName = "identityproviderconfiguration-validator.webhooks.core.platform-mesh.io"
 var AccountOperatorWorkspace = "root:platform-mesh-system"
 
 const FeatureDisableIDPWebhook = "feature-disable-idp-webhook"
+
+const FeatureDisableKeycloak = "feature-disable-keycloak"
+
+const FeatureDisableOpenFGA = "feature-disable-openfga"
+
+// FeatureToggleConflicts lists field paths below the services that must
+// be off when a feature toggle is set.
+// When a PlatformMesh disables a feature and the profile has one of
+// them on, the reconciliation is stopped and a condition is set on the
+// resource.
+// If the postgres for either openfga or keycloak are managed by
+// pm-operator they are not deleted even if the respective feature is
+// disabled. They must be deleted manually by the administrator.
+var FeatureToggleConflicts = map[string][][]string{
+	FeatureDisableKeycloak: {
+		{"pm-keycloak-operator", "enabled"},
+		{"iam-service", "enabled"},
+		{"iam-ui", "enabled"},
+		{"infra", "values", "keycloak", "operator", "enabled"},
+	},
+	FeatureDisableOpenFGA: {
+		{"pm-openfga-operator", "enabled"},
+		{"pm-openfga-authz-webhook", "enabled"},
+		{"iam-service", "enabled"},
+		{"iam-ui", "enabled"},
+		{"openfga", "enabled"},
+		{"infra", "values", "kcp", "webhook", "enabled"},
+	},
+}
+
+const OpenfgaAuthzWebhookKubeconfigSecret = "pm-openfga-authz-webhook-kubeconfig"
 
 var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
@@ -48,13 +80,18 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	},
 	{
 		Path:           "root:platform-mesh-system",
-		Secret:         "rebac-authz-webhook-kubeconfig",
-		APIExportNames: []string{"core.platform-mesh.io", "fga.platform-mesh.io"},
+		Secret:         OpenfgaAuthzWebhookKubeconfigSecret,
+		APIExportNames: []string{"core.platform-mesh.io", "fga.platform-mesh.io", "openfga.platform-mesh.io"},
 		AdminAuth:      ptr.To(false),
 	},
 	{
 		Path:      "root:platform-mesh-system",
-		Secret:    "security-operator-kubeconfig",
+		Secret:    "pm-openfga-operator-kubeconfig",
+		AdminAuth: ptr.To(true),
+	},
+	{
+		Path:      "root:platform-mesh-system",
+		Secret:    "pm-keycloak-operator-kubeconfig",
 		AdminAuth: ptr.To(true),
 	},
 	{
@@ -76,7 +113,7 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
 		Path:           "root:platform-mesh-system",
 		Secret:         "iam-service-kubeconfig",
-		APIExportNames: []string{"core.platform-mesh.io", "providers.platform-mesh.io"},
+		APIExportNames: []string{"core.platform-mesh.io", "providers.platform-mesh.io", "keycloak.platform-mesh.io"},
 		AdminAuth:      ptr.To(false),
 	},
 	{
@@ -87,12 +124,22 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	},
 	{
 		Path:      "root",
-		Secret:    "security-initializer-kubeconfig",
+		Secret:    "openfga-initializer-kubeconfig",
 		AdminAuth: ptr.To(true),
 	},
 	{
 		Path:      "root",
-		Secret:    "security-terminator-kubeconfig",
+		Secret:    "openfga-terminator-kubeconfig",
+		AdminAuth: ptr.To(true),
+	},
+	{
+		Path:      "root",
+		Secret:    "keycloak-initializer-kubeconfig",
+		AdminAuth: ptr.To(true),
+	},
+	{
+		Path:      "root",
+		Secret:    "keycloak-terminator-kubeconfig",
 		AdminAuth: ptr.To(true),
 	},
 	{
@@ -132,7 +179,7 @@ var DEFAULT_VALIDATING_WEBHOOK_CONFIGURATION = pmcorev1alpha1.WebhookConfigurati
 
 var DEFAULT_IDENTITY_PROVIDER_VALIDATING_WEBHOOK_CONFIGURATION = pmcorev1alpha1.WebhookConfiguration{
 	SecretRef: pmcorev1alpha1.SecretReference{
-		Name:      SecurityOperatorWebhookCASecretName,
+		Name:      KeycloakOperatorWebhookCASecretName,
 		Namespace: AccountOperatorWebhookSecretNamespace,
 	},
 	SecretData: DefaultCASecretKey,

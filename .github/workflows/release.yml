@@ -39,7 +39,7 @@ concurrency:
 
 jobs:
   version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     outputs:
       version: ${{ steps.v.outputs.version }}
       prerelease: ${{ steps.v.outputs.prerelease }}
@@ -73,7 +73,7 @@ jobs:
 
   github-release:
     needs: [version, publish]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
       contents: write # create the release
@@ -89,7 +89,8 @@ jobs:
           fetch-depth: 0 # release notes compare against the previous tag
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
+          cache: false # Do not restore CI caches in a release job with write access.
       - name: Release notes
         run: go run ./hack/release/release-notes --end "$TAG" > release-notes.md
       - name: Create GitHub release

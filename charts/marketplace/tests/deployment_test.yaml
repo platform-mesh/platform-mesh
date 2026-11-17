@@ -1,0 +1,15 @@
+suite: marketplace
+chart:
+  appVersion: 0.0.0
+release:
+  name: marketplace
+tests:
+  - it: marketplace match the snapshot
+    set:
+      cert:
+        extraDnsNames:
+          - my.example.com
+          - my.example2.com
+    asserts:
+      - matchSnapshot: {}
+  

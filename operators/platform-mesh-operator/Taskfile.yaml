@@ -148,7 +148,7 @@ tasks:
                 mv "{{.CRD_DIRECTORY}}/apigen/out/${out}.patched" "{{.CRD_DIRECTORY}}/apigen/out/${out}"
             done
 
-            # Move files from apigen/out into whereever apigen_dest points to.
+            # Move files from apigen/out into wherever apigen_dest points to.
             for dest in "${apigen_dest[@]}"; do
                 manifest="$(basename ${dest})"
                 mv "{{.CRD_DIRECTORY}}/apigen/out/${manifest}" "${dest}"
@@ -161,7 +161,7 @@ tasks:
         ignore_error: false
   build:
     cmds:
-      - go build -o bin/manager main.go
+      - go build -o bin/platform-mesh-operator main.go
   fuzz-api:
     desc: "Run fuzz tests with a configurable duration (default 30s per target)"
     vars:
@@ -241,7 +241,7 @@ tasks:
         - portal
         - extension-manager-operator
         - fga-operator
-        - rebac-authz-webhook
+        - pm-openfga-authz-webhook
         - iam-service
         - infra
         - kcp

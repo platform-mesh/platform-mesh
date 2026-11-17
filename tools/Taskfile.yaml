@@ -75,7 +75,7 @@ vars:
   OAPI_CODEGEN: '{{.BIN}}/oapi-codegen-{{.OAPI_CODEGEN_VERSION}}'
 
   # renovate: datasource=github-releases depName=open-component-model/open-component-model
-  OCM_VERSION: 0.22.1
+  OCM_VERSION: 0.24.0
   OCM: '{{.BIN}}/ocm-{{.OCM_VERSION}}'
 
   # renovate: datasource=github-releases depName=helm/helm
@@ -305,7 +305,8 @@ tasks:
       # for mockery. Taskfiles do not allow envs to be inherited by subtasks, so we
       # have to declare these here globally.
       MY_OS: { sh: uname -s }
-      MY_ARCH: { sh: uname -m }
+      # Linux arm reports aarch64, release assets and checksums use arm64.
+      MY_ARCH: { sh: 'uname -m | sed "s/aarch64/arm64/"' }
       # tilt's release assets say "mac", not "darwin"
       TILT_OS: { sh: 'uname -s | sed "s/Darwin/mac/;s/Linux/linux/"' }
     cmds:

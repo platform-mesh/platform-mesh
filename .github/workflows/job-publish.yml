@@ -76,7 +76,7 @@ jobs:
   # Which images to build, from ocm/components.yaml.
   # ──────────────────────────────────────────────
   components:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     outputs:
       images: ${{ steps.c.outputs.images }}
     steps:
@@ -100,7 +100,7 @@ jobs:
   # ──────────────────────────────────────────────
   image:
     needs: components
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     permissions:
       contents: read
@@ -185,7 +185,7 @@ jobs:
           hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" > "$HOME/.ocmconfig"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
       - name: Install ocm (pinned in tools/Taskfile.yaml)
         run: |
           task tools:ocm
@@ -201,7 +201,7 @@ jobs:
   # ──────────────────────────────────────────────
   aggregate:
     needs: image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     permissions:
       contents: read
@@ -218,7 +218,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
       - name: Install ocm, helm, yq (pinned in tools/Taskfile.yaml)
         run: |
           task tools:ocm tools:helm tools:yq
@@ -250,7 +250,7 @@ jobs:
   # ──────────────────────────────────────────────
   verify:
     needs: aggregate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
       contents: read
@@ -326,6 +326,7 @@ jobs:
       security-events: write # upload the SARIF report
     with:
       imageRef: ghcr.io/${{ github.repository_owner }}/platform-mesh/${{ matrix.image }}:v${{ inputs.version }}
+      sarifCategory: trivy-image/${{ matrix.image }}
 
   trivy-sbom:
     needs: [components, image]

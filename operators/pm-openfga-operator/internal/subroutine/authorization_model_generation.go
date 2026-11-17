@@ -1,0 +1,425 @@
+/*
+Copyright The Platform Mesh Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package subroutine
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"slices"
+	"strings"
+	"text/template"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
+	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
+	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
+	"go.platform-mesh.io/subroutines"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+)
+
+const (
+	apiBindingFinalizer = "core.platform-mesh.io/apibinding-finalizer"
+)
+
+// toK8sName creates a valid Kubernetes metadata.name from the given parts.
+func toK8sName(parts ...string) string {
+	name := strings.ToLower(strings.Join(parts, "-"))
+	name = strings.ReplaceAll(name, ".", "-")
+	return strings.Trim(name, "-")
+}
+
+func resourceToPermissionKey(singular, group string) string {
+	return singular + "." + group
+}
+
+func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, lister iclient.Lister) *AuthorizationModelGenerationSubroutine {
+	return &AuthorizationModelGenerationSubroutine{
+		mgr:    mcMgr,
+		lister: lister,
+	}
+}
+
+var (
+	_ subroutines.Processor = &AuthorizationModelGenerationSubroutine{}
+	_ subroutines.Finalizer = &AuthorizationModelGenerationSubroutine{}
+)
+
+type AuthorizationModelGenerationSubroutine struct {
+	mgr    mcmanager.Manager
+	lister iclient.Lister
+}
+
+var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
+
+{{ if eq .Scope "Cluster" }}
+extend type core_platform-mesh_io_account
+	relations
+		define create_{{ .Group }}_{{ .Name }}: {{ or .Create .CreateRelation "owner" }}
+		define list_{{ .Group }}_{{ .Name }}: {{ or .List "member" }}
+		define watch_{{ .Group }}_{{ .Name }}: {{ or .Watch "member" }}
+{{ end }}
+
+{{ if eq .Scope "Namespaced" }}
+extend type core_namespace
+	relations
+		define create_{{ .Group }}_{{ .Name }}: {{ or .Create .CreateRelation "owner" }}
+		define list_{{ .Group }}_{{ .Name }}: {{ or .List "member" }}
+		define watch_{{ .Group }}_{{ .Name }}: {{ or .Watch "member" }}
+{{ end }}
+
+type {{ .Group }}_{{ .Singular }}
+	relations
+		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
+		define member: [role#assignee] or owner or member from parent
+		define owner: [role#assignee] or owner from parent
+
+		define get: {{ or .Get "member" }}
+		define update: {{ or .Update "member" }}
+		define delete: {{ or .Delete "member" }}
+		define patch: {{ or .Patch "member" }}
+		define watch: {{ if .Watch }}watch_{{ .Group }}_{{ .Name }} from parent{{ else }}member{{ end }}
+{{ range .Roles }}
+		define {{ .ID }}: {{ .Definition }}
+{{ end }}
+{{ range $name, $def := .AdditionalPermissions }}
+		define {{ $name }}: {{ $def }}
+{{ end }}
+		define manage_iam_roles: owner
+		define get_iam_roles: member
+		define get_iam_users: member
+
+`))
+
+type modelInput struct {
+	Name     string
+	Group    string
+	Singular string
+	Scope    string
+
+	// CreateRelation overrides the relation that the parent-scoped
+	// create_<group>_<name> permission resolves to (defaults to "owner" when empty).
+	CreateRelation string
+
+	Create string
+	Get    string
+	List   string
+	Update string
+	Delete string
+	Patch  string
+	Watch  string
+
+	Roles                 []pmprovidersv1alpha1.RoleDefinition
+	AdditionalPermissions map[string]string
+}
+
+func getRolesForResource(resourceRoles []pmprovidersv1alpha1.ResourceRoles, permissionKey string) []pmprovidersv1alpha1.RoleDefinition {
+	for _, rr := range resourceRoles {
+		if rr.GroupResource == permissionKey {
+			return rr.Roles
+		}
+	}
+	return nil
+}
+
+// Finalize implements subroutines.Finalizer.
+func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	log := logger.LoadLoggerFromContext(ctx)
+
+	bindingToDelete := obj.(*kcpapisv1alpha2.APIBinding)
+
+	bindingCluster, err := a.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("unable to get cluster from context: %w", err)
+	}
+
+	var bindings kcpapisv1alpha2.APIBindingList
+	err = a.lister.List(ctx, &bindings)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("listing APIBindings: %w", err)
+	}
+
+	var toDeleteAccountInfo pmcorev1alpha1.AccountInfo
+	err = bindingCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &toDeleteAccountInfo)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to get account info for binding deletion")
+		return subroutines.OK(), fmt.Errorf("getting AccountInfo: %w", err)
+	}
+
+	bindingCount := 0
+	for _, binding := range bindings.Items {
+		if binding.Spec.Reference.Export.Name != bindingToDelete.Spec.Reference.Export.Name || binding.Spec.Reference.Export.Path != bindingToDelete.Spec.Reference.Export.Path {
+			continue
+		}
+
+		bindingWsCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, logicalcluster.From(&binding).String()))
+		if err != nil {
+			return subroutines.OK(), fmt.Errorf("getting cluster for binding: %w", err)
+		}
+
+		var accountInfo pmcorev1alpha1.AccountInfo
+		err = bindingWsCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
+		if apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+			// If the accountinfo does not exist, skip this binding and continue with others
+			continue
+		}
+		if err != nil {
+			return subroutines.OK(), fmt.Errorf("getting AccountInfo for binding: %w", err)
+		}
+
+		// org of the binding to be counted
+		bindingOrg := accountInfo.Spec.Organization.GeneratedClusterId
+		if bindingOrg != toDeleteAccountInfo.Spec.Organization.GeneratedClusterId {
+			// If the binding is not for the same organization, we can skip it.
+			continue
+		}
+
+		bindingCount++
+	}
+
+	if bindingCount > 1 {
+		// If there are still other bindings for the same APIExport, we can skip the model deletion.
+		return subroutines.OK(), nil
+	}
+
+	apiExportCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, bindingToDelete.Status.APIExportClusterName))
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("failed to get cluster %q: %w", bindingToDelete.Status.APIExportClusterName, err)
+	}
+	apiExportClient := apiExportCluster.GetClient()
+
+	modelTarget, err := findModelTarget(ctx, a.mgr, bindingToDelete.Status.APIExportClusterName)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting AuthorizationModel cluster %q: %w", bindingToDelete.Status.APIExportClusterName, err)
+	}
+
+	var apiExport kcpapisv1alpha2.APIExport
+	err = apiExportClient.Get(ctx, types.NamespacedName{Name: bindingToDelete.Spec.Reference.Export.Name}, &apiExport)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get apiexport for binding deletion")
+		return subroutines.OK(), fmt.Errorf("getting APIExport: %w", err)
+	}
+
+	for _, latestResourceSchema := range apiExport.Spec.Resources {
+		var resourceSchema kcpapisv1alpha1.APIResourceSchema
+		err := apiExportClient.Get(ctx, types.NamespacedName{Name: latestResourceSchema.Schema}, &resourceSchema)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get resource schema for binding deletion")
+			return subroutines.OK(), fmt.Errorf("getting APIResourceSchema: %w", err)
+		}
+
+		authModelName := toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, toDeleteAccountInfo.Spec.Organization.Name)
+		err = modelTarget.delete(ctx, authModelName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// The model was never created, but a reservation finalizer may
+				// still be on the Store — release it.
+				if derr := deregisterAuthorizationModelFromStore(ctx, a.mgr,
+					toDeleteAccountInfo.Spec.Organization.OriginClusterId, toDeleteAccountInfo.Spec.Organization.Name,
+					bindingToDelete.Status.APIExportClusterName, authModelName,
+				); derr != nil {
+					return subroutines.OK(), fmt.Errorf("releasing authorization model reservation for %s: %w", authModelName, derr)
+				}
+				log.Info().Msg(fmt.Sprintf("authorization model %s does not exist", authModelName))
+				continue
+			}
+			log.Error().Err(err).Msg("failed to delete authorization model")
+			return subroutines.OK(), fmt.Errorf("deleting AuthorizationModel %s: %w", authModelName, err)
+		}
+		log.Info().Msg(fmt.Sprintf("authorization model %s has been deleted", authModelName))
+	}
+
+	return subroutines.OK(), nil
+}
+
+// Finalizers implements subroutines.Finalizer.
+func (a *AuthorizationModelGenerationSubroutine) Finalizers(obj ctrlruntimeclient.Object) []string {
+	binding := obj.(*kcpapisv1alpha2.APIBinding)
+	if strings.Contains(binding.Name, "platform-mesh.io") || strings.Contains(binding.Name, "kcp.io") {
+		return []string{}
+	}
+	return []string{apiBindingFinalizer}
+}
+
+// GetName implements subroutines.Subroutine.
+func (a *AuthorizationModelGenerationSubroutine) GetName() string {
+	return "AuthorizationModelGeneration"
+}
+
+// Process implements subroutines.Processor.
+func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
+	binding := obj.(*kcpapisv1alpha2.APIBinding)
+
+	internalAPIBindings := []string{
+		"core.platform-mesh.io", "system.platform-mesh.io", "providers.platform-mesh.io",
+		"ui.platform-mesh.io", "fga.platform-mesh.io", "provider-fga.platform-mesh.io",
+		"keycloak.platform-mesh.io", "openfga.platform-mesh.io", "provider-openfga.platform-mesh.io",
+	}
+
+	if slices.Contains(internalAPIBindings, binding.Spec.Reference.Export.Name) || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
+		return subroutines.OK(), nil
+	}
+
+	cluster, err := a.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting cluster from context: %w", err)
+	}
+
+	var accountInfo pmcorev1alpha1.AccountInfo
+	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting AccountInfo: %w", err)
+	}
+
+	apiExportCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, binding.Status.APIExportClusterName))
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting APIExport cluster: %w", err)
+	}
+
+	modelTarget, err := findModelTarget(ctx, a.mgr, binding.Status.APIExportClusterName)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting AuthorizationModel cluster: %w", err)
+	}
+
+	var apiExport kcpapisv1alpha2.APIExport
+	err = apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: binding.Spec.Reference.Export.Name}, &apiExport)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting APIExport: %w", err)
+	}
+
+	var providerClient ctrlruntimeclient.Client
+	var providerPermissions *pmprovidersv1alpha1.ProviderPermissions
+
+	// A self-bound export has no provider workspace and uses the template defaults. Every
+	// other export must resolve, or the model would lose the provider's permission overrides.
+	if binding.Status.APIExportClusterName != logicalcluster.From(binding).String() {
+		providerCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.ProvidersProviderName, binding.Status.APIExportClusterName))
+		if err != nil {
+			return subroutines.OK(), fmt.Errorf("getting provider cluster: %w", err)
+		}
+		providerClient = providerCluster.GetClient()
+
+		var providerPermissionsList pmprovidersv1alpha1.ProviderPermissionsList
+		if err := providerClient.List(ctx, &providerPermissionsList); err != nil {
+			return subroutines.OK(), fmt.Errorf("listing ProviderPermissions: %w", err)
+		}
+
+		for i := range providerPermissionsList.Items {
+			if providerPermissionsList.Items[i].Spec.APIExport.Ref.Name == apiExport.Name {
+				providerPermissions = &providerPermissionsList.Items[i]
+				break
+			}
+		}
+	}
+
+	for _, latestResourceSchema := range apiExport.Spec.Resources {
+		var resourceSchema kcpapisv1alpha1.APIResourceSchema
+		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema.Schema}, &resourceSchema)
+		if err != nil {
+			return subroutines.OK(), fmt.Errorf("getting APIResourceSchema: %w", err)
+		}
+
+		longestRelationName := fmt.Sprintf("create_%s_%s", resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural)
+
+		group := resourceSchema.Spec.Group
+
+		if len(longestRelationName) > 50 {
+			group = resourceSchema.Spec.Group[len(longestRelationName)-50:]
+		}
+
+		permissionKey := resourceToPermissionKey(resourceSchema.Spec.Names.Singular, resourceSchema.Spec.Group)
+
+		input := modelInput{
+			Name:     resourceSchema.Spec.Names.Plural,
+			Group:    strings.ReplaceAll(group, ".", "_"),
+			Singular: resourceSchema.Spec.Names.Singular,
+			Scope:    string(resourceSchema.Spec.Scope),
+		}
+
+		if providerPermissions != nil {
+			if resourcePerms, ok := providerPermissions.Spec.Permissions[permissionKey]; ok {
+				input.Create = resourcePerms.DefaultPermissions.Create
+				input.Get = resourcePerms.DefaultPermissions.Get
+				input.List = resourcePerms.DefaultPermissions.List
+				input.Update = resourcePerms.DefaultPermissions.Update
+				input.Delete = resourcePerms.DefaultPermissions.Delete
+				input.Patch = resourcePerms.DefaultPermissions.Patch
+				input.Watch = resourcePerms.DefaultPermissions.Watch
+				input.AdditionalPermissions = resourcePerms.AdditionalPermissions
+			}
+
+			input.Roles = getRolesForResource(providerPermissions.Spec.Roles, permissionKey)
+		}
+
+		var buffer bytes.Buffer
+		if err := modelTpl.Execute(&buffer, input); err != nil {
+			return subroutines.OK(), fmt.Errorf("executing model template: %w", err)
+		}
+
+		modelName := toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, accountInfo.Spec.Organization.Name)
+
+		// Reserve the model on its Store before creating it, so the bind fails
+		// atomically instead of racing an org deletion.
+		if err := registerAuthorizationModelWithStore(ctx, a.mgr,
+			accountInfo.Spec.Organization.OriginClusterId, accountInfo.Spec.Organization.Name,
+			binding.Status.APIExportClusterName, modelName,
+		); err != nil {
+			return subroutines.OK(), fmt.Errorf("registering authorization model %s with store: %w", modelName, err)
+		}
+
+		spec := pmopenfgav1alpha1.AuthorizationModelSpec{
+			Model: buffer.String(),
+			StoreRef: pmopenfgav1alpha1.WorkspaceStoreRef{
+				Name:    accountInfo.Spec.Organization.Name,
+				Cluster: accountInfo.Spec.Organization.OriginClusterId,
+			},
+		}
+		if err := modelTarget.createOrUpdate(ctx, modelName, spec); err != nil {
+			return subroutines.OK(), fmt.Errorf("creating or updating AuthorizationModel: %w", err)
+		}
+	}
+
+	if providerPermissions != nil {
+		providerPermissions.Status.ObservedGeneration = providerPermissions.Generation
+		meta.SetStatusCondition(&providerPermissions.Status.Conditions, metav1.Condition{
+			Type:               "Applied",
+			Status:             metav1.ConditionTrue,
+			ObservedGeneration: providerPermissions.Generation,
+			LastTransitionTime: metav1.Now(),
+			Reason:             "AuthorizationModelsGenerated",
+			Message:            "ProviderPermissions successfully applied to all AuthorizationModels",
+		})
+
+		if err := providerClient.Status().Update(ctx, providerPermissions); err != nil {
+			return subroutines.OK(), fmt.Errorf("updating ProviderPermissions status: %w", err)
+		}
+	}
+
+	return subroutines.OK(), nil
+}

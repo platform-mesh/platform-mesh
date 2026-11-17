@@ -22,6 +22,7 @@ package app
 import (
 	"github.com/spf13/cobra"
 
+	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/migrate"
 	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/quickstart"
 	"go.platform-mesh.io/platform-mesh/cmd/pmctl/app/version"
 
@@ -47,6 +48,7 @@ func NewPMCtlCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	root.SetErr(streams.ErrOut)
 
 	root.AddCommand(
+		migrate.NewMigrateCommand(streams),
 		quickstart.NewQuickstartCommand(streams),
 		version.NewVersionCommand(streams),
 	)

@@ -61,7 +61,10 @@ tasks:
       UPGRADE_KEEP_CLUSTER: '{{.UPGRADE_KEEP_CLUSTER}}'
       UPGRADE_PARALLEL_BUILD: '{{.UPGRADE_PARALLEL_BUILD}}'
     cmds:
-      - go test -count=1 -v -timeout 180m ./upgrade/... {{.ADDITIONAL_COMMAND_ARGS}}
+      # One package, not ./upgrade/...: go test only streams -v output for a
+      # single package, and buffers it until the end for more. The scenarios
+      # package next to it has no tests of its own.
+      - go test -count=1 -v -timeout 180m ./upgrade/ {{.ADDITIONAL_COMMAND_ARGS}}
   # --- e2e: against a deployed Platform Mesh (KUBECONFIG, ADMIN_KUBECONFIG) --
   e2e:
     desc: 'Run tests/e2e Go suites against the cluster KUBECONFIG points at, then the portal suite (TEST_RUN_ID= for the sharded portal run).'

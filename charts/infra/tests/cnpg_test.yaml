@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: Test CNPG manifests
+release:
+  name: infra
+  namespace: platform-mesh-system
+templates:
+  - cnpg/cluster.yaml
+  - cnpg/databases.yaml
+  - cnpg/secrets.yaml
+tests:
+- it: cnpg disabled by default
+  asserts:
+    - hasDocuments:
+        count: 0
+- it: postgres resources survive an uninstall of the release
+  set:
+    cnpg:
+      enabled: true
+      roles:
+        keycloak:
+          password: keycloak-password
+        openfga:
+          password: openfga-password
+  asserts:
+    - equal:
+        path: metadata.annotations["helm.sh/resource-policy"]
+        value: keep

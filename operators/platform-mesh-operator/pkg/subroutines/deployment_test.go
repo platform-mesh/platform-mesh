@@ -80,7 +80,7 @@ func (s *DeploymentProcessTestSuite) setupGotemplates() {
 		"gotemplates/infra/runtime/cert-manager",
 		"gotemplates/components/infra",
 		"gotemplates/components/runtime",
-		"manifests/k8s/rebac-auth-webhook",
+		"manifests/k8s/pm-openfga-authz-webhook",
 	}
 	for _, d := range dirs {
 		s.Require().NoError(os.MkdirAll(filepath.Join(s.tmpDir, d), 0o755))
@@ -141,48 +141,48 @@ data:
 	selfSignedIssuer := `apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: rebac-authz-webhook-selfsigned-issuer
+  name: pm-openfga-authz-webhook-selfsigned-issuer
   namespace: {{ .namespace }}
 spec:
   selfSigned: {}
 `
-	s.writeFile("manifests/k8s/rebac-auth-webhook/selfsigned-issuer.yaml", selfSignedIssuer)
+	s.writeFile("manifests/k8s/pm-openfga-authz-webhook/selfsigned-issuer.yaml", selfSignedIssuer)
 
 	caCert := `apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: rebac-authz-webhook-ca
+  name: pm-openfga-authz-webhook-ca
   namespace: {{ .namespace }}
 spec:
   isCA: true
-  secretName: rebac-authz-webhook-ca
+  secretName: pm-openfga-authz-webhook-ca
   issuerRef:
-    name: rebac-authz-webhook-selfsigned-issuer
+    name: pm-openfga-authz-webhook-selfsigned-issuer
 `
-	s.writeFile("manifests/k8s/rebac-auth-webhook/ca-cert.yaml", caCert)
+	s.writeFile("manifests/k8s/pm-openfga-authz-webhook/ca-cert.yaml", caCert)
 
 	caIssuer := `apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: rebac-authz-webhook-ca-issuer
+  name: pm-openfga-authz-webhook-ca-issuer
   namespace: {{ .namespace }}
 spec:
   ca:
-    secretName: rebac-authz-webhook-ca
+    secretName: pm-openfga-authz-webhook-ca
 `
-	s.writeFile("manifests/k8s/rebac-auth-webhook/ca-issuer.yaml", caIssuer)
+	s.writeFile("manifests/k8s/pm-openfga-authz-webhook/ca-issuer.yaml", caIssuer)
 
 	webhookCert := `apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: rebac-authz-webhook-cert
+  name: pm-openfga-authz-webhook-cert
   namespace: {{ .namespace }}
 spec:
-  secretName: rebac-authz-webhook-cert
+  secretName: pm-openfga-authz-webhook-cert
   issuerRef:
-    name: rebac-authz-webhook-ca-issuer
+    name: pm-openfga-authz-webhook-ca-issuer
 `
-	s.writeFile("manifests/k8s/rebac-auth-webhook/webhook-cert.yaml", webhookCert)
+	s.writeFile("manifests/k8s/pm-openfga-authz-webhook/webhook-cert.yaml", webhookCert)
 
 	kcpWebhookSecret := `apiVersion: v1
 kind: Secret
@@ -193,7 +193,7 @@ type: Opaque
 stringData:
   kubeconfig: "placeholder"
 `
-	s.writeFile("manifests/k8s/rebac-auth-webhook/kcp-webhook-secret.yaml", kcpWebhookSecret)
+	s.writeFile("manifests/k8s/pm-openfga-authz-webhook/kcp-webhook-secret.yaml", kcpWebhookSecret)
 }
 
 func (s *DeploymentProcessTestSuite) writeFile(relPath, content string) {
@@ -584,15 +584,18 @@ func (s *DeploymentProcessTestSuite) Test_Process_DeploymentNamespace() {
 	s.Equal("custom-deploy-ns", cm.Namespace)
 }
 
+// webhookServer is the server the kcp webhook secret manifest declares.
+const webhookServer = "https://pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz"
+
 func (s *DeploymentProcessTestSuite) newWebhookSecretFixture(ns string, tlsCrt, caCrt, trustedCA []byte) (ctrlruntimeclient.Client, *DeploymentSubroutine, context.Context) {
 	operatorCfg := s.newOperatorConfig()
 	operatorCfg.Subroutines.Deployment.AuthorizationWebhookSecretName = "kcp-webhook-secret"
-	operatorCfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName = "rebac-authz-webhook-cert"
+	operatorCfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName = "pm-openfga-authz-webhook-cert"
 	ctx := s.newContext(operatorCfg)
 
 	kubeconfig, err := clientcmd.Write(clientcmdapi.Config{
 		Clusters: map[string]*clientcmdapi.Cluster{
-			"webhook": {Server: "https://rebac-authz-webhook:9443/authz", CertificateAuthorityData: trustedCA},
+			"webhook": {Server: webhookServer, CertificateAuthorityData: trustedCA},
 		},
 		Contexts:       map[string]*clientcmdapi.Context{"webhook": {Cluster: "webhook"}},
 		CurrentContext: "webhook",
@@ -606,7 +609,7 @@ func (s *DeploymentProcessTestSuite) newWebhookSecretFixture(ns string, tlsCrt, 
 		WithScheme(s.scheme).
 		WithObjects(
 			&corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: "rebac-authz-webhook-cert", Namespace: ns},
+				ObjectMeta: metav1.ObjectMeta{Name: "pm-openfga-authz-webhook-cert", Namespace: ns},
 				Data:       map[string][]byte{"tls.crt": tlsCrt, "ca.crt": caCrt},
 			},
 			&corev1.Secret{
@@ -626,7 +629,7 @@ func (s *DeploymentProcessTestSuite) newWebhookSecretFixture(ns string, tlsCrt, 
 		}).
 		Build()
 
-	sub := &DeploymentSubroutine{clientRuntime: cl, clientInfra: cl, cfgOperator: &operatorCfg}
+	sub := &DeploymentSubroutine{clientRuntime: cl, clientInfra: cl, cfgOperator: &operatorCfg, k8sManifests: k8smanifests.Resources}
 	return cl, sub, ctx
 }
 
@@ -653,6 +656,36 @@ func (s *DeploymentProcessTestSuite) Test_UpdateKcpWebhookSecret_SyncsNewCAAndRe
 	s.True(apierrors.IsNotFound(err), "kcp pods must restart to load the new CA")
 }
 
+// Locks in the upgrade from v26.10: kcp kept calling rebac-authz-webhook after the rename.
+func (s *DeploymentProcessTestSuite) Test_UpdateKcpWebhookSecret_SyncsServerAndRestartsKcp() {
+	ns := "platform-mesh-system"
+	cl, sub, ctx := s.newWebhookSecretFixture(ns, []byte("leaf"), []byte("ca"), []byte("ca"))
+	inst := &pmcorev1alpha1.PlatformMesh{ObjectMeta: metav1.ObjectMeta{Name: "platform-mesh", Namespace: ns}}
+
+	key := ctrlruntimeclient.ObjectKey{Name: "kcp-webhook-secret", Namespace: ns}
+	secret := &corev1.Secret{}
+	s.Require().NoError(cl.Get(ctx, key, secret))
+	kubeconfig, err := clientcmd.Load(secret.Data["kubeconfig"])
+	s.Require().NoError(err)
+	kubeconfig.Clusters["webhook"].Server = "https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz"
+	secret.Data["kubeconfig"], err = clientcmd.Write(*kubeconfig)
+	s.Require().NoError(err)
+	s.Require().NoError(cl.Update(ctx, secret))
+
+	result, err := sub.updateKcpWebhookSecret(ctx, inst)
+
+	s.NoError(err)
+	s.True(result.IsContinue())
+	s.Zero(result.Requeue())
+	s.Require().NoError(cl.Get(ctx, key, secret))
+	kubeconfig, err = clientcmd.Load(secret.Data["kubeconfig"])
+	s.Require().NoError(err)
+	s.Equal(webhookServer, kubeconfig.Clusters["webhook"].Server)
+	s.Equal([]byte("ca"), kubeconfig.Clusters["webhook"].CertificateAuthorityData, "the CA must be kept")
+	err = cl.Get(ctx, ctrlruntimeclient.ObjectKey{Name: "root-kcp-0", Namespace: ns}, &corev1.Pod{})
+	s.True(apierrors.IsNotFound(err), "kcp pods must restart to load the new server")
+}
+
 func (s *DeploymentProcessTestSuite) Test_UpdateKcpWebhookSecret_RequeuesWhileCertificateIsSelfSigned() {
 	ns := "platform-mesh-system"
 	cl, sub, ctx := s.newWebhookSecretFixture(ns, []byte("self-signed"), []byte("self-signed"), []byte("self-signed"))
@@ -670,7 +703,7 @@ func (s *DeploymentProcessTestSuite) Test_UpdateKcpWebhookSecret_RequeuesWhileCe
 func (s *DeploymentProcessTestSuite) Test_UpdateKcpWebhookSecret_RequeuesWhenCertificateSecretIsMissing() {
 	ns := "platform-mesh-system"
 	cl, sub, ctx := s.newWebhookSecretFixture(ns, nil, nil, []byte("old-ca"))
-	s.Require().NoError(cl.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "rebac-authz-webhook-cert", Namespace: ns}}))
+	s.Require().NoError(cl.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "pm-openfga-authz-webhook-cert", Namespace: ns}}))
 	inst := &pmcorev1alpha1.PlatformMesh{ObjectMeta: metav1.ObjectMeta{Name: "platform-mesh", Namespace: ns}}
 
 	result, err := sub.updateKcpWebhookSecret(ctx, inst)
@@ -700,9 +733,9 @@ func (s *DeploymentProcessTestSuite) Test_ManageAuthorizationWebhookSecrets_Issu
 		return value
 	}
 
-	servingCert := get("Certificate", "rebac-authz-webhook-cert")
+	servingCert := get("Certificate", "pm-openfga-authz-webhook-cert")
 	caIssuer := get("Issuer", field(servingCert, "spec", "issuerRef", "name").(string))
-	caCert := get("Certificate", "rebac-authz-webhook-ca")
+	caCert := get("Certificate", "pm-openfga-authz-webhook-ca")
 	selfSignedIssuer := get("Issuer", field(caCert, "spec", "issuerRef", "name").(string))
 
 	s.Equal(field(caCert, "spec", "secretName"), field(caIssuer, "spec", "ca", "secretName"))

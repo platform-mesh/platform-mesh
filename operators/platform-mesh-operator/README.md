@@ -147,6 +147,37 @@ spec:
 
 These are merged with the profile's `components` and `infra` sections when rendering Go templates.
 
+### Authentication
+
+An external OIDC issuer replaces Keycloak as the identity provider of kcp and the portal:
+
+```yaml
+spec:
+  featureToggles:
+  - name: feature-disable-keycloak
+  authentication:
+    oidc:
+      issuerURL: https://issuer.example.com/dex
+      clientID: platform-mesh
+      usernameClaim: email    # default
+      groupsClaim: groups     # default
+      usernamePrefix: ""      # optional
+      groupsPrefix: ""        # optional
+```
+
+The operator turns it into values of two services of the profile, when the profile has them:
+
+| Service | Values |
+|---------|--------|
+| `infra` | `kcp.auth.oidc`: `enabled`, `issuerUrl`, `clientID`, `usernameClaim`, `groupsClaim`, `usernamePrefix`, `groupsPrefix` |
+| `portal` | `auth.default.discoveryUrl`: `<issuerURL>/.well-known/openid-configuration` |
+
+They are merged over the profile and below `spec.values`, which keeps the last word.
+The issuer's certificate authority is `kcp.auth.oidc.caFileRef` of the infra chart.
+
+`spec.authentication.oidc` without `feature-disable-keycloak` is refused:
+Keycloak and an external issuer are alternatives.
+
 ### Feature Toggles
 
 Certain features can be enabled or disabled using feature toggles in the PlatformMesh resource specification:
@@ -169,6 +200,8 @@ spec:
 | `feature-disable-email-verification` | Disables email verification requirement in WorkspaceAuthenticationConfiguration |
 | `feature-disable-contentconfigurations` | Disables loading of all ContentConfiguration manifests during KCP setup |
 | `feature-disable-idp-webhook` | - Disables the IDP validating webhook. This removes important security validation for IdentityProviderConfiguration resources. Production deployments should run with this webhook enabled. |
+| `feature-disable-openfga` | Runs Platform Mesh without OpenFGA: the `openfga`/`provider-openfga` APIExports and bindings, the `orgs` Store, the `openfga` WorkspaceType on organizations and accounts and the ReBAC authorization webhook kubeconfig are not applied. The profile must have `openfga`, `pm-openfga-operator`, `pm-openfga-authz-webhook`, `iam-service`, `iam-ui` and kcp's authorization webhook disabled, otherwise the deployment is refused. Disabling the `openfga` service removes its HelmRelease only, the CNPG `openfga` role and database keep the data. |
+| `feature-disable-keycloak` | Runs Platform Mesh without the Keycloak identity provider: the `welcome` IdentityProviderConfiguration, the `orgs-authentication` WorkspaceAuthenticationConfiguration and the IDP validating webhook are not applied. Platform Mesh then neither configures nor maintains an identity provider, users authenticate through the external IdPs configured on the instance. The profile must have `pm-keycloak-operator`, `iam-service`, `iam-ui` and the Keycloak instance disabled, otherwise the deployment is refused. Disabling the instance removes the Keycloak CR only, the CNPG `keycloak` role and database keep the data. |
 
 ### Wait Configuration
 
@@ -215,7 +248,7 @@ The operator binary accepts the following CLI flags (defined in `internal/config
 | `--subroutines-deployment-enabled` | `true` | Enable deployment subroutine |
 | `--subroutines-deployment-enable-istio` | `true` | Enable Istio integration |
 | `--authorization-webhook-secret-name` | `kcp-webhook-secret` | Authorization webhook secret name |
-| `--authorization-webhook-secret-ca-name` | `rebac-authz-webhook-cert` | Authorization webhook CA secret name |
+| `--authorization-webhook-secret-ca-name` | `pm-openfga-authz-webhook-cert` | Authorization webhook CA secret name |
 | `--subroutines-kcp-setup-enabled` | `true` | Enable KCP setup subroutine |
 | `--domain-certificate-ca-secret-name` | `domain-certificate` | Domain certificate CA secret name |
 | `--domain-certificate-ca-secret-key` | `ca.crt` | Domain certificate CA secret key |

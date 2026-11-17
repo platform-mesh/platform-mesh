@@ -68,20 +68,6 @@
         "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*helmChart:\\s*[^:\\s]+:(?<currentValue>\\S+)"
       ],
       "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
-    },
-    {
-      "customType": "regex",
-      "description": "go and toolchain directives in go.work; no gomod manager owns go.work",
-      "managerFilePatterns": [
-        "/(^|/)go\\.work$/"
-      ],
-      "matchStrings": [
-        "(?:^|\\n)go (?<currentValue>\\d+\\.\\d+\\.\\d+)\\s",
-        "(?:^|\\n)toolchain go(?<currentValue>\\d+\\.\\d+\\.\\d+)\\s"
-      ],
-      "depNameTemplate": "go",
-      "datasourceTemplate": "golang-version",
-      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [

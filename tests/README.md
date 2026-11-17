@@ -23,6 +23,13 @@ checkout, built into a local registry. Both steps are the code behind
 `pmctl quickstart`, the second (target for upgrade) one `--dev`, and each returns once
 the installation is ready.
 
+Around the upgrade the test runs the migrations the release needs, with the
+code behind `pmctl migrate`: `--phase before` on the release, `--phase after`
+on the checkout. A change that needs a migration (data that moves, a resource
+that is renamed) adds one to `cmd/pmctl/app/migrate` with the release it
+becomes necessary in as its cut-off, and the test then runs it for every
+release older than that.
+
 ```sh
 task test-upgrade                                  # from the latest release
 task test-upgrade UPGRADE_FROM=v26.10.2            # from another one
@@ -34,8 +41,60 @@ host (Linux, OrbStack), and port 8443 free. It builds every image of the
 checkout, so it takes a while. A failed run keeps the cluster; its kubeconfig
 is in `upgrade/.test/<cluster>/`. A plain `go test ./...` skips the test.
 
-The checks before and after the upgrade, and the data seeded before it and
-looked for afterwards, are placeholders in `upgrade_test.go` so far.
+What has to survive the upgrade is described by scenarios, in
+`upgrade/scenarios`. A scenario is something a user of the release has. It
+lists three sets of steps:
+
+- **Seed** creates it, on the release.
+- **Validate** finds it and checks that it works. It runs on the release
+  and again on the checkout, so it only reads.
+- **After** goes on working with it on the checkout, once Validate held
+  there: it changes, adds and deletes, which is where the new code has to
+  cope with what the old code wrote.
+
+A step is a function that is called again until it returns no error, like a
+reconciler, so it does one pass and never waits itself; `framework/steps`
+runs them.
+
+| Scenario | What the release has | What After does with it |
+|---|---|---|
+| `tenant` | An organization with its owner, an invited user, an account, an account nested in it, and data in both. Validate also pins that they are the same objects (UIDs, logical clusters, authorization store, OIDC client), and that the owner gets in logged in: kcp, IAM service, gateway. | Changes the data, invites a user, adds and deletes accounts. |
+| `roles` | A member role on an account, granted through the IAM service, and a guest without one. Both log in; kcp has to agree with what the IAM service reports. | Takes the role from the member, gives it to the guest, and back. |
+| `isolation` | Two organizations. Neither owner gets into the other one, by role or by token. | |
+| `offboarding` | An organization like any other. | Deletes its account and then the organization; the realm has to go too. |
+| `provider` | A provider workspace exporting an API, an `APIExportPolicy`, and an account that bound the API and created an object. The owner lists it through kcp and the gateway; a guest does not. | Creates and deletes another object. |
+| `platform` | `extraWorkspaces` and a scoped `extraProviderConnections` entry in the `PlatformMesh` object. The kubeconfig of the connection and the admin kubeconfig, as copied on the release, have to keep working. | Uses the kubeconfig of the connection again. |
+| `extensions` | A `ContentConfiguration` in an account, processed. | Changes it; the result has to follow. |
+
+```
+upgrade/
+  upgrade_test.go      TestUpgrade and the kind cluster it runs on
+  scenarios/
+    scenarios.go       the types, All() (the scenarios that run), Seed, Validate, After
+    <scenario>.go      one file per scenario: its names and its steps, in order
+    organization.go, invites.go, account.go, iam.go, gateway.go, identity.go
+                       the steps, shared by the scenarios; thin, on top of
+                       the framework
+    access.go          how steps reach the installation: as the admin, as a
+                       user the admin impersonates, as a user who logged in
+    state.go           what Seed remembers for Validate, in a Secret of the cluster
+    manifests/         the objects that are easier to read as YAML
+```
+
+To add a scenario, write a file with a function returning it and list it in
+`All()`. Three things to keep in mind:
+
+- A scenario does not rely on another one: it brings its own organization.
+  One that fails does not stop the others.
+- Seed runs on the release with the Go types of this checkout. Create
+  objects, and patch them; never update an object of Platform Mesh through
+  its Go type, which drops every field the release has and the checkout
+  does not know.
+- Leave After so that Seed and Validate hold again on a kept cluster, or
+  say why not.
+
+The checks that an installation works at all, before and after the upgrade,
+are still a placeholder (`verify` in `upgrade_test.go`).
 
 ## Writing an integration test
 
@@ -75,12 +134,41 @@ The `framework/` directory holds what the suites share:
   `platform-mesh-system` workspace tree the operators expect: the
   operator's API exports and schemas, the bindings to them, the workspace
   types, and optionally the `orgs` workspace.
-- `framework/pm` hands the e2e tests the deployed Platform Mesh they run
-  against: the runtime cluster from `KUBECONFIG` and kcp from
-  `ADMIN_KUBECONFIG`, which `task tilt:e2e` sets.
+- `framework/pm` is the deployed Platform Mesh a test runs against. For the
+  e2e tests it builds it from the environment: the runtime cluster from
+  `KUBECONFIG`, kcp from `ADMIN_KUBECONFIG`, the Keycloak admin client from
+  `KEYCLOAK_BASE_URL`, all of which `task tilt:e2e` sets. A test that
+  deploys Platform Mesh itself implements `pm.Installation`. It also holds
+  the clients (`pm.NewClient`, with the one scheme of the framework, kept
+  between calls), and what there is to do with the `PlatformMesh` object
+  and the kubeconfigs the operator writes.
+- `framework/tenant` creates what a tenant owns on a deployed Platform
+  Mesh, without the portal: an organization, accounts in it, invites to it.
+  Organizations and accounts are created as their creator, whom the kcp
+  admin impersonates, because Platform Mesh makes whoever sends the request
+  the owner.
+- `framework/keycloak` manages the users of a realm (every organization has
+  one, named like it) through Keycloak's admin API: look one up, give it a
+  password, delete it. It also logs a user in, the way a browser does, for
+  a test that needs the token of a user.
+- `framework/iam` and `framework/gateway` act as a logged-in user
+  (`tenant.Login`) on the IAM service (roles of an account) and through
+  the GraphQL gateway (what the portal reads); `framework/graphql` is the
+  client under both.
+- `framework/steps` runs a test as a list of steps that work like
+  reconcilers: each is called again until it returns no error. The upgrade
+  scenarios are written with it.
 - `framework/manager` builds the multicluster managers the operators run on.
 - `framework/wait` and `framework/scheme` are the waits and the scheme
   every suite needs.
+
+The helpers come in two forms. The base form takes a context, does one
+pass and returns an error: `wait.CheckWorkspaceReady`, `tenant.ApplyAccount`,
+`fixtures.Create`. It is what a step calls, and what anything with a loop
+of its own calls. The form for a test takes `t`, waits on the base form and
+fails the test on a timeout: `wait.WorkspaceReady`, `tenant.EnsureAccount`,
+`fixtures.Apply`. Write a new helper as the base form first; do not write
+the check a second time in a test.
 
 ## Running the integration tests
 
@@ -174,5 +262,6 @@ rm -rf tests/.test                      # all logs
 | `integration/graphqlgateway` | kubernetes-graphql-gateway: the listener controllers and the gateway serving GraphQL from kcp workspaces. |
 | `integration/krocomposition` | kro-composition-operator: compositions, schema changes, type conflicts, pruning, consumers. |
 | `integration/resourcebroker` | resource-broker across broker, coordination, compute, consumer and provider workspaces: assignment, copy, conditions, deletion, migration. |
-| `integration/security` | security-operator: authorization model generation and invite validation. |
+| `integration/keycloak` | pm-keycloak-operator: the keycloak.platform-mesh.io APIs served from kcp, Invite validation. |
+| `integration/security` | pm-openfga-operator: authorization model generation. |
 | `integration/subroutines` | The subroutines lifecycle library against a real API server with a test CRD. |

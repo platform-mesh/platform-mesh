@@ -14,10 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package wait holds the conditions integration tests wait for.
+// Package wait holds the conditions tests wait for: the waits, which take a
+// test and fail it on a timeout, and the checks they are made of (check.go),
+// which look once.
 package wait
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"testing"
@@ -28,9 +31,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 const (
@@ -91,31 +91,50 @@ func Until(t testing.TB, cond func() bool, timeout, tick time.Duration, msg stri
 	Eventually(t, func() (bool, string) { return cond(), "" }, timeout, tick, msg, args...)
 }
 
+// For calls get until it returns no error, and returns what it got. It is
+// for a get made of checks: an error wrapping ErrNotReady is waited out,
+// any other error fails t at once.
+func For[T any](t testing.TB, timeout, tick time.Duration, msg string, get func() (T, error)) T {
+	t.Helper()
+	var obj T
+	Eventually(t, func() (bool, string) {
+		var err error
+		obj, err = get()
+		if err == nil {
+			return true, ""
+		}
+		if !errors.Is(err, ErrNotReady) {
+			t.Fatalf("%s: %v", msg, err)
+		}
+		return false, err.Error()
+	}, timeout, tick, "%s", msg)
+	return obj
+}
+
 // WorkspaceReady waits until the Workspace name in cl's workspace is Ready.
 func WorkspaceReady(t testing.TB, cl ctrlruntimeclient.Client, name string) {
 	t.Helper()
+	WorkspaceReadyWithin(t, cl, name, Timeout, Tick)
+}
+
+// WorkspaceReadyWithin is WorkspaceReady with a timeout and tick of the
+// caller's, for a workspace whose initializers take their time.
+func WorkspaceReadyWithin(t testing.TB, cl ctrlruntimeclient.Client, name string, timeout, tick time.Duration) {
+	t.Helper()
 	Eventually(t, func() (bool, string) {
-		ws := &kcptenancyv1alpha1.Workspace{}
-		if err := cl.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: name}, ws); err != nil {
-			return false, fmt.Sprintf("getting workspace: %v", err)
-		}
-		if ws.Status.Phase != kcpcorev1alpha1.LogicalClusterPhaseReady {
-			return false, fmt.Sprintf("phase %q:\n%s", ws.Status.Phase, toYAML(ws.Status))
+		if err := CheckWorkspaceReady(t.Context(), cl, name); err != nil {
+			return false, err.Error()
 		}
 		return true, ""
-	}, Timeout, Tick, "workspace %s should be Ready", name)
+	}, timeout, tick, "workspace %s should be Ready", name)
 }
 
 // APIBindingBound waits until the APIBinding name in cl's workspace is Bound.
 func APIBindingBound(t testing.TB, cl ctrlruntimeclient.Client, name string) {
 	t.Helper()
 	Eventually(t, func() (bool, string) {
-		binding := &kcpapisv1alpha2.APIBinding{}
-		if err := cl.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: name}, binding); err != nil {
-			return false, fmt.Sprintf("getting APIBinding: %v", err)
-		}
-		if binding.Status.Phase != kcpapisv1alpha2.APIBindingPhaseBound {
-			return false, fmt.Sprintf("phase %q:\n%s", binding.Status.Phase, toYAML(binding.Status.Conditions))
+		if err := CheckAPIBindingBound(t.Context(), cl, name); err != nil {
+			return false, err.Error()
 		}
 		return true, ""
 	}, Timeout, Tick, "APIBinding %s should be Bound", name)

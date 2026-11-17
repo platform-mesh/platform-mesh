@@ -34,7 +34,7 @@ func TestNewOperatorConfig(t *testing.T) {
 
 	assert.True(t, cfg.Subroutines.Deployment.Enabled)
 	assert.Equal(t, "kcp-webhook-secret", cfg.Subroutines.Deployment.AuthorizationWebhookSecretName)
-	assert.Equal(t, "rebac-authz-webhook-cert", cfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName)
+	assert.Equal(t, "pm-openfga-authz-webhook-cert", cfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName)
 	assert.True(t, cfg.Subroutines.Deployment.EnableIstio)
 
 	assert.True(t, cfg.Subroutines.KcpSetup.Enabled)

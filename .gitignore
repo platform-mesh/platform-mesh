@@ -14,6 +14,10 @@ bin/
 coverage.out
 coverage.html
 
+# Optional local Go workspace (not used by repository tooling)
+/go.work
+/go.work.sum
+
 # Dependency directories
 vendor/
 

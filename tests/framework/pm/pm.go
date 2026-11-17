@@ -16,19 +16,23 @@ limitations under the License.
 
 // Package pm gives the e2e tests the Platform Mesh they run against: the
 // runtime cluster from KUBECONFIG (context KIND_CONTEXT when set) and kcp
-// from ADMIN_KUBECONFIG. On a Tilt cluster, `task tilt:e2e` sets both.
+// from ADMIN_KUBECONFIG, and Keycloak from KEYCLOAK_BASE_URL. On a Tilt
+// cluster, `task tilt:e2e` sets them all.
 //
 //	cl, err := client.New(pm.Kube(t), client.Options{Scheme: scheme.New(t)})
 //	orgs, err := client.New(pm.KCP(t, "root:orgs"), client.Options{Scheme: scheme.New(t)})
+//	kc := pm.Keycloak(t)
 package pm
 
 import (
-	"net/url"
+	"crypto/x509"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"go.platform-mesh.io/platform-mesh/tests/framework/keycloak"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -68,23 +72,32 @@ func KCP(t testing.TB, path string) *rest.Config {
 	return cfg
 }
 
-// Kubeconfig is the config of a kubeconfig a component wrote for use inside
-// the cluster. Its server (the front-proxy Service, or a virtual workspace
-// URL) is replaced by the front-proxy of ADMIN_KUBECONFIG so the test host
-// can reach it; a /services/ virtual workspace path becomes
-// /clusters/<fallbackPath>. Credentials and CA data are kept.
+// Keycloak is the admin client of the Keycloak at KEYCLOAK_BASE_URL, logging
+// in with KEYCLOAK_ADMIN_USER and KEYCLOAK_ADMIN_PASSWORD. Its certificate is
+// checked against the CA in MKCERT_CA_PATH, or the system's when that is not
+// set.
+func Keycloak(t testing.TB) keycloak.Client {
+	t.Helper()
+	env := func(name string) string {
+		v := os.Getenv(name)
+		require.NotEmpty(t, v, "%s is not set (%s)", name, hint)
+		return v
+	}
+	var roots *x509.CertPool
+	if file := os.Getenv("MKCERT_CA_PATH"); file != "" {
+		var err error
+		roots, err = Roots(file)
+		require.NoError(t, err, "MKCERT_CA_PATH")
+	}
+	return keycloak.New(env("KEYCLOAK_BASE_URL"), env("KEYCLOAK_ADMIN_USER"), env("KEYCLOAK_ADMIN_PASSWORD"), roots)
+}
+
+// Kubeconfig is Reachable for an e2e test: the config of a kubeconfig a
+// component wrote for use inside the cluster, with its server replaced by
+// the front-proxy of ADMIN_KUBECONFIG so the test host can reach it.
 func Kubeconfig(t testing.TB, kubeconfig []byte, fallbackPath string) *rest.Config {
 	t.Helper()
-	cfg, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-	require.NoError(t, err, "rest config from kubeconfig")
-	server, err := url.Parse(cfg.Host)
-	require.NoError(t, err, "parsing server %q", cfg.Host)
-	front, err := url.Parse(KCP(t, "").Host)
-	require.NoError(t, err, "parsing the front-proxy URL")
-	server.Scheme, server.Host = front.Scheme, front.Host
-	if strings.HasPrefix(server.Path, "/services/") {
-		server.Path = "/clusters/" + fallbackPath
-	}
-	cfg.Host = server.String()
+	cfg, err := Reachable(KCP(t, ""), kubeconfig, fallbackPath)
+	require.NoError(t, err)
 	return cfg
 }

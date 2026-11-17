@@ -24,7 +24,8 @@ match snapshot:
             app.kubernetes.io/name: example-httpbin-operator
         spec:
           containers:
-            - args: null
+            - args:
+                - --httpbin-image=ghcr.io/platform-mesh/example-httpbin-operator/httpbin:1.0.0
               image: ghcr.io/platform-mesh/example-httpbin-operator:1.0.0
               imagePullPolicy: IfNotPresent
               name: example-httpbin-operator

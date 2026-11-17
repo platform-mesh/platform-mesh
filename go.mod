@@ -2,6 +2,24 @@ module go.platform-mesh.io/platform-mesh
 
 go 1.26.3
 
+// Shared libraries and in-process integration test components use local source.
+replace (
+	go.platform-mesh.io/account-operator => ./operators/account-operator
+	go.platform-mesh.io/apis => ./apis
+	go.platform-mesh.io/extension-manager-operator => ./operators/extension-manager-operator
+	go.platform-mesh.io/golang-commons => ./golang-commons
+	go.platform-mesh.io/kro-composition-operator => ./operators/kro-composition-operator
+	go.platform-mesh.io/kubernetes-graphql-gateway => ./services/kubernetes-graphql-gateway
+	go.platform-mesh.io/pm-openfga-operator => ./operators/pm-openfga-operator
+	go.platform-mesh.io/resource-broker => ./operators/resource-broker
+	go.platform-mesh.io/subroutines => ./subroutines
+)
+
+// kcp-testcontainers requires controller-runtime v0.25, the rest of the repository
+// (and multicluster-provider v0.9.0) is on v0.24; pin until it lowers its
+// requirement.
+replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.24.1
+
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/google/go-github/v84 v84.0.0
@@ -24,8 +42,8 @@ require (
 	go.platform-mesh.io/golang-commons v0.20.0
 	go.platform-mesh.io/kro-composition-operator v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/kubernetes-graphql-gateway v0.0.0-00010101000000-000000000000
+	go.platform-mesh.io/pm-openfga-operator v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/resource-broker v0.0.0-00010101000000-000000000000
-	go.platform-mesh.io/security-operator v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/subroutines v0.7.0
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/sync v0.24.0
@@ -45,25 +63,6 @@ require (
 	sigs.k8s.io/multicluster-runtime v0.24.2-0.20260806063852-035f642f8818
 	sigs.k8s.io/yaml v1.6.0
 )
-
-replace go.platform-mesh.io/apis => ./apis
-
-// The suites under tests/ run the components in-process; never published.
-replace (
-	go.platform-mesh.io/account-operator => ./operators/account-operator
-	go.platform-mesh.io/extension-manager-operator => ./operators/extension-manager-operator
-	go.platform-mesh.io/golang-commons => ./golang-commons
-	go.platform-mesh.io/kro-composition-operator => ./operators/kro-composition-operator
-	go.platform-mesh.io/kubernetes-graphql-gateway => ./services/kubernetes-graphql-gateway
-	go.platform-mesh.io/resource-broker => ./operators/resource-broker
-	go.platform-mesh.io/security-operator => ./operators/security-operator
-	go.platform-mesh.io/subroutines => ./subroutines
-)
-
-// kcp-testcontainers requires controller-runtime v0.25, the rest of the repository
-// (and multicluster-provider v0.9.0) is on v0.24; pin until it lowers its
-// requirement.
-replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.24.1
 
 require (
 	al.essio.dev/pkg/shellescape v1.5.1 // indirect
@@ -92,7 +91,6 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
-	github.com/coreos/go-oidc v2.5.0+incompatible // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -141,6 +139,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/gosuri/uitable v0.0.4 // indirect
 	github.com/graphql-go/graphql v0.8.1 // indirect
 	github.com/graphql-go/handler v0.2.4 // indirect
@@ -154,7 +153,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kcp-dev/apimachinery/v2 v2.33.6 // indirect
-	github.com/klauspost/compress v1.20.1 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/lib/pq v1.12.3 // indirect
@@ -170,6 +169,7 @@ require (
 	github.com/moby/go-archive v0.3.3 // indirect
 	github.com/moby/moby/client v0.6.2 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
+	github.com/moby/spdystream v0.5.1 // indirect
 	github.com/moby/sys/sequential v0.7.0 // indirect
 	github.com/moby/sys/user v0.4.1 // indirect
 	github.com/moby/sys/userns v0.1.0 // indirect
@@ -188,7 +188,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
-	github.com/pquerna/cachecontrol v0.2.0 // indirect
 	github.com/prometheus/client_golang v1.25.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.72.0 // indirect
@@ -239,7 +238,6 @@ require (
 	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
-	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiserver v0.37.2 // indirect

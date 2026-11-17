@@ -25,7 +25,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
-	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/fga/util"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -93,7 +93,7 @@ func (s *Service) createInviteIfNotExists(ctx context.Context, wsClient ctrlrunt
 	// Check if an Invite already exists for this email using label selector
 	// Use hash of email as label value since email contains invalid characters (@, .)
 	emailHash := emailToLabelValue(userEmail)
-	inviteList := &pmcorev1alpha1.InviteList{}
+	inviteList := &pmkeycloakv1alpha1.InviteList{}
 	labelSelector := ctrlruntimeclient.MatchingLabels{
 		"platform-mesh.io/invite-email-hash": emailHash,
 	}
@@ -108,14 +108,14 @@ func (s *Service) createInviteIfNotExists(ctx context.Context, wsClient ctrlrunt
 	}
 
 	// Create new Invite with label
-	invite := &pmcorev1alpha1.Invite{
+	invite := &pmkeycloakv1alpha1.Invite{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "invite-",
 			Labels: map[string]string{
 				"platform-mesh.io/invite-email-hash": emailHash,
 			},
 		},
-		Spec: pmcorev1alpha1.InviteSpec{
+		Spec: pmkeycloakv1alpha1.InviteSpec{
 			Email: userEmail,
 		},
 	}

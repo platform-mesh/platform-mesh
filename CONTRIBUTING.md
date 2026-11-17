@@ -50,10 +50,10 @@ task tilt:e2e # run the e2e tests (tests/e2e Go suites, then the portal suite) a
 
 ### Go Version Management
 
-* The `go` directive in the `go.mod` / `go.work` files declare the _minimum required_ version of Go
+* The `go` directives in the `go.mod` files declare the _minimum required_ version of Go
   to build Platform Mesh. This is notably **not the same version Platform Mesh is currently built with.**
   When bumping Go, this directive **must not** be updated just for the sake of "consistency". Only
-  a `go mod tidy` or `go work sync` should ever change these directives.
+  a `go mod tidy` should ever change these directives.
 
   Bumping these needlessly to either the latest minor or, even worse, every single patch release of
   Go, is just causing unnecessary havoc for everyone downstream.

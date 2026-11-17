@@ -107,8 +107,8 @@ func applyCRD(tb testing.TB, cl ctrlruntimeclient.Client, path string) {
 	wait.CRDEstablished(tb, cl, crd.Name)
 }
 
-// moduleDir returns the directory of module as the tests module resolves it
-// (go.work or tests/go.mod), so the files it ships match the code compiled in.
+// moduleDir returns the directory of module as the root go.mod resolves it,
+// so the files it ships match the code compiled in.
 func moduleDir(tb testing.TB, module string) string {
 	tb.Helper()
 	out, err := exec.CommandContext(tb.Context(), "go", "list", "-m", "-f", "{{.Dir}}", module).Output()

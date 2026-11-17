@@ -57,6 +57,13 @@ components:
   apis: # imports golang-commons and subroutines
     path: apis
     library: true
+  # Server code shared by the virtual workspaces (marketplace,
+  # extension-manager-virtual-workspace). A module of its own inside
+  # golang-commons, because it builds against the kcp fork of Kubernetes and
+  # golang-commons must not.
+  virtual-workspaces:
+    path: golang-commons/virtual-workspaces
+    library: true
 
   # --- operators -------------------------------------------------------------
   account-operator:
@@ -67,6 +74,13 @@ components:
     path: operators/extension-manager-operator
     image: extension-manager-operator
     chart: charts/extension-manager-operator
+  # The contentconfigurations virtual workspace: a module of its own inside
+  # the operator's directory, because it builds against the kcp fork of
+  # Kubernetes and the operator does not.
+  extension-manager-virtual-workspace:
+    path: operators/extension-manager-operator/virtual-workspace
+    image: extension-manager-virtual-workspace
+    chart: charts/extension-manager-virtual-workspace
   kro-composition-operator:
     path: operators/kro-composition-operator
     image: kro-composition-operator
@@ -83,10 +97,15 @@ components:
     path: operators/resource-broker
     image: resource-broker
     optional: true # no chart: nothing installs it
-  security-operator:
-    path: operators/security-operator
-    image: security-operator
-    chart: charts/security-operator
+  pm-keycloak-operator:
+    path: operators/pm-keycloak-operator
+    image: pm-keycloak-operator
+    chart: charts/pm-keycloak-operator
+    e2e: false # no e2e suite; test-e2e is a no-op
+  pm-openfga-operator:
+    path: operators/pm-openfga-operator
+    image: pm-openfga-operator
+    chart: charts/pm-openfga-operator
   terminal-controller-manager:
     path: operators/terminal-controller-manager
     image: terminal-controller-manager
@@ -102,13 +121,13 @@ components:
     path: services/kubernetes-graphql-gateway
     image: kubernetes-graphql-gateway
     chart: charts/kubernetes-graphql-gateway
-  rebac-authz-webhook:
-    path: services/rebac-authz-webhook
-    image: rebac-authz-webhook
-    chart: charts/rebac-authz-webhook
-  virtual-workspaces:
-    path: services/virtual-workspaces
-    image: virtual-workspaces
-    chart: charts/virtual-workspaces
+  pm-openfga-authz-webhook:
+    path: services/pm-openfga-authz-webhook
+    image: pm-openfga-authz-webhook
+    chart: charts/pm-openfga-authz-webhook
+  marketplace:
+    path: services/marketplace
+    image: marketplace
+    chart: charts/marketplace
 
   # --- tests -----------------------------------------------------------------

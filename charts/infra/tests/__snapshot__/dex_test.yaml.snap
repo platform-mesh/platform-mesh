@@ -42,6 +42,8 @@ match snapshots with dex enabled:
           app.kubernetes.io/name: dex
       template:
         metadata:
+          annotations:
+            checksum/config: 58f60b992cd2a276da9c45cb3d567afbd96f79db2cdf5c8df651e0268f2a215e
           labels:
             app.kubernetes.io/instance: infra
             app.kubernetes.io/name: dex

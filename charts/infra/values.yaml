@@ -36,6 +36,8 @@ kcp:
       clientID: ""
       groupsClaim: groups
       usernameClaim: email
+      usernamePrefix: ""
+      groupsPrefix: ""
       caFileRef:
         name: domain-certificate-ca
         key: tls.crt
@@ -108,8 +110,6 @@ kcp:
 
   webhook:
     enabled: true
-    caData: ""
-    server: https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz
     authorizationWebhookSecretName: kcp-webhook-secret
     port: 9443
     version: v1
@@ -152,12 +152,12 @@ kcp:
     #     memory: 128Mi
     additionalPathMappings:
       - path: /services/contentconfigurations
-        backend: https://virtual-workspaces.platform-mesh-system:8443
+        backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
         backend_server_ca: /etc/kcp/tls/ca/tls.crt
         proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
         proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       - path: /services/marketplace
-        backend: https://virtual-workspaces.platform-mesh-system:8443
+        backend: https://marketplace.platform-mesh-system:8443
         backend_server_ca: /etc/kcp/tls/ca/tls.crt
         proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
         proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
@@ -168,7 +168,7 @@ openfga:
   rbac:
     writePrincipals:
       - cluster.local/ns/platform-mesh-system/sa/iam-service
-      - cluster.local/ns/platform-mesh-system/sa/security-operator
+      - cluster.local/ns/platform-mesh-system/sa/pm-openfga-operator
       - cluster.local/ns/platform-mesh-system/sa/account-operator
 
 keycloak:
@@ -258,50 +258,6 @@ keycloak:
     # -- service port
     port: 80
 
-  # -- domain configuration
-  domain:
-    # -- domain name
-    name: platform-mesh.io
-    # -- path prefix
-    pathPrefix: "/keycloak"
-
-  keycloakConfig:
-    # -- url of the keycloak server
-    url: http://keycloak.platform-mesh-system.svc.cluster.local/keycloak
-    userRegistration:
-      # -- toggle to enable/disable user registration
-      enabled: true
-    # -- redirect urls
-    redirectUrls: []
-    # -- realm configuration
-    realm:
-      # -- realm name
-      name: master
-    # -- client configuration
-    client:
-      # -- client name
-      name: welcome
-      # -- target secret options
-      targetSecret:
-        # -- secret name
-        name: portal-client-secret-welcome
-        # -- secret namespace
-        namespace: platform-mesh-system
-      # -- token lifespan
-      tokenLifespan: 3600
-    # -- admin user configuration
-    admin:
-      username:
-        # -- username
-        value: keycloak-admin
-      # -- admin password
-      password:
-        valueFrom:
-          secretKeyRef:
-            # -- name of the secret containing the password
-            name: keycloak-admin
-            # -- key of the password in the secret
-            key: secret
 
 dex:
   # -- Enable Dex as a local upstream OIDC identity provider
@@ -347,6 +303,10 @@ dex:
     pathPrefix: /dex
     # -- list of HTTPRoute filters (default: none)
     filters: []
+  # -- Connector for the OAuth2 password grant, which issues tokens without a browser; `local` is the static password database (default: grant disabled)
+  passwordConnector: ""
+  # -- Dex `expiry` settings (token lifetimes, refresh token rotation), rendered as given (default: Dex defaults)
+  expiry: {}
   staticClient:
     # -- OIDC client ID for Keycloak identity broker
     id: keycloak-broker
@@ -363,6 +323,7 @@ dex:
       hash: "$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm"
       username: dex
       userID: "08a868f8-4b4b-42f3-9d23-5f46eda2c3a0"
+      groups: []
 
 cnpg:
   enabled: false

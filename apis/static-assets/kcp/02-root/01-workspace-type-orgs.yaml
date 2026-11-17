@@ -18,11 +18,7 @@ metadata:
   name: orgs
 spec:
   defaultAPIBindings:
-    - export: core.platform-mesh.io
-      path: root:platform-mesh-system
     - export: system.platform-mesh.io
-      path: root:platform-mesh-system
-    - export: fga.platform-mesh.io
       path: root:platform-mesh-system
   defaultChildWorkspaceType:
     name: org
@@ -35,5 +31,7 @@ spec:
     types:
       - name: org
         path: root
+{{- if not .featureDisableKeycloak }}
   authenticationConfigurations:
   - name: orgs-authentication
+{{- end }}

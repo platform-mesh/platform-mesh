@@ -24,32 +24,26 @@ import (
 	"embed"
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
-	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	"go.platform-mesh.io/platform-mesh/tests/framework/pm"
-	"go.platform-mesh.io/platform-mesh/tests/framework/scheme"
 	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-
-	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 const (
-	platformMeshNamespace = "platform-mesh-system"
-	platformMeshName      = "platform-mesh"
+	platformMeshNamespace = pm.Namespace
+	platformMeshName      = pm.Name
 
 	// readyTimeout bounds the wait for PlatformMesh Ready. Tilt (`task tilt:ci`)
 	// already waits for the stack, so this mostly covers reconciles triggered
@@ -60,11 +54,6 @@ const (
 
 //go:embed testdata
 var testdata embed.FS
-
-func newScheme(t testing.TB) *runtime.Scheme {
-	t.Helper()
-	return scheme.New(t, pmcorev1alpha1.AddToScheme, pmprovidersv1alpha1.AddToScheme)
-}
 
 // kubeClient is a client for the runtime cluster where PlatformMesh lives.
 func kubeClient(t testing.TB) ctrlruntimeclient.Client {
@@ -85,46 +74,33 @@ func kubeconfigClient(t testing.TB, kubeconfig []byte, fallbackPath string) ctrl
 	return newClient(t, pm.Kubeconfig(t, kubeconfig, fallbackPath))
 }
 
+// newClient is a client of the framework (pm.NewClient): it has the scheme
+// of the framework, and is kept for the next call with the same config.
 func newClient(t testing.TB, cfg *rest.Config) ctrlruntimeclient.Client {
 	t.Helper()
-	cfg = rest.CopyConfig(cfg)
-	cfg.Timeout = 60 * time.Second
-	cl, err := ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: newScheme(t)})
-	require.NoError(t, err, "creating client for %s", cfg.Host)
+	cl, err := pm.NewClient(cfg)
+	require.NoError(t, err)
 	return cl
 }
 
-func platformMeshKey() ctrlruntimeclient.ObjectKey {
-	return ctrlruntimeclient.ObjectKey{Name: platformMeshName, Namespace: platformMeshNamespace}
-}
+func platformMeshKey() ctrlruntimeclient.ObjectKey { return pm.PlatformMeshKey() }
 
 // waitPlatformMeshReady waits until the PlatformMesh Ready condition is True.
 func waitPlatformMeshReady(t testing.TB, cl ctrlruntimeclient.Client) {
 	t.Helper()
 	wait.Eventually(t, func() (bool, string) {
-		pm := &pmcorev1alpha1.PlatformMesh{}
-		if err := cl.Get(t.Context(), platformMeshKey(), pm); err != nil {
-			return false, fmt.Sprintf("getting PlatformMesh: %v", err)
+		mesh, err := pm.GetPlatformMesh(t.Context(), cl)
+		if err != nil {
+			return false, err.Error()
 		}
-		for _, c := range pm.Status.Conditions {
-			if c.Type == "Ready" && c.Status == metav1.ConditionTrue {
-				return true, ""
-			}
+		if err := wait.CheckReady(mesh.Status.Conditions); err != nil {
+			return false, err.Error()
 		}
-		return false, "not Ready:\n" + conditionsString(pm.Status.Conditions)
+		return true, ""
 	}, readyTimeout, pollInterval, "PlatformMesh %s/%s should be Ready", platformMeshNamespace, platformMeshName)
 }
 
-func conditionsString(conds []metav1.Condition) string {
-	if len(conds) == 0 {
-		return "status.conditions is empty"
-	}
-	lines := make([]string, 0, len(conds))
-	for _, c := range conds {
-		lines = append(lines, fmt.Sprintf("type=%s status=%s reason=%s message=%s", c.Type, c.Status, c.Reason, c.Message))
-	}
-	return strings.Join(lines, "\n")
-}
+func conditionsString(conds []metav1.Condition) string { return wait.Conditions(conds) }
 
 // updatePlatformMesh applies mutate to the live PlatformMesh, retrying on conflicts.
 func updatePlatformMesh(ctx context.Context, cl ctrlruntimeclient.Client, mutate func(*pmcorev1alpha1.PlatformMesh)) error {
@@ -190,16 +166,7 @@ func waitKubeconfigSecret(t testing.TB, cl ctrlruntimeclient.Client, key ctrlrun
 // waitWorkspaceReady waits until the Workspace name in cl's workspace is Ready.
 func waitWorkspaceReady(t testing.TB, cl ctrlruntimeclient.Client, name string) {
 	t.Helper()
-	wait.Eventually(t, func() (bool, string) {
-		ws := &kcptenancyv1alpha1.Workspace{}
-		if err := cl.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: name}, ws); err != nil {
-			return false, fmt.Sprintf("getting workspace: %v", err)
-		}
-		if ws.Status.Phase != "Ready" {
-			return false, fmt.Sprintf("phase %q, conditions %+v", ws.Status.Phase, ws.Status.Conditions)
-		}
-		return true, ""
-	}, 5*time.Minute, pollInterval, "workspace %s should be Ready", name)
+	wait.WorkspaceReadyWithin(t, cl, name, 5*time.Minute, pollInterval)
 }
 
 // waitEndpointSliceServed waits until the APIExportEndpointSlice lists an

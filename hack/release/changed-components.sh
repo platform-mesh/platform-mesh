@@ -28,8 +28,8 @@
 #   changed-components.sh "<newline separated changed files>"
 #   changed-components.sh ""          # empty list means: everything
 #
-# A change to a library component (apis, golang-commons, subroutines), to
-# go.work(.sum), to ocm/components.yaml or to anything under .github/ selects
+# A change to a library component (apis, golang-commons, subroutines, virtual-workspaces), to
+# the root go.mod/go.sum, to ocm/components.yaml or to anything under .github/ selects
 # all components, since the others depend on them. A change to charts/common or a *-crds chart selects all charts,
 # since other charts depend on them.
 

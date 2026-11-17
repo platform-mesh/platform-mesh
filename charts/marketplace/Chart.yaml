@@ -1,0 +1,10 @@
+apiVersion: v2
+name: marketplace
+description: A Helm chart to deploy the Platform Mesh marketplace virtual workspace, which serves MarketplaceEntry resources behind the kcp front-proxy at /services/marketplace
+type: application
+version: 0.0.0
+appVersion: "0.0.0"
+dependencies:
+  - name: common
+    version: 0.0.0
+    repository: file://../common

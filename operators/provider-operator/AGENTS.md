@@ -56,7 +56,7 @@ Run from the repository root:
 - Keep controller wiring in the controller package and provider behavior in subroutines.
 - Add or update `_test.go` files together with behavior changes.
 - Keep logging structured and never log kubeconfigs, tokens or other secret contents.
-- Require published versions of `go.platform-mesh.io/apis`, `golang-commons` and `subroutines` in `go.mod`; do not add `replace` directives for them.
+- Require published versions of `go.platform-mesh.io/apis`, `golang-commons` and `subroutines` in `go.mod`, with local `replace` directives for development.
 
 ## Do Not
 - Edit generated files by hand.
