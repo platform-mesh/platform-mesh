@@ -135,10 +135,21 @@ func (repo OCMRepository) Sign(ctx context.Context, cvs []string) error {
 			log.Printf("%s already signed", cv)
 			continue
 		}
+
 		log.Printf("signing %s", cv)
-		sign := exec.CommandContext(ctx, "ocm", "sign", "component-version", "--signature", repo.Signature, ref)
-		sign.Stderr = os.Stderr
-		if err := sign.Run(); err != nil {
+		if err := Retry(
+			ctx,
+			RegistryAttempts,
+			RegistryRetryDelay,
+			func() error {
+				sign := exec.CommandContext(ctx, "ocm", "sign", "component-version", "--signature", repo.Signature, ref)
+				sign.Stderr = os.Stderr
+				if err := sign.Run(); err != nil {
+					return fmt.Errorf("signing %s: %w", cv, err)
+				}
+				return nil
+			},
+		); err != nil {
 			return fmt.Errorf("signing %s: %w", cv, err)
 		}
 	}
