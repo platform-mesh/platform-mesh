@@ -11,6 +11,9 @@
 {{- $profile := .Files.Get (printf "files/%s-profile.yaml" .Values.ocm.profile) }}
 {{- $profile = required (printf "unknown ocm.profile %q: no files/%s-profile.yaml exists" .Values.ocm.profile .Values.ocm.profile) $profile }}
 {{- $profile = replace "__GATEWAY_SERVICE_CLUSTER_IP__" (.Values.gateway.clusterIP | default "") $profile }}
+{{- if .Values.idp.allowUnverifiedEmails }}
+{{- $profile = replace "allowUnverifiedEmails: false" "allowUnverifiedEmails: true" $profile }}
+{{- end }}
 {{- $configMap := fromYaml $profile }}
 {{- $_ := set $configMap.metadata "annotations" (merge (dict "helm.sh/resource-policy" "keep") ($configMap.metadata.annotations | default dict)) }}
 {{ toYaml $configMap }}

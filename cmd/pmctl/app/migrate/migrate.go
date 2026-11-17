@@ -74,7 +74,7 @@ var example = `  # List the migrations the installed version needs
   pmctl migrate --from v26.10.2 --phase after
 
   # Any patch of 26.10, against the cluster of "pmctl quickstart"
-  pmctl migrate --from v26.10.x --kubeconfig pm-quickstart.kubeconfig`
+  pmctl migrate --from v26.10.x --kubeconfig platform-mesh.kubeconfig`
 
 // Options holds the flags and dependencies of "pmctl migrate".
 type Options struct {

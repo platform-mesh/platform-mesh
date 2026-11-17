@@ -209,3 +209,43 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind profile
+  - it: requires verified emails by default
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - equal:
+          path: spec.featureToggles
+          value:
+            - name: feature-accounts-in-accounts
+        template: installation.yaml
+        documentIndex: 3
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'allowUnverifiedEmails: false'
+        template: installation-profile.yaml
+  - it: allows unverified emails on request
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+      idp:
+        allowUnverifiedEmails: true
+    asserts:
+      - contains:
+          path: spec.featureToggles
+          content:
+            name: feature-disable-email-verification
+        template: installation.yaml
+        documentIndex: 3
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'allowUnverifiedEmails: true'
+        template: installation-profile.yaml
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'allowUnverifiedEmails: false'
+        template: installation-profile.yaml
