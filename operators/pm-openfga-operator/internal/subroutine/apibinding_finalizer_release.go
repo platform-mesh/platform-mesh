@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"time"
 
-	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
 	"go.platform-mesh.io/subroutines"
 
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
@@ -65,7 +65,9 @@ func (s *APIBindingFinalizerReleaseSubroutine) GetName() string {
 
 // Terminate implements subroutines.Terminator.
 func (s *APIBindingFinalizerReleaseSubroutine) Terminate(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
-	log := logger.LoadLoggerFromContext(ctx)
+	// The lifecycle puts controller-runtime's logger into the context, which
+	// follows the operator's log flags.
+	logger := log.FromContext(ctx)
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	clusterName := logicalcluster.From(lc)
@@ -105,7 +107,7 @@ func (s *APIBindingFinalizerReleaseSubroutine) Terminate(ctx context.Context, ob
 		if err := cl.Patch(ctx, binding, patch); err != nil {
 			return subroutines.OK(), fmt.Errorf("removing finalizer %s from APIBinding %s: %w", APIBindingFinalizer, binding.Name, err)
 		}
-		log.Info().Str("apibinding", binding.Name).Msg("removed the APIBinding finalizer of the terminating workspace")
+		logger.Info("removed the APIBinding finalizer of the terminating workspace", "apibinding", binding.Name)
 	}
 
 	if unmarked > 0 {
