@@ -255,3 +255,30 @@ tests:
           path: data["profile.yaml"]
           pattern: 'allowUnverifiedEmails: false'
         template: installation-profile.yaml
+  - it: sends invitations by default
+    template: installation-profile.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'setDefaultPassword: false'
+  - it: sets a default password on request
+    template: installation-profile.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+      idp:
+        setDefaultPassword: true
+    asserts:
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'setDefaultPassword: true'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'setDefaultPassword: false'

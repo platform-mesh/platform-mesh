@@ -16,6 +16,9 @@
 {{- if .Values.idp.allowUnverifiedEmails }}
 {{- $profile = replace "allowUnverifiedEmails: false" "allowUnverifiedEmails: true" $profile }}
 {{- end }}
+{{- if .Values.idp.setDefaultPassword }}
+{{- $profile = replace "setDefaultPassword: false" "setDefaultPassword: true" $profile }}
+{{- end }}
 {{- $configMap := fromYaml $profile }}
 {{- $_ := set $configMap.metadata "annotations" (merge (dict "helm.sh/resource-policy" "keep") ($configMap.metadata.annotations | default dict)) }}
 {{ toYaml $configMap }}
