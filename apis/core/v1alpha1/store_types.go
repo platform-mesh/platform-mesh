@@ -56,8 +56,11 @@ type StoreStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
+// +kubebuilder:deprecatedversion:warning="core.platform-mesh.io/v1alpha1 Store is deprecated, use openfga.platform-mesh.io/v1alpha1 Store"
 
 // Store is the Schema for the stores API.
+//
+// Deprecated: use openfga.platform-mesh.io/v1alpha1 Store.
 type Store struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -81,6 +84,8 @@ var _ conditions.ConditionAccessor = &Store{}
 // +kubebuilder:object:root=true
 
 // StoreList contains a list of Store.
+//
+// Deprecated: use openfga.platform-mesh.io/v1alpha1 StoreList.
 type StoreList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

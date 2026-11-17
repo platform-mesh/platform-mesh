@@ -41,7 +41,7 @@ matches the snapshot:
                 - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
                   value: https://${org-subdomain}portal.example.com:443/gateway/api/clusters/root:orgs:${org-name}/graphql
                 - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
-                  value: https://rebac-authz-webhook.NAMESPACE.svc.cluster.local:9443
+                  value: https://pm-openfga-authz-webhook.NAMESPACE.svc.cluster.local:9443
                 - name: NODE_EXTRA_CA_CERTS
                   value: /etc/ssl/certs/ca-bundle.crt
                 - name: PORT
@@ -134,7 +134,7 @@ matches the snapshot:
                 secretName: domain-certificate
             - name: webhook-ca
               secret:
-                secretName: rebac-authz-webhook-cert
+                secretName: pm-openfga-authz-webhook-cert
             - emptyDir: {}
               name: combined-ca
             - name: kubeconfig
@@ -186,7 +186,7 @@ test hosAliases:
                 - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
                   value: https://${org-subdomain}:/gateway/api/clusters/root:orgs:${org-name}/graphql
                 - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
-                  value: https://rebac-authz-webhook.NAMESPACE.svc.cluster.local:9443
+                  value: https://pm-openfga-authz-webhook.NAMESPACE.svc.cluster.local:9443
                 - name: NODE_EXTRA_CA_CERTS
                   value: /etc/ssl/certs/ca-bundle.crt
                 - name: PORT
@@ -272,7 +272,7 @@ test hosAliases:
                 secretName: domain-certificate
             - name: webhook-ca
               secret:
-                secretName: rebac-authz-webhook-cert
+                secretName: pm-openfga-authz-webhook-cert
             - emptyDir: {}
               name: combined-ca
             - name: kcp-kubeconfig

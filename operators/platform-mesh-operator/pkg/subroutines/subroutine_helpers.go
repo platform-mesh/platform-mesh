@@ -23,9 +23,9 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io/fs"
 	"net/url"
-	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 	"text/template"
@@ -37,6 +37,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/errors"
@@ -88,6 +89,7 @@ func (h *Helper) NewKcpClient(config *rest.Config, workspacePath string) (ctrlru
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(authenticationv1.AddToScheme(scheme))
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmkeycloakv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
@@ -315,10 +317,11 @@ func ConvertToUnstructured(webhook admissionregistrationv1.MutatingWebhookConfig
 	return unstructuredObj, nil
 }
 
-func GetWorkspaceDirs(dir string) []string {
+// GetWorkspaceDirs returns the workspace subdirectories of dir in fsys, i.e.
+// the ones named "NN-name" (e.g. "01-platform-mesh-system").
+func GetWorkspaceDirs(fsys fs.FS, dir string) []string {
 	workspaces := []string{}
-	// find all subdirectories named "dd-name", e.g. "01-platform-mesh-system"
-	dirs, err := os.ReadDir(dir)
+	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		// TODO: print error
 		return workspaces
@@ -353,10 +356,10 @@ func IsWorkspace(dir string) bool {
 	return match
 }
 
-func ListFiles(dir string) ([]string, error) {
+// ListFiles returns the names of the regular files directly in dir of fsys.
+func ListFiles(fsys fs.FS, dir string) ([]string, error) {
 	files := []string{}
-	// find all files in the directory
-	dirs, err := os.ReadDir(dir)
+	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		return files, errors.Wrap(err, "Failed to read directory")
 	}
@@ -367,55 +370,6 @@ func ListFiles(dir string) ([]string, error) {
 		files = append(files, d.Name())
 	}
 	return files, nil
-}
-
-func MergeValuesAndServices(inst *pmcorev1alpha1.PlatformMesh, templateVars apiextensionsv1.JSON, config config.OperatorConfig) (apiextensionsv1.JSON, error) {
-	services := inst.Spec.Values
-	var mapValues map[string]any
-	if len(templateVars.Raw) > 0 {
-		if err := json.Unmarshal(templateVars.Raw, &mapValues); err != nil {
-			return apiextensionsv1.JSON{}, err
-		}
-	} else {
-		mapValues = map[string]any{}
-	}
-	// Unmarshal 'services'
-	var mapServices map[string]any
-	if len(services.Raw) > 0 {
-		if err := json.Unmarshal(services.Raw, &mapServices); err != nil {
-			return apiextensionsv1.JSON{}, err
-		}
-	} else {
-		mapServices = map[string]any{}
-	}
-
-	// Create 'services' key in 'values' if it doesn't exist
-	if _, ok := mapValues["services"]; !ok {
-		mapValues["services"] = map[string]any{}
-	}
-
-	// add 'services' to mapValues["services"]
-	if _, ok := mapValues["services"].(map[string]any); !ok {
-		return apiextensionsv1.JSON{}, fmt.Errorf("services is not a map")
-	}
-	for k, v := range mapServices {
-		mapValues["services"].(map[string]any)[k] = v
-	}
-
-	mergeOCMConfig(mapValues, inst)
-
-	mapValues["kubeConfigEnabled"] = config.RemoteRuntime.IsEnabled()
-	if config.RemoteRuntime.IsEnabled() {
-		mapValues["kubeConfigSecretName"] = config.RemoteRuntime.InfraSecretName
-		mapValues["kubeConfigSecretKey"] = config.RemoteRuntime.InfraSecretKey
-	}
-
-	// Marshal back to apiextensionsv1.JSON
-	mergedRaw, err := json.Marshal(mapValues)
-	if err != nil {
-		return apiextensionsv1.JSON{}, err
-	}
-	return apiextensionsv1.JSON{Raw: mergedRaw}, nil
 }
 
 type exposureParams struct {
@@ -595,14 +549,16 @@ func WaitForWorkspace(
 	return err
 }
 
+// ApplyManifestFromFile renders the manifest at path in fsys with templateData
+// and server-side applies it to the wsPath workspace through k8sClient.
 func ApplyManifestFromFile(
 	ctx context.Context,
-	path string, k8sClient ctrlruntimeclient.Client, templateData map[string]any, wsPath string, inst *pmcorev1alpha1.PlatformMesh,
+	fsys fs.FS, path string, k8sClient ctrlruntimeclient.Client, templateData map[string]any, wsPath string, inst *pmcorev1alpha1.PlatformMesh,
 	ignoredResources []config.IgnoredResource,
 ) error {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	obj, err := unstructuredFromFile(path, templateData, log)
+	obj, err := unstructuredFromFS(fsys, path, templateData, log)
 	if err != nil {
 		return err
 	}
@@ -617,7 +573,7 @@ func ApplyManifestFromFile(
 	}
 
 	if obj.GetKind() == "ContentConfiguration" && obj.GetAPIVersion() == "ui.platform-mesh.io/v1alpha1" {
-		if templateData["featureDisableContentConfigurations"] == "true" {
+		if disabled, _ := templateData["featureDisableContentConfigurations"].(bool); disabled {
 			log.Debug().Str("file", path).Str("kind", obj.GetKind()).Str("name", obj.GetName()).
 				Msg("Skipping ContentConfiguration due to feature-disable-contentconfigurations toggle")
 			return nil
@@ -651,7 +607,7 @@ func ApplyManifestFromFile(
 	err = k8sClient.Apply(ctx, ctrlruntimeclient.ApplyConfigurationFromUnstructured(&obj),
 		ctrlruntimeclient.FieldOwner("platform-mesh-operator"), ctrlruntimeclient.ForceOwnership)
 	if err != nil {
-		if obj.GetKind() == "IdentityProviderConfiguration" && obj.GetAPIVersion() == "core.platform-mesh.io/v1alpha1" {
+		if obj.GetKind() == "IdentityProviderConfiguration" && obj.GetAPIVersion() == pmkeycloakv1alpha1.SchemeGroupVersion.String() {
 			log.Warn().Err(err).Str("file", path).Str("kind", obj.GetKind()).Str("name", obj.GetName()).
 				Msg("Failed to apply IdentityProviderConfiguration (webhook may not be ready yet), will retry on next reconciliation")
 			return nil
@@ -662,8 +618,13 @@ func ApplyManifestFromFile(
 	return nil
 }
 
+// ApplyDirStructure applies the manifests in dir of fsys to the kcpPath
+// workspace, then recurses into every "NN-name" subdirectory, applying it to
+// the child workspace "name" once that workspace is ready. dir is an fs path
+// ("." for the root of fsys).
 func ApplyDirStructure(
 	ctx context.Context,
+	fsys fs.FS,
 	dir string,
 	kcpPath string,
 	config *rest.Config,
@@ -680,17 +641,17 @@ func ApplyDirStructure(
 	}
 
 	// apply all manifest files in the current directory first
-	files, err := ListFiles(dir)
+	files, err := ListFiles(fsys, dir)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list files in workspace")
 	}
 	var errApplyManifests error
 	for _, file := range files {
 		log.Debug().Str("file", file).Msg("Applying file")
-		path := filepath.Join(dir, file)
-		err := ApplyManifestFromFile(ctx, path, k8sClient, templateData, kcpPath, inst, ignoredResources)
+		filePath := path.Join(dir, file)
+		err := ApplyManifestFromFile(ctx, fsys, filePath, k8sClient, templateData, kcpPath, inst, ignoredResources)
 		if err != nil {
-			log.Warn().Err(err).Str("file", path).Msg("Failed to apply manifest file, continuing to next file in directory")
+			log.Warn().Err(err).Str("file", filePath).Msg("Failed to apply manifest file, continuing to next file in directory")
 			errApplyManifests = err
 		}
 	}
@@ -698,7 +659,7 @@ func ApplyDirStructure(
 		return errApplyManifests
 	}
 
-	for _, wsDir := range GetWorkspaceDirs(dir) {
+	for _, wsDir := range GetWorkspaceDirs(fsys, dir) {
 		wsName, err := GetWorkspaceName(wsDir)
 		if err != nil {
 			log.Warn().Err(err).Str("Directory", dir).Str("wsName", wsName).Msg("Failed to get workspace path, skipping")
@@ -716,7 +677,7 @@ func ApplyDirStructure(
 			}
 		}
 
-		err = ApplyDirStructure(ctx, dir+"/"+wsDir, wsPath, config, templateData, inst, kcpHelper, ignoredResources)
+		err = ApplyDirStructure(ctx, fsys, path.Join(dir, wsDir), wsPath, config, templateData, inst, kcpHelper, ignoredResources)
 		if err != nil {
 			return err
 		}
@@ -747,12 +708,16 @@ func matchesConditionWithStatus(resource *unstructured.Unstructured, conditionTy
 	return false
 }
 
-func unstructuredFromFile(path string, templateData map[string]any, log *logger.Logger) (unstructured.Unstructured, error) {
-	manifestBytes, err := os.ReadFile(path)
+// unstructuredFromFS renders the manifest at path in fsys with templateData.
+func unstructuredFromFS(fsys fs.FS, path string, templateData map[string]any, log *logger.Logger) (unstructured.Unstructured, error) {
+	manifestBytes, err := fs.ReadFile(fsys, path)
 	if err != nil {
-		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to read file, pwd: %s", path)
+		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to read file: %s", path)
 	}
+	return unstructuredFromBytes(path, manifestBytes, templateData, log)
+}
 
+func unstructuredFromBytes(path string, manifestBytes []byte, templateData map[string]any, log *logger.Logger) (unstructured.Unstructured, error) {
 	res, err := ReplaceTemplate(templateData, manifestBytes)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to replace template with path: %s", path)

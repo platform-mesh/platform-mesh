@@ -17,18 +17,20 @@ version: "3"
 # Root Taskfile for the platform-mesh monorepo.
 #
 # Structure:
-#   * Global targets (`lint`, `test`, `test-e2e`, `generate`, `build`) run the
+#   * Global targets (`lint`, `test`, `generate`, `build`) run the
 #     matching target for EVERY component.
 #   * Per-component targets (`lint-<name>`, `test-<name>`, ...) run it for ONE
 #     component, e.g. `task lint-account-operator`.
 #
 # Every component (module/service) must expose the standard targets in its own
-# Taskfile: lint, test, test-e2e, generate, build. The root simply fans out to
-# them, so component-specific setup (kcp/envtest, codegen tools, ...) lives with
-# the component.
+# Taskfile: lint, test, generate, build. The root simply fans out to them.
+# Integration and e2e tests live under tests/ in the root module: `task
+# test-integration` (components in-process against a kcp in Docker) and `task
+# test-e2e` (against a deployed Platform Mesh); `task test-upgrade` upgrades
+# the latest release to this checkout. See tests/README.md.
 #
-# The components below are linked locally through the repository-root go.work
-# file. Add a component by listing its name here; its directory is discovered
+# Shared modules are linked locally through replace directives in each go.mod.
+# Add a component by listing its name here; its directory is discovered
 # under ./, ./operators/ or ./services/.
 
 includes:
@@ -41,11 +43,12 @@ includes:
   charts:
     taskfile: charts/Taskfile.yaml
     dir: .
-  # Playwright end-to-end tests against a running Platform Mesh:
-  # `task tests:portal-e2e:setup`, `task tests:portal-e2e`, ...
+  # The integration tests: `task tests:integration` (kcp in Docker), `task
+  # tests:e2e` (deployed stack) and the Playwright portal suite
+  # (`task tests:portal-e2e:setup`, `task tests:portal-e2e:httpbins`, ...).
   tests:
     taskfile: tests/Taskfile.yaml
-    dir: .
+    dir: tests
 
 vars:
   COMPONENTS:
@@ -56,29 +59,32 @@ vars:
     - apis
     - subroutines
     - golang-commons
+    - virtual-workspaces
 
     # operators
     - account-operator
-    - backup-operator
     - extension-manager-operator
-    - kcp-migration-operator
+    - extension-manager-virtual-workspace
     - kro-composition-operator
-    - platform-mesh-deployer
     - platform-mesh-operator
+    - pm-keycloak-operator
+    - pm-openfga-operator
+    - provider-operator
     - resource-broker
-    - security-operator
     - terminal-controller-manager
 
     # services
     - iam-service
     - kubernetes-graphql-gateway
-    - rebac-authz-webhook
-    - virtual-workspaces
+    - marketplace
+    - pm-openfga-authz-webhook
+
 
   LIBRARIES:
     - apis
     - subroutines
     - golang-commons
+    - virtual-workspaces
 
   # Renovate CLI image. Cannot be placed in tools/ as vars from other
   # taskfile are not visible.
@@ -91,22 +97,28 @@ tasks:
 
   tilt:up:
     desc: Start the Tilt development environment on kind.
+    preconditions:
+      - sh: command -v helm
+        msg: helm is not installed; the Tilt environment renders the charts with it.
     vars:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
-      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - KIND={{.KIND}} hack/kind.sh up --config contrib/tilt/kind.yaml
       - contrib/tilt/hack/print-urls.sh
       # Arguments after `--` go to the Tiltfile, e.g. task tilt:up -- --frontend-cors
       - "{{.TILT}} up -f ./contrib/tilt/Tiltfile -- {{.CLI_ARGS}}"
 
   tilt:ci:
     desc: Bring up the Tilt development environment and wait for readiness.
+    preconditions:
+      - sh: command -v helm
+        msg: helm is not installed; the Tilt environment renders the charts with it.
     vars:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
-      - KIND={{.KIND}} TILT={{.TILT}} contrib/tilt/kind.sh
+      - KIND={{.KIND}} hack/kind.sh up --config contrib/tilt/kind.yaml
       - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile {{.CLI_ARGS}}"
 
   tilt:help:
@@ -121,14 +133,22 @@ tasks:
           task tilt:up -- --frontend-cors      same, and allow browser calls from a frontend
                                                run outside the cluster (localhost, *.portal.localhost)
           task tilt:ci                         start and wait until everything is ready
-          task tilt:e2e                        run the portal e2e suite against Tilt
+          task tilt:up -- --without=keycloak   leave Keycloak (and iam-service, iam-ui, pm-keycloak-operator) out
+          task tilt:up -- --without=openfga    leave OpenFGA (and pm-openfga-authz-webhook, pm-openfga-operator) out
+          task tilt:up -- --with=dex           Dex with static users as identity provider of kcp, disables Keycloak
+          task tilt:e2e                        run the e2e suites (Go, then portal) against Tilt
           . contrib/tilt/env.sh                export the URLs and credentials for tests
+
+        Logging in: create an organization with your e-mail as creator (the Invite puts
+        you into the organization's Keycloak realm); there is no SMTP, so the password
+        is "password" and must be changed at first login.
+        With --with=dex the users are admin@, dev@ and viewer@portal.localhost, password "password".
 
         Change options of a running Tilt without restarting it:
 
           tilt args -- --frontend-cors
 
-        Tiltfile options (after `--`): --frontend-cors, --context, --cluster-id, --httpbin-namespace
+        Tiltfile options (after `--`): --frontend-cors, --without, --with, --context, --cluster-id, --httpbin-namespace
         EOF
       - contrib/tilt/hack/print-urls.sh
       - |
@@ -138,11 +158,23 @@ tasks:
         contrib/tilt/hack/print-frontend-env.sh || echo "(not available until Tilt has deployed the portal)"
 
   tilt:e2e:
-    desc: Run the portal e2e suite against the Tilt environment.
+    desc: Run the e2e suites (tests/e2e Go, then the portal) against the Tilt environment.
     cmds:
       - |
+        kubectl oidc-login --version &>/dev/null || echo "e2e tests need kubectl oidc-login installed: https://github.com/int128/kubelogin#setup"
         . contrib/tilt/env.sh || exit 1
-        task tests:portal-e2e TEST_RUN_ID="$(date +%s)"
+        toggles="$(kubectl --context "$KIND_CONTEXT" -n "$PLATFORM_NAMESPACE" get platformmesh platform-mesh -o jsonpath='{.spec.featureToggles[*].name}')" || exit 1
+        for toggle in feature-disable-keycloak feature-disable-openfga; do
+          case " $toggles " in
+            *" $toggle "*)
+              echo "tilt:e2e needs Keycloak and OpenFGA, the environment has $toggle" >&2
+              exit 1
+              ;;
+          esac
+        done
+        # tests/e2e reads the kind cluster from KUBECONFIG (context KIND_CONTEXT).
+        export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+        task tests:e2e TEST_RUN_ID="$(date +%s)"
 
   # ---------------------------------------------------------------------------
   # Global fan-out targets: run the standard target across all components.
@@ -189,7 +221,7 @@ tasks:
       - for: {var: COMPONENTS}
         cmd: task lint-{{.ITEM}}
   tidy-check:
-    desc: Each go.mod must be self-contained (tidy + deps resolve without go.work).
+    desc: Check that every module is tidy and its dependencies resolve.
     cmds:
       - for: {var: COMPONENTS}
         cmd: task tidy-check-{{.ITEM}}
@@ -212,11 +244,21 @@ tasks:
     cmds:
       - for: {var: COMPONENTS}
         cmd: task test-{{.ITEM}}
-  test-e2e:
-    desc: Run e2e/integration tests for every component.
+  test-integration:
+    desc: Run the integration tests (tests/integration) against a kcp in Docker.
     cmds:
-      - for: {var: COMPONENTS}
-        cmd: task test-e2e-{{.ITEM}}
+      - task: tests:integration
+        vars: {PKG: '{{.PKG}}', P: '{{.P}}', KCP_VERSION: '{{.KCP_VERSION}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}
+  test-e2e:
+    desc: Run the e2e tests (tests/e2e Go suites, then the portal suite) against KUBECONFIG / ADMIN_KUBECONFIG.
+    cmds:
+      - task: tests:e2e
+        vars: {TEST_RUN_ID: '{{.TEST_RUN_ID}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}
+  test-upgrade:
+    desc: Run the upgrade test (tests/upgrade), from the latest release to this checkout, in a kind cluster of its own.
+    cmds:
+      - task: tests:upgrade
+        vars: {UPGRADE_FROM: '{{.UPGRADE_FROM}}', UPGRADE_CLUSTER: '{{.UPGRADE_CLUSTER}}', UPGRADE_KEEP_CLUSTER: '{{.UPGRADE_KEEP_CLUSTER}}', UPGRADE_PARALLEL_BUILD: '{{.UPGRADE_PARALLEL_BUILD}}', ADDITIONAL_COMMAND_ARGS: '{{.ADDITIONAL_COMMAND_ARGS}}'}
   generate:
     desc: Run code generation for every component, then sync the generated CRDs into the charts.
     cmds:
@@ -228,6 +270,10 @@ tasks:
     cmds:
       - for: {var: COMPONENTS}
         cmd: task build-{{.ITEM}}
+  pmctl:
+    desc: Build the pmctl CLI into bin/pmctl (VERSION= to override the stamped version). Also built by `task build-root`.
+    cmds:
+      - task --taskfile Taskfile.root.yaml pmctl {{if .VERSION}}VERSION={{.VERSION}}{{end}}
   images:
     desc: 'Build container images for every component that ships a Dockerfile (VERSION=, PUSH=, PLATFORMS= to override).'
     cmds:
@@ -242,13 +288,7 @@ tasks:
 
   # ---------------------------------------------------------------------------
   # Per-component targets. Each delegates to the component's own Taskfile.
-  # `test-e2e-*` is declared before `test-*` so the more specific pattern wins.
   # ---------------------------------------------------------------------------
-  "test-e2e-*":
-    desc: "Run e2e tests for one component (e.g. task test-e2e-account-operator)."
-    cmds:
-      - task: _run
-        vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: test-e2e}
   "test-*":
     desc: "Run unit tests for one component (e.g. task test-account-operator)."
     cmds:
@@ -265,8 +305,6 @@ tasks:
     cmds:
       - task: _run
         vars: {COMPONENT: "{{index .MATCH 0}}", TARGET: generate}
-      # The *-crds charts ship copies of the generated CRDs; keep them in step.
-      - task: charts:sync-crds
   "build-*":
     desc: "Build one component (e.g. task build-account-operator)."
     cmds:
@@ -306,12 +344,12 @@ tasks:
     vars:
       # Defaults match the release pipeline's image naming; override on the CLI.
       REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
-      REPO: '{{.REPO | default "platform-mesh/platform-mesh"}}'   # ghcr namespace: <registry>/<repo>/<name>
-      VERSION: '{{.VERSION | default "dev"}}'                     # image tag; also pushed without leading "v"
-      PUSH: '{{.PUSH | default "false"}}'                          # true -> buildx --push, false -> --load
-      PLATFORMS: '{{.PLATFORMS | default "linux/amd64"}}'          # multi-arch (e.g. linux/amd64,linux/arm64) requires PUSH=true
-      CONTEXT: '{{.CONTEXT | default "."}}'                         # build context; repo root by default (shared go.work)
-      METADATA_FILE: '{{.METADATA_FILE | default ""}}'             # write buildx metadata (incl. containerimage.digest) here for signing
+      REPO: '{{.REPO | default "platform-mesh/platform-mesh"}}'  # ghcr namespace: <registry>/<repo>/<name>
+      VERSION: '{{.VERSION | default "dev"}}'                    # image tag; also pushed without leading "v"
+      PUSH: '{{.PUSH | default "false"}}'                        # true -> buildx --push, false -> --load
+      PLATFORMS: '{{.PLATFORMS | default "linux/amd64"}}'        # multi-arch (e.g. linux/amd64,linux/arm64) requires PUSH=true
+      CONTEXT: '{{.CONTEXT | default "."}}'                      # build context; repo root by default (local module replacements)
+      METADATA_FILE: '{{.METADATA_FILE | default ""}}'           # write buildx metadata (incl. containerimage.digest) here for signing
     cmds:
       - task: _image
         vars:
@@ -343,7 +381,7 @@ tasks:
         fi
 
   # Build (and optionally push) a single component image. Mirrors how the release
-  # workflows build the operator images (root context + shared go.work), so a
+  # workflows build the operator images (root context + local modules), so a
   # local `task images-<name>` reproduces the CI image.
   _image:
     internal: true
@@ -365,8 +403,8 @@ tasks:
         version='{{.VERSION}}'
         image='{{.REGISTRY}}/{{.REPO}}'/"$comp"
 
-        # Build context is the repo ROOT: the operator Dockerfiles use the shared
-        # go.work + apis module, so they COPY root-relative paths. A self-contained
+        # Build context is the repo ROOT: the operator Dockerfiles use local
+        # module replacements, so they COPY root-relative paths. A self-contained
         # component can override with CONTEXT=<dir>.
         context='{{.CONTEXT | default "."}}'
 
@@ -399,7 +437,7 @@ tasks:
   bump-deps:
     desc: 'Point every consumer at a released internal-module version (e.g. task bump-deps -- apis v0.0.1).'
     env:
-      GOWORK: "off"   # resolve the published version from the proxy, not the local workspace copy.
+      GOWORK: "off"
       GOSUMDB: "" # skip resolving on gosumbdb
       GOPROXY: "direct" # skip module proxy, get from source
     vars:
@@ -425,9 +463,6 @@ tasks:
           echo "   - $d"
           (cd "$d" && go get "$module@$version" && go mod tidy)
         done
-        # Re-sync the workspace with GOWORK reset (the task disables it above so
-        # the per-module bumps resolve the published version, not the local copy).
-        GOWORK= go work sync
 
   # ---------------------------------------------------------------------------
   # Dependency refresh via the Renovate CLI.
@@ -448,21 +483,13 @@ tasks:
       - task: generate
 
   # ---------------------------------------------------------------------------
-  # Workspace helpers
+  # Module helpers
   # ---------------------------------------------------------------------------
   tidy:
-    desc: Tidy every module's go.mod (standalone) and re-sync the workspace.
+    desc: Tidy every module's go.mod.
     cmds:
-      - go work sync
       - for: {var: COMPONENTS}
         cmd: task tidy-{{.ITEM}}
-      # ref: https://github.com/golang/go/issues/63901
-      # TLDR: go work sync doesn't actually everything.
-      # We force fill the go.work.sum by downloading all deps.
-      # Without this the go.work.sum is randomly updated when
-      # a developer pulls a dependency they didn't have in the module
-      # cache yet.
-      - go mod download all
   "tidy-*":
     desc: "Tidy one module's go.mod (e.g. task tidy-apis)."
     env:
@@ -473,14 +500,5 @@ tasks:
       - |
         comp='{{index .MATCH 0}}'
         dir=$({{.YQ}} -e ".components.\"$comp\".path" ocm/components.yaml) || { echo "unknown component '$comp' (not in ocm/components.yaml)" >&2; exit 1; }
-        # Forward version-pin replaces from go.work into the module's go.mod so
-        # it resolves standalone, e.g. in docker builds.
-        replaces=$(GOWORK= go work edit -json | jq -r '.Replace[] | "\(.Old.Path)=\(.New.Path)@\(.New.Version)"')
         cd "$dir"
-        go mod edit $(printf ' -replace=%s' $replaces)
         go mod tidy
-        # Drop old replaces and those whose Old path isn't referenced by this module.
-        deps=$(go list -m -f '{{`{{.Path}}`}}' all)
-        for r in $(go mod edit -json | jq -r '.Replace[]?.Old.Path'); do
-          grep -qxF "$r" <<<"$deps" || go mod edit -dropreplace="$r"
-        done

@@ -51,7 +51,7 @@ spec:
         containers:
           - imagePullPolicy: IfNotPresent
             name: keycloak
-            {{- include "common.operatorHealthAndReadyness" (dict "Values" .Values.keycloak.operator) | nindent 12 }}
+            {{- include "common.operatorHealthAndReadiness" (dict "Values" .Values.keycloak.operator) | nindent 12 }}
             resources:
               {{- toYaml .Values.keycloak.operator.resources | nindent 14 }}
 {{- end }}

@@ -59,10 +59,3 @@ func (d DummyRuntimeObject) GetDeletionTimestamp() *metav1.Time            { ret
 func (d DummyRuntimeObject) SetDeletionTimestamp(*metav1.Time)             {}
 func (d DummyRuntimeObject) GetDeletionGracePeriodSeconds() *int64         { return nil }
 func (d DummyRuntimeObject) SetDeletionGracePeriodSeconds(*int64)          {}
-
-type DummyRuntimeObjectWithConditions struct {
-	DummyRuntimeObject
-}
-
-func (d DummyRuntimeObjectWithConditions) GetConditions() []metav1.Condition { return nil }
-func (d DummyRuntimeObjectWithConditions) SetConditions([]metav1.Condition)  {}

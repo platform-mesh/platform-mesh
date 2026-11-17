@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller_test
+package controller
 
 import (
 	"context"
@@ -22,8 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.platform-mesh.io/account-operator/internal/config"
-	"go.platform-mesh.io/account-operator/internal/controller"
+	"go.platform-mesh.io/account-operator/pkg/config"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/finalizeaccountinfo"
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -84,7 +83,7 @@ func TestAccountInfoReconciler_ReconcileAddsFinalizerWhenControllerEnabled(
 		cluster: &stubCluster{client: cl},
 	}
 
-	reconciler, err := controller.NewAccountInfoReconciler(log, mgr, cfg)
+	reconciler, err := NewAccountInfoReconciler(log, mgr, cfg)
 	require.NoError(t, err)
 
 	_, err = reconciler.Reconcile(context.Background(), mcreconcile.Request{
@@ -122,7 +121,7 @@ func TestAccountInfoReconciler_ReconcileSkipsFinalizerWhenControllerDisabled(
 		cluster: &stubCluster{client: cl},
 	}
 
-	reconciler, err := controller.NewAccountInfoReconciler(log, mgr, cfg)
+	reconciler, err := NewAccountInfoReconciler(log, mgr, cfg)
 	require.NoError(t, err)
 
 	_, err = reconciler.Reconcile(context.Background(), mcreconcile.Request{

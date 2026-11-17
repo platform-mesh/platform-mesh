@@ -18,16 +18,18 @@
 # Prints GitHub Actions output lines (key=<json array>):
 #
 #   components       components (including libraries) to verify/test
-#   e2eComponents    subset with e2e tests
 #   imageComponents  subset that produce an image
 #   charts           chart names (directories under charts/) that changed
+#   tests            true when the integration or e2e tests (tests/integration,
+#                    tests/e2e) are affected: any change under tests/, operators/,
+#                    services/, hack/ or a shared path (not a JSON array)
 #
 # Usage:
 #   changed-components.sh "<newline separated changed files>"
 #   changed-components.sh ""          # empty list means: everything
 #
-# A change to a library component (apis, golang-commons, subroutines), to
-# go.work(.sum), to ocm/components.yaml or to anything under .github/ selects
+# A change to a library component (apis, golang-commons, subroutines, virtual-workspaces), to
+# the root go.mod/go.sum, to ocm/components.yaml or to anything under .github/ selects
 # all components, since the others depend on them. A change to charts/common or a *-crds chart selects all charts,
 # since other charts depend on them.
 
@@ -44,15 +46,22 @@ all_charts=$(for f in charts/*/Chart.yaml; do [ -f "$f" ] && basename "$(dirname
 selected_components=""
 selected_charts=""
 
+# Paths that affect every Go component.
+shared_re='^(go\.work|go\.work\.sum|ocm/components\.yaml|\.github/|Taskfile\.yaml|tools/)'
+lib_paths=$(yq '.components | to_entries | map(select(.value.library == true)) | .[].value.path' "$registry")
+for p in $lib_paths; do shared_re="$shared_re|^$p/"; done
+
+# The integration and e2e tests (tests/integration against kcp, tests/e2e against
+# a deployed stack) import every operator, so any Go change selects it.
+tests=false
+if [ -z "$changed" ] || grep -qE "$shared_re|^(tests|operators|services|hack)/" <<<"$changed"; then
+  tests=true
+fi
+
 if [ -z "$changed" ]; then
   selected_components="$all_components"
   selected_charts="$all_charts"
 else
-  # Paths that affect every Go component.
-  shared_re='^(go\.work|go\.work\.sum|ocm/components\.yaml|\.github/|Taskfile\.yaml|tools/)'
-  lib_paths=$(yq '.components | to_entries | map(select(.value.library == true)) | .[].value.path' "$registry")
-  for p in $lib_paths; do shared_re="$shared_re|^$p/"; done
-
   if grep -qE "$shared_re" <<<"$changed"; then
     selected_components="$all_components"
   else
@@ -81,14 +90,12 @@ fi
 
 to_json() { { grep -v '^$' || true; } | sort -u | jq -R . | jq -s -c .; }
 
-e2e=""
 images=""
 for c in $selected_components; do
-  [ "$(yq ".components.\"$c\".e2e != false" "$registry")" = "true" ] && e2e+="$c"$'\n'
   [ "$(yq ".components.\"$c\".image // \"\"" "$registry")" != "" ] && images+="$c"$'\n'
 done
 
 echo "components=$(to_json <<<"$selected_components")"
-echo "e2eComponents=$(to_json <<<"$e2e")"
 echo "imageComponents=$(to_json <<<"$images")"
 echo "charts=$(to_json <<<"$selected_charts")"
+echo "tests=$tests"

@@ -813,6 +813,86 @@ func (s *ResourceTestSuite) Test_updateOciRepo_ParseRefError() {
 	s.NotNil(result)
 }
 
+func (s *ResourceTestSuite) Test_updateOciRepo_PlainHTTPRegistryIsInsecure() {
+	ctx := s.T().Context()
+
+	newResource := func(imageReference string) *unstructured.Unstructured {
+		return &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "delivery.ocm.software/v1alpha1",
+				"kind":       "Resource",
+				"metadata": map[string]any{
+					"name":      "test-resource",
+					"namespace": "default",
+					"annotations": map[string]any{
+						"artifact": "chart",
+						"repo":     "oci",
+					},
+				},
+				"status": map[string]any{
+					"resource": map[string]any{
+						"version": "1.0.0",
+						"access": map[string]any{
+							"type":           "ociArtifact",
+							"imageReference": imageReference,
+						},
+					},
+				},
+				"spec": map[string]any{},
+			},
+		}
+	}
+
+	tests := []struct {
+		name           string
+		imageReference string
+		wantURL        string
+		wantInsecure   bool
+	}{
+		{
+			name:           "plain-HTTP registry sets spec.insecure",
+			imageReference: "http://172.18.0.5:5000/platform-mesh/helm-charts/mychart:1.0.0",
+			wantURL:        "oci://172.18.0.5:5000/platform-mesh/helm-charts/mychart",
+			wantInsecure:   true,
+		},
+		{
+			name:           "TLS registry leaves spec.insecure unset",
+			imageReference: "ghcr.io/platform-mesh/helm-charts/mychart:1.0.0",
+			wantURL:        "oci://ghcr.io/platform-mesh/helm-charts/mychart",
+			wantInsecure:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			clientMock := new(mocks.Client)
+			s.subroutine = NewResourceSubroutine(clientMock, nil, nil)
+
+			clientMock.On("List", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+			clientMock.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "configmaps"}, "")).Maybe()
+			clientMock.EXPECT().Patch(mock.Anything, mock.MatchedBy(func(obj ctrlruntimeclient.Object) bool {
+				unstr := obj.(*unstructured.Unstructured)
+				if unstr.GetKind() != "OCIRepository" {
+					return false
+				}
+				url, _, _ := unstructured.NestedString(unstr.Object, "spec", "url")
+				if url != tt.wantURL {
+					return false
+				}
+				insecure, found, _ := unstructured.NestedBool(unstr.Object, "spec", "insecure")
+				if tt.wantInsecure {
+					return found && insecure
+				}
+				return !found
+			}), mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
+
+			result, err := s.subroutine.Process(ctx, newResource(tt.imageReference))
+			s.NoError(err)
+			s.NotNil(result)
+		})
+	}
+}
+
 func (s *ResourceTestSuite) Test_updateOciRepo_CreateOrUpdateError() {
 	ctx := s.T().Context()
 

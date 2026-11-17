@@ -544,7 +544,7 @@ func TestProcess_EntityTypeValidation(t *testing.T) {
 			expectRegistryContains: []string{"global"},
 		},
 		{
-			name: "initEntityTypeRegistry skips CC with unparseable ConfigurationResult",
+			name: "initEntityTypeRegistry skips CC with unparsable ConfigurationResult",
 			existingCCs: []ctrlruntimeclient.Object{
 				&pmuiv1alpha1.ContentConfiguration{
 					ObjectMeta: metav1.ObjectMeta{Name: "bad-json"},
@@ -561,7 +561,7 @@ func TestProcess_EntityTypeValidation(t *testing.T) {
 			expectRegistryContains: []string{"global"},
 		},
 		{
-			name: "initEntityTypeRegistry skips unparseable but loads valid CCs",
+			name: "initEntityTypeRegistry skips unparsable but loads valid CCs",
 			existingCCs: []ctrlruntimeclient.Object{
 				&pmuiv1alpha1.ContentConfiguration{
 					ObjectMeta: metav1.ObjectMeta{Name: "bad"},

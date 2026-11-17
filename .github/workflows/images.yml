@@ -17,7 +17,7 @@ name: images
 # Keeps the mutable :latest images current: on every push to main, the image
 # of every component whose sources changed in that push is built for
 # amd64/arm64, pushed as ghcr.io/<owner>/platform-mesh/<component>:latest and
-# signed. (A change to a shared library, go.work or ocm/components.yaml counts
+# signed. (A change to a shared library, root go.mod/go.sum or ocm/components.yaml counts
 # for all components.)
 #
 # No checks run here; the commit passed them as a pull request and in the
@@ -44,7 +44,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     outputs:
       imageComponents: ${{ steps.c.outputs.imageComponents }}
     steps:
@@ -70,7 +70,7 @@ jobs:
   image:
     needs: changes
     if: needs.changes.outputs.imageComponents != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write # push :latest

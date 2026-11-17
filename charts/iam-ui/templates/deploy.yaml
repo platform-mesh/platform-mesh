@@ -28,7 +28,7 @@ spec:
       - name: {{ include "common.entity.name" . }}
         image: {{ include "common.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "common.operatorHealthAndReadyness" . | indent 8 }}
+        {{- include "common.operatorHealthAndReadiness" . | indent 8 }}
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false

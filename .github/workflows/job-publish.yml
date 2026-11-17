@@ -48,6 +48,11 @@ on:
         required: false
         type: string
         default: ""
+      skip-components:
+        description: "Optional components (ocm/components.yaml) to leave out, separated by commas without spaces"
+        required: false
+        type: string
+        default: ""
     secrets:
       OCM_SIGNING_PRIVATE_KEY:
         description: "PEM private key the OCM components are signed with"
@@ -61,6 +66,8 @@ permissions:
 
 env:
   OCM_REPO: ghcr.io/${{ github.repository_owner }}
+  # Optional components this run leaves out, separated by commas without spaces.
+  SKIP_COMPONENTS: ${{ inputs.skip-components }}
   # The signature name must equal the CN of the signing certificate.
   SIGNATURE: ${{ vars.OCM_SIGNATURE_NAME || 'platform-mesh.platform-mesh' }}
 
@@ -69,7 +76,7 @@ jobs:
   # Which images to build, from ocm/components.yaml.
   # ──────────────────────────────────────────────
   components:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     outputs:
       images: ${{ steps.c.outputs.images }}
     steps:
@@ -81,7 +88,7 @@ jobs:
         id: c
         run: |
           set -euo pipefail
-          images="$(yq -o=json -I=0 '[.components | to_entries | .[] | select(.value.image != null) | {"component": .key, "image": .value.image, "path": .value.path}]' ocm/components.yaml)"
+          images="$(yq -o=json -I=0 '[.components | to_entries | .[] | select(.value.image != null) | select(.key as $k | (strenv(SKIP_COMPONENTS) | split(",") | any_c(. == $k)) | not) | {"component": .key, "image": .value.image, "path": .value.path}]' ocm/components.yaml)"
           [ "$images" != "[]" ] && [ -n "$images" ] || { echo "::error::no image components found in ocm/components.yaml"; exit 1; }
           echo "images=$images" >> "$GITHUB_OUTPUT"
           echo "$images" | jq -r '.[] | "- \(.component) (image \(.image), \(.path))"'
@@ -93,7 +100,7 @@ jobs:
   # ──────────────────────────────────────────────
   image:
     needs: components
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     permissions:
       contents: read
@@ -178,7 +185,7 @@ jobs:
           hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" > "$HOME/.ocmconfig"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
       - name: Install ocm (pinned in tools/Taskfile.yaml)
         run: |
           task tools:ocm
@@ -194,7 +201,7 @@ jobs:
   # ──────────────────────────────────────────────
   aggregate:
     needs: image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     permissions:
       contents: read
@@ -211,7 +218,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: go.work
+          go-version-file: go.mod
       - name: Install ocm, helm, yq (pinned in tools/Taskfile.yaml)
         run: |
           task tools:ocm tools:helm tools:yq
@@ -243,7 +250,7 @@ jobs:
   # ──────────────────────────────────────────────
   verify:
     needs: aggregate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
       contents: read
@@ -312,13 +319,14 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJson(needs.components.outputs.images) }}
-    uses: ./.github/workflows/job-trivy-image.yml
+    uses: $/.github/workflows/job-trivy-image.yml
     permissions:
       contents: read
       packages: read # pull the image to scan
       security-events: write # upload the SARIF report
     with:
       imageRef: ghcr.io/${{ github.repository_owner }}/platform-mesh/${{ matrix.image }}:v${{ inputs.version }}
+      sarifCategory: trivy-image/${{ matrix.image }}
 
   trivy-sbom:
     needs: [components, image]
@@ -326,7 +334,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJson(needs.components.outputs.images) }}
-    uses: ./.github/workflows/job-trivy-sbom.yml
+    uses: $/.github/workflows/job-trivy-sbom.yml
     permissions:
       contents: read
       packages: read # read the SBOM from the component

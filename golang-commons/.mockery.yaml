@@ -24,7 +24,7 @@ template-data:
 packages:
   github.com/openfga/api/proto/openfga/v1:
     config:
-      dir: directive/mocks
+      dir: fga/store/mocks
       include-auto-generated: true
       pkgname: mocks
     interfaces:
@@ -32,26 +32,6 @@ packages:
         config:
           filename: mock_OpenFGAServiceClient.go
           structname: OpenFGAServiceClient
-
-  go.platform-mesh.io/golang-commons/fga/store:
-    config:
-      dir: fga/store/mocks
-      pkgname: mocks
-    interfaces:
-      FGAStoreHelper:
-        config:
-          filename: mock_FGAStoreHelper.go
-          structname: FGAStoreHelper
-
-  go.platform-mesh.io/golang-commons/policy_services:
-    config:
-      dir: fga/policy_services/mocks
-      pkgname: mocks
-    interfaces:
-      TenantIdReader:
-        config:
-          filename: mock_TenantIdReader.go
-          structname: TenantIdReader
 
   sigs.k8s.io/controller-runtime/pkg/client:
     config:

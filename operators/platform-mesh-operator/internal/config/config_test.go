@@ -26,7 +26,6 @@ import (
 func TestNewOperatorConfig(t *testing.T) {
 	cfg := NewOperatorConfig()
 
-	assert.Equal(t, "/operator/", cfg.WorkspaceDir)
 	assert.Equal(t, "platform-mesh-system", cfg.KCP.Namespace)
 	assert.Equal(t, "root", cfg.KCP.RootShardName)
 	assert.Equal(t, "frontproxy", cfg.KCP.FrontProxyName)
@@ -35,7 +34,7 @@ func TestNewOperatorConfig(t *testing.T) {
 
 	assert.True(t, cfg.Subroutines.Deployment.Enabled)
 	assert.Equal(t, "kcp-webhook-secret", cfg.Subroutines.Deployment.AuthorizationWebhookSecretName)
-	assert.Equal(t, "rebac-authz-webhook-cert", cfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName)
+	assert.Equal(t, "pm-openfga-authz-webhook-cert", cfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName)
 	assert.True(t, cfg.Subroutines.Deployment.EnableIstio)
 
 	assert.True(t, cfg.Subroutines.KcpSetup.Enabled)
@@ -60,7 +59,6 @@ func TestOperatorConfigAddFlags(t *testing.T) {
 	cfg.AddFlags(fs)
 
 	err := fs.Parse([]string{
-		"--workspace-dir=/tmp/ws",
 		"--kcp-url=https://kcp.example.local",
 		"--kcp-namespace=custom-ns",
 		"--kcp-root-shard-name=custom-root",
@@ -84,7 +82,6 @@ func TestOperatorConfigAddFlags(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, "/tmp/ws", cfg.WorkspaceDir)
 	assert.Equal(t, "https://kcp.example.local", cfg.KCP.Url)
 	assert.Equal(t, "custom-ns", cfg.KCP.Namespace)
 	assert.Equal(t, "custom-root", cfg.KCP.RootShardName)

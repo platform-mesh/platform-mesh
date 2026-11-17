@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.entity.name" . }}-metrics
+  labels:
+    {{- include "common.labelMatcher" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "common.labelMatcher" . | nindent 4 }}
+  ports:
+    - name: metrics
+      port: {{ include "common.getKeyValue" (dict "Values" .Values "key" "metrics.port") }}
+      targetPort: metrics
+      protocol: TCP

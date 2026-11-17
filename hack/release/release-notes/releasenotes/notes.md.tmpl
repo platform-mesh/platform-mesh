@@ -1,0 +1,64 @@
+# Platform Mesh {{.Version}}
+
+<!-- flavour text -->
+
+To install see the [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with `--set-string ocm.version={{.OCMVersion}}`.
+
+Changes below are recorded since [{{.StartVersion}}]({{.RepoURL}}/releases/tag/{{.StartVersion}}).
+
+## Release Notes
+{{range .ReleaseNotes}}
+- {{join .Lines "\n  "}} ([#{{.PR}}]({{$.RepoURL}}/pull/{{.PR}}))
+{{- else}}
+No release notes.
+{{- end}}
+
+## Contributors
+{{range .Contributors}}
+- {{if .URL}}[{{.Login}}]({{.URL}}){{else}}{{.Login}}{{end}}
+{{- else}}
+No contributors.
+{{- end}}
+{{if .Contributors}}
+_{{len .Contributors}} contributor(s)_
+{{end}}
+## Components built from this repository
+
+All at version `{{.OCMVersion}}`:
+{{range .Components}}
+- {{.}}
+{{- else}}
+No components.
+{{- end}}
+
+## Components built from other repositories
+{{template "table" (dict "Rows" .OtherComponents "Header" "Component" "From" .StartOCMVersion "To" .OCMVersion "Empty" "No components from other repositories.")}}
+
+## Third-party versions
+{{template "table" (dict "Rows" .ThirdParty "Header" "Pin" "From" .StartOCMVersion "To" .OCMVersion "Empty" "No third-party versions changed.")}}
+
+## Changes
+{{- range .Changes}}
+
+### {{.Component}}{{if .From}} {{.From}} → {{.To}}{{end}}
+{{range .Changes}}
+- {{.Title}}{{if .PR}} ([#{{.PR}}]({{.Repo}}/pull/{{.PR}})){{else}} ([{{slice .SHA 0 7}}]({{.Repo}}/commit/{{.SHA}})){{end}}
+{{- else}}
+No changes.
+{{- end}}
+{{- else}}
+
+No changes.
+{{- end}}
+
+{{- define "table"}}
+{{- if .Rows}}
+| {{.Header}} | {{.From}} | {{.To}} |
+|---|---|---|
+{{- range .Rows}}
+| {{.Name}} | {{.From}} | {{if .Changed}}**{{.To}}**{{else}}{{.To}}{{end}} |
+{{- end}}
+{{- else}}
+{{.Empty}}
+{{- end}}
+{{- end}}

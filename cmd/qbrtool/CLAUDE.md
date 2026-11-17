@@ -115,17 +115,17 @@ Go CLI tool built with Cobra that exports GitHub Project Board items and analyze
   - `schema.go` - `ProjectSchema`, `FieldSchema`, `FieldDataType`, `SelectOption`
 - `internal/filter/` - Filter interface and implementations:
   - `filter.go` - `Filter` interface, `Chain` with AND/OR modes
-  - `time.go` - `QuarterFilter`, `DateRangeFilter`, `CreatedInQuarterFilter`, `ClosedInQuarterFilter`
-  - `type.go` - `TypeFilter`, `EpicFilter`, `StateFilter`, `ArchivedFilter`, `RepositoryFilter`, `LabelFilter`
+  - `time.go` - `ClosedInQuarterFilter`
+  - `type.go` - `TypeFilter`, `EpicFilter`
   - `dynamic.go` - `DynamicFieldFilter` (operators: =, !=, ~), `OrgFilter` (internal/external/specific)
 - `internal/analyzer/` - Analyzer interface and implementations:
-  - `analyzer.go` - `Analyzer` interface, `Registry`, `NewDefaultRegistry()`
+  - `analyzer.go` - `Analyzer` interface
   - `cve.go` - CVE detection analyzer
   - `oss.go` - OSS contribution analyzer
   - `security.go` - Security-related item analyzer
   - `monitoring.go` - Monitoring/observability analyzer
   - `lifecycle.go` - Item lifecycle analyzer
-  - `dynamic.go` - `GroupByAnalyzer`, `MultiGroupByAnalyzer` for dynamic grouping
+  - `dynamic.go` - `GroupByAnalyzer` for dynamic grouping
   - `markdown.go` - `WriteMarkdown()` for report generation
 - `internal/exporter/` - Export formatting:
   - `json.go` - JSON export with `Metadata`, `ExportResult`, `Summary`
@@ -137,7 +137,7 @@ Go CLI tool built with Cobra that exports GitHub Project Board items and analyze
 
 **Dynamic Field Filtering**: `DynamicFieldFilter` in `filter/dynamic.go` supports filtering by any ProjectV2 custom field with operators (equals, not-equals, contains, in). Falls back to built-in fields (state, type, repo, author, milestone).
 
-**Analyzer Registry**: Analyzers implement `Analyzer` interface with `Name()` and `Analyze(items)` methods. Composed via `NewDefaultRegistry()`.
+**Analyzers**: Analyzers implement `Analyzer` interface with `Name()` and `Analyze(items)` methods.
 
 **Group-By Analysis**: `GroupByAnalyzer` in `analyzer/dynamic.go` groups items by any field value. Supports multi-field grouping and org→repo sub-grouping.
 

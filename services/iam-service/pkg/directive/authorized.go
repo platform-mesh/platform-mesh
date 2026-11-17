@@ -61,7 +61,7 @@ type AuthorizedDirective struct {
 
 // NewAuthorizedDirective creates the directive that authorizes GraphQL fields by
 // issuing a native SelfSubjectAccessReview (SSAR) against the user's workspace.
-// The check flows kcp -> rebac-authz-webhook -> OpenFGA, so OpenFGA stays an
+// The check flows kcp -> pm-openfga-authz-webhook -> OpenFGA, so OpenFGA stays an
 // implementation detail rather than a direct dependency of iam-service.
 func NewAuthorizedDirective(air accountinfo.Retriever, cf workspace.ClientFactory, restCfg *rest.Config, log *logger.Logger) *AuthorizedDirective {
 	d := &AuthorizedDirective{
@@ -153,7 +153,7 @@ func (a AuthorizedDirective) Authorized(ctx context.Context, _ any, next graphql
 	}
 
 	// Authorize via a native SelfSubjectAccessReview against the account's own
-	// workspace. kcp routes this through the rebac-authz-webhook, which derives
+	// workspace. kcp routes this through the pm-openfga-authz-webhook, which derives
 	// the OpenFGA account object from that workspace's LogicalCluster, so no
 	// special-casing of the Account resource's cluster is required here.
 	allowed, err := a.testIfAllowed(ctx, rctx, permission, path, authHeader, wsClient)

@@ -675,6 +675,10 @@ func (r *ResourceSubroutine) updateOciRepo(ctx context.Context, inst *unstructur
 		return subroutineslib.OK(), err
 	}
 
+	// A plain-HTTP registry (a local test registry, an air-gapped mirror) is
+	// recorded with http:// in the imageReference; Flux reaches it only with
+	// spec.insecure, since spec.url is always oci://.
+	insecure := strings.HasPrefix(url, "http://")
 	url, err = ociref.NormalizeOCIURL(url, version)
 	if err != nil {
 		log.Error().Err(err).Str("url", url).Msg("Failed to parse Resource url")
@@ -704,6 +708,11 @@ func (r *ResourceSubroutine) updateOciRepo(ctx context.Context, inst *unstructur
 	}
 	if err := unstructured.SetNestedField(obj.Object, "1m0s", "spec", "interval"); err != nil {
 		return subroutineslib.OK(), err
+	}
+	if insecure {
+		if err := unstructured.SetNestedField(obj.Object, true, "spec", "insecure"); err != nil {
+			return subroutineslib.OK(), err
+		}
 	}
 	if err := unstructured.SetNestedMap(obj.Object, map[string]any{
 		"mediaType": "application/vnd.cncf.helm.chart.content.v1.tar+gzip",

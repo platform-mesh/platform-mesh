@@ -20,9 +20,9 @@ frontendPort: ""
 # -- that merges both CAs into /etc/ssl/certs/ca-bundle.crt.
 caSecret: domain-certificate
 
-# -- Name of the Secret containing the rebac-authz-webhook CA certificate (key: ca.crt).
+# -- Name of the Secret containing the pm-openfga-authz-webhook CA certificate (key: ca.crt).
 # -- Required when caSecret is also set; the two are concatenated by the combine-ca init container.
-webhookCaSecret: rebac-authz-webhook-cert
+webhookCaSecret: pm-openfga-authz-webhook-cert
 
 http:
   # -- protocol used by the portal backend. Must be set. Permissible values: http, https
@@ -53,6 +53,8 @@ auth:
     clientSecretKey: attribute.client_secret
     # -- Secret name holding the client secret
     clientSecretName: portal-client-secret-welcome
+    # -- Explicit OIDC discovery URL; empty derives the Keycloak URL from baseDomain and frontendPort.
+    discoveryUrl: ""
 
 health:
   # -- health port to be used by probes
