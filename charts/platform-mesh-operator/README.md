@@ -46,6 +46,7 @@ repeatedly apply install-mode renders must manage the profile separately.
 | gateway.port | int | `8443` | External HTTPS port exposed by the Gateway. |
 | idp.allowUnverifiedEmails | bool | `false` | Development only: accept logins of users whose email is not verified, for installations without an SMTP server. Enables the `feature-disable-email-verification` toggle on the PlatformMesh resource and, on Helm install, `idp.allowUnverifiedEmails` in the profile. Must be false in production. |
 | idp.registrationAllowed | bool | `false` |  |
+| idp.setDefaultPassword | bool | `false` | Development only: give invited users the temporary password `password`, for installations without an SMTP server to send the invitation with. Sets `idp.setDefaultPassword` in the profile on Helm install. Must be false in production. |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/platform-mesh-operator"` | The image repository path (without registry) |

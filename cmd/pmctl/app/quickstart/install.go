@@ -155,8 +155,12 @@ func (o *Options) operatorValues(src *source, gatewayClusterIP string) operatorV
 		},
 		KCP:          kcpValues{FrontProxyPort: gatewayPort},
 		Certificates: certificatesValues{SelfSigned: selfSignedValues{Enabled: true}},
-		IDP:          idpValues{RegistrationAllowed: o.RegistrationAllowed, AllowUnverifiedEmails: o.AllowUnverifiedEmails},
-		Image:        src.image,
+		IDP: idpValues{
+			RegistrationAllowed:   o.RegistrationAllowed,
+			AllowUnverifiedEmails: o.AllowUnverifiedEmails,
+			SetDefaultPassword:    o.SetDefaultPassword,
+		},
+		Image: src.image,
 	}
 	if src.ocmRepository != "" {
 		values.OCM.Repository = src.ocmRepository
