@@ -57,7 +57,7 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
           scheme: https
           hostname: ${hostname}
         credentials:
-          - type: Credentials
+          - type: Credentials/v1
             properties:
               username: ${REGISTRY_USERNAME:-github}
               password: ${GITHUB_TOKEN}
