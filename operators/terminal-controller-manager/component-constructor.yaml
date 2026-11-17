@@ -36,13 +36,13 @@ components:
       - name: sbom-cyclonedx
         type: sbom
         input:
-          type: file
+          type: File/v1
           path: terminal-controller-manager/sbom-cyclonedx.json
           mediaType: application/vnd.cyclonedx+json
       - name: sbom-spdx
         type: sbom
         input:
-          type: file
+          type: File/v1
           path: terminal-controller-manager/sbom-spdx.json
           mediaType: application/spdx+json
       - name: terminal-image
@@ -55,12 +55,12 @@ components:
       - name: sbom-cyclonedx-terminal
         type: sbom
         input:
-          type: file
+          type: File/v1
           path: terminal/sbom-cyclonedx.json
           mediaType: application/vnd.cyclonedx+json
       - name: sbom-spdx-terminal
         type: sbom
         input:
-          type: file
+          type: File/v1
           path: terminal/sbom-spdx.json
           mediaType: application/spdx+json

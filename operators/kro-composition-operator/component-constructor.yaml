@@ -36,12 +36,12 @@ components:
       - name: sbom-cyclonedx
         type: sbom
         input:
-          type: file
+          type: File/v1
           path: kro-composition-operator/sbom-cyclonedx.json
           mediaType: application/vnd.cyclonedx+json
       - name: sbom-spdx
         type: sbom
         input:
-          type: file
+          type: File/v1
           path: kro-composition-operator/sbom-spdx.json
           mediaType: application/spdx+json
