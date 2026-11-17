@@ -48,21 +48,22 @@ tests:
           path: spec.verify[0].signature
           value: example.platform-mesh
         documentIndex: 1
-  - it: bundles the default profile
+  - it: bundles the production profile by default
     template: installation-profile.yaml
     set:
       ocm:
         enabled: true
       gateway:
         baseDomain: platform.example.com
-        clusterIP: 10.96.188.4
     asserts:
       - equal:
           path: metadata.name
           value: platform-mesh-profile
-      - equal:
-          path: metadata.annotations["helm.sh/resource-policy"]
-          value: keep
+      - notExists:
+          path: metadata.annotations
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'hostAliasesEntries: &hostAliasesEntries \[\]'
       - matchRegex:
           path: data["profile.yaml"]
           pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'
@@ -72,22 +73,22 @@ tests:
       - notMatchRegex:
           path: data["profile.yaml"]
           pattern: 'cat /domain-ca/tls\.crt'
-      # The external port must be substituted by Helm at template time; the
-      # __EXTERNAL_PORT__ placeholder must not leak into the ConfigMap, and
-      # PMO's template context does not define `.port`.
+      # The operator renders the external port; quoted, as the profile has
+      # to be YAML before it is rendered. The infra chart turns the listener
+      # ports back into integers.
       - matchRegex:
           path: data["profile.yaml"]
-          pattern: 'port: 8443'
+          pattern: 'port: "\{\{ \.port \}\}"'
       - notMatchRegex:
           path: data["profile.yaml"]
-          pattern: '__EXTERNAL_PORT__'
-      - notMatchRegex:
+          pattern: '__[A-Z_]+__'
+      - matchRegex:
           path: data["profile.yaml"]
-          pattern: '\{\{ \.port \}\}'
-      - notMatchRegex:
+          pattern: 'allowUnverifiedEmails: false'
+      - matchRegex:
           path: data["profile.yaml"]
-          pattern: '__GATEWAY_CLASS_NAME__'
-  - it: disables OpenFGA tracing in the kind profile
+          pattern: 'setDefaultPassword: false'
+  - it: bundles the kind profile, the operator renders the gateway ClusterIP
     template: installation-profile.yaml
     set:
       ocm:
@@ -97,24 +98,45 @@ tests:
         baseDomain: platform.example.com
         clusterIP: 10.96.188.4
     asserts:
-      - equal:
-          path: metadata.annotations["helm.sh/resource-policy"]
-          value: keep
+      - notExists:
+          path: metadata.annotations
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'ip: "\{\{ \.gatewayServiceClusterIP \}\}"'
       - matchRegex:
           path: data["profile.yaml"]
           pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'cat /domain-ca/ca\.crt /webhook-ca/ca\.crt'
       - notMatchRegex:
           path: data["profile.yaml"]
-          pattern: 'cat /domain-ca/tls\.crt'
-      - notMatchRegex:
-          path: data["profile.yaml"]
-          pattern: '__GATEWAY_SERVICE_CLUSTER_IP__'
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'ip: "?10\.96\.188\.4"?'
+          pattern: '__[A-Z_]+__'
+  - it: renders the profile on upgrade too
+    template: installation-profile.yaml
+    release:
+      upgrade: true
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - hasDocuments:
+          count: 1
+  - it: renders no profile when ocm.profile is empty
+    template: installation-profile.yaml
+    set:
+      ocm:
+        enabled: true
+        profile: ""
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: renders no profile when installation resources are disabled
+    template: installation-profile.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
   - it: fails when ocm.profile has no bundled profile file
     template: installation-profile.yaml
     set:
@@ -185,25 +207,6 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
-  - it: renders the gateway ClusterIP into the kind profile host aliases
-    template: installation-profile.yaml
-    set:
-      ocm:
-        enabled: true
-        profile: kind
-      gateway:
-        baseDomain: platform.example.com
-        clusterIP: 10.96.188.4
-    asserts:
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'ip: "10\.96\.188\.4"'
-      - notMatchRegex:
-          path: data["profile.yaml"]
-          pattern: '__GATEWAY_SERVICE_CLUSTER_IP__'
-      - notMatchRegex:
-          path: data["profile.yaml"]
-          pattern: '(?i)traefik(ClusterIP|CRDs)?:'
   - it: requires the gateway ClusterIP for the kind profile
     template: installation.yaml
     set:
@@ -215,7 +218,8 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind profile
-  - it: requires verified emails by default
+  - it: leaves the profile alone by default
+    template: installation.yaml
     set:
       ocm:
         enabled: true
@@ -226,13 +230,30 @@ tests:
           path: spec.featureToggles
           value:
             - name: feature-accounts-in-accounts
-        template: installation.yaml
         documentIndex: 3
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'allowUnverifiedEmails: false'
-        template: installation-profile.yaml
+      - notExists:
+          path: spec.values
+        documentIndex: 3
+  - it: selects the GatewayClass through spec.values
+    template: installation.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+        className: envoy
+    asserts:
+      - equal:
+          path: spec.values
+          value:
+            services:
+              infra:
+                values:
+                  gatewayApi:
+                    gatewayClassName: envoy
+        documentIndex: 3
   - it: allows unverified emails on request
+    template: installation.yaml
     set:
       ocm:
         enabled: true
@@ -245,29 +266,18 @@ tests:
           path: spec.featureToggles
           content:
             name: feature-disable-email-verification
-        template: installation.yaml
         documentIndex: 3
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'allowUnverifiedEmails: true'
-        template: installation-profile.yaml
-      - notMatchRegex:
-          path: data["profile.yaml"]
-          pattern: 'allowUnverifiedEmails: false'
-        template: installation-profile.yaml
-  - it: sends invitations by default
-    template: installation-profile.yaml
-    set:
-      ocm:
-        enabled: true
-      gateway:
-        baseDomain: platform.example.com
-    asserts:
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'setDefaultPassword: false'
+      - equal:
+          path: spec.values
+          value:
+            services:
+              pm-keycloak-operator:
+                values:
+                  idp:
+                    allowUnverifiedEmails: true
+        documentIndex: 3
   - it: sets a default password on request
-    template: installation-profile.yaml
+    template: installation.yaml
     set:
       ocm:
         enabled: true
@@ -276,9 +286,12 @@ tests:
       idp:
         setDefaultPassword: true
     asserts:
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'setDefaultPassword: true'
-      - notMatchRegex:
-          path: data["profile.yaml"]
-          pattern: 'setDefaultPassword: false'
+      - equal:
+          path: spec.values
+          value:
+            services:
+              pm-keycloak-operator:
+                values:
+                  idp:
+                    setDefaultPassword: true
+        documentIndex: 3

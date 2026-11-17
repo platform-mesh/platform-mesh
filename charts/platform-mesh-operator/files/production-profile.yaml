@@ -199,11 +199,11 @@ data:
                   password: openfga-password
             gatewayApi:
               enabled: true
-              gatewayClassName: __GATEWAY_CLASS_NAME__
+              gatewayClassName: traefik
               listeners:
                 - name: terminate
                   hostname: "{{ .baseDomain }}"
-                  port: __EXTERNAL_PORT__
+                  port: "{{ .port }}"
                   protocol: HTTPS
                   tls:
                     mode: Terminate
@@ -213,7 +213,7 @@ data:
                         namespace: platform-mesh-system
                 - name: terminate-wildstar
                   hostname: "*.{{ .baseDomain }}"
-                  port: __EXTERNAL_PORT__
+                  port: "{{ .port }}"
                   protocol: HTTPS
                   tls:
                     mode: Terminate
@@ -222,7 +222,7 @@ data:
                         name: domain-certificate
                         namespace: platform-mesh-system
                 - name: passthrough
-                  port: __EXTERNAL_PORT__
+                  port: "{{ .port }}"
                   protocol: TLS
                   tls:
                     mode: Passthrough
@@ -232,7 +232,7 @@ data:
               listenersExtra:
                 - name: terminate-services
                   hostname: "*.services.{{ .baseDomain }}"
-                  port: __EXTERNAL_PORT__
+                  port: "{{ .port }}"
                   protocol: HTTPS
                   tls:
                     mode: Terminate
@@ -249,15 +249,15 @@ data:
             kcp:
               external:
                 hostname: kcp.api.{{ .baseDomain }}
-                port: __EXTERNAL_PORT__
+                port: "{{ .port }}"
               auth:
                 serviceAccount:
                   enabled: true
               frontProxy:
-                port: __EXTERNAL_PORT__
+                port: "{{ .port }}"
               rootShard:
                 hostname: "root.kcp.{{ .baseDomain }}"
-                shardBaseURL: https://root.kcp.{{ .baseDomain }}:__EXTERNAL_PORT__/
+                shardBaseURL: https://root.kcp.{{ .baseDomain }}:{{ .port }}/
                 extraArgs:
                 - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
               shards:
@@ -507,7 +507,7 @@ data:
               mountPath: /etc/ssl/certs/ca-bundle.crt
               subPath: ca-bundle.crt
               readOnly: true
-            frontendPort: '__EXTERNAL_PORT__'
+            frontendPort: '{{ .port }}'
             gatewayApi:
               enabled: true
               httpRoute:

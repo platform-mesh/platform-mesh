@@ -74,5 +74,27 @@ spec:
     {{- if .Values.idp.allowUnverifiedEmails }}
     - name: feature-disable-email-verification
     {{- end }}
+  {{- /* Overrides of the profile; the operator merges spec.values over it. */}}
+  {{- if or .Values.gateway.className .Values.idp.allowUnverifiedEmails .Values.idp.setDefaultPassword }}
+  values:
+    services:
+      {{- with .Values.gateway.className }}
+      infra:
+        values:
+          gatewayApi:
+            gatewayClassName: {{ . | quote }}
+      {{- end }}
+      {{- if or .Values.idp.allowUnverifiedEmails .Values.idp.setDefaultPassword }}
+      pm-keycloak-operator:
+        values:
+          idp:
+            {{- if .Values.idp.allowUnverifiedEmails }}
+            allowUnverifiedEmails: true
+            {{- end }}
+            {{- if .Values.idp.setDefaultPassword }}
+            setDefaultPassword: true
+            {{- end }}
+      {{- end }}
+  {{- end }}
   kcp: {}
 {{- end }}

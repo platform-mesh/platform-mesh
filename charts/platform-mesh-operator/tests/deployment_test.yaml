@@ -232,3 +232,19 @@ tests:
     - equal:
         path: spec.template.spec.containers[0].volumeMounts[?(@.name=="extra-volume-mount")].mountPath
         value: /mnt/extra
+- it: passes the gateway ClusterIP to the operator
+  template: deployment.yaml
+  set:
+    gateway:
+      clusterIP: 10.96.188.4
+  asserts:
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --gateway-service-cluster-ip=10.96.188.4
+- it: leaves the gateway ClusterIP to the operator default
+  template: deployment.yaml
+  asserts:
+    - notContains:
+        path: spec.template.spec.containers[0].args
+        content: --gateway-service-cluster-ip=
+        any: true

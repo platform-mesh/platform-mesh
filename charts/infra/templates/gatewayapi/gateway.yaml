@@ -20,7 +20,12 @@ spec:
     {{- end }}
     {{- $listeners = concat $listeners $generated }}
     {{- end }}
-    {{- $listeners | toYaml | nindent 4 }}
+    {{- /* A port templated by the operator in the profile arrives as a string. */}}
+    {{- $typed := list }}
+    {{- range $listeners }}
+    {{- $typed = append $typed (merge (dict "port" (int .port)) .) }}
+    {{- end }}
+    {{- $typed | toYaml | nindent 4 }}
 {{- with .Values.gatewayApi.infrastructure }}
   infrastructure:
     {{- toYaml . | nindent 4 }}

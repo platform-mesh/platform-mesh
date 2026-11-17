@@ -5,28 +5,28 @@ A Helm chart to automate bootstrapping of new environment
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 ## Profile lifecycle
 
-With `ocm.enabled=true`, Helm creates `platform-mesh-profile` once during install,
-if the ConfigMap does not already exist. Upgrades do not create or update it, even
-when `ocm.profile`, gateway values, or the bundled profile contents change. Maintain
-the profile explicitly in your own configuration or GitOps source after installation.
+With `ocm.enabled=true`, the chart owns the `platform-mesh-profile` ConfigMap: it is
+`files/<ocm.profile>-profile.yaml` as it is. Every Helm upgrade applies the profile of the chart version being
+installed, so edits made to the ConfigMap in the cluster do not survive an upgrade.
 
-The profile has `helm.sh/resource-policy: keep`, so it survives Helm upgrades and
-uninstall. Remove it explicitly when decommissioning the installation. Keep
-`ocm.enabled=true` on upgrades if this release manages the OCM and PlatformMesh
-resources; the install-only behavior applies specifically to the profile.
+To change what the profile configures, override it in `spec.values` of the
+`PlatformMesh` resource, which the operator merges over the profile. The chart does
+this itself for `gateway.className`, `idp.allowUnverifiedEmails` and
+`idp.setDefaultPassword`.
 
-Before upgrading a release that already manages the profile without this
-annotation, preserve it once:
+To maintain the profile yourself, set `ocm.profile=""` and supply the
+`platform-mesh-profile` ConfigMap from your own configuration or GitOps source.
 
-```shell
-kubectl annotate configmap platform-mesh-profile -n platform-mesh-system \
-  helm.sh/resource-policy=keep --overwrite
-```
+### Upgrading from a chart that created the profile only once
 
-The chart blocks an upgrade of an unprotected profile owned by the same release.
-This check uses Helm's live cluster lookup; use `--dry-run=server` when previewing
-an upgrade. Offline `helm template` cannot inspect existing resources. Tools that
-repeatedly apply install-mode renders must manage the profile separately.
+Earlier chart versions created the profile on install and never touched it again.
+On the first upgrade to this version:
+
+- A profile created by this Helm release is adopted and replaced with the bundled
+  one. Move your edits to `spec.values`, or set `ocm.profile=""` to keep the
+  ConfigMap as it is.
+- A profile created outside of Helm makes the upgrade fail with an ownership error.
+  Set `ocm.profile=""`.
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -41,12 +41,12 @@ repeatedly apply install-mode renders must manage the profile separately.
 | extraArgs[0] | string | `"--subroutines-feature-toggles-enabled=true"` |  |
 | gateway | object | `{"baseDomain":"","className":"","clusterIP":"","port":8443}` | Gateway/exposure configuration (used when ocm.enabled=true). |
 | gateway.baseDomain | string | `""` | Public DNS name used for Platform Mesh endpoints. |
-| gateway.className | string | `""` | Name of the GatewayClass the Platform Mesh Gateway attaches to. Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation. |
-| gateway.clusterIP | string | `""` | ClusterIP of the gateway controller Service. Required when ocm.profile=kind, where component pods resolve the Platform Mesh hostnames to it through host aliases; production uses public DNS. |
+| gateway.className | string | `""` | Name of the GatewayClass the Platform Mesh Gateway attaches to, `traefik` when empty. Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation. Overrides the profile through `spec.values` of the PlatformMesh resource. |
+| gateway.clusterIP | string | `""` | ClusterIP of the gateway controller Service, passed to the operator as `--gateway-service-cluster-ip`. Required when ocm.profile=kind, where component pods resolve the Platform Mesh hostnames to it through host aliases; production uses public DNS. |
 | gateway.port | int | `8443` | External HTTPS port exposed by the Gateway. |
-| idp.allowUnverifiedEmails | bool | `false` | Development only: accept logins of users whose email is not verified, for installations without an SMTP server. Enables the `feature-disable-email-verification` toggle on the PlatformMesh resource and, on Helm install, `idp.allowUnverifiedEmails` in the profile. Must be false in production. |
+| idp.allowUnverifiedEmails | bool | `false` | Development only: accept logins of users whose email is not verified, for installations without an SMTP server. Enables the `feature-disable-email-verification` toggle on the PlatformMesh resource and overrides `idp.allowUnverifiedEmails` of the profile through its `spec.values`. Must be false in production. |
 | idp.registrationAllowed | bool | `false` |  |
-| idp.setDefaultPassword | bool | `false` | Development only: give invited users the temporary password `password`, for installations without an SMTP server to send the invitation with. Sets `idp.setDefaultPassword` in the profile on Helm install. Must be false in production. |
+| idp.setDefaultPassword | bool | `false` | Development only: give invited users the temporary password `password`, for installations without an SMTP server to send the invitation with. Overrides `idp.setDefaultPassword` of the profile through `spec.values` of the PlatformMesh resource. Must be false in production. |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/platform-mesh-operator"` | The image repository path (without registry) |
@@ -55,10 +55,10 @@ repeatedly apply install-mode renders must manage the profile separately.
 | kcp | object | `{"frontProxyPort":443}` | KCP connectivity configuration (used when ocm.enabled=true). |
 | kcp.frontProxyPort | int | `443` | Internal port of the KCP front-proxy Service. Production Services expose 443; the kind profile uses 8443. |
 | log.level | string | `"info"` | log level. Permissible values: debug, info, warn, error |
-| ocm | object | `{"enabled":false,"installSigningCertificate":true,"profile":"production","repository":"ghcr.io/platform-mesh","signatureName":"platform-mesh.platform-mesh","version":"0.5.2"}` | When enabled, manages the OCM Repository/Component CRs and the PlatformMesh CR, and creates the profile ConfigMap once on Helm install if absent. Helm upgrades preserve the existing profile. Disable to supply PlatformMesh resources from a separate GitOps source. |
+| ocm | object | `{"enabled":false,"installSigningCertificate":true,"profile":"production","repository":"ghcr.io/platform-mesh","signatureName":"platform-mesh.platform-mesh","version":"0.5.2"}` | When enabled, manages the OCM Repository/Component CRs, the PlatformMesh CR and the profile ConfigMap. Disable to supply PlatformMesh resources from a separate GitOps source. |
 | ocm.enabled | bool | `false` | Enable the bundled installation resources. Keep enabled on upgrades to continue managing the OCM and PlatformMesh resources. |
 | ocm.installSigningCertificate | bool | `true` | Set to false when the OCM component is signed by a different trusted key. |
-| ocm.profile | string | `"production"` | Initial profile, applied only on Helm install when no profile ConfigMap exists. Changes on upgrade do not update the profile. `production` assumes the infrastructure prerequisites already exist. |
+| ocm.profile | string | `"production"` | Bundled profile (`production` or `kind`) the chart installs as the `platform-mesh-profile` ConfigMap, and replaces on every upgrade. `production` assumes the infrastructure prerequisites already exist. Set to `""` to supply the ConfigMap yourself. |
 | ocm.repository | string | `"ghcr.io/platform-mesh"` | OCI registry (and optional path) the Platform Mesh OCM components are read from. Point this at a mirror, or at a fork's registry, to install from there. |
 | ocm.signatureName | string | `"platform-mesh.platform-mesh"` | Name of the OCM signature the components are verified against. |
 | ocm.version | string | `"0.5.2"` | Platform Mesh OCM component version to reconcile. |
