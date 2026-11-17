@@ -53,6 +53,10 @@ type FGAInfo struct {
 type OIDCInfo struct {
 	IssuerURL string                `json:"issuerUrl"`
 	Clients   map[string]ClientInfo `json:"clients"`
+	// Scopes are what clients of the issuer request besides openid, such as the
+	// kubeconfigs the portal hands out. Empty leaves the choice to the client.
+	// +optional
+	Scopes []string `json:"scopes,omitempty"`
 }
 
 type StoreInfo struct {

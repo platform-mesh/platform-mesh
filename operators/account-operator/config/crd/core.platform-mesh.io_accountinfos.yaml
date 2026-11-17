@@ -111,6 +111,13 @@ spec:
                     type: object
                   issuerUrl:
                     type: string
+                  scopes:
+                    description: |-
+                      Scopes are what clients of the issuer request besides openid, such as the
+                      kubeconfigs the portal hands out. Empty leaves the choice to the client.
+                    items:
+                      type: string
+                    type: array
                 required:
                 - clients
                 - issuerUrl

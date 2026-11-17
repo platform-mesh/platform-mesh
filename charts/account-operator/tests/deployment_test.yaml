@@ -100,3 +100,35 @@ tests:
         enabled: false
     asserts:
       - matchSnapshot: {}
+  - it: no oidc flags without an issuer
+    template: deployment.yaml
+    set:
+      oidc:
+        clients:
+          kubectl: platform-mesh
+        scopes: [email]
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-clients=kubectl=platform-mesh
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-scopes=email
+  - it: external oidc issuer
+    template: deployment.yaml
+    set:
+      oidc:
+        issuerUrl: https://issuer.example/dex
+        clients:
+          kubectl: platform-mesh
+        scopes: [email, groups]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-issuer-url=https://issuer.example/dex
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-clients=kubectl=platform-mesh
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-scopes=email,groups

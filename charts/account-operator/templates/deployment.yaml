@@ -49,6 +49,17 @@ spec:
           - --subroutines-account-info-enabled={{ .Values.subroutines.accountInfo.enabled }}
           - --controllers-account-info-enabled={{ .Values.controllers.accountInfo.enabled }}
           - --kcp-api-export-endpoint-slice-name={{ .Values.kcp.apiExportEndpointSliceName }}
+          {{- with .Values.oidc }}
+          {{- if .issuerUrl }}
+          - --oidc-issuer-url={{ .issuerUrl }}
+          {{- range $name, $clientID := .clients }}
+          - --oidc-clients={{ $name }}={{ $clientID }}
+          {{- end }}
+          {{- with .scopes }}
+          - --oidc-scopes={{ join "," . }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
           {{- if .Values.webhooks.enabled }}
           - --webhooks-enabled
           - --webhooks-cert-dir={{ .Values.webhooks.certDir }}

@@ -26,6 +26,10 @@ A Helm chart to deploy platform-mesh Account-Operator
 | kcp | object | `{"apiExportEndpointSliceName":"core.platform-mesh.io"}` | The kcp configuration |
 | kcp.apiExportEndpointSliceName | string | `"core.platform-mesh.io"` | kcp APIExportEndpointSliceName which is used for reconciliation |
 | kubeconfigSecret | string | `"account-operator-kubeconfig"` | Name of the Secret holding the kubeconfig used to reach the API server. This Secret is not created by this Helm chart and is not meant to be created by the user: in a regular Platform Mesh installation it is created and managed by the PM Operator, which provisions a `<component>-kubeconfig` Secret for each PM component. |
+| oidc | object | `{"clients":{},"issuerUrl":"","scopes":[]}` | An OIDC issuer that is the same for every account: an external issuer, used instead of Keycloak. The operator publishes it in every AccountInfo, where the portal reads it for the kubeconfigs it hands out. Leave the issuer empty with Keycloak, whose operator publishes the realm of each organization |
+| oidc.clients | object | `{}` | Clients of the issuer, client name to client ID. The portal looks the client of kubeconfigs up as `kubectl` |
+| oidc.issuerUrl | string | `""` | The issuer URL, as it appears in the iss claim |
+| oidc.scopes | list | `[]` | Scopes clients request besides openid, e.g. email and groups |
 | operator.leaderElect | bool | `true` |  |
 | security.mountServiceAccountToken | bool | `true` | Mount the service account token |
 | subroutines.accountInfo.enabled | bool | `true` | Enable AccountInfo subroutine |

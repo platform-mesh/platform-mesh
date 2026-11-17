@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v260126-7c674ee.accountinfos.core.platform-mesh.io
+  name: v261117-0513cde6.accountinfos.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -108,6 +108,13 @@ spec:
                   type: object
                 issuerUrl:
                   type: string
+                scopes:
+                  description: |-
+                    Scopes are what clients of the issuer request besides openid, such as the
+                    kubeconfigs the portal hands out. Empty leaves the choice to the client.
+                  items:
+                    type: string
+                  type: array
               required:
               - clients
               - issuerUrl

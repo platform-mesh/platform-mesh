@@ -34,6 +34,15 @@ kcp:
   # -- kcp APIExportEndpointSliceName which is used for reconciliation
   apiExportEndpointSliceName: "core.platform-mesh.io"
 
+# -- An OIDC issuer that is the same for every account: an external issuer, used instead of Keycloak. The operator publishes it in every AccountInfo, where the portal reads it for the kubeconfigs it hands out. Leave the issuer empty with Keycloak, whose operator publishes the realm of each organization
+oidc:
+  # -- The issuer URL, as it appears in the iss claim
+  issuerUrl: ""
+  # -- Clients of the issuer, client name to client ID. The portal looks the client of kubeconfigs up as `kubectl`
+  clients: {}
+  # -- Scopes clients request besides openid, e.g. email and groups
+  scopes: []
+
 subroutines:
   workspaceType:
     # -- Enable workspace type subroutine
