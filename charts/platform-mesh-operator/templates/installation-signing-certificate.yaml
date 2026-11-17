@@ -1,3 +1,32 @@
 {{- if and .Values.ocm.enabled .Values.ocm.installSigningCertificate }}
-{{ .Files.Get "files/ocm-signing-public-cert.yaml" }}
+{{- $certificates := fromYaml (.Files.Get "files/ocm-signing-public-cert.yaml") }}
+{{- $certificate := required (printf "ocm.signatureName %q has no certificate in files/ocm-signing-public-cert.yaml" .Values.ocm.signatureName) (index $certificates "stringData" .Values.ocm.signatureName) }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ocm-signing-public-cert
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+stringData:
+  # The OCM controller verifies component versions from this configuration: the
+  # signing entry names the signature to require, the credentials entry supplies
+  # the key to verify it with.
+  # https://ocm.software/docs/how-to/verify-component-signatures-on-deployment/
+  .ocmconfig: |
+    type: generic.config.ocm.software/v1
+    configurations:
+      - type: signing.config.ocm.software/v1alpha1
+        signature: {{ .Values.ocm.signatureName | quote }}
+        verifier:
+          type: RSASigningConfiguration/v1alpha1
+      - type: credentials.config.ocm.software/v1
+        consumers:
+          - identities:
+              - type: RSA/v1alpha1
+                algorithm: RSASSA-PSS
+                signature: {{ .Values.ocm.signatureName | quote }}
+            credentials:
+              - type: RSACredentials/v1
+                publicKeyPEM: |
+{{ $certificate | trim | indent 18 }}
 {{- end }}
