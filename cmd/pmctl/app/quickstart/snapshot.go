@@ -559,30 +559,27 @@ func (s *snapshot) signingKey() (key, cert []byte, err error) {
 // access works, with lower rate limits). hack/release/ocm-config.sh writes
 // the same for the release.
 func ocmConfig(key, cert []byte, token string) []byte {
-	credentials := func(identity, properties map[string]any) map[string]any {
+	consumer := func(identity, credential map[string]any) map[string]any {
 		return map[string]any{
-			"type": "credentials.config.ocm.software",
+			"type": "credentials.config.ocm.software/v1",
 			"consumers": []any{map[string]any{
-				"identity":    identity,
-				"credentials": []any{properties},
+				"identities":  []any{identity},
+				"credentials": []any{credential},
 			}},
 		}
 	}
 
 	configurations := []any{
-		credentials(
+		consumer(
 			map[string]any{"type": "RSA/v1alpha1", "algorithm": "RSASSA-PSS", "signature": snapshotSignature},
-			map[string]any{"type": "Credentials/v1", "properties": map[string]any{
-				"private_key_pem": string(key),
-				"public_key_pem":  string(cert),
-			}},
+			map[string]any{"type": "RSACredentials/v1", "privateKeyPEM": string(key), "publicKeyPEM": string(cert)},
 		),
 	}
 	if token != "" {
 		host, _, _ := strings.Cut(publishedOCMRepo, "/")
-		configurations = append(configurations, credentials(
+		configurations = append(configurations, consumer(
 			map[string]any{"type": "OCIRegistry", "scheme": "https", "hostname": host},
-			map[string]any{"type": "Credentials", "properties": map[string]any{"username": "github", "password": token}},
+			map[string]any{"type": "Credentials/v1", "properties": map[string]any{"username": "github", "password": token}},
 		))
 	}
 

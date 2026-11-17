@@ -50,12 +50,12 @@ echo "configurations:"
 
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   cat <<EOF
-  - type: credentials.config.ocm.software
+  - type: credentials.config.ocm.software/v1
     consumers:
-      - identity:
-          type: OCIRegistry
-          scheme: https
-          hostname: ${hostname}
+      - identities:
+          - type: OCIRegistry
+            scheme: https
+            hostname: ${hostname}
         credentials:
           - type: Credentials/v1
             properties:
@@ -68,18 +68,17 @@ if [ -n "$signature" ]; then
   : "${OCM_SIGNING_PRIVATE_KEY:?OCM_SIGNING_PRIVATE_KEY must be set to sign}"
   : "${OCM_SIGNING_CERT:?OCM_SIGNING_CERT must be set to sign}"
   cat <<EOF
-  - type: credentials.config.ocm.software
+  - type: credentials.config.ocm.software/v1
     consumers:
-      - identity:
-          type: RSA/v1alpha1
-          algorithm: RSASSA-PSS
-          signature: ${signature}
+      - identities:
+          - type: RSA/v1alpha1
+            algorithm: RSASSA-PSS
+            signature: ${signature}
         credentials:
-          - type: Credentials/v1
-            properties:
-              private_key_pem: |
-$(printf '%s\n' "$OCM_SIGNING_PRIVATE_KEY" | indent '                ')
-              public_key_pem: |
-$(printf '%s\n' "$OCM_SIGNING_CERT" | indent '                ')
+          - type: RSACredentials/v1
+            privateKeyPEM: |
+$(printf '%s\n' "$OCM_SIGNING_PRIVATE_KEY" | indent '              ')
+            publicKeyPEM: |
+$(printf '%s\n' "$OCM_SIGNING_CERT" | indent '              ')
 EOF
 fi
