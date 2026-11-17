@@ -77,7 +77,8 @@ type DeploymentSubroutine struct {
 const (
 	profileConfigMapKey           = "profile.yaml"
 	defaultProfileConfigMapSuffix = "-profile"
-	ocmConfigurationConfigMapName = "platform-mesh-ocm-configuration"
+	// OCMConfigurationConfigMapName identifies the generated OCM configuration read and watched by the operator.
+	OCMConfigurationConfigMapName = "platform-mesh-ocm-configuration"
 	ocmConfigurationConfigMapKey  = "ocm-configuration.yaml"
 	// argoPlaceholderRepoURL is set by templates and replaced by ResourceSubroutine with actual OCM values
 	argoPlaceholderRepoURL = "PLACEHOLDER_TO_BE_SET_BY_RESOURCE_SUBROUTINE"
@@ -1503,7 +1504,7 @@ func (r *DeploymentSubroutine) manageAuthorizationWebhookSecrets(ctx context.Con
 func (r *DeploymentSubroutine) loadOCMConfiguration(ctx context.Context, namespace string) (map[string]any, error) {
 	cm := &corev1.ConfigMap{}
 	err := r.clientRuntime.Get(ctx, ctrlruntimeclient.ObjectKey{
-		Name:      ocmConfigurationConfigMapName,
+		Name:      OCMConfigurationConfigMapName,
 		Namespace: namespace,
 	}, cm)
 	if err != nil {

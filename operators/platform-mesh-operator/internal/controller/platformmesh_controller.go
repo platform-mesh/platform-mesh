@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mchandler "sigs.k8s.io/multicluster-runtime/pkg/handler"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
@@ -84,13 +85,15 @@ func (r *PlatformMeshReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *pm
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named(pmReconcilerName).
 		For(&pmcorev1alpha1.PlatformMesh{}, mcbuilder.WithEngageWithLocalCluster(true), mcbuilder.WithEngageWithProviderClusters(false)).
+		Watches(&corev1.ConfigMap{}, mchandler.EnqueueRequestsFromMapFunc(r.mapConfigMapToPlatformMesh),
+			mcbuilder.WithEngageWithLocalCluster(true), mcbuilder.WithEngageWithProviderClusters(false)).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)
 }
 
 // mapConfigMapToPlatformMesh finds all PlatformMesh resources that reference the given ConfigMap
-// via spec.profileConfigMap and returns reconcile requests for them.
+// via spec.profileConfigMap, or consume the OCM configuration in its namespace.
 func (r *PlatformMeshReconciler) mapConfigMapToPlatformMesh(ctx context.Context, obj ctrlruntimeclient.Object) []reconcile.Request {
 	var requests []reconcile.Request
 	configMap, ok := obj.(*corev1.ConfigMap)
@@ -116,7 +119,9 @@ func (r *PlatformMeshReconciler) mapConfigMapToPlatformMesh(ctx context.Context,
 			configMapName = pm.Name + "-profile"
 		}
 
-		if configMap.Name == configMapName && configMap.Namespace == configMapNamespace {
+		profileChanged := configMap.Name == configMapName && configMap.Namespace == configMapNamespace
+		ocmChanged := configMap.Name == pmsubs.OCMConfigurationConfigMapName && configMap.Namespace == pm.Namespace
+		if profileChanged || ocmChanged {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      pm.Name,
