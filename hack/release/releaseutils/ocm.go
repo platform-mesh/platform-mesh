@@ -44,7 +44,6 @@ func (repo OCMRepository) Add(ctx context.Context, constructor, workingDir strin
 		"add", "component-versions",
 		"--repository", repo.Repo,
 		"--constructor", constructor,
-		"--component-version-conflict-policy", "skip",
 		"--skip-reference-digest-processing=false",
 		"-o", "json",
 	}
