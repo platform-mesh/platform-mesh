@@ -36,6 +36,8 @@ kcp:
       clientID: ""
       groupsClaim: groups
       usernameClaim: email
+      usernamePrefix: ""
+      groupsPrefix: ""
       caFileRef:
         name: domain-certificate-ca
         key: tls.crt
@@ -301,6 +303,10 @@ dex:
     pathPrefix: /dex
     # -- list of HTTPRoute filters (default: none)
     filters: []
+  # -- Connector for the OAuth2 password grant, which issues tokens without a browser; `local` is the static password database (default: grant disabled)
+  passwordConnector: ""
+  # -- Dex `expiry` settings (token lifetimes, refresh token rotation), rendered as given (default: Dex defaults)
+  expiry: {}
   staticClient:
     # -- OIDC client ID for Keycloak identity broker
     id: keycloak-broker
@@ -317,6 +323,7 @@ dex:
       hash: "$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm"
       username: dex
       userID: "08a868f8-4b4b-42f3-9d23-5f46eda2c3a0"
+      groups: []
 
 cnpg:
   enabled: false

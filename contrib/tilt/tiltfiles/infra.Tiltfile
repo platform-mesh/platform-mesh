@@ -20,6 +20,12 @@ load("../helpers.py", "TILT_DIR", "kind_in", "profile_chart", "profile_values_fi
 load(
     "./settings.Tiltfile",
     "BASE_DOMAIN",
+    "BASE_DOMAIN_PORT",
+    "DEX",
+    "DEX_CLIENT_ID",
+    "DEX_CLIENT_SECRET",
+    "DEX_ISSUER",
+    "DEX_USERS",
     "KEYCLOAK",
     "KUBECTL",
     "OPENFGA",
@@ -73,27 +79,61 @@ NO_REQUESTS = {"requests": {"cpu": "1m", "memory": "1Mi"}}
 KCP_ROOT_HOSTNAME = "root.kcp." + BASE_DOMAIN
 KCP_TRITON_HOSTNAME = "triton.kcp." + BASE_DOMAIN
 
-infra = profile_chart(
-    "infra",
-    NAMESPACE,
-    TEMPLATE_VARS,
-    overrides={
-        "kcp": {
-            "external": {"port": PORT},
-            "rootShard": {"shardBaseURL": "https://{}:{}/".format(KCP_ROOT_HOSTNAME, PORT), "resources": NO_REQUESTS},
-            "shards": [{"name": "triton", "hostname": KCP_TRITON_HOSTNAME, "spec": {"resources": NO_REQUESTS}}],
-            # kcp-operator defaults both to 2; one is enough on a single node.
-            "proxy": {"replicas": 1},
-            "cacheServer": {"replicas": 1, "resources": NO_REQUESTS},
-            "frontProxy": {"resources": NO_REQUESTS},
-            "etcd": {"resources": NO_REQUESTS, "backup": {"resources": NO_REQUESTS}},
-            # The ReBAC authorization webhook is pm-openfga-authz-webhook, which needs OpenFGA.
-            "webhook": {"enabled": OPENFGA},
-        },
-        "keycloak": {"operator": {"enabled": KEYCLOAK, "resources": NO_REQUESTS}},
+infra_overrides = {
+    "kcp": {
+        "external": {"port": PORT},
+        "rootShard": {"shardBaseURL": "https://{}:{}/".format(KCP_ROOT_HOSTNAME, PORT), "resources": NO_REQUESTS},
+        "shards": [{"name": "triton", "hostname": KCP_TRITON_HOSTNAME, "spec": {"resources": NO_REQUESTS}}],
+        # kcp-operator defaults both to 2; one is enough on a single node.
+        "proxy": {"replicas": 1},
+        "cacheServer": {"replicas": 1, "resources": NO_REQUESTS},
+        "frontProxy": {"resources": NO_REQUESTS},
+        "etcd": {"resources": NO_REQUESTS, "backup": {"resources": NO_REQUESTS}},
+        # The ReBAC authorization webhook is pm-openfga-authz-webhook, which needs OpenFGA.
+        "webhook": {"enabled": OPENFGA},
     },
-)
+    "keycloak": {"operator": {"enabled": KEYCLOAK, "resources": NO_REQUESTS}},
+}
+
+if DEX:
+    infra_overrides["dex"] = {
+        "enabled": True,
+        "issuer": DEX_ISSUER,
+        "gatewayApi": {"hostnames": [BASE_DOMAIN]},
+        # The password grant issues tokens without a browser.
+        "passwordConnector": "local",
+        # Dex v2.46.1 deadlocks its memory storage when it rotates a refresh token;
+        # without rotation and inside the reuse interval it returns before that.
+        "expiry": {"refreshTokens": {"disableRotation": True, "reuseInterval": "8760h"}},
+        "staticPasswords": DEX_USERS,
+        "staticClient": {
+            "id": DEX_CLIENT_ID,
+            "secret": DEX_CLIENT_SECRET,
+            "name": "Platform Mesh",
+            # Dex compares redirect URIs exactly; this is the portal's callback.
+            "redirectURIs": ["https://{}/callback?storageType=none".format(BASE_DOMAIN_PORT)],
+        },
+    }
+    infra_overrides["kcp"]["auth"] = {
+        "oidc": {
+            "enabled": True,
+            "issuerUrl": DEX_ISSUER,
+            "clientID": DEX_CLIENT_ID,
+            "groupsClaim": "groups",
+            "usernameClaim": "email",
+        }
+    }
+
+infra = profile_chart("infra", NAMESPACE, TEMPLATE_VARS, overrides=infra_overrides)
 k8s_yaml(infra)
+
+if DEX:
+    k8s_resource(
+        "dex",
+        objects=select_objects(infra, lambda o: o["kind"] == "ConfigMap" and o["metadata"]["name"] == "dex"),
+        resource_deps=["gateway"],
+        labels=["infra"],
+    )
 
 # Wait on operator conditions because bootstrap replaces kcp pods.
 k8s_resource(

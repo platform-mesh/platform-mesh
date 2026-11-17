@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261102-f1aff4b1.platformmeshes.core.platform-mesh.io
+  name: v261116-5d5fcb53.platformmeshes.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -90,6 +90,42 @@ spec:
         spec:
           description: PlatformMeshSpec defines the desired state of PlatformMesh
           properties:
+            authentication:
+              description: Authentication names the identity provider kcp and the
+                portal use instead of Keycloak.
+              properties:
+                oidc:
+                  description: OIDC is an external OIDC issuer.
+                  properties:
+                    clientID:
+                      description: ClientID is the audience tokens must be issued
+                        for.
+                      minLength: 1
+                      type: string
+                    groupsClaim:
+                      default: groups
+                      description: GroupsClaim is the claim holding the groups.
+                      type: string
+                    groupsPrefix:
+                      description: GroupsPrefix is prepended to every group.
+                      type: string
+                    issuerURL:
+                      description: IssuerURL is the issuer as it appears in the iss
+                        claim.
+                      pattern: ^https://
+                      type: string
+                    usernameClaim:
+                      default: email
+                      description: UsernameClaim is the claim holding the username.
+                      type: string
+                    usernamePrefix:
+                      description: UsernamePrefix is prepended to every username.
+                      type: string
+                  required:
+                  - clientID
+                  - issuerURL
+                  type: object
+              type: object
             exposure:
               properties:
                 baseDomain:

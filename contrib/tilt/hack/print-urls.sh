@@ -23,7 +23,7 @@
 #
 # Also writes the kind cluster's kubeconfig to .secret/kind.kubeconfig and
 # prints the Keycloak admin credentials (secret keycloak-admin), once
-# Tilt has deployed Keycloak.
+# Tilt has deployed Keycloak, and the Dex users when Tilt runs with --with=dex.
 #
 # KIND_CLUSTER_NAME selects the cluster (default platform-mesh), PORT the
 # NodePort (default 31000, PORT in settings.Tiltfile), TILT_PORT the
@@ -67,6 +67,10 @@ keycloak_user="$(keycloak_field username)"
 keycloak_password="$(keycloak_field password)"
 pending="(not deployed yet, rerun: task tilt:help)"
 
+# Dex is deployed only when Tilt runs with --with=dex.
+dex="$(kubectl --context "$ctx" -n "${PLATFORM_NAMESPACE:-platform-mesh-system}" \
+        get deployment dex --ignore-not-found -o name 2> /dev/null)"
+
 cat <<EOF
 
 Platform Mesh (available once Tilt has finished deploying):
@@ -84,3 +88,17 @@ Platform Mesh (available once Tilt has finished deploying):
   Environment     . contrib/tilt/env.sh
 
 EOF
+
+# Users, client id and secret are the DEX_* constants of tiltfiles/settings.Tiltfile.
+if [ -n "$dex" ]; then
+    cat <<EOF
+  Dex             https://$base/dex
+    users         admin@, dev@, viewer@portal.localhost
+    password      password
+    id_token      curl --cacert $secret/ca.crt \\
+                    -u platform-mesh:local-dev-platform-mesh-secret \\
+                    -d grant_type=password -d username=admin@portal.localhost -d password=password \\
+                    -d 'scope=openid email groups' https://$base/dex/token
+
+EOF
+fi

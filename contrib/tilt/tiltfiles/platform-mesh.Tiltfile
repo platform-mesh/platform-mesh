@@ -21,6 +21,7 @@ load(
     "../helpers.py",
     "chart",
     "component_binary",
+    "profile_values",
     "render",
     "select_objects",
     "service",
@@ -30,6 +31,11 @@ load(
 load(
     "./settings.Tiltfile",
     "BASE_DOMAIN",
+    "DEX",
+    "DEX_CLIENT_ID",
+    "DEX_CLIENT_SECRET",
+    "DEX_ISSUER",
+    "DEX_SCOPE",
     "FEATURE_TOGGLES",
     "GO_DEPS",
     "HTTPBIN_NAMESPACE",
@@ -99,6 +105,17 @@ k8s_resource(
     labels=["platform-mesh"],
 )
 
+authentication = ""
+if DEX:
+    authentication = "\n".join(
+        [
+            "  authentication:",
+            "    oidc:",
+            "      issuerURL: " + DEX_ISSUER,
+            "      clientID: " + DEX_CLIENT_ID,
+        ]
+    )
+
 # Separate resource so re-triggering the operator never delete-recreates
 # the CR.
 k8s_yaml(
@@ -109,6 +126,7 @@ k8s_yaml(
             "PORT": PORT,
             "HTTPBIN_NAMESPACE": HTTPBIN_NAMESPACE,
             "FEATURE_TOGGLES": "\n".join(["    - name: " + t for t in FEATURE_TOGGLES]),
+            "AUTHENTICATION": authentication,
         },
     )
 )
@@ -149,6 +167,7 @@ service(
     deps=GO_DEPS,
     workloads=["kubernetes-graphql-gateway", "kubernetes-graphql-gateway-listener"],
 )
+
 service(
     "extension-manager-virtual-workspace",
     NAMESPACE,
@@ -156,8 +175,22 @@ service(
     path="operators/extension-manager-operator/virtual-workspace",
     deps=GO_DEPS,
 )
+
+
+portal_overrides = {"frontendPort": str(PORT)}
+if DEX:
+    portal_overrides["auth"] = {"default": {"discoveryUrl": DEX_ISSUER + "/.well-known/openid-configuration"}}
+    portal_overrides["extraEnvVars"] = profile_values("portal", TEMPLATE_VARS).get("extraEnvVars", []) + [
+        {"name": "OIDC_STATIC_CLIENT_ID", "value": DEX_CLIENT_ID},
+        {"name": "OIDC_STATIC_CLIENT_SECRET", "value": DEX_CLIENT_SECRET},
+        {"name": "OIDC_SCOPE", "value": DEX_SCOPE},
+        # Dex has no wildcard redirect URIs; only the base domain's callback is registered.
+        {"name": "OIDC_CALLBACK_ON_BASE_DOMAIN", "value": "true"},
+    ]
+
+service("portal", NAMESPACE, TEMPLATE_VARS, overrides=portal_overrides)
+
 service("marketplace", NAMESPACE, TEMPLATE_VARS, path="services/marketplace", deps=GO_DEPS)
-service("portal", NAMESPACE, TEMPLATE_VARS, overrides={"frontendPort": str(PORT)})
 service("marketplace-ui", NAMESPACE, TEMPLATE_VARS)
 
 # Relationship-based authorization on OpenFGA: stores, models and the kcp

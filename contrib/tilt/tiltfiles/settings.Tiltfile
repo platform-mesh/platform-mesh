@@ -41,11 +41,17 @@ config.define_string_list(
     "without",
     usage="comma-separated backends to leave out: {} (repeatable)".format("|".join(WITHOUT_TOGGLES.keys())),
 )
+
+WITH_BACKENDS = ["dex"]
+config.define_string_list(
+    "with",
+    usage="comma-separated backends to add: {} (repeatable); dex leaves Keycloak out".format("|".join(WITH_BACKENDS)),
+)
 cfg = config.parse()
 
 
-def parse_without(args):
-    """Backends named by --without, deduplicated and validated.
+def parse_backends(flag, args, known):
+    """Backends named by a list flag, deduplicated and validated.
 
     string_list accumulates repeated flags but does not split on commas.
     """
@@ -55,8 +61,8 @@ def parse_without(args):
             name = name.strip()
             if not name:
                 continue
-            if name not in WITHOUT_TOGGLES:
-                fail("--without={}: expected one or more of {}".format(name, ", ".join(WITHOUT_TOGGLES.keys())))
+            if name not in known:
+                fail("--{}={}: expected one or more of {}".format(flag, name, ", ".join(known)))
             if name not in names:
                 names.append(name)
     return names
@@ -66,7 +72,12 @@ CONTEXT = cfg.get("context", DEFAULT_CONTEXT)
 NAMESPACE = "platform-mesh-system"
 HTTPBIN_NAMESPACE = cfg.get("httpbin-namespace", DEFAULT_HTTPBIN_NAMESPACE)
 FRONTEND_CORS = cfg.get("frontend-cors", False)
-WITHOUT = parse_without(cfg.get("without", []))
+WITH = parse_backends("with", cfg.get("with", []), WITH_BACKENDS)
+WITHOUT = parse_backends("without", cfg.get("without", []), WITHOUT_TOGGLES.keys())
+DEX = "dex" in WITH
+# Dex replaces Keycloak as identity provider.
+if DEX and "keycloak" not in WITHOUT:
+    WITHOUT.append("keycloak")
 KEYCLOAK = "keycloak" not in WITHOUT
 OPENFGA = "openfga" not in WITHOUT
 # Toggles for the PlatformMesh CR (manifests/platformmesh.yaml).
@@ -108,3 +119,36 @@ TEMPLATE_VARS = {
     "internalFrontProxyUrl": KCP_FRONT_PROXY_URL,
     "gatewayClassName": "traefik",
 }
+
+# Dex as identity provider of kcp (--with=dex): static users.
+DEX_ISSUER = "https://{}/dex".format(BASE_DOMAIN_PORT)
+DEX_CLIENT_ID = "platform-mesh"
+# Local development only.
+DEX_CLIENT_SECRET = "local-dev-platform-mesh-secret"
+# Dex adds e-mail and groups to a token only for their scopes, offline_access gives a refresh token.
+DEX_SCOPE = "openid email profile groups offline_access"
+# bcrypt of "password".
+DEX_PASSWORD_HASH = "$2a$10$iwYOwbUyunwL.Ahtr9zBq.ruc.rjYSDPwBnX.CDAsMlUA1alMoeqW"
+DEX_USERS = [
+    {
+        "email": "admin@portal.localhost",
+        "username": "admin",
+        "userID": "69b09731-2f2e-454e-b08c-2186ec99c75e",
+        "hash": DEX_PASSWORD_HASH,
+        "groups": ["platform-mesh:admins"],
+    },
+    {
+        "email": "dev@portal.localhost",
+        "username": "dev",
+        "userID": "186d270a-8446-4c96-bbb8-6aa95ffdb6e7",
+        "hash": DEX_PASSWORD_HASH,
+        "groups": ["platform-mesh:developers"],
+    },
+    {
+        "email": "viewer@portal.localhost",
+        "username": "viewer",
+        "userID": "9858cb7f-f74f-4932-818f-56d69459dac1",
+        "hash": DEX_PASSWORD_HASH,
+        "groups": ["platform-mesh:viewers"],
+    },
+]
