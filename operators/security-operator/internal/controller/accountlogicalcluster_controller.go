@@ -62,7 +62,13 @@ func NewAccountLogicalClusterController(log *logger.Logger, cfg config.Config, f
 
 	lc := lifecycle.New(mgr, opts.Name, func() ctrlruntimeclient.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
-	}, subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientGetter))
+	},
+		subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientGetter),
+		// Only terminates, so it runs only in the terminator. Deletion runs the
+		// subroutines in reverse, so a failing tuple cleanup cannot keep the
+		// APIBindings, and with them the workspace, from being deleted.
+		subroutine.NewAPIBindingFinalizerReleaseSubroutine(kcpClientGetter),
+	)
 
 	if opts.InitializerName != "" {
 		lc = lc.WithInitializer(opts.InitializerName)
