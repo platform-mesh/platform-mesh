@@ -154,6 +154,46 @@ tests:
   asserts:
   - isNull:
       path: spec.template.spec.hostAliases
+- it: points the operator at the gateway in the kind profile
+  template: deployment.yaml
+  set:
+    ocm:
+      enabled: true
+      profile: kind
+    gateway:
+      baseDomain: portal.localhost
+      clusterIP: 10.96.188.4
+  asserts:
+  - equal:
+      path: spec.template.spec.hostAliases
+      value:
+        - ip: 10.96.188.4
+          hostnames:
+            - portal.localhost
+            - kcp.api.portal.localhost
+            - root.kcp.portal.localhost
+- it: keeps configured host aliases in the kind profile
+  template: deployment.yaml
+  set:
+    ocm:
+      enabled: true
+      profile: kind
+    gateway:
+      baseDomain: portal.localhost
+      clusterIP: 10.96.188.4
+    hostAliases:
+      enabled: true
+      entries:
+        - ip: 10.0.0.1
+          hostnames:
+            - example.com
+  asserts:
+  - equal:
+      path: spec.template.spec.hostAliases
+      value:
+        - ip: 10.0.0.1
+          hostnames:
+            - example.com
 - it: deploy with extraArgs
   template: deployment.yaml
   set:
