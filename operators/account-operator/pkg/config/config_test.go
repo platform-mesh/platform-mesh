@@ -17,6 +17,8 @@ limitations under the License.
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -103,7 +105,9 @@ func TestOIDCConfig(t *testing.T) {
 		t.Parallel()
 		cfg := parse(t)
 		require.NoError(t, cfg.Validate())
-		require.Nil(t, cfg.OIDC.Info())
+		info, err := cfg.OIDC.Info()
+		require.NoError(t, err)
+		require.Nil(t, info)
 	})
 
 	t.Run("issuer, clients and scopes are published", func(t *testing.T) {
@@ -114,6 +118,8 @@ func TestOIDCConfig(t *testing.T) {
 			"--oidc-scopes=email,groups",
 		)
 		require.NoError(t, cfg.Validate())
+		info, err := cfg.OIDC.Info()
+		require.NoError(t, err)
 		require.Equal(t, &pmcorev1alpha1.OIDCInfo{
 			IssuerURL: "https://issuer.example/dex",
 			Clients: map[string]pmcorev1alpha1.ClientInfo{
@@ -121,12 +127,38 @@ func TestOIDCConfig(t *testing.T) {
 				"portal":  {ClientID: "platform-mesh"},
 			},
 			Scopes: []string{"email", "groups"},
-		}, cfg.OIDC.Info())
+		}, info)
+	})
+
+	t.Run("CA of the issuer is published", func(t *testing.T) {
+		t.Parallel()
+		const pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
+		caFile := filepath.Join(t.TempDir(), "ca.crt")
+		require.NoError(t, os.WriteFile(caFile, []byte(pem), 0o600))
+
+		cfg := parse(t, "--oidc-issuer-url=https://issuer.example", "--oidc-clients=kubectl=cli", "--oidc-ca-file="+caFile)
+		require.NoError(t, cfg.Validate())
+		info, err := cfg.OIDC.Info()
+		require.NoError(t, err)
+		require.Equal(t, pem, info.CA)
+	})
+
+	t.Run("CA file that is missing or no certificate is an error", func(t *testing.T) {
+		t.Parallel()
+		notPEM := filepath.Join(t.TempDir(), "ca.crt")
+		require.NoError(t, os.WriteFile(notPEM, []byte("not a certificate"), 0o600))
+
+		for _, caFile := range []string{filepath.Join(t.TempDir(), "missing.crt"), notPEM} {
+			cfg := parse(t, "--oidc-issuer-url=https://issuer.example", "--oidc-clients=kubectl=cli", "--oidc-ca-file="+caFile)
+			_, err := cfg.OIDC.Info()
+			require.Error(t, err)
+		}
 	})
 
 	invalid := map[string][]string{
 		"clients without an issuer": {"--oidc-clients=kubectl=cli"},
 		"scopes without an issuer":  {"--oidc-scopes=email"},
+		"CA without an issuer":      {"--oidc-ca-file=/ca.crt"},
 		"issuer without a client":   {"--oidc-issuer-url=https://issuer.example"},
 		"issuer that is not https":  {"--oidc-issuer-url=http://issuer.example", "--oidc-clients=kubectl=cli"},
 		"client without an id":      {"--oidc-issuer-url=https://issuer.example", "--oidc-clients=kubectl="},

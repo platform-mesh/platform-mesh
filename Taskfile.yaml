@@ -121,6 +121,17 @@ tasks:
       - KIND={{.KIND}} hack/kind.sh up --config contrib/tilt/kind.yaml
       - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile {{.CLI_ARGS}}"
 
+# TODO: We can remove these once Portal start emitting a proper CA in the UI kubeconfig.
+  tilt:trust:
+    desc: Make this machine trust the CA of the Tilt environment (browser, kubectl oidc-login). Development machines only.
+    cmds:
+      - contrib/tilt/hack/trust-ca.sh trust
+
+  tilt:untrust:
+    desc: Remove the CA of the Tilt environment from this machine's trust store.
+    cmds:
+      - contrib/tilt/hack/trust-ca.sh untrust
+
   tilt:help:
     desc: Print the Tilt options, URLs and the environment for running the portal locally.
     silent: true
@@ -137,6 +148,9 @@ tasks:
           task tilt:up -- --without=openfga    leave OpenFGA (and pm-openfga-authz-webhook, pm-openfga-operator) out
           task tilt:up -- --with=dex           Dex with static users as identity provider of kcp, disables Keycloak
           task tilt:e2e                        run the e2e suites (Go, then portal) against Tilt
+          task tilt:trust                      trust the environment's CA on this machine, for the browser and
+                                               kubeconfigs from the portal; again after recreating the cluster
+          task tilt:untrust                    remove that CA again
           . contrib/tilt/env.sh                export the URLs and credentials for tests
 
         Logging in: create an organization with your e-mail as creator (the Invite puts

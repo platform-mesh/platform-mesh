@@ -100,6 +100,12 @@ spec:
                 type: object
               oidc:
                 properties:
+                  ca:
+                    description: |-
+                      CA is the PEM bundle clients verify the issuer with, such as the
+                      kubeconfigs the portal hands out. Empty for an issuer whose certificate
+                      is publicly trusted.
+                    type: string
                   clients:
                     additionalProperties:
                       properties:

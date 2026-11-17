@@ -18,6 +18,8 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -78,12 +80,26 @@ type OIDCConfig struct {
 	// Clients maps a client name, as consumers look it up, to its client ID.
 	Clients map[string]string
 	Scopes  []string
+	// CAFile is a PEM file with the CA of the issuer, for an issuer whose
+	// certificate is not publicly trusted. Read once, at startup.
+	CAFile string
 }
 
 // Info returns what every AccountInfo has as OIDC, nil without an issuer.
-func (c OIDCConfig) Info() *pmcorev1alpha1.OIDCInfo {
+func (c OIDCConfig) Info() (*pmcorev1alpha1.OIDCInfo, error) {
 	if c.IssuerURL == "" {
-		return nil
+		return nil, nil
+	}
+	var ca string
+	if c.CAFile != "" {
+		pem, err := os.ReadFile(c.CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("reading --oidc-ca-file: %w", err)
+		}
+		if !strings.Contains(string(pem), "-----BEGIN CERTIFICATE-----") {
+			return nil, fmt.Errorf("--oidc-ca-file %s holds no PEM certificate", c.CAFile)
+		}
+		ca = string(pem)
 	}
 	clients := make(map[string]pmcorev1alpha1.ClientInfo, len(c.Clients))
 	for name, id := range c.Clients {
@@ -93,13 +109,14 @@ func (c OIDCConfig) Info() *pmcorev1alpha1.OIDCInfo {
 		IssuerURL: c.IssuerURL,
 		Clients:   clients,
 		Scopes:    append([]string(nil), c.Scopes...),
-	}
+		CA:        ca,
+	}, nil
 }
 
 func (c OIDCConfig) validate() error {
 	if c.IssuerURL == "" {
-		if len(c.Clients) > 0 || len(c.Scopes) > 0 {
-			return errors.New("--oidc-clients and --oidc-scopes need --oidc-issuer-url")
+		if len(c.Clients) > 0 || len(c.Scopes) > 0 || c.CAFile != "" {
+			return errors.New("--oidc-clients, --oidc-scopes and --oidc-ca-file need --oidc-issuer-url")
 		}
 		return nil
 	}
@@ -182,4 +199,5 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.OIDC.IssuerURL, "oidc-issuer-url", c.OIDC.IssuerURL, "External OIDC issuer to publish in every AccountInfo; leave empty with Keycloak, whose operator publishes the realm of each organization")
 	fs.StringToStringVar(&c.OIDC.Clients, "oidc-clients", c.OIDC.Clients, "Clients of --oidc-issuer-url as name=clientID pairs, e.g. kubectl=platform-mesh")
 	fs.StringSliceVar(&c.OIDC.Scopes, "oidc-scopes", c.OIDC.Scopes, "Scopes clients of --oidc-issuer-url request besides openid, e.g. email,groups")
+	fs.StringVar(&c.OIDC.CAFile, "oidc-ca-file", c.OIDC.CAFile, "PEM file with the CA of --oidc-issuer-url, published for clients to verify the issuer with; leave empty for a publicly trusted certificate")
 }

@@ -58,6 +58,9 @@ spec:
           {{- with .scopes }}
           - --oidc-scopes={{ join "," . }}
           {{- end }}
+          {{- if .caFileRef.name }}
+          - --oidc-ca-file=/oidc-ca/{{ .caFileRef.key }}
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- if .Values.webhooks.enabled }}
@@ -87,6 +90,11 @@ spec:
           name: cert
           readOnly: true
         {{- end }}
+        {{- if and .Values.oidc.issuerUrl .Values.oidc.caFileRef.name }}
+        - name: oidc-ca
+          mountPath: /oidc-ca
+          readOnly: true
+        {{- end }}
       volumes:
         {{- include "common.extraVolumes" . | nindent 8 }}
         {{- if .Values.kubeconfigSecret }}
@@ -99,4 +107,9 @@ spec:
           secret:
             defaultMode: 420
             secretName: {{ include "common.entity.name" . }}-webhook-server-cert
+        {{- end }}
+        {{- if and .Values.oidc.issuerUrl .Values.oidc.caFileRef.name }}
+        - name: oidc-ca
+          secret:
+            secretName: {{ .Values.oidc.caFileRef.name }}
         {{- end }}

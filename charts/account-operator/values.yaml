@@ -42,6 +42,10 @@ oidc:
   clients: {}
   # -- Scopes clients request besides openid, e.g. email and groups
   scopes: []
+  # -- Secret with the CA of the issuer, published for clients to verify the issuer with. The default is the CA of the domain certificate, as for kcp. Set the name to "" for an issuer whose certificate is publicly trusted
+  caFileRef:
+    name: domain-certificate-ca
+    key: tls.crt
 
 subroutines:
   workspaceType:
