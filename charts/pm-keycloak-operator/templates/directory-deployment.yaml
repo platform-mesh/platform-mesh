@@ -1,0 +1,133 @@
+{{- if .Values.directory.enabled }}
+{{- if not .Values.directory.kubeconfigSecret }}
+{{- fail "directory.kubeconfigSecret is required when directory.enabled is true" }}
+{{- end }}
+{{- if not .Values.directory.tlsSecret }}
+{{- fail "directory.tlsSecret is required when directory.enabled is true" }}
+{{- end }}
+{{- if not .Values.directory.clientCASecret }}
+{{- fail "directory.clientCASecret is required when directory.enabled is true" }}
+{{- end }}
+{{- if not .Values.keycloak.baseUrl }}
+{{- fail "keycloak.baseUrl is required when directory.enabled is true" }}
+{{- end }}
+{{- if not .Values.directory.allowedWorkloads }}
+{{- fail "directory.allowedWorkloads is required when directory.enabled is true" }}
+{{- end }}
+{{- if and (not .Values.directory.allowedTenantClusters) (not .Values.directory.allowAnyTenantCluster) }}
+{{- fail "directory requires allowedTenantClusters or allowAnyTenantCluster=true" }}
+{{- end }}
+{{- if and .Values.directory.allowedTenantClusters .Values.directory.allowAnyTenantCluster }}
+{{- fail "directory.allowedTenantClusters and directory.allowAnyTenantCluster are mutually exclusive" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}-directory
+  namespace: {{ .Release.Namespace }}
+spec:
+  revisionHistoryLimit: {{ .Values.deployment.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      app: {{ include "common.entity.name" . }}-directory
+  template:
+    metadata:
+      labels:
+        app: {{ include "common.entity.name" . }}-directory
+        control-plane: controller-manager
+    spec:
+      {{- include "common.imagePullSecret" . | indent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: {{ include "common.entity.name" . }}-directory
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" . }}
+      {{ include "common.hostAliases" $ | nindent 6 }}
+      containers:
+        - name: directory
+          image: {{ include "common.image" . }}
+          {{- include "common.imagePullPolicy" . | nindent 10 }}
+          {{- include "common.container.securityContext" . | nindent 10 }}
+          {{- include "common.resources" (dict "Values" .Values "Chart" .Chart) | nindent 10 }}
+          ports:
+            - name: https-directory
+              containerPort: 9444
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: https-directory
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: https-directory
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          startupProbe:
+            tcpSocket:
+              port: https-directory
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+          args:
+            - directory
+            - --bind-address=:9444
+            - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+            - --provider-class={{ .Values.directory.className }}
+            - --class-workspace={{ .Values.directory.classWorkspace }}
+            - --keycloak-base-url={{ .Values.keycloak.baseUrl }}
+            - --keycloak-client-id=pm-keycloak-operator
+            - --tls-cert-file=/directory-tls/tls.crt
+            - --tls-key-file=/directory-tls/tls.key
+            - --client-ca-file=/directory-client-ca/ca.crt
+            - --allowed-workloads={{ join "," .Values.directory.allowedWorkloads }}
+            - --request-timeout={{ .Values.directory.requestTimeout }}
+            {{- if .Values.directory.allowAnyTenantCluster }}
+            - --allow-any-tenant-cluster
+            {{- else }}
+            - --allowed-tenant-clusters={{ join "," .Values.directory.allowedTenantClusters }}
+            {{- end }}
+            {{ if .Values.directory.providerCASecret }}
+            - --provider-ca-file=/provider-ca/ca.crt
+            {{ end }}
+            {{- include "common.commonOperatorArgs" . | indent 10 }}
+          env:
+            {{- include "common.basicEnvironment" . | nindent 12 }}
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.keycloak.client.secret.name }}
+                  key: {{ .Values.keycloak.client.secret.key }}
+          volumeMounts:
+            - name: kcp-kubeconfig
+              mountPath: /api-kubeconfig
+              readOnly: true
+            - name: directory-tls
+              mountPath: /directory-tls
+              readOnly: true
+            - name: directory-client-ca
+              mountPath: /directory-client-ca
+              readOnly: true
+            {{- if .Values.directory.providerCASecret }}
+            - name: provider-ca
+              mountPath: /provider-ca
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: kcp-kubeconfig
+          secret:
+            secretName: {{ .Values.directory.kubeconfigSecret }}
+        - name: directory-tls
+          secret:
+            secretName: {{ .Values.directory.tlsSecret }}
+        - name: directory-client-ca
+          secret:
+            secretName: {{ .Values.directory.clientCASecret }}
+        {{- if .Values.directory.providerCASecret }}
+        - name: provider-ca
+          secret:
+            secretName: {{ .Values.directory.providerCASecret }}
+        {{- end }}
+{{- end }}

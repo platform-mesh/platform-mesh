@@ -15,6 +15,17 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | deployment.resources.requests.cpu | string | `"150m"` |  |
 | deployment.resources.requests.memory | string | `"128Mi"` |  |
 | deployment.revisionHistoryLimit | int | `3` | Number of old ReplicaSets to retain for rollback |
+| directory.allowAnyTenantCluster | bool | `false` | Explicitly permit the allowed workloads to query dynamic organization clusters. |
+| directory.allowedTenantClusters | list | `[]` | Immutable KCP logical cluster IDs permitted to query the directory. |
+| directory.allowedWorkloads | list | `[]` | Exact SPIFFE identities permitted to call the directory. |
+| directory.className | string | `"default"` | IdentityProviderClass name selected for this provider runtime. |
+| directory.classWorkspace | string | `"root:platform-mesh-system"` | Trusted workspace containing IdentityProviderClass resources. |
+| directory.clientCASecret | string | `""` | CA bundle Secret trusted for directory callers (key: ca.crt). |
+| directory.enabled | bool | `false` | Deploy the opt-in mTLS identity directory backed by the selected provider. |
+| directory.kubeconfigSecret | string | `"pm-keycloak-identity-directory-kubeconfig"` | Dedicated KCP service identity Secret (key: kubeconfig). |
+| directory.providerCASecret | string | `""` | Optional provider-specific CA Secret (key: ca.crt). |
+| directory.requestTimeout | string | `"30s"` | Maximum duration of one directory request. |
+| directory.tlsSecret | string | `""` | TLS serving certificate Secret (keys: tls.crt, tls.key). |
 | domainCALookup | bool | `true` | Enable domain CA lookup for TLS verification on kcp side |
 | environment | string | `""` | environment indicator, used for logging and observability |
 | featureGates | object | `{}` |  |
@@ -48,6 +59,15 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | kubeconfigSecret | string | `""` | The kubeconfig secret for the operator |
 | logLevel | string | `"info"` | Log level for all operator components. Permissible values: debug, info, warn, error |
 | operator.extraArgs | list | `[]` |  |
+| provider.className | string | `"default"` | IdentityProviderClass name selected for this provider runtime. |
+| provider.classWorkspace | string | `"root:platform-mesh-system"` | Trusted workspace containing IdentityProviderClass and Welcome IdentityTenant resources. |
+| provider.enabled | bool | `false` | Deploy the provider-neutral IdentityTenant reconciler. Requires featureGates.LegacyAPIs=false; enable only after legacy ownership is fenced or migrated. |
+| provider.endpointSlice | string | `"identity.platform-mesh.io"` | Platform-owned identity APIExportEndpointSlice name. |
+| provider.extraArgs | list | `[]` |  |
+| provider.kubeconfigSecret | string | `"pm-keycloak-identity-provider-kubeconfig"` | Kubeconfig Secret for a least-privilege KCP identity API service account (key: kubeconfig). |
+| provider.organizationWorkspace | string | `"root:orgs"` | Trusted workspace containing organization IdentityTenant and Invitation resources. |
+| provider.requestTimeout | string | `"30s"` | Maximum duration of one provider reconciliation. |
+| provider.resyncInterval | string | `"30s"` | Periodic provider state and configuration resync interval. |
 | region | string | `""` | region indicator, used for logging and observability |
 | terminator.extraArgs | list | `[]` |  |
 | terminator.kubeconfigSecret | string | `"keycloak-terminator-kubeconfig"` | The kubeconfig secret for the terminator |

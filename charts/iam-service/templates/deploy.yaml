@@ -21,6 +21,14 @@ spec:
         {{- include "common.healthAndReadiness" . | indent 8 }}
         image: {{ include "common.image" .}}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- if .Values.identityDirectory.enabled }}
+        {{- if not .Values.identityDirectory.endpoint }}
+        {{- fail "identityDirectory.endpoint is required when identityDirectory.enabled is true" }}
+        {{- end }}
+        {{- if not .Values.identityDirectory.clientTLSSecret }}
+        {{- fail "identityDirectory.clientTLSSecret is required when identityDirectory.enabled is true" }}
+        {{- end }}
+        {{- end }}
         ports:
         - containerPort: {{ .Values.port }}
           name: http
@@ -29,6 +37,15 @@ spec:
           - serve
           - --keycloak-base-url={{ .Values.keycloak.baseUrl }}
           - --keycloak-client-id={{ .Values.keycloak.client.id }}
+          {{- if .Values.identityDirectory.enabled }}
+          - --identity-directory-endpoint={{ .Values.identityDirectory.endpoint }}
+          - --identity-directory-client-cert-file=/identity-directory/tls.crt
+          - --identity-directory-client-key-file=/identity-directory/tls.key
+          - --identity-directory-timeout={{ .Values.identityDirectory.timeout }}
+          {{- if .Values.identityDirectory.caSecret }}
+          - --identity-directory-ca-file=/identity-directory-ca/ca.crt
+          {{- end }}
+          {{- end }}
           - --roles-file-path=/roles/roles.yaml
           - --jwt-user-id-claim={{ .Values.jwt.userIdClaim  }}
           - --openfga-grpc-addr={{ .Values.openfga.endpoint }}
@@ -37,17 +54,29 @@ spec:
           {{- include "common.basicEnvironment" . | nindent 10 }}
           - name: KUBECONFIG
             value: /api-kubeconfig/kubeconfig
+          {{- if not .Values.identityDirectory.enabled }}
           - name: KEYCLOAK_CLIENT_SECRET
             valueFrom:
               secretKeyRef:
                 name: {{ .Values.keycloak.client.secret.name }}
                 key: {{ .Values.keycloak.client.secret.key }}
+          {{- end }}
         volumeMounts:
         {{- include "common.extraVolumeMounts" . | nindent 8 }}
           - name: external-api-server
             mountPath: /api-kubeconfig
           - name: roles
             mountPath: /roles
+          {{- if .Values.identityDirectory.enabled }}
+          - name: identity-directory-client
+            mountPath: /identity-directory
+            readOnly: true
+          {{- if .Values.identityDirectory.caSecret }}
+          - name: identity-directory-ca
+            mountPath: /identity-directory-ca
+            readOnly: true
+          {{- end }}
+          {{- end }}
           {{- if .Values.caSecret }}
           - name: domain-ca
             mountPath: /etc/ssl/certs/domain-ca.crt
@@ -63,6 +92,16 @@ spec:
         - name: roles
           configMap:
             name: {{ include "common.entity.name" . }}-roles
+        {{- if .Values.identityDirectory.enabled }}
+        - name: identity-directory-client
+          secret:
+            secretName: {{ .Values.identityDirectory.clientTLSSecret }}
+        {{- if .Values.identityDirectory.caSecret }}
+        - name: identity-directory-ca
+          secret:
+            secretName: {{ .Values.identityDirectory.caSecret }}
+        {{- end }}
+        {{- end }}
         {{- if .Values.caSecret }}
         - name: domain-ca
           secret:

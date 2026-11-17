@@ -65,6 +65,148 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].args
           content: --feature-gates=LegacyAPIs=true
+  - it: does not deploy the staged provider controller by default
+    templates:
+      - provider-deployment.yaml
+      - provider-rbac.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: deploys the staged provider controller only with its dedicated KCP identity
+    templates:
+      - provider-deployment.yaml
+      - provider-rbac.yaml
+    set:
+      featureGates:
+        LegacyAPIs: false
+      provider:
+        enabled: true
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-pm-keycloak-operator-provider
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --identity-api-export-endpoint-slice-name=identity.platform-mesh.io
+        template: provider-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: provider-deployment.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: pm-keycloak-identity-provider-kubeconfig
+        template: provider-deployment.yaml
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: RELEASE-NAME-pm-keycloak-operator-provider
+        template: provider-deployment.yaml
+      - contains:
+          path: rules[1].verbs
+          content: get
+        template: provider-rbac.yaml
+        documentIndex: 1
+      - notContains:
+          path: rules[1].verbs
+          content: list
+        template: provider-rbac.yaml
+        documentIndex: 1
+  - it: requires legacy identity writers to be fenced before enabling the provider
+    template: provider-deployment.yaml
+    set:
+      provider:
+        enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: provider.enabled requires featureGates.LegacyAPIs=false to fence legacy identity writers
+  - it: requires a dedicated KCP kubeconfig when the staged provider is enabled
+    template: provider-deployment.yaml
+    set:
+      featureGates:
+        LegacyAPIs: false
+      provider:
+        enabled: true
+        kubeconfigSecret: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: provider.kubeconfigSecret is required when provider.enabled is true
+  - it: does not deploy the staged identity directory by default
+    templates:
+      - directory-deployment.yaml
+      - directory-rbac.yaml
+      - directory-service.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: deploys the staged identity directory with explicit mTLS and tenant scope
+    templates:
+      - directory-deployment.yaml
+      - directory-rbac.yaml
+      - directory-service.yaml
+    set:
+      directory:
+        enabled: true
+        tlsSecret: identity-directory-serving-cert
+        clientCASecret: identity-directory-client-ca
+        providerCASecret: keycloak-provider-ca
+        allowedWorkloads:
+          - spiffe://platform-mesh.test/iam
+        allowAnyTenantCluster: true
+      keycloak:
+        baseUrl: https://keycloak.example
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-pm-keycloak-operator-directory
+        template: directory-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --allow-any-tenant-cluster
+        template: directory-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: directory-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --provider-ca-file=/provider-ca/ca.crt
+        template: directory-deployment.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: pm-keycloak-identity-directory-kubeconfig
+        template: directory-deployment.yaml
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+        template: directory-deployment.yaml
+      - equal:
+          path: spec.ports[0].port
+          value: 9444
+        template: directory-service.yaml
+  - it: requires mTLS secrets and a workload when the directory is enabled
+    template: directory-deployment.yaml
+    set:
+      directory:
+        enabled: true
+        kubeconfigSecret: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: directory.kubeconfigSecret is required when directory.enabled is true
+  - it: requires explicit cluster scope for the identity directory
+    template: directory-deployment.yaml
+    set:
+      directory:
+        enabled: true
+        kubeconfigSecret: identity-directory-kubeconfig
+        tlsSecret: identity-directory-serving-cert
+        clientCASecret: identity-directory-client-ca
+        allowedWorkloads:
+          - spiffe://platform-mesh.test/iam
+      keycloak:
+        baseUrl: https://keycloak.example
+    asserts:
+      - failedTemplate:
+          errorMessage: directory requires allowedTenantClusters or allowAnyTenantCluster=true
   - it: registers the legacy webhook rule only while LegacyAPIs is on
     set:
       webhooks:

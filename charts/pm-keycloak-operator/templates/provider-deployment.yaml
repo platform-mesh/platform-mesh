@@ -1,0 +1,66 @@
+{{- if .Values.provider.enabled }}
+{{- if ne (index .Values.featureGates "LegacyAPIs") false }}
+{{- fail "provider.enabled requires featureGates.LegacyAPIs=false to fence legacy identity writers" }}
+{{- end }}
+{{- if not .Values.provider.kubeconfigSecret }}
+{{- fail "provider.kubeconfigSecret is required when provider.enabled is true" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}-provider
+  namespace: {{ .Release.Namespace }}
+spec:
+  revisionHistoryLimit: {{ .Values.deployment.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      app: {{ include "common.entity.name" . }}-provider
+  template:
+    metadata:
+      labels:
+        app: {{ include "common.entity.name" . }}-provider
+        control-plane: controller-manager
+    spec:
+      {{- include "common.imagePullSecret" . | indent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: {{ include "common.entity.name" . }}-provider
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" . }}
+      {{ include "common.hostAliases" $ | nindent 6 }}
+      containers:
+        - name: provider
+          image: {{ include "common.image" . }}
+          {{- include "common.imagePullPolicy" . | nindent 10 }}
+          {{- include "common.container.securityContext" . | nindent 10 }}
+          {{- include "common.resources" (dict "Values" .Values "Chart" .Chart) | nindent 10 }}
+          {{- include "common.operatorHealthAndReadiness" . | nindent 10 }}
+          ports:
+            {{- include "common.PortsMetricsHealth" (dict "Values" .Values) | nindent 12 }}
+          args:
+            - provider
+            - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+            - --class-workspace={{ .Values.provider.classWorkspace }}
+            - --organization-workspace={{ .Values.provider.organizationWorkspace }}
+            - --provider-class={{ .Values.provider.className }}
+            - --runtime-namespace={{ .Release.Namespace }}
+            - --identity-api-export-endpoint-slice-name={{ .Values.provider.endpointSlice }}
+            - --request-timeout={{ .Values.provider.requestTimeout }}
+            - --resync-interval={{ .Values.provider.resyncInterval }}
+            {{- with .Values.provider.extraArgs }}
+            {{ toYaml . | nindent 12 }}
+            {{- end }}
+            {{- include "common.commonOperatorArgs" . | indent 10 }}
+          env:
+            {{- include "common.basicEnvironment" . | nindent 12 }}
+          volumeMounts:
+            - name: kcp-kubeconfig
+              mountPath: /api-kubeconfig
+              readOnly: true
+      volumes:
+        - name: kcp-kubeconfig
+          secret:
+            secretName: {{ .Values.provider.kubeconfigSecret }}
+{{- end }}

@@ -1,0 +1,54 @@
+suite: identity directory
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+tests:
+  - it: keeps the provider-neutral directory disabled by default
+    template: templates/deploy.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --identity-directory-endpoint=
+      - lengthEqual:
+          path: spec.template.spec.containers[0].env
+          count: 2
+      - equal:
+          path: spec.template.spec.containers[0].env[1].name
+          value: KEYCLOAK_CLIENT_SECRET
+  - it: configures the mTLS directory without Keycloak credentials
+    template: templates/deploy.yaml
+    set:
+      identityDirectory:
+        enabled: true
+        endpoint: https://identity-directory.platform-mesh-system.svc:9444
+        clientTLSSecret: iam-directory-client
+        caSecret: iam-directory-ca
+        timeout: 15s
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --identity-directory-endpoint=https://identity-directory.platform-mesh-system.svc:9444
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --identity-directory-client-cert-file=/identity-directory/tls.crt
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --identity-directory-ca-file=/identity-directory-ca/ca.crt
+      - lengthEqual:
+          path: spec.template.spec.containers[0].env
+          count: 1
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: identity-directory-client
+            secret:
+              secretName: iam-directory-client
+  - it: requires a directory endpoint when enabled
+    template: templates/deploy.yaml
+    set:
+      identityDirectory:
+        enabled: true
+        clientTLSSecret: iam-directory-client
+    asserts:
+      - failedTemplate:
+          errorMessage: identityDirectory.endpoint is required when identityDirectory.enabled is true

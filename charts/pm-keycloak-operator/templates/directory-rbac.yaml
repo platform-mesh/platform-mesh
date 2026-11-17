@@ -1,0 +1,9 @@
+{{- if .Values.directory.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "common.entity.name" . }}-directory
+  namespace: {{ .Release.Namespace }}
+automountServiceAccountToken: false
+{{- include "common.imagePullSecret" . }}
+{{- end }}

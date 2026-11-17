@@ -12,6 +12,11 @@ A Helm chart for Kubernetes
 | gatewayApi.httpRoute.pathPrefix | string | `"/iam/graphql"` |  |
 | health.port | int | `8080` |  |
 | hostAliases.enabled | bool | `false` |  |
+| identityDirectory.caSecret | string | `""` | Optional Secret containing the directory server CA (key: ca.crt). |
+| identityDirectory.clientTLSSecret | string | `""` | Secret containing the IAM caller certificate and private key (keys: tls.crt, tls.key). |
+| identityDirectory.enabled | bool | `false` | Use the provider-neutral mTLS directory instead of the Keycloak admin API. |
+| identityDirectory.endpoint | string | `""` | HTTPS origin of the directory Service. Required when enabled. |
+| identityDirectory.timeout | string | `"10s"` | Directory request timeout. |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` | The image registry |

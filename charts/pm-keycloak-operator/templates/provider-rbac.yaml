@@ -1,0 +1,38 @@
+{{- if .Values.provider.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "common.entity.name" . }}-provider
+  namespace: {{ .Release.Namespace }}
+{{- include "common.imagePullSecret" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "common.entity.name" . }}-provider
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "common.entity.name" . }}-provider
+  namespace: {{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "common.entity.name" . }}-provider
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "common.entity.name" . }}-provider
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

@@ -50,6 +50,20 @@ keycloak:
       name: iam-client-secret
       key: client_secret
 
+# Staged provider-neutral identity directory. Enabling this requires a
+# directory deployment and a UID-bound IdentityTenant projection in AccountInfo.
+identityDirectory:
+  # -- Use the provider-neutral mTLS directory instead of the Keycloak admin API.
+  enabled: false
+  # -- HTTPS origin of the directory Service. Required when enabled.
+  endpoint: ""
+  # -- Secret containing the IAM caller certificate and private key (keys: tls.crt, tls.key).
+  clientTLSSecret: ""
+  # -- Optional Secret containing the directory server CA (key: ca.crt).
+  caSecret: ""
+  # -- Directory request timeout.
+  timeout: 10s
+
 # JWT configuration
 jwt:
   userIdClaim: "email"

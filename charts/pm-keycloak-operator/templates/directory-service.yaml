@@ -1,0 +1,16 @@
+{{- if .Values.directory.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.entity.name" . }}-directory
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ include "common.entity.name" . }}-directory
+  ports:
+    - name: https-directory
+      port: 9444
+      targetPort: https-directory
+      protocol: TCP
+{{- end }}

@@ -136,6 +136,53 @@ initContainer:
 operator:
   extraArgs: []
 
+# Staged KRM provider controller. Keep disabled until legacy realm ownership has
+# been migrated and the IdentityProviderClass is installed in KCP.
+provider:
+  # -- Deploy the provider-neutral IdentityTenant reconciler. Requires featureGates.LegacyAPIs=false; enable only after legacy ownership is fenced or migrated.
+  enabled: false
+  # -- Kubeconfig Secret for a least-privilege KCP identity API service account (key: kubeconfig).
+  kubeconfigSecret: "pm-keycloak-identity-provider-kubeconfig"
+  # -- Trusted workspace containing IdentityProviderClass and Welcome IdentityTenant resources.
+  classWorkspace: root:platform-mesh-system
+  # -- Trusted workspace containing organization IdentityTenant and Invitation resources.
+  organizationWorkspace: root:orgs
+  # -- IdentityProviderClass name selected for this provider runtime.
+  className: default
+  # -- Platform-owned identity APIExportEndpointSlice name.
+  endpointSlice: identity.platform-mesh.io
+  # -- Maximum duration of one provider reconciliation.
+  requestTimeout: 30s
+  # -- Periodic provider state and configuration resync interval.
+  resyncInterval: 30s
+  extraArgs: []
+
+# Staged OIDC directory endpoint. Keep disabled until IAM uses the provider-
+# neutral directory contract and the workload/KCP identities are provisioned.
+directory:
+  # -- Deploy the opt-in mTLS identity directory backed by the selected provider.
+  enabled: false
+  # -- Dedicated KCP service identity Secret (key: kubeconfig).
+  kubeconfigSecret: "pm-keycloak-identity-directory-kubeconfig"
+  # -- TLS serving certificate Secret (keys: tls.crt, tls.key).
+  tlsSecret: ""
+  # -- CA bundle Secret trusted for directory callers (key: ca.crt).
+  clientCASecret: ""
+  # -- Optional provider-specific CA Secret (key: ca.crt).
+  providerCASecret: ""
+  # -- Trusted workspace containing IdentityProviderClass resources.
+  classWorkspace: root:platform-mesh-system
+  # -- IdentityProviderClass name selected for this provider runtime.
+  className: default
+  # -- Exact SPIFFE identities permitted to call the directory.
+  allowedWorkloads: []
+  # -- Immutable KCP logical cluster IDs permitted to query the directory.
+  allowedTenantClusters: []
+  # -- Explicitly permit the allowed workloads to query dynamic organization clusters.
+  allowAnyTenantCluster: false
+  # -- Maximum duration of one directory request.
+  requestTimeout: 30s
+
 hostAliases:
   enabled: false
 
