@@ -148,6 +148,7 @@ data:
               path: kcp.etcd.backup.image.tag
               image-ref: combined
           dependsOn: []
+          values:
             keycloak:
               operator:
                 enabled: true
