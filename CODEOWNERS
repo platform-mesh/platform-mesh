@@ -8,5 +8,5 @@ tests/ @platform-mesh/go-maintainers @platform-mesh/node-maintainers
 **/go.mod
 **/go.sum
 charts/**/Chart.yaml
-tests/package.json
-tests/package-lock.json
+tests/e2e/portal/package.json
+tests/e2e/portal/package-lock.json

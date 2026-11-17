@@ -14,13 +14,12 @@
 - `config`: shared service/config structs and flag wiring.
 - `context`: request/service context helpers, JWT/token/spiffe helpers, and context keys.
 - `controller`: reusable controller/lifecycle helpers for operators, including conditions, filtering, and lifecycle orchestration.
-- `directive`: GraphQL directives and related helpers.
 - `errors`: shared error helpers and operator error types.
 - `fga`: OpenFGA interfaces, store helpers, policy helpers, and supporting utilities.
 - `jwt`: token parsing and claim helpers.
 - `logger`: zerolog-based logging helpers and test loggers.
 - `middleware`: HTTP middleware for tracing, auth, logging, request ids, and sentry recovery.
-- `oauth`, `policy_services`, `sentry`, `traces`: shared integrations and infrastructure helpers.
+- `sentry`, `traces`: shared integrations and infrastructure helpers.
 - `test`: shared test utilities.
 
 ## Architecture

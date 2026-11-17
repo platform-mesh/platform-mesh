@@ -25,6 +25,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.roles.openfga.password | string | `"openfga-password"` | REQUIRED: set to a strong random value. TODO: replace hardcoded passwords with a proper secrets management solution. |
 | cnpg.roles.openfga.username | string | `"openfga"` | PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret. |
 | dex.enabled | bool | `false` | Enable Dex as a local upstream OIDC identity provider |
+| dex.expiry | object | `{}` | Dex `expiry` settings (token lifetimes, refresh token rotation), rendered as given (default: Dex defaults) |
 | dex.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | dex.gatewayApi.hostnames | list | `[]` | hostnames for the Dex HTTPRoute |
 | dex.gatewayApi.pathPrefix | string | `"/dex"` | path prefix for the Dex HTTPRoute |
@@ -39,6 +40,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.image.repository | string | `"dexidp/dex"` | Dex image repository (without registry) |
 | dex.image.tag | string | `"v2.46.1"` | Dex image tag |
 | dex.issuer | string | `""` | Dex issuer URL (must match external browser-reachable URL) |
+| dex.passwordConnector | string | `""` | Connector for the OAuth2 password grant, which issues tokens without a browser; `local` is the static password database (default: grant disabled) |
 | dex.resources.limits.cpu | string | `"200m"` |  |
 | dex.resources.limits.memory | string | `"256Mi"` |  |
 | dex.resources.requests.cpu | string | `"50m"` |  |
@@ -49,7 +51,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.staticClient.name | string | `"Keycloak Broker"` | Display name for the static OIDC client |
 | dex.staticClient.redirectURIs | list | `[]` | Allowed redirect URIs (Keycloak broker callback URLs) |
 | dex.staticClient.secret | string | `"local-dev-broker-secret"` | OIDC client secret for Keycloak identity broker (local dev only) |
-| dex.staticPasswords[0] | object | `{"email":"dex@portal.localhost","hash":"$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm","userID":"08a868f8-4b4b-42f3-9d23-5f46eda2c3a0","username":"dex"}` | Local test user for Dex password connector (dex@portal.localhost/dex/dex) |
+| dex.staticPasswords[0] | object | `{"email":"dex@portal.localhost","groups":[],"hash":"$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm","userID":"08a868f8-4b4b-42f3-9d23-5f46eda2c3a0","username":"dex"}` | Local test user for Dex password connector (dex@portal.localhost/dex/dex) |
 | externalSecrets.enabled | bool | `false` |  |
 | gatewayApi.baseDomain | string | `""` | Base domain used to build listener hostnames (terminate, wildstar, services). Required — must be set via the operator (derived from PlatformMesh spec.exposure.baseDomain). |
 | gatewayApi.enabled | bool | `true` | Toggle to enable/disable Gateway API resources |
@@ -70,8 +72,10 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.auth.oidc.clientID | string | `""` |  |
 | kcp.auth.oidc.enabled | bool | `false` |  |
 | kcp.auth.oidc.groupsClaim | string | `"groups"` |  |
+| kcp.auth.oidc.groupsPrefix | string | `""` |  |
 | kcp.auth.oidc.issuerUrl | string | `""` |  |
 | kcp.auth.oidc.usernameClaim | string | `"email"` |  |
+| kcp.auth.oidc.usernamePrefix | string | `""` |  |
 | kcp.auth.serviceAccount.enabled | bool | `true` |  |
 | kcp.cacheServer.etcd.name | string | `"etcd-cache"` |  |
 | kcp.cacheServer.etcd.service.name | string | `"etcd-cache-client"` |  |
@@ -114,12 +118,12 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.etcd.sharedConfig.autoCompactionRetention | string | `"30m"` |  |
 | kcp.external.hostname | string | `""` | External hostname for kcp. Required — must be set via profile map or PlatformMesh resource (e.g. kcp.api.example.com). |
 | kcp.external.port | int | `8443` |  |
-| kcp.frontProxy.additionalPathMappings[0].backend | string | `"https://virtual-workspaces.platform-mesh-system:8443"` |  |
+| kcp.frontProxy.additionalPathMappings[0].backend | string | `"https://extension-manager-virtual-workspace.platform-mesh-system:8443"` |  |
 | kcp.frontProxy.additionalPathMappings[0].backend_server_ca | string | `"/etc/kcp/tls/ca/tls.crt"` |  |
 | kcp.frontProxy.additionalPathMappings[0].path | string | `"/services/contentconfigurations"` |  |
 | kcp.frontProxy.additionalPathMappings[0].proxy_client_cert | string | `"/etc/kcp-front-proxy/requestheader-client/tls.crt"` |  |
 | kcp.frontProxy.additionalPathMappings[0].proxy_client_key | string | `"/etc/kcp-front-proxy/requestheader-client/tls.key"` |  |
-| kcp.frontProxy.additionalPathMappings[1].backend | string | `"https://virtual-workspaces.platform-mesh-system:8443"` |  |
+| kcp.frontProxy.additionalPathMappings[1].backend | string | `"https://marketplace.platform-mesh-system:8443"` |  |
 | kcp.frontProxy.additionalPathMappings[1].backend_server_ca | string | `"/etc/kcp/tls/ca/tls.crt"` |  |
 | kcp.frontProxy.additionalPathMappings[1].path | string | `"/services/marketplace"` |  |
 | kcp.frontProxy.additionalPathMappings[1].proxy_client_cert | string | `"/etc/kcp-front-proxy/requestheader-client/tls.crt"` |  |
@@ -141,32 +145,12 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.shards[0].name | string | `"nereus"` |  |
 | kcp.shards[1].name | string | `"triton"` |  |
 | kcp.webhook.authorizationWebhookSecretName | string | `"kcp-webhook-secret"` |  |
-| kcp.webhook.caData | string | `""` |  |
 | kcp.webhook.enabled | bool | `true` |  |
 | kcp.webhook.port | int | `9443` |  |
-| kcp.webhook.server | string | `"https://rebac-authz-webhook.platform-mesh-system.svc.cluster.local:9443/authz"` |  |
 | kcp.webhook.version | string | `"v1"` |  |
-| keycloak.domain | object | `{"name":"platform-mesh.io","pathPrefix":"/keycloak"}` | domain configuration |
-| keycloak.domain.name | string | `"platform-mesh.io"` | domain name |
-| keycloak.domain.pathPrefix | string | `"/keycloak"` | path prefix |
 | keycloak.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | keycloak.gatewayApi.hostnames | list | `[]` | hostnames for the Keycloak HTTPRoute |
 | keycloak.gatewayApi.pathPrefix | string | `"/keycloak"` | path prefix for the Keycloak HTTPRoute |
-| keycloak.keycloakConfig.admin | object | `{"password":{"valueFrom":{"secretKeyRef":{"key":"secret","name":"keycloak-admin"}}},"username":{"value":"keycloak-admin"}}` | admin user configuration |
-| keycloak.keycloakConfig.admin.password | object | `{"valueFrom":{"secretKeyRef":{"key":"secret","name":"keycloak-admin"}}}` | admin password |
-| keycloak.keycloakConfig.admin.password.valueFrom.secretKeyRef.key | string | `"secret"` | key of the password in the secret |
-| keycloak.keycloakConfig.admin.password.valueFrom.secretKeyRef.name | string | `"keycloak-admin"` | name of the secret containing the password |
-| keycloak.keycloakConfig.admin.username.value | string | `"keycloak-admin"` | username |
-| keycloak.keycloakConfig.client | object | `{"name":"welcome","targetSecret":{"name":"portal-client-secret-welcome","namespace":"platform-mesh-system"},"tokenLifespan":3600}` | client configuration |
-| keycloak.keycloakConfig.client.name | string | `"welcome"` | client name |
-| keycloak.keycloakConfig.client.targetSecret | object | `{"name":"portal-client-secret-welcome","namespace":"platform-mesh-system"}` | target secret options |
-| keycloak.keycloakConfig.client.targetSecret.name | string | `"portal-client-secret-welcome"` | secret name |
-| keycloak.keycloakConfig.client.targetSecret.namespace | string | `"platform-mesh-system"` | secret namespace |
-| keycloak.keycloakConfig.client.tokenLifespan | int | `3600` | token lifespan |
-| keycloak.keycloakConfig.realm | object | `{"name":"master"}` | realm configuration |
-| keycloak.keycloakConfig.realm.name | string | `"master"` | realm name |
-| keycloak.keycloakConfig.url | string | `"http://keycloak-service.platform-mesh-system.svc.cluster.local:8080/keycloak"` | url of the keycloak server |
-| keycloak.keycloakConfig.userRegistration.enabled | bool | `true` | toggle to enable/disable user registration |
 | keycloak.operator.admin.password | string | `"admin"` | Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value. TODO: replace hardcoded passwords with a proper secrets management solution. |
 | keycloak.operator.admin.secret | string | `"admin"` | Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value. TODO: replace hardcoded passwords with a proper secrets management solution. |
 | keycloak.operator.admin.username | string | `"keycloak-admin"` | Bootstrap admin username (written to keycloak-admin secret) |
@@ -205,7 +189,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | keycloak.service.name | string | `"keycloak-service"` | service name |
 | keycloak.service.port | int | `8080` | service port |
 | openfga.rbac.writePrincipals[0] | string | `"cluster.local/ns/platform-mesh-system/sa/iam-service"` |  |
-| openfga.rbac.writePrincipals[1] | string | `"cluster.local/ns/platform-mesh-system/sa/security-operator"` |  |
+| openfga.rbac.writePrincipals[1] | string | `"cluster.local/ns/platform-mesh-system/sa/pm-openfga-operator"` |  |
 | openfga.rbac.writePrincipals[2] | string | `"cluster.local/ns/platform-mesh-system/sa/account-operator"` |  |
 
 ## Overriding Values

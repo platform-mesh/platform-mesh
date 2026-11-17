@@ -18,27 +18,15 @@ package cmd
 
 import (
 	"context"
-	"crypto/tls"
-	"net/http"
-	"os"
 
 	"github.com/spf13/cobra"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
-	"go.platform-mesh.io/extension-manager-operator/internal/controller"
+	"go.platform-mesh.io/extension-manager-operator/pkg/app"
+	"go.platform-mesh.io/extension-manager-operator/pkg/config"
 	platformmeshcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/traces"
 
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
-
-	"github.com/kcp-dev/multicluster-provider/apiexport"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -75,76 +63,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		}
 	}()
 
-	kubeconfigPath := os.Getenv("KUBECONFIG")
-	var reconcileCfg *rest.Config
-	if kubeconfigPath != "" {
-		reconcileCfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-		if err != nil {
-			log.Fatal().Err(err).Msg("unable to load kubeconfig from KUBECONFIG env var")
-		}
-	} else {
-		log.Info().Msg("KUBECONFIG not set, using GetConfigOrDie()")
-		reconcileCfg = ctrl.GetConfigOrDie()
-	}
-	reconcileCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
-		return otelhttp.NewTransport(rt)
-	})
-
-	var leaderElectionCfg *rest.Config
-	if defaultCfg.LeaderElectionEnabled {
-		leaderElectionCfg, err = rest.InClusterConfig()
-		if err != nil {
-			log.Fatal().Err(err).Msg("unable to get in-cluster config for leader election")
-		}
-	}
-
-	var mcProvider multicluster.Provider
-	if operatorCfg.KCPAPIExportEndpointSliceName != "" {
-		var p *apiexport.Provider
-		p, err = apiexport.New(reconcileCfg, operatorCfg.KCPAPIExportEndpointSliceName, apiexport.Options{
-			Scheme: scheme,
-		})
-		if err != nil {
-			log.Fatal().Err(err).Msg("unable to construct APIExportProvider")
-		}
-		log.Info().Msgf("Using APIExportProvider with EndpointSlice %s", operatorCfg.KCPAPIExportEndpointSliceName)
-
-		mcProvider = p
-	}
-
-	mgr, err := mcmanager.New(reconcileCfg, mcProvider, manager.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: defaultCfg.Metrics.BindAddress,
-			TLSOpts: []func(*tls.Config){
-				func(c *tls.Config) { c.NextProtos = []string{"http/1.1"} },
-			},
-		},
-		BaseContext:                   func() context.Context { return ctx },
-		HealthProbeBindAddress:        defaultCfg.HealthProbeBindAddress,
-		LeaderElection:                defaultCfg.LeaderElectionEnabled,
-		LeaderElectionID:              "eengiex3.platform-mesh.io",
-		LeaderElectionReleaseOnCancel: true,
-		LeaderElectionConfig:          leaderElectionCfg,
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to set up overall controller manager")
-	}
-
-	contentConfigurationReconciler := controller.NewContentConfigurationReconciler(log, mgr, *operatorCfg)
-	if err := contentConfigurationReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
-		log.Fatal().Err(err).Str("controller", "ContentConfiguration").Msg("unable to create controller")
-	}
-
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up health check")
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up ready check")
-	}
-
-	startCtx := ctrl.SetupSignalHandler()
-	if err := mgr.Start(startCtx); err != nil {
-		log.Fatal().Err(err).Msg("problem running manager")
+	if err := app.Run(ctx, &config.Config{Common: defaultCfg, Operator: operatorCfg}, app.Deps{Log: log}); err != nil {
+		log.Fatal().Err(err).Msg("operator failed")
 	}
 }

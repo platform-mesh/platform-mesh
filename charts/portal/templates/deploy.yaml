@@ -49,7 +49,7 @@ spec:
         - name: HTTP_PROTOCOL
           value: {{ .Values.http.protocol }}
         - name: DISCOVERY_ENDPOINT
-          value: "https://{{ $baseDomainPort }}/keycloak/realms/${org-name}/.well-known/openid-configuration"
+          value: {{ .Values.auth.default.discoveryUrl | default (printf "https://%s/keycloak/realms/${org-name}/.well-known/openid-configuration" $baseDomainPort) | quote }}
         - name: OIDC_CLIENT_ID_DEFAULT
           value: {{ .Values.auth.default.clientId }}
         - name: BASE_DOMAINS_DEFAULT
@@ -63,7 +63,7 @@ spec:
         - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
           value: "https://${org-subdomain}{{ $baseDomainPort }}/gateway/api/clusters/root:orgs:${org-name}/graphql"
         - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
-          value: "https://rebac-authz-webhook.{{ .Release.Namespace }}.svc.cluster.local:9443"
+          value: "https://pm-openfga-authz-webhook.{{ .Release.Namespace }}.svc.cluster.local:9443"
         {{- if .Values.caSecret }}
         - name: NODE_EXTRA_CA_CERTS
           value: /etc/ssl/certs/ca-bundle.crt

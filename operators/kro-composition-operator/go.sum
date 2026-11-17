@@ -94,8 +94,6 @@ github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
 github.com/kcp-dev/multicluster-provider v0.9.0 h1:LpjZaQH7c2HrVADtm1OtuptHj8hZAGsor8T5VC/lvTM=
 github.com/kcp-dev/multicluster-provider v0.9.0/go.mod h1:DHaeprSRpuSGgzW0QJyY67IaKiCtpm2WtsT8n5Ird3o=
-github.com/kcp-dev/multicluster-provider/client v0.8.1-0.20260714141811-833f063357f8 h1:zwlGpx3IfUy1yeBZGPHmaEg8SPVnXJ+OobkBfD0eal8=
-github.com/kcp-dev/multicluster-provider/client v0.8.1-0.20260714141811-833f063357f8/go.mod h1:kK9CSLmECoRiOU+xKOhIE4tHpQBcBbBvWOgKORC/eqI=
 github.com/kcp-dev/sdk v0.33.5 h1:sl/PWTQkmpQPKyd6apufw+M9KBx/ckbvk0VwweKpr1Q=
 github.com/kcp-dev/sdk v0.33.5/go.mod h1:sOOWJIiyYIBcM9y+4b/0mUz5dnZN0mIrh4l+fZqpY1s=
 github.com/klauspost/compress v1.20.1 h1:T7kKElXUMXrUJ2E9QhQhxFtcK5rPyLdsGZvdbLMPdiQ=
@@ -104,8 +102,6 @@ github.com/kubernetes-sigs/kro v0.9.4 h1:gynhldCLYW5x+M0c2Bf1ihoQTpNE68SKiXl1f6a
 github.com/kubernetes-sigs/kro v0.9.4/go.mod h1:41SwnJsWRNxbDM/iHwsdamnyPV/p7/nReiI1OckeVrk=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
-github.com/martinlindhe/base36 v1.1.1 h1:1F1MZ5MGghBXDZ2KJ3QfxmiydlWOGB8HCEtkap5NkVg=
-github.com/martinlindhe/base36 v1.1.1/go.mod h1:vMS8PaZ5e/jV9LwFKlm0YLnXl/hpOihiBxKkIoc3g08=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
@@ -141,7 +137,6 @@ github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpE
 github.com/stretchr/objx v0.5.3 h1:jmXUvGomnU1o3W/V5h2VEradbpJDwGrzugQQvL0POH4=
 github.com/stretchr/objx v0.5.3/go.mod h1:rDQraq+vQZU7Fde9LOZLr8Tax6zZvy4kuNKF+QYS+U0=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
-github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=

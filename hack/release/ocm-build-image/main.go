@@ -33,6 +33,8 @@ limitations under the License.
 //	REPO_URL    git repository recorded as the component's source
 //	COMMIT      git commit recorded as the component's source
 //	SIGNATURE   sign the component versions with this signature
+//	SKIP_COMPONENTS  optional components (ocm/components.yaml) to leave out,
+//	            separated by commas; the command does nothing for those
 package main
 
 import (
@@ -68,6 +70,17 @@ func run(ctx context.Context) error {
 	}
 	dir := filepath.Clean(os.Args[1])
 	sbomDir := filepath.Clean(os.Args[2])
+
+	skipped, err := releaseutils.SkippedComponents()
+	if err != nil {
+		return err
+	}
+	for _, c := range skipped {
+		if filepath.Clean(c.Path) == dir {
+			log.Printf("%s is left out (%s)", c.Name, releaseutils.SkipComponentsEnv)
+			return nil
+		}
+	}
 
 	constructor := filepath.Join(dir, "component-constructor.yaml")
 	if _, err := os.Stat(constructor); err != nil {

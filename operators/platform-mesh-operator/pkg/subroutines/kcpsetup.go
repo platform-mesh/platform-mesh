@@ -20,10 +20,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/fs"
 	"strings"
 	"time"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
 	pmconfig "go.platform-mesh.io/golang-commons/config"
 	gcerrors "go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -45,10 +47,12 @@ import (
 )
 
 type KcpsetupSubroutine struct {
-	client       ctrlruntimeclient.Client
-	kcpHelper    KcpHelper
-	helm         HelmGetter
-	kcpDirectory string
+	client    ctrlruntimeclient.Client
+	kcpHelper KcpHelper
+	helm      HelmGetter
+	// manifests is the kcp manifest tree applied during setup, usually the
+	// embedded manifests/kcp (see ApplyDirStructure for its layout).
+	manifests fs.FS
 	// Cache for CA bundles to avoid redundant secret lookups
 	caBundleCache map[string]string
 	cfg           *config.OperatorConfig
@@ -62,10 +66,10 @@ const (
 	fieldManagerKcpSetup        = "platform-mesh-kcp-setup"
 )
 
-func NewKcpsetupSubroutine(client ctrlruntimeclient.Client, helper KcpHelper, cfg *config.OperatorConfig, kcpdir string, kcpUrl string) *KcpsetupSubroutine {
+func NewKcpsetupSubroutine(client ctrlruntimeclient.Client, helper KcpHelper, cfg *config.OperatorConfig, manifests fs.FS, kcpUrl string) *KcpsetupSubroutine {
 	return &KcpsetupSubroutine{
 		client:        client,
-		kcpDirectory:  kcpdir,
+		manifests:     manifests,
 		kcpHelper:     helper,
 		helm:          DefaultHelmGetter{},
 		caBundleCache: make(map[string]string),
@@ -131,7 +135,7 @@ func (r *KcpsetupSubroutine) Process(ctx context.Context, runtimeObj ctrlruntime
 	}
 
 	// Must run before the legacy-binding migrations below: they rebind onto exports this step creates.
-	err = r.createKcpResources(ctx, cfg, r.kcpDirectory, inst)
+	err = r.createKcpResources(ctx, cfg, inst)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create kcp workspaces")
 		return subroutines.OK(), gcerrors.Wrap(err, "Failed to create kcp workspaces")
@@ -169,7 +173,7 @@ func (r *KcpsetupSubroutine) Process(ctx context.Context, runtimeObj ctrlruntime
 	return subroutines.OK(), nil
 }
 
-func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *rest.Config, dir string, inst *pmcorev1alpha1.PlatformMesh) error {
+func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *rest.Config, inst *pmcorev1alpha1.PlatformMesh) error {
 	log := logger.LoadLoggerFromContext(ctx).ChildLogger("subroutine", r.GetName())
 	// Get API export hashes
 	apiExportHashes, err := r.getAPIExportHashInventory(ctx, config)
@@ -200,7 +204,9 @@ func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *res
 	templateData["featureDisableEmailVerification"] = HasFeatureToggle(inst, "feature-disable-email-verification")
 	templateData["featureDisableContentConfigurations"] = HasFeatureToggle(inst, "feature-disable-contentconfigurations")
 	templateData["featureEnableTerminalControllerManager"] = HasFeatureToggle(inst, "feature-enable-terminal-controller-manager")
-	templateData["featureDisableIDPWebhook"] = HasFeatureToggle(inst, FeatureDisableIDPWebhook)
+	templateData["featureDisableKeycloak"] = HasFeatureToggle(inst, FeatureDisableKeycloak)
+	templateData["featureDisableOpenFGA"] = HasFeatureToggle(inst, FeatureDisableOpenFGA)
+	templateData["featureDisableIDPWebhook"] = idpWebhookDisabled(inst)
 	templateData["registrationAllowed"] = r.cfg.IDP.RegistrationAllowed
 	templateData["welcomeAdditionalRedirectUris"] = r.cfg.IDP.WelcomeAdditionalRedirectUris
 	templateData["welcomeAdditionalPostLogoutRedirectUris"] = r.cfg.IDP.WelcomeAdditionalPostLogoutRedirectUris
@@ -215,10 +221,10 @@ func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *res
 	templateData["welcomeAudiences"] = []string{}
 
 	var ipc unstructured.Unstructured
-	ipc.SetGroupVersionKind(schema.GroupVersionKind{Group: "core.platform-mesh.io", Version: "v1alpha1", Kind: "IdentityProviderConfiguration"})
+	ipc.SetGroupVersionKind(pmkeycloakv1alpha1.SchemeGroupVersion.WithKind("IdentityProviderConfiguration"))
 
 	err = pmSystemClient.Get(ctx, types.NamespacedName{Name: "welcome"}, &ipc)
-	if err == nil {
+	if err == nil && !HasFeatureToggle(inst, FeatureDisableKeycloak) {
 		managedClients, found, err := unstructured.NestedMap(ipc.Object, "status", "managedClients")
 		if err != nil {
 			log.Err(err).Msg("Failed to get managedClients from IdentityProviderConfiguration 'welcome'")
@@ -247,7 +253,7 @@ func (r *KcpsetupSubroutine) createKcpResources(ctx context.Context, config *res
 		}
 	}
 
-	err = ApplyDirStructure(ctx, dir, "root", config, templateData, inst, r.kcpHelper, r.cfg.Subroutines.Deployment.IgnoredResources)
+	err = ApplyDirStructure(ctx, r.manifests, ".", "root", config, templateData, inst, r.kcpHelper, r.cfg.Subroutines.Deployment.IgnoredResources)
 	if err != nil {
 		log.Err(err).Msg("Failed to apply dir structure")
 		return gcerrors.Wrap(err, "Failed to apply dir structure")
@@ -281,9 +287,9 @@ func (r *KcpsetupSubroutine) getCABundleInventory(
 	b64Data := base64.StdEncoding.EncodeToString(caData)
 	caBundles[key] = b64Data
 
-	// Get Identity Provider validating webhook CA bundle (security-operator webhook)
+	// Get Identity Provider validating webhook CA bundle (pm-keycloak-operator webhook)
 	// Skip if webhook is disabled via feature toggle
-	if HasFeatureToggle(inst, FeatureDisableIDPWebhook) != "true" {
+	if !idpWebhookDisabled(inst) {
 		ipdValidatingWebhookConfig := DEFAULT_IDENTITY_PROVIDER_VALIDATING_WEBHOOK_CONFIGURATION
 		ipdCaData, err := r.getCaBundle(ctx, &ipdValidatingWebhookConfig)
 		if err != nil {
@@ -450,11 +456,18 @@ func getExtraDefaultApiBindings(obj unstructured.Unstructured, workspacePath str
 	return res
 }
 
-func HasFeatureToggle(inst *pmcorev1alpha1.PlatformMesh, name string) string {
+// idpWebhookDisabled reports whether the IdentityProviderConfiguration
+// validating webhook is off, either directly or because Keycloak is disabled.
+func idpWebhookDisabled(inst *pmcorev1alpha1.PlatformMesh) bool {
+	return HasFeatureToggle(inst, FeatureDisableIDPWebhook) ||
+		HasFeatureToggle(inst, FeatureDisableKeycloak)
+}
+
+func HasFeatureToggle(inst *pmcorev1alpha1.PlatformMesh, name string) bool {
 	for _, ft := range inst.Spec.FeatureToggles {
 		if ft.Name == name {
-			return "true"
+			return true
 		}
 	}
-	return "false"
+	return false
 }

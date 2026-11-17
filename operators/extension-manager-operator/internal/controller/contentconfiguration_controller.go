@@ -21,7 +21,7 @@ import (
 	"net/http"
 
 	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
-	"go.platform-mesh.io/extension-manager-operator/internal/config"
+	"go.platform-mesh.io/extension-manager-operator/pkg/config"
 	extsub "go.platform-mesh.io/extension-manager-operator/pkg/subroutines"
 	"go.platform-mesh.io/extension-manager-operator/pkg/validation"
 	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
@@ -47,7 +47,12 @@ type ContentConfigurationReconciler struct {
 	lifecycle *lifecycle.Lifecycle
 }
 
-func NewContentConfigurationReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.OperatorConfig) *ContentConfigurationReconciler {
+// NewContentConfigurationReconciler builds the reconciler. httpClient fetches remote
+// configurations; nil means http.DefaultClient.
+func NewContentConfigurationReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.OperatorConfig, httpClient *http.Client) *ContentConfigurationReconciler {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
 	var subs []subroutines.Subroutine
 	if cfg.SubroutinesContentConfigurationEnabled {
 		var registry *validation.EntityTypeRegistry
@@ -56,7 +61,7 @@ func NewContentConfigurationReconciler(log *logger.Logger, mgr mcmanager.Manager
 			registry = validation.NewEntityTypeRegistry()
 			reader = mgr.GetLocalManager().GetClient()
 		}
-		sub, err := extsub.NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient, reader, registry)
+		sub, err := extsub.NewContentConfigurationSubroutine(validation.NewContentConfiguration(), httpClient, reader, registry)
 		if err != nil {
 			panic("failed to create ContentConfigurationSubroutine: " + err.Error())
 		}

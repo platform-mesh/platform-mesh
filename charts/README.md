@@ -75,7 +75,7 @@ the pm-operator code must be updated.
 
 ## Installing Platform Mesh
 
-See [`installation/README.md`](../installation/README.md): the
+See the [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh): the
 `platform-mesh-prerequisites` chart, then `platform-mesh-operator` with
 `ocm.enabled=true` and the Platform Mesh version to install. Adding a chart to
 the installation is described in

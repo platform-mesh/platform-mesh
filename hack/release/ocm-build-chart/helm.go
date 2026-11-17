@@ -42,10 +42,21 @@ type helmArchive struct {
 	ResolveDependencies bool
 }
 
+// registry splits the http:// prefix off Repo: such a registry speaks plain
+// HTTP (a local test registry), which helm needs told with --plain-http.
+func (archive helmArchive) registry() (string, []string) {
+	repo, plain := strings.CutPrefix(archive.Repo, "http://")
+	if plain {
+		return repo, []string{"--plain-http"}
+	}
+	return repo, nil
+}
+
 // publish packages and pushes the archive unless CHART_REPO already has it.
 func (archive helmArchive) publish(ctx context.Context) error {
 	name := filepath.Base(archive.Dir)
-	ref := fmt.Sprintf("oci://%s/%s", archive.Repo, name)
+	repo, flags := archive.registry()
+	ref := fmt.Sprintf("oci://%s/%s", repo, name)
 
 	published, err := archive.published(ctx, ref)
 	if err != nil {
@@ -78,7 +89,7 @@ func (archive helmArchive) publish(ctx context.Context) error {
 
 	tgz := filepath.Join(dest, fmt.Sprintf("%s-%s.tgz", name, archive.Version))
 	err = releaseutils.Retry(ctx, releaseutils.RegistryAttempts, releaseutils.RegistryRetryDelay, func() error {
-		push := exec.CommandContext(ctx, "helm", "push", tgz, "oci://"+archive.Repo)
+		push := exec.CommandContext(ctx, "helm", append([]string{"push", tgz, "oci://" + repo}, flags...)...)
 		push.Stderr = os.Stderr
 		return push.Run()
 	})
@@ -92,7 +103,8 @@ func (archive helmArchive) publish(ctx context.Context) error {
 // helm has one exit code for every failure, so only a "not found" on stderr
 // reads as absent; anything else is returned, as GHCR accepts re-pushes.
 func (archive helmArchive) published(ctx context.Context, ref string) (bool, error) {
-	show := exec.CommandContext(ctx, "helm", "show", "chart", ref, "--version", archive.Version)
+	_, flags := archive.registry()
+	show := exec.CommandContext(ctx, "helm", append([]string{"show", "chart", ref, "--version", archive.Version}, flags...)...)
 	var stderr bytes.Buffer
 	show.Stderr = &stderr
 	err := show.Run()

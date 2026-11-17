@@ -47,8 +47,11 @@ type AuthorizationModelStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:deprecatedversion:warning="core.platform-mesh.io/v1alpha1 AuthorizationModel is deprecated, use openfga.platform-mesh.io/v1alpha1 AuthorizationModel"
 
 // AuthorizationModel is the Schema for the authorizationmodels API.
+//
+// Deprecated: use openfga.platform-mesh.io/v1alpha1 AuthorizationModel.
 type AuthorizationModel struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -72,6 +75,8 @@ var _ conditions.ConditionAccessor = &AuthorizationModel{}
 // +kubebuilder:object:root=true
 
 // AuthorizationModelList contains a list of AuthorizationModel.
+//
+// Deprecated: use openfga.platform-mesh.io/v1alpha1 AuthorizationModelList.
 type AuthorizationModelList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
