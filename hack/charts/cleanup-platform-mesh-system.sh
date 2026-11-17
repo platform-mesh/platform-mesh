@@ -135,8 +135,9 @@ if kubectl get customresourcedefinition helmreleases.helm.toolkit.fluxcd.io >/de
 
     # An interrupted cleanup may already have removed the ClusterAccess CRD
     # with kubernetes-graphql-gateway. Helm cannot then decode the
-    # ClusterAccess stored in the virtual-workspaces release manifest.
-    if [[ "${release}" == virtual-workspaces ]] &&
+    # ClusterAccess stored in the marketplace release manifest (virtual-workspaces
+    # before the service was split).
+    if [[ "${release}" == marketplace || "${release}" == virtual-workspaces ]] &&
       ! kubectl get customresourcedefinition clusteraccesses.gateway.platform-mesh.io >/dev/null 2>&1; then
       force_delete_helmrelease "${release}"
     else
@@ -144,9 +145,9 @@ if kubectl get customresourcedefinition helmreleases.helm.toolkit.fluxcd.io >/de
     fi
   done
 
-  # virtual-workspaces creates ClusterAccess objects whose finalizers are
+  # marketplace creates ClusterAccess objects whose finalizers are
   # handled by kubernetes-graphql-gateway. Keep the gateway running until all
-  # other application releases, including virtual-workspaces, are gone.
+  # other application releases, including marketplace, are gone.
   if kubectl --namespace "${namespace}" get helmrelease kubernetes-graphql-gateway >/dev/null 2>&1; then
     delete_helmrelease kubernetes-graphql-gateway
   fi

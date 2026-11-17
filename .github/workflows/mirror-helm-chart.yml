@@ -68,7 +68,7 @@ concurrency:
 jobs:
   mirror:
     name: Mirror ${{ inputs.chart }}@${{ inputs.version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
       packages: write # Push mirrored charts to GHCR; no repository access needed

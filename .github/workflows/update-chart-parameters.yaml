@@ -46,7 +46,7 @@ concurrency:
 
 jobs:
   bump:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
       # Pushed and opened as the PM Publisher app so that PR-triggered

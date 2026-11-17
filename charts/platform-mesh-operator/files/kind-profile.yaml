@@ -549,12 +549,12 @@ data:
               noJson: true
             terminator:
               kubeconfigSecret: openfga-terminator-kubeconfig
-        virtual-workspaces:
+        extension-manager-virtual-workspace:
           imageResources:
           - annotations:
               repo: oci
               artifact: image
-              for: virtual-workspaces
+              for: extension-manager-virtual-workspace
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -563,10 +563,23 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            virtualWorkspaceSecretName: virtual-workspaces-cert
             deployment:
               resourceSchemaName: "v250704-6d57f16.contentconfigurations.ui.platform-mesh.io"
               resourceSchemaWorkspace: "root:platform-mesh-system"
+        marketplace:
+          imageResources:
+          - annotations:
+              repo: oci
+              artifact: image
+              for: marketplace
+          syncWave: 4
+          enabled: true
+          dependsOn: []
+          targetNamespace: platform-mesh-system
+          values:
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
         marketplace-ui:
           enabled: true
           dependsOn: []
