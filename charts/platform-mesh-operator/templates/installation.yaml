@@ -70,5 +70,8 @@ spec:
     referencePath: []
   featureToggles:
     - name: feature-accounts-in-accounts
+    {{- if .Values.idp.allowUnverifiedEmails }}
+    - name: feature-disable-email-verification
+    {{- end }}
   kcp: {}
 {{- end }}

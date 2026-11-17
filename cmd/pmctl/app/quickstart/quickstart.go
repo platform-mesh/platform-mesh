@@ -70,9 +70,10 @@ built with the checkout's own release tooling, published to a registry
 container next to the cluster, and installed from there. Over an installed
 release this is the upgrade test of that tree. It needs docker (no other
 container runtime builds the images yet), go and task, and container addresses
-that are routable from the host (Linux, OrbStack). The kubeconfig of the
-cluster is written to a file of its own;
-~/.kube/config is not touched.`
+that are routable from the host (Linux, OrbStack).
+
+The kubeconfig of the cluster and the admin kubeconfig of kcp are written to
+files of their own; ~/.kube/config is not touched.`
 
 var example = `  # Install the latest release
   pmctl quickstart
@@ -135,6 +136,12 @@ func (o *ClusterOptions) CAFile() string {
 	return filepath.Join(filepath.Dir(o.Kubeconfig), o.Name+"-ca.crt")
 }
 
+// KCPKubeconfig is where the admin kubeconfig of kcp is written to: next to
+// the kubeconfig of the cluster.
+func (o *ClusterOptions) KCPKubeconfig() string {
+	return filepath.Join(filepath.Dir(o.Kubeconfig), o.Name+"-kcp.kubeconfig")
+}
+
 // Options holds the flags and dependencies of "pmctl quickstart".
 type Options struct {
 	genericiooptions.IOStreams
@@ -166,6 +173,9 @@ type Options struct {
 	OCMRepository string
 	// RegistrationAllowed lets users sign up in the portal.
 	RegistrationAllowed bool
+	// AllowUnverifiedEmails lets users log in without a verified email.
+	// The installation has no SMTP server to verify one with.
+	AllowUnverifiedEmails bool
 	// Timeout bounds the whole run.
 	Timeout time.Duration
 	// StallTimeout is how long a HelmRelease may keep failing before the
@@ -180,13 +190,14 @@ func NewOptions(streams genericiooptions.IOStreams) *Options {
 	return &Options{
 		IOStreams: streams,
 		ClusterOptions: ClusterOptions{
-			Name:             "pm-quickstart",
+			Name:             "platform-mesh",
 			ContainerRuntime: runtimeAuto,
 		},
 		BaseDomain:          "pm.127-0-0-1.sslip.io",
 		ChartRepository:     "oci://ghcr.io/platform-mesh/helm-charts",
 		OCMRepository:       "ghcr.io/platform-mesh",
-		RegistrationAllowed: true,
+		RegistrationAllowed:   true,
+		AllowUnverifiedEmails: true,
 		ParallelBuilds:      2,
 		Timeout:             45 * time.Minute,
 		StallTimeout:        10 * time.Minute,
@@ -223,6 +234,7 @@ func NewQuickstartCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVar(&o.ChartRepository, "chart-repository", o.ChartRepository, "Repository of the Platform Mesh Helm charts: an oci:// reference or a local directory.")
 	cmd.Flags().StringVar(&o.OCMRepository, "ocm-repository", o.OCMRepository, "OCI registry the Platform Mesh OCM components are read from.")
 	cmd.Flags().BoolVar(&o.RegistrationAllowed, "registration-allowed", o.RegistrationAllowed, "Let users sign up in the portal.")
+	cmd.Flags().BoolVar(&o.AllowUnverifiedEmails, "allow-unverified-emails", o.AllowUnverifiedEmails, "Let users log in without a verified email; the installation has no SMTP server to verify one with.")
 	cmd.Flags().DurationVar(&o.Timeout, "timeout", o.Timeout, "Time to wait for the installation to become ready.")
 	cmd.Flags().DurationVar(&o.StallTimeout, "stall-timeout", o.StallTimeout, "Give up when a HelmRelease has been failing for this long; 0 waits for --timeout.")
 
@@ -392,6 +404,7 @@ Platform Mesh %[1]s is ready.
   kcp API         https://kcp.api.%[3]s:%[4]d
 
   Kubeconfig      %[5]s
+  kcp kubeconfig  %[10]s
   CA certificate  %[6]s
 %[9]s
 Next steps:
@@ -399,11 +412,14 @@ Next steps:
   export KUBECONFIG=%[5]s
   kubectl -n %[7]s get platformmeshes
 
+  export KUBECONFIG=%[10]s
+  kubectl get workspaces
+
 The certificates are issued by a CA created for this installation: trust
 %[6]s, or accept the browser warning.
 
 Remove the installation with:
 
   pmctl quickstart delete --name %[8]s
-`, o.Version, o.URL(), o.BaseDomain, gatewayPort, o.Kubeconfig, o.CAFile(), namespace, o.Name, details)
+`, o.Version, o.URL(), o.BaseDomain, gatewayPort, o.Kubeconfig, o.CAFile(), namespace, o.Name, details, o.KCPKubeconfig())
 }

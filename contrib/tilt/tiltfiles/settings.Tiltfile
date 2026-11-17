@@ -82,6 +82,11 @@ KEYCLOAK = "keycloak" not in WITHOUT
 OPENFGA = "openfga" not in WITHOUT
 # Toggles for the PlatformMesh CR (manifests/platformmesh.yaml).
 FEATURE_TOGGLES = ["feature-accounts-in-accounts"] + [WITHOUT_TOGGLES[name] for name in WITHOUT]
+if KEYCLOAK:
+    # No SMTP on kind: nothing verifies the e-mail of a user who signs up in
+    # the welcome realm. Org realms get the same from pm-keycloak-operator's
+    # idp.allowUnverifiedEmails (platform-mesh.Tiltfile).
+    FEATURE_TOGGLES.append("feature-disable-email-verification")
 KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
 GO_DEPS = ["apis", "subroutines", "golang-commons"]
 
