@@ -18,7 +18,7 @@ load("../../contrib/tilt/lib/helpers.py", "kind_in")
 COMPONENTS = [
     # The ClusterAccess CRD (charts/kubernetes-graphql-gateway-crds). A component
     # of its own because other charts ship ClusterAccess objects
-    # (virtual-workspaces) and must not wait for the gateway to be running.
+    # (marketplace) and must not wait for the gateway to be running.
     component(
         name="kubernetes-graphql-gateway-crds",
         label="api",

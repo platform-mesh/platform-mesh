@@ -28,7 +28,7 @@ GROUPS = {
     # Keycloak identity provider, users and roles.
     "iam": ["authz", "pm-keycloak-operator", "iam-service", "iam-ui"],
     # GraphQL gateway and virtual workspaces.
-    "api": ["core", "kubernetes-graphql-gateway", "virtual-workspaces"],
+    "api": ["core", "kubernetes-graphql-gateway", "marketplace", "extension-manager-virtual-workspace"],
     # The portal and what it talks to.
     "ui": ["api", "iam", "extension-manager-operator", "portal", "marketplace-ui"],
     # Optional kcp virtual workspaces behind the front proxy: permission-aware

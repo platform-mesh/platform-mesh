@@ -172,7 +172,7 @@ tasks:
           core    kcp + platform-mesh-operator, PlatformMesh, account-operator
           authz   core + OpenFGA, pm-openfga-operator, pm-openfga-authz-webhook
           iam     authz + Keycloak, pm-keycloak-operator, iam-service, iam-ui
-          api     core + kubernetes-graphql-gateway, virtual-workspaces
+          api     core + kubernetes-graphql-gateway, marketplace, extension-manager-virtual-workspace
           ui      api + iam + portal, marketplace-ui, extension-manager-operator
           vw      kcp access and MCP virtual workspaces (charts kcp-access-vw, kcp-mcp-vw)
           e2e     HTTPBin provider fixture and a second kcp shard

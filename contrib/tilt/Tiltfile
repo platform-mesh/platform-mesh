@@ -47,7 +47,7 @@ chart_deps()
 components = {}
 tiltfiles = str(
     local(
-        "ls operators/*/Tiltfile services/*/Tiltfile contrib/tilt/components/*/Tiltfile",
+        "ls operators/*/Tiltfile operators/*/*/Tiltfile services/*/Tiltfile contrib/tilt/components/*/Tiltfile",
         dir=REPO,
         quiet=True,
         echo_off=True,

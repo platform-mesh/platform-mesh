@@ -15,12 +15,12 @@
 load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
 
 COMPONENT = component(
-    name="virtual-workspaces",
+    name="marketplace",
     label="api",
-    # The chart ships a ClusterAccess for the marketplace.
+    # The chart ships a ClusterAccess.
     needs=["platform-mesh-operator", "kubernetes-graphql-gateway-crds"],
     alongside=["platformmesh"],
     runtime=go_service(
-        path="services/virtual-workspaces",
+        path="services/marketplace",
     ),
 )
