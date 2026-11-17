@@ -187,7 +187,7 @@ func NewOptions(streams genericiooptions.IOStreams) *Options {
 	return &Options{
 		IOStreams: streams,
 		ClusterOptions: ClusterOptions{
-			Name:             "pm-quickstart",
+			Name:             "platform-mesh",
 			ContainerRuntime: runtimeAuto,
 		},
 		BaseDomain:          "pm.127-0-0-1.sslip.io",
