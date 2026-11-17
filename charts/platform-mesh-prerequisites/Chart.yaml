@@ -11,7 +11,7 @@ dependencies:
     condition: flux2.enabled
   - name: chart
     alias: ocm-k8s-toolkit
-    version: 0.17.0
+    version: 0.24.0
     repository: oci://ghcr.io/open-component-model/kubernetes/controller
     condition: ocm-k8s-toolkit.enabled
   - name: cert-manager
