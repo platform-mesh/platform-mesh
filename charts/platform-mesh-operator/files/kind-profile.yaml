@@ -352,6 +352,7 @@ data:
             # Installation can opt out of email verification through this override.
             idp:
               allowUnverifiedEmails: false
+              setDefaultPassword: false
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
