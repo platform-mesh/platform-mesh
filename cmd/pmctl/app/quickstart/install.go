@@ -57,6 +57,9 @@ const (
 	signingCertSecret = "ocm-signing-public-cert"
 	// caSecret is the Secret the operator chart's self-signed CA lives in.
 	caSecret = "domain-certificate-ca"
+	// unverifiedEmailsToggle is the PlatformMesh feature toggle that has
+	// kcp accept welcome realm tokens whose email is not verified.
+	unverifiedEmailsToggle = "feature-disable-email-verification"
 	// kcpKubeconfigSecret is the Secret the operator keeps the admin
 	// kubeconfig of kcp in, under kcpKubeconfigKey.
 	kcpKubeconfigSecret = "kubeconfig-kcp-admin"
@@ -152,7 +155,7 @@ func (o *Options) operatorValues(src *source, gatewayClusterIP string) operatorV
 		},
 		KCP:          kcpValues{FrontProxyPort: gatewayPort},
 		Certificates: certificatesValues{SelfSigned: selfSignedValues{Enabled: true}},
-		IDP:          idpValues{RegistrationAllowed: o.RegistrationAllowed},
+		IDP:          idpValues{RegistrationAllowed: o.RegistrationAllowed, AllowUnverifiedEmails: o.AllowUnverifiedEmails},
 		Image:        src.image,
 	}
 	if src.ocmRepository != "" {
@@ -226,6 +229,11 @@ func (o *Options) install(ctx context.Context, helm *helmClient, src *source) er
 			// Replaces the chart's own Secret, which the source turned
 			// off; applied after helm, which would remove it otherwise.
 			if err := applySigningCert(ctx, kube, src); err != nil {
+				return err
+			}
+		}
+		if o.AllowUnverifiedEmails {
+			if err := o.enableFeatureToggle(ctx, unverifiedEmailsToggle); err != nil {
 				return err
 			}
 		}
@@ -321,6 +329,39 @@ func (o *Options) applyProfile(ctx context.Context, kube kubernetes.Interface, m
 	_, err = client.Resource(platformMeshGVR).Namespace(namespace).Patch(ctx, "platform-mesh", types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("requesting a reconcile of PlatformMesh: %w", err)
+	}
+	return nil
+}
+
+// enableFeatureToggle adds a feature toggle to the PlatformMesh resource
+// unless it is there already. Charts up to v26.10 have no value for the
+// toggles, so the ones the chart does not set are added after helm.
+func (o *Options) enableFeatureToggle(ctx context.Context, name string) error {
+	restConfig, err := clientcmd.BuildConfigFromFlags("", o.Kubeconfig)
+	if err != nil {
+		return err
+	}
+	client, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return err
+	}
+	platformMeshes := client.Resource(platformMeshGVR).Namespace(namespace)
+	pm, err := platformMeshes.Get(ctx, "platform-mesh", metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("reading PlatformMesh: %w", err)
+	}
+	toggles, _, _ := unstructured.NestedSlice(pm.Object, "spec", "featureToggles")
+	for _, toggle := range toggles {
+		if toggle, ok := toggle.(map[string]any); ok && toggle["name"] == name {
+			return nil
+		}
+	}
+	toggles = append(toggles, map[string]any{"name": name})
+	if err := unstructured.SetNestedSlice(pm.Object, toggles, "spec", "featureToggles"); err != nil {
+		return err
+	}
+	if _, err := platformMeshes.Update(ctx, pm, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("enabling the %s feature toggle: %w", name, err)
 	}
 	return nil
 }
