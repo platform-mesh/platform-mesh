@@ -57,7 +57,7 @@ repeatedly apply install-mode renders must manage the profile separately.
 | log.level | string | `"info"` | log level. Permissible values: debug, info, warn, error |
 | ocm | object | `{"enabled":false,"installSigningCertificate":true,"profile":"production","repository":"ghcr.io/platform-mesh","signatureName":"platform-mesh.platform-mesh","version":"0.5.2"}` | When enabled, manages the OCM Repository/Component CRs and the PlatformMesh CR, and creates the profile ConfigMap once on Helm install if absent. Helm upgrades preserve the existing profile. Disable to supply PlatformMesh resources from a separate GitOps source. |
 | ocm.enabled | bool | `false` | Enable the bundled installation resources. Keep enabled on upgrades to continue managing the OCM and PlatformMesh resources. |
-| ocm.installSigningCertificate | bool | `true` | Set to false when the OCM component is signed by a different trusted key. |
+| ocm.installSigningCertificate | bool | `true` | Set to false when the OCM component is signed by a different trusted key, the Secret ocm-signing-public-cert must then exist with a .ocmconfig key verifying ocm.signatureName. |
 | ocm.profile | string | `"production"` | Initial profile, applied only on Helm install when no profile ConfigMap exists. Changes on upgrade do not update the profile. `production` assumes the infrastructure prerequisites already exist. |
 | ocm.repository | string | `"ghcr.io/platform-mesh"` | OCI registry (and optional path) the Platform Mesh OCM components are read from. Point this at a mirror, or at a fork's registry, to install from there. |
 | ocm.signatureName | string | `"platform-mesh.platform-mesh"` | Name of the OCM signature the components are verified against. |
