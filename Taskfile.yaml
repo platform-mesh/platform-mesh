@@ -269,7 +269,7 @@ tasks:
   "generate:ocm-configuration":
     desc: Regenerate charts/platform-mesh-operator/templates/ocm.yaml from charts/*/ocm.yaml and third_party/*/ocm.yaml.
     cmds:
-      - python3 hack/generate-ocm-configuration/main.py
+      - go run ./hack/release/generate-ocm-configuration
   build:
     desc: Build every component.
     cmds:
