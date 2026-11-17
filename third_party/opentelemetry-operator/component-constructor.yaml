@@ -24,33 +24,33 @@ components:
         # renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-helm-charts/opentelemetry-operator
         version: 0.128.0
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-helm-charts/opentelemetry-operator
           imageReference: ghcr.io/open-telemetry/opentelemetry-helm-charts/opentelemetry-operator:0.128.0
       - name: manager-image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator
         version: 0.162.0
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator
           imageReference: "ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator:0.162.0"
       - name: collector-image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s
         version: 0.164.0
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s
           imageReference: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s:0.164.0"
       - name: target-allocator-image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-operator/target-allocator
         version: 0.162.0
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/open-telemetry/opentelemetry-operator/target-allocator
           imageReference: "ghcr.io/open-telemetry/opentelemetry-operator/target-allocator:0.162.0"

@@ -29,11 +29,11 @@ components:
           # renovate: datasource=helm depName=kcp-operator registryUrl=https://kcp-dev.github.io/helm-charts
           helmChart: kcp-operator:0.7.12
       - name: image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp-operator
         version: v0.10.3
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp-operator
           imageReference: "ghcr.io/kcp-dev/kcp-operator:v0.10.3"

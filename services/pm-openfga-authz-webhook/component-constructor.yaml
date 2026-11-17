@@ -27,11 +27,11 @@ components:
           commit: ${COMMIT}
     resources:
       - name: image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: v${PM_VERSION}
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${IMAGE_REPO}/pm-openfga-authz-webhook:v${PM_VERSION}
       - name: sbom-cyclonedx
         type: sbom

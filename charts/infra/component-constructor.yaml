@@ -9,7 +9,7 @@ components:
         relation: external
         version: ${PM_VERSION}
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${CHART_REPO}/infra:${PM_VERSION}
     sources:
       - name: chart
@@ -25,46 +25,46 @@ components:
       name: The Platform Mesh Team
     resources:
       - name: keycloak-image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: "${KEYCLOAK_IMAGE_TAG}"
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${KEYCLOAK_IMAGE_REGISTRY}/${KEYCLOAK_IMAGE_REPOSITORY}:${KEYCLOAK_IMAGE_TAG}
       - name: busybox-image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: "${BUSYBOX_IMAGE_TAG}"
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${BUSYBOX_IMAGE_REGISTRY}/${BUSYBOX_IMAGE_REPOSITORY}:${BUSYBOX_IMAGE_TAG}
       - name: postgres-image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: "${POSTGRES_IMAGE_TAG}"
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${POSTGRES_IMAGE_REGISTRY}/${POSTGRES_IMAGE_REPOSITORY}:${POSTGRES_IMAGE_TAG}
       - name: dex-image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: "${DEX_IMAGE_TAG}"
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${DEX_IMAGE_REGISTRY}/${DEX_IMAGE_REPOSITORY}:${DEX_IMAGE_TAG}@${DEX_IMAGE_DIGEST}
       - name: etcd-wrapper-image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: "${ETCD_WRAPPER_IMAGE_TAG}"
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${ETCD_WRAPPER_IMAGE_REPOSITORY}:${ETCD_WRAPPER_IMAGE_TAG}
       - name: etcdbrctl-image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: "${ETCDBRCTL_IMAGE_TAG}"
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${ETCDBRCTL_IMAGE_REPOSITORY}:${ETCDBRCTL_IMAGE_TAG}
   - name: github.com/platform-mesh/infra
     version: ${PM_VERSION}

@@ -27,11 +27,11 @@ components:
           commit: ${COMMIT}
     resources:
       - name: image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: v${PM_VERSION}
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${IMAGE_REPO}/terminal-controller-manager:v${PM_VERSION}
       - name: sbom-cyclonedx
         type: sbom
@@ -46,11 +46,11 @@ components:
           path: terminal-controller-manager/sbom-spdx.json
           mediaType: application/spdx+json
       - name: terminal-image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: v${PM_VERSION}
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${IMAGE_REPO}/terminal:v${PM_VERSION}
       - name: sbom-cyclonedx-terminal
         type: sbom

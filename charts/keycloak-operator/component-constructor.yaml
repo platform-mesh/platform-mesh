@@ -9,7 +9,7 @@ components:
         relation: external
         version: ${PM_VERSION}
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${CHART_REPO}/keycloak-operator:${PM_VERSION}
     sources:
       - name: chart
@@ -25,18 +25,18 @@ components:
       name: The Platform Mesh Team
     resources:
       - name: keycloak-image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: "${KEYCLOAK_IMAGE_TAG}"
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${KEYCLOAK_IMAGE_REGISTRY}/${KEYCLOAK_IMAGE_REPOSITORY}:${KEYCLOAK_IMAGE_TAG}
       - name: keycloak-operator-image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: "${KEYCLOAK_OPERATOR_IMAGE_TAG}"
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${KEYCLOAK_OPERATOR_IMAGE_REGISTRY}/${KEYCLOAK_OPERATOR_IMAGE_REPOSITORY}:${KEYCLOAK_OPERATOR_IMAGE_TAG}
   - name: github.com/platform-mesh/keycloak-operator
     version: ${PM_VERSION}

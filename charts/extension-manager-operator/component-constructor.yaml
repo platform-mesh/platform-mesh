@@ -9,7 +9,7 @@ components:
         relation: external
         version: ${PM_VERSION}
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${CHART_REPO}/extension-manager-operator:${PM_VERSION}
     sources:
       - name: chart
