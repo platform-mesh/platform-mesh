@@ -19,6 +19,7 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
@@ -236,6 +238,30 @@ func TestProcessorError_StopsChain(t *testing.T) {
 	require.Len(t, reporter.reported, 1)
 	assert.Equal(t, "step1", reporter.reported[0].Subroutine)
 	assert.Equal(t, ActionProcess, reporter.reported[0].Action)
+}
+
+// A subroutine that does not find another cluster, such as the workspace it
+// just created, returns an error wrapping multicluster.ErrClusterNotFound.
+// multicluster-runtime's ClusterNotFoundWrapper drops a request that fails
+// with that error, so the lifecycle must not hand it through.
+func TestProcessorError_OtherClusterNotFoundIsRetried(t *testing.T) {
+	obj := newTestObj("test", "default")
+	cl := fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(obj).WithStatusSubresource(obj).Build()
+
+	sub := &processorSub{
+		name: "step1",
+		fn: func(context.Context, ctrlruntimeclient.Object) (subroutines.Result, error) {
+			return subroutines.OK(), fmt.Errorf("cluster with name child not found: %w", multicluster.ErrClusterNotFound)
+		},
+	}
+	lc := setupLifecycle(cl, sub).WithConditions(conditions.NewManager())
+
+	// As the builder of multicluster-runtime runs it.
+	wrapped := mcreconcile.NewClusterNotFoundWrapper[mcreconcile.Request](reconcile.TypedFunc[mcreconcile.Request](lc.Reconcile))
+	_, err := wrapped.Reconcile(context.Background(), newReq("test", "default"))
+	require.Error(t, err, "the request must be retried, not dropped")
+	assert.Contains(t, err.Error(), "cluster with name child not found")
+	assert.NotErrorIs(t, err, multicluster.ErrClusterNotFound)
 }
 
 func TestStopWithRequeue_BreaksChain(t *testing.T) {
