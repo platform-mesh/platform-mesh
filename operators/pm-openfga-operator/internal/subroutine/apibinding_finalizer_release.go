@@ -19,6 +19,7 @@ package subroutine
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.platform-mesh.io/golang-commons/logger"
 	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
@@ -31,6 +32,10 @@ import (
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
+
+// apiBindingDeletionRequeue is how long the terminator waits for kcp to mark
+// the APIBindings of a terminating workspace for deletion.
+const apiBindingDeletionRequeue = 5 * time.Second
 
 // APIBindingFinalizerReleaseSubroutine removes the APIBinding finalizer of the
 // model generator from the APIBindings of an account workspace that is being
@@ -78,9 +83,18 @@ func (s *APIBindingFinalizerReleaseSubroutine) Terminate(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("listing APIBindings: %w", err)
 	}
 
+	unmarked := 0
 	for i := range bindings.Items {
 		binding := &bindings.Items[i]
 		if !controllerutil.ContainsFinalizer(binding, APIBindingFinalizer) {
+			continue
+		}
+		// kcp marks the APIBindings for deletion some seconds after the
+		// workspace. Until then the generator still sees them and would add
+		// the finalizer back; once they are marked, the API server rejects new
+		// finalizers.
+		if binding.GetDeletionTimestamp().IsZero() {
+			unmarked++
 			continue
 		}
 
@@ -94,5 +108,8 @@ func (s *APIBindingFinalizerReleaseSubroutine) Terminate(ctx context.Context, ob
 		log.Info().Str("apibinding", binding.Name).Msg("removed the APIBinding finalizer of the terminating workspace")
 	}
 
+	if unmarked > 0 {
+		return subroutines.StopWithRequeue(apiBindingDeletionRequeue, "waiting for kcp to mark the APIBindings for deletion"), nil
+	}
 	return subroutines.OK(), nil
 }

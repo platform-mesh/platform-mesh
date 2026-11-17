@@ -57,14 +57,19 @@ func terminatingAccountLogicalCluster() *kcpcorev1alpha1.LogicalCluster {
 	}
 }
 
-func deletingAPIBinding(name string, finalizers ...string) *kcpapisv1alpha2.APIBinding {
+func apiBinding(name string, finalizers ...string) *kcpapisv1alpha2.APIBinding {
 	return &kcpapisv1alpha2.APIBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              name,
-			Finalizers:        finalizers,
-			DeletionTimestamp: &metav1.Time{Time: metav1.Now().Time},
+			Name:       name,
+			Finalizers: finalizers,
 		},
 	}
+}
+
+func deletingAPIBinding(name string, finalizers ...string) *kcpapisv1alpha2.APIBinding {
+	binding := apiBinding(name, finalizers...)
+	binding.DeletionTimestamp = &metav1.Time{Time: metav1.Now().Time}
+	return binding
 }
 
 func newAPIBindingFakeClient(t *testing.T, funcs interceptor.Funcs, objs ...ctrlruntimeclient.Object) ctrlruntimeclient.Client {
@@ -93,6 +98,8 @@ func TestAPIBindingFinalizerReleaseSubroutine_Terminate(t *testing.T) {
 		remaining map[string][]string
 		// gone lists APIBindings expected to be deleted once their last finalizer is removed.
 		gone []string
+		// waits is set when the subroutine must requeue until kcp marks every APIBinding for deletion.
+		waits bool
 	}{
 		{
 			name:      "no APIBindings",
@@ -134,6 +141,29 @@ func TestAPIBindingFinalizerReleaseSubroutine_Terminate(t *testing.T) {
 				"core.platform-mesh.io": {kcpAPIBindingFinalizer},
 			},
 		},
+		{
+			// The generator would add the finalizer back to an APIBinding that is not being deleted.
+			name: "waits for kcp to mark an APIBinding for deletion",
+			bindings: []ctrlruntimeclient.Object{
+				apiBinding("dnszones", subroutine.APIBindingFinalizer, kcpAPIBindingFinalizer),
+			},
+			remaining: map[string][]string{
+				"dnszones": {subroutine.APIBindingFinalizer, kcpAPIBindingFinalizer},
+			},
+			waits: true,
+		},
+		{
+			name: "releases the marked APIBindings and waits for the others",
+			bindings: []ctrlruntimeclient.Object{
+				deletingAPIBinding("dnszones", subroutine.APIBindingFinalizer, kcpAPIBindingFinalizer),
+				apiBinding("vpcs", subroutine.APIBindingFinalizer, kcpAPIBindingFinalizer),
+			},
+			remaining: map[string][]string{
+				"dnszones": {kcpAPIBindingFinalizer},
+				"vpcs":     {subroutine.APIBindingFinalizer, kcpAPIBindingFinalizer},
+			},
+			waits: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -143,8 +173,14 @@ func TestAPIBindingFinalizerReleaseSubroutine_Terminate(t *testing.T) {
 			kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, terminatingAccountClusterID).Return(cl, nil).Once()
 
 			sub := subroutine.NewAPIBindingFinalizerReleaseSubroutine(kcpHelper)
-			_, err := sub.Terminate(context.Background(), terminatingAccountLogicalCluster())
+			result, err := sub.Terminate(context.Background(), terminatingAccountLogicalCluster())
 			require.NoError(t, err)
+			if tt.waits {
+				assert.True(t, result.IsStopWithRequeue(), "expected the subroutine to requeue")
+				assert.Positive(t, result.Requeue())
+			} else {
+				assert.True(t, result.IsContinue(), "expected the subroutine to finish")
+			}
 
 			for name, finalizers := range tt.remaining {
 				var binding kcpapisv1alpha2.APIBinding
