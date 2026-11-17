@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Build stage for k9s (nexus49 fork with kcp support)
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine@sha256:a2012b4a1d1f9f7e9f44e0d39b805a901e856b1dd80b4e6ee4338db547050308 AS k9s-builder
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS k9s-builder
 
 ARG TARGETOS
 ARG TARGETARCH
