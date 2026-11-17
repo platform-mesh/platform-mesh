@@ -32,11 +32,29 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/keycloak"
 	"go.platform-mesh.io/iam-service/pkg/pager"
 	"go.platform-mesh.io/iam-service/pkg/resolver"
+	"go.platform-mesh.io/iam-service/pkg/resolver/transformer"
 	"go.platform-mesh.io/iam-service/pkg/roles"
 	"go.platform-mesh.io/iam-service/pkg/sorter"
 
 	"k8s.io/utils/ptr"
 )
+
+type testUserDirectory struct {
+	user  *graph.User
+	users []*graph.User
+}
+
+func (d testUserDirectory) LookupEmail(context.Context, string) (*graph.User, error) {
+	return d.user, nil
+}
+
+func (d testUserDirectory) ListUsers(context.Context) ([]*graph.User, error) {
+	return d.users, nil
+}
+
+func (testUserDirectory) EnrichUserRoles(context.Context, []*graph.UserRoles) error {
+	return nil
+}
 
 // Removed mockResolverService - we only mock external dependencies now
 
@@ -77,11 +95,11 @@ func createTestResolverService(t *testing.T) (*Service, *mocks.OpenFGAServiceCli
 	paginator := pager.NewPager(cfg)
 
 	service := &Service{
-		fgaService:      fgaService,
-		keycloakService: keycloakService,
-		userSorter:      userSorter,
-		pager:           paginator,
-		mgr:             nil, // nil for tests that don't use the manager
+		fgaService:    fgaService,
+		userDirectory: keycloakService,
+		userSorter:    userSorter,
+		pager:         paginator,
+		mgr:           nil, // nil for tests that don't use the manager
 	}
 
 	return service, mockFGA
@@ -316,11 +334,36 @@ func TestNewResolverService(t *testing.T) {
 
 	assert.NotNil(t, service)
 	assert.NotNil(t, service.fgaService)
-	assert.NotNil(t, service.keycloakService)
+	assert.NotNil(t, service.userDirectory)
 	assert.NotNil(t, service.userSorter)
 	assert.NotNil(t, service.pager)
 	// mgr is nil in tests that don't require it
 	assert.NotNil(t, mockFGA) // Verify we got the mock back
+}
+
+func TestResolverServiceAcceptsProviderNeutralUserDirectory(t *testing.T) {
+	directory := testUserDirectory{
+		user:  &graph.User{Email: "alice@example.org"},
+		users: []*graph.User{{Email: "alice@example.org"}},
+	}
+	cfg := &config.ServiceConfig{
+		Pagination: config.PaginationConfig{DefaultLimit: 10, DefaultPage: 1},
+	}
+	service := &Service{
+		userDirectory: directory,
+		userSorter:    sorter.NewUserSorter(),
+		pager:         pager.NewPager(cfg),
+		transformer:   transformer.NewUserTransformer(&cfg.JWT),
+	}
+
+	user, err := service.User(context.Background(), "alice@example.org")
+	assert.NoError(t, err)
+	assert.Equal(t, "alice@example.org", user.Email)
+
+	connection, err := service.KnownUsers(context.Background(), nil, nil)
+	assert.NoError(t, err)
+	assert.Len(t, connection.Users, 1)
+	assert.Equal(t, "alice@example.org", connection.Users[0].User.Email)
 }
 
 // Removed trivial GraphQL resolver delegation tests - they're auto-generated and don't add value
@@ -352,7 +395,7 @@ func TestService_Methods_Coverage(t *testing.T) {
 // Additional specific method coverage tests
 func TestService_Me_ErrorPath(t *testing.T) {
 	realService := &Service{
-		keycloakService: &keycloak.Service{},
+		userDirectory: &keycloak.Service{},
 	}
 
 	// Call Me with empty context (will trigger the GetWebTokenFromContext error path)
@@ -365,7 +408,7 @@ func TestService_Me_ErrorPath(t *testing.T) {
 
 func TestService_User_DirectCall(t *testing.T) {
 	realService := &Service{
-		keycloakService: &keycloak.Service{},
+		userDirectory: &keycloak.Service{},
 	}
 
 	// Call User method directly (this covers the method body)
@@ -373,5 +416,5 @@ func TestService_User_DirectCall(t *testing.T) {
 	_, _ = realService.User(ctx, "test-user")
 
 	// This covers the User method implementation
-	assert.NotNil(t, realService.keycloakService)
+	assert.NotNil(t, realService.userDirectory)
 }

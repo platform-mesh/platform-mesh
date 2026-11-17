@@ -22,11 +22,25 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAdminTokenResponseIsBoundedAndComplete(t *testing.T) {
+	for _, body := range []string{"null", `{}`, `{"token":"a"} {}`, strings.Repeat(" ", (1<<20)+1)} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusCreated)
+			_, err := w.Write([]byte(body))
+			require.NoError(t, err)
+		}))
+		_, err := adminClient(t, server).TokenForRegistration(t.Context())
+		server.Close()
+		require.Error(t, err)
+	}
+}
 
 // closedServer returns a server that is immediately shut down so any request
 // to it fails with "connection refused", simulating a network error.
@@ -54,6 +68,13 @@ func TestAdminClient_TokenForRegistration(t *testing.T) {
 				assert.Equal(t, http.MethodPost, r.Method)
 				assert.Equal(t, "/admin/realms/test-realm/clients-initial-access", r.URL.Path)
 				assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+				var access struct {
+					Count      int `json:"count"`
+					Expiration int `json:"expiration"`
+				}
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&access))
+				assert.Equal(t, 1, access.Count)
+				assert.Equal(t, 60, access.Expiration)
 				w.WriteHeader(status)
 				json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token-123"}) //nolint:errcheck
 			}))

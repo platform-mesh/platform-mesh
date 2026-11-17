@@ -47,7 +47,7 @@ func NewAdminClient(httpClient *http.Client, baseURL, realm string) *AdminClient
 func (c *AdminClient) TokenForRegistration(ctx context.Context) (string, error) {
 	url := fmt.Sprintf("%s/admin/realms/%s/clients-initial-access", c.baseURL, c.realm)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader("{}"))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(`{"count":1,"expiration":60}`))
 	if err != nil {
 		return "", fmt.Errorf("failed to create initial access token request: %w", err)
 	}
@@ -67,10 +67,13 @@ func (c *AdminClient) TokenForRegistration(ctx context.Context) (string, error) 
 	var response struct {
 		Token string `json:"token"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := decodeAdminToken(resp.Body, &response); err != nil {
 		return "", fmt.Errorf("failed to parse initial access token response: %w", err)
 	}
 
+	if response.Token == "" {
+		return "", fmt.Errorf("initial access token response contains no token")
+	}
 	return response.Token, nil
 }
 
@@ -100,11 +103,26 @@ func (c *AdminClient) RefreshToken(ctx context.Context, clientID string) (string
 	var response struct {
 		RegistrationAccessToken string `json:"registrationAccessToken"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := decodeAdminToken(resp.Body, &response); err != nil {
 		return "", fmt.Errorf("failed to parse token regeneration response: %w", err)
 	}
 
+	if response.RegistrationAccessToken == "" {
+		return "", fmt.Errorf("registration access token response contains no token")
+	}
 	return response.RegistrationAccessToken, nil
+}
+
+func decodeAdminToken(body io.Reader, result any) error {
+	const maxBytes = 1 << 20
+	data, err := io.ReadAll(io.LimitReader(body, maxBytes+1))
+	if err != nil {
+		return fmt.Errorf("read token response: %w", err)
+	}
+	if len(data) > maxBytes || bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return fmt.Errorf("invalid or oversized token response")
+	}
+	return json.Unmarshal(data, result)
 }
 
 func (c *AdminClient) RegistrationEndpoint() string {

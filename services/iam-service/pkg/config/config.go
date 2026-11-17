@@ -49,6 +49,14 @@ type KeycloakConfig struct {
 	Cache        KeycloakCacheConfig
 }
 
+type IdentityDirectoryConfig struct {
+	Endpoint       string
+	ClientCertFile string
+	ClientKeyFile  string
+	CAFile         string
+	Timeout        time.Duration
+}
+
 type PaginationConfig struct {
 	DefaultLimit int
 	DefaultPage  int
@@ -65,14 +73,15 @@ type RolesConfig struct {
 }
 
 type ServiceConfig struct {
-	Port       int
-	OpenFGA    OpenFGAConfig
-	JWT        JWTConfig
-	IDM        IDMConfig
-	Keycloak   KeycloakConfig
-	Pagination PaginationConfig
-	Sorting    SortingConfig
-	Roles      RolesConfig
+	Port              int
+	OpenFGA           OpenFGAConfig
+	JWT               JWTConfig
+	IDM               IDMConfig
+	Keycloak          KeycloakConfig
+	IdentityDirectory IdentityDirectoryConfig
+	Pagination        PaginationConfig
+	Sorting           SortingConfig
+	Roles             RolesConfig
 }
 
 func NewServiceConfig() *ServiceConfig {
@@ -97,6 +106,9 @@ func NewServiceConfig() *ServiceConfig {
 				Enabled: true,
 				TTL:     time.Hour,
 			},
+		},
+		IdentityDirectory: IdentityDirectoryConfig{
+			Timeout: 10 * time.Second,
 		},
 		Pagination: PaginationConfig{
 			DefaultLimit: 10,
@@ -126,6 +138,11 @@ func (c *ServiceConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&c.Keycloak.PageSize, "keycloak-page-size", c.Keycloak.PageSize, "Set Keycloak page size")
 	fs.BoolVar(&c.Keycloak.Cache.Enabled, "keycloak-cache-enabled", c.Keycloak.Cache.Enabled, "Enable keycloak user cache")
 	fs.DurationVar(&c.Keycloak.Cache.TTL, "keycloak-user-cache-ttl", c.Keycloak.Cache.TTL, "Set keycloak user cache TTL")
+	fs.StringVar(&c.IdentityDirectory.Endpoint, "identity-directory-endpoint", c.IdentityDirectory.Endpoint, "HTTPS origin of the provider-neutral identity directory")
+	fs.StringVar(&c.IdentityDirectory.ClientCertFile, "identity-directory-client-cert-file", c.IdentityDirectory.ClientCertFile, "mTLS client certificate for the identity directory")
+	fs.StringVar(&c.IdentityDirectory.ClientKeyFile, "identity-directory-client-key-file", c.IdentityDirectory.ClientKeyFile, "mTLS client private key for the identity directory")
+	fs.StringVar(&c.IdentityDirectory.CAFile, "identity-directory-ca-file", c.IdentityDirectory.CAFile, "Optional CA bundle for identity directory server trust")
+	fs.DurationVar(&c.IdentityDirectory.Timeout, "identity-directory-timeout", c.IdentityDirectory.Timeout, "Identity directory request timeout")
 
 	fs.IntVar(&c.Pagination.DefaultLimit, "pagination-default-limit", c.Pagination.DefaultLimit, "Set default pagination limit")
 	fs.IntVar(&c.Pagination.DefaultPage, "pagination-default-page", c.Pagination.DefaultPage, "Set default pagination page")

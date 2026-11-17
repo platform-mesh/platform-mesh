@@ -46,6 +46,18 @@ tasks:
       - task: tools:generate-deepcopy
         vars:
           PATH: /...
+      - task: identity-manifests
+  identity-manifests:
+    desc: Generate the provider-neutral identity CRDs and KCP API resources.
+    deps: [tools:apigen]
+    cmds:
+      - task: tools:generate-crds
+        vars:
+          PATH: /identity/...
+          OUTPUT: config/crd/identity
+      - "{{.APIGEN}} --input-dir config/crd/identity --output-dir static-assets/resources/identity-provider-operator --header-file {{.HACK}}/boilerplate/boilerplate.yaml.txt"
+      - cp static-assets/resources/identity-provider-operator/apiresourceschema-*.yaml static-assets/kcp/01-platform-mesh-system/
+      - cp static-assets/resources/identity-provider-operator/apiexport-identity.platform-mesh.io.yaml static-assets/kcp/01-platform-mesh-system/
   test:
     desc: Run apis unit tests.
     cmds:

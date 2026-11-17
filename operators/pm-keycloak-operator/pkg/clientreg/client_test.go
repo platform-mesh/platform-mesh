@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+func TestClientInformationResponseBounds(t *testing.T) {
+	for _, body := range []string{"null", `{"client_id":"a"} {}`, strings.Repeat(" ", (1<<20)+1)} {
+		_, err := decodeClientInformation(strings.NewReader(body))
+		require.Error(t, err)
+	}
+}
 
 // mockTokenProvider is a mock implementation of TokenProvider.
 type mockTokenProvider struct {

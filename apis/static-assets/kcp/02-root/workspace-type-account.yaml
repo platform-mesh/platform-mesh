@@ -29,6 +29,8 @@ spec:
     # virtual workspace, which only serves clusters bound to that export.
     - export: ui.platform-mesh.io
       path: root:platform-mesh-system
+    - export: identity.platform-mesh.io
+      path: root:platform-mesh-system
 {{- if not .featureDisableKeycloak }}
     - export: keycloak.platform-mesh.io
       path: root:platform-mesh-system

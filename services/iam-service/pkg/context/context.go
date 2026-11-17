@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"go.platform-mesh.io/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/idpdirectory"
 )
 
 // contextKey is a private type for context keys to avoid collisions
@@ -37,6 +38,7 @@ const (
 type KCPContext struct {
 	IDMTenant        string
 	OrganizationName string
+	IdentityTenant   *idpdirectory.Tenant
 }
 
 // SetKCPContext stores kcp context information in the request context

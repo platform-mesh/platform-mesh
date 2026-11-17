@@ -10,6 +10,7 @@ replace (
 	go.platform-mesh.io/golang-commons => ./golang-commons
 	go.platform-mesh.io/kro-composition-operator => ./operators/kro-composition-operator
 	go.platform-mesh.io/kubernetes-graphql-gateway => ./services/kubernetes-graphql-gateway
+	go.platform-mesh.io/pm-keycloak-operator => ./operators/pm-keycloak-operator
 	go.platform-mesh.io/pm-openfga-operator => ./operators/pm-openfga-operator
 	go.platform-mesh.io/resource-broker => ./operators/resource-broker
 	go.platform-mesh.io/subroutines => ./subroutines
@@ -23,6 +24,7 @@ replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.24.1
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/google/go-github/v84 v84.0.0
+	github.com/google/uuid v1.6.0
 	github.com/jarcoal/httpmock v1.4.2
 	github.com/kcp-dev/kcp-testcontainers v0.0.3
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
@@ -32,6 +34,7 @@ require (
 	github.com/kubernetes-sigs/kro v0.9.4
 	github.com/mattn/go-runewidth v0.0.19
 	github.com/moby/moby/api v1.56.1
+	github.com/moby/moby/client v0.6.2
 	github.com/rogpeppe/go-internal v1.16.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
@@ -42,10 +45,12 @@ require (
 	go.platform-mesh.io/golang-commons v0.20.0
 	go.platform-mesh.io/kro-composition-operator v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/kubernetes-graphql-gateway v0.0.0-00010101000000-000000000000
+	go.platform-mesh.io/pm-keycloak-operator v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/pm-openfga-operator v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/resource-broker v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/subroutines v0.7.0
 	go.yaml.in/yaml/v3 v3.0.5
+	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.24.0
 	golang.org/x/term v0.47.0
 	helm.sh/helm/v3 v3.22.1
@@ -138,7 +143,6 @@ require (
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/gosuri/uitable v0.0.4 // indirect
 	github.com/graphql-go/graphql v0.8.1 // indirect
@@ -167,7 +171,6 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.3.3 // indirect
-	github.com/moby/moby/client v0.6.2 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
 	github.com/moby/spdystream v0.5.1 // indirect
 	github.com/moby/sys/sequential v0.7.0 // indirect
@@ -227,7 +230,6 @@ require (
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect

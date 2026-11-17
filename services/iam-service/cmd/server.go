@@ -40,6 +40,7 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/accountinfo"
 	"go.platform-mesh.io/iam-service/pkg/config"
 	"go.platform-mesh.io/iam-service/pkg/directive"
+	iamdirectory "go.platform-mesh.io/iam-service/pkg/directory"
 	"go.platform-mesh.io/iam-service/pkg/graph"
 	"go.platform-mesh.io/iam-service/pkg/keycloak"
 	kcpmiddleware "go.platform-mesh.io/iam-service/pkg/middleware/kcp"
@@ -88,15 +89,18 @@ func setupRouter(ctx context.Context, mgr mcmanager.Manager, fgaClient openfgav1
 		log.Fatal().Err(err).Msg("Failed to create cluster client")
 	}
 
-	mws := pmmws.CreateMiddleware(log, true)
-	kcpmw := kcpmiddleware.New(mgr.GetLocalManager().GetConfig(), serviceCfg.IDM.ExcludedTenants, keycloakmw.New(), log)
-	mws = append(mws, kcpmw.SetKCPUserContext())
-
 	// Prepare AccountInfo Retriever
 	accountInfoRetriever, err := accountinfo.New(mgr, clusterClient)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create account info retriever")
 	}
+
+	mws := pmmws.CreateMiddleware(log, true)
+	kcpmw := kcpmiddleware.New(mgr.GetLocalManager().GetConfig(), serviceCfg.IDM.ExcludedTenants, keycloakmw.New(), log)
+	if serviceCfg.IdentityDirectory.Endpoint != "" {
+		kcpmw.SetIdentityTenantResolver(kcpmiddleware.NewIdentityTenantResolver(accountInfoRetriever))
+	}
+	mws = append(mws, kcpmw.SetKCPUserContext())
 
 	// Prepare Directives
 	mcClusterClient, err := mcclient.New(restcfg, ctrlruntimeclient.Options{Scheme: scheme})
@@ -133,9 +137,17 @@ func setupRouter(ctx context.Context, mgr mcmanager.Manager, fgaClient openfgav1
 	}
 
 	// create Resolver Service
-	idmClient, err := keycloak.New(ctx, serviceCfg)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create keycloak client")
+	var idmClient pm.UserDirectory
+	if serviceCfg.IdentityDirectory.Endpoint != "" {
+		idmClient, err = iamdirectory.NewFromConfig(serviceCfg.IdentityDirectory)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to configure provider-neutral identity directory")
+		}
+	} else {
+		idmClient, err = keycloak.New(ctx, serviceCfg)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to create keycloak client")
+		}
 	}
 	svc := pm.NewResolverService(fgaClient, idmClient, serviceCfg, mgr, rolesRetriever)
 	res := resolver.New(svc, log.ComponentLogger("resolver"))

@@ -5,14 +5,26 @@
 
 ## Description
 
-The platform-mesh iam-service offers a graphql API for user management. The service then takes management actions to OpenFGA and the Identity Provider. Its design is prepared to allow for alternative implementations to support different Identity Providers. Initially it comes with Keycloak support.
+The platform-mesh iam-service offers a GraphQL API for user management. It
+coordinates user and role information with OpenFGA and an identity provider.
+The Keycloak admin API remains the default user-directory backend. An opt-in,
+mutual-TLS provider-neutral directory client is available through
+`--identity-directory-endpoint`; it requires a UID-bound identity projection in
+the organization's AccountInfo and fails closed when that binding is missing
+or does not match the authenticated issuer.
 
 ## Features
 - GraphQL API for user and role management
 - Management of Tuples in OpenFGA
 - Multi-cluster resource coordination via kcp
 - Keycloak integration for identity provider support
+- Opt-in provider-neutral user-directory reads over authenticated mTLS
 - JWT token validation against kcp
+
+The directory integration changes the source of user-directory data only.
+IAM/FGA role grants still use the legacy email principal model; enabling the
+directory client does not activate subject-based authorization or complete the
+identity migration.
 
 
 ## Getting Started

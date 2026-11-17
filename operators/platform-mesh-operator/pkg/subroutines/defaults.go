@@ -95,6 +95,18 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 		AdminAuth: ptr.To(true),
 	},
 	{
+		Path:           "root:platform-mesh-system",
+		Secret:         "pm-keycloak-identity-provider-kubeconfig",
+		APIExportNames: []string{"identity.platform-mesh.io", "keycloak.platform-mesh.io"},
+		AdminAuth:      ptr.To(false),
+	},
+	{
+		Path:           "root:platform-mesh-system",
+		Secret:         "pm-keycloak-identity-directory-kubeconfig",
+		APIExportNames: []string{"identity.platform-mesh.io"},
+		AdminAuth:      ptr.To(false),
+	},
+	{
 		Path:      "root:platform-mesh-system",
 		Secret:    "kubernetes-graphql-gateway-kubeconfig",
 		AdminAuth: ptr.To(true),

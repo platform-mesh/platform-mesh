@@ -45,6 +45,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&IdentityProviderConfigurationList{},
 		&Invite{},
 		&InviteList{},
+		&KeycloakProviderConfiguration{},
+		&KeycloakProviderConfigurationList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)

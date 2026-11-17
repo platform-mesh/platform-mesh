@@ -49,6 +49,8 @@ func init() {
 	rootCmd.AddCommand(terminatorCmd)
 	rootCmd.AddCommand(operatorCmd)
 	rootCmd.AddCommand(initContainerCmd)
+	rootCmd.AddCommand(newDirectoryCommand())
+	rootCmd.AddCommand(newProviderCommand())
 
 	defaultCfg = platformeshconfig.NewDefaultConfig()
 	operatorCfg = config.NewConfig()

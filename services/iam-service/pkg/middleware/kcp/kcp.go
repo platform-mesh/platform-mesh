@@ -25,6 +25,7 @@ import (
 
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/idpdirectory"
 	"go.platform-mesh.io/golang-commons/logger"
 	appcontext "go.platform-mesh.io/iam-service/pkg/context"
 	"go.platform-mesh.io/iam-service/pkg/middleware/idm"
@@ -33,10 +34,11 @@ import (
 )
 
 type Middleware struct {
-	log                *logger.Logger
-	tenantRetriever    idm.IDMTenantRetriever
-	excludedIDMTenants []string
-	restcfg            *rest.Config
+	log                    *logger.Logger
+	tenantRetriever        idm.IDMTenantRetriever
+	identityTenantResolver func(context.Context, string, string) (idpdirectory.Tenant, error)
+	excludedIDMTenants     []string
+	restcfg                *rest.Config
 }
 
 func New(restcfg *rest.Config, excludedIDMTenants []string, tenantRetriever idm.IDMTenantRetriever, log *logger.Logger) *Middleware {
@@ -54,6 +56,10 @@ func New(restcfg *rest.Config, excludedIDMTenants []string, tenantRetriever idm.
 	}
 }
 
+func (m *Middleware) SetIdentityTenantResolver(resolver func(context.Context, string, string) (idpdirectory.Tenant, error)) {
+	m.identityTenantResolver = resolver
+}
+
 func (m *Middleware) SetKCPUserContext() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -67,11 +73,14 @@ func (m *Middleware) SetKCPUserContext() func(http.Handler) http.Handler {
 				return
 			}
 
-			idmTenant, err := m.tenantRetriever.GetIDMTenant(tokenInfo.Issuer)
-			if err != nil {
-				log.Error().Err(err).Msg("Error while retrieving realm info")
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-				return
+			idmTenant := ""
+			if m.identityTenantResolver == nil {
+				idmTenant, err = m.tenantRetriever.GetIDMTenant(tokenInfo.Issuer)
+				if err != nil {
+					log.Error().Err(err).Msg("Error while retrieving realm info")
+					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+					return
+				}
 			}
 
 			authHeader, err := pmcontext.GetAuthHeaderFromContext(ctx)
@@ -97,9 +106,22 @@ func (m *Middleware) SetKCPUserContext() func(http.Handler) http.Handler {
 				return
 			}
 
+			var identityTenant *idpdirectory.Tenant
+			if m.identityTenantResolver != nil {
+				tenant, err := m.identityTenantResolver(ctx, subdomain, tokenInfo.Issuer)
+				if err != nil {
+					log.Error().Err(err).Str("organization", subdomain).Msg("Error while resolving identity tenant")
+					http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+					return
+				}
+				idmTenant = tenant.Name
+				identityTenant = &tenant
+			}
+
 			kctx := appcontext.KCPContext{
 				OrganizationName: subdomain,
 				IDMTenant:        idmTenant,
+				IdentityTenant:   identityTenant,
 			}
 
 			ctx = appcontext.SetKCPContext(ctx, kctx)
