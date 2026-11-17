@@ -1,5 +1,5 @@
 exposure:
-  # -- Public hostname without protocol or port; empty preserves standalone behavior. pm-operator sets this value based on the PlatformMesh.spec.Exposure.host.
+  # -- Public hostname without protocol or port; empty preserves standalone behavior. The operator supplies this from PlatformMesh.spec.exposure.baseDomain.
   baseDomain: ""
 
 rbac:

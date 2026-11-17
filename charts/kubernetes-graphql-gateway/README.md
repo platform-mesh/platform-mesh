@@ -19,7 +19,7 @@ kubeConfig:
 | clusterScopedName.suffix | string | `""` | Suffix for the names of cluster-scoped resources |
 | crds.enabled | bool | `true` |  |
 | deployment | object | `{"maxSurge":5,"maxUnavailable":0,"replicas":1,"revisionHistoryLimit":3}` | Default deployment settings applied to both the gateway and listener Deployments. Each setting can be overridden per-deployment via `gateway.deployment.<field>` or `listener.deployment.<field>` (see those blocks in this file). When a per-deployment override is unset, the value from this block is used. |
-| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. The operator supplies this from PlatformMesh.spec.exposure.baseDomain. |
 | extraVolumeMounts | list | `[]` |  |
 | extraVolumes | list | `[]` |  |
 | gateway.deployment | object | `{}` | Per-deployment overrides for the gateway Deployment. Any field set here takes precedence over the matching field in the top-level `deployment` block. Unset fields fall back to the top-level defaults. Example:   gateway:     deployment:       replicas: 3 |
