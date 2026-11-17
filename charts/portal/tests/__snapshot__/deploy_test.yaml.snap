@@ -25,13 +25,13 @@ matches the snapshot:
           containers:
             - env:
                 - name: HTTP_PROTOCOL
-                  value: null
+                  value: ""
                 - name: DISCOVERY_ENDPOINT
-                  value: null
+                  value: ""
                 - name: OIDC_CLIENT_ID_DEFAULT
                   value: null
                 - name: BASE_DOMAINS_DEFAULT
-                  value: null
+                  value: ""
                 - name: DEVELOPMENT_INSTANCE
                   value: "false"
                 - name: FEATURE_TOGGLES
@@ -130,13 +130,13 @@ test hosAliases:
           containers:
             - env:
                 - name: HTTP_PROTOCOL
-                  value: null
+                  value: ""
                 - name: DISCOVERY_ENDPOINT
-                  value: null
+                  value: ""
                 - name: OIDC_CLIENT_ID_DEFAULT
                   value: null
                 - name: BASE_DOMAINS_DEFAULT
-                  value: null
+                  value: ""
                 - name: DEVELOPMENT_INSTANCE
                   value: "false"
                 - name: FEATURE_TOGGLES
