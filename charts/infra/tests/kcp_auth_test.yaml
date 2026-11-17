@@ -1,0 +1,84 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: Test kcp authentication
+release:
+  name: infra
+  namespace: platform-mesh-system
+tests:
+- it: RootShard has no OIDC prefixes by default
+  set:
+    kcp.auth.oidc:
+      enabled: true
+      issuerUrl: https://issuer.example/dex
+      clientID: platform-mesh
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.auth.oidc.issuerURL
+        value: https://issuer.example/dex
+    - notExists:
+        path: spec.auth.oidc.usernamePrefix
+    - notExists:
+        path: spec.auth.oidc.groupsPrefix
+- it: RootShard renders the OIDC prefixes when set
+  set:
+    kcp.auth.oidc:
+      enabled: true
+      issuerUrl: https://issuer.example/dex
+      clientID: platform-mesh
+      usernamePrefix: "oidc:"
+      groupsPrefix: "oidc:"
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.auth.oidc.usernamePrefix
+        value: "oidc:"
+    - equal:
+        path: spec.auth.oidc.groupsPrefix
+        value: "oidc:"
+- it: FrontProxy has no OIDC prefixes by default
+  set:
+    kcp.auth.oidc:
+      enabled: true
+      issuerUrl: https://issuer.example/dex
+      clientID: platform-mesh
+  templates:
+    - kcp/front-proxy.yaml
+  documentSelector:
+    path: kind
+    value: FrontProxy
+  asserts:
+    - equal:
+        path: spec.auth.oidc.issuerURL
+        value: https://issuer.example/dex
+    - notExists:
+        path: spec.auth.oidc.usernamePrefix
+    - notExists:
+        path: spec.auth.oidc.groupsPrefix
+- it: FrontProxy renders the OIDC prefixes when set
+  set:
+    kcp.auth.oidc:
+      enabled: true
+      issuerUrl: https://issuer.example/dex
+      clientID: platform-mesh
+      usernamePrefix: "oidc:"
+      groupsPrefix: "oidc:"
+  templates:
+    - kcp/front-proxy.yaml
+  documentSelector:
+    path: kind
+    value: FrontProxy
+  asserts:
+    - equal:
+        path: spec.auth.oidc.usernamePrefix
+        value: "oidc:"
+    - equal:
+        path: spec.auth.oidc.groupsPrefix
+        value: "oidc:"

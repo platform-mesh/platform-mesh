@@ -145,6 +145,12 @@ auth:
     clientID: {{ .clientID }}
     groupsClaim: {{ .groupsClaim }}
     usernameClaim: {{ .usernameClaim }}
+    {{- with .usernamePrefix }}
+    usernamePrefix: {{ . | quote }}
+    {{- end }}
+    {{- with .groupsPrefix }}
+    groupsPrefix: {{ . | quote }}
+    {{- end }}
   {{- end }}
   {{- end }}
 {{- end }}
