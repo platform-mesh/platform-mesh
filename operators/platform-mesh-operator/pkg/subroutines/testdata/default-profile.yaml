@@ -598,9 +598,6 @@ data:
           enabled: true
           targetNamespace: platform-mesh-system
           values:
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             deployment:
               resources:
                 requests:
@@ -618,16 +615,11 @@ data:
           enabled: true
           targetNamespace: platform-mesh-system
           values:
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
-            virtualWorkspaceSecretName: virtual-workspaces-cert
             deployment:
               resources:
                 requests:
                   cpu: 20m
                   memory: 64Mi
-              serverUrl: "{{ .internalFrontProxyUrl }}"
         marketplace-ui:
           enabled: true
           imageResources:
