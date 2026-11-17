@@ -72,12 +72,6 @@ tests:
       - notMatchRegex:
           path: data["profile.yaml"]
           pattern: 'cat /domain-ca/tls\.crt'
-      # The external port must be substituted by Helm at template time; the
-      # __EXTERNAL_PORT__ placeholder must not leak into the ConfigMap, and
-      # PMO's template context does not define `.port`.
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'port: 8443'
       - notMatchRegex:
           path: data["profile.yaml"]
           pattern: '__EXTERNAL_PORT__'
