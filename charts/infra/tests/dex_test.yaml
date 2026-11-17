@@ -3,12 +3,15 @@ suite: Test Dex manifests
 release:
   name: infra
   namespace: platform-mesh-system
+set:
+  dex.staticClient.secret: dex-test-client-secret
 tests:
 - it: requires explicit client credentials when Dex is enabled
   templates:
-    - dex/configmap.yaml
+    - dex/deployment.yaml
   set:
     dex.enabled: true
+    dex.staticClient.secret: ""
   asserts:
     - failedTemplate:
         errorMessage: dex.staticClient.secret is required when Dex is enabled

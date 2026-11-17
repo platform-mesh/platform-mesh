@@ -24,16 +24,18 @@ The Job can get only the database Secret names and create Secrets within its nam
 
 Generated database Secrets have no owner reference or release tracking, and survive release removal. Back them up with the database. Hook ServiceAccount, Role, RoleBinding and configuration Secret persist between runs and are replaced before each run; remove these helpers separately when retiring an installation.
 
-The native admin Secret belongs to the Keycloak resource and is garbage-collected if that resource is deleted. Keycloak only bootstraps the admin account when the master realm is first created. Recreating its Secret or changing its bootstrap configuration does not reset an account in an existing database. The native account is a temporary bootstrap administrator; replacing or deleting it must also account for consumers that still use it, including the security-operator bootstrap container.
+The native admin Secret belongs to the Keycloak resource and is garbage-collected if that resource is deleted. Keycloak only bootstraps the admin account when the master realm is first created. Recreating its Secret or changing its bootstrap configuration does not reset an account in an existing database. The native account is a temporary bootstrap administrator; replacing or deleting it must also account for consumers that still use it, including the pm-keycloak-operator bootstrap container.
 
 ## Existing installations
 
+When replacing the shipped profile during an upgrade, `pmctl quickstart` preserves its existing admin credentials, database password overrides and credential Secret references. It also carries the legacy security-operator admin consumer settings into pm-keycloak-operator. Explicit passwords remain configured for the retention upgrade; moving to existingSecret references is a separate step below.
+
 1. Keep all existing explicit credential overrides during the first chart upgrade. It adds Helm resource-policy: keep and Argo Prune=false annotations to legacy explicit Secrets. This prevents their deletion when templates are subsequently removed.
 2. Add the credentials-image entry from the shipped profile to components.services.infra.imageResources when using OCM localization, or configure an available helper image directly. Profile ConfigMaps are installed once and do not automatically receive new entries.
-3. After the retention upgrade succeeds, set keycloak.operator.admin.existingSecret to the existing admin Secret, usually keycloak-admin, before removing its password override. Keep security-operator.keycloakSecret and initContainer.keycloakUser pointing to the existing Secret and username. Do not switch an existing database to keycloak-initial-admin: a newly generated password would not match its stored account.
+3. After the retention upgrade succeeds, set keycloak.operator.admin.existingSecret to the existing admin Secret, usually keycloak-admin, before removing its password override. Keep pm-keycloak-operator.keycloakSecret and initContainer.keycloakUser pointing to the existing Secret and username. Do not switch an existing database to keycloak-initial-admin: a newly generated password would not match its stored account.
 4. Remove database password overrides only after the retention upgrade. Keycloak can use cnpg-keycloak-user directly when its credentials match; alternatively keep db.existingSecret: keycloak-db-credentials. The Job preserves both legacy and current passwords and rejects conflicts before creating Secrets.
 
-Infra settings belong under services.infra.values in PlatformMesh overrides, or components.services.infra.values in a custom profile. Security-operator consumer settings belong under the corresponding security-operator service values. Retained profiles keep their old admin consumer defaults; if replacing a profile with the new shipped one, explicitly restore the existing admin Secret and username settings.
+Infra settings belong under services.infra.values in PlatformMesh overrides, or components.services.infra.values in a custom profile. Keycloak operator consumer settings belong under the corresponding pm-keycloak-operator service values. Retained profiles keep their old admin consumer defaults; if replacing a profile manually with the new shipped one, explicitly restore the existing admin Secret and username settings.
 
 ## Retrieval and overrides
 
@@ -46,7 +48,7 @@ For existing installations, use the Secret named in the Keycloak resource's spec
 
 Set admin.existingSecret to use a pre-provisioned admin Secret with username/password keys. Set db.existingSecret for a pre-provisioned database Secret with the same keys. Existing Secret references and explicit password overrides are mutually exclusive for that credential. An external Keycloak database requires db.existingSecret or an explicit db.password; the Job does not provision external databases.
 
-When using admin.password or admin.existingSecret with a new shipped profile, also override the security-operator service values: keycloakSecret must name that admin Secret and initContainer.keycloakUser must match its username. Native defaults are keycloak-initial-admin and temp-admin; an explicit password defaults to keycloak-admin with username keycloak-admin.
+When using admin.password or admin.existingSecret with a new shipped profile, also override the pm-keycloak-operator service values: keycloakSecret must name that admin Secret and initContainer.keycloakUser must match its username. Native defaults are keycloak-initial-admin and temp-admin; an explicit password defaults to keycloak-admin with username keycloak-admin.
 
 For explicit shared-database passwords, keep keycloak.operator.db.password and cnpg.roles.keycloak.password equal. Supplying only db.password lets the Job create the CNPG role Secret with that value. Supplying only cnpg.roles.keycloak.password lets Keycloak use that role Secret directly. Set credentials.enabled: false when database Secrets are provisioned by an external manager. This does not disable native Keycloak admin generation.
 

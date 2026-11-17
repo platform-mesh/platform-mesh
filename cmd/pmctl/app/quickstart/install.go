@@ -348,6 +348,10 @@ func (o *Options) applyProfile(ctx context.Context, kube kubernetes.Interface, m
 	if err != nil {
 		return fmt.Errorf("reading the installed profile: %w", err)
 	}
+	profile.Data["profile.yaml"], err = preserveProfileCredentials(installed.Data["profile.yaml"], profile.Data["profile.yaml"])
+	if err != nil {
+		return fmt.Errorf("preserving installation credentials: %w", err)
+	}
 	installed.Data = profile.Data
 	installed.BinaryData = profile.BinaryData
 	if _, err := kube.CoreV1().ConfigMaps(namespace).Update(ctx, installed, metav1.UpdateOptions{}); err != nil {
