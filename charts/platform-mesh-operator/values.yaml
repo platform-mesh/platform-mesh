@@ -78,6 +78,8 @@ extraArgs:
 
 idp:
   registrationAllowed: false
+  # -- Development only: accept logins of users whose email is not verified, for installations without an SMTP server. Enables the `feature-disable-email-verification` toggle on the PlatformMesh resource and, on Helm install, `idp.allowUnverifiedEmails` in the profile. Must be false in production.
+  allowUnverifiedEmails: false
 
 istio:
   enabled: false
