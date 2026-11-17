@@ -114,15 +114,14 @@ KCP_URL = "https://kcp.api." + BASE_DOMAIN_PORT
 KCP_FRONT_PROXY_URL = "https://frontproxy-front-proxy.{}:{}".format(NAMESPACE, PORT)
 
 # Values the kind-profile templates with (pkg/subroutines/subroutine_helpers.go
-# getExposureParams), plus the __PLACEHOLDER__ tokens the PMO chart replaces.
-# gatewayClusterIP only feeds hostAliases, which are dropped.
+# getExposureParams). gatewayServiceClusterIP only feeds hostAliases, which
+# are dropped.
 TEMPLATE_VARS = {
     "baseDomain": BASE_DOMAIN,
     "baseDomainPort": BASE_DOMAIN_PORT,
     "port": str(PORT),
-    "gatewayClusterIP": "",
+    "gatewayServiceClusterIP": "",
     "internalFrontProxyUrl": KCP_FRONT_PROXY_URL,
-    "gatewayClassName": "traefik",
 }
 
 # Dex as identity provider of kcp (--with=dex): static users.

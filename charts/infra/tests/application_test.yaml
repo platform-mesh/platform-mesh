@@ -91,6 +91,30 @@ tests:
   - equal:
       path: spec.listeners[0].tls.certificateRefs[0].namespace
       value: default2
+- it: renders a listener port the operator templated as an integer
+  templates:
+    - gatewayapi/gateway.yaml
+  set:
+    gatewayApi:
+      enabled: true
+      passthrough:
+        enabled: false
+      listeners:
+        - name: terminate
+          hostname: portal.localhost
+          port: "443"
+          protocol: HTTPS
+      listenersExtra:
+        - name: passthrough
+          port: 8443
+          protocol: TLS
+  asserts:
+  - equal:
+      path: spec.listeners[0].port
+      value: 443
+  - equal:
+      path: spec.listeners[1].port
+      value: 8443
 - it: configure frontproxy resources
   templates:
     - kcp/front-proxy.yaml

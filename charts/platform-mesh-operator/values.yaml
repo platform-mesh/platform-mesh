@@ -1,13 +1,12 @@
 crds:
   enabled: true
 
-# -- When enabled, manages the OCM Repository/Component CRs and the PlatformMesh CR, and
-# creates the profile ConfigMap once on Helm install if absent. Helm upgrades preserve
-# the existing profile. Disable to supply PlatformMesh resources from a separate GitOps source.
+# -- When enabled, manages the OCM Repository/Component CRs, the PlatformMesh CR and the
+# profile ConfigMap. Disable to supply PlatformMesh resources from a separate GitOps source.
 ocm:
   # -- Enable the bundled installation resources. Keep enabled on upgrades to continue managing the OCM and PlatformMesh resources.
   enabled: false
-  # -- Initial profile, applied only on Helm install when no profile ConfigMap exists. Changes on upgrade do not update the profile. `production` assumes the infrastructure prerequisites already exist.
+  # -- Bundled profile (`production` or `kind`) the chart installs as the `platform-mesh-profile` ConfigMap, and replaces on every upgrade. `production` assumes the infrastructure prerequisites already exist. Set to `""` to supply the ConfigMap yourself.
   profile: production
   # -- Platform Mesh OCM component version to reconcile.
   version: "0.5.2"
@@ -25,9 +24,9 @@ gateway:
   baseDomain: ""
   # -- External HTTPS port exposed by the Gateway.
   port: 8443
-  # -- Name of the GatewayClass the Platform Mesh Gateway attaches to. Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation.
+  # -- Name of the GatewayClass the Platform Mesh Gateway attaches to, `traefik` when empty. Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation. Overrides the profile through `spec.values` of the PlatformMesh resource.
   className: ""
-  # -- ClusterIP of the gateway controller Service. Required when ocm.profile=kind, where component pods resolve the Platform Mesh hostnames to it through host aliases; production uses public DNS.
+  # -- ClusterIP of the gateway controller Service, passed to the operator as `--gateway-service-cluster-ip`. Required when ocm.profile=kind, where component pods resolve the Platform Mesh hostnames to it through host aliases; production uses public DNS.
   clusterIP: ""
 
 # -- KCP connectivity configuration (used when ocm.enabled=true).
@@ -78,9 +77,9 @@ extraArgs:
 
 idp:
   registrationAllowed: false
-  # -- Development only: accept logins of users whose email is not verified, for installations without an SMTP server. Enables the `feature-disable-email-verification` toggle on the PlatformMesh resource and, on Helm install, `idp.allowUnverifiedEmails` in the profile. Must be false in production.
+  # -- Development only: accept logins of users whose email is not verified, for installations without an SMTP server. Enables the `feature-disable-email-verification` toggle on the PlatformMesh resource and overrides `idp.allowUnverifiedEmails` of the profile through its `spec.values`. Must be false in production.
   allowUnverifiedEmails: false
-  # -- Development only: give invited users the temporary password `password`, for installations without an SMTP server to send the invitation with. Sets `idp.setDefaultPassword` in the profile on Helm install. Must be false in production.
+  # -- Development only: give invited users the temporary password `password`, for installations without an SMTP server to send the invitation with. Overrides `idp.setDefaultPassword` of the profile through `spec.values` of the PlatformMesh resource. Must be false in production.
   setDefaultPassword: false
 
 istio:

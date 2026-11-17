@@ -83,16 +83,12 @@ def profile_values(service, tvars, overrides={}):
     """Helm values of one service from the kind-profile, templated and overridden.
 
     tvars:     {{ .name }} substitutions (baseDomain, baseDomainPort, ...),
-               plus gatewayClassName/gatewayClusterIP/port for the
-               __PLACEHOLDER__ tokens the PMO chart replaces
+               the variables the operator renders the profile with
     overrides: deep-merged on top of the profile's values
     """
     profile = str(decode_yaml(read_file(KIND_PROFILE))['data']['profile.yaml'])
     for k, v in tvars.items():
         profile = profile.replace('{{ .%s }}' % k, v)
-    profile = profile.replace('__GATEWAY_CLASS_NAME__', tvars['gatewayClassName'])
-    profile = profile.replace('__EXTERNAL_PORT__', tvars['port'])
-    profile = profile.replace('__GATEWAY_SERVICE_CLUSTER_IP__', tvars['gatewayClusterIP'])
     services = decode_yaml(profile)['components']['services']
     if service not in services:
         fail('{} is not a service in {}'.format(service, KIND_PROFILE))

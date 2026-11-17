@@ -34,6 +34,9 @@ spec:
           - --kcp-front-proxy-port={{ .Values.kcp.frontProxyPort }}
           - --kcp-url=https://frontproxy-front-proxy.{{ .Release.Namespace }}:{{ .Values.kcp.frontProxyPort }}
           {{- end }}
+          {{- with .Values.gateway.clusterIP }}
+          - --gateway-service-cluster-ip={{ . }}
+          {{- end }}
           - --subroutines-deployment-enable-istio={{ (include "common.istioEnabled" .) }}
           {{- with .Values.jwt.userIdClaim }}
           - --user-claim={{ . }}

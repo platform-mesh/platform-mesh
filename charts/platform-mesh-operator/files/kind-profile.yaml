@@ -29,7 +29,7 @@ data:
       # -- Change hostaliases here and all involved components will get the same hostaliases
       hostAliasesEntries: &hostAliasesEntries
         # REQUIRED: set the host aliases for kcp shards
-        - ip: "__GATEWAY_SERVICE_CLUSTER_IP__"
+        - ip: "{{ .gatewayServiceClusterIP }}"
           hostnames:
             - "{{ .baseDomain }}"
             - "kcp.api.{{ .baseDomain }}"
@@ -198,7 +198,7 @@ data:
                   password: openfga-password
             gatewayApi:
               enabled: true
-              gatewayClassName: __GATEWAY_CLASS_NAME__
+              gatewayClassName: traefik
               listeners:
                 - name: terminate
                   hostname: "{{ .baseDomain }}"
