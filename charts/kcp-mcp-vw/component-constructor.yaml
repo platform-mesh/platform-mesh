@@ -16,8 +16,8 @@ components:
         type: git
         version: ${PM_VERSION}
         access:
-          type: gitHub
-          repoUrl: ${REPO_URL}
+          type: Git/v1
+          repository: ${REPO_URL}
           commit: ${COMMIT}
   - name: github.com/platform-mesh/images/kcp-mcp-vw
     version: ${PM_VERSION}
@@ -40,8 +40,8 @@ components:
         type: git
         version: ${PM_VERSION}
         access:
-          type: gitHub
-          repoUrl: ${REPO_URL}
+          type: Git/v1
+          repository: ${REPO_URL}
           commit: ${COMMIT}
     componentReferences:
       - name: chart

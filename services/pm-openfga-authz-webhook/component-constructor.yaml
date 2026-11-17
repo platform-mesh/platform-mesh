@@ -22,8 +22,8 @@ components:
         type: git
         version: ${PM_VERSION}
         access:
-          type: gitHub
-          repoUrl: ${REPO_URL}
+          type: Git/v1
+          repository: ${REPO_URL}
           commit: ${COMMIT}
     resources:
       - name: image
