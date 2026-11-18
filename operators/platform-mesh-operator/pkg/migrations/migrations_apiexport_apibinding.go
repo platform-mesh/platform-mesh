@@ -32,12 +32,14 @@ import (
 	"k8s.io/client-go/rest"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 const (
 	corePlatformMeshIOExport        = "core.platform-mesh.io"
+	fgaPlatformMeshIOExport         = "fga.platform-mesh.io"
 	providerFgaPlatformMeshIOExport = "provider-fga.platform-mesh.io"
 	uiPlatformMeshIOExport          = "ui.platform-mesh.io"
 )
@@ -129,6 +131,12 @@ func deleteWithSuccessorWait(ctx context.Context, client ctrlruntimeclient.Clien
 	policyPatch := ctrlruntimeclient.RawPatch(types.MergePatchType, []byte(`{"spec":{"deletionPolicy":"WaitForSuccessor"}}`))
 	if err := client.Patch(ctx, binding, policyPatch); err != nil {
 		return gcerrors.Wrap(err, "Failed to set deletionPolicy=WaitForSuccessor on binding %s", binding.GetName())
+	}
+
+	// kcp before v0.33.0 prunes the field, deleting then removes every instance with the binding.
+	policy, _, _ := unstructured.NestedString(binding.Object, "spec", "deletionPolicy")
+	if policy != string(kcpapisv1alpha2.APIBindingDeletionPolicyWaitForSuccessor) {
+		return gcerrors.New("kcp did not accept deletionPolicy=WaitForSuccessor on binding %s, not deleting it", binding.GetName())
 	}
 
 	if err := client.Delete(ctx, binding); err != nil && !apierrors.IsNotFound(err) {
