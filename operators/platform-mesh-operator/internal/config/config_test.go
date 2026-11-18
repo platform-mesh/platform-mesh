@@ -121,3 +121,27 @@ func TestOperatorConfigAddFlagsProviders(t *testing.T) {
 	assert.Equal(t, "custom.providers.io", cfg.Providers.ProvidersAPIExportEndpointSliceName)
 	assert.Equal(t, "root:custom-ws", cfg.Providers.ProvidersAPIExportEndpointSliceWorkspace)
 }
+
+func TestOperatorConfigManagedProviderController(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		expect bool
+	}{
+		{name: "enabled by default when no flag is passed", args: nil, expect: true},
+		{name: "is switched off via the flag", args: []string{"--controllers-managed-provider-enabled=false"}, expect: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := NewOperatorConfig()
+			fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			cfg.AddFlags(fs)
+
+			err := fs.Parse(tc.args)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expect, cfg.Controllers.ManagedProvider.Enabled, "ManagedProvider controller enabled")
+		})
+	}
+}

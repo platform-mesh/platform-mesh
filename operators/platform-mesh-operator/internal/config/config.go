@@ -121,11 +121,20 @@ type SubroutinesConfig struct {
 	Provider        ProviderSubroutinesConfig
 }
 
+type ControllerConfig struct {
+	Enabled bool
+}
+
+type ControllersConfig struct {
+	ManagedProvider ControllerConfig
+}
+
 // OperatorConfig struct to hold the app config
 type OperatorConfig struct {
 	KCP           KCPConfig
 	Exposure      ExposureConfig
 	IDP           IDPConfig
+	Controllers   ControllersConfig
 	Subroutines   SubroutinesConfig
 	RemoteRuntime RemoteClusterConfig
 	RemoteInfra   RemoteClusterConfig
@@ -150,6 +159,9 @@ func NewOperatorConfig() OperatorConfig {
 			UserClaim: "email",
 		},
 		Providers: NewProvidersConfig(),
+		Controllers: ControllersConfig{
+			ManagedProvider: ControllerConfig{Enabled: true},
+		},
 		Subroutines: SubroutinesConfig{
 			Deployment: DeploymentSubroutineConfig{
 				Enabled:                          true,
@@ -201,6 +213,8 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&c.IDP.WelcomeAdditionalRedirectUris, "idp-welcome-additional-redirect-uris", c.IDP.WelcomeAdditionalRedirectUris, "Additional redirect URIs for the welcome client (comma-separated)")
 	fs.StringSliceVar(&c.IDP.WelcomeAdditionalPostLogoutRedirectUris, "idp-welcome-additional-post-logout-redirect-uris", c.IDP.WelcomeAdditionalPostLogoutRedirectUris, "Additional post-logout redirect URIs for the welcome client (comma-separated)")
 	fs.StringVar(&c.IDP.UserClaim, "user-claim", c.IDP.UserClaim, "Set the ID token user claim for workspace authentication")
+
+	fs.BoolVar(&c.Controllers.ManagedProvider.Enabled, "controllers-managed-provider-enabled", c.Controllers.ManagedProvider.Enabled, "Run the ManagedProvider controller; switch it off when deploying provider-operator")
 
 	fs.BoolVar(&c.Subroutines.Deployment.Enabled, "subroutines-deployment-enabled", c.Subroutines.Deployment.Enabled, "Enable deployment subroutine")
 	fs.StringVar(&c.Subroutines.Deployment.AuthorizationWebhookSecretName, "authorization-webhook-secret-name", c.Subroutines.Deployment.AuthorizationWebhookSecretName, "Authorization webhook secret name")

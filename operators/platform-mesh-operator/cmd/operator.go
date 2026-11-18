@@ -189,14 +189,19 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		os.Exit(1)
 	}
 
-	managedProvidersReconciler, err := providers.NewManagedProviderReconciler(mgr, &operatorCfg, defaultCfg)
-	if err != nil {
-		setupLog.Error(err, "unable to create ManagedProvider reconciler")
-		os.Exit(1)
-	}
-	if err := managedProvidersReconciler.SetupWithManager(mgr, defaultCfg); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ManagedProvider")
-		os.Exit(1)
+	// Flag for the provider-operator migration, disable before deploying.
+	if operatorCfg.Controllers.ManagedProvider.Enabled {
+		managedProvidersReconciler, err := providers.NewManagedProviderReconciler(mgr, &operatorCfg, defaultCfg)
+		if err != nil {
+			setupLog.Error(err, "unable to create ManagedProvider reconciler")
+			os.Exit(1)
+		}
+		if err := managedProvidersReconciler.SetupWithManager(mgr, defaultCfg); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ManagedProvider")
+			os.Exit(1)
+		}
+	} else {
+		setupLog.Info("ManagedProvider controller is disabled")
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

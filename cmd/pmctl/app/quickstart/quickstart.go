@@ -52,6 +52,9 @@ const (
 	runtimeDocker = "docker"
 )
 
+// keycloakFlags are the flags that configure Keycloak, and do nothing for Dex.
+var keycloakFlags = []string{"registration-allowed", "allow-unverified-emails", "set-default-password"}
+
 var long = `Create a local Platform Mesh installation for demos and tests.
 
 quickstart creates a kind cluster on the local container runtime (docker,
@@ -62,6 +65,12 @@ out the release's OCM component.
 
 Running it again against an existing cluster upgrades the installation to the
 given version, and applies that version's kind profile.
+
+Users log in through Dex, with a fixed set of users: it is small and starts
+fast. --idp=keycloak installs Keycloak instead, as production runs it: with
+it users sign up, and every organization has a realm of its own. An
+installation keeps the identity provider it was created with, and releases
+whose charts cannot install Dex yet get Keycloak.
 
 With --dev the installation is built from a checkout of the platform-mesh
 repository (--git-root, default: the one of the current directory), whatever
@@ -86,6 +95,9 @@ var example = `  # Install the latest release
 
   # The same, without building the optional components nothing installs
   pmctl quickstart --dev --skip-components=kro-composition-operator,resource-broker,terminal-controller-manager
+
+  # Install with Keycloak as identity provider
+  pmctl quickstart --idp=keycloak
 
   # Use podman
   pmctl quickstart --container-runtime=podman
@@ -171,7 +183,12 @@ type Options struct {
 	// OCMRepository is the OCI registry the operator reads the Platform
 	// Mesh OCM components from.
 	OCMRepository string
-	// RegistrationAllowed lets users sign up in the portal.
+	// IDP is the identity provider users log in with: dex or keycloak.
+	// Empty keeps the one of an existing installation, and is dex for a new
+	// one whose charts can install it; install settles it.
+	IDP string
+	// RegistrationAllowed lets users sign up in the portal. It, and the two
+	// below, are for Keycloak: Dex has static users.
 	RegistrationAllowed bool
 	// AllowUnverifiedEmails lets users log in without a verified email.
 	// The installation has no SMTP server to verify one with.
@@ -185,6 +202,9 @@ type Options struct {
 	// StallTimeout is how long a HelmRelease may keep failing before the
 	// run gives up; zero waits for Timeout.
 	StallTimeout time.Duration
+
+	// keycloakFlags are the Keycloak flags given on the command line.
+	keycloakFlags []string
 
 	progress progress
 }
@@ -238,9 +258,10 @@ func NewQuickstartCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVar(&o.BaseDomain, "base-domain", o.BaseDomain, "DNS name Platform Mesh is served under. It and its subdomains must resolve to 127.0.0.1.")
 	cmd.Flags().StringVar(&o.ChartRepository, "chart-repository", o.ChartRepository, "Repository of the Platform Mesh Helm charts: an oci:// reference or a local directory.")
 	cmd.Flags().StringVar(&o.OCMRepository, "ocm-repository", o.OCMRepository, "OCI registry the Platform Mesh OCM components are read from.")
-	cmd.Flags().BoolVar(&o.RegistrationAllowed, "registration-allowed", o.RegistrationAllowed, "Let users sign up in the portal.")
-	cmd.Flags().BoolVar(&o.AllowUnverifiedEmails, "allow-unverified-emails", o.AllowUnverifiedEmails, "Let users log in without a verified email; the installation has no SMTP server to verify one with.")
-	cmd.Flags().BoolVar(&o.SetDefaultPassword, "set-default-password", o.SetDefaultPassword, "Give the users of a new organization the temporary password \"password\"; the installation has no SMTP server to send invitations with.")
+	cmd.Flags().StringVar(&o.IDP, "idp", o.IDP, "Identity provider users log in with. One of: dex|keycloak. dex is small and has static users, keycloak is what production runs (default: the one of the existing installation, dex for a new one).")
+	cmd.Flags().BoolVar(&o.RegistrationAllowed, "registration-allowed", o.RegistrationAllowed, "With --idp=keycloak: let users sign up in the portal.")
+	cmd.Flags().BoolVar(&o.AllowUnverifiedEmails, "allow-unverified-emails", o.AllowUnverifiedEmails, "With --idp=keycloak: let users log in without a verified email; the installation has no SMTP server to verify one with.")
+	cmd.Flags().BoolVar(&o.SetDefaultPassword, "set-default-password", o.SetDefaultPassword, "With --idp=keycloak: give the users of a new organization the temporary password \"password\"; the installation has no SMTP server to send invitations with.")
 	cmd.Flags().DurationVar(&o.Timeout, "timeout", o.Timeout, "Time to wait for the installation to become ready.")
 	cmd.Flags().DurationVar(&o.StallTimeout, "stall-timeout", o.StallTimeout, "Give up when a HelmRelease has been failing for this long; 0 waits for --timeout.")
 
@@ -251,8 +272,15 @@ func NewQuickstartCommand(streams genericiooptions.IOStreams) *cobra.Command {
 }
 
 // Complete fills in the fields that are derived from the command line.
-func (o *Options) Complete(_ *cobra.Command, _ []string) error {
+func (o *Options) Complete(cmd *cobra.Command, _ []string) error {
 	o.ClusterOptions.Complete()
+	if cmd != nil {
+		for _, flag := range keycloakFlags {
+			if cmd.Flags().Changed(flag) {
+				o.keycloakFlags = append(o.keycloakFlags, flag)
+			}
+		}
+	}
 	// Releases are tagged vYY.MM.P in git; charts and components carry
 	// the version without the prefix.
 	o.Version = strings.TrimPrefix(o.Version, "v")
@@ -293,6 +321,11 @@ func (o *Options) Validate() error {
 	}
 	if o.OCMRepository == "" {
 		return errors.New("--ocm-repository must not be empty")
+	}
+	switch o.IDP {
+	case "", IDPDex, IDPKeycloak:
+	default:
+		return fmt.Errorf("--idp must be one of %s|%s, got %q", IDPDex, IDPKeycloak, o.IDP)
 	}
 	if o.StallTimeout < 0 {
 		return errors.New("--stall-timeout must not be negative")
@@ -402,17 +435,23 @@ func (o *Options) printSummary(src *source) {
 	for _, line := range src.details {
 		details += "  " + line + "\n"
 	}
+	idp := "Keycloak admin  " + o.URL() + "keycloak/admin/"
+	login := ""
+	if o.IDP == IDPDex {
+		idp = "Dex             " + o.DexIssuer()
+		login = fmt.Sprintf("\nLog in as %s, with the password %q.\n", strings.Join(DexUsers(), ", "), DexPassword)
+	}
 	_, _ = fmt.Fprintf(o.Out, `
 Platform Mesh %[1]s is ready.
 
   Portal          %[2]s
-  Keycloak admin  %[2]skeycloak/admin/
+  %[11]s
   kcp API         https://kcp.api.%[3]s:%[4]d
 
   Kubeconfig      %[5]s
   kcp kubeconfig  %[10]s
   CA certificate  %[6]s
-%[9]s
+%[9]s%[12]s
 Next steps:
 
   export KUBECONFIG=%[5]s
@@ -427,5 +466,5 @@ The certificates are issued by a CA created for this installation: trust
 Remove the installation with:
 
   pmctl quickstart delete --name %[8]s
-`, o.Version, o.URL(), o.BaseDomain, gatewayPort, o.Kubeconfig, o.CAFile(), namespace, o.Name, details, o.KCPKubeconfig())
+`, o.Version, o.URL(), o.BaseDomain, gatewayPort, o.Kubeconfig, o.CAFile(), namespace, o.Name, details, o.KCPKubeconfig(), idp, login)
 }
