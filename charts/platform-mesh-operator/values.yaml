@@ -16,7 +16,7 @@ ocm:
   repository: ghcr.io/platform-mesh
   # -- Name of the OCM signature the components are verified against.
   signatureName: platform-mesh.platform-mesh
-  # -- Set to false when the OCM component is signed by a different trusted key.
+  # -- Set to false when the OCM component is signed by a different trusted key, the Secret ocm-signing-public-cert must then exist with a .ocmconfig key verifying ocm.signatureName.
   installSigningCertificate: true
 
 # -- Gateway/exposure configuration (used when ocm.enabled=true).

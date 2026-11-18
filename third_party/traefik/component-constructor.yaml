@@ -24,7 +24,7 @@ components:
         # renovate: datasource=docker depName=ghcr.io/traefik/helm/traefik
         version: 42.2.0
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/traefik/helm/traefik
           imageReference: ghcr.io/traefik/helm/traefik:42.2.0
       - name: crds
@@ -33,15 +33,15 @@ components:
         # renovate: datasource=docker depName=ghcr.io/traefik/helm/traefik-crds
         version: 1.18.0
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/traefik/helm/traefik-crds
           imageReference: ghcr.io/traefik/helm/traefik-crds:1.18.0
       - name: image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=docker.io/library/traefik
         version: v3.7.17
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=docker.io/library/traefik
           imageReference: "docker.io/library/traefik:v3.7.17"

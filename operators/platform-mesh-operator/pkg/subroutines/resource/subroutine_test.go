@@ -76,7 +76,7 @@ func (s *ResourceTestSuite) Test_applyReleaseWithValues() {
 				"resource": map[string]any{
 					"version": "25.2.3",
 					"access": map[string]any{
-						"type":           "ociArtifact",
+						"type":           "OCIImage/v1",
 						"imageReference": "oci://oci-registry-docker-registry.registry.svc.cluster.local/platform-mesh/upstream-images/charts/keycloak:25.2.3@sha256:cb5be99827d7cfa107fc7ca06f5b2fb0ea486f3ffb0315baf2be1bb348f9db77",
 					},
 				},
@@ -352,9 +352,9 @@ func (s *ResourceTestSuite) Test_updateGitRepo() {
 			"status": map[string]any{
 				"resource": map[string]any{
 					"access": map[string]any{
-						"type":    "gitHub",
-						"commit":  "abc123def456",
-						"repoUrl": "https://github.com/example/repo.git",
+						"type":       "Git/v1",
+						"commit":     "abc123def456",
+						"repository": "https://github.com/example/repo.git",
 					},
 				},
 			},
@@ -413,9 +413,9 @@ func (s *ResourceTestSuite) Test_updateGitRepo_CreateOrUpdateError() {
 			"status": map[string]any{
 				"resource": map[string]any{
 					"access": map[string]any{
-						"type":    "gitHub",
-						"commit":  "abc123def456",
-						"repoUrl": "https://github.com/example/repo.git",
+						"type":       "Git/v1",
+						"commit":     "abc123def456",
+						"repository": "https://github.com/example/repo.git",
 					},
 				},
 			},
@@ -795,7 +795,7 @@ func (s *ResourceTestSuite) Test_updateOciRepo_ParseRefError() {
 				"resource": map[string]any{
 					"version": "1.0.0",
 					"access": map[string]any{
-						"type":           "ociArtifact",
+						"type":           "OCIImage/v1",
 						"imageReference": "oci://invalid url with spaces",
 					},
 				},
@@ -833,7 +833,7 @@ func (s *ResourceTestSuite) Test_updateOciRepo_PlainHTTPRegistryIsInsecure() {
 					"resource": map[string]any{
 						"version": "1.0.0",
 						"access": map[string]any{
-							"type":           "ociArtifact",
+							"type":           "OCIImage/v1",
 							"imageReference": imageReference,
 						},
 					},
@@ -912,7 +912,7 @@ func (s *ResourceTestSuite) Test_updateOciRepo_CreateOrUpdateError() {
 				"resource": map[string]any{
 					"version": "1.0.0",
 					"access": map[string]any{
-						"type":           "ociArtifact",
+						"type":           "OCIImage/v1",
 						"imageReference": "oci://registry.example.com/charts/mychart:1.0.0",
 					},
 				},
@@ -1133,7 +1133,7 @@ func (s *ResourceTestSuite) Test_resolveArgoCDSource_NoSource() {
 	}
 	_, _, _, err := s.subroutine.resolveArgoCDSource(inst)
 	s.NotNil(err)
-	s.Contains(err.Error(), "no helmRepository, repoUrl, or imageReference found")
+	s.Contains(err.Error(), "no helmRepository, repository, or imageReference found")
 }
 
 func (s *ResourceTestSuite) Test_resolveArgoCDSource_HelmNoVersion() {
@@ -1147,7 +1147,7 @@ func (s *ResourceTestSuite) Test_resolveArgoCDSource_HelmNoVersion() {
 
 func (s *ResourceTestSuite) Test_resolveArgoCDSource_GitNoRef() {
 	inst := &unstructured.Unstructured{
-		Object: map[string]any{"status": map[string]any{"resource": map[string]any{"access": map[string]any{"repoUrl": "https://github.com/org/repo"}}}},
+		Object: map[string]any{"status": map[string]any{"resource": map[string]any{"access": map[string]any{"repository": "https://github.com/org/repo"}}}},
 	}
 	_, _, _, err := s.subroutine.resolveArgoCDSource(inst)
 	s.NotNil(err)

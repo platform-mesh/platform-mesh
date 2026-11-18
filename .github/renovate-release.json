@@ -162,13 +162,6 @@
       "allowedVersions": "<2.18.0"
     },
     {
-      "description": "ocm-k8s-toolkit >=0.18 drops Component.spec.verify, migrate installation.yaml and then update.",
-      "matchPackageNames": [
-        "ghcr.io/open-component-model/kubernetes/controller/chart"
-      ],
-      "allowedVersions": "<0.18.0"
-    },
-    {
       "description": "cel-go v0.32+ renamed its module to cel.dev/cel-go; switching is a code migration.",
       "matchPackageNames": [
         "github.com/google/cel-go"
