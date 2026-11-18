@@ -98,8 +98,19 @@ Then bring up the kind cluster and tilt:
 ```sh
 task tilt:up  # brings up tilt with a webinterface
 task tilt:ci  # bring up tilt until all resources are green, then exits
-task tilt:e2e # runs the tests/e2e Go suites, then the portal e2e tests, against the running tilt PM instance
+task tilt:e2e # runs the tests/e2e Go suites, then the portal e2e tests, against a tilt PM instance brought up by tilt:ci
 ```
+
+`task tilt:up` runs everything except the fixtures of the e2e suites (the HTTPBin provider and a second kcp shard); `task tilt:ci` includes them, as does `task tilt:up -- full`. Locally it also adds the optional kcp access and MCP virtual workspaces (the `vw` group), which CI does not run. To run only the part you work on, name groups or components; whatever they need comes along:
+
+```sh
+task tilt:up -- core                # kcp, platform-mesh-operator, PlatformMesh, account-operator
+task tilt:up -- core iam-service    # groups and single components mix
+task tilt:up -- --without=keycloak  # everything except Keycloak and what depends on it
+task tilt:help                      # all groups and options
+```
+
+Every component declares itself in its own `Tiltfile`: next to its code (`operators/<name>/Tiltfile`, `services/<name>/Tiltfile`), or under [`contrib/tilt/components/`](contrib/tilt/components) when it has no source here. A declaration names what the component needs, how it runs and when it is ready; [`contrib/tilt/lib/component.Tiltfile`](contrib/tilt/lib/component.Tiltfile) does the rest, and [`contrib/tilt/groups.Tiltfile`](contrib/tilt/groups.Tiltfile) defines the groups.
 
 Everything is addressed as `<name>.pm.<node-ip>.sslip.io:31000`; `platformmesh-ready` turning green means the installation is usable. Chart changes are picked up live, service values come from the operator's [kind profile](charts/platform-mesh-operator/files/kind-profile.yaml).
 

@@ -24,33 +24,33 @@ components:
         # renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
         version: v1.21.3
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
           imageReference: quay.io/jetstack/charts/cert-manager:v1.21.3
       - name: webhook-image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
         version: v1.21.3
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
           imageReference: "quay.io/jetstack/cert-manager-webhook:v1.21.3"
       - name: controller-image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
         version: v1.21.3
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
           imageReference: "quay.io/jetstack/cert-manager-controller:v1.21.3"
       - name: cainjector-image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
         version: v1.21.3
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=quay.io/jetstack/charts/cert-manager
           imageReference: "quay.io/jetstack/cert-manager-cainjector:v1.21.3"

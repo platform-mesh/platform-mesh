@@ -395,7 +395,7 @@ func TestManageAccountInfoProcess(t *testing.T) {
 			mgr, err := mcmanager.New(emptyConfig, testProvider, mcmanager.Options{})
 			assert.NoError(t, err)
 
-			s, newErr := manageaccountinfo.New(mgr, "")
+			s, newErr := manageaccountinfo.New(mgr, "", nil)
 			assert.NoError(t, newErr)
 			ctx := t.Context()
 

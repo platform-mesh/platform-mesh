@@ -123,6 +123,7 @@ type selfSignedValues struct {
 type idpValues struct {
 	RegistrationAllowed   bool `json:"registrationAllowed"`
 	AllowUnverifiedEmails bool `json:"allowUnverifiedEmails"`
+	SetDefaultPassword    bool `json:"setDefaultPassword"`
 }
 
 // helmValues converts typed values to the map helm takes.

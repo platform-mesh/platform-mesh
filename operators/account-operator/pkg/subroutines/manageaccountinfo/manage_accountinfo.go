@@ -51,10 +51,16 @@ const (
 type ManageAccountInfoSubroutine struct {
 	mgr      mcmanager.Manager
 	serverCA string
-	limiter  workqueue.TypedRateLimiter[*pmcorev1alpha1.Account]
+	// oidc is the issuer every account has; nil leaves the OIDC of an
+	// organization to the pm-keycloak-operator.
+	oidc    *pmcorev1alpha1.OIDCInfo
+	limiter workqueue.TypedRateLimiter[*pmcorev1alpha1.Account]
 }
 
-func New(mgr mcmanager.Manager, serverCA string) (*ManageAccountInfoSubroutine, error) {
+// New returns the subroutine. With oidc every AccountInfo gets that issuer;
+// with nil the AccountInfo of an organization is left to whoever provisions
+// its identity provider, and accounts below inherit it.
+func New(mgr mcmanager.Manager, serverCA string, oidc *pmcorev1alpha1.OIDCInfo) (*ManageAccountInfoSubroutine, error) {
 	rl, err := ratelimiter.NewObjectRateLimiter[*pmcorev1alpha1.Account](
 		ratelimiter.NewConfig(
 			ratelimiter.WithRequeueDelay(1*time.Second),
@@ -65,7 +71,7 @@ func New(mgr mcmanager.Manager, serverCA string) (*ManageAccountInfoSubroutine, 
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
-	return &ManageAccountInfoSubroutine{mgr: mgr, serverCA: serverCA, limiter: rl}, nil
+	return &ManageAccountInfoSubroutine{mgr: mgr, serverCA: serverCA, oidc: oidc, limiter: rl}, nil
 }
 
 func (r *ManageAccountInfoSubroutine) GetName() string {
@@ -130,6 +136,11 @@ func (r *ManageAccountInfoSubroutine) Process(ctx context.Context, obj ctrlrunti
 			accountInfo.Spec.ParentAccount = nil
 			accountInfo.Spec.Organization = selfAccountLocation
 			accountInfo.Spec.ClusterInfo.CA = r.serverCA
+			// Without an issuer of its own the operator must not touch what
+			// the pm-keycloak-operator has written.
+			if r.oidc != nil {
+				accountInfo.Spec.OIDC = r.oidc.DeepCopy()
+			}
 			return nil
 		}); err != nil {
 			return subroutines.OK(), err
@@ -159,6 +170,11 @@ func (r *ManageAccountInfoSubroutine) Process(ctx context.Context, obj ctrlrunti
 		accountInfo.Spec.Organization = parentAccountInfo.Spec.Organization
 		accountInfo.Spec.FGA.Store.Id = parentAccountInfo.Spec.FGA.Store.Id
 		accountInfo.Spec.OIDC = parentAccountInfo.Spec.OIDC
+		if r.oidc != nil {
+			// The same for every account, so not a copy that goes stale
+			// when the parent changes.
+			accountInfo.Spec.OIDC = r.oidc.DeepCopy()
+		}
 		accountInfo.Spec.ClusterInfo.CA = r.serverCA
 		return nil
 	}); err != nil {

@@ -102,6 +102,10 @@ func SetupControllers(mgr mcmanager.Manager, cfg config.OperatorConfig, deps Dep
 	}
 	common := deps.common()
 
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("operator configuration: %w", err)
+	}
+
 	accountReconciler, err := controller.NewAccountReconciler(deps.Log, mgr, cfg)
 	if err != nil {
 		return fmt.Errorf("creating account reconciler: %w", err)
