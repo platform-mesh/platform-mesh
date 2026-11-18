@@ -33,6 +33,70 @@ tests:
           path: spec.exposure.port
           value: 8443
         documentIndex: 3
+  - it: leaves the PlatformMesh resource alone without additions
+    template: installation.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - equal:
+          path: spec.featureToggles
+          value:
+            - name: feature-accounts-in-accounts
+        documentIndex: 3
+      - notExists:
+          path: spec.authentication
+        documentIndex: 3
+      - notExists:
+          path: spec.values
+        documentIndex: 3
+  - it: adds feature toggles, authentication and values to the PlatformMesh resource
+    template: installation.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+      platformMesh:
+        extraFeatureToggles:
+          - feature-disable-keycloak
+        authentication:
+          oidc:
+            issuerURL: https://platform.example.com/dex
+            clientID: platform-mesh
+        values:
+          services:
+            iam-ui:
+              enabled: false
+            portal:
+              values:
+                extraEnvVars:
+                  - name: URL
+                    value: "https://{{ .baseDomainPort }}/"
+    asserts:
+      - equal:
+          path: spec.featureToggles
+          value:
+            - name: feature-accounts-in-accounts
+            - name: feature-disable-keycloak
+        documentIndex: 3
+      - equal:
+          path: spec.authentication.oidc
+          value:
+            issuerURL: https://platform.example.com/dex
+            clientID: platform-mesh
+        documentIndex: 3
+      - equal:
+          path: spec.values.services["iam-ui"].enabled
+          value: false
+        documentIndex: 3
+      # Templates in the values are for the operator: Helm passes them on.
+      - equal:
+          path: spec.values.services.portal.values.extraEnvVars[0].value
+          value: "https://{{ .baseDomainPort }}/"
+        documentIndex: 3
   - it: supports mirrored repositories and their signing identities
     template: installation.yaml
     set:

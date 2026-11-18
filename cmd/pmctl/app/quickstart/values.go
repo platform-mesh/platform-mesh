@@ -36,6 +36,7 @@ type prerequisitesValues struct {
 }
 
 type keycloakOperatorValues struct {
+	Enabled         bool   `json:"enabled"`
 	WatchNamespaces string `json:"watchNamespaces"`
 }
 
@@ -81,7 +82,102 @@ type operatorValues struct {
 	IDP          idpValues          `json:"idp"`
 	// Image overrides the operator image; unset uses the chart's appVersion.
 	Image *imageValues `json:"image,omitempty"`
+	// PlatformMesh adds to the PlatformMesh resource; unset for Keycloak,
+	// which is what the chart installs by itself.
+	PlatformMesh *platformMeshValues `json:"platformMesh,omitempty"`
 }
+
+// platformMeshValues are the chart's additions to the PlatformMesh resource.
+type platformMeshValues struct {
+	ExtraFeatureToggles []string `json:"extraFeatureToggles,omitempty"`
+	// Authentication is spec.authentication.
+	Authentication *authenticationValues `json:"authentication,omitempty"`
+	// Values is spec.values, merged over the services of the profile.
+	Values *platformMeshSpecValues `json:"values,omitempty"`
+}
+
+type authenticationValues struct {
+	OIDC oidcValues `json:"oidc"`
+}
+
+type oidcValues struct {
+	IssuerURL string `json:"issuerURL"`
+	ClientID  string `json:"clientID"`
+}
+
+type platformMeshSpecValues struct {
+	Services map[string]serviceValues `json:"services"`
+}
+
+// serviceValues are the settings of one service of the profile.
+type serviceValues struct {
+	// Enabled unset keeps the profile's.
+	Enabled *bool `json:"enabled,omitempty"`
+	// Values are values of the chart of the service: infraValues,
+	// portalValues.
+	Values any `json:"values,omitempty"`
+}
+
+type enabledValues struct {
+	Enabled bool `json:"enabled"`
+}
+
+// infraValues are values of the infra chart.
+type infraValues struct {
+	Keycloak infraKeycloakValues `json:"keycloak"`
+	Dex      dexValues           `json:"dex"`
+}
+
+type infraKeycloakValues struct {
+	Operator enabledValues `json:"operator"`
+}
+
+type dexValues struct {
+	Enabled           bool                `json:"enabled"`
+	Issuer            string              `json:"issuer"`
+	GatewayAPI        dexGatewayAPIValues `json:"gatewayApi"`
+	PasswordConnector string              `json:"passwordConnector"`
+	Expiry            dexExpiryValues     `json:"expiry"`
+	StaticPasswords   []dexUserValues     `json:"staticPasswords"`
+	StaticClient      dexClientValues     `json:"staticClient"`
+}
+
+type dexGatewayAPIValues struct {
+	Hostnames []string `json:"hostnames"`
+}
+
+type dexExpiryValues struct {
+	RefreshTokens dexRefreshTokenValues `json:"refreshTokens"`
+}
+
+type dexRefreshTokenValues struct {
+	DisableRotation bool   `json:"disableRotation"`
+	ReuseInterval   string `json:"reuseInterval"`
+}
+
+type dexUserValues struct {
+	Email    string   `json:"email"`
+	Username string   `json:"username"`
+	UserID   string   `json:"userID"`
+	Hash     string   `json:"hash"`
+	Groups   []string `json:"groups"`
+}
+
+type dexClientValues struct {
+	ID           string   `json:"id"`
+	Secret       string   `json:"secret"`
+	Name         string   `json:"name"`
+	RedirectURIs []string `json:"redirectURIs"`
+}
+
+// portalValues are values of the portal chart.
+type portalValues struct {
+	ExtraEnvVars []envVarValues `json:"extraEnvVars"`
+}
+
+// envVarValues is an environment variable as the profile has it, whichever
+// fields it uses.
+type envVarValues map[string]any
 
 type imageValues struct {
 	Registry   string `json:"registry"`

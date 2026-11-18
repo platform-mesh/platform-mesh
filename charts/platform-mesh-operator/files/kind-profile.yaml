@@ -37,11 +37,17 @@ data:
         skipVerify: true
       services:
         account-operator:
+          # Installed once its image is known: a HelmRelease applied before the
+          # operator has filled in the image runs the chart's default, and Flux
+          # then waits out the install timeout on an image that may not exist.
+          # The same goes for the services below.
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: account-operator
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           values:
@@ -49,11 +55,13 @@ data:
               enabled: true
               entries: *hostAliasesEntries
         extension-manager-operator:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: extension-manager-operator
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           values:
@@ -139,6 +147,8 @@ data:
                 port: __EXTERNAL_PORT__
               frontProxy:
                 port: __EXTERNAL_PORT__
+              proxy:
+                replicas: 1
               rootShard:
                 hostname: "root.kcp.{{ .baseDomain }}"
                 shardBaseURL: https://root.kcp.{{ .baseDomain }}:__EXTERNAL_PORT__/
@@ -146,22 +156,26 @@ data:
         iam-ui:
           enabled: true
           syncWave: 4
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: iam-ui
+              unsuspend: "true"
           values:
             exposure:
               hostnames:
               - "{{ .baseDomain }}"
               - "*.{{ .baseDomain }}"
         iam-service:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: iam-service
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           values:
@@ -188,11 +202,13 @@ data:
               image-ref: combined
           targetNamespace: platform-mesh-system
         kubernetes-graphql-gateway:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: kubernetes-graphql-gateway
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           values:
@@ -306,11 +322,13 @@ data:
                   tls:
                     enabled: false
         portal:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: portal
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           values:
@@ -326,11 +344,13 @@ data:
               enabled: true
               entries: *hostAliasesEntries
         pm-openfga-authz-webhook:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: pm-openfga-authz-webhook
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           values:
@@ -338,11 +358,13 @@ data:
               enabled: true
               entries: *hostAliasesEntries
         pm-keycloak-operator:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: pm-keycloak-operator
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           values:
@@ -357,11 +379,13 @@ data:
               enabled: true
               entries: *hostAliasesEntries
         pm-openfga-operator:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: pm-openfga-operator
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           values:
@@ -369,11 +393,13 @@ data:
               enabled: true
               entries: *hostAliasesEntries
         extension-manager-virtual-workspace:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: extension-manager-virtual-workspace
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           targetNamespace: platform-mesh-system
@@ -384,11 +410,13 @@ data:
             deployment:
               serverUrl: "{{ .internalFrontProxyUrl }}"
         marketplace:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: marketplace
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           targetNamespace: platform-mesh-system
@@ -400,11 +428,13 @@ data:
               serverUrl: "{{ .internalFrontProxyUrl }}"
         marketplace-ui:
           enabled: true
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: marketplace-ui
+              unsuspend: "true"
           values:
             exposure:
               hostnames:
