@@ -27,11 +27,16 @@ spec:
     singular: authorizationmodel
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - deprecated: true
+    deprecationWarning: core.platform-mesh.io/v1alpha1 AuthorizationModel is deprecated,
+      use openfga.platform-mesh.io/v1alpha1 AuthorizationModel
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: AuthorizationModel is the Schema for the authorizationmodels
-          API.
+        description: |-
+          AuthorizationModel is the Schema for the authorizationmodels API.
+
+          Deprecated: use openfga.platform-mesh.io/v1alpha1 AuthorizationModel.
         properties:
           apiVersion:
             description: |-

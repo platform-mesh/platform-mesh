@@ -147,6 +147,37 @@ spec:
 
 These are merged with the profile's `components` and `infra` sections when rendering Go templates.
 
+### Authentication
+
+An external OIDC issuer replaces Keycloak as the identity provider of kcp and the portal:
+
+```yaml
+spec:
+  featureToggles:
+  - name: feature-disable-keycloak
+  authentication:
+    oidc:
+      issuerURL: https://issuer.example.com/dex
+      clientID: platform-mesh
+      usernameClaim: email    # default
+      groupsClaim: groups     # default
+      usernamePrefix: ""      # optional
+      groupsPrefix: ""        # optional
+```
+
+The operator turns it into values of two services of the profile, when the profile has them:
+
+| Service | Values |
+|---------|--------|
+| `infra` | `kcp.auth.oidc`: `enabled`, `issuerUrl`, `clientID`, `usernameClaim`, `groupsClaim`, `usernamePrefix`, `groupsPrefix` |
+| `portal` | `auth.default.discoveryUrl`: `<issuerURL>/.well-known/openid-configuration` |
+
+They are merged over the profile and below `spec.values`, which keeps the last word.
+The issuer's certificate authority is `kcp.auth.oidc.caFileRef` of the infra chart.
+
+`spec.authentication.oidc` without `feature-disable-keycloak` is refused:
+Keycloak and an external issuer are alternatives.
+
 ### Feature Toggles
 
 Certain features can be enabled or disabled using feature toggles in the PlatformMesh resource specification:
@@ -169,6 +200,8 @@ spec:
 | `feature-disable-email-verification` | Disables email verification requirement in WorkspaceAuthenticationConfiguration |
 | `feature-disable-contentconfigurations` | Disables loading of all ContentConfiguration manifests during KCP setup |
 | `feature-disable-idp-webhook` | - Disables the IDP validating webhook. This removes important security validation for IdentityProviderConfiguration resources. Production deployments should run with this webhook enabled. |
+| `feature-disable-openfga` | Runs Platform Mesh without OpenFGA: the `openfga`/`provider-openfga` APIExports and bindings, the `orgs` Store, the `openfga` WorkspaceType on organizations and accounts and the ReBAC authorization webhook kubeconfig are not applied. The profile must have `openfga`, `pm-openfga-operator`, `pm-openfga-authz-webhook`, `iam-service`, `iam-ui` and kcp's authorization webhook disabled, otherwise the deployment is refused. Disabling the `openfga` service removes its HelmRelease only, the CNPG `openfga` role and database keep the data. |
+| `feature-disable-keycloak` | Runs Platform Mesh without the Keycloak identity provider: the `welcome` IdentityProviderConfiguration, the `orgs-authentication` WorkspaceAuthenticationConfiguration and the IDP validating webhook are not applied. Platform Mesh then neither configures nor maintains an identity provider, users authenticate through the external IdPs configured on the instance. The profile must have `pm-keycloak-operator`, `iam-service`, `iam-ui` and the Keycloak instance disabled, otherwise the deployment is refused. Disabling the instance removes the Keycloak CR only, the CNPG `keycloak` role and database keep the data. |
 
 ### Wait Configuration
 
@@ -205,7 +238,6 @@ The operator binary accepts the following CLI flags (defined in `internal/config
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--workspace-dir` | `/operator/` | Root directory for templates and manifests |
 | `--kcp-url` | _(none)_ | KCP cluster URL |
 | `--kcp-namespace` | `platform-mesh-system` | KCP namespace |
 | `--kcp-root-shard-name` | `root` | KCP root shard name |
@@ -216,7 +248,7 @@ The operator binary accepts the following CLI flags (defined in `internal/config
 | `--subroutines-deployment-enabled` | `true` | Enable deployment subroutine |
 | `--subroutines-deployment-enable-istio` | `true` | Enable Istio integration |
 | `--authorization-webhook-secret-name` | `kcp-webhook-secret` | Authorization webhook secret name |
-| `--authorization-webhook-secret-ca-name` | `rebac-authz-webhook-cert` | Authorization webhook CA secret name |
+| `--authorization-webhook-secret-ca-name` | `pm-openfga-authz-webhook-cert` | Authorization webhook CA secret name |
 | `--subroutines-kcp-setup-enabled` | `true` | Enable KCP setup subroutine |
 | `--domain-certificate-ca-secret-name` | `domain-certificate` | Domain certificate CA secret name |
 | `--domain-certificate-ca-secret-key` | `ca.crt` | Domain certificate CA secret key |
@@ -288,7 +320,7 @@ profile.components (base) → TemplateVars → spec.Values.services (deep-merged
 | **HelmRelease** | `gotemplates/infra/infra/*.yaml` or `gotemplates/components/infra/helmreleases.yaml` | Profile service config (chart, values, targetNamespace, dependsOn, suspend), remote kubeConfig |
 | **OCIRepository** | ResourceSubroutine (from OCM Resource status) | OCM image reference and version from Resource `.status.resource.access.imageReference` |
 | **HelmRepository** | ResourceSubroutine (from OCM Resource status) | Helm repo URL from Resource `.status.resource.access.helmRepository` |
-| **GitRepository** | ResourceSubroutine (from OCM Resource status) | Git URL and ref from Resource `.status.resource.access.repoUrl` |
+| **GitRepository** | ResourceSubroutine (from OCM Resource status) | Git URL and ref from Resource `.status.resource.access.repository` |
 | **ArgoCD Application** | `gotemplates/infra/infra/*.yaml` or `gotemplates/components/infra/applications.yaml` | Profile service config (values, syncWave, ignoreDifferences), destinationServer, repoURL/targetRevision from ResourceSubroutine |
 | **OCM Resource** | `gotemplates/infra/runtime/*.yaml` or `gotemplates/components/runtime/*.yaml` | OCM repo name, component name, referencePath from profile + spec.OCM |
 
@@ -301,7 +333,7 @@ The operator uses a subroutine-based architecture (`go.platform-mesh.io/subrouti
 The subroutines run in the following order on every reconcile:
 
 1. **Deployment** — renders Go templates and applies infra/component resources (HelmReleases, ArgoCD Applications, OCM Resources)
-2. **KcpSetup** — creates KCP workspaces and applies `manifests/kcp/` to them
+2. **KcpSetup** — creates KCP workspaces and applies `apis/static-assets/kcp/` (embedded in the binary) to them
 3. **ProviderSecret** — creates workspace-scoped kubeconfig secrets for all `providerConnections`
 4. **FeatureToggles** — applies feature-gated KCP manifests
 5. **Wait** — waits for deployment resources (e.g., HelmReleases) to reach a ready state
@@ -327,7 +359,7 @@ The operator supports two deployment technologies (configured per-section in the
 
 ### Templating
 
-The operator uses Go's `text/template` package to render Kubernetes manifests from YAML template files. Templates are located under `gotemplates/` (relative to `--workspace-dir`).
+The operator uses Go's `text/template` package to render Kubernetes manifests from YAML template files. Templates are located under `gotemplates/` and compiled into the binary via `gotemplates/embed.go`, so a template change needs a rebuild.
 
 #### Template Directory Structure
 
@@ -663,7 +695,7 @@ The Deployment subroutine manages the deployment of platform-mesh components:
 The KcpSetup subroutine handles initialization of the KCP environment:
 
 - Creates workspaces based on paths in `providerConnections`
-- Applies KCP manifests (APIExports, APIResourceSchemas, ContentConfigurations, etc.) from `manifests/kcp/`
+- Applies KCP manifests (APIExports, APIResourceSchemas, ContentConfigurations, etc.) from `apis/static-assets/kcp/`, which is embedded into the binary via the `embed.go` files in that tree
 - Sets up API bindings as specified in `extraDefaultAPIBindings`
 - Creates extra workspaces specified in `spec.kcp.extraWorkspaces`
 
@@ -678,7 +710,7 @@ The ProviderSecret subroutine manages kubeconfig secrets for provider connection
 
 The FeatureToggles subroutine applies or removes KCP manifests based on enabled feature toggles:
 
-- Reads manifests from `manifests/features/<feature-name>/`
+- Reads manifests from `apis/static-assets/features/<feature-name>/` (embedded in the binary)
 - Applies them to the appropriate KCP workspace paths
 - Supports parameterized features via `parameters` map
 

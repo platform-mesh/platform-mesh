@@ -25,10 +25,10 @@ version: "3"
 # the binaries from the root bin (see each component's ROOT_BIN var) and depend
 # on these tasks via the root's per-component targets.
 #
-# kcp is shared here too: the operators' envtest suites resolve the kcp binary
-# via the TEST_KCP_ASSETS env var (which overrides each suite's per-config
-# BinaryAssetsDirectory), so the component test-e2e targets point that at the
-# root bin and depend on `tools:kcp`.
+# kcp is shared here too: the operators' remaining envtest suites resolve the
+# kcp binaries via the TEST_KCP_ASSETS env var, which the component test-e2e
+# targets point at the root bin after depending on `tools:kcp`. The integration
+# tests (tests/) run kcp in Docker instead and need none of this.
 
 vars:
   TOPLEVEL:
@@ -42,9 +42,6 @@ vars:
 
   CONTROLLER_GEN_VERSION: v0.21.0
   CONTROLLER_GEN: '{{.BIN}}/controller-gen-{{.CONTROLLER_GEN_VERSION}}'
-
-  DOCKER_COMPOSE_VERSION: v5.4.0
-  DOCKER_COMPOSE: '{{.BIN}}/docker-compose-{{.DOCKER_COMPOSE_VERSION}}'
 
   ENVTEST_K8S_VERSION: "1.36.0"
   ENVTEST_VERSION: v0.24.1
@@ -71,9 +68,6 @@ vars:
   KUSTOMIZE_VERSION: v5.4.3
   KUSTOMIZE: '{{.BIN}}/kustomize-{{.KUSTOMIZE_VERSION}}'
 
-  MKCERT_VERSION: v1.4.4
-  MKCERT: '{{.BIN}}/mkcert-{{.MKCERT_VERSION}}'
-
   MOCKERY_VERSION: 3.9.0
   MOCKERY: '{{.BIN}}/mockery-{{.MOCKERY_VERSION}}'
 
@@ -81,7 +75,7 @@ vars:
   OAPI_CODEGEN: '{{.BIN}}/oapi-codegen-{{.OAPI_CODEGEN_VERSION}}'
 
   # renovate: datasource=github-releases depName=open-component-model/open-component-model
-  OCM_VERSION: 0.22.1
+  OCM_VERSION: 0.24.0
   OCM: '{{.BIN}}/ocm-{{.OCM_VERSION}}'
 
   # renovate: datasource=github-releases depName=helm/helm
@@ -95,7 +89,10 @@ vars:
   # the same version is re-used for all kcp components.
   KCP_VERSION:
     sh: "sed -n 's/^ *version: v\\([0-9][^ ]*\\)$/\\1/p' {{.TOPLEVEL}}/third_party/kcp/component-constructor.yaml | head -1"
-  APIGEN: '{{.BIN}}/apigen-v{{.KCP_VERSION}}'
+  APIGEN_BIN: '{{.BIN}}/apigen-v{{.KCP_VERSION}}'
+  # hack/apigen.sh wraps apigen so APIResourceSchema names hash the schema
+  # content instead of the HEAD commit. Call it exactly like apigen.
+  APIGEN: 'APIGEN_BIN={{.APIGEN_BIN}} YQ={{.YQ}} {{.HACK}}/apigen.sh'
 
   OPENAPI_GEN_VERSION: d427ff9ee9ad05f5da435abbb7c5929cb713ac56 # most recent commit as of writing this
   OPENAPI_GEN: '{{.BIN}}/openapi-gen-{{.OPENAPI_GEN_VERSION}}'
@@ -156,9 +153,10 @@ tasks:
           version: '{{ .MOCKERY_VERSION }}'
           extractArg: mockery
   apigen:
-    desc: Install kcp apigen into the root bin.
+    desc: Install kcp apigen (and yq, used by its hack/apigen.sh wrapper) into the root bin.
     internal: true
     cmds:
+      - task: yq
       - task: uget
         vars:
           tool: apigen
@@ -166,7 +164,7 @@ tasks:
           version: 'v{{ .KCP_VERSION }}' # yes, re-use the shared kcp version for apigen
           goModule: true
   kcp:
-    desc: Install kcp into the root bin (shared by the operators' envtest suites).
+    desc: Install kcp into the root bin (used by the operators' envtest suites).
     internal: true
     cmds:
       - task: uget
@@ -187,21 +185,11 @@ tasks:
         docker cp $container:/cache-server {{.CACHE_SERVER}}
         docker rm $container
 
-      # kcp's sharded envtest needs binaries without any suffixes
+      # the kcp test framework (sharded-test-server) needs binaries without any suffixes
       - 'ln -sf {{.CACHE_SERVER}} {{.BIN}}/cache-server'
       - 'ln -sf {{.KCP}} {{.BIN}}/kcp'
       - 'ln -sf {{.KCP_FRONT_PROXY}} {{.BIN}}/kcp-front-proxy'
       - 'ln -sf {{.SHARDED_TEST_SERVER}} {{.BIN}}/sharded-test-server'
-  envtest:
-    internal: true
-    cmds:
-      - task: uget
-        vars:
-          tool: setup-envtest
-          source: 'https://github.com/kubernetes-sigs/controller-runtime/releases/download/{VERSION}/setup-envtest-{GOOS}-{GOARCH}'
-          version: '{{ .ENVTEST_VERSION }}'
-          extractArg: 'setup-envtest-*'
-          uncompressed: true
   go-test-coverage:
     internal: true
     cmds:
@@ -211,16 +199,6 @@ tasks:
           source: 'https://github.com/vladopajic/go-test-coverage/releases/download/{VERSION}/go-test-coverage_{VERSION}_{GOOS}_{GOARCH}.tar.gz'
           version: '{{ .GO_TEST_COVERAGE_VERSION }}'
           extractArg: 'go-test-coverage'
-  docker-compose:
-    internal: true
-    cmds:
-      - task: uget
-        vars:
-          tool: docker-compose
-          source: 'https://github.com/docker/compose/releases/download/{VERSION}/docker-compose-{UOS}-{UARCH}'
-          version: '{{ .DOCKER_COMPOSE_VERSION }}'
-          extractArg: 'docker-compose-*'
-          uncompressed: true
   oapi-codegen:
     internal: true
     cmds:
@@ -281,18 +259,8 @@ tasks:
           uncompressed: true
           extractArg: 'yq_*'
 
-  mkcert:
-    internal: true
-    cmds:
-      - task: uget
-        vars:
-          tool: mkcert
-          source: 'https://github.com/FiloSottile/mkcert/releases/download/{VERSION}/mkcert-{VERSION}-{GOOS}-{GOARCH}'
-          version: '{{ .MKCERT_VERSION }}'
-          extractArg: 'mkcert-*'
-          uncompressed: true
   kind:
-    desc: Install kind into the root bin (used by the operator e2e tests and Tilt).
+    desc: Install kind into the root bin (used by hack/kind.sh via the tilt:* tasks).
     cmds:
       - task: uget
         vars:
@@ -302,7 +270,7 @@ tasks:
           extractArg: 'kind-*'
           uncompressed: true
   tilt:
-    desc: Install tilt into the root bin (used by the tilt:* tasks and tilt.yml).
+    desc: Install tilt into the root bin (used by the tilt:* tasks and e2e.yml).
     cmds:
       - task: uget
         vars:
@@ -337,12 +305,27 @@ tasks:
       # for mockery. Taskfiles do not allow envs to be inherited by subtasks, so we
       # have to declare these here globally.
       MY_OS: { sh: uname -s }
-      MY_ARCH: { sh: uname -m }
+      # Linux arm reports aarch64, release assets and checksums use arm64.
+      MY_ARCH: { sh: 'uname -m | sed "s/aarch64/arm64/"' }
       # tilt's release assets say "mac", not "darwin"
       TILT_OS: { sh: 'uname -s | sed "s/Darwin/mac/;s/Linux/linux/"' }
     cmds:
       - "UNCOMPRESSED={{ .uncompressed }} GO_MODULE={{ .goModule }} {{.HACK}}/uget.sh {{ .source }} {{ .tool }} {{ .version }} '{{ .extractArg }}'"
       # Version-less name for callers that put bin/ on PATH.
+      - task: _link
+        vars: {tool: '{{ .tool }}', version: '{{ .version }}'}
+
+  # The version-less name of a tool. Up to date when the link is right, so a
+  # second task running at the same time does not replace it: `ln -sf` is an
+  # unlink and a symlink, and of two at once one fails with "already exists".
+  # Task has no lock across processes; whoever runs tasks side by side
+  # installs the tools first (pmctl does, before it builds images).
+  _link:
+    internal: true
+    silent: true
+    status:
+      - 'test "$(readlink {{.BIN}}/{{ .tool }})" = "{{.BIN}}/{{ .tool }}-{{ .version }}"'
+    cmds:
       - 'ln -sf {{.BIN}}/{{ .tool }}-{{ .version }} {{.BIN}}/{{ .tool }}'
 
   lint:

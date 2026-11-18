@@ -26,6 +26,7 @@ import (
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/platform-mesh-operator/gotemplates"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 
 	corev1 "k8s.io/api/core/v1"
@@ -625,6 +626,7 @@ func newSubroutineWithProfile(t *testing.T, profileYAML, name, namespace string,
 		clientInfra:   fakeClient,
 		cfg:           &pmconfig.CommonServiceConfig{},
 		cfgOperator:   &config.OperatorConfig{RemoteRuntime: remoteRuntime},
+		gotemplates:   gotemplates.Resources,
 	}, inst
 }
 

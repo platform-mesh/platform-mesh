@@ -1,0 +1,26 @@
+suite: clusterScopedName
+release:
+  name: pm-openfga-operator
+set:
+  clusterScopedName:
+    prefix: pm-a
+    suffix: stg
+tests:
+  - it: prefixes the ClusterRole
+    template: templates/cluster-role.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: pm-a-pm-openfga-operator-stg
+  - it: binds the prefixed ClusterRole to the unchanged ServiceAccount
+    template: templates/cluster-rolebinding.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: pm-a-pm-openfga-operator-stg
+      - equal:
+          path: roleRef.name
+          value: pm-a-pm-openfga-operator-stg
+      - equal:
+          path: subjects[0].name
+          value: pm-openfga-operator

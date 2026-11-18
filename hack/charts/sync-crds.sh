@@ -26,7 +26,7 @@
 # Usage: sync-crds.sh            (from the repository root)
 #
 # Only CRDs installed on the management cluster by a chart are listed here.
-# APIExports/APIResourceSchemas (config/resources, manifests/kcp) are applied
+# APIExports/APIResourceSchemas (apis/static-assets) are applied
 # by the operators themselves and are not chart content.
 
 set -euo pipefail

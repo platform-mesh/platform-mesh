@@ -91,15 +91,15 @@ serviceMonitors:
     # -- Path to metrics endpoint
     path: /metrics
 
-  # -- security-operator metrics scraping
-  securityOperator:
-    # -- Enable scraping security-operator
+  # -- pm-openfga-operator metrics scraping
+  pmOpenfgaOperator:
+    # -- Enable scraping pm-openfga-operator
     enabled: true
-    # -- Namespace where security-operator runs
+    # -- Namespace where pm-openfga-operator runs
     namespace: platform-mesh-system
-    # -- Labels to select security-operator metrics service
+    # -- Labels to select pm-openfga-operator metrics service
     labels:
-      app: security-operator
+      app: pm-openfga-operator
     # -- Name of the port exposing metrics
     port: metrics
     # -- Path to metrics endpoint

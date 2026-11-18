@@ -27,8 +27,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"go.platform-mesh.io/golang-commons/directive/mocks"
 	fgastore "go.platform-mesh.io/golang-commons/fga/store"
+	"go.platform-mesh.io/golang-commons/fga/store/mocks"
 )
 
 func listStoresReq(name, continuationToken string) *openfgav1.ListStoresRequest {

@@ -13,6 +13,13 @@ data:
       http: 0.0.0.0:{{ .Values.dex.service.port }}
     oauth2:
       skipApprovalScreen: true
+      {{- with .Values.dex.passwordConnector }}
+      passwordConnector: {{ . | quote }}
+      {{- end }}
+    {{- with .Values.dex.expiry }}
+    expiry:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     enablePasswordDB: true
     staticPasswords:
     {{- range .Values.dex.staticPasswords }}
@@ -20,6 +27,12 @@ data:
       hash: {{ .hash | quote }}
       username: {{ .username | quote }}
       userID: {{ .userID | quote }}
+      {{- with .groups }}
+      groups:
+      {{- range . }}
+      - {{ . | quote }}
+      {{- end }}
+      {{- end }}
     {{- end }}
     staticClients:
     - id: {{ .Values.dex.staticClient.id | quote }}

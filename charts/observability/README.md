@@ -38,7 +38,7 @@ OpenTelemetry-based observability stack for platform-mesh
 | prometheus.server.extraFlags[0] | string | `"web.enable-remote-write-receiver"` | Enable remote write receiver (required for OTel Collector to push metrics) |
 | prometheus.server.extraFlags[1] | string | `"web.enable-lifecycle"` | Enable lifecycle API (required for config reloader sidecar) |
 | prometheus.server.persistentVolume.enabled | bool | `false` | Disable persistence for local development |
-| serviceMonitors | object | `{"accountOperator":{"enabled":true,"labels":{"app":"account-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"},"kcp":{"enabled":true,"kubeconfig":{"groups":["system:monitoring"],"name":"metrics-viewer","secretName":"kubeconfig-metrics-viewer","username":"metrics-viewer","validity":"8766h"},"labels":{"app.kubernetes.io/component":"rootshard","app.kubernetes.io/name":"kcp"},"namespace":"platform-mesh-system","path":"/clusters/root/metrics","port":"https","scheme":"https","tlsInsecureSkipVerify":true},"openfga":{"enabled":true,"labels":{"app.kubernetes.io/name":"openfga"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"},"securityOperator":{"enabled":true,"labels":{"app":"security-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}}` | ---------------------------------------------------------------------------- |
+| serviceMonitors | object | `{"accountOperator":{"enabled":true,"labels":{"app":"account-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"},"kcp":{"enabled":true,"kubeconfig":{"groups":["system:monitoring"],"name":"metrics-viewer","secretName":"kubeconfig-metrics-viewer","username":"metrics-viewer","validity":"8766h"},"labels":{"app.kubernetes.io/component":"rootshard","app.kubernetes.io/name":"kcp"},"namespace":"platform-mesh-system","path":"/clusters/root/metrics","port":"https","scheme":"https","tlsInsecureSkipVerify":true},"openfga":{"enabled":true,"labels":{"app.kubernetes.io/name":"openfga"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"},"pmOpenfgaOperator":{"enabled":true,"labels":{"app":"pm-openfga-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}}` | ---------------------------------------------------------------------------- |
 | serviceMonitors.accountOperator | object | `{"enabled":true,"labels":{"app":"account-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}` | account-operator metrics scraping |
 | serviceMonitors.accountOperator.enabled | bool | `true` | Enable scraping account-operator |
 | serviceMonitors.accountOperator.labels | object | `{"app":"account-operator"}` | Labels to select account-operator metrics service |
@@ -65,12 +65,12 @@ OpenTelemetry-based observability stack for platform-mesh
 | serviceMonitors.openfga.namespace | string | `"platform-mesh-system"` | Namespace where OpenFGA runs |
 | serviceMonitors.openfga.path | string | `"/metrics"` | Path to metrics endpoint |
 | serviceMonitors.openfga.port | string | `"metrics"` | Name of the port exposing metrics |
-| serviceMonitors.securityOperator | object | `{"enabled":true,"labels":{"app":"security-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}` | security-operator metrics scraping |
-| serviceMonitors.securityOperator.enabled | bool | `true` | Enable scraping security-operator |
-| serviceMonitors.securityOperator.labels | object | `{"app":"security-operator"}` | Labels to select security-operator metrics service |
-| serviceMonitors.securityOperator.namespace | string | `"platform-mesh-system"` | Namespace where security-operator runs |
-| serviceMonitors.securityOperator.path | string | `"/metrics"` | Path to metrics endpoint |
-| serviceMonitors.securityOperator.port | string | `"metrics"` | Name of the port exposing metrics |
+| serviceMonitors.pmOpenfgaOperator | object | `{"enabled":true,"labels":{"app":"pm-openfga-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}` | pm-openfga-operator metrics scraping |
+| serviceMonitors.pmOpenfgaOperator.enabled | bool | `true` | Enable scraping pm-openfga-operator |
+| serviceMonitors.pmOpenfgaOperator.labels | object | `{"app":"pm-openfga-operator"}` | Labels to select pm-openfga-operator metrics service |
+| serviceMonitors.pmOpenfgaOperator.namespace | string | `"platform-mesh-system"` | Namespace where pm-openfga-operator runs |
+| serviceMonitors.pmOpenfgaOperator.path | string | `"/metrics"` | Path to metrics endpoint |
+| serviceMonitors.pmOpenfgaOperator.port | string | `"metrics"` | Name of the port exposing metrics |
 
 ## Overriding Values
 
@@ -139,7 +139,7 @@ OpenTelemetry-based observability stack for platform-mesh
 | prometheus.server.extraFlags[0] | string | `"web.enable-remote-write-receiver"` | Enable remote write receiver (required for OTel Collector to push metrics) |
 | prometheus.server.extraFlags[1] | string | `"web.enable-lifecycle"` | Enable lifecycle API (required for config reloader sidecar) |
 | prometheus.server.persistentVolume.enabled | bool | `false` | Disable persistence for local development |
-| serviceMonitors | object | `{"accountOperator":{"enabled":true,"labels":{"app":"account-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"},"kcp":{"enabled":true,"kubeconfig":{"groups":["system:monitoring"],"name":"metrics-viewer","secretName":"kubeconfig-metrics-viewer","username":"metrics-viewer","validity":"8766h"},"labels":{"app.kubernetes.io/component":"rootshard","app.kubernetes.io/name":"kcp"},"namespace":"platform-mesh-system","path":"/clusters/root/metrics","port":"https","scheme":"https","tlsInsecureSkipVerify":true},"openfga":{"enabled":true,"labels":{"app.kubernetes.io/name":"openfga"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"},"securityOperator":{"enabled":true,"labels":{"app":"security-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}}` | ---------------------------------------------------------------------------- |
+| serviceMonitors | object | `{"accountOperator":{"enabled":true,"labels":{"app":"account-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"},"kcp":{"enabled":true,"kubeconfig":{"groups":["system:monitoring"],"name":"metrics-viewer","secretName":"kubeconfig-metrics-viewer","username":"metrics-viewer","validity":"8766h"},"labels":{"app.kubernetes.io/component":"rootshard","app.kubernetes.io/name":"kcp"},"namespace":"platform-mesh-system","path":"/clusters/root/metrics","port":"https","scheme":"https","tlsInsecureSkipVerify":true},"openfga":{"enabled":true,"labels":{"app.kubernetes.io/name":"openfga"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"},"pmOpenfgaOperator":{"enabled":true,"labels":{"app":"pm-openfga-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}}` | ---------------------------------------------------------------------------- |
 | serviceMonitors.accountOperator | object | `{"enabled":true,"labels":{"app":"account-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}` | account-operator metrics scraping |
 | serviceMonitors.accountOperator.enabled | bool | `true` | Enable scraping account-operator |
 | serviceMonitors.accountOperator.labels | object | `{"app":"account-operator"}` | Labels to select account-operator metrics service |
@@ -166,10 +166,10 @@ OpenTelemetry-based observability stack for platform-mesh
 | serviceMonitors.openfga.namespace | string | `"platform-mesh-system"` | Namespace where OpenFGA runs |
 | serviceMonitors.openfga.path | string | `"/metrics"` | Path to metrics endpoint |
 | serviceMonitors.openfga.port | string | `"metrics"` | Name of the port exposing metrics |
-| serviceMonitors.securityOperator | object | `{"enabled":true,"labels":{"app":"security-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}` | security-operator metrics scraping |
-| serviceMonitors.securityOperator.enabled | bool | `true` | Enable scraping security-operator |
-| serviceMonitors.securityOperator.labels | object | `{"app":"security-operator"}` | Labels to select security-operator metrics service |
-| serviceMonitors.securityOperator.namespace | string | `"platform-mesh-system"` | Namespace where security-operator runs |
-| serviceMonitors.securityOperator.path | string | `"/metrics"` | Path to metrics endpoint |
-| serviceMonitors.securityOperator.port | string | `"metrics"` | Name of the port exposing metrics |
+| serviceMonitors.pmOpenfgaOperator | object | `{"enabled":true,"labels":{"app":"pm-openfga-operator"},"namespace":"platform-mesh-system","path":"/metrics","port":"metrics"}` | pm-openfga-operator metrics scraping |
+| serviceMonitors.pmOpenfgaOperator.enabled | bool | `true` | Enable scraping pm-openfga-operator |
+| serviceMonitors.pmOpenfgaOperator.labels | object | `{"app":"pm-openfga-operator"}` | Labels to select pm-openfga-operator metrics service |
+| serviceMonitors.pmOpenfgaOperator.namespace | string | `"platform-mesh-system"` | Namespace where pm-openfga-operator runs |
+| serviceMonitors.pmOpenfgaOperator.path | string | `"/metrics"` | Path to metrics endpoint |
+| serviceMonitors.pmOpenfgaOperator.port | string | `"metrics"` | Name of the port exposing metrics |
 

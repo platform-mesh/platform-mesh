@@ -31,6 +31,53 @@ type PlatformMeshSpec struct {
 	InfraValues      apiextensionsv1.JSON `json:"infraValues,omitempty"`
 	Wait             *WaitConfig          `json:"wait,omitempty"`
 	ProfileConfigMap *ConfigMapReference  `json:"profileConfigMap,omitempty"`
+
+	// Authentication names the identity provider kcp and the portal use instead of Keycloak.
+	// +optional
+	Authentication *Authentication `json:"authentication,omitempty"`
+}
+
+// Authentication configures the identity providers kcp trusts.
+type Authentication struct {
+	// OIDC is an external OIDC issuer.
+	// +optional
+	OIDC *OIDCAuthentication `json:"oidc,omitempty"`
+}
+
+// OIDCAuthentication names one OIDC issuer with the flag-style settings of kube-apiserver.
+type OIDCAuthentication struct {
+
+	// TODO(ntnn): Should look into supporting the structured AuthenticationConfiguration.
+
+	// IssuerURL is the issuer as it appears in the iss claim.
+	// +kubebuilder:validation:Pattern=`^https://`
+	IssuerURL string `json:"issuerURL"`
+	// ClientID is the audience tokens must be issued for.
+	// +kubebuilder:validation:MinLength=1
+	ClientID string `json:"clientID"`
+	// UsernameClaim is the claim holding the username.
+	// +kubebuilder:default=email
+	// +optional
+	UsernameClaim string `json:"usernameClaim,omitempty"`
+	// GroupsClaim is the claim holding the groups.
+	// +kubebuilder:default=groups
+	// +optional
+	GroupsClaim string `json:"groupsClaim,omitempty"`
+	// UsernamePrefix is prepended to every username.
+	// +optional
+	UsernamePrefix string `json:"usernamePrefix,omitempty"`
+	// GroupsPrefix is prepended to every group.
+	// +optional
+	GroupsPrefix string `json:"groupsPrefix,omitempty"`
+	// KubectlClientID is the client kubeconfigs log in with: a client of the issuer
+	// that needs no secret and accepts a localhost redirect. Defaults to ClientID.
+	// kcp accepts tokens issued for ClientID only.
+	// +optional
+	KubectlClientID string `json:"kubectlClientID,omitempty"`
+	// KubectlScopes are the scopes kubeconfigs request besides openid, such as
+	// email or groups. Empty leaves the choice to the portal.
+	// +optional
+	KubectlScopes []string `json:"kubectlScopes,omitempty"`
 }
 
 type ConfigMapReference struct {

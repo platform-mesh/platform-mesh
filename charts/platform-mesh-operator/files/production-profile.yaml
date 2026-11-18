@@ -123,6 +123,7 @@ data:
               enabled: true
             gatewayApi:
               enabled: true
+              baseDomain: "{{ .baseDomain }}"
               gatewayClassName: __GATEWAY_CLASS_NAME__
               port: __EXTERNAL_PORT__
               passthrough:
@@ -176,6 +177,9 @@ data:
         kcp-operator:
           syncWave: 1
           external: true
+          # The chart comes from kcp's Helm repository, not from an OCI registry
+          # (third_party/kcp-operator/component-constructor.yaml).
+          helmRepo: true
           enabled: true
           imageResources:
           - name: kcp-operator-image
@@ -237,14 +241,6 @@ data:
               artifact: image
               for: openfga
               image-ref: combined
-          - name: openfga-postgresql-image
-            resource: postgresql-image
-            resourceName: postgresql-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: openfga
-              path: postgresql.image.tag
               unsuspend: "true"
           values:
             autoscaling:
@@ -333,39 +329,70 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-        rebac-authz-webhook:
+        pm-openfga-authz-webhook:
           imageResources:
           - annotations:
               repo: oci
               artifact: image
-              for: rebac-authz-webhook
+              for: pm-openfga-authz-webhook
           syncWave: 4
           enabled: true
           values:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-        security-operator:
+        pm-keycloak-operator:
           imageResources:
           - annotations:
               repo: oci
               artifact: image
-              for: security-operator
+              for: pm-keycloak-operator
           syncWave: 4
           enabled: true
           values:
             baseDomain: '{{ .baseDomainPort }}'
             keycloak:
               baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
+            # Installation can opt out of email verification through this override.
+            idp:
+              allowUnverifiedEmails: false
+              setDefaultPassword: false
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-        virtual-workspaces:
+        pm-openfga-operator:
           imageResources:
           - annotations:
               repo: oci
               artifact: image
-              for: virtual-workspaces
+              for: pm-openfga-operator
+          syncWave: 4
+          enabled: true
+          values:
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
+        extension-manager-virtual-workspace:
+          imageResources:
+          - annotations:
+              repo: oci
+              artifact: image
+              for: extension-manager-virtual-workspace
+          syncWave: 4
+          enabled: true
+          targetNamespace: platform-mesh-system
+          values:
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
+            deployment:
+              serverUrl: "{{ .internalFrontProxyUrl }}"
+        marketplace:
+          imageResources:
+          - annotations:
+              repo: oci
+              artifact: image
+              for: marketplace
           syncWave: 4
           enabled: true
           targetNamespace: platform-mesh-system
@@ -383,8 +410,6 @@ data:
               artifact: image
               for: marketplace-ui
           values:
-            contentConfig:
-              baseDomain: '{{ .baseDomain }}'
             exposure:
               hostnames:
               - "{{ .baseDomain }}"

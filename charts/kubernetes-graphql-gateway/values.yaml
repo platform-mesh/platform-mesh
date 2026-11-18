@@ -36,11 +36,7 @@ gateway:
   metricsPort: 8081
   # -- enable GraphQL playground UI (dev-only; exposes introspection)
   playground: false
-  # -- log level for the gateway. Permissible values: trace, debug, info, warn, error
-  logLevel: info
   shouldImpersonate: false
-  introspectionAuthentication: true
-  usernameClaim: email
   extraArgs: []
 
   # -- Maximum gRPC receive message size in bytes (used with --schema-handler=grpc).
@@ -127,10 +123,6 @@ deployment:
   maxSurge: 5
   revisionHistoryLimit: 3
   replicas: 1
-
-sentry:
-  # -- environment label reported to Sentry (e.g. production, staging, development)
-  environment: production
 
 kubeConfig:
   createSecret: false

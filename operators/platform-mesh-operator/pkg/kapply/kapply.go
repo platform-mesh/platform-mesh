@@ -83,12 +83,9 @@ type Options struct {
 // Option is a functional option for ApplyDir.
 type Option func(*Options)
 
-func WithFieldManager(m string) Option      { return func(o *Options) { o.FieldManager = m } }
-func WithForceConflicts(b bool) Option      { return func(o *Options) { o.ForceConflicts = b } }
-func WithDefaultNamespace(ns string) Option { return func(o *Options) { o.DefaultNamespace = ns } }
-func WithPreapplyKinds(kinds ...string) Option {
-	return func(o *Options) { o.PreapplyKinds = append([]string{}, kinds...) }
-}
+func WithFieldManager(m string) Option         { return func(o *Options) { o.FieldManager = m } }
+func WithForceConflicts(b bool) Option         { return func(o *Options) { o.ForceConflicts = b } }
+func WithDefaultNamespace(ns string) Option    { return func(o *Options) { o.DefaultNamespace = ns } }
 func WithDryRun() Option                       { return func(o *Options) { o.DryRun = true } }
 func WithWaitAfterCRDs(d time.Duration) Option { return func(o *Options) { o.WaitAfterCRDs = d } }
 

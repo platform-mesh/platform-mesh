@@ -37,7 +37,7 @@ const navOrder = 860
 var graphQLName = regexp.MustCompile(`^[_A-Za-z][_0-9A-Za-z]*$`)
 
 // ValidateAPIGroup rejects an API group the portal could not query. The gateway only
-// replaces dots with underscores, so a hyphen or a leading digit yields an unparseable
+// replaces dots with underscores, so a hyphen or a leading digit yields an unparsable
 // field. Not fatal: the caller skips the portal wiring and still publishes the type.
 func ValidateAPIGroup(group string) error {
 	if group == "" {

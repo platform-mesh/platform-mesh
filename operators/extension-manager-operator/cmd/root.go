@@ -21,23 +21,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
-	"go.platform-mesh.io/extension-manager-operator/internal/config"
+	"go.platform-mesh.io/extension-manager-operator/pkg/app"
+	"go.platform-mesh.io/extension-manager-operator/pkg/config"
 	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
 	"go.platform-mesh.io/golang-commons/logger"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 var (
-	scheme   = runtime.NewScheme()
+	scheme   = app.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 
 	operatorCfg *config.OperatorConfig
@@ -52,14 +45,6 @@ var rootCmd = &cobra.Command{
 }
 
 func init() { // coverage-ignore
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
-
-	utilruntime.Must(pmuiv1alpha1.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
-
 	defaultCfg = platformmeshconfig.NewDefaultConfig()
 	operatorCfg = config.NewOperatorConfig()
 	serverCfg = config.NewServerConfig()

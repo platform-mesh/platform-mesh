@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"go.platform-mesh.io/account-operator/internal/config"
 	"go.platform-mesh.io/account-operator/internal/metrics"
+	"go.platform-mesh.io/account-operator/pkg/config"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/manageaccountinfo"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspace"
 	"go.platform-mesh.io/account-operator/pkg/subroutines/workspaceready"
@@ -79,7 +79,11 @@ func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.
 	}
 
 	if cfg.Subroutines.AccountInfo.Enabled {
-		maiSub, err := manageaccountinfo.New(mgr, serverCA)
+		oidc, err := cfg.OIDC.Info()
+		if err != nil {
+			return nil, fmt.Errorf("OIDC issuer of the AccountInfos: %w", err)
+		}
+		maiSub, err := manageaccountinfo.New(mgr, serverCA, oidc)
 		if err != nil {
 			return nil, fmt.Errorf("creating ManageAccountInfo subroutine: %w", err)
 		}

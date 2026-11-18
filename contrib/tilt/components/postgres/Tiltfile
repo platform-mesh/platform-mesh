@@ -1,0 +1,37 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "component", "wait")
+load("../../lib/infra.Tiltfile", "infra_objects")
+
+# The shared CNPG cluster with the Keycloak and OpenFGA databases.
+#
+# The resource turns Ready as soon as any cnpg.io/cluster pod is Ready, which
+# includes the short-lived initdb pod while initdb is still running. Consumers
+# (openfga's migrate-database init container, keycloak) then hit a database
+# that does not exist yet, and tilt ci aborts on the first Init:Error. Gate
+# them on the Cluster being Ready and every Database having been applied.
+COMPONENT = component(
+    name="postgres",
+    label="infra",
+    needs=["cnpg"],
+    runtime=infra_objects(
+        extra_pod_selectors=[{"cnpg.io/cluster": "platform-mesh-pg"}],
+        pod_readiness="wait",
+    ),
+    ready=[
+        wait("clusters.postgresql.cnpg.io/platform-mesh-pg", "condition=Ready"),
+        wait("databases.postgresql.cnpg.io --all", "jsonpath='{.status.applied}'=true"),
+    ],
+)

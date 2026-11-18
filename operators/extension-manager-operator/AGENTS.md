@@ -12,20 +12,22 @@
 
 ## Project Structure
 - `api/v1alpha1`: API types and generated Kubernetes objects.
-- `internal/controller`: reconcilers and controller tests.
+- `internal/controller`: reconcilers and their unit tests.
 - `internal/server`: runtime server components.
-- `internal/config`: runtime configuration parsing and defaults.
+- `pkg/config`: runtime configuration parsing and defaults.
+- `pkg/app`: public wiring (scheme, `SetupControllers`, `Run`) used by `cmd/` and the integration tests.
+- Integration tests live in `tests/integration/extensionmanager` at the repository root (`task test-integration PKG=./integration/extensionmanager/...`); they use only public packages.
 - `pkg/validation`: content configuration validation logic.
 - `pkg/transformer`: schema and transformation helpers.
 - `pkg/subroutines`, `pkg/util`: reusable operator helpers.
-- `config/crd`, `config/resources`: generated manifests. The chart copy of the CRD is written by `hack/charts/sync-crds.sh` as part of `task generate`.
+- `config/crd`, `apis/static-assets/resources/extension-manager-operator`: generated manifests. The chart copy of the CRD is written by `hack/charts/sync-crds.sh` as part of `task generate`.
 - `docs` and `docs/development`: product and developer documentation.
 
 ## Architecture
 This is a multicluster `ContentConfiguration` operator with a thin controller and most business logic delegated to a lifecycle subroutine.
 
 ### Runtime model
-- `cmd/operator.go` chooses the reconcile config from `KUBECONFIG` if present, otherwise `ctrl.GetConfigOrDie()`.
+- `cmd/operator.go` sets up logging and tracing and calls `app.Run`, which chooses the reconcile config from `KUBECONFIG` if present, otherwise `ctrl.GetConfigOrDie()`.
 - If `--kcp-api-export-endpoint-slice-name` is set, the manager is a multicluster manager backed by an APIExport provider; otherwise it reconciles against plain Kubernetes.
 - Leader election, when enabled, uses `rest.InClusterConfig()` separately from the reconcile config.
 
@@ -39,13 +41,12 @@ This is a multicluster `ContentConfiguration` operator with a thin controller an
 - Runtime HTTP/server behavior lives under `internal/server`, so not every change belongs in the reconciler path.
 
 ### Configuration and tests
-- `internal/config/config.go` defines the operator flags, including whether the content configuration subroutine is enabled.
-- Controller tests use envtest; generated artifacts under `config/resources` and CRD output must stay in sync with API changes.
+- `pkg/config/config.go` defines the operator flags, including whether the content configuration subroutine is enabled.
+- Controller behaviour against kcp is covered by `tests/integration/extensionmanager`; generated artifacts under `apis/static-assets/resources/extension-manager-operator` and CRD output must stay in sync with API changes.
 
 ## Commands
 - `task fmt` — format Go code.
 - `task lint` — run formatting plus golangci-lint.
-- `task envtest` — run tests with envtest assets.
 - `task test` — run the standard local test flow.
 - `task cover` — enforce coverage checks using `.testcoverage.yml`.
 - `task validate` — run lint, test, and coverage together.
@@ -68,11 +69,11 @@ This is a multicluster `ContentConfiguration` operator with a thin controller an
 ## Generated Artifacts
 - Run `task generate` after API, schema, or CRD changes.
 - Run `task mockery` after interface changes that affect generated mocks.
-- Review changes in `config/crd`, `config/resources`, and generated Go files.
+- Review changes in `config/crd`, `apis/static-assets/resources/extension-manager-operator`, and generated Go files.
 - Do not hand-edit generated output unless the file is clearly maintained as source.
 
 ## Do Not
-- Edit generated CRD or resource output in `config/crd` or `config/resources` without regeneration.
+- Edit generated CRD or resource output in `config/crd` or `apis/static-assets/resources/extension-manager-operator` without regeneration.
 - Hand-edit generated mocks after interface changes; run `task mockery` instead.
 - Update `.testcoverage.yml` unless the task explicitly requires it.
 

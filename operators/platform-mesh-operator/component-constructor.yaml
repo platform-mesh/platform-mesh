@@ -22,26 +22,26 @@ components:
         type: git
         version: ${PM_VERSION}
         access:
-          type: gitHub
-          repoUrl: ${REPO_URL}
+          type: Git/v1
+          repository: ${REPO_URL}
           commit: ${COMMIT}
     resources:
       - name: image
-        type: ociImage
+        type: OCIImage/v1
         relation: external
         version: v${PM_VERSION}
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${IMAGE_REPO}/platform-mesh-operator:v${PM_VERSION}
       - name: sbom-cyclonedx
         type: sbom
         input:
-          type: file
+          type: File/v1
           path: platform-mesh-operator/sbom-cyclonedx.json
           mediaType: application/vnd.cyclonedx+json
       - name: sbom-spdx
         type: sbom
         input:
-          type: file
+          type: File/v1
           path: platform-mesh-operator/sbom-spdx.json
           mediaType: application/spdx+json

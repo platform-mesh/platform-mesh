@@ -100,6 +100,12 @@ spec:
                 type: object
               oidc:
                 properties:
+                  ca:
+                    description: |-
+                      CA is the PEM bundle clients verify the issuer with, such as the
+                      kubeconfigs the portal hands out. Empty for an issuer whose certificate
+                      is publicly trusted.
+                    type: string
                   clients:
                     additionalProperties:
                       properties:
@@ -111,6 +117,13 @@ spec:
                     type: object
                   issuerUrl:
                     type: string
+                  scopes:
+                    description: |-
+                      Scopes are what clients of the issuer request besides openid, such as the
+                      kubeconfigs the portal hands out. Empty leaves the choice to the client.
+                    items:
+                      type: string
+                    type: array
                 required:
                 - clients
                 - issuerUrl

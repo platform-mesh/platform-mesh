@@ -43,7 +43,11 @@ type APIExportPolicyStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:deprecatedversion:warning="core.platform-mesh.io/v1alpha1 APIExportPolicy is deprecated, use openfga.platform-mesh.io/v1alpha1 APIExportPolicy"
 
+// APIExportPolicy is the Schema for the apiexportpolicies API.
+//
+// Deprecated: use openfga.platform-mesh.io/v1alpha1 APIExportPolicy.
 type APIExportPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -67,6 +71,8 @@ var _ lifecycleapi.RuntimeObjectConditions = &APIExportPolicy{}
 // +kubebuilder:object:root=true
 
 // APIExportPolicyList contains a list of APIExportPolicy.
+//
+// Deprecated: use openfga.platform-mesh.io/v1alpha1 APIExportPolicyList.
 type APIExportPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

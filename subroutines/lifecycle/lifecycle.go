@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
@@ -211,7 +212,7 @@ func (l *Lifecycle) Reconcile(ctx context.Context, req mcreconcile.Request) (rec
 	if l.prepareCtx != nil {
 		ctx, err = l.prepareCtx(ctx, obj)
 		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("preparing context: %w", err)
+			return reconcile.Result{}, retried(fmt.Errorf("preparing context: %w", err))
 		}
 	}
 
@@ -370,12 +371,41 @@ func (l *Lifecycle) Reconcile(ctx context.Context, req mcreconcile.Request) (rec
 				logger.V(1).Info("conflict during patch, requeuing")
 				return reconcile.Result{RequeueAfter: time.Second}, nil
 			}
-			return reconcile.Result{}, errors.Join(subroutineErr, patchErr)
+			return reconcile.Result{}, retried(errors.Join(subroutineErr, patchErr))
 		}
 	}
 
-	return reconcile.Result{RequeueAfter: minRequeue}, subroutineErr
+	return reconcile.Result{RequeueAfter: minRequeue}, retried(subroutineErr)
 }
+
+// retried makes sure an error from inside a reconciliation leads to a retry.
+//
+// multicluster-runtime wraps every reconciler in a ClusterNotFoundWrapper,
+// which takes an error that is multicluster.ErrClusterNotFound for "the
+// cluster of this request is gone" and ends the reconciliation without a
+// requeue. That is right for the lookup of the request's own cluster, at
+// the top of Reconcile. By the time a subroutine runs, that lookup has
+// succeeded, so a cluster a subroutine does not find is another one: the
+// workspace it just created and the provider has not engaged yet, the
+// workspace of a parent, of a store. Dropping the request then leaves the
+// object half reconciled until something else touches it.
+//
+// So such an error is returned without ErrClusterNotFound in its chain, and
+// is retried like any other. Should the request's own cluster go away in
+// the meantime, the next reconciliation fails at its top, with the error
+// intact, and is dropped as intended.
+func retried(err error) error {
+	if err == nil || !errors.Is(err, multicluster.ErrClusterNotFound) {
+		return err
+	}
+	return otherClusterNotFoundError{msg: err.Error()}
+}
+
+// otherClusterNotFoundError carries the message of an error that was
+// multicluster.ErrClusterNotFound, and does not unwrap to it.
+type otherClusterNotFoundError struct{ msg string }
+
+func (e otherClusterNotFoundError) Error() string { return e.msg }
 
 type actionFunc func(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error)
 

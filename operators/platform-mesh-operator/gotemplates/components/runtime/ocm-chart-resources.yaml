@@ -24,6 +24,8 @@ metadata:
     artifact: chart
     {{- if $config.gitRepo }}
     repo: git
+    {{- else if $config.helmRepo }}
+    repo: helm
     {{- else }}
     repo: oci
     {{- end }}
@@ -69,6 +71,12 @@ spec:
       {{- else }}
       name: {{ $values.ocm.repo.name }}
       {{- end }}
+      namespace: {{ $.releaseNamespace }}
+    - kind: Secret
+      apiVersion: v1
+      # Objects that set ocmConfig do not inherit the Component's verifier,
+      # so reference the signing configuration explicitly.
+      name: ocm-signing-public-cert
       namespace: {{ $.releaseNamespace }}
 ---
 {{ end -}}

@@ -118,12 +118,12 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       additionalPathMappings:
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/contentconfigurations
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
@@ -721,12 +721,12 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       additionalPathMappings:
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/contentconfigurations
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
@@ -1324,12 +1324,12 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       additionalPathMappings:
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/contentconfigurations
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
@@ -1961,12 +1961,12 @@ configure frontproxy resources:
       namespace: platform-mesh-system
     spec:
       additionalPathMappings:
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/contentconfigurations
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
@@ -2265,12 +2265,12 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       additionalPathMappings:
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/contentconfigurations
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
@@ -2868,12 +2868,12 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       additionalPathMappings:
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/contentconfigurations
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
@@ -3479,12 +3479,12 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       additionalPathMappings:
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/contentconfigurations
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
@@ -4082,12 +4082,12 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       additionalPathMappings:
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://extension-manager-virtual-workspace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/contentconfigurations
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
-        - backend: https://virtual-workspaces.platform-mesh-system:8443
+        - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt

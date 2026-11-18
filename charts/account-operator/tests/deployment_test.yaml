@@ -100,3 +100,76 @@ tests:
         enabled: false
     asserts:
       - matchSnapshot: {}
+  - it: no oidc flags without an issuer
+    template: deployment.yaml
+    set:
+      oidc:
+        clients:
+          kubectl: platform-mesh
+        scopes: [email]
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-clients=kubectl=platform-mesh
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-scopes=email
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-ca-file=/oidc-ca/tls.crt
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: oidc-ca
+          any: true
+  - it: external oidc issuer
+    template: deployment.yaml
+    set:
+      oidc:
+        issuerUrl: https://issuer.example/dex
+        clients:
+          kubectl: platform-mesh
+        scopes: [email, groups]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-issuer-url=https://issuer.example/dex
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-clients=kubectl=platform-mesh
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-scopes=email,groups
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-ca-file=/oidc-ca/tls.crt
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: oidc-ca
+            mountPath: /oidc-ca
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: oidc-ca
+            secret:
+              secretName: domain-certificate-ca
+  - it: external oidc issuer with a publicly trusted certificate
+    template: deployment.yaml
+    set:
+      oidc:
+        issuerUrl: https://issuer.example
+        clients:
+          kubectl: platform-mesh
+        caFileRef:
+          name: ""
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --oidc-ca-file=/oidc-ca/tls.crt
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: oidc-ca
+          any: true

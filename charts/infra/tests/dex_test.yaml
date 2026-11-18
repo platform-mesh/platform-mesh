@@ -26,6 +26,85 @@ tests:
     - dex/httproute.yaml
   asserts:
     - matchSnapshot: {}
+- it: dex static password groups rendered
+  set:
+    dex:
+      enabled: true
+      staticPasswords:
+        - email: admin@portal.localhost
+          hash: "$2a$10$hash"
+          username: admin
+          userID: "1"
+          groups:
+            - platform-mesh:admins
+        - email: nogroups@portal.localhost
+          hash: "$2a$10$hash"
+          username: nogroups
+          userID: "2"
+  templates:
+    - dex/configmap.yaml
+  asserts:
+    - matchRegex:
+        path: data["config.yaml"]
+        pattern: 'userID: "1"\n  groups:\n  - "platform-mesh:admins"\n- email: "nogroups@portal.localhost"'
+    - notMatchRegex:
+        path: data["config.yaml"]
+        pattern: 'userID: "2"\n  groups:'
+- it: dex password connector not rendered by default
+  set:
+    dex:
+      enabled: true
+  templates:
+    - dex/configmap.yaml
+  asserts:
+    - notMatchRegex:
+        path: data["config.yaml"]
+        pattern: passwordConnector
+- it: dex password connector rendered when set
+  set:
+    dex:
+      enabled: true
+      passwordConnector: local
+  templates:
+    - dex/configmap.yaml
+  asserts:
+    - matchRegex:
+        path: data["config.yaml"]
+        pattern: 'oauth2:\n  skipApprovalScreen: true\n  passwordConnector: "local"'
+- it: dex expiry not rendered by default
+  set:
+    dex:
+      enabled: true
+  templates:
+    - dex/configmap.yaml
+  asserts:
+    - notMatchRegex:
+        path: data["config.yaml"]
+        pattern: expiry
+- it: dex expiry rendered when set
+  set:
+    dex:
+      enabled: true
+      expiry:
+        refreshTokens:
+          disableRotation: true
+          reuseInterval: 8760h
+  templates:
+    - dex/configmap.yaml
+  asserts:
+    - matchRegex:
+        path: data["config.yaml"]
+        pattern: '\nexpiry:\n  refreshTokens:\n    disableRotation: true\n    reuseInterval: 8760h\nenablePasswordDB: true'
+- it: dex deployment restarts on config change
+  set:
+    dex:
+      enabled: true
+  templates:
+    - dex/deployment.yaml
+  asserts:
+    - matchRegex:
+        path: spec.template.metadata.annotations["checksum/config"]
+        pattern: ^[0-9a-f]{64}$
 - it: dex httproute not rendered when gateway API disabled
   set:
     dex:

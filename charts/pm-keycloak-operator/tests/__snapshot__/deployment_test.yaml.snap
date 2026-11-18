@@ -1,0 +1,984 @@
+operator matches the snapshot:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator
+    rules:
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - events
+          - secrets
+        verbs:
+          - '*'
+      - apiGroups:
+          - helm.toolkit.fluxcd.io
+        resources:
+          - helmreleases
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - delete
+          - update
+          - patch
+      - apiGroups:
+          - source.toolkit.fluxcd.io
+        resources:
+          - ocirepositories
+          - helmreleases
+        verbs:
+          - get
+          - list
+          - create
+          - update
+          - patch
+          - delete
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: RELEASE-NAME-pm-keycloak-operator
+    subjects:
+      - kind: ServiceAccount
+        name: RELEASE-NAME-pm-keycloak-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-pm-keycloak-operator
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-pm-keycloak-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --user-claim=email
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --domain-ca-lookup
+                - --webhooks-enabled=true
+                - --webhooks-port=9443
+                - --webhooks-cert-dir=/certs
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: KEYCLOAK_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      key: client_secret
+                      name: pm-keycloak-operator-client-secret
+              image: ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-pm-keycloak-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 9443
+                  name: webhook
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /keycloak-credentials
+                  name: keycloak-credentials
+                  readOnly: true
+                - mountPath: /certs
+                  name: webhook-certs
+                  readOnly: true
+          initContainers:
+            - args:
+                - init-container
+              image: ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: bootstrap-keycloak-clients
+              resources: null
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts:
+                - mountPath: /config
+                  name: init-container-config
+                  readOnly: true
+                - mountPath: /secrets
+                  name: keycloak-password
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-pm-keycloak-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - configMap:
+                name: RELEASE-NAME-pm-keycloak-operator-init-container-config
+              name: init-container-config
+            - name: keycloak-password
+              secret:
+                items:
+                  - key: password
+                    path: keycloak-password
+                secretName: keycloak-admin
+            - name: external-api-server
+              secret:
+                secretName: kcp-kubeconfig
+            - name: keycloak-credentials
+              secret:
+                secretName: keycloak-admin
+            - name: webhook-certs
+              secret:
+                secretName: RELEASE-NAME-pm-keycloak-operator-webhook-server-cert
+  4: |
+    apiVersion: v1
+    data:
+      config.yaml: "keycloakBaseURL: \nkeycloakClientID: \"admin-cli\"\nkeycloakUser: \"keycloak-admin\"\npasswordFile: \"/secrets/keycloak-password\"\nclients:\n  - name: \"pm-keycloak-operator\"\n    secretRef:\n      name: \"pm-keycloak-operator-client-secret\"\n      namespace: \"platform-mesh-system\"\n  - name: \"iam-service\"\n    secretRef:\n      name: \"iam-client-secret\"\n      namespace: \"platform-mesh-system\"\n"
+    kind: ConfigMap
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-init-container-config
+      namespace: NAMESPACE
+  5: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-initializer
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-pm-keycloak-operator-initializer
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-pm-keycloak-operator-initializer
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - initializer
+                - --user-claim=email
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --domain-ca-lookup
+                - --test=myval
+                - --test2=myval
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-pm-keycloak-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-pm-keycloak-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: kcp-initializer-kubeconfig
+  6: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: RELEASE-NAME-pm-keycloak-operator
+      name: RELEASE-NAME-pm-keycloak-operator-metrics
+    spec:
+      ports:
+        - name: metrics
+          port: 9090
+          protocol: TCP
+          targetPort: metrics
+      selector:
+        app: RELEASE-NAME-pm-keycloak-operator
+      type: ClusterIP
+  7: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator
+      namespace: NAMESPACE
+  8: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-terminator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-pm-keycloak-operator-terminator
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-pm-keycloak-operator-terminator
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - terminator
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env: null
+              image: ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-pm-keycloak-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-pm-keycloak-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: external-api-server
+              secret:
+                secretName: kcp-terminator-kubeconfig
+  9: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-selfsigned-issuer
+    spec:
+      selfSigned: {}
+  10: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-ca-cert
+    spec:
+      commonName: RELEASE-NAME-pm-keycloak-operator-ca
+      duration: 2160h
+      isCA: true
+      issuerRef:
+        kind: Issuer
+        name: RELEASE-NAME-pm-keycloak-operator-selfsigned-issuer
+      renewBefore: 720h
+      secretName: RELEASE-NAME-pm-keycloak-operator-ca-secret
+  11: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-ca-issuer
+    spec:
+      ca:
+        secretName: RELEASE-NAME-pm-keycloak-operator-ca-secret
+  12: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-serving-cert
+    spec:
+      dnsNames:
+        - RELEASE-NAME-pm-keycloak-operator-webhook.NAMESPACE.svc
+        - RELEASE-NAME-pm-keycloak-operator-webhook.NAMESPACE.svc.cluster.local
+      duration: 2160h
+      issuerRef:
+        kind: Issuer
+        name: RELEASE-NAME-pm-keycloak-operator-ca-issuer
+      renewBefore: 720h
+      secretName: RELEASE-NAME-pm-keycloak-operator-webhook-server-cert
+  13: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-webhook
+      namespace: NAMESPACE
+    spec:
+      ports:
+        - port: 9443
+          protocol: TCP
+          targetPort: webhook
+      selector:
+        app: RELEASE-NAME-pm-keycloak-operator
+operator matches the snapshot w. sentry:
+  1: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator
+    rules:
+      - apiGroups:
+          - coordination.k8s.io
+        resources:
+          - leases
+        verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - events
+          - secrets
+        verbs:
+          - '*'
+      - apiGroups:
+          - helm.toolkit.fluxcd.io
+        resources:
+          - helmreleases
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - delete
+          - update
+          - patch
+      - apiGroups:
+          - source.toolkit.fluxcd.io
+        resources:
+          - ocirepositories
+          - helmreleases
+        verbs:
+          - get
+          - list
+          - create
+          - update
+          - patch
+          - delete
+          - watch
+  2: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: RELEASE-NAME-pm-keycloak-operator
+    subjects:
+      - kind: ServiceAccount
+        name: RELEASE-NAME-pm-keycloak-operator
+        namespace: NAMESPACE
+  3: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          app: RELEASE-NAME-pm-keycloak-operator
+      template:
+        metadata:
+          labels:
+            app: RELEASE-NAME-pm-keycloak-operator
+            control-plane: controller-manager
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - operator
+                - --user-claim=email
+                - --domain-ca-lookup
+                - --webhooks-enabled=true
+                - --webhooks-port=9443
+                - --webhooks-cert-dir=/certs
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      key: dsn
+                      name: RELEASE-NAME-pm-keycloak-operator-sentry
+                - name: TEST_ENV
+                  value: test
+                - name: KEYCLOAK_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      key: client_secret
+                      name: pm-keycloak-operator-client-secret
+              image: ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-pm-keycloak-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+                - containerPort: 9443
+                  name: webhook
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /keycloak-credentials
+                  name: keycloak-credentials
+                  readOnly: true
+                - mountPath: /certs
+                  name: webhook-certs
+                  readOnly: true
+                - mountPath: /etc/kcp-kubeconfig
+                  name: kcp-kubeconfig
+                  readOnly: true
+          initContainers:
+            - args:
+                - init-container
+              image: ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              name: bootstrap-keycloak-clients
+              resources: null
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts:
+                - mountPath: /config
+                  name: init-container-config
+                  readOnly: true
+                - mountPath: /secrets
+                  name: keycloak-password
+                  readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-pm-keycloak-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - configMap:
+                name: RELEASE-NAME-pm-keycloak-operator-init-container-config
+              name: init-container-config
+            - name: keycloak-password
+              secret:
+                items:
+                  - key: password
+                    path: keycloak-password
+                secretName: keycloak-admin
+            - name: keycloak-credentials
+              secret:
+                secretName: keycloak-admin
+            - name: webhook-certs
+              secret:
+                secretName: RELEASE-NAME-pm-keycloak-operator-webhook-server-cert
+            - name: kcp-kubeconfig
+              secret:
+                secretName: kcp-kubeconfig
+  4: |
+    apiVersion: v1
+    data:
+      config.yaml: "keycloakBaseURL: \nkeycloakClientID: \"admin-cli\"\nkeycloakUser: \"keycloak-admin\"\npasswordFile: \"/secrets/keycloak-password\"\nclients:\n  - name: \"pm-keycloak-operator\"\n    secretRef:\n      name: \"pm-keycloak-operator-client-secret\"\n      namespace: \"platform-mesh-system\"\n  - name: \"iam-service\"\n    secretRef:\n      name: \"iam-client-secret\"\n      namespace: \"platform-mesh-system\"\n"
+    kind: ConfigMap
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-init-container-config
+      namespace: NAMESPACE
+  5: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-initializer
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-pm-keycloak-operator-initializer
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-pm-keycloak-operator-initializer
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - initializer
+                - --user-claim=email
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --domain-ca-lookup
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      key: dsn
+                      name: RELEASE-NAME-pm-keycloak-operator-sentry
+                - name: TEST_ENV
+                  value: test
+              image: ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-pm-keycloak-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /etc/kcp-kubeconfig
+                  name: kcp-kubeconfig
+                  readOnly: true
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-pm-keycloak-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-kubeconfig
+              secret:
+                secretName: kcp-kubeconfig
+            - name: external-api-server
+              secret:
+                secretName: keycloak-initializer-kubeconfig
+  6: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: RELEASE-NAME-pm-keycloak-operator
+      name: RELEASE-NAME-pm-keycloak-operator-metrics
+    spec:
+      ports:
+        - name: metrics
+          port: 9090
+          protocol: TCP
+          targetPort: metrics
+      selector:
+        app: RELEASE-NAME-pm-keycloak-operator
+      type: ClusterIP
+  7: |
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-sentry
+      namespace: NAMESPACE
+    spec:
+      data:
+        - remoteRef:
+            conversionStrategy: Default
+            key: sentry/sentry-dsn
+            property: RELEASE-NAME-pm-keycloak-operator-sentry
+          secretKey: dsn
+      refreshInterval: 10m
+      secretStoreRef:
+        kind: SecretStore
+        name: environment-store
+      target:
+        creationPolicy: Owner
+        deletionPolicy: Retain
+        name: RELEASE-NAME-pm-keycloak-operator-sentry
+  8: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator
+      namespace: NAMESPACE
+  9: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-terminator
+      namespace: NAMESPACE
+    spec:
+      revisionHistoryLimit: 3
+      selector:
+        matchLabels:
+          service: RELEASE-NAME-pm-keycloak-operator-terminator
+      template:
+        metadata:
+          labels:
+            control-plane: controller-manager
+            service: RELEASE-NAME-pm-keycloak-operator-terminator
+        spec:
+          automountServiceAccountToken: true
+          containers:
+            - args:
+                - terminator
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+                - --leader-elect
+                - --metrics-bind-address=:9090
+                - --health-probe-bind-address=:8090
+                - --log-level=warn
+                - --region=
+                - --environment=
+                - --image-tag=1.0.0
+                - --image-name="ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator"
+                - --shutdown-timeout=1m
+                - --max-concurrent-reconciles=10
+              env:
+                - name: SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      key: dsn
+                      name: RELEASE-NAME-pm-keycloak-operator-sentry
+                - name: TEST_ENV
+                  value: test
+              image: ghcr.io/platform-mesh/platform-mesh/pm-keycloak-operator:1.0.0
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 1
+                httpGet:
+                  path: /healthz
+                  port: 8090
+                periodSeconds: 10
+              name: RELEASE-NAME-pm-keycloak-operator
+              ports:
+                - containerPort: 9090
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8090
+                  name: health-port
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 260m
+                  memory: 512Mi
+                requests:
+                  cpu: 150m
+                  memory: 128Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              startupProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /readyz
+                  port: 8090
+                periodSeconds: 10
+              volumeMounts:
+                - mountPath: /etc/kcp-kubeconfig
+                  name: kcp-kubeconfig
+                  readOnly: true
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: RELEASE-NAME-pm-keycloak-operator
+          terminationGracePeriodSeconds: 10
+          volumes:
+            - name: kcp-kubeconfig
+              secret:
+                secretName: kcp-kubeconfig
+            - name: external-api-server
+              secret:
+                secretName: keycloak-terminator-kubeconfig
+  10: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-selfsigned-issuer
+    spec:
+      selfSigned: {}
+  11: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-ca-cert
+    spec:
+      commonName: RELEASE-NAME-pm-keycloak-operator-ca
+      duration: 2160h
+      isCA: true
+      issuerRef:
+        kind: Issuer
+        name: RELEASE-NAME-pm-keycloak-operator-selfsigned-issuer
+      renewBefore: 720h
+      secretName: RELEASE-NAME-pm-keycloak-operator-ca-secret
+  12: |
+    apiVersion: cert-manager.io/v1
+    kind: Issuer
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-ca-issuer
+    spec:
+      ca:
+        secretName: RELEASE-NAME-pm-keycloak-operator-ca-secret
+  13: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-serving-cert
+    spec:
+      dnsNames:
+        - RELEASE-NAME-pm-keycloak-operator-webhook.NAMESPACE.svc
+        - RELEASE-NAME-pm-keycloak-operator-webhook.NAMESPACE.svc.cluster.local
+      duration: 2160h
+      issuerRef:
+        kind: Issuer
+        name: RELEASE-NAME-pm-keycloak-operator-ca-issuer
+      renewBefore: 720h
+      secretName: RELEASE-NAME-pm-keycloak-operator-webhook-server-cert
+  14: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: RELEASE-NAME-pm-keycloak-operator-webhook
+      namespace: NAMESPACE
+    spec:
+      ports:
+        - port: 9443
+          protocol: TCP
+          targetPort: webhook
+      selector:
+        app: RELEASE-NAME-pm-keycloak-operator

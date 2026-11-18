@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -31,6 +31,7 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/mocks"
+	testfixtures "go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/test"
 	"go.platform-mesh.io/subroutines/conditions"
 	"go.platform-mesh.io/subroutines/lifecycle"
 
@@ -49,7 +50,7 @@ import (
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
-var secretKubeconfigData, _ = os.ReadFile("../test/kubeconfig.yaml")
+var secretKubeconfigData, _ = fs.ReadFile(testfixtures.Resources, "kubeconfig.yaml")
 
 type KubeconfigCopyTestSuite struct {
 	suite.Suite

@@ -18,6 +18,7 @@ package subroutines
 
 import (
 	"context"
+	"io/fs"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -37,20 +38,20 @@ func (r *KcpsetupSubroutine) GetCABundleInventory(ctx context.Context, inst *pmc
 	return r.getCABundleInventory(ctx, inst)
 }
 
-func (r *KcpsetupSubroutine) CreateKcpResources(ctx context.Context, config *rest.Config, dir string, inst *pmcorev1alpha1.PlatformMesh) error {
-	return r.createKcpResources(ctx, config, dir, inst)
+func (r *KcpsetupSubroutine) CreateKcpResources(ctx context.Context, config *rest.Config, inst *pmcorev1alpha1.PlatformMesh) error {
+	return r.createKcpResources(ctx, config, inst)
 }
 
 func (r *KcpsetupSubroutine) GetAPIExportHashInventory(ctx context.Context, config *rest.Config) (map[string]string, error) {
 	return r.getAPIExportHashInventory(ctx, config)
 }
 
-func (s *DeploymentSubroutine) ApplyManifestFromFileWithMergedValues(ctx context.Context, path string, k8sClient ctrlruntimeclient.Client, templateData map[string]any) error {
-	return applyManifestFromFileWithMergedValues(ctx, path, k8sClient, templateData)
+func (s *DeploymentSubroutine) ApplyManifestFromFileWithMergedValues(ctx context.Context, fsys fs.FS, path string, k8sClient ctrlruntimeclient.Client, templateData map[string]any) error {
+	return applyManifestFromFileWithMergedValues(ctx, fsys, path, k8sClient, templateData)
 }
 
-func (r *KcpsetupSubroutine) UnstructuredFromFile(path string, templateData map[string]any, log *logger.Logger) (unstructured.Unstructured, error) {
-	return unstructuredFromFile(path, templateData, log)
+func (r *KcpsetupSubroutine) UnstructuredFromFile(fsys fs.FS, path string, templateData map[string]any, log *logger.Logger) (unstructured.Unstructured, error) {
+	return unstructuredFromFS(fsys, path, templateData, log)
 }
 
 func (r *KcpsetupSubroutine) ApplyExtraWorkspaces(ctx context.Context, config *rest.Config, inst *pmcorev1alpha1.PlatformMesh) error {

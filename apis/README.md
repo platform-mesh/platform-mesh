@@ -10,14 +10,14 @@ The operators and services in this monorepo import these types instead of redefi
 
 | Group | Version | Kinds |
 |-------|---------|-------|
-| `core.platform-mesh.io` | `v1alpha1` | `Account`, `AccountInfo`, `Store`, `Invite`, `AuthorizationModel`, `APIExportPolicy`, `IdentityProviderConfiguration` |
+| `core.platform-mesh.io` | `v1alpha1` | `Account`, `AccountInfo`; deprecated: `Invite`, `IdentityProviderConfiguration`, `Store`, `AuthorizationModel`, `APIExportPolicy` |
+| `keycloak.platform-mesh.io` | `v1alpha1` | `IdentityProviderConfiguration`, `Invite` |
+| `openfga.platform-mesh.io` | `v1alpha1` | `Store`, `AuthorizationModel`, `APIExportPolicy` |
 | `ui.platform-mesh.io` | `v1alpha1` | `ProviderMetadata`, `ContentConfiguration` |
 | `gateway.platform-mesh.io` | `v1alpha1` | `ClusterMetadata`, `ClusterAccess` |
 | `marketplace.platform-mesh.io` | `v1alpha1` | `MarketplaceEntry` |
 | `terminal.platform-mesh.io` | `v1alpha1` | `Terminal` |
 | `sharding.platform-mesh.io` | `v1alpha1` | `ResourceSharding` |
-| `backup.platform-mesh.io` | `v1alpha1` | `PlatformBackup`, `PlatformRestore` |
-| `migration.platform-mesh.io` | `v1alpha1` | `KcpMigration` |
 
 ## Getting started
 
