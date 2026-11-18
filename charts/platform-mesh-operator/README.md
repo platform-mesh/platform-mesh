@@ -63,6 +63,10 @@ repeatedly apply install-mode renders must manage the profile separately.
 | ocm.signatureName | string | `"platform-mesh.platform-mesh"` | Name of the OCM signature the components are verified against. |
 | ocm.version | string | `"0.5.2"` | Platform Mesh OCM component version to reconcile. |
 | operator.leaderElect | bool | `true` |  |
+| platformMesh | object | `{"authentication":{},"extraFeatureToggles":[],"values":{}}` | Additions to the PlatformMesh resource (used when ocm.enabled=true). |
+| platformMesh.authentication | object | `{}` | `spec.authentication` of the PlatformMesh resource: the OIDC issuer kcp and the portal use instead of Keycloak. Needs the `feature-disable-keycloak` toggle. |
+| platformMesh.extraFeatureToggles | list | `[]` | Feature toggles to set on the PlatformMesh resource, next to the ones the chart sets, e.g. `feature-disable-keycloak`. |
+| platformMesh.values | object | `{}` | `spec.values` of the PlatformMesh resource: values merged over the services of the profile, e.g. to disable a service. |
 | remoteInfra.enabled | bool | `false` | Enables reconciliation of PlatformMesh resources on remote clusters |
 | remoteInfra.secretKey | string | `"kubeconfig"` |  |
 | remoteInfra.secretName | string | `"platform-mesh-kubeconfig"` | Name of the secret containing the kubeconfig for remote cluster access where the PlatformMesh resources will be deployed |
