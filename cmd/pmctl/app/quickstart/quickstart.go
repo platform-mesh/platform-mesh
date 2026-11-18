@@ -176,6 +176,10 @@ type Options struct {
 	// AllowUnverifiedEmails lets users log in without a verified email.
 	// The installation has no SMTP server to verify one with.
 	AllowUnverifiedEmails bool
+	// SetDefaultPassword gives the users of a new organization the
+	// temporary password "password". The installation has no SMTP server
+	// to send them an invitation with.
+	SetDefaultPassword bool
 	// Timeout bounds the whole run.
 	Timeout time.Duration
 	// StallTimeout is how long a HelmRelease may keep failing before the
@@ -193,14 +197,15 @@ func NewOptions(streams genericiooptions.IOStreams) *Options {
 			Name:             "platform-mesh",
 			ContainerRuntime: runtimeAuto,
 		},
-		BaseDomain:          "pm.127-0-0-1.sslip.io",
-		ChartRepository:     "oci://ghcr.io/platform-mesh/helm-charts",
-		OCMRepository:       "ghcr.io/platform-mesh",
+		BaseDomain:            "pm.127-0-0-1.sslip.io",
+		ChartRepository:       "oci://ghcr.io/platform-mesh/helm-charts",
+		OCMRepository:         "ghcr.io/platform-mesh",
 		RegistrationAllowed:   true,
 		AllowUnverifiedEmails: true,
-		ParallelBuilds:      2,
-		Timeout:             45 * time.Minute,
-		StallTimeout:        10 * time.Minute,
+		SetDefaultPassword:    true,
+		ParallelBuilds:        2,
+		Timeout:               45 * time.Minute,
+		StallTimeout:          10 * time.Minute,
 	}
 }
 
@@ -235,6 +240,7 @@ func NewQuickstartCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVar(&o.OCMRepository, "ocm-repository", o.OCMRepository, "OCI registry the Platform Mesh OCM components are read from.")
 	cmd.Flags().BoolVar(&o.RegistrationAllowed, "registration-allowed", o.RegistrationAllowed, "Let users sign up in the portal.")
 	cmd.Flags().BoolVar(&o.AllowUnverifiedEmails, "allow-unverified-emails", o.AllowUnverifiedEmails, "Let users log in without a verified email; the installation has no SMTP server to verify one with.")
+	cmd.Flags().BoolVar(&o.SetDefaultPassword, "set-default-password", o.SetDefaultPassword, "Give the users of a new organization the temporary password \"password\"; the installation has no SMTP server to send invitations with.")
 	cmd.Flags().DurationVar(&o.Timeout, "timeout", o.Timeout, "Time to wait for the installation to become ready.")
 	cmd.Flags().DurationVar(&o.StallTimeout, "stall-timeout", o.StallTimeout, "Give up when a HelmRelease has been failing for this long; 0 waits for --timeout.")
 

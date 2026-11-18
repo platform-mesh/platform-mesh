@@ -69,6 +69,15 @@ type OIDCAuthentication struct {
 	// GroupsPrefix is prepended to every group.
 	// +optional
 	GroupsPrefix string `json:"groupsPrefix,omitempty"`
+	// KubectlClientID is the client kubeconfigs log in with: a client of the issuer
+	// that needs no secret and accepts a localhost redirect. Defaults to ClientID.
+	// kcp accepts tokens issued for ClientID only.
+	// +optional
+	KubectlClientID string `json:"kubectlClientID,omitempty"`
+	// KubectlScopes are the scopes kubeconfigs request besides openid, such as
+	// email or groups. Empty leaves the choice to the portal.
+	// +optional
+	KubectlScopes []string `json:"kubectlScopes,omitempty"`
 }
 
 type ConfigMapReference struct {

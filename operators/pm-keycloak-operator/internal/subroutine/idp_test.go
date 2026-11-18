@@ -34,11 +34,14 @@ import (
 	"go.platform-mesh.io/pm-keycloak-operator/pkg/config"
 	"go.platform-mesh.io/subroutines"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
@@ -50,7 +53,7 @@ func TestNewIDPSubroutine(t *testing.T) {
 	cfg.IDP.AdditionalRedirectURLs = []string{"https://example.com/callback"}
 	cfg.BaseDomain = "example.com"
 
-	subroutine, err := NewIDPSubroutine(mgr, kcpHelper, cfg)
+	subroutine, err := NewIDPSubroutine(nil, mgr, kcpHelper, cfg)
 	require.NoError(t, err)
 
 	assert.NotNil(t, subroutine)
@@ -65,7 +68,7 @@ func TestIDPSubroutine_GetName(t *testing.T) {
 	kcpHelper := mocks.NewMockKCPClientGetter(t)
 	cfg := config.Config{}
 	cfg.BaseDomain = "example.com"
-	subroutine, err := NewIDPSubroutine(mgr, kcpHelper, cfg)
+	subroutine, err := NewIDPSubroutine(nil, mgr, kcpHelper, cfg)
 	require.NoError(t, err)
 
 	name := subroutine.GetName()
@@ -560,7 +563,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 			cfg.IDP.AdditionalRedirectURLs = []string{}
 			cfg.IDP.KubectlClientRedirectURLs = []string{"http://localhost:8000", "http://localhost:18000"}
 			cfg.BaseDomain = "example.com"
-			subroutine, err := NewIDPSubroutine(mgr, kcpHelper, cfg)
+			subroutine, err := NewIDPSubroutine(nil, mgr, kcpHelper, cfg)
 			require.NoError(t, err)
 
 			tt.setupMocks(orgsClient, mgr, cluster, kcpHelper, cfg)
@@ -587,7 +590,7 @@ func TestIDPSubroutine_Process(t *testing.T) {
 	cfg.IDP.KubectlClientRedirectURLs = []string{"http://localhost:8000"}
 	cfg.BaseDomain = "example.com"
 
-	sub, err := NewIDPSubroutine(mgr, kcpHelper, cfg)
+	sub, err := NewIDPSubroutine(nil, mgr, kcpHelper, cfg)
 	require.NoError(t, err)
 
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError).Once()
@@ -636,7 +639,7 @@ func TestIDPSubroutine_TerminateRequiresWorkspaceName(t *testing.T) {
 
 	mgr := mocks.NewMockManager(t)
 	kcpHelper := mocks.NewMockKCPClientGetter(t)
-	sub, err := NewIDPSubroutine(mgr, kcpHelper, config.Config{})
+	sub, err := NewIDPSubroutine(nil, mgr, kcpHelper, config.Config{})
 	require.NoError(t, err)
 
 	result, err := sub.Terminate(context.Background(), &kcpcorev1alpha1.LogicalCluster{})
@@ -671,7 +674,7 @@ func TestIDPSubroutine_InitializeCreatesLegacyTwin(t *testing.T) {
 	clientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, config.OrgsClusterPath).Return(cl, nil).Once()
 	cfg := config.Config{}
 	cfg.BaseDomain = "example.com"
-	sub, err := NewIDPSubroutine(mgr, clientGetter, cfg)
+	sub, err := NewIDPSubroutine(nil, mgr, clientGetter, cfg)
 	require.NoError(t, err)
 
 	result, err := sub.Initialize(testlogger.New().WithContext(context.Background()), logicalClusterForOrg(orgTerminateTestOrg))
@@ -702,4 +705,55 @@ func TestIDPSubroutine_TerminateDeletesLegacyTwin(t *testing.T) {
 	//nolint:staticcheck // legacy kind under test
 	var got pmcorev1alpha1.IdentityProviderConfiguration
 	requireDeleting(t, cl, &got, orgTerminateTestOrg)
+}
+
+// With DomainCALookup the AccountInfo also names the CA of the domain
+// certificate, for the kubeconfigs of the portal to verify Keycloak with.
+func TestIDPSubroutine_patchAccountInfoPublishesDomainCA(t *testing.T) {
+	t.Parallel()
+
+	const ca = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
+	idp := &pmkeycloakv1alpha1.IdentityProviderConfiguration{
+		Status: pmkeycloakv1alpha1.IdentityProviderConfigurationStatus{
+			ManagedClients: map[string]pmkeycloakv1alpha1.ManagedClient{kubectlClientName: {ClientID: "generated"}},
+		},
+	}
+
+	cases := map[string]struct {
+		lookup   bool
+		expected string
+	}{
+		"with the lookup":    {lookup: true, expected: ca},
+		"without the lookup": {},
+	}
+	for title, cas := range cases {
+		t.Run(title, func(t *testing.T) {
+			t.Parallel()
+
+			scheme := runtime.NewScheme()
+			require.NoError(t, corev1.AddToScheme(scheme))
+			runtimeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: domainCASecretName, Namespace: domainCASecretNamespace},
+				Data:       map[string][]byte{domainCASecretKey: []byte(ca)},
+			}).Build()
+			cl := newOrgResourceFakeClient(t, &pmcorev1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: "account"}})
+
+			cfg := config.Config{}
+			cfg.BaseDomain = "example.com"
+			cfg.DomainCALookup = cas.lookup
+			sub, err := NewIDPSubroutine(runtimeClient, mocks.NewMockManager(t), mocks.NewMockKCPClientGetter(t), cfg)
+			require.NoError(t, err)
+
+			ctx := testlogger.New().WithContext(context.Background())
+			require.NoError(t, sub.patchAccountInfo(ctx, cl, "acme", idp))
+
+			var got pmcorev1alpha1.AccountInfo
+			require.NoError(t, cl.Get(ctx, types.NamespacedName{Name: "account"}, &got))
+			assert.Equal(t, &pmcorev1alpha1.OIDCInfo{
+				IssuerURL: "https://example.com/keycloak/realms/acme",
+				Clients:   map[string]pmcorev1alpha1.ClientInfo{kubectlClientName: {ClientID: "generated"}},
+				CA:        cas.expected,
+			}, got.Spec.OIDC)
+		})
+	}
 }

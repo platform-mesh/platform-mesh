@@ -24,16 +24,16 @@ components:
         # renovate: datasource=helm depName=api-syncagent registryUrl=https://kcp-dev.github.io/helm-charts
         version: 0.6.1
         access:
-          type: helm
+          type: Helm/v1
           helmRepository: https://kcp-dev.github.io/helm-charts
           # renovate: datasource=helm depName=api-syncagent registryUrl=https://kcp-dev.github.io/helm-charts
           helmChart: api-syncagent:0.6.1
       - name: image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=ghcr.io/kcp-dev/api-syncagent
         version: v0.8.1
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/kcp-dev/api-syncagent
           imageReference: "ghcr.io/kcp-dev/api-syncagent:v0.8.1"

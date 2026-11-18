@@ -19,11 +19,11 @@ components:
       name: kcp
     resources:
       - name: image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp
         version: v0.33.6
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/kcp-dev/kcp
           imageReference: "ghcr.io/kcp-dev/kcp:v0.33.6"

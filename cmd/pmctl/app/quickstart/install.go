@@ -52,9 +52,11 @@ const (
 	gatewaySelector = "app.kubernetes.io/name=traefik"
 	// profileConfigMap is the installation profile the operator reads.
 	profileConfigMap = "platform-mesh-profile"
-	// signingCertSecret holds the certificates OCM signatures are
-	// verified with, by signature name.
-	signingCertSecret = "ocm-signing-public-cert"
+	// ocmConfigSecret is the Secret the operator chart's Component reads
+	// its OCM configuration from, under ocmConfigKey.
+	ocmConfigSecret = "ocm-signing-public-cert"
+	// ocmConfigKey is the key the OCM controller reads a configuration from.
+	ocmConfigKey = ".ocmconfig"
 	// caSecret is the Secret the operator chart's self-signed CA lives in.
 	caSecret = "domain-certificate-ca"
 	// unverifiedEmailsToggle is the PlatformMesh feature toggle that has
@@ -155,14 +157,18 @@ func (o *Options) operatorValues(src *source, gatewayClusterIP string) operatorV
 		},
 		KCP:          kcpValues{FrontProxyPort: gatewayPort},
 		Certificates: certificatesValues{SelfSigned: selfSignedValues{Enabled: true}},
-		IDP:          idpValues{RegistrationAllowed: o.RegistrationAllowed, AllowUnverifiedEmails: o.AllowUnverifiedEmails},
-		Image:        src.image,
+		IDP: idpValues{
+			RegistrationAllowed:   o.RegistrationAllowed,
+			AllowUnverifiedEmails: o.AllowUnverifiedEmails,
+			SetDefaultPassword:    o.SetDefaultPassword,
+		},
+		Image: src.image,
 	}
 	if src.ocmRepository != "" {
 		values.OCM.Repository = src.ocmRepository
 	}
 	if src.signingCert != nil {
-		// applySigningCert provides the certificate instead.
+		// applyOCMConfig provides the Secret instead.
 		values.OCM.InstallSigningCertificate = new(false)
 	}
 	return values
@@ -228,7 +234,7 @@ func (o *Options) install(ctx context.Context, helm *helmClient, src *source) er
 		if src.signingCert != nil {
 			// Replaces the chart's own Secret, which the source turned
 			// off; applied after helm, which would remove it otherwise.
-			if err := applySigningCert(ctx, kube, src); err != nil {
+			if err := applyOCMConfig(ctx, kube, src); err != nil {
 				return err
 			}
 		}
@@ -271,21 +277,54 @@ func protectProfile(ctx context.Context, kube kubernetes.Interface) error {
 	return err
 }
 
-// applySigningCert writes the Secret the OCM Component verifies the
-// signature of the source with.
-func applySigningCert(ctx context.Context, kube kubernetes.Interface, src *source) error {
+// applyOCMConfig writes the Secret holding the OCM configuration that
+// verifies the signature of src.
+func applyOCMConfig(ctx context.Context, kube kubernetes.Interface, src *source) error {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: signingCertSecret, Namespace: namespace},
-		Data:       map[string][]byte{src.signature: src.signingCert},
+		ObjectMeta: metav1.ObjectMeta{Name: ocmConfigSecret, Namespace: namespace},
+		Data:       map[string][]byte{ocmConfigKey: verificationOCMConfig(src.signature, src.signingCert)},
 	}
 	_, err := kube.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		_, err = kube.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	}
 	if err != nil {
-		return fmt.Errorf("applying the signing certificate: %w", err)
+		return fmt.Errorf("applying the OCM configuration: %w", err)
 	}
 	return nil
+}
+
+// verificationOCMConfig returns the OCM configuration that requires the
+// signature named signature and verifies it with the PEM certificate cert.
+func verificationOCMConfig(signature string, cert []byte) []byte {
+	return []byte(fmt.Sprintf(verificationOCMConfigTemplate, strconv.Quote(signature),
+		strconv.Quote(signature), indent(string(cert), "        ")))
+}
+
+// verificationOCMConfigTemplate takes the signature name twice, then the
+// indented certificate.
+const verificationOCMConfigTemplate = `type: generic.config.ocm.software/v1
+configurations:
+- type: signing.config.ocm.software/v1alpha1
+  signature: %s
+  verifier:
+    type: RSASigningConfiguration/v1alpha1
+- type: credentials.config.ocm.software/v1
+  consumers:
+  - identities:
+    - type: RSA/v1alpha1
+      algorithm: RSASSA-PSS
+      signature: %s
+    credentials:
+    - type: RSACredentials/v1
+      publicKeyPEM: |
+%s
+`
+
+// indent prefixes every line of s with prefix, ignoring a trailing newline.
+func indent(s, prefix string) string {
+	s = strings.TrimSuffix(s, "\n")
+	return prefix + strings.ReplaceAll(s, "\n", "\n"+prefix)
 }
 
 // applyProfile replaces the data of the installed profile with the profile

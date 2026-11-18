@@ -16,7 +16,16 @@ limitations under the License.
 
 package config
 
-import "github.com/spf13/pflag"
+import (
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/spf13/pflag"
+
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+)
 
 type WebhooksConfig struct {
 	Enabled                bool
@@ -62,11 +71,80 @@ type KcpConfig struct {
 	ProviderWorkspace          string
 }
 
+// OIDCConfig is an OIDC issuer that is the same for every account: an external
+// issuer, used instead of Keycloak. Without an issuer the account-operator
+// leaves the OIDC of an AccountInfo to the pm-keycloak-operator, which knows
+// the realm and clients of each organization.
+type OIDCConfig struct {
+	IssuerURL string
+	// Clients maps a client name, as consumers look it up, to its client ID.
+	Clients map[string]string
+	Scopes  []string
+	// CAFile is a PEM file with the CA of the issuer, for an issuer whose
+	// certificate is not publicly trusted. Read once, at startup.
+	CAFile string
+}
+
+// Info returns what every AccountInfo has as OIDC, nil without an issuer.
+func (c OIDCConfig) Info() (*pmcorev1alpha1.OIDCInfo, error) {
+	if c.IssuerURL == "" {
+		return nil, nil
+	}
+	var ca string
+	if c.CAFile != "" {
+		pem, err := os.ReadFile(c.CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("reading --oidc-ca-file: %w", err)
+		}
+		if !strings.Contains(string(pem), "-----BEGIN CERTIFICATE-----") {
+			return nil, fmt.Errorf("--oidc-ca-file %s holds no PEM certificate", c.CAFile)
+		}
+		ca = string(pem)
+	}
+	clients := make(map[string]pmcorev1alpha1.ClientInfo, len(c.Clients))
+	for name, id := range c.Clients {
+		clients[name] = pmcorev1alpha1.ClientInfo{ClientID: id}
+	}
+	return &pmcorev1alpha1.OIDCInfo{
+		IssuerURL: c.IssuerURL,
+		Clients:   clients,
+		Scopes:    append([]string(nil), c.Scopes...),
+		CA:        ca,
+	}, nil
+}
+
+func (c OIDCConfig) validate() error {
+	if c.IssuerURL == "" {
+		if len(c.Clients) > 0 || len(c.Scopes) > 0 || c.CAFile != "" {
+			return errors.New("--oidc-clients, --oidc-scopes and --oidc-ca-file need --oidc-issuer-url")
+		}
+		return nil
+	}
+	if !strings.HasPrefix(c.IssuerURL, "https://") {
+		return errors.New("--oidc-issuer-url must start with https://")
+	}
+	if len(c.Clients) == 0 {
+		return errors.New("--oidc-issuer-url needs at least one client in --oidc-clients")
+	}
+	for name, id := range c.Clients {
+		if name == "" || id == "" {
+			return errors.New("--oidc-clients needs name=clientID pairs, both non-empty")
+		}
+	}
+	return nil
+}
+
 type OperatorConfig struct {
 	Webhooks    WebhooksConfig
 	Subroutines SubroutinesConfig
 	Controllers ControllersConfig
 	Kcp         KcpConfig
+	OIDC        OIDCConfig
+}
+
+// Validate reports flags that contradict each other.
+func (c *OperatorConfig) Validate() error {
+	return c.OIDC.validate()
 }
 
 func NewOperatorConfig() OperatorConfig {
@@ -117,4 +195,9 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 
 	fs.StringVar(&c.Kcp.ApiExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.Kcp.ApiExportEndpointSliceName, "Set APIExportEndpointSlice name")
 	fs.StringVar(&c.Kcp.ProviderWorkspace, "kcp-provider-workspace", c.Kcp.ProviderWorkspace, "Set provider workspace")
+
+	fs.StringVar(&c.OIDC.IssuerURL, "oidc-issuer-url", c.OIDC.IssuerURL, "External OIDC issuer to publish in every AccountInfo; leave empty with Keycloak, whose operator publishes the realm of each organization")
+	fs.StringToStringVar(&c.OIDC.Clients, "oidc-clients", c.OIDC.Clients, "Clients of --oidc-issuer-url as name=clientID pairs, e.g. kubectl=platform-mesh")
+	fs.StringSliceVar(&c.OIDC.Scopes, "oidc-scopes", c.OIDC.Scopes, "Scopes clients of --oidc-issuer-url request besides openid, e.g. email,groups")
+	fs.StringVar(&c.OIDC.CAFile, "oidc-ca-file", c.OIDC.CAFile, "PEM file with the CA of --oidc-issuer-url, published for clients to verify the issuer with; leave empty for a publicly trusted certificate")
 }

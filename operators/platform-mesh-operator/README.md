@@ -320,7 +320,7 @@ profile.components (base) → TemplateVars → spec.Values.services (deep-merged
 | **HelmRelease** | `gotemplates/infra/infra/*.yaml` or `gotemplates/components/infra/helmreleases.yaml` | Profile service config (chart, values, targetNamespace, dependsOn, suspend), remote kubeConfig |
 | **OCIRepository** | ResourceSubroutine (from OCM Resource status) | OCM image reference and version from Resource `.status.resource.access.imageReference` |
 | **HelmRepository** | ResourceSubroutine (from OCM Resource status) | Helm repo URL from Resource `.status.resource.access.helmRepository` |
-| **GitRepository** | ResourceSubroutine (from OCM Resource status) | Git URL and ref from Resource `.status.resource.access.repoUrl` |
+| **GitRepository** | ResourceSubroutine (from OCM Resource status) | Git URL and ref from Resource `.status.resource.access.repository` |
 | **ArgoCD Application** | `gotemplates/infra/infra/*.yaml` or `gotemplates/components/infra/applications.yaml` | Profile service config (values, syncWave, ignoreDifferences), destinationServer, repoURL/targetRevision from ResourceSubroutine |
 | **OCM Resource** | `gotemplates/infra/runtime/*.yaml` or `gotemplates/components/runtime/*.yaml` | OCM repo name, component name, referencePath from profile + spec.OCM |
 

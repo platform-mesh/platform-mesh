@@ -48,6 +48,12 @@ func NewClient(cfg *rest.Config) (ctrlruntimeclient.Client, error) {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = time.Minute
 	}
+	// Without a handler controller-runtime logs the warnings of the API
+	// server through its own logger, which the tests never set: the first
+	// warning then prints a stack trace about log.SetLogger instead.
+	if cfg.WarningHandler == nil && cfg.WarningHandlerWithContext == nil {
+		cfg.WarningHandlerWithContext = rest.NoWarnings{}
+	}
 	build := func() (ctrlruntimeclient.Client, error) {
 		cl, err := ctrlruntimeclient.New(cfg, ctrlruntimeclient.Options{Scheme: scheme.Platform()})
 		if err != nil {

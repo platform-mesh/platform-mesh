@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -412,7 +413,7 @@ func (r *ResourceSubroutine) resolveArgoCDSource(inst *unstructured.Unstructured
 	}
 
 	// Git repository
-	if gitRepo := getString("status", "resource", "access", "repoUrl"); gitRepo != "" {
+	if gitRepo := gitAccessURL(inst); gitRepo != "" {
 		revision := firstNonEmpty(
 			getString("status", "resource", "access", "ref"),
 			getString("status", "component", "version"),
@@ -431,7 +432,7 @@ func (r *ResourceSubroutine) resolveArgoCDSource(inst *unstructured.Unstructured
 		imageRef = getString("status", "resource", "imageReference")
 	}
 	if imageRef == "" {
-		return "", "", "", fmt.Errorf("no helmRepository, repoUrl, or imageReference found")
+		return "", "", "", fmt.Errorf("no helmRepository, repository, or imageReference found")
 	}
 
 	repoURL, err = ociref.ExtractRepoURL(imageRef)
@@ -444,6 +445,21 @@ func (r *ResourceSubroutine) resolveArgoCDSource(inst *unstructured.Unstructured
 		return "", "", "", fmt.Errorf("version not found for OCI chart")
 	}
 	return repoURL, version, "oci", nil
+}
+
+// gitAccessURL returns the repository of a Git resource as the OCM controller
+// reported it: the Git/v1 access type names it "repository", the GitHub access
+// type an older component version still resolves with names it "repoUrl".
+//
+// TODO(ntnn): Drop this after a few releases. This is only kept so
+// a newer pm-operator can still deploy an older release.
+func gitAccessURL(inst *unstructured.Unstructured) string {
+	for _, field := range []string{"repository", "repoUrl"} {
+		if url, found, err := unstructured.NestedString(inst.Object, "status", "resource", "access", field); err == nil && found && url != "" {
+			return url
+		}
+	}
+	return ""
 }
 
 func firstNonEmpty(values ...string) string {
@@ -739,10 +755,10 @@ func (r *ResourceSubroutine) updateGitRepo(ctx context.Context, inst *unstructur
 		return subroutineslib.OK(), err
 	}
 
-	url, found, err := unstructured.NestedString(inst.Object, "status", "resource", "access", "repoUrl")
-	if err != nil || !found || url == "" {
-		log.Info().Err(err).Msg("Failed to get repoUrl from Resource status")
-		return subroutineslib.OK(), fmt.Errorf("repoUrl not available in Resource status")
+	url := gitAccessURL(inst)
+	if url == "" {
+		log.Info().Msg("Failed to get the repository from the Resource status")
+		return subroutineslib.OK(), errors.New("no repository available in Resource status")
 	}
 
 	// Update or create git repo

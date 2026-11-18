@@ -56,6 +56,7 @@ func Test_oidcServiceValues(t *testing.T) {
 	cases := map[string]struct {
 		oidc         pmcorev1alpha1.OIDCAuthentication
 		kcpOIDC      map[string]any
+		accountOIDC  map[string]any
 		discoveryURL string
 	}{
 		"issuer and client only leave claims and prefixes to the chart": {
@@ -67,6 +68,29 @@ func Test_oidcServiceValues(t *testing.T) {
 				"enabled":   true,
 				"issuerUrl": "https://issuer.example/dex",
 				"clientID":  "platform-mesh",
+			},
+			accountOIDC: map[string]any{
+				"issuerUrl": "https://issuer.example/dex",
+				"clients":   map[string]any{"kubectl": "platform-mesh"},
+			},
+			discoveryURL: "https://issuer.example/dex/.well-known/openid-configuration",
+		},
+		"kubeconfigs get their own client and scopes": {
+			oidc: pmcorev1alpha1.OIDCAuthentication{
+				IssuerURL:       "https://issuer.example/dex",
+				ClientID:        "platform-mesh",
+				KubectlClientID: "cli",
+				KubectlScopes:   []string{"email", "groups"},
+			},
+			kcpOIDC: map[string]any{
+				"enabled":   true,
+				"issuerUrl": "https://issuer.example/dex",
+				"clientID":  "platform-mesh",
+			},
+			accountOIDC: map[string]any{
+				"issuerUrl": "https://issuer.example/dex",
+				"clients":   map[string]any{"kubectl": "cli"},
+				"scopes":    []any{"email", "groups"},
 			},
 			discoveryURL: "https://issuer.example/dex/.well-known/openid-configuration",
 		},
@@ -88,6 +112,10 @@ func Test_oidcServiceValues(t *testing.T) {
 				"usernamePrefix": "oidc:",
 				"groupsPrefix":   "oidc-groups:",
 			},
+			accountOIDC: map[string]any{
+				"issuerUrl": "https://issuer.example",
+				"clients":   map[string]any{"kubectl": "platform-mesh"},
+			},
 			discoveryURL: "https://issuer.example/.well-known/openid-configuration",
 		},
 		"trailing slash of the issuer is not doubled in the discovery URL": {
@@ -100,6 +128,10 @@ func Test_oidcServiceValues(t *testing.T) {
 				"issuerUrl": "https://issuer.example/",
 				"clientID":  "platform-mesh",
 			},
+			accountOIDC: map[string]any{
+				"issuerUrl": "https://issuer.example/",
+				"clients":   map[string]any{"kubectl": "platform-mesh"},
+			},
 			discoveryURL: "https://issuer.example/.well-known/openid-configuration",
 		},
 	}
@@ -111,6 +143,11 @@ func Test_oidcServiceValues(t *testing.T) {
 			values := oidcServiceValues(&cas.oidc)
 
 			assert.Equal(t, map[string]map[string]any{
+				"account-operator": {
+					"values": map[string]any{
+						"oidc": cas.accountOIDC,
+					},
+				},
 				"infra": {
 					"values": map[string]any{
 						"kcp": map[string]any{
