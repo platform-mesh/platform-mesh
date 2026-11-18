@@ -75,5 +75,16 @@ spec:
     {{- if .Values.idp.allowUnverifiedEmails }}
     - name: feature-disable-email-verification
     {{- end }}
+    {{- range .Values.platformMesh.extraFeatureToggles }}
+    - name: {{ . | quote }}
+    {{- end }}
+  {{- with .Values.platformMesh.authentication }}
+  authentication:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.platformMesh.values }}
+  values:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   kcp: {}
 {{- end }}

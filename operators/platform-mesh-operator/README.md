@@ -245,6 +245,7 @@ The operator binary accepts the following CLI flags (defined in `internal/config
 | `--kcp-front-proxy-port` | `8443` | KCP front-proxy port |
 | `--kcp-cluster-admin-secret-name` | `kcp-cluster-admin-client-cert` | Cluster-admin secret name |
 | `--idp-registration-allowed` | `false` | Allow IDP registration |
+| `--controllers-managed-provider-enabled` | `true` | Run the ManagedProvider controller; switch it off when deploying provider-operator |
 | `--subroutines-deployment-enabled` | `true` | Enable deployment subroutine |
 | `--subroutines-deployment-enable-istio` | `true` | Enable Istio integration |
 | `--authorization-webhook-secret-name` | `kcp-webhook-secret` | Authorization webhook secret name |
