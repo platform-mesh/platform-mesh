@@ -52,10 +52,10 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.staticClient.redirectURIs | list | `[]` | Allowed redirect URIs (Keycloak broker callback URLs) |
 | dex.staticClient.secret | string | `"local-dev-broker-secret"` | OIDC client secret for Keycloak identity broker (local dev only) |
 | dex.staticPasswords[0] | object | `{"email":"dex@portal.localhost","groups":[],"hash":"$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm","userID":"08a868f8-4b4b-42f3-9d23-5f46eda2c3a0","username":"dex"}` | Local test user for Dex password connector (dex@portal.localhost/dex/dex) |
-| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec |
 | exposure.gatewayClassName | string | `""` | GatewayClass selected by operator configuration. Operator-owned in Platform Mesh. |
-| exposure.port | int | `443` | Public URL port. Operator-owned in Platform Mesh. |
-| exposure.protocol | string | `"https"` | Public URL protocol. Operator-owned in Platform Mesh. |
+| exposure.port | int | `443` |  |
+| exposure.protocol | string | `"https"` |  |
 | externalSecrets.enabled | bool | `false` |  |
 | gatewayApi.enabled | bool | `true` | Toggle to enable/disable Gateway API resources |
 | gatewayApi.gatewayClassName | string | `""` | GatewayClass name |
@@ -123,7 +123,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.etcd.sharedConfig.autoCompactionMode | string | `"periodic"` |  |
 | kcp.etcd.sharedConfig.autoCompactionRetention | string | `"30m"` |  |
 | kcp.external.hostname | string | `""` | External hostname for kcp. Empty derives kcp.api.<exposure.baseDomain>; required without a contract (e.g. kcp.api.example.com). |
-| kcp.external.port | string | `nil` | Explicit external port; empty derives exposure.port, or 8443 without a contract. |
+| kcp.external.port | string | `nil` | External port override; when unset, uses exposure.port if exposure.baseDomain is set, otherwise 8443. |
 | kcp.frontProxy.additionalPathMappings[0].backend | string | `"https://extension-manager-virtual-workspace.platform-mesh-system:8443"` |  |
 | kcp.frontProxy.additionalPathMappings[0].backend_server_ca | string | `"/etc/kcp/tls/ca/tls.crt"` |  |
 | kcp.frontProxy.additionalPathMappings[0].path | string | `"/services/contentconfigurations"` |  |

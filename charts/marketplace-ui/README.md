@@ -7,7 +7,7 @@ Helm Chart for the marketplace-ui
 |-----|------|---------|-------------|
 | deployment.maxSurge | int | `5` |  |
 | deployment.maxUnavailable | int | `0` |  |
-| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec |
 | exposure.hostnames | list | `[]` | Explicit hostnames; empty derives the base domain and wildcard. |
 | gatewayApi.enabled | bool | `false` |  |
 | gatewayApi.httpRoute.filters | list | `[]` | list of HTTPRoute filters (default: none) |

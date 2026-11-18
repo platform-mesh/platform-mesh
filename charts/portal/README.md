@@ -16,7 +16,7 @@ Helm Chart for the Platform Mesh Portal
 | cookieDomain | string | `""` | cookie domain for auth session cookies. Must match the base domain of the portal deployment (e.g. example.com). Empty derives exposure.baseDomain. |
 | developmentLandcsape | string | `"false"` | development landscape toggle. Set to "true" only in local/dev environments to enable dev-only UI features. Permissible values: "true", "false" |
 | environment | string | `""` | environment label propagated to observability (e.g. logs, traces). Permissible values: any string (e.g. production, staging, development) |
-| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec |
 | exposure.port | int | `443` | Public URL port. Operator-owned in Platform Mesh. |
 | exposure.protocol | string | `"https"` | Public URL protocol. Operator-owned in Platform Mesh. |
 | featureToggles | string | `"enableSessionAutoRefresh=true"` |  |

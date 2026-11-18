@@ -6,10 +6,10 @@ A Helm chart for Kubernetes
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | caSecret | string | `""` |  |
-| exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec |
 | exposure.hostnames | list | `[]` | Explicit exposure hostnames; an empty list derives the base domain and its wildcard. |
 | exposure.port | int | `443` | Public URL port. Operator-owned in Platform Mesh. |
-| exposure.protocol | string | `"https"` | Public URL protocol. Operator-owned in Platform Mesh. |
+| exposure.protocol | string | `"https"` |  |
 | gatewayApi.httpRoute.filters | list | `[{"type":"URLRewrite","urlRewrite":{"path":{"replacePrefixMatch":"/graphql","type":"ReplacePrefixMatch"}}}]` | list of HTTPRoute filters (default: URLRewrite only, no CORS) |
 | gatewayApi.httpRoute.parentRefs[0].name | string | `"k8sapi-gateway"` |  |
 | gatewayApi.httpRoute.pathPrefix | string | `"/iam/graphql"` |  |
