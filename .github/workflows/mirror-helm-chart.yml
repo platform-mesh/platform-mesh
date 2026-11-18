@@ -86,14 +86,14 @@ jobs:
           helm pull "src/${CHART}" --version "${VERSION}" --destination .
           ls -l "${CHART}-${VERSION}.tgz"
 
-      - name: Login to GHCR
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GHCR_USERNAME: ${{ github.actor }}
+      - name: Login to ghcr.io
         run: |
           echo "${GHCR_TOKEN}" | helm registry login ghcr.io \
             --username "${GHCR_USERNAME}" \
             --password-stdin
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USERNAME: ${{ github.actor }}
 
       - name: Push chart to OCI
         run: |
