@@ -12,13 +12,9 @@ match snapshots with dex enabled:
           skipApprovalScreen: true
         enablePasswordDB: true
         staticPasswords:
-        - email: "dex@portal.localhost"
-          hash: "$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm"
-          username: "dex"
-          userID: "08a868f8-4b4b-42f3-9d23-5f46eda2c3a0"
         staticClients:
         - id: "keycloak-broker"
-          secret: "local-dev-broker-secret"
+          secret: "dex-test-client-secret"
           name: "Keycloak Broker"
           redirectURIs:
     kind: ConfigMap
@@ -43,7 +39,7 @@ match snapshots with dex enabled:
       template:
         metadata:
           annotations:
-            checksum/config: 58f60b992cd2a276da9c45cb3d567afbd96f79db2cdf5c8df651e0268f2a215e
+            checksum/config: c13a1711bb5d2d949daa51069561dcae916bcf78bf9d70f4ae866e7c65c7f5c0
           labels:
             app.kubernetes.io/instance: infra
             app.kubernetes.io/name: dex

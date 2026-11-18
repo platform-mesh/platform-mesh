@@ -31,6 +31,13 @@ components:
         access:
           type: OCIImage/v1
           imageReference: ${KEYCLOAK_IMAGE_REGISTRY}/${KEYCLOAK_IMAGE_REPOSITORY}:${KEYCLOAK_IMAGE_TAG}
+      - name: credentials-image
+        type: OCIImage/v1
+        relation: external
+        version: "${CREDENTIALS_IMAGE_TAG}"
+        access:
+          type: OCIImage/v1
+          imageReference: ${CREDENTIALS_IMAGE_REGISTRY}/${CREDENTIALS_IMAGE_REPOSITORY}:${CREDENTIALS_IMAGE_TAG}@${CREDENTIALS_IMAGE_DIGEST}
       - name: busybox-image
         type: OCIImage/v1
         relation: external

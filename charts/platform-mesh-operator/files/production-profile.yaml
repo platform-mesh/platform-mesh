@@ -110,6 +110,15 @@ data:
               artifact: image
               for: infra
               path: keycloak.operator.image.tag
+          - name: credentials-image
+            resource: credentials-image
+            resourceName: credentials-image
+            absoluteReferencePath: [{name: infra}, {name: image}]
+            annotations:
+              repo: oci
+              artifact: image
+              for: infra
+              path: credentials.image.tag
           - name: busybox-image
             resource: busybox-image
             resourceName: busybox-image
@@ -161,11 +170,6 @@ data:
                 # cert-manager writes the issuing CA as ca.crt in the leaf certificate Secret.
                 caSecret: domain-certificate
                 httpEnabled: true
-                db:
-                  password: keycloak-password
-                admin:
-                  password: admin
-                  secret: admin
                 health:
                   port: 9000
                   periodSeconds: 10
@@ -192,11 +196,6 @@ data:
               enabled: false
             cnpg:
               enabled: true
-              roles:
-                keycloak:
-                  password: keycloak-password
-                openfga:
-                  password: openfga-password
             gatewayApi:
               enabled: true
               gatewayClassName: __GATEWAY_CLASS_NAME__
@@ -561,6 +560,11 @@ data:
             caSecret: domain-certificate
             crds:
               enabled: false
+            openfga:
+              endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
+            keycloakSecret: keycloak-initial-admin
+            initContainer:
+              keycloakUser: temp-admin
             keycloak:
               baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
             idp:

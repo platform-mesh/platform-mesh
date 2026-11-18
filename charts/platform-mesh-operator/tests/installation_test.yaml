@@ -171,6 +171,9 @@ tests:
         baseDomain: platform.example.com
         clusterIP: 10.96.188.4
     asserts:
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'credentials:\s+enabled: true'
       - equal:
           path: metadata.name
           value: platform-mesh-profile
@@ -211,6 +214,9 @@ tests:
         baseDomain: platform.example.com
         clusterIP: 10.96.188.4
     asserts:
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'credentials:\s+enabled: true'
       - equal:
           path: metadata.annotations["helm.sh/resource-policy"]
           value: keep

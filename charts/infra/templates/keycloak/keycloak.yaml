@@ -13,10 +13,10 @@ spec:
     port: {{ .Values.keycloak.operator.db.port }}
     database: {{ .Values.keycloak.operator.db.database }}
     usernameSecret:
-      name: keycloak-db-credentials
+      name: {{ include "infra.keycloak.databaseSecret" . }}
       key: username
     passwordSecret:
-      name: keycloak-db-credentials
+      name: {{ include "infra.keycloak.databaseSecret" . }}
       key: password
   http:
     httpEnabled: {{ .Values.keycloak.operator.httpEnabled }}
@@ -33,7 +33,7 @@ spec:
       value: /keycloak
   bootstrapAdmin:
     user:
-      secret: keycloak-admin
+      secret: {{ include "infra.keycloak.adminSecret" . }}
   {{- if .Values.keycloak.operator.caSecret }}
   truststores:
     domain-ca:

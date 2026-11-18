@@ -48,19 +48,22 @@ fi
 PORTAL_BASE_URL="https://$BASE_DOMAIN:$_tilt_port/"
 export PORTAL_BASE_URL
 
-# Tilt started without keycloak
-_tilt_keycloak="$(_pm_kubectl get secret keycloak-admin --ignore-not-found -o name)"
-if [ -n "$_tilt_keycloak" ]; then
-    _tilt_encoded="$(_pm_kubectl get secret keycloak-admin -o jsonpath='{.data.username}')" || return 1
+# Resolve the configured admin Secret when Keycloak is installed. The CRD
+# may also be absent when Tilt started without Keycloak.
+if _tilt_keycloak="$(_pm_kubectl get keycloak keycloak --ignore-not-found -o name 2>/dev/null)" && [ -n "$_tilt_keycloak" ]; then
+    _tilt_admin_secret="$(_pm_kubectl get keycloak keycloak -o jsonpath='{.spec.bootstrapAdmin.user.secret}')" || return 1
+    _tilt_admin_secret="${_tilt_admin_secret:-keycloak-initial-admin}"
+
+    _tilt_encoded="$(_pm_kubectl get secret "$_tilt_admin_secret" -o jsonpath='{.data.username}')" || return 1
     KEYCLOAK_ADMIN_USER="$(echo "$_tilt_encoded" | base64 -d)" || return 1
     export KEYCLOAK_ADMIN_USER
 
-    _tilt_encoded="$(_pm_kubectl get secret keycloak-admin -o jsonpath='{.data.password}')" || return 1
+    _tilt_encoded="$(_pm_kubectl get secret "$_tilt_admin_secret" -o jsonpath='{.data.password}')" || return 1
     KEYCLOAK_ADMIN_PASSWORD="$(echo "$_tilt_encoded" | base64 -d)" || return 1
     export KEYCLOAK_ADMIN_PASSWORD
 
     if [ -z "$KEYCLOAK_ADMIN_USER" ] || [ -z "$KEYCLOAK_ADMIN_PASSWORD" ]; then
-        echo "secret keycloak-admin has no username or password" >&2
+        echo "secret $_tilt_admin_secret has no username or password" >&2
     fi
 
     KEYCLOAK_BASE_URL="${PORTAL_BASE_URL}keycloak"
@@ -91,4 +94,4 @@ export KCP_ROOT_CA_PATH
 MKCERT_CA_PATH="${MKCERT_CA_PATH:-$_tilt_secret/ca.crt}"
 export MKCERT_CA_PATH
 
-unset _tilt_repo _tilt_secret _tilt_port _tilt_encoded _tilt_keycloak
+unset _tilt_repo _tilt_secret _tilt_port _tilt_encoded _tilt_keycloak _tilt_admin_secret

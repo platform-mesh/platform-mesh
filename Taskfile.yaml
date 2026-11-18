@@ -106,8 +106,9 @@ tasks:
     cmds:
       - KIND={{.KIND}} hack/kind.sh up --config contrib/tilt/kind.yaml
       - contrib/tilt/hack/print-urls.sh
-      # Arguments after `--` go to the Tiltfile, e.g. task tilt:up -- core --frontend-cors
-      - "{{.TILT}} up -f ./contrib/tilt/Tiltfile -- {{.CLI_ARGS}}"
+      # Arguments after -- go to the Tiltfile, e.g. task tilt:up -- core --frontend-cors
+      - 'ln -sf "{{.KIND}}" "$(dirname "{{.KIND}}")/kind"'
+      - 'PATH="$(dirname "{{.KIND}}"):$PATH" {{.TILT}} up -f ./contrib/tilt/Tiltfile -- {{.CLI_ARGS}}'
 
   tilt:ci:
     desc: Bring up the Tilt development environment and wait for readiness.
@@ -119,7 +120,8 @@ tasks:
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
     cmds:
       - KIND={{.KIND}} hack/kind.sh up --config contrib/tilt/kind.yaml
-      - "{{.TILT}} ci -f ./contrib/tilt/Tiltfile {{.CLI_ARGS}}"
+      - 'ln -sf "{{.KIND}}" "$(dirname "{{.KIND}}")/kind"'
+      - 'PATH="$(dirname "{{.KIND}}"):$PATH" {{.TILT}} ci -f ./contrib/tilt/Tiltfile {{.CLI_ARGS}}'
 
 # TODO: We can remove these once Portal start emitting a proper CA in the UI kubeconfig.
   tilt:trust:

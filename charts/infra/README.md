@@ -20,10 +20,19 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.databases[1].name | string | `"openfga"` |  |
 | cnpg.databases[1].owner | string | `"openfga"` |  |
 | cnpg.enabled | bool | `false` |  |
-| cnpg.roles.keycloak.password | string | `""` | REQUIRED: set to a strong random value. |
+| cnpg.roles.keycloak.password | string | `""` | Password override. Empty requires a supplied role Secret unless credentials.enabled is true. |
 | cnpg.roles.keycloak.username | string | `"keycloak"` | PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret. |
-| cnpg.roles.openfga.password | string | `""` | REQUIRED: set to a strong random value. |
+| cnpg.roles.openfga.password | string | `""` | Password override. Empty requires a supplied role Secret unless credentials.enabled is true. |
 | cnpg.roles.openfga.username | string | `"openfga"` | PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret. |
+| credentials.enabled | bool | `false` | Opt in to generating missing CNPG role credential Secrets before PostgreSQL starts. Otherwise supply database Secrets externally. Enabled by the kind profile. |
+| credentials.image.digest | string | `"sha256:8373231e1e906ddfb457748bfc032c4c06ada8c759b7b62d9c73ec2a3c56e710"` | Credential bootstrap image digest (when set, overrides tag) |
+| credentials.image.registry | string | `"docker.io"` | Credential bootstrap image registry |
+| credentials.image.repository | string | `"library/python"` | Credential bootstrap image repository (without registry) |
+| credentials.image.tag | string | `"3.14.0-alpine3.22"` | Credential bootstrap image tag |
+| credentials.resources.limits.cpu | string | `"100m"` |  |
+| credentials.resources.limits.memory | string | `"64Mi"` |  |
+| credentials.resources.requests.cpu | string | `"10m"` |  |
+| credentials.resources.requests.memory | string | `"32Mi"` |  |
 | dex.enabled | bool | `false` | Enable Dex as a local upstream OIDC identity provider |
 | dex.expiry | object | `{}` | Dex `expiry` settings (token lifetimes, refresh token rotation), rendered as given (default: Dex defaults) |
 | dex.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
@@ -50,8 +59,8 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.staticClient.id | string | `"keycloak-broker"` | OIDC client ID for Keycloak identity broker |
 | dex.staticClient.name | string | `"Keycloak Broker"` | Display name for the static OIDC client |
 | dex.staticClient.redirectURIs | list | `[]` | Allowed redirect URIs (Keycloak broker callback URLs) |
-| dex.staticClient.secret | string | `"local-dev-broker-secret"` | OIDC client secret for Keycloak identity broker (local dev only) |
-| dex.staticPasswords[0] | object | `{"email":"dex@portal.localhost","groups":[],"hash":"$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm","userID":"08a868f8-4b4b-42f3-9d23-5f46eda2c3a0","username":"dex"}` | Local test user for Dex password connector (dex@portal.localhost/dex/dex) |
+| dex.staticClient.secret | string | `""` | OIDC client secret for Keycloak identity broker. Required when Dex is enabled. |
+| dex.staticPasswords | list | `[]` | Optional Dex users with bcrypt password hashes. No users are provided by default. |
 | externalSecrets.enabled | bool | `false` |  |
 | gatewayApi.enabled | bool | `true` | Toggle to enable/disable Gateway API resources |
 | gatewayApi.gatewayClassName | string | `""` | GatewayClass name |
@@ -152,15 +161,17 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | keycloak.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | keycloak.gatewayApi.hostnames | list | `[]` | hostnames for the Keycloak HTTPRoute |
 | keycloak.gatewayApi.pathPrefix | string | `"/keycloak"` | path prefix for the Keycloak HTTPRoute |
-| keycloak.operator.admin.password | string | `""` | Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
-| keycloak.operator.admin.secret | string | `""` | Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
+| keycloak.operator.admin.existingSecret | string | `""` | Existing admin Secret with username/password keys. Set this when upgrading an existing Keycloak database. |
+| keycloak.operator.admin.password | string | `""` | Explicit bootstrap password. Empty delegates strong admin credential generation to the Keycloak operator. |
+| keycloak.operator.admin.secret | string | `""` | Optional legacy client secret field for explicitly configured admin credentials |
 | keycloak.operator.admin.username | string | `"keycloak-admin"` | Bootstrap admin username (written to keycloak-admin secret) |
 | keycloak.operator.caSecret | string | `""` | Secret with PEM CA for outbound HTTPS trust (e.g. local mkcert CA) |
 | keycloak.operator.db.database | string | `"keycloak"` | Database name |
+| keycloak.operator.db.existingSecret | string | `""` | Existing database Secret with username/password keys. Empty selects the shared CNPG Secret or the explicit password Secret. |
 | keycloak.operator.db.host | string | `"platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local"` | PostgreSQL host |
-| keycloak.operator.db.password | string | `""` | Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value. |
+| keycloak.operator.db.password | string | `""` | Explicit database password. Empty uses the shared CNPG role Secret, or db.existingSecret for an external database. |
 | keycloak.operator.db.port | int | `5432` | PostgreSQL port |
-| keycloak.operator.db.username | string | `"keycloak"` | Database username (written to keycloak-db-credentials secret) |
+| keycloak.operator.db.username | string | `"keycloak"` | Database username for explicit password configuration; must match the shared CNPG role |
 | keycloak.operator.enabled | bool | `false` | Enable Keycloak CR and supporting secrets managed by Keycloak Operator |
 | keycloak.operator.health.liveness.failureThreshold | int | `3` |  |
 | keycloak.operator.health.liveness.path | string | `"/keycloak/health/live"` |  |

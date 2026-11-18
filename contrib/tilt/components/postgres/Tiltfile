@@ -25,7 +25,7 @@ load("../../lib/infra.Tiltfile", "infra_objects")
 COMPONENT = component(
     name="postgres",
     label="infra",
-    needs=["cnpg"],
+    needs=["cnpg", "infra-credentials"],
     runtime=infra_objects(
         extra_pod_selectors=[{"cnpg.io/cluster": "platform-mesh-pg"}],
         pod_readiness="wait",
