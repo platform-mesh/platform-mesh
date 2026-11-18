@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -131,7 +132,7 @@ func (s *Service) UserByMail(ctx context.Context, userID string) (*graph.User, e
 	return user, nil
 }
 
-func (s *Service) GetUsers(ctx context.Context) ([]*graph.User, error) {
+func (s *Service) GetUsers(ctx context.Context, search string) ([]*graph.User, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	start := time.Now()
@@ -152,7 +153,7 @@ func (s *Service) GetUsers(ctx context.Context) ([]*graph.User, error) {
 		Msg("Fetching all users from Keycloak")
 
 	// Fetch all users with pagination and caching
-	users, err := s.fetchAllUsers(ctx, realm)
+	users, err := s.fetchAllUsers(ctx, realm, search)
 	if err != nil {
 		metrics.KeycloakRequests.WithLabelValues("get_users", "error").Inc()
 		return nil, errors.Wrap(err, "failed to fetch all users from Keycloak for realm %s", realm)
@@ -289,9 +290,9 @@ func (s *Service) GetUsersByEmails(ctx context.Context, emails []string) (map[st
 	return result, nil
 }
 
-// fetchAllUsers retrieves all users from Keycloak using pagination
+// fetchAllUsers retrieves all users from Keycloak using pagination, filtered by search when it is not empty
 // Caches individual users by email and uses best effort error handling
-func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.User, error) {
+func (s *Service) fetchAllUsers(ctx context.Context, realm, search string) ([]*graph.User, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	allUsers := make([]*graph.User, 0)
@@ -315,6 +316,9 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 			First:               &firstArg,
 			Max:                 &maxArg,
 			BriefRepresentation: ptr.To(true),
+		}
+		if query := searchQuery(search); query != "" {
+			params.Search = &query
 		}
 
 		log.Debug().
@@ -500,4 +504,13 @@ func (s *Service) EnrichUserRoles(ctx context.Context, userRoles []*graph.UserRo
 
 	metrics.KeycloakRequests.WithLabelValues("enrich_user_roles", "success").Inc()
 	return nil
+}
+
+// searchQuery turns user input into a Keycloak infix search, dropping Keycloak's own wildcard and exact-match characters
+func searchQuery(search string) string {
+	terms := strings.Fields(strings.NewReplacer("*", " ", "\"", " ").Replace(search))
+	for i, term := range terms {
+		terms[i] = "*" + term + "*"
+	}
+	return strings.Join(terms, " ")
 }
