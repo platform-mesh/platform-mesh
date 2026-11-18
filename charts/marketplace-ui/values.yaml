@@ -28,7 +28,7 @@ gatewayApi:
     filters: []
 
 exposure:
-  # -- Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh.
+  # -- Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec
   baseDomain: ""
   # -- Explicit hostnames; empty derives the base domain and wildcard.
   hostnames: []

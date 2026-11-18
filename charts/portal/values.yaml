@@ -1,5 +1,5 @@
 exposure:
-  # -- Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh.
+  # -- Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec
   baseDomain: ""
   # -- Public URL protocol. Operator-owned in Platform Mesh.
   protocol: https
