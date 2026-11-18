@@ -52,7 +52,7 @@ func readCalls(t *testing.T, path string) []string {
 
 const descriptors = `[{"component":{"name":"example.com/a","version":"1.0.0"}}]`
 
-func TestAddRetriesSkippingExisting(t *testing.T) {
+func TestAddRetries(t *testing.T) {
 	calls := fakeOCM(t, `
 if [ "$(wc -l < "$CALLS")" -eq 1 ]; then
   echo "Error: failed to tag manifest: sha256:abc: not found" >&2
@@ -67,30 +67,19 @@ echo '`+descriptors+`'
 	if len(cvs) != 1 || cvs[0] != "example.com/a:1.0.0" {
 		t.Errorf("component versions = %v", cvs)
 	}
-	got := readCalls(t, calls)
-	if len(got) != 2 {
-		t.Fatalf("ocm ran %d times, want 2: %v", len(got), got)
-	}
-	const skip = "--component-version-conflict-policy skip"
-	if strings.Contains(got[0], skip) {
-		t.Errorf("first attempt skips existing versions: %s", got[0])
-	}
-	if !strings.Contains(got[1], skip) {
-		t.Errorf("retry does not skip existing versions: %s", got[1])
+	if got := readCalls(t, calls); len(got) != 2 {
+		t.Errorf("ocm ran %d times, want 2: %v", len(got), got)
 	}
 }
 
-func TestAddFailsOnExistingVersion(t *testing.T) {
-	calls := fakeOCM(t, `
-echo 'Error: component version "name=example.com/a,version=1.0.0" already exists in target repository' >&2
-exit 1
-`)
+func TestAddGivesUp(t *testing.T) {
+	calls := fakeOCM(t, `echo "Error: failed to tag manifest: sha256:abc: not found" >&2; exit 1`)
 	_, err := OCMRepository{Repo: "example.com/repo"}.Add(t.Context(), "constructor.yaml", "", nil)
 	if err == nil {
-		t.Fatal("no error for a version that already exists")
+		t.Fatal("no error from a build that keeps failing")
 	}
-	if got := readCalls(t, calls); len(got) != 1 {
-		t.Errorf("ocm ran %d times, want 1: %v", len(got), got)
+	if got := readCalls(t, calls); len(got) != RegistryAttempts {
+		t.Errorf("ocm ran %d times, want %d: %v", len(got), RegistryAttempts, got)
 	}
 }
 

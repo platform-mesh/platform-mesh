@@ -26,7 +26,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 )
 
@@ -42,10 +41,8 @@ type OCMRepository struct {
 // env is a map of ENV_VAR=VALUE pairs to set in the environment for ocm, primarily for ocm to expand in constructors.
 // Returns the component versions ocm reports, built or skipped, as name:version.
 //
-// A failed build is retried, as registries fail transiently. A version that
-// already exists fails the first attempt for good, published versions are
-// immutable. Later attempts skip existing versions instead, as a failed
-// attempt may have published some of the constructor's components already.
+// ocm replaces a version that already exists, so a retried or repeated build
+// is safe, and callers that must not overwrite check Exists first.
 func (repo OCMRepository) Add(ctx context.Context, constructor, workingDir string, env map[string]string) ([]string, error) {
 	args := []string{
 		"add", "component-versions",
@@ -58,18 +55,7 @@ func (repo OCMRepository) Add(ctx context.Context, constructor, workingDir strin
 		args = append(args, "--working-directory", workingDir)
 	}
 
-	out, err := ocmCall{
-		Args: func(attempt int) []string {
-			if attempt == 1 {
-				return args
-			}
-			return append(slices.Clone(args), "--component-version-conflict-policy", "skip")
-		},
-		Env: env,
-		Permanent: func(attempt int, stderr string) bool {
-			return attempt == 1 && strings.Contains(stderr, "already exists in target repository")
-		},
-	}.run(ctx)
+	out, err := ocmCall{Args: args, Env: env}.run(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("building %s: %w", constructor, err)
 	}
@@ -110,9 +96,9 @@ func (repo OCMRepository) Exists(ctx context.Context, cv string) (bool, error) {
 		return strings.Contains(stderr, "component version not found")
 	}
 	_, err := ocmCall{
-		Args:      ocmArgs("get", "component-version", repo.Repo+"//"+cv, "-o", "json"),
+		Args:      []string{"get", "component-version", repo.Repo + "//" + cv, "-o", "json"},
 		Quiet:     true,
-		Permanent: func(_ int, stderr string) bool { return notFound(stderr) },
+		Permanent: notFound,
 	}.run(ctx)
 	if err == nil {
 		return true, nil
@@ -128,7 +114,7 @@ func (repo OCMRepository) Exists(ctx context.Context, cv string) (bool, error) {
 // flags are passed to ocm transfer as given, e.g. --recursive.
 func (repo OCMRepository) Transfer(ctx context.Context, cv, target string, flags ...string) error {
 	args := append([]string{"transfer", "component-version", repo.Repo + "//" + cv, target}, flags...)
-	if _, err := (ocmCall{Args: ocmArgs(args...)}).run(ctx); err != nil {
+	if _, err := (ocmCall{Args: args}).run(ctx); err != nil {
 		return fmt.Errorf("transferring %s to %s: %w", cv, target, err)
 	}
 	return nil
@@ -145,9 +131,9 @@ func (repo OCMRepository) Sign(ctx context.Context, cvs []string) error {
 		// One attempt: a version that is not signed yet fails this as well,
 		// and signing a version twice does no harm.
 		_, err := ocmCall{
-			Args:      ocmArgs("verify", "component-version", "--signature", repo.Signature, ref),
+			Args:      []string{"verify", "component-version", "--signature", repo.Signature, ref},
 			Quiet:     true,
-			Permanent: func(int, string) bool { return true },
+			Permanent: func(string) bool { return true },
 		}.run(ctx)
 		if err == nil {
 			log.Printf("%s already signed", cv)
@@ -156,7 +142,7 @@ func (repo OCMRepository) Sign(ctx context.Context, cvs []string) error {
 
 		log.Printf("signing %s", cv)
 		_, err = ocmCall{
-			Args: ocmArgs("sign", "component-version", "--signature", repo.Signature, ref),
+			Args: []string{"sign", "component-version", "--signature", repo.Signature, ref},
 		}.run(ctx)
 		if err != nil {
 			return fmt.Errorf("signing %s: %w", cv, err)
@@ -174,20 +160,14 @@ var (
 
 // ocmCall is an invocation of the ocm CLI, retried when it fails.
 type ocmCall struct {
-	// Args returns the arguments of an attempt, counted from 1.
-	Args func(attempt int) []string
+	Args []string
 	// Env is added to ocm's environment as NAME=VALUE.
 	Env map[string]string
 	// Quiet keeps ocm's stderr off the terminal; a returned error carries it instead.
 	Quiet bool
 	// Permanent reports whether a failed attempt is not worth retrying, given
 	// what it wrote to stderr. Unset retries every failure.
-	Permanent func(attempt int, stderr string) bool
-}
-
-// ocmArgs returns the same arguments for every attempt.
-func ocmArgs(args ...string) func(int) []string {
-	return func(int) []string { return args }
+	Permanent func(stderr string) bool
 }
 
 // ocmError is a failed attempt of an ocmCall.
@@ -211,10 +191,8 @@ func (e *ocmError) Unwrap() error { return e.err }
 // attempt that succeeded. The error of a failed call is an *ocmError.
 func (call ocmCall) run(ctx context.Context) ([]byte, error) {
 	var out []byte
-	attempt := 0
 	err := Retry(ctx, RegistryAttempts, ocmRetryDelay, func() error {
-		attempt++
-		cmd := exec.CommandContext(ctx, ocmBinary, call.Args(attempt)...)
+		cmd := exec.CommandContext(ctx, ocmBinary, call.Args...)
 		cmd.Env = os.Environ()
 		for k, v := range call.Env {
 			cmd.Env = append(cmd.Env, k+"="+v)
@@ -230,7 +208,7 @@ func (call ocmCall) run(ctx context.Context) ([]byte, error) {
 			return nil
 		}
 		failed := &ocmError{err: err, stderr: stderr.String(), quiet: call.Quiet}
-		if call.Permanent != nil && call.Permanent(attempt, failed.stderr) {
+		if call.Permanent != nil && call.Permanent(failed.stderr) {
 			return Permanent(failed)
 		}
 		return failed
