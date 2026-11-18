@@ -175,6 +175,17 @@ func (h *helmClient) render(ctx context.Context, name, ref, version string, char
 	return rel.Manifest, nil
 }
 
+// defaultValues returns the values the chart comes with.
+func (h *helmClient) defaultValues(ref, version string) (map[string]any, error) {
+	install := action.NewInstall(&action.Configuration{RegistryClient: h.registry, Log: func(string, ...any) {}})
+	install.Version = version
+	chrt, err := h.load(install, ref)
+	if err != nil {
+		return nil, err
+	}
+	return chrt.Values, nil
+}
+
 // load pulls the chart from an OCI reference, or reads it from a local path.
 func (h *helmClient) load(install *action.Install, ref string) (*chart.Chart, error) {
 	path, err := install.LocateChart(ref, h.settings)

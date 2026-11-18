@@ -50,8 +50,10 @@ const (
 	// gatewaySelector selects the Service of the gateway, Traefik from the
 	// prerequisites chart.
 	gatewaySelector = "app.kubernetes.io/name=traefik"
-	// profileConfigMap is the installation profile the operator reads.
+	// profileConfigMap is the installation profile the operator reads,
+	// under profileKey.
 	profileConfigMap = "platform-mesh-profile"
+	profileKey       = "profile.yaml"
 	// ocmConfigSecret is the Secret the operator chart's Component reads
 	// its OCM configuration from, under ocmConfigKey.
 	ocmConfigSecret = "ocm-signing-public-cert"
@@ -117,7 +119,7 @@ func (o *Options) chartRef(name string) string {
 
 func (o *Options) prerequisitesValues(traefik bool) prerequisitesValues {
 	values := prerequisitesValues{
-		KeycloakOperator: keycloakOperatorValues{WatchNamespaces: namespace},
+		KeycloakOperator: keycloakOperatorValues{Enabled: o.IDP != IDPDex, WatchNamespaces: namespace},
 		// Controllers nothing in Platform Mesh uses.
 		Flux2: flux2Values{
 			ImageAutomationController: fluxControllerValues{Create: false},
@@ -182,6 +184,9 @@ func (o *Options) install(ctx context.Context, helm *helmClient, src *source) er
 	if err != nil {
 		return err
 	}
+	if err := o.resolveIDP(helm, src); err != nil {
+		return err
+	}
 
 	// Traefik's GatewayClass needs the Gateway API CRDs the same chart
 	// brings, so the chart goes in twice: controllers and CRDs first, then
@@ -216,7 +221,10 @@ func (o *Options) install(ctx context.Context, helm *helmClient, src *source) er
 		return err
 	}
 	upgrading := last != nil
-	values := o.operatorValues(src, gatewayClusterIP)
+	values, err := o.withIDP(ctx, helm, src, o.operatorValues(src, gatewayClusterIP))
+	if err != nil {
+		return err
+	}
 
 	return o.step("Installing Platform Mesh operator", func() error {
 		if upgrading {
@@ -331,19 +339,9 @@ func indent(s, prefix string) string {
 // in manifest, a rendering of the operator chart, and has the operator
 // reconcile it.
 func (o *Options) applyProfile(ctx context.Context, kube kubernetes.Interface, manifest string) error {
-	var profile *corev1.ConfigMap
-	for doc := range strings.SplitSeq(manifest, "\n---") {
-		var cm corev1.ConfigMap
-		if err := yaml.Unmarshal([]byte(doc), &cm); err != nil {
-			continue
-		}
-		if cm.Kind == "ConfigMap" && cm.Name == profileConfigMap {
-			profile = &cm
-			break
-		}
-	}
-	if profile == nil {
-		return fmt.Errorf("the %s chart renders no %s ConfigMap", operatorChart, profileConfigMap)
+	profile, err := profileOf(manifest)
+	if err != nil {
+		return err
 	}
 
 	installed, err := kube.CoreV1().ConfigMaps(namespace).Get(ctx, profileConfigMap, metav1.GetOptions{})
@@ -370,6 +368,21 @@ func (o *Options) applyProfile(ctx context.Context, kube kubernetes.Interface, m
 		return fmt.Errorf("requesting a reconcile of PlatformMesh: %w", err)
 	}
 	return nil
+}
+
+// profileOf returns the profile ConfigMap in manifest, a rendering of the
+// operator chart.
+func profileOf(manifest string) (*corev1.ConfigMap, error) {
+	for doc := range strings.SplitSeq(manifest, "\n---") {
+		var cm corev1.ConfigMap
+		if err := yaml.Unmarshal([]byte(doc), &cm); err != nil {
+			continue
+		}
+		if cm.Kind == "ConfigMap" && cm.Name == profileConfigMap {
+			return &cm, nil
+		}
+	}
+	return nil, fmt.Errorf("the %s chart renders no %s ConfigMap", operatorChart, profileConfigMap)
 }
 
 // enableFeatureToggle adds a feature toggle to the PlatformMesh resource
