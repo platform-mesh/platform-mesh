@@ -5,8 +5,8 @@ externalSecrets:
   enabled: false
 
 credentials:
-  # -- Generate missing CNPG role credential Secrets before PostgreSQL starts. Disable when credentials are provisioned externally.
-  enabled: true
+  # -- Opt in to generating missing CNPG role credential Secrets before PostgreSQL starts. Otherwise supply database Secrets externally. Enabled by the kind profile.
+  enabled: false
   image:
     # -- Credential bootstrap image registry
     registry: docker.io
@@ -366,12 +366,12 @@ cnpg:
     keycloak:
       # -- PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret.
       username: keycloak
-      # -- Password override. Empty lets the database bootstrap Job generate and preserve the role Secret.
+      # -- Password override. Empty requires a supplied role Secret unless credentials.enabled is true.
       password: ""
     openfga:
       # -- PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret.
       username: openfga
-      # -- Password override. Empty lets the database bootstrap Job generate and preserve the role Secret.
+      # -- Password override. Empty requires a supplied role Secret unless credentials.enabled is true.
       password: ""
   databases:
     - name: keycloak

@@ -20,11 +20,11 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.databases[1].name | string | `"openfga"` |  |
 | cnpg.databases[1].owner | string | `"openfga"` |  |
 | cnpg.enabled | bool | `false` |  |
-| cnpg.roles.keycloak.password | string | `""` | Password override. Empty lets the database bootstrap Job generate and preserve the role Secret. |
+| cnpg.roles.keycloak.password | string | `""` | Password override. Empty requires a supplied role Secret unless credentials.enabled is true. |
 | cnpg.roles.keycloak.username | string | `"keycloak"` | PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret. |
-| cnpg.roles.openfga.password | string | `""` | Password override. Empty lets the database bootstrap Job generate and preserve the role Secret. |
+| cnpg.roles.openfga.password | string | `""` | Password override. Empty requires a supplied role Secret unless credentials.enabled is true. |
 | cnpg.roles.openfga.username | string | `"openfga"` | PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret. |
-| credentials.enabled | bool | `true` | Generate missing CNPG role credential Secrets before PostgreSQL starts. Disable when credentials are provisioned externally. |
+| credentials.enabled | bool | `false` | Opt in to generating missing CNPG role credential Secrets before PostgreSQL starts. Otherwise supply database Secrets externally. Enabled by the kind profile. |
 | credentials.image.digest | string | `"sha256:8373231e1e906ddfb457748bfc032c4c06ada8c759b7b62d9c73ec2a3c56e710"` | Credential bootstrap image digest (when set, overrides tag) |
 | credentials.image.registry | string | `"docker.io"` | Credential bootstrap image registry |
 | credentials.image.repository | string | `"library/python"` | Credential bootstrap image repository (without registry) |
