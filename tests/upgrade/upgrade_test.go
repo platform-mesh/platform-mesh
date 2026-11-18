@@ -213,6 +213,7 @@ func (e *environment) quickstart(t *testing.T, version string, dev bool, timeout
 	o.Kubeconfig = e.kubeconfig
 	o.Version = version
 	o.Dev = dev
+	o.IDP = quickstart.IDPKeycloak
 	o.Timeout = timeout
 	if n := os.Getenv("UPGRADE_PARALLEL_BUILD"); n != "" {
 		parallel, err := strconv.Atoi(n)

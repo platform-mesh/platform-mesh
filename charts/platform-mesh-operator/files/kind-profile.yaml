@@ -47,11 +47,17 @@ data:
         skipVerify: true
       services:
         account-operator:
+          # Installed once its image is known: a HelmRelease applied before the
+          # operator has filled in the image runs the chart's default, and Flux
+          # then waits out the install timeout on an image that may not exist.
+          # The same goes for the services below.
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: account-operator
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -75,11 +81,13 @@ data:
                 host: observability-opentelemetry-collector.observability.svc.cluster.local:4317
               enabled: false
         extension-manager-operator:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: extension-manager-operator
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -249,6 +257,8 @@ data:
                   enabled: true
               frontProxy:
                 port: 8443
+              proxy:
+                replicas: 1
               rootShard:
                 hostname: "root.kcp.{{ .baseDomain }}"
                 shardBaseURL: https://root.kcp.{{ .baseDomain }}:8443/
@@ -261,22 +271,26 @@ data:
           enabled: true
           dependsOn: []
           syncWave: 4
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: iam-ui
+              unsuspend: "true"
           values:
             exposure:
               hostnames:
               - "{{ .baseDomain }}"
               - "*.{{ .baseDomain }}"
         iam-service:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: iam-service
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -359,11 +373,13 @@ data:
               for: cnpg-operator
               image-ref: combined
         kubernetes-graphql-gateway:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: kubernetes-graphql-gateway
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -481,11 +497,13 @@ data:
                   tls:
                     enabled: false
         portal:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: portal
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -560,11 +578,13 @@ data:
             kcp:
               kubeconfigSecret: portal-kubeconfig
         pm-openfga-authz-webhook:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: pm-openfga-authz-webhook
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -583,11 +603,13 @@ data:
             openfga:
               url: openfga:8081
         pm-keycloak-operator:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: pm-keycloak-operator
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -620,11 +642,13 @@ data:
             terminator:
               kubeconfigSecret: keycloak-terminator-kubeconfig
         pm-openfga-operator:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: pm-openfga-operator
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -646,11 +670,13 @@ data:
             terminator:
               kubeconfigSecret: openfga-terminator-kubeconfig
         extension-manager-virtual-workspace:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: extension-manager-virtual-workspace
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -664,11 +690,13 @@ data:
               resourceSchemaName: "v250704-6d57f16.contentconfigurations.ui.platform-mesh.io"
               resourceSchemaWorkspace: "root:platform-mesh-system"
         marketplace:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: marketplace
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -682,11 +710,13 @@ data:
         marketplace-ui:
           enabled: true
           dependsOn: []
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: marketplace-ui
+              unsuspend: "true"
           values:
             contentConfig:
               baseDomain: '{{ .baseDomain }}'
