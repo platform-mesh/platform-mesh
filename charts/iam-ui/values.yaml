@@ -26,7 +26,7 @@ gatewayApi:
     parentRefs:
     - name: k8sapi-gateway
 exposure:
-  # -- Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh.
+  # -- Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec
   baseDomain: ""
   # -- Explicit exposure hostnames; an empty list derives the base domain and its wildcard.
   hostnames: []

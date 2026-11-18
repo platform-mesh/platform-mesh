@@ -33,7 +33,7 @@
 {{- end -}}
 {{- end -}}
 
-{{/* KCP always uses TLS, regardless of the public application protocol. */}}
+{{/* kcp always uses TLS, regardless of the public application protocol. */}}
 {{- define "kcp.shardBaseURL" -}}
 {{- if .root.Values.exposure.baseDomain -}}
 {{- include "common.exposure.url" (dict "exposure" (dict "baseDomain" .hostname "protocol" "https" "port" (include "kcp.externalPort" .root)) "path" "/") -}}
