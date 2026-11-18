@@ -18,20 +18,49 @@ package releaseutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 )
 
+// gitDirKey is the context key of the directory git runs in.
+type gitDirKey struct{}
+
+// WithGitDir returns a context that makes Git, and everything built on it,
+// run in dir instead of the working directory: for a caller that is not
+// started from the checkout it asks about.
+func WithGitDir(ctx context.Context, dir string) context.Context {
+	return context.WithValue(ctx, gitDirKey{}, dir)
+}
+
+// Git runs git in the working directory, or the one of WithGitDir, and
+// returns its stdout. A failure carries git's stderr.
+func Git(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	if dir, ok := ctx.Value(gitDirKey{}).(string); ok {
+		cmd.Dir = dir
+	}
+	out, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+			return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
+	return string(out), nil
+}
+
 // Commit returns COMMIT, or the commit of git HEAD when unset.
 func Commit(ctx context.Context) (string, error) {
 	if commit := os.Getenv("COMMIT"); commit != "" {
 		return commit, nil
 	}
-	out, err := exec.CommandContext(ctx, "git", "rev-parse", "HEAD").Output()
+	out, err := Git(ctx, "rev-parse", "HEAD")
 	if err != nil {
 		return "", fmt.Errorf("reading git HEAD: %w", err)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }

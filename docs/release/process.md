@@ -29,28 +29,21 @@ the chart defaults to). Nothing is copied or rewritten.
 Chart dependencies on `common` and the `*-crds` charts are `file://` references
 into this directory, pinned to the same version.
 
-The only version-related file is [`VERSION`](../../VERSION) at the repository
-root. It holds the feature release (`26.11`) that the branch is working
-towards and is bumped on `main` by hand right after a feature release. Release
-branches keep theirs.
-[`hack/release/next-version.sh`](../../hack/release/next-version.sh) derives
-the next full version from it and from the tags reachable from `HEAD`.
-
 ## Releasing
 
 ### A feature release
 
 1. On `main`, cut a release candidate:
 
-   If you're unsure what to tag, you could run `hack/release/next-version.sh` now,
+   If you're unsure what to tag, you could run `go run ./hack/release/get-version next` now,
    but usually you know what to tag and can simply go ahead:
 
    ```sh
    git tag v26.11.0-rc.1 && git push origin v26.11.0-rc.1
    ```
 
-2. Test the candidate: install it as described in
-   [`installation/README.md`](../../installation/README.md) with
+2. Test the candidate: install it as described in the
+   [installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with
    `--set-string ocm.version=26.11.0-rc.1` (and the operator chart at the same
    version). Fixes land on `main`; cut further candidates as needed (`-rc.2`, …).
 3. Promote: tag the same version without the `-rc.N`:
@@ -59,11 +52,10 @@ the next full version from it and from the tags reachable from `HEAD`.
    git tag v26.11.0 && git push origin v26.11.0
    ```
 
-4. Afterwards, on `main`: create the release branch and bump `VERSION`:
+4. Afterwards, on `main`: create the release branch:
 
    ```sh
    git branch release-26.11 v26.11.0 && git push origin release-26.11
-   echo 26.12 > VERSION   # commit via pull request
    ```
 
    When to create the branch is a workflow decision, not a technical one. It
@@ -116,14 +108,42 @@ from the tag:
 3. **verify** – resolves the published graph, checks every signature of this
    version, pulls and templates charts.
 4. **trivy** – scans the images and SBOMs.
-5. `release.yml` then generates the release notes
-   ([`hack/release/release-notes.sh`](../../hack/release/release-notes.sh):
-   merged pull requests since the previous tag, grouped by area; changed
-   third-party and other-repository versions) and creates the GitHub release,
-   marked as prerelease for `-rc.N` tags.
+5. `release.yml` then generates the release notes with
+   [`hack/release/release-notes`](../../hack/release/release-notes/main.go)
+   and creates the GitHub release, marked as prerelease for `-rc.N` tags.
+   The notes cover the range from the previous final release to the tag:
+   the `release-note` blocks of the merged pull requests, the contributors
+   (including the authors in the other repositories), the component,
+   other-repository and third-party version tables, the commits of the
+   other-repository components whose `appVersion` changed, and the commits
+   grouped by component (`ocm/components.yaml`). The notes open with a
+   `<!-- flavour text -->` placeholder; replace it when editing the
+   release on GitHub. The GitHub API is read with `GH_TOKEN` when set
+   (optional; raises the rate limit).
 
 Published versions are immutable. Tagging a version that exists in the
 registry already fails; use the next one.
+
+### Optional components
+
+A component marked `optional: true` in
+[`ocm/components.yaml`](../../ocm/components.yaml) may be left out of a
+build. Today those are `kro-composition-operator`, `resource-broker` and
+`terminal-controller-manager`.
+
+A release contains every component, optional ones included. A build leaves
+them out when it sets `SKIP_COMPONENTS=<name>[,<name>...]` for the release
+commands; the `prerelease` workflow has a `skip-components` input for it.
+Then:
+
+- no image is built for the component, and `ocm-build-image` and
+  `ocm-build-chart` do nothing for its directories;
+- `ocm-build-aggregate` builds the Platform Mesh component without the
+  reference to it, so the graph is complete without the component.
+
+An installation from such a build cannot enable the component: its chart and
+image are not in the graph. The commands refuse to skip a component that is
+not marked optional.
 
 ### Prereleases from main
 
@@ -133,7 +153,7 @@ prerelease → Run workflow). It runs the same `job-publish.yml` with the versio
 `<next>-dev.<run>.g<sha>`, e.g. `26.11.0-dev.42.g1a2b3c4` (`dev` sorts below
 `rc`), and creates no GitHub release. The version is in the run's summary:
 
-Install it like a release ([`installation/README.md`](../../installation/README.md))
+Install it like a release ([installation guide](https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh))
 with `--set-string ocm.version=26.11.0-dev.42.g1a2b3c4`.
 
 Prerelease versions older than two weeks are deleted by
@@ -164,8 +184,9 @@ Nothing is built or published; a tag is all a Go module release is.
 Why they do not get `apis/vYY.MM.P` with every release:
 
 - A release does not need them. Inside this repository every component
-  resolves the three modules through `go.work`, i.e. from the working tree;
-  the versions in the `go.mod` files only matter to external consumers.
+  resolves the three modules through local `replace` directives, i.e. from the
+  working tree; the versions in the `go.mod` files only matter to external
+  consumers.
 - Go ties the major version to the import path: anything at v2 or above must
   be imported as `go.platform-mesh.io/apis/v26/...`, so CalVer tags would
   force a new import path for every consumer each January, whether the Go
@@ -254,7 +275,8 @@ go run ./hack/release/ocm-build-third-party third_party/kcp
 SKIP_PUSH=true go run ./hack/release/ocm-build-chart charts/account-operator   # SKIP_PUSH: the chart archive is already published
 go run ./hack/release/ocm-build-aggregate
 ocm get component-version "$OCM_REPO//github.com/platform-mesh/platform-mesh:$PM_VERSION" --recursive
-hack/release/next-version.sh                                                    # what the next release would be
+go run ./hack/release/get-version current                                       # what this checkout would be published as
+go run ./hack/release/release-notes --start v26.10.2 --end HEAD                 # release notes for a range of commits or version tags
 ```
 
 A chart's component references the image component at the same version, so a

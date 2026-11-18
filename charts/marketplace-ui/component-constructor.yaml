@@ -9,15 +9,15 @@ components:
         relation: external
         version: ${PM_VERSION}
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           imageReference: ${CHART_REPO}/marketplace-ui:${PM_VERSION}
     sources:
       - name: chart
         type: git
         version: ${PM_VERSION}
         access:
-          type: gitHub
-          repoUrl: ${REPO_URL}
+          type: Git/v1
+          repository: ${REPO_URL}
           commit: ${COMMIT}
   - name: github.com/platform-mesh/marketplace-ui
     version: ${PM_VERSION}
@@ -28,8 +28,8 @@ components:
         type: git
         version: ${PM_VERSION}
         access:
-          type: gitHub
-          repoUrl: ${REPO_URL}
+          type: Git/v1
+          repository: ${REPO_URL}
           commit: ${COMMIT}
     componentReferences:
       - name: chart

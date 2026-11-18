@@ -45,7 +45,7 @@ import (
 
 // publishComposite publishes the composite type as a bound API (APIResourceSchema +
 // per-RGD APIExport + self-binding) rather than a plain CRD, which is what the
-// graphql-gateway and security-operator read. Returns true once the binding is Bound.
+// graphql-gateway and pm-openfga-operator read. Returns true once the binding is Bound.
 func (e *Engine) publishComposite(ctx context.Context, c ctrlruntimeclient.Client, crd *apiextensionsv1.CustomResourceDefinition, rgd *krov1alpha1.ResourceGraphDefinition) (bool, error) {
 	name := compositeExportName(rgd.Name)
 

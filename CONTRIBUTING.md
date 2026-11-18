@@ -24,10 +24,10 @@ You are welcome to contribute with your pull requests. These steps explain the c
 Platform Mesh uses [Task](https://taskfile.dev) for build automation:
 
 ```bash
-task lint       # Format and lint (golangci-lint)
-task test       # Run unit tests
-task cover      # Run tests with coverage
-task validate   # Run lint + test
+task lint       # Format and lint (golangci-lint), every component
+task test       # Run the unit tests of every component
+task verify     # Run lint, boilerplate and tidy checks
+task test-<component>   # one component, e.g. task test-account-operator
 ```
 
 ### Development Setup
@@ -38,7 +38,7 @@ Mesh in kind for development:
 ```bash
 task tilt:up  # deploys the tilt setup and hot-reloads on changes, offers a webui
 task tilt:ci  # deploys the tilt setup once and exits
-task tilt:e2e # run the full e2e test suite against the running tilt instance
+task tilt:e2e # run the e2e tests (tests/e2e Go suites, then the portal suite) against the running tilt instance
 ```
 
 ### Code style
@@ -50,10 +50,10 @@ task tilt:e2e # run the full e2e test suite against the running tilt instance
 
 ### Go Version Management
 
-* The `go` directive in the `go.mod` / `go.work` files declare the _minimum required_ version of Go
+* The `go` directives in the `go.mod` files declare the _minimum required_ version of Go
   to build Platform Mesh. This is notably **not the same version Platform Mesh is currently built with.**
   When bumping Go, this directive **must not** be updated just for the sake of "consistency". Only
-  a `go mod tidy` or `go work sync` should ever change these directives.
+  a `go mod tidy` should ever change these directives.
 
   Bumping these needlessly to either the latest minor or, even worse, every single patch release of
   Go, is just causing unnecessary havoc for everyone downstream.
@@ -77,11 +77,25 @@ task tilt:e2e # run the full e2e test suite against the running tilt instance
 
 > **NOTE:** You should always add tests if you are adding code to our repository.
 
-Prefer table-driven tests. To run tests locally:
+Prefer table-driven tests. There are three tiers:
+
+| Tier | Where | Runs against | Command |
+|---|---|---|---|
+| unit | next to the code | nothing external | `task test`, `task test-<component>` |
+| integration | `tests/integration/<area>` | a kcp in Docker (kcp-testcontainers), components in-process | `task test-integration` |
+| e2e | `tests/e2e/<area>` | a deployed Platform Mesh (`KUBECONFIG`, `ADMIN_KUBECONFIG`), usually Tilt | `task test-e2e` |
 
 ```bash
-task test
+task test                                           # unit tests, every component
+task test-integration                               # all integration tests
+task tests:integration PKG=./integration/account/...  # one integration area
+task tilt:ci && task test-e2e                       # e2e against a fresh Tilt environment
 ```
+
+A unit test must not start a process (kcp, kube-apiserver, kind, docker). A test that needs a
+control plane goes into `tests/integration` (and wires the component through its public `pkg/app`
+package, not `internal/`) or, if it needs a deployed stack, into `tests/e2e`. See
+[tests/README.md](tests/README.md) for the framework and how to add a package.
 
 ## Generative AI
 

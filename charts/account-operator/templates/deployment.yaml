@@ -32,7 +32,7 @@ spec:
       containers:
       - {{- include "common.podBasics" . | indent 8 }}
         {{- include "common.container.securityContext" . | indent 8 }}
-        {{- include "common.operatorHealthAndReadyness" . | indent 8}}
+        {{- include "common.operatorHealthAndReadiness" . | indent 8}}
         ports:
         {{- include "common.PortsMetricsHealth" . | nindent 10 }}
         {{- if .Values.webhooks.enabled }}
@@ -49,6 +49,20 @@ spec:
           - --subroutines-account-info-enabled={{ .Values.subroutines.accountInfo.enabled }}
           - --controllers-account-info-enabled={{ .Values.controllers.accountInfo.enabled }}
           - --kcp-api-export-endpoint-slice-name={{ .Values.kcp.apiExportEndpointSliceName }}
+          {{- with .Values.oidc }}
+          {{- if .issuerUrl }}
+          - --oidc-issuer-url={{ .issuerUrl }}
+          {{- range $name, $clientID := .clients }}
+          - --oidc-clients={{ $name }}={{ $clientID }}
+          {{- end }}
+          {{- with .scopes }}
+          - --oidc-scopes={{ join "," . }}
+          {{- end }}
+          {{- if .caFileRef.name }}
+          - --oidc-ca-file=/oidc-ca/{{ .caFileRef.key }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
           {{- if .Values.webhooks.enabled }}
           - --webhooks-enabled
           - --webhooks-cert-dir={{ .Values.webhooks.certDir }}
@@ -76,6 +90,11 @@ spec:
           name: cert
           readOnly: true
         {{- end }}
+        {{- if and .Values.oidc.issuerUrl .Values.oidc.caFileRef.name }}
+        - name: oidc-ca
+          mountPath: /oidc-ca
+          readOnly: true
+        {{- end }}
       volumes:
         {{- include "common.extraVolumes" . | nindent 8 }}
         {{- if .Values.kubeconfigSecret }}
@@ -88,4 +107,9 @@ spec:
           secret:
             defaultMode: 420
             secretName: {{ include "common.entity.name" . }}-webhook-server-cert
+        {{- end }}
+        {{- if and .Values.oidc.issuerUrl .Values.oidc.caFileRef.name }}
+        - name: oidc-ca
+          secret:
+            secretName: {{ .Values.oidc.caFileRef.name }}
         {{- end }}

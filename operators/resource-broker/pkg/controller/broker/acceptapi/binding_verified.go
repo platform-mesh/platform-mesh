@@ -232,7 +232,7 @@ func (s *bindingVerifiedSubroutine) ensureBinding(ctx context.Context, acceptAPI
 	return subroutines.OK(), nil
 }
 
-// releaseWorksapce drops the finalizer for this AcceptAPI and deletes the workspace if it was the last finalizer.
+// releaseWorkspace drops the finalizer for this AcceptAPI and deletes the workspace if it was the last finalizer.
 func (s *bindingVerifiedSubroutine) releaseWorkspace(ctx context.Context, wsName, refFinalizer string) error {
 	treeClient, err := s.treeRootClient()
 	if err != nil {

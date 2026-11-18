@@ -169,7 +169,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	}
 	imageVersionStore := subroutines.NewImageVersionStore()
 
-	pmReconciler, err := controller.NewPlatformMeshReconciler(mgr, &operatorCfg, defaultCfg, operatorCfg.WorkspaceDir, clientInfra, imageVersionStore)
+	pmReconciler, err := controller.NewPlatformMeshReconciler(mgr, &operatorCfg, defaultCfg, clientInfra, imageVersionStore)
 	if err != nil {
 		setupLog.Error(err, "unable to create PlatformMesh reconciler")
 		os.Exit(1)

@@ -102,9 +102,9 @@ resources:
   value: http://127.0.0.1:15020
 {{- end }}
 {{- define "common.healthAndReadiness" }}
-{{ include "common.operatorHealthAndReadyness" . }}
+{{ include "common.operatorHealthAndReadiness" . }}
 {{- end }}
-{{- define "common.operatorHealthAndReadyness" }}
+{{- define "common.operatorHealthAndReadiness" }}
 livenessProbe:
   httpGet:
     path: {{ include "common.getKeyValue" (dict "Values" .Values "key" "health.liveness.path") }}

@@ -61,8 +61,11 @@ type IdentityProviderConfigurationStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:deprecatedversion:warning="core.platform-mesh.io/v1alpha1 IdentityProviderConfiguration is deprecated, use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration"
 
 // IdentityProviderConfiguration is the Schema for the identityproviderconfigurations API
+//
+// Deprecated: use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfiguration.
 type IdentityProviderConfiguration struct {
 	metav1.TypeMeta `json:",inline"`
 
@@ -92,6 +95,8 @@ func (in *IdentityProviderConfiguration) SetConditions(c []metav1.Condition) {
 // +kubebuilder:object:root=true
 
 // IdentityProviderConfigurationList contains a list of IdentityProviderConfiguration
+//
+// Deprecated: use keycloak.platform-mesh.io/v1alpha1 IdentityProviderConfigurationList.
 type IdentityProviderConfigurationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

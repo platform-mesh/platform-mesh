@@ -29,7 +29,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
@@ -107,12 +109,20 @@ func (s *copySubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Obje
 		}
 	}
 
+	// Copy u, the object the assignment subroutine validated against the
+	// AcceptAPI of this provider, not a fresh read of the consumer object: a
+	// spec change that came in since may no longer be accepted here and has
+	// to start a migration instead, leaving this copy as it is. The next
+	// reconcile copies the change if the provider still accepts it.
 	nn := types.NamespacedName{Namespace: u.GetNamespace(), Name: u.GetName()}
-	if err := transfer.Resource(ctx, s.opts.GVK,
-		transfer.Ref{Client: consumerClient, Name: nn},
-		transfer.Ref{Client: stagingClient, Name: nn},
-	); err != nil {
+	if err := copySpec(ctx, u, transfer.Ref{Client: stagingClient, Name: nn}); err != nil {
 		return subroutines.Result{}, fmt.Errorf("copying resource to staging workspace: %w", err)
+	}
+	if err := transfer.Status(ctx, s.opts.GVK,
+		transfer.Ref{Client: stagingClient, Name: nn},
+		transfer.Ref{Client: consumerClient, Name: nn},
+	); err != nil {
+		return subroutines.Result{}, fmt.Errorf("copying status from staging workspace: %w", err)
 	}
 
 	if err := s.annotateCopy(ctx, stagingClient, nn, consumerCluster); err != nil {
@@ -188,6 +198,51 @@ func stagingClient(ctx context.Context, opts Options, consumerCluster string, u 
 		return nil, subroutines.Result{}, fmt.Errorf("building client for staging workspace %q: %w", assignment.Status.StagingWorkspace, err)
 	}
 	return cl, subroutines.Result{}, nil
+}
+
+// copySpec writes the spec of source, everything but its metadata and status,
+// to the object at to, creating it if it is not there yet. It is
+// transfer.Spec with the source object given instead of read.
+func copySpec(ctx context.Context, source *unstructured.Unstructured, to transfer.Ref) error {
+	existing := &unstructured.Unstructured{}
+	existing.SetGroupVersionKind(source.GroupVersionKind())
+	if err := to.Client.Get(ctx, to.Name, existing); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("get %s: %w", to.Name, err)
+		}
+		target := transfer.StripClusterMetadata(source)
+		target.SetName(to.Name.Name)
+		target.SetNamespace(to.Name.Namespace)
+		if err := to.Client.Create(ctx, target); err != nil {
+			return fmt.Errorf("create %s: %w", to.Name, err)
+		}
+		return nil
+	}
+	if transfer.EqualObjects(source, existing) {
+		return nil
+	}
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := to.Client.Get(ctx, to.Name, existing); err != nil {
+			return err
+		}
+		update := existing.DeepCopy()
+		for k := range update.Object {
+			if _, ok := source.Object[k]; !ok && k != "metadata" && k != "status" {
+				delete(update.Object, k)
+			}
+		}
+		for k, v := range source.Object {
+			if k != "metadata" && k != "status" {
+				update.Object[k] = runtime.DeepCopyJSONValue(v)
+			}
+		}
+		return to.Client.Update(ctx, update)
+	})
+	if err != nil {
+		return fmt.Errorf("update %s: %w", to.Name, err)
+	}
+	return nil
 }
 
 // annotateCopy records the consumer origin on the staging copy.

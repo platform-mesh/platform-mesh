@@ -48,11 +48,6 @@ func (c *Client) GetProjectID(ctx context.Context, org string, projectNumber int
 	return fmt.Sprintf("%v", query.Organization.ProjectV2.ID), nil
 }
 
-// GetProjectItems fetches all items from a project (basic mode)
-func (c *Client) GetProjectItems(ctx context.Context, projectID string) ([]*models.ProjectItem, error) {
-	return c.GetProjectItemsFull(ctx, projectID, false)
-}
-
 // GetProjectItemsFull fetches all items from a project with optional field values
 func (c *Client) GetProjectItemsFull(ctx context.Context, projectID string, includeFieldValues bool) ([]*models.ProjectItem, error) {
 	var allItems []*models.ProjectItem

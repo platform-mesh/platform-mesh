@@ -16,7 +16,7 @@ ocm:
   repository: ghcr.io/platform-mesh
   # -- Name of the OCM signature the components are verified against.
   signatureName: platform-mesh.platform-mesh
-  # -- Set to false when the OCM component is signed by a different trusted key.
+  # -- Set to false when the OCM component is signed by a different trusted key, the Secret ocm-signing-public-cert must then exist with a .ocmconfig key verifying ocm.signatureName.
   installSigningCertificate: true
 
 # -- Gateway/exposure configuration (used when ocm.enabled=true).
@@ -78,6 +78,10 @@ extraArgs:
 
 idp:
   registrationAllowed: false
+  # -- Development only: accept logins of users whose email is not verified, for installations without an SMTP server. Enables the `feature-disable-email-verification` toggle on the PlatformMesh resource and, on Helm install, `idp.allowUnverifiedEmails` in the profile. Must be false in production.
+  allowUnverifiedEmails: false
+  # -- Development only: give invited users the temporary password `password`, for installations without an SMTP server to send the invitation with. Sets `idp.setDefaultPassword` in the profile on Helm install. Must be false in production.
+  setDefaultPassword: false
 
 istio:
   enabled: false
@@ -90,9 +94,9 @@ remoteInfra:
   secretKey: "kubeconfig"
 
 remoteRuntime:
-  # -- Enables deployment to remote clusters. Set to true if the operator is not deployed on the same cluster where the Infra artefacts will be created.
+  # -- Enables deployment to remote clusters. Set to true if the operator is not deployed on the same cluster where the Infra artifacts will be created.
   enabled: false
-  # -- Name of the secret containing the kubeconfig for the cluster where the created Infra artefacts will be created. NOTE: target deployment will alway be same as the cluster where the Platform Mesh resource lives.
+  # -- Name of the secret containing the kubeconfig for the cluster where the created Infra artifacts will be created. NOTE: target deployment will always be same as the cluster where the Platform Mesh resource lives.
   secretName: "platform-mesh-secret"
   secretKey: "kubeconfig"
   infra:

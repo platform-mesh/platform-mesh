@@ -4,6 +4,9 @@ kind: Cluster
 metadata:
   name: {{ .Values.cnpg.cluster.name }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    # Uninstalling the release must not delete the postgres data.
+    helm.sh/resource-policy: keep
 spec:
   imageName: {{ printf "%s:%s" (include "common.image.name" (dict "Values" (dict "image" .Values.cnpg.cluster.image) "Chart" .Chart)) (include "common.image.tag" (dict "Values" (dict "image" .Values.cnpg.cluster.image) "Chart" .Chart)) }}{{ with .Values.cnpg.cluster.image.digest }}@{{ . }}{{ end }}
   instances: {{ .Values.cnpg.cluster.instances }}

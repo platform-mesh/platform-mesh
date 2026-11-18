@@ -75,6 +75,12 @@ spec:
       apiVersion: delivery.ocm.software/v1alpha1
       name: {{ $values.ocm.repo.name }}
       namespace: {{ $.releaseNamespace }}
+    - kind: Secret
+      apiVersion: v1
+      # Objects that set ocmConfig do not inherit the Component's verifier,
+      # so reference the signing configuration explicitly.
+      name: ocm-signing-public-cert
+      namespace: {{ $.releaseNamespace }}
 ---
 {{- end }}
 {{- end }}

@@ -24,6 +24,6 @@ components:
         # renovate: datasource=docker depName=ghcr.io/prometheus-community/charts/prometheus-operator-crds
         version: 29.0.0
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/prometheus-community/charts/prometheus-operator-crds
           imageReference: ghcr.io/prometheus-community/charts/prometheus-operator-crds:29.0.0

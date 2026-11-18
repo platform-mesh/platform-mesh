@@ -57,8 +57,7 @@ for gomod in "${gomod_files[@]}"; do
   fi
 
   # Get the maximum Go version required by all transitive dependencies.
-  # GOWORK=off ensures we check this module in isolation, not influenced by
-  # the workspace's go.work file.
+  # GOWORK=off ensures an optional developer workspace cannot influence the check.
   #
   # We exclude the current module itself from the list, as its declared version
   # would otherwise always be the maximum (making the check useless).

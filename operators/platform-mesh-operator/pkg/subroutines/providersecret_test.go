@@ -20,8 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 
@@ -33,6 +33,7 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/mocks"
+	testfixtures "go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/test"
 	"go.platform-mesh.io/subroutines"
 
 	corev1 "k8s.io/api/core/v1"
@@ -51,7 +52,7 @@ import (
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
-var secretKubeconfigData, _ = os.ReadFile("test/kubeconfig.yaml")
+var secretKubeconfigData, _ = fs.ReadFile(testfixtures.Resources, "kubeconfig.yaml")
 
 type fakeHelm struct{ ready bool }
 
@@ -512,8 +513,8 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingSecret() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -585,7 +586,7 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingSecret() {
 	s.Assert().Equal(subroutines.OK(), res)
 }
 
-func (s *ProvidersecretTestSuite) TestFailedBuilidingKubeconfig() {
+func (s *ProvidersecretTestSuite) TestFailedBuildingKubeconfig() {
 	instance := &pmcorev1alpha1.PlatformMesh{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PlatformMesh",
@@ -921,8 +922,8 @@ func (s *ProvidersecretTestSuite) TestErrorLoadingKubeconfig() {
 				if key.Namespace == "" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1010,8 +1011,8 @@ func (s *ProvidersecretTestSuite) TestErrorCreatingKCPClient() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1123,8 +1124,8 @@ func (s *ProvidersecretTestSuite) TestErrorGettingAPIExportEndpointSlice() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1220,8 +1221,8 @@ func (s *ProvidersecretTestSuite) TestEmptyAPIExportEndpoints() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1325,8 +1326,8 @@ func (s *ProvidersecretTestSuite) TestInvalidEndpointURL() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1454,8 +1455,8 @@ func (s *ProvidersecretTestSuite) TestContextNotFoundInKubeconfig() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",
@@ -1594,8 +1595,8 @@ func (s *ProvidersecretTestSuite) TestClusterNotFoundInKubeconfig() {
 				if key.Namespace == "platform-mesh-system" {
 					switch key.Name {
 					case "account-operator-kubeconfig",
-						"rebac-authz-webhook-kubeconfig",
-						"security-operator-kubeconfig",
+						"pm-openfga-authz-webhook-kubeconfig",
+						"pm-openfga-operator-kubeconfig",
 						"kubernetes-graphql-gateway-kubeconfig",
 						"extension-manager-operator-kubeconfig",
 						"portal-kubeconfig",

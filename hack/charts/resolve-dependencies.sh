@@ -28,7 +28,8 @@
 # network access. Nothing it writes (charts/*/charts/, Chart.lock) is tracked.
 # `helm dependency update` refreshes every configured repository index first,
 # per chart. Instead the few classic (http) repositories charts depend on are
-# fetched once up front, and the updates run with --skip-refresh.
+# fetched once up front, under every name they carry in the repository
+# configuration, and the updates run with --skip-refresh.
 
 set -euo pipefail
 
@@ -48,9 +49,17 @@ for chart_yaml in "$dir"/*/Chart.yaml; do
 done
 
 # Classic chart repositories (OCI and file:// need no index).
+repos=()
 for repo in $("$YQ" -r '.dependencies[]? | select(.repository | test("^https?://")) | .repository' "$dir"/*/Chart.yaml | sort -u); do
-  "$HELM" repo add --force-update "dep-$(echo -n "$repo" | sha256sum | cut -c1-12)" "$repo" >/dev/null
+  name="dep-$(echo -n "$repo" | sha256sum | cut -c1-12)"
+  repos+=( "$name" )
+  "$HELM" repo add --force-update "$name" "$repo" >/dev/null
 done
+
+# Update the repos so the cache is filled
+if test ${#repos[@]} -gt 0; then
+  "$HELM" repo update "${repos[@]}" >/dev/null
+fi
 
 declare -A done
 resolve() {

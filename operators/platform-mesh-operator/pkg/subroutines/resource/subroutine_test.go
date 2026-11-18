@@ -76,7 +76,7 @@ func (s *ResourceTestSuite) Test_applyReleaseWithValues() {
 				"resource": map[string]any{
 					"version": "25.2.3",
 					"access": map[string]any{
-						"type":           "ociArtifact",
+						"type":           "OCIImage/v1",
 						"imageReference": "oci://oci-registry-docker-registry.registry.svc.cluster.local/platform-mesh/upstream-images/charts/keycloak:25.2.3@sha256:cb5be99827d7cfa107fc7ca06f5b2fb0ea486f3ffb0315baf2be1bb348f9db77",
 					},
 				},
@@ -352,9 +352,9 @@ func (s *ResourceTestSuite) Test_updateGitRepo() {
 			"status": map[string]any{
 				"resource": map[string]any{
 					"access": map[string]any{
-						"type":    "gitHub",
-						"commit":  "abc123def456",
-						"repoUrl": "https://github.com/example/repo.git",
+						"type":       "Git/v1",
+						"commit":     "abc123def456",
+						"repository": "https://github.com/example/repo.git",
 					},
 				},
 			},
@@ -413,9 +413,9 @@ func (s *ResourceTestSuite) Test_updateGitRepo_CreateOrUpdateError() {
 			"status": map[string]any{
 				"resource": map[string]any{
 					"access": map[string]any{
-						"type":    "gitHub",
-						"commit":  "abc123def456",
-						"repoUrl": "https://github.com/example/repo.git",
+						"type":       "Git/v1",
+						"commit":     "abc123def456",
+						"repository": "https://github.com/example/repo.git",
 					},
 				},
 			},
@@ -795,7 +795,7 @@ func (s *ResourceTestSuite) Test_updateOciRepo_ParseRefError() {
 				"resource": map[string]any{
 					"version": "1.0.0",
 					"access": map[string]any{
-						"type":           "ociArtifact",
+						"type":           "OCIImage/v1",
 						"imageReference": "oci://invalid url with spaces",
 					},
 				},
@@ -811,6 +811,86 @@ func (s *ResourceTestSuite) Test_updateOciRepo_ParseRefError() {
 	result, err := s.subroutine.Process(ctx, inst)
 	s.NotNil(err)
 	s.NotNil(result)
+}
+
+func (s *ResourceTestSuite) Test_updateOciRepo_PlainHTTPRegistryIsInsecure() {
+	ctx := s.T().Context()
+
+	newResource := func(imageReference string) *unstructured.Unstructured {
+		return &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "delivery.ocm.software/v1alpha1",
+				"kind":       "Resource",
+				"metadata": map[string]any{
+					"name":      "test-resource",
+					"namespace": "default",
+					"annotations": map[string]any{
+						"artifact": "chart",
+						"repo":     "oci",
+					},
+				},
+				"status": map[string]any{
+					"resource": map[string]any{
+						"version": "1.0.0",
+						"access": map[string]any{
+							"type":           "OCIImage/v1",
+							"imageReference": imageReference,
+						},
+					},
+				},
+				"spec": map[string]any{},
+			},
+		}
+	}
+
+	tests := []struct {
+		name           string
+		imageReference string
+		wantURL        string
+		wantInsecure   bool
+	}{
+		{
+			name:           "plain-HTTP registry sets spec.insecure",
+			imageReference: "http://172.18.0.5:5000/platform-mesh/helm-charts/mychart:1.0.0",
+			wantURL:        "oci://172.18.0.5:5000/platform-mesh/helm-charts/mychart",
+			wantInsecure:   true,
+		},
+		{
+			name:           "TLS registry leaves spec.insecure unset",
+			imageReference: "ghcr.io/platform-mesh/helm-charts/mychart:1.0.0",
+			wantURL:        "oci://ghcr.io/platform-mesh/helm-charts/mychart",
+			wantInsecure:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			clientMock := new(mocks.Client)
+			s.subroutine = NewResourceSubroutine(clientMock, nil, nil)
+
+			clientMock.On("List", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+			clientMock.On("Get", mock.Anything, mock.Anything, mock.AnythingOfType("*v1.ConfigMap"), mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "configmaps"}, "")).Maybe()
+			clientMock.EXPECT().Patch(mock.Anything, mock.MatchedBy(func(obj ctrlruntimeclient.Object) bool {
+				unstr := obj.(*unstructured.Unstructured)
+				if unstr.GetKind() != "OCIRepository" {
+					return false
+				}
+				url, _, _ := unstructured.NestedString(unstr.Object, "spec", "url")
+				if url != tt.wantURL {
+					return false
+				}
+				insecure, found, _ := unstructured.NestedBool(unstr.Object, "spec", "insecure")
+				if tt.wantInsecure {
+					return found && insecure
+				}
+				return !found
+			}), mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
+
+			result, err := s.subroutine.Process(ctx, newResource(tt.imageReference))
+			s.NoError(err)
+			s.NotNil(result)
+		})
+	}
 }
 
 func (s *ResourceTestSuite) Test_updateOciRepo_CreateOrUpdateError() {
@@ -832,7 +912,7 @@ func (s *ResourceTestSuite) Test_updateOciRepo_CreateOrUpdateError() {
 				"resource": map[string]any{
 					"version": "1.0.0",
 					"access": map[string]any{
-						"type":           "ociArtifact",
+						"type":           "OCIImage/v1",
 						"imageReference": "oci://registry.example.com/charts/mychart:1.0.0",
 					},
 				},
@@ -1053,7 +1133,7 @@ func (s *ResourceTestSuite) Test_resolveArgoCDSource_NoSource() {
 	}
 	_, _, _, err := s.subroutine.resolveArgoCDSource(inst)
 	s.NotNil(err)
-	s.Contains(err.Error(), "no helmRepository, repoUrl, or imageReference found")
+	s.Contains(err.Error(), "no helmRepository, repository, or imageReference found")
 }
 
 func (s *ResourceTestSuite) Test_resolveArgoCDSource_HelmNoVersion() {
@@ -1067,7 +1147,7 @@ func (s *ResourceTestSuite) Test_resolveArgoCDSource_HelmNoVersion() {
 
 func (s *ResourceTestSuite) Test_resolveArgoCDSource_GitNoRef() {
 	inst := &unstructured.Unstructured{
-		Object: map[string]any{"status": map[string]any{"resource": map[string]any{"access": map[string]any{"repoUrl": "https://github.com/org/repo"}}}},
+		Object: map[string]any{"status": map[string]any{"resource": map[string]any{"access": map[string]any{"repository": "https://github.com/org/repo"}}}},
 	}
 	_, _, _, err := s.subroutine.resolveArgoCDSource(inst)
 	s.NotNil(err)

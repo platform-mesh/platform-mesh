@@ -18,9 +18,12 @@ tests:
           path: spec.repositorySpec.baseUrl
           value: ghcr.io/platform-mesh
         documentIndex: 0
-      - equal:
-          path: spec.verify[0].signature
-          value: platform-mesh.platform-mesh
+      - contains:
+          path: spec.ocmConfig
+          content:
+            kind: Secret
+            apiVersion: v1
+            name: ocm-signing-public-cert
         documentIndex: 1
       - equal:
           path: spec.exposure.baseDomain
@@ -37,6 +40,7 @@ tests:
         enabled: true
         repository: ghcr.io/example/platform-mesh
         signatureName: example.platform-mesh
+        installSigningCertificate: false
       gateway:
         baseDomain: platform.example.com
     asserts:
@@ -44,10 +48,56 @@ tests:
           path: spec.repositorySpec.baseUrl
           value: ghcr.io/example/platform-mesh
         documentIndex: 0
-      - equal:
-          path: spec.verify[0].signature
-          value: example.platform-mesh
+      - contains:
+          path: spec.ocmConfig
+          content:
+            kind: Secret
+            apiVersion: v1
+            name: ocm-signing-public-cert
         documentIndex: 1
+      - hasDocuments:
+          count: 0
+        template: installation-signing-certificate.yaml
+
+  - it: verifies the configured signature with the bundled certificate
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+        signatureName: ocm.platform-mesh
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - equal:
+          path: metadata.name
+          value: ocm-signing-public-cert
+      - matchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: '(?s)type: signing\.config\.ocm\.software/v1alpha1\n\s+signature: "ocm\.platform-mesh".*type: RSACredentials/v1\n\s+publicKeyPEM: \|\n\s+-----BEGIN CERTIFICATE-----\n\s+MIIDHDCCAgSgAwIBAgIQTBfx'
+
+  - it: does not create the Secret when the key comes from elsewhere
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+        installSigningCertificate: false
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: refuses a signature name without a bundled certificate
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+        signatureName: nosuch.platform-mesh
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - failedTemplate:
+          errorMessage: 'ocm.signatureName "nosuch.platform-mesh" has no certificate in files/ocm-signing-public-cert.yaml'
   - it: bundles the default profile
     template: installation-profile.yaml
     set:
@@ -212,3 +262,70 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: gateway.clusterIP must be set to the ClusterIP of the gateway controller Service when using the kind profile
+  - it: requires verified emails by default
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - equal:
+          path: spec.featureToggles
+          value:
+            - name: feature-accounts-in-accounts
+        template: installation.yaml
+        documentIndex: 3
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'allowUnverifiedEmails: false'
+        template: installation-profile.yaml
+  - it: allows unverified emails on request
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+      idp:
+        allowUnverifiedEmails: true
+    asserts:
+      - contains:
+          path: spec.featureToggles
+          content:
+            name: feature-disable-email-verification
+        template: installation.yaml
+        documentIndex: 3
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'allowUnverifiedEmails: true'
+        template: installation-profile.yaml
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'allowUnverifiedEmails: false'
+        template: installation-profile.yaml
+  - it: sends invitations by default
+    template: installation-profile.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'setDefaultPassword: false'
+  - it: sets a default password on request
+    template: installation-profile.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+      idp:
+        setDefaultPassword: true
+    asserts:
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'setDefaultPassword: true'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'setDefaultPassword: false'

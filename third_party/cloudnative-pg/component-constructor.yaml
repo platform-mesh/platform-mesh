@@ -24,15 +24,15 @@ components:
         # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/charts/cloudnative-pg
         version: 0.29.1
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/charts/cloudnative-pg
           imageReference: ghcr.io/cloudnative-pg/charts/cloudnative-pg:0.29.1
       - name: image
-        type: ociImage
+        type: OCIImage/v1
         relation: local
         # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/cloudnative-pg
         version: 1.30.1
         access:
-          type: ociArtifact
+          type: OCIImage/v1
           # renovate: datasource=docker depName=ghcr.io/cloudnative-pg/cloudnative-pg
           imageReference: "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1"
