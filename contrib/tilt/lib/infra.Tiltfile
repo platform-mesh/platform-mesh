@@ -26,6 +26,7 @@ load(
     "DEX_CLIENT_SECRET",
     "DEX_ISSUER",
     "DEX_USERS",
+    "GATEWAY_PORT",
     "NAMESPACE",
     "PORT",
     "TEMPLATE_VARS",
@@ -120,7 +121,12 @@ def infra_blob(ctx):
         # Second shard, exercised by the e2e tests only.
         shards = [{"name": "triton", "hostname": KCP_TRITON_HOSTNAME, "spec": {"resources": NO_REQUESTS}}]
         overrides = {
-            # The profile's 8443 literals mean "external port"; here that is the NodePort.
+            # Traefik serves listeners on 8443; kind exposes it externally through PORT.
+            "gatewayApi": {
+                "port": GATEWAY_PORT,
+                "passthrough": {"port": GATEWAY_PORT},
+            },
+            # kcp advertises the external NodePort in its public URLs.
             "kcp": {
                 "external": {"port": PORT},
                 "rootShard": {
