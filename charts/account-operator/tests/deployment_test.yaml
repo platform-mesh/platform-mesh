@@ -155,7 +155,7 @@ tests:
             name: oidc-ca
             secret:
               secretName: domain-certificate-ca
-  - it: external oidc issuer with a public client has no client secret flag
+  - it: external oidc issuer with a public client mounts no client secret
     template: deployment.yaml
     set:
       oidc:
@@ -165,24 +165,60 @@ tests:
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].args
-          content: --oidc-client-secrets=
+          content: --oidc-client-secrets-dir=/oidc-client-secrets
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: oidc-client-secrets
           any: true
-  - it: external oidc issuer with a confidential client
+  - it: external oidc issuer with a confidential client mounts its secret
     template: deployment.yaml
     set:
       oidc:
         issuerUrl: https://issuer.example/dex
         clients:
           kubectl: platform-mesh
-        clientSecrets:
-          kubectl: not-a-secret
+        clientSecretRefs:
+          kubectl:
+            name: kubectl-oidc-client
+            key: secret
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
           content: --oidc-clients=kubectl=platform-mesh
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --oidc-client-secrets=kubectl=not-a-secret
+          content: --oidc-client-secrets-dir=/oidc-client-secrets
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: oidc-client-secrets
+            mountPath: /oidc-client-secrets
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: oidc-client-secrets
+            projected:
+              sources:
+              - secret:
+                  name: kubectl-oidc-client
+                  items:
+                  - key: secret
+                    path: kubectl
+  - it: client secret reference without a key is refused
+    template: deployment.yaml
+    set:
+      oidc:
+        issuerUrl: https://issuer.example/dex
+        clients:
+          kubectl: platform-mesh
+        clientSecretRefs:
+          kubectl:
+            name: kubectl-oidc-client
+    asserts:
+      - failedTemplate:
+          errorMessage: oidc.clientSecretRefs.kubectl.key is required
   - it: external oidc issuer with a publicly trusted certificate
     template: deployment.yaml
     set:

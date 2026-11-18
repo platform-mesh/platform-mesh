@@ -74,16 +74,25 @@ type OIDCAuthentication struct {
 	// kcp accepts tokens issued for ClientID only.
 	// +optional
 	KubectlClientID string `json:"kubectlClientID,omitempty"`
-	// KubectlClientSecret is the secret of KubectlClientID, for an issuer whose
-	// clients cannot be public. It is no secret: every AccountInfo publishes it
-	// and every kubeconfig the portal hands out contains it. Leave empty for a
-	// public client.
+	// KubectlClientSecretRef names the Secret, in the namespace of the
+	// PlatformMesh resource, with the secret of KubectlClientID, for an issuer
+	// whose clients cannot be public. Its value protects nothing: every
+	// AccountInfo publishes it and every kubeconfig the portal hands out
+	// contains it. Leave empty for a public client.
 	// +optional
-	KubectlClientSecret string `json:"kubectlClientSecret,omitempty"`
+	KubectlClientSecretRef *SecretKeyReference `json:"kubectlClientSecretRef,omitempty"`
 	// KubectlScopes are the scopes kubeconfigs request besides openid, such as
 	// email or groups. Empty leaves the choice to the portal.
 	// +optional
 	KubectlScopes []string `json:"kubectlScopes,omitempty"`
+}
+
+// SecretKeyReference names one key of a Secret.
+type SecretKeyReference struct {
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+	// +kubebuilder:validation:MinLength=1
+	Key string `json:"key"`
 }
 
 type ConfigMapReference struct {

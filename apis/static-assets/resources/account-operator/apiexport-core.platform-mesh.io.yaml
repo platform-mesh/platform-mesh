@@ -96,7 +96,7 @@ spec:
         crd: {}
     - group: core.platform-mesh.io
       name: platformmeshes
-      schema: v261118-550e4bd0.platformmeshes.core.platform-mesh.io
+      schema: v261118-9f9230c1.platformmeshes.core.platform-mesh.io
       storage:
         crd: {}
     - group: core.platform-mesh.io

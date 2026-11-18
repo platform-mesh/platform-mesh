@@ -96,9 +96,9 @@ func Test_oidcServiceValues(t *testing.T) {
 		},
 		"kubeconfigs of a confidential client get its secret": {
 			oidc: pmcorev1alpha1.OIDCAuthentication{
-				IssuerURL:           "https://issuer.example/dex",
-				ClientID:            "platform-mesh",
-				KubectlClientSecret: "not-a-secret",
+				IssuerURL:              "https://issuer.example/dex",
+				ClientID:               "platform-mesh",
+				KubectlClientSecretRef: &pmcorev1alpha1.SecretKeyReference{Name: "kubectl-oidc-client", Key: "secret"},
 			},
 			kcpOIDC: map[string]any{
 				"enabled":   true,
@@ -106,9 +106,11 @@ func Test_oidcServiceValues(t *testing.T) {
 				"clientID":  "platform-mesh",
 			},
 			accountOIDC: map[string]any{
-				"issuerUrl":     "https://issuer.example/dex",
-				"clients":       map[string]any{"kubectl": "platform-mesh"},
-				"clientSecrets": map[string]any{"kubectl": "not-a-secret"},
+				"issuerUrl": "https://issuer.example/dex",
+				"clients":   map[string]any{"kubectl": "platform-mesh"},
+				"clientSecretRefs": map[string]any{
+					"kubectl": map[string]any{"name": "kubectl-oidc-client", "key": "secret"},
+				},
 			},
 			discoveryURL: "https://issuer.example/dex/.well-known/openid-configuration",
 		},

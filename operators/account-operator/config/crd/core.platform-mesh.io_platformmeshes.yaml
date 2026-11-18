@@ -123,13 +123,24 @@ spec:
                           that needs no secret and accepts a localhost redirect. Defaults to ClientID.
                           kcp accepts tokens issued for ClientID only.
                         type: string
-                      kubectlClientSecret:
+                      kubectlClientSecretRef:
                         description: |-
-                          KubectlClientSecret is the secret of KubectlClientID, for an issuer whose
-                          clients cannot be public. It is no secret: every AccountInfo publishes it
-                          and every kubeconfig the portal hands out contains it. Leave empty for a
-                          public client.
-                        type: string
+                          KubectlClientSecretRef names the Secret, in the namespace of the
+                          PlatformMesh resource, with the secret of KubectlClientID, for an issuer
+                          whose clients cannot be public. Its value protects nothing: every
+                          AccountInfo publishes it and every kubeconfig the portal hands out
+                          contains it. Leave empty for a public client.
+                        properties:
+                          key:
+                            minLength: 1
+                            type: string
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - key
+                        - name
+                        type: object
                       kubectlScopes:
                         description: |-
                           KubectlScopes are the scopes kubeconfigs request besides openid, such as

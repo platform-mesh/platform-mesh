@@ -88,8 +88,10 @@ func oidcServiceValues(oidc *pmcorev1alpha1.OIDCAuthentication) map[string]map[s
 		"issuerUrl": oidc.IssuerURL,
 		"clients":   map[string]any{kubectlClientName: kubectlClientID},
 	}
-	if oidc.KubectlClientSecret != "" {
-		accountOIDC["clientSecrets"] = map[string]any{kubectlClientName: oidc.KubectlClientSecret}
+	if ref := oidc.KubectlClientSecretRef; ref != nil {
+		accountOIDC["clientSecretRefs"] = map[string]any{
+			kubectlClientName: map[string]any{"name": ref.Name, "key": ref.Key},
+		}
 	}
 	if len(oidc.KubectlScopes) > 0 {
 		scopes := make([]any, 0, len(oidc.KubectlScopes))

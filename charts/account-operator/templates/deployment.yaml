@@ -55,8 +55,8 @@ spec:
           {{- range $name, $clientID := .clients }}
           - --oidc-clients={{ $name }}={{ $clientID }}
           {{- end }}
-          {{- range $name, $secret := .clientSecrets }}
-          - --oidc-client-secrets={{ $name }}={{ $secret }}
+          {{- if .clientSecretRefs }}
+          - --oidc-client-secrets-dir=/oidc-client-secrets
           {{- end }}
           {{- with .scopes }}
           - --oidc-scopes={{ join "," . }}
@@ -98,6 +98,11 @@ spec:
           mountPath: /oidc-ca
           readOnly: true
         {{- end }}
+        {{- if and .Values.oidc.issuerUrl .Values.oidc.clientSecretRefs }}
+        - name: oidc-client-secrets
+          mountPath: /oidc-client-secrets
+          readOnly: true
+        {{- end }}
       volumes:
         {{- include "common.extraVolumes" . | nindent 8 }}
         {{- if .Values.kubeconfigSecret }}
@@ -115,4 +120,17 @@ spec:
         - name: oidc-ca
           secret:
             secretName: {{ .Values.oidc.caFileRef.name }}
+        {{- end }}
+        {{- if and .Values.oidc.issuerUrl .Values.oidc.clientSecretRefs }}
+        # One file per client, named after it.
+        - name: oidc-client-secrets
+          projected:
+            sources:
+            {{- range $name, $ref := .Values.oidc.clientSecretRefs }}
+            - secret:
+                name: {{ required (printf "oidc.clientSecretRefs.%s.name is required" $name) $ref.name }}
+                items:
+                - key: {{ required (printf "oidc.clientSecretRefs.%s.key is required" $name) $ref.key }}
+                  path: {{ $name }}
+            {{- end }}
         {{- end }}
