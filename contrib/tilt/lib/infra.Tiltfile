@@ -31,6 +31,8 @@ load(
 )
 
 KCP_API_HOSTNAME = "kcp.api." + BASE_DOMAIN
+KCP_ROOT_HOSTNAME = "root.kcp." + BASE_DOMAIN
+KCP_TRITON_HOSTNAME = "triton.kcp." + BASE_DOMAIN
 
 # Resources for pods created by operators from CRs, where _strip_resources cannot reach.
 # Requests near zero rather than empty, since kcp-operator defaults
