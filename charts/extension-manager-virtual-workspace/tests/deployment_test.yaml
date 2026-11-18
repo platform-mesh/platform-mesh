@@ -12,4 +12,3 @@ tests:
           - my.example2.com
     asserts:
       - matchSnapshot: {}
-  

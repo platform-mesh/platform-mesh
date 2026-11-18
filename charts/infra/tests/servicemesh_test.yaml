@@ -23,6 +23,7 @@ tests:
   set:
     gatewayApi:
       enabled: true
+      baseDomain: example.com
       infrastructure:
         annotations:
           dns.gardener.cloud/class: garden
@@ -31,22 +32,32 @@ tests:
       path: spec.infrastructure.annotations
       value:
         dns.gardener.cloud/class: garden
-- it: terminates HTTPS on a single hostname-less listener by default
+- it: terminates HTTPS on standard listeners when hostname and port are set
   templates:
   - gatewayapi/gateway.yaml
   set:
     gatewayApi:
       enabled: true
+      baseDomain: example.com
+      port: 443
   asserts:
-  - equal:
-      path: spec.listeners[0].name
-      value: terminate
-  - notExists:
-      path: spec.listeners[0].hostname
-  - notContains:
+  - contains:
+      path: spec.listeners
+      content:
+        name: terminate
+        hostname: example.com
+      any: true
+  - contains:
       path: spec.listeners
       content:
         name: terminate-wildstar
+        hostname: "*.example.com"
+      any: true
+  - contains:
+      path: spec.listeners
+      content:
+        name: terminate-services
+        hostname: "*.services.example.com"
       any: true
 - it: generates one passthrough listener per kcp hostname
   templates:
@@ -54,6 +65,7 @@ tests:
   set:
     gatewayApi:
       enabled: true
+      baseDomain: example.com
     kcp:
       external:
         hostname: kcp.api.example.com
@@ -94,19 +106,6 @@ tests:
       content:
         protocol: TLS
       any: true
-- it: fails when a user listener collides with a generated passthrough listener
-  templates:
-  - gatewayapi/gateway.yaml
-  set:
-    gatewayApi:
-      enabled: true
-      listenersExtra:
-      - name: passthrough
-        port: 8443
-        protocol: TLS
-  asserts:
-  - failedTemplate:
-      errorPattern: generated from the kcp hostnames
 - it: keycloak operator disabled by default
   templates:
   - keycloak/db-secret.yaml

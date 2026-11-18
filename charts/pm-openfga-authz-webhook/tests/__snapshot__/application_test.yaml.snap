@@ -116,49 +116,6 @@ it should render the application manifests:
               secret:
                 secretName: pm-openfga-authz-webhook-kubeconfig
   4: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: pm-openfga-authz-webhook-ca-issuer
-      namespace: platform-mesh-system
-    spec:
-      selfSigned: {}
-  5: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: pm-openfga-authz-webhook-ca
-      namespace: platform-mesh-system
-    spec:
-      commonName: pm-openfga-authz-webhook-ca
-      isCA: true
-      issuerRef:
-        group: cert-manager.io
-        kind: Issuer
-        name: pm-openfga-authz-webhook-ca-issuer
-      secretName: pm-openfga-authz-webhook-webhook-ca
-  6: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: pm-openfga-authz-webhook-issuer
-      namespace: platform-mesh-system
-    spec:
-      ca:
-        secretName: pm-openfga-authz-webhook-webhook-ca
-  7: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: pm-openfga-authz-webhook-cert
-      namespace: platform-mesh-system
-    spec:
-      dnsNames: []
-      ipAddresses: []
-      issuerRef:
-        name: pm-openfga-authz-webhook-issuer
-      secretName: pm-openfga-authz-webhook-cert
-  8: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -174,7 +131,7 @@ it should render the application manifests:
       selector:
         app: pm-openfga-authz-webhook
       type: ClusterIP
-  9: |
+  5: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
@@ -298,49 +255,6 @@ it should render the application manifests with service account:
               secret:
                 secretName: pm-openfga-authz-webhook-kubeconfig
   4: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: pm-openfga-authz-webhook-ca-issuer
-      namespace: platform-mesh-system
-    spec:
-      selfSigned: {}
-  5: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: pm-openfga-authz-webhook-ca
-      namespace: platform-mesh-system
-    spec:
-      commonName: pm-openfga-authz-webhook-ca
-      isCA: true
-      issuerRef:
-        group: cert-manager.io
-        kind: Issuer
-        name: pm-openfga-authz-webhook-ca-issuer
-      secretName: pm-openfga-authz-webhook-webhook-ca
-  6: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: pm-openfga-authz-webhook-issuer
-      namespace: platform-mesh-system
-    spec:
-      ca:
-        secretName: pm-openfga-authz-webhook-webhook-ca
-  7: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: pm-openfga-authz-webhook-cert
-      namespace: platform-mesh-system
-    spec:
-      dnsNames: []
-      ipAddresses: []
-      issuerRef:
-        name: pm-openfga-authz-webhook-issuer
-      secretName: pm-openfga-authz-webhook-cert
-  8: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -356,7 +270,7 @@ it should render the application manifests with service account:
       selector:
         app: pm-openfga-authz-webhook
       type: ClusterIP
-  9: |
+  5: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
@@ -480,49 +394,6 @@ it should render the application manifests with service monitor:
               secret:
                 secretName: pm-openfga-authz-webhook-kubeconfig
   4: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: pm-openfga-authz-webhook-ca-issuer
-      namespace: platform-mesh-system
-    spec:
-      selfSigned: {}
-  5: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: pm-openfga-authz-webhook-ca
-      namespace: platform-mesh-system
-    spec:
-      commonName: pm-openfga-authz-webhook-ca
-      isCA: true
-      issuerRef:
-        group: cert-manager.io
-        kind: Issuer
-        name: pm-openfga-authz-webhook-ca-issuer
-      secretName: pm-openfga-authz-webhook-webhook-ca
-  6: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: pm-openfga-authz-webhook-issuer
-      namespace: platform-mesh-system
-    spec:
-      ca:
-        secretName: pm-openfga-authz-webhook-webhook-ca
-  7: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: pm-openfga-authz-webhook-cert
-      namespace: platform-mesh-system
-    spec:
-      dnsNames: []
-      ipAddresses: []
-      issuerRef:
-        name: pm-openfga-authz-webhook-issuer
-      secretName: pm-openfga-authz-webhook-cert
-  8: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -538,7 +409,7 @@ it should render the application manifests with service monitor:
       selector:
         app: pm-openfga-authz-webhook
       type: ClusterIP
-  9: |
+  5: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount
@@ -662,49 +533,6 @@ it should render the application manifests with useInClusterClient:
               secret:
                 secretName: pm-openfga-authz-webhook-kubeconfig
   4: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: pm-openfga-authz-webhook-ca-issuer
-      namespace: platform-mesh-system
-    spec:
-      selfSigned: {}
-  5: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: pm-openfga-authz-webhook-ca
-      namespace: platform-mesh-system
-    spec:
-      commonName: pm-openfga-authz-webhook-ca
-      isCA: true
-      issuerRef:
-        group: cert-manager.io
-        kind: Issuer
-        name: pm-openfga-authz-webhook-ca-issuer
-      secretName: pm-openfga-authz-webhook-webhook-ca
-  6: |
-    apiVersion: cert-manager.io/v1
-    kind: Issuer
-    metadata:
-      name: pm-openfga-authz-webhook-issuer
-      namespace: platform-mesh-system
-    spec:
-      ca:
-        secretName: pm-openfga-authz-webhook-webhook-ca
-  7: |
-    apiVersion: cert-manager.io/v1
-    kind: Certificate
-    metadata:
-      name: pm-openfga-authz-webhook-cert
-      namespace: platform-mesh-system
-    spec:
-      dnsNames: []
-      ipAddresses: []
-      issuerRef:
-        name: pm-openfga-authz-webhook-issuer
-      secretName: pm-openfga-authz-webhook-cert
-  8: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -720,7 +548,7 @@ it should render the application manifests with useInClusterClient:
       selector:
         app: pm-openfga-authz-webhook
       type: ClusterIP
-  9: |
+  5: |
     apiVersion: v1
     automountServiceAccountToken: true
     kind: ServiceAccount

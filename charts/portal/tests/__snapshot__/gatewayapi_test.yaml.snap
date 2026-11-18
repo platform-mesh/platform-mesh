@@ -6,7 +6,8 @@ match the Snapshot:
       name: platform-mesh-portal
     spec:
       parentRefs:
-        - name: k8sapi-gateway
+        - kind: Gateway
+          name: k8sapi-gateway
       rules:
         - backendRefs:
             - group: ""

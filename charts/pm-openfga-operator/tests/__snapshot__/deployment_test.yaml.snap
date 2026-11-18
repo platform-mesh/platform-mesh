@@ -162,7 +162,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -213,6 +214,10 @@ operator match the snapshot:
               volumeMounts:
                 - mountPath: /api-kubeconfig
                   name: external-api-server
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
                 - mountPath: /data
                   name: core-module
           securityContext:
@@ -225,6 +230,9 @@ operator match the snapshot:
             - name: external-api-server
               secret:
                 secretName: kcp-kubeconfig
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
             - configMap:
                 name: RELEASE-NAME-pm-openfga-operator-core-module
               name: core-module
@@ -254,7 +262,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -344,7 +353,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -458,7 +468,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -509,6 +520,10 @@ operator match the snapshot:
               volumeMounts:
                 - mountPath: /api-kubeconfig
                   name: external-api-server
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -519,6 +534,9 @@ operator match the snapshot:
             - name: external-api-server
               secret:
                 secretName: kcp-kubeconfig
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
   10: |
     apiVersion: apps/v1
     kind: Deployment
@@ -546,7 +564,8 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -772,10 +791,12 @@ operator match the snapshot w. sentry:
                 - fga
                 - --core-module-path=/data/coreModule.fga
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -831,6 +852,12 @@ operator match the snapshot w. sentry:
                   port: 8090
                 periodSeconds: 10
               volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
                 - mountPath: /data
                   name: core-module
                 - mountPath: /etc/kcp-kubeconfig
@@ -843,6 +870,12 @@ operator match the snapshot w. sentry:
           serviceAccountName: RELEASE-NAME-pm-openfga-operator
           terminationGracePeriodSeconds: 10
           volumes:
+            - name: external-api-server
+              secret:
+                secretName: pm-openfga-operator-kubeconfig
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
             - configMap:
                 name: RELEASE-NAME-pm-openfga-operator-core-module
               name: core-module
@@ -871,10 +904,12 @@ operator match the snapshot w. sentry:
             - args:
                 - model-generator
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -933,6 +968,8 @@ operator match the snapshot w. sentry:
                 - mountPath: /etc/kcp-kubeconfig
                   name: kcp-kubeconfig
                   readOnly: true
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -943,6 +980,9 @@ operator match the snapshot w. sentry:
             - name: kcp-kubeconfig
               secret:
                 secretName: kcp-kubeconfig
+            - name: external-api-server
+              secret:
+                secretName: pm-openfga-operator-kubeconfig
   6: |
     apiVersion: apps/v1
     kind: Deployment
@@ -970,7 +1010,8 @@ operator match the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -1114,10 +1155,12 @@ operator match the snapshot w. sentry:
             - args:
                 - system
                 - --fga-target=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -1176,6 +1219,12 @@ operator match the snapshot w. sentry:
                 - mountPath: /etc/kcp-kubeconfig
                   name: kcp-kubeconfig
                   readOnly: true
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -1186,6 +1235,12 @@ operator match the snapshot w. sentry:
             - name: kcp-kubeconfig
               secret:
                 secretName: kcp-kubeconfig
+            - name: external-api-server
+              secret:
+                secretName: pm-openfga-operator-kubeconfig
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
   11: |
     apiVersion: apps/v1
     kind: Deployment
@@ -1213,7 +1268,8 @@ operator match the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0

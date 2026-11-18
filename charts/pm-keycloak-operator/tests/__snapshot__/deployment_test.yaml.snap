@@ -92,7 +92,8 @@ operator matches the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -154,6 +155,10 @@ operator matches the snapshot:
                 - mountPath: /keycloak-credentials
                   name: keycloak-credentials
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
                 - mountPath: /certs
                   name: webhook-certs
                   readOnly: true
@@ -176,6 +181,10 @@ operator matches the snapshot:
                 - mountPath: /secrets
                   name: keycloak-password
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -198,6 +207,9 @@ operator matches the snapshot:
             - name: keycloak-credentials
               secret:
                 secretName: keycloak-admin
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
             - name: webhook-certs
               secret:
                 secretName: RELEASE-NAME-pm-keycloak-operator-webhook-server-cert
@@ -238,7 +250,8 @@ operator matches the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -346,7 +359,8 @@ operator matches the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -550,6 +564,7 @@ operator matches the snapshot w. sentry:
             - args:
                 - operator
                 - --user-claim=email
+                - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --domain-ca-lookup
                 - --webhooks-enabled=true
                 - --webhooks-port=9443
@@ -557,7 +572,8 @@ operator matches the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -621,9 +637,15 @@ operator matches the snapshot w. sentry:
                   port: 8090
                 periodSeconds: 10
               volumeMounts:
+                - mountPath: /api-kubeconfig
+                  name: external-api-server
                 - mountPath: /keycloak-credentials
                   name: keycloak-credentials
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
                 - mountPath: /certs
                   name: webhook-certs
                   readOnly: true
@@ -649,6 +671,10 @@ operator matches the snapshot w. sentry:
                 - mountPath: /secrets
                   name: keycloak-password
                   readOnly: true
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           securityContext:
             runAsNonRoot: true
             seccompProfile:
@@ -665,9 +691,15 @@ operator matches the snapshot w. sentry:
                   - key: password
                     path: keycloak-password
                 secretName: keycloak-admin
+            - name: external-api-server
+              secret:
+                secretName: pm-keycloak-operator-kubeconfig
             - name: keycloak-credentials
               secret:
                 secretName: keycloak-admin
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
             - name: webhook-certs
               secret:
                 secretName: RELEASE-NAME-pm-keycloak-operator-webhook-server-cert
@@ -709,7 +741,8 @@ operator matches the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0
@@ -851,7 +884,8 @@ operator matches the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=warn
+                - --log-level=debug
+                - --no-json
                 - --region=
                 - --environment=
                 - --image-tag=1.0.0

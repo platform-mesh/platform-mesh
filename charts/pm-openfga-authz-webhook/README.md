@@ -8,7 +8,7 @@ kcp authorization webhook of a Platform Mesh installation, backed by OpenFGA
 |-----|------|---------|-------------|
 | certManager.caSecretName | string | `"pm-openfga-authz-webhook-webhook-ca"` |  |
 | certManager.dnsNames | list | `[]` |  |
-| certManager.enabled | bool | `true` |  |
+| certManager.enabled | bool | `false` |  |
 | certManager.ipAddresses | list | `[]` |  |
 | clusterScopedName.prefix | string | `""` | Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one |
 | clusterScopedName.suffix | string | `""` | Suffix for the names of cluster-scoped resources |
@@ -22,10 +22,11 @@ kcp authorization webhook of a Platform Mesh installation, backed by OpenFGA
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/pm-openfga-authz-webhook"` | The image repository path (without registry) |
 | image.tag | string | `""` |  |
-| istio.dnsNames | list | `[]` |  |
+| istio.dnsNames[0] | string | `"pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local"` |  |
 | istio.enabled | bool | `false` |  |
 | kcp.apiExportEndpointSliceName | string | `""` | kcp APIExportEndpointSliceName to watch. Empty string means auto-discover all slices |
 | kcp.kubeconfig.secret | string | `"pm-openfga-authz-webhook-kubeconfig"` |  |
+| log.level | string | `"debug"` | Log level |
 | openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` |  |
 | service.clusterIP | string | `""` |  |
 | service.metricsPort | int | `8080` |  |

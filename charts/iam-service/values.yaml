@@ -7,6 +7,10 @@ image:
   digest: ""
   pullPolicy: IfNotPresent
 
+log:
+  # -- Disable JSON log formatting
+  noJson: true
+
 health:
   port: 8080
 
@@ -33,7 +37,7 @@ kcp:
   kubeconfig:
     secretName: iam-service-kubeconfig
 
-caSecret: ""
+caSecret: "domain-certificate"
 
 hostAliases:
   enabled: false
