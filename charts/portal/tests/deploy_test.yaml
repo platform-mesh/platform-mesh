@@ -7,6 +7,19 @@ chart:
 release:
   name: portal
 tests:
+  - it: uses the configured OIDC discovery endpoint
+    set:
+      baseDomain: portal.example.com
+      frontendPort: "8443"
+      auth:
+        default:
+          discoveryUrl: https://issuer.example.com/dex/.well-known/openid-configuration
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DISCOVERY_ENDPOINT
+            value: https://issuer.example.com/dex/.well-known/openid-configuration
   - it: matches the snapshot
     values:
       - test-values.yaml
