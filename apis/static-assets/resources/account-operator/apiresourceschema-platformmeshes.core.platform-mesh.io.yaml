@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261116-5d5fcb53.platformmeshes.core.platform-mesh.io
+  name: v261117-fc4f3e07.platformmeshes.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -114,6 +114,19 @@ spec:
                         claim.
                       pattern: ^https://
                       type: string
+                    kubectlClientID:
+                      description: |-
+                        KubectlClientID is the client kubeconfigs log in with: a client of the issuer
+                        that needs no secret and accepts a localhost redirect. Defaults to ClientID.
+                        kcp accepts tokens issued for ClientID only.
+                      type: string
+                    kubectlScopes:
+                      description: |-
+                        KubectlScopes are the scopes kubeconfigs request besides openid, such as
+                        email or groups. Empty leaves the choice to the portal.
+                      items:
+                        type: string
+                      type: array
                     usernameClaim:
                       default: email
                       description: UsernameClaim is the claim holding the username.

@@ -49,14 +49,23 @@ import (
 const (
 	kubectlClientName = "kubectl"
 	secretNamespace   = "default"
+
+	// The CA of the domain certificate, which Keycloak is served with.
+	domainCASecretName      = "domain-certificate-ca"
+	domainCASecretNamespace = "platform-mesh-system"
+	domainCASecretKey       = "tls.crt"
 )
 
-func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) (*IDPSubroutine, error) {
+// NewIDPSubroutine returns the subroutine. runtimeClient reads the CA of the
+// domain certificate from the runtime cluster, with cfg.DomainCALookup only.
+func NewIDPSubroutine(runtimeClient ctrlruntimeclient.Client, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) (*IDPSubroutine, error) {
 	limiter, err := ratelimiter.NewObjectRateLimiter[*pmkeycloakv1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 	return &IDPSubroutine{
+		runtimeClient:             runtimeClient,
+		domainCALookup:            cfg.DomainCALookup,
 		mgr:                       mgr,
 		kcpClientGetter:           kcpClientGetter,
 		additionalRedirectURLs:    cfg.IDP.AdditionalRedirectURLs,
@@ -75,6 +84,10 @@ var (
 )
 
 type IDPSubroutine struct {
+	runtimeClient ctrlruntimeclient.Client
+	// domainCALookup publishes the CA of the domain certificate in the
+	// AccountInfo, for clients to verify Keycloak with.
+	domainCALookup            bool
 	mgr                       mcmanager.Manager
 	kcpClientGetter           iclient.KCPClientGetter
 	additionalRedirectURLs    []string
@@ -259,6 +272,19 @@ func ensureLegacyTwin(ctx context.Context, cl ctrlruntimeclient.Client, idp *pmk
 	return err
 }
 
+// issuerCA returns the CA clients verify Keycloak with, empty when the domain
+// certificate is publicly trusted.
+func (i *IDPSubroutine) issuerCA(ctx context.Context) (string, error) {
+	if !i.domainCALookup {
+		return "", nil
+	}
+	var secret corev1.Secret
+	if err := i.runtimeClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: domainCASecretName, Namespace: domainCASecretNamespace}, &secret); err != nil {
+		return "", fmt.Errorf("failed to get domain CA secret: %w", err)
+	}
+	return string(secret.Data[domainCASecretKey]), nil
+}
+
 func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl ctrlruntimeclient.Client, workspaceName string, idp *pmkeycloakv1alpha1.IdentityProviderConfiguration) error {
 	accountInfo := pmcorev1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
@@ -275,9 +301,15 @@ func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl ctrlruntimeclie
 		}
 	}
 
+	ca, err := i.issuerCA(ctx)
+	if err != nil {
+		return err
+	}
+
 	desiredOIDC := &pmcorev1alpha1.OIDCInfo{
 		IssuerURL: desiredIssuerURL,
 		Clients:   desiredClients,
+		CA:        ca,
 	}
 
 	if equality.Semantic.DeepEqual(accountInfo.Spec.OIDC, desiredOIDC) {

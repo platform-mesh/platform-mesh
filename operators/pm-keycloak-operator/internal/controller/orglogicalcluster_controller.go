@@ -93,7 +93,7 @@ func orgSubroutines(cfg config.Config, mgr mcmanager.Manager, kcpClientGetter ic
 	var subs []subroutines.Subroutine
 
 	if cfg.Initializer.IDPEnabled {
-		idpSub, err := subroutine.NewIDPSubroutine(mgr, kcpClientGetter, cfg)
+		idpSub, err := subroutine.NewIDPSubroutine(inClusterClient, mgr, kcpClientGetter, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("creating IDP subroutine: %w", err)
 		}

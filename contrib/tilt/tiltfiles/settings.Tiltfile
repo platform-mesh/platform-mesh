@@ -131,7 +131,9 @@ DEX_CLIENT_ID = "platform-mesh"
 # Local development only.
 DEX_CLIENT_SECRET = "local-dev-platform-mesh-secret"
 # Dex adds e-mail and groups to a token only for their scopes, offline_access gives a refresh token.
-DEX_SCOPE = "openid email profile groups offline_access"
+DEX_SCOPES = ["openid", "email", "profile", "groups", "offline_access"]
+# What kubeconfigs from the portal request besides openid: the username claim of kcp, and the groups.
+DEX_KUBECTL_SCOPES = ["email", "groups"]
 # bcrypt of "password".
 DEX_PASSWORD_HASH = "$2a$10$iwYOwbUyunwL.Ahtr9zBq.ruc.rjYSDPwBnX.CDAsMlUA1alMoeqW"
 DEX_USERS = [

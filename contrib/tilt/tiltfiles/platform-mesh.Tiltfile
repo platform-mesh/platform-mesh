@@ -35,7 +35,8 @@ load(
     "DEX_CLIENT_ID",
     "DEX_CLIENT_SECRET",
     "DEX_ISSUER",
-    "DEX_SCOPE",
+    "DEX_KUBECTL_SCOPES",
+    "DEX_SCOPES",
     "FEATURE_TOGGLES",
     "GO_DEPS",
     "HTTPBIN_NAMESPACE",
@@ -113,6 +114,7 @@ if DEX:
             "    oidc:",
             "      issuerURL: " + DEX_ISSUER,
             "      clientID: " + DEX_CLIENT_ID,
+            "      kubectlScopes: [{}]".format(", ".join(DEX_KUBECTL_SCOPES)),
         ]
     )
 
@@ -150,7 +152,23 @@ local_resource(
 )
 
 # --- services
-service("account-operator", NAMESPACE, TEMPLATE_VARS, path="operators/account-operator", deps=GO_DEPS)
+account_overrides = {}
+if DEX:
+    # What platform-mesh-operator derives from spec.authentication.oidc: the
+    # issuer every AccountInfo has, read by the portal for its kubeconfigs.
+    account_overrides["oidc"] = {
+        "issuerUrl": DEX_ISSUER,
+        "clients": {"kubectl": DEX_CLIENT_ID},
+        "scopes": DEX_KUBECTL_SCOPES,
+    }
+service(
+    "account-operator",
+    NAMESPACE,
+    TEMPLATE_VARS,
+    path="operators/account-operator",
+    deps=GO_DEPS,
+    overrides=account_overrides,
+)
 service(
     "extension-manager-operator",
     NAMESPACE,
@@ -183,7 +201,7 @@ if DEX:
     portal_overrides["extraEnvVars"] = profile_values("portal", TEMPLATE_VARS).get("extraEnvVars", []) + [
         {"name": "OIDC_STATIC_CLIENT_ID", "value": DEX_CLIENT_ID},
         {"name": "OIDC_STATIC_CLIENT_SECRET", "value": DEX_CLIENT_SECRET},
-        {"name": "OIDC_SCOPE", "value": DEX_SCOPE},
+        {"name": "OIDC_SCOPE", "value": " ".join(DEX_SCOPES)},
         # Dex has no wildcard redirect URIs; only the base domain's callback is registered.
         {"name": "OIDC_CALLBACK_ON_BASE_DOMAIN", "value": "true"},
     ]

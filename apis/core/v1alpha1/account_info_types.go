@@ -53,6 +53,15 @@ type FGAInfo struct {
 type OIDCInfo struct {
 	IssuerURL string                `json:"issuerUrl"`
 	Clients   map[string]ClientInfo `json:"clients"`
+	// Scopes are what clients of the issuer request besides openid, such as the
+	// kubeconfigs the portal hands out. Empty leaves the choice to the client.
+	// +optional
+	Scopes []string `json:"scopes,omitempty"`
+	// CA is the PEM bundle clients verify the issuer with, such as the
+	// kubeconfigs the portal hands out. Empty for an issuer whose certificate
+	// is publicly trusted.
+	// +optional
+	CA string `json:"ca,omitempty"`
 }
 
 type StoreInfo struct {

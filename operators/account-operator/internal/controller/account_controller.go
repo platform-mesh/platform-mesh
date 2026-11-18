@@ -79,7 +79,11 @@ func NewAccountReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.
 	}
 
 	if cfg.Subroutines.AccountInfo.Enabled {
-		maiSub, err := manageaccountinfo.New(mgr, serverCA)
+		oidc, err := cfg.OIDC.Info()
+		if err != nil {
+			return nil, fmt.Errorf("OIDC issuer of the AccountInfos: %w", err)
+		}
+		maiSub, err := manageaccountinfo.New(mgr, serverCA, oidc)
 		if err != nil {
 			return nil, fmt.Errorf("creating ManageAccountInfo subroutine: %w", err)
 		}
