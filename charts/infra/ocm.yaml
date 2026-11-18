@@ -29,3 +29,54 @@ envsubst:
   ETCD_WRAPPER_IMAGE_TAG: kcp.etcd.image.tag
   ETCDBRCTL_IMAGE_REPOSITORY: kcp.etcd.backup.image.repository
   ETCDBRCTL_IMAGE_TAG: kcp.etcd.backup.image.tag
+imageResources:
+- name: keycloak-image
+  resource: keycloak-image
+  resourceName: keycloak-image
+  annotations:
+    repo: oci
+    artifact: image
+    for: infra
+    path: keycloak.operator.image.tag
+- name: busybox-image
+  resource: busybox-image
+  resourceName: busybox-image
+  annotations:
+    repo: oci
+    artifact: image
+    for: infra
+    path: keycloak.operator.waitForDb.image.tag
+- name: postgres-image
+  resource: postgres-image
+  resourceName: postgres-image
+  annotations:
+    repo: oci
+    artifact: image
+    for: infra
+    path: cnpg.cluster.image.tag
+- name: kcp-server-image
+  resource: image
+  absoluteReferencePath:
+  - name: kcp
+  annotations:
+    repo: oci
+    artifact: image
+    for: infra
+    path: kcp.image.tag
+    image-ref: combined
+- name: etcd-wrapper-image
+  resource: etcd-wrapper-image
+  annotations:
+    repo: oci
+    artifact: image
+    for: infra
+    path: kcp.etcd.image.tag
+    image-ref: combined
+- name: etcdbrctl-image
+  resource: etcdbrctl-image
+  annotations:
+    repo: oci
+    artifact: image
+    for: infra
+    path: kcp.etcd.backup.image.tag
+    image-ref: combined
