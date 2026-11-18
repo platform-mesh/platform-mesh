@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261117-fc4f3e07.platformmeshes.core.platform-mesh.io
+  name: v261118-550e4bd0.platformmeshes.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -119,6 +119,13 @@ spec:
                         KubectlClientID is the client kubeconfigs log in with: a client of the issuer
                         that needs no secret and accepts a localhost redirect. Defaults to ClientID.
                         kcp accepts tokens issued for ClientID only.
+                      type: string
+                    kubectlClientSecret:
+                      description: |-
+                        KubectlClientSecret is the secret of KubectlClientID, for an issuer whose
+                        clients cannot be public. It is no secret: every AccountInfo publishes it
+                        and every kubeconfig the portal hands out contains it. Leave empty for a
+                        public client.
                       type: string
                     kubectlScopes:
                       description: |-

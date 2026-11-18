@@ -74,6 +74,12 @@ type OIDCAuthentication struct {
 	// kcp accepts tokens issued for ClientID only.
 	// +optional
 	KubectlClientID string `json:"kubectlClientID,omitempty"`
+	// KubectlClientSecret is the secret of KubectlClientID, for an issuer whose
+	// clients cannot be public. It is no secret: every AccountInfo publishes it
+	// and every kubeconfig the portal hands out contains it. Leave empty for a
+	// public client.
+	// +optional
+	KubectlClientSecret string `json:"kubectlClientSecret,omitempty"`
 	// KubectlScopes are the scopes kubeconfigs request besides openid, such as
 	// email or groups. Empty leaves the choice to the portal.
 	// +optional

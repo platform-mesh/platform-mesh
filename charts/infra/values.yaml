@@ -316,6 +316,10 @@ dex:
     name: Keycloak Broker
     # -- Allowed redirect URIs (Keycloak broker callback URLs)
     redirectURIs: []
+    # -- IDs of clients that may request tokens for this client, with the scope `audience:server:client_id:<id>`: the clients of `extraStaticClients` whose tokens the audience of this client has to accept (default: none)
+    trustedPeers: []
+  # -- Further static clients, rendered as given. A client with `public: true` needs no secret and accepts any `http://localhost` redirect, which is what kubectl logs in with (default: none)
+  extraStaticClients: []
   staticPasswords:
     # -- Local test user for Dex password connector (dex@portal.localhost/dex/dex)
     - email: dex@portal.localhost

@@ -15,7 +15,7 @@
 apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
-  name: v261117-d39c6ad0.accountinfos.core.platform-mesh.io
+  name: v261118-5ce35f0c.accountinfos.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -107,6 +107,13 @@ spec:
                   additionalProperties:
                     properties:
                       clientId:
+                        type: string
+                      clientSecret:
+                        description: |-
+                          ClientSecret is the secret a confidential client logs in with, such as
+                          the kubeconfigs the portal hands out. It is readable by everyone who can
+                          read the AccountInfo, so it protects nothing: it is for issuers whose
+                          clients cannot be public. Empty for a public client.
                         type: string
                     required:
                     - clientId

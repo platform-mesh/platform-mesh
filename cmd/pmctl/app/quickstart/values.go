@@ -103,6 +103,9 @@ type authenticationValues struct {
 type oidcValues struct {
 	IssuerURL string `json:"issuerURL"`
 	ClientID  string `json:"clientID"`
+	// KubectlClientID and KubectlScopes are what kubeconfigs log in with.
+	KubectlClientID string   `json:"kubectlClientID,omitempty"`
+	KubectlScopes   []string `json:"kubectlScopes,omitempty"`
 }
 
 type platformMeshSpecValues struct {
@@ -140,6 +143,8 @@ type dexValues struct {
 	Expiry            dexExpiryValues     `json:"expiry"`
 	StaticPasswords   []dexUserValues     `json:"staticPasswords"`
 	StaticClient      dexClientValues     `json:"staticClient"`
+	// ExtraStaticClients are the clients besides StaticClient.
+	ExtraStaticClients []dexExtraClientValues `json:"extraStaticClients,omitempty"`
 }
 
 type dexGatewayAPIValues struct {
@@ -168,6 +173,15 @@ type dexClientValues struct {
 	Secret       string   `json:"secret"`
 	Name         string   `json:"name"`
 	RedirectURIs []string `json:"redirectURIs"`
+	// TrustedPeers are the clients that may request tokens for this one.
+	TrustedPeers []string `json:"trustedPeers,omitempty"`
+}
+
+// dexExtraClientValues is a client of Dex as Dex configures it.
+type dexExtraClientValues struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Public bool   `json:"public"`
 }
 
 // portalValues are values of the portal chart.

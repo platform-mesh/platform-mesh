@@ -55,6 +55,9 @@ spec:
           {{- range $name, $clientID := .clients }}
           - --oidc-clients={{ $name }}={{ $clientID }}
           {{- end }}
+          {{- range $name, $secret := .clientSecrets }}
+          - --oidc-client-secrets={{ $name }}={{ $secret }}
+          {{- end }}
           {{- with .scopes }}
           - --oidc-scopes={{ join "," . }}
           {{- end }}

@@ -40,6 +40,8 @@ oidc:
   issuerUrl: ""
   # -- Clients of the issuer, client name to client ID. The portal looks the client of kubeconfigs up as `kubectl`
   clients: {}
+  # -- Secrets of the clients that are not public, client name to secret. The operator publishes them in every AccountInfo and the portal puts the one of `kubectl` into the kubeconfigs it hands out, so they protect nothing: only for an issuer whose clients cannot be public
+  clientSecrets: {}
   # -- Scopes clients request besides openid, e.g. email and groups
   scopes: []
   # -- Secret with the CA of the issuer, published for clients to verify the issuer with. The default is the CA of the domain certificate, as for kcp. Set the name to "" for an issuer whose certificate is publicly trusted

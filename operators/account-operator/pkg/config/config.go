@@ -79,7 +79,10 @@ type OIDCConfig struct {
 	IssuerURL string
 	// Clients maps a client name, as consumers look it up, to its client ID.
 	Clients map[string]string
-	Scopes  []string
+	// ClientSecrets maps the name of a client of Clients to its secret, for
+	// clients that are not public. Published as they are: they protect nothing.
+	ClientSecrets map[string]string
+	Scopes        []string
 	// CAFile is a PEM file with the CA of the issuer, for an issuer whose
 	// certificate is not publicly trusted. Read once, at startup.
 	CAFile string
@@ -103,7 +106,7 @@ func (c OIDCConfig) Info() (*pmcorev1alpha1.OIDCInfo, error) {
 	}
 	clients := make(map[string]pmcorev1alpha1.ClientInfo, len(c.Clients))
 	for name, id := range c.Clients {
-		clients[name] = pmcorev1alpha1.ClientInfo{ClientID: id}
+		clients[name] = pmcorev1alpha1.ClientInfo{ClientID: id, ClientSecret: c.ClientSecrets[name]}
 	}
 	return &pmcorev1alpha1.OIDCInfo{
 		IssuerURL: c.IssuerURL,
@@ -115,8 +118,8 @@ func (c OIDCConfig) Info() (*pmcorev1alpha1.OIDCInfo, error) {
 
 func (c OIDCConfig) validate() error {
 	if c.IssuerURL == "" {
-		if len(c.Clients) > 0 || len(c.Scopes) > 0 || c.CAFile != "" {
-			return errors.New("--oidc-clients, --oidc-scopes and --oidc-ca-file need --oidc-issuer-url")
+		if len(c.Clients) > 0 || len(c.ClientSecrets) > 0 || len(c.Scopes) > 0 || c.CAFile != "" {
+			return errors.New("--oidc-clients, --oidc-client-secrets, --oidc-scopes and --oidc-ca-file need --oidc-issuer-url")
 		}
 		return nil
 	}
@@ -129,6 +132,14 @@ func (c OIDCConfig) validate() error {
 	for name, id := range c.Clients {
 		if name == "" || id == "" {
 			return errors.New("--oidc-clients needs name=clientID pairs, both non-empty")
+		}
+	}
+	for name, secret := range c.ClientSecrets {
+		if _, ok := c.Clients[name]; !ok {
+			return fmt.Errorf("--oidc-client-secrets has a secret for %q, which is not a client of --oidc-clients", name)
+		}
+		if secret == "" {
+			return fmt.Errorf("--oidc-client-secrets has an empty secret for %q: leave a public client out", name)
 		}
 	}
 	return nil
@@ -198,6 +209,7 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 
 	fs.StringVar(&c.OIDC.IssuerURL, "oidc-issuer-url", c.OIDC.IssuerURL, "External OIDC issuer to publish in every AccountInfo; leave empty with Keycloak, whose operator publishes the realm of each organization")
 	fs.StringToStringVar(&c.OIDC.Clients, "oidc-clients", c.OIDC.Clients, "Clients of --oidc-issuer-url as name=clientID pairs, e.g. kubectl=platform-mesh")
+	fs.StringToStringVar(&c.OIDC.ClientSecrets, "oidc-client-secrets", c.OIDC.ClientSecrets, "Secrets of the clients of --oidc-clients that are not public, as name=secret pairs, e.g. kubectl=secret; published in every AccountInfo, so they protect nothing")
 	fs.StringSliceVar(&c.OIDC.Scopes, "oidc-scopes", c.OIDC.Scopes, "Scopes clients of --oidc-issuer-url request besides openid, e.g. email,groups")
 	fs.StringVar(&c.OIDC.CAFile, "oidc-ca-file", c.OIDC.CAFile, "PEM file with the CA of --oidc-issuer-url, published for clients to verify the issuer with; leave empty for a publicly trusted certificate")
 }

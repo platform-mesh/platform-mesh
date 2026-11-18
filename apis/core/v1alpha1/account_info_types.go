@@ -70,6 +70,12 @@ type StoreInfo struct {
 
 type ClientInfo struct {
 	ClientID string `json:"clientId"`
+	// ClientSecret is the secret a confidential client logs in with, such as
+	// the kubeconfigs the portal hands out. It is readable by everyone who can
+	// read the AccountInfo, so it protects nothing: it is for issuers whose
+	// clients cannot be public. Empty for a public client.
+	// +optional
+	ClientSecret string `json:"clientSecret,omitempty"`
 }
 
 // AccountInfoStatus defines the observed state of AccountInfo
