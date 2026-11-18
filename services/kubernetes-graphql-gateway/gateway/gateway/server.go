@@ -106,6 +106,10 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get endpoint for cluster
 	endpoint, exists := s.registry.GetEndpoint(clusterName)
 	if !exists {
+		if s.registry.LoadFailed(clusterName) {
+			http.Error(w, "GraphQL endpoint for this cluster could not be loaded", http.StatusServiceUnavailable)
+			return
+		}
 		logger.Error(fmt.Errorf("endpoint not found"), "Target endpoint not found",
 			"cluster", clusterName,
 			"path", r.URL.Path,
