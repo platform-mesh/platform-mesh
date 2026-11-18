@@ -1,0 +1,41 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "component")
+load("../../lib/infra.Tiltfile", "infra_blob")
+load("../../lib/helpers.py", "select_objects")
+
+
+def _deploy(c, ctx):
+    # The Deployment and Service come with the infra chart once dex is selected
+    # (lib/infra.Tiltfile enables it); the ConfigMap is grouped with them.
+    k8s_resource(
+        "dex",
+        objects=select_objects(
+            infra_blob(ctx), lambda o: o["kind"] == "ConfigMap" and o["metadata"]["name"] == "dex"
+        ),
+        resource_deps=ctx.deps,
+        labels=[c.label],
+    )
+
+
+# Dex with static users as identity provider of kcp, instead of Keycloak:
+# `task tilt:up -- --with=dex`. Selecting it also points kcp
+# (lib/infra.Tiltfile), the PlatformMesh and the portal at it.
+COMPONENT = component(
+    name="dex",
+    label="infra",
+    needs=["gateway"],
+    runtime=_deploy,
+)

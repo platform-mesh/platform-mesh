@@ -1,0 +1,45 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "component", "gate", "wait")
+
+_SHARD = "shards.operator.kcp.io/triton"
+
+
+def _deploy(c, ctx):
+    # The Shard only needs the kcp objects applied, so it starts next to the
+    # root shard instead of after it.
+    k8s_resource(
+        new_name=c.name,
+        objects=["triton:shard"],
+        resource_deps=[ctx.deployed("kcp")],
+        labels=[c.label],
+        pod_readiness="ignore",
+    )
+    gate(
+        c.name + "-ready",
+        [wait(_SHARD, "create"), wait(_SHARD, "condition=Available", timeout="15m")],
+        [c.name] + ctx.deps,
+        c.label,
+    )
+    return c.name + "-ready"
+
+
+# Second kcp shard, exercised by the e2e tests only.
+COMPONENT = component(
+    name="kcp-triton",
+    label="e2e",
+    needs=["kcp"],
+    runtime=_deploy,
+)

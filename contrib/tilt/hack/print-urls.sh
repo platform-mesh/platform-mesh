@@ -16,7 +16,7 @@
 
 # Prints the URLs of the Tilt environment.
 #
-# Hostnames are <x>.pm.127-0-0-1.sslip.io, as in tiltfiles/settings.Tiltfile:
+# Hostnames are <x>.pm.127-0-0-1.sslip.io, as in lib/settings.Tiltfile:
 # sslip.io answers the host loopback, where kind publishes the traefik
 # NodePort. The deployed PlatformMesh records what is actually running and is
 # preferred once Tilt has deployed it, so this also works before `tilt up`.
@@ -26,7 +26,7 @@
 # Tilt has deployed Keycloak, and the Dex users when Tilt runs with --with=dex.
 #
 # KIND_CLUSTER_NAME selects the cluster (default platform-mesh), PORT the
-# NodePort (default 31000, PORT in settings.Tiltfile), TILT_PORT the
+# NodePort (default 31000, PORT in lib/settings.Tiltfile), TILT_PORT the
 # Tilt UI port (default 10350) and PLATFORM_NAMESPACE the namespace of
 # the keycloak-admin secret (default platform-mesh-system).
 
@@ -89,7 +89,7 @@ Platform Mesh (available once Tilt has finished deploying):
 
 EOF
 
-# Users, client id and secret are the DEX_* constants of tiltfiles/settings.Tiltfile.
+# Users, client id and secret are the DEX_* constants of lib/settings.Tiltfile.
 if [ -n "$dex" ]; then
     cat <<EOF
   Dex             https://$base/dex

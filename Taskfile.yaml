@@ -106,7 +106,7 @@ tasks:
     cmds:
       - KIND={{.KIND}} hack/kind.sh up --config contrib/tilt/kind.yaml
       - contrib/tilt/hack/print-urls.sh
-      # Arguments after `--` go to the Tiltfile, e.g. task tilt:up -- --frontend-cors
+      # Arguments after `--` go to the Tiltfile, e.g. task tilt:up -- core --frontend-cors
       - "{{.TILT}} up -f ./contrib/tilt/Tiltfile -- {{.CLI_ARGS}}"
 
   tilt:ci:
@@ -140,10 +140,14 @@ tasks:
         cat <<'EOF'
         Tilt development environment
 
-          task tilt:up                         start kind and Tilt
-          task tilt:up -- --frontend-cors      same, and allow browser calls from a frontend
+          task tilt:up                         start kind and Tilt with everything but the e2e fixtures (groups ui and vw)
+          task tilt:up -- full                 same with the fixtures, as task tilt:e2e needs them
+          task tilt:up -- core                 only a group and what it needs; several can be given,
+                                               and component names work too (task tilt:up -- core iam-service)
+          task tilt:up -- --frontend-cors      allow browser calls from a frontend
                                                run outside the cluster (localhost, *.portal.localhost)
-          task tilt:ci                         start and wait until everything is ready
+          task tilt:ci                         start everything (the "full" group) and wait until it is ready
+          task tilt:ci -- -- core              same for a group (the second `--` ends the tilt flags)
           task tilt:up -- --without=keycloak   leave Keycloak (and iam-service, iam-ui, pm-keycloak-operator) out
           task tilt:up -- --without=openfga    leave OpenFGA (and pm-openfga-authz-webhook, pm-openfga-operator) out
           task tilt:up -- --with=dex           Dex with static users as identity provider of kcp, disables Keycloak
@@ -161,6 +165,20 @@ tasks:
         Change options of a running Tilt without restarting it:
 
           tilt args -- --frontend-cors
+
+        Groups (contrib/tilt/groups.Tiltfile), each including the ones before it where needed:
+
+          kcp     kcp behind the gateway, credentials exported to contrib/tilt/.secret
+          core    kcp + platform-mesh-operator, PlatformMesh, account-operator
+          authz   core + OpenFGA, pm-openfga-operator, pm-openfga-authz-webhook
+          iam     authz + Keycloak, pm-keycloak-operator, iam-service, iam-ui
+          api     core + kubernetes-graphql-gateway, marketplace, extension-manager-virtual-workspace
+          ui      api + iam + portal, marketplace-ui, extension-manager-operator
+          vw      kcp access and MCP virtual workspaces (charts kcp-access-vw, kcp-mcp-vw)
+          e2e     HTTPBin provider fixture and a second kcp shard
+          full    ui + e2e (default of tilt:ci; what task tilt:e2e expects)
+
+        task tilt:up without a group runs ui and vw; task tilt:ci runs full.
 
         Tiltfile options (after `--`): --frontend-cors, --without, --with, --context, --cluster-id, --httpbin-namespace
         EOF

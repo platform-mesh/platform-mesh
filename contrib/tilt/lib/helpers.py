@@ -26,9 +26,9 @@ load('ext://restart_process', 'docker_build_with_restart')
 # `go env` honours a GOARCH override from the environment.
 BUILD_GOARCH = str(local('go env GOARCH', quiet=True, echo_off=True)).strip()
 
-# os.getcwd() during load is this file's directory; Tilt otherwise resolves
-# relative paths against the Tiltfile that called the helper.
-TILT_DIR = os.getcwd()
+# os.getcwd() during load is this file's directory (contrib/tilt/lib); Tilt
+# otherwise resolves relative paths against the Tiltfile that called the helper.
+TILT_DIR = os.path.dirname(os.getcwd())
 REPO = os.path.abspath(os.path.join(TILT_DIR, '..', '..'))
 CHARTS = os.path.join(REPO, 'charts')
 KIND_PROFILE = CHARTS + '/platform-mesh-operator/files/kind-profile.yaml'
@@ -270,7 +270,7 @@ def writable_rootfs(blob, image):
     return encode_yaml_stream(out)
 
 
-def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=[], resource_deps=[], labels=['platform-mesh']):
+def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=[], resource_deps=[], labels=['platform-mesh'], exclude=None):
     """Deploy charts/<name> with its kind-profile values, hot-reloaded when path is given.
 
     path:          module directory relative to the repo root; None for
@@ -279,9 +279,12 @@ def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=
     overrides:     Tilt-only values merged over the profile's
     workloads:     Tilt's names for the chart's workloads if not [<name>];
                    the first one is shown as <name> and carries the objects
-    resource_deps: added to the implicit platform-mesh-operator dependency
+    resource_deps: resources every workload of the chart waits for
+    exclude:       predicate for objects of the chart that are deployed elsewhere
     """
     blob = profile_chart(name, namespace, tvars, overrides)
+    if exclude:
+        blob = encode_yaml_stream([o for o in decode_yaml_stream(blob) if o and not exclude(o)])
     if path:
         component_binary(name, path, deps, IMAGE_PREFIX + name, labels=labels)
         blob = writable_rootfs(blob, IMAGE_PREFIX + name)
@@ -289,7 +292,6 @@ def service(name, namespace, tvars, path=None, deps=[], overrides={}, workloads=
     # RBAC, certificates, routes: everything the chart renders besides pods.
     objects = select_objects(blob, lambda o: True)
     workloads = workloads or [name]
-    resource_deps = ['platform-mesh-operator'] + resource_deps
     if workloads[0] != name:
         k8s_resource(workloads[0], new_name=name, objects=objects, resource_deps=resource_deps, labels=labels)
     else:

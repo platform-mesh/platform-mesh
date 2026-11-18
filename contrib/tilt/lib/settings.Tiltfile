@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Tilt settings and the constants every sub-Tiltfile shares.
+# Tilt settings and the constants every component shares.
 # Evaluated once, load() the names needed.
 
-load("../helpers.py", "REPO")
+load("./helpers.py", "REPO")
 
 DEFAULT_CONTEXT = "kind-platform-mesh"
 DEFAULT_HTTPBIN_NAMESPACE = "example-httpbin-provider"
@@ -30,28 +30,28 @@ config.define_bool(
     usage="allow browser calls from a frontend run outside the cluster (see installation/frontend-dev-cors-values.yaml)",
 )
 
-# Backends the environment can run without, and the PlatformMesh feature
-# toggle that makes platform-mesh-operator skip their kcp manifests. The
-# sub-Tiltfiles skip the backend and everything that only exists for it.
-WITHOUT_TOGGLES = {
-    "keycloak": "feature-disable-keycloak",
-    "openfga": "feature-disable-openfga",
-}
 config.define_string_list(
     "without",
-    usage="comma-separated backends to leave out: {} (repeatable)".format("|".join(WITHOUT_TOGGLES.keys())),
+    usage="components to leave out, with everything that depends on them, e.g. keycloak,openfga (comma-separated, repeatable)",
+)
+config.define_string_list(
+    "groups",
+    args=True,
+    usage="groups or components to run, with everything they need (default: see groups.Tiltfile)",
 )
 
 WITH_BACKENDS = ["dex"]
 config.define_string_list(
     "with",
-    usage="comma-separated backends to add: {} (repeatable); dex leaves Keycloak out".format("|".join(WITH_BACKENDS)),
+    usage="comma-separated components to add to what runs: {} (repeatable); dex leaves Keycloak out".format(
+        "|".join(WITH_BACKENDS)
+    ),
 )
 cfg = config.parse()
 
 
-def parse_backends(flag, args, known):
-    """Backends named by a list flag, deduplicated and validated.
+def split_list(args):
+    """Names from a repeatable, comma-separated flag, deduplicated.
 
     string_list accumulates repeated flags but does not split on commas.
     """
@@ -59,11 +59,7 @@ def parse_backends(flag, args, known):
     for arg in args:
         for name in arg.split(","):
             name = name.strip()
-            if not name:
-                continue
-            if name not in known:
-                fail("--{}={}: expected one or more of {}".format(flag, name, ", ".join(known)))
-            if name not in names:
+            if name and name not in names:
                 names.append(name)
     return names
 
@@ -72,21 +68,16 @@ CONTEXT = cfg.get("context", DEFAULT_CONTEXT)
 NAMESPACE = "platform-mesh-system"
 HTTPBIN_NAMESPACE = cfg.get("httpbin-namespace", DEFAULT_HTTPBIN_NAMESPACE)
 FRONTEND_CORS = cfg.get("frontend-cors", False)
-WITH = parse_backends("with", cfg.get("with", []), WITH_BACKENDS)
-WITHOUT = parse_backends("without", cfg.get("without", []), WITHOUT_TOGGLES.keys())
-DEX = "dex" in WITH
-# Dex replaces Keycloak as identity provider.
-if DEX and "keycloak" not in WITHOUT:
+# What to run: validated and resolved against the components by the root Tiltfile.
+WANTED = split_list(cfg.get("groups", []))
+WITHOUT = split_list(cfg.get("without", []))
+# --with=dex: Dex is the "dex" component, and replaces Keycloak as identity provider.
+WITH = split_list(cfg.get("with", []))
+for name in WITH:
+    if name not in WITH_BACKENDS:
+        fail("--with={}: expected one or more of {}".format(name, ", ".join(WITH_BACKENDS)))
+if "dex" in WITH and "keycloak" not in WITHOUT:
     WITHOUT.append("keycloak")
-KEYCLOAK = "keycloak" not in WITHOUT
-OPENFGA = "openfga" not in WITHOUT
-# Toggles for the PlatformMesh CR (manifests/platformmesh.yaml).
-FEATURE_TOGGLES = ["feature-accounts-in-accounts"] + [WITHOUT_TOGGLES[name] for name in WITHOUT]
-if KEYCLOAK:
-    # No SMTP on kind: nothing verifies the e-mail of a user who signs up in
-    # the welcome realm. Org realms get the same from pm-keycloak-operator's
-    # idp.allowUnverifiedEmails (platform-mesh.Tiltfile).
-    FEATURE_TOGGLES.append("feature-disable-email-verification")
 KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
 GO_DEPS = ["apis", "subroutines", "golang-commons"]
 
