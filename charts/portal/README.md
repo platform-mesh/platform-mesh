@@ -13,6 +13,7 @@ Helm Chart for the Platform Mesh Portal
 | auth.default.clientId | string | `"welcome"` | client id |
 | auth.default.clientSecretKey | string | `"attribute.client_secret"` | Secret key holding the client secret |
 | auth.default.clientSecretName | string | `"portal-client-secret-welcome"` | Secret name holding the client secret |
+| auth.default.discoveryUrl | string | `""` | Explicit OIDC discovery URL; empty derives the Keycloak URL from baseDomain and frontendPort. |
 | baseDomain | string | `""` | URLs (cookieDomain, discoveryUrl, crdGatewayApiUrl, httpRoute hostnames) are built from it. |
 | caSecret | string | `"domain-certificate"` | that merges both CAs into /etc/ssl/certs/ca-bundle.crt. |
 | developmentLandcsape | string | `"false"` | development landscape toggle. Set to "true" only in local/dev environments to enable dev-only UI features. Permissible values: "true", "false" |
@@ -44,7 +45,7 @@ Helm Chart for the Platform Mesh Portal
 | validation.port | int | `8088` | Port of the extension-manager validation webhook |
 | validation.protocol | string | `"http"` | Protocol used to reach the extension-manager validation webhook. Permissible values: http, https |
 | validation.service | string | `"extension-manager-operator-server"` | Service name of the extension-manager validation webhook |
-| webhookCaSecret | string | `"rebac-authz-webhook-cert"` | Required when caSecret is also set; the two are concatenated by the combine-ca init container. |
+| webhookCaSecret | string | `"pm-openfga-authz-webhook-cert"` | Required when caSecret is also set; the two are concatenated by the combine-ca init container. |
 
 ## Overriding Values
 

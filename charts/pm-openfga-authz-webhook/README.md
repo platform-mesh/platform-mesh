@@ -22,7 +22,7 @@ kcp authorization webhook of a Platform Mesh installation, backed by OpenFGA
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/pm-openfga-authz-webhook"` | The image repository path (without registry) |
 | image.tag | string | `""` |  |
-| istio.dnsNames[0] | string | `"rebac-authz-webhook.platform-mesh-system.svc.cluster.local"` |  |
+| istio.dnsNames[0] | string | `"pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local"` |  |
 | istio.enabled | bool | `false` |  |
 | kcp.apiExportEndpointSliceName | string | `""` | kcp APIExportEndpointSliceName to watch. Empty string means auto-discover all slices |
 | kcp.kubeconfig.secret | string | `"pm-openfga-authz-webhook-kubeconfig"` |  |

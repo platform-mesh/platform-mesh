@@ -71,7 +71,7 @@ webhook:
 
 istio:
   enabled: false
-  dnsNames: [rebac-authz-webhook.platform-mesh-system.svc.cluster.local]
+  dnsNames: [pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local]
 
 # Horizontal Pod Autoscaler configuration
 # hpa:
