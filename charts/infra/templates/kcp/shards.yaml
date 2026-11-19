@@ -12,8 +12,10 @@
 {{- $hostname := .hostname | default (printf "%s.kcp.%s" .name $.Values.exposure.baseDomain) }}
 {{- $shardBaseURL := (.spec).shardBaseURL | default (printf "https://%s%s/" $hostname $kcpPortSuffix) }}
 {{- $mergedEtcd := mustMergeOverwrite (mustDeepCopy $.Values.kcp.etcd) (.etcd | default dict) }}
-{{- $defaultSpec := dict "replicas" $.Values.kcp.rootShard.replicas "extraArgs" $.Values.kcp.rootShard.extraArgs "resources" $.Values.kcp.rootShard.resources }}
+{{- $defaultSpec := dict "replicas" $.Values.kcp.rootShard.replicas "extraArgs" $.Values.kcp.rootShard.extraArgs "resources" $.Values.kcp.rootShard.resources "audit" (mustDeepCopy ($.Values.kcp.audit | default dict)) }}
 {{- $mergedSpec := mustMergeOverwrite $defaultSpec (.spec | default dict) }}
+{{- /* Name the shard in audit errors only when it overrides audit itself. */}}
+{{- $auditPath := ternary (printf "kcp.shards[%s].spec.audit" $shardName) "kcp.audit" (hasKey (.spec | default dict) "audit") }}
 ---
 {{ include "kcp.etcd" (dict "name" $etcdName "namespace" ($.Values.kcp.namespace | default "kcp-system") "etcd" $mergedEtcd) }}
 ---
@@ -23,7 +25,7 @@ metadata:
   name: {{ $shardName }}
   namespace: {{ $.Values.kcp.namespace | default "kcp-system" }}
 spec:
-{{- include "kcp.shard.spec" (dict "root" $ "replicas" $mergedSpec.replicas "shardBaseURL" $shardBaseURL "extraArgs" $mergedSpec.extraArgs "resources" $mergedSpec.resources "port" $kcpPort "webhookPort" $.Values.kcp.webhook.port) | nindent 2 }}
+{{- include "kcp.shard.spec" (dict "root" $ "replicas" $mergedSpec.replicas "shardBaseURL" $shardBaseURL "extraArgs" $mergedSpec.extraArgs "resources" $mergedSpec.resources "port" $kcpPort "webhookPort" $.Values.kcp.webhook.port "audit" $mergedSpec.audit "auditPath" $auditPath) | nindent 2 }}
   rootShard:
     ref:
       name: root
