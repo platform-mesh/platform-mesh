@@ -1,0 +1,69 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: release-assets
+
+# Builds the release assets (.goreleaser.yaml: pmctl for every platform, the
+# rendered component-constructor.yaml) without publishing anything, on pull
+# requests that change how they are built. release.yml only runs for a tag, so
+# this is where a broken release configuration shows up before one is pushed.
+#
+# Locally: `task release-snapshot`.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .goreleaser.yaml
+      - .github/workflows/release-assets.yml
+      - Taskfile.yaml
+      - Taskfile.root.yaml
+      - tools/Taskfile.yaml
+      - hack/tools.checksums
+      - hack/release/render-constructor/**
+      - hack/release/get-version/**
+      - component-constructor.yaml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-assets-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-assets:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # tags are needed to derive the version
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true # zizmor: ignore[cache-poisoning]
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build the release assets
+        run: task release-snapshot
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets
+          path: |
+            dist/*.tar.gz
+            dist/*_checksums.txt
+            bin/release/component-constructor.yaml

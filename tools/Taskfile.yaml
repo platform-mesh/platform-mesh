@@ -82,6 +82,10 @@ vars:
   HELM_VERSION: v4.3.1
   HELM: '{{.BIN}}/helm-{{.HELM_VERSION}}'
 
+  # renovate: datasource=github-releases depName=goreleaser/goreleaser
+  GORELEASER_VERSION: 2.20.2
+  GORELEASER: '{{.BIN}}/goreleaser-{{.GORELEASER_VERSION}}'
+
   # renovate: datasource=github-releases depName=mikefarah/yq
   YQ_VERSION: v4.54.1
   YQ: '{{.BIN}}/yq-{{.YQ_VERSION}}'
@@ -249,6 +253,15 @@ tasks:
           source: 'https://get.helm.sh/helm-{VERSION}-{GOOS}-{GOARCH}.tar.gz'
           version: '{{ .HELM_VERSION }}'
           extractArg: '*/helm'
+  goreleaser:
+    desc: Install goreleaser into the root bin (builds the release assets, see .goreleaser.yaml).
+    cmds:
+      - task: uget
+        vars:
+          tool: goreleaser
+          source: 'https://github.com/goreleaser/goreleaser/releases/download/v{VERSION}/goreleaser_{ENV:MY_OS}_{ENV:MY_ARCH}.tar.gz'
+          version: '{{ .GORELEASER_VERSION }}'
+          extractArg: goreleaser
   yq:
     cmds:
       - task: uget

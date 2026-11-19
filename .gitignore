@@ -1,5 +1,7 @@
 # Binaries
 bin/
+# Release assets built by goreleaser (task release-snapshot)
+/dist/
 *.exe
 *.exe~
 *.dll
