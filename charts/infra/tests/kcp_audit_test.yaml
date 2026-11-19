@@ -1,0 +1,72 @@
+set:
+  exposure.baseDomain: example.com
+  exposure.gatewayClassName: traefik
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: Test kcp audit
+release:
+  name: infra
+  namespace: platform-mesh-system
+tests:
+- it: renders no policy ConfigMap by default
+  templates:
+    - kcp/audit-policy.yaml
+  asserts:
+    - hasDocuments:
+        count: 0
+- it: renders the default policy ConfigMap when enabled
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+  templates:
+    - kcp/audit-policy.yaml
+  asserts:
+    - equal:
+        path: metadata.name
+        value: kcp-audit-policy
+    - equal:
+        path: metadata.namespace
+        value: platform-mesh-system
+    - matchRegex:
+        path: data["policy.yaml"]
+        pattern: "level: RequestResponse"
+    - matchRegex:
+        path: data["policy.yaml"]
+        pattern: "omitManagedFields: true"
+- it: renders policy.inline instead of the default
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+      policy:
+        inline:
+          apiVersion: audit.k8s.io/v1
+          kind: Policy
+          rules:
+            - level: Metadata
+  templates:
+    - kcp/audit-policy.yaml
+  asserts:
+    - matchRegex:
+        path: data["policy.yaml"]
+        pattern: "level: Metadata"
+    - notMatchRegex:
+        path: data["policy.yaml"]
+        pattern: "RequestResponse"
+- it: renders no ConfigMap with existingConfigMap
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+      policy:
+        existingConfigMap:
+          name: my-policy
+          key: p.yaml
+  templates:
+    - kcp/audit-policy.yaml
+  asserts:
+    - hasDocuments:
+        count: 0

@@ -71,6 +71,13 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | gatewayApi.passthrough.enabled | bool | `true` | Generate one TLS passthrough listener per kcp hostname (front proxy, root shard, shards). Disable to manage passthrough listeners yourself; kcp TLSRoutes then attach to a listener named "passthrough". |
 | gatewayApi.passthrough.port | string | `nil` | Port of the generated passthrough listeners; empty uses the shared listenerPort or exposure.port |
 | hostAliases.enabled | bool | `false` |  |
+| kcp.audit.enabled | bool | `false` | Enable kcp audit logging on the RootShard and all Shards. Requires at least one backend (log or webhook). Shards can override enabled, log and webhook via kcp.shards[].spec.audit. |
+| kcp.audit.log.enabled | bool | `false` | Write audit events to the shard container's stdout. Events share stdout with kcp's own logs; collectors can select them as JSON lines with "kind":"Event". |
+| kcp.audit.log.format | string | `"json"` | Audit log format, json or legacy |
+| kcp.audit.policy.existingConfigMap | object | `{}` | Existing ConfigMap holding the audit policy, e.g. {name: my-policy, key: policy.yaml}. Takes precedence over inline. Shards are not restarted when it changes; restart them manually. |
+| kcp.audit.policy.inline | object | `{}` | Full audit.k8s.io/v1 Policy replacing the built-in default (a copy of kcp's test-server audit policy, see files/kcp-audit-policy.yaml) |
+| kcp.audit.webhook.configSecretName | string | `""` | Name of a Secret with a kubeconfig describing the audit webhook collector. Required when webhook.enabled is true. Any other kcp-operator AuditWebhookSpec field (mode, batchMaxWait, truncateEnabled, ...) set here is passed through as-is. |
+| kcp.audit.webhook.enabled | bool | `false` | Send audit events to a webhook collector |
 | kcp.auth.adminCert.enabled | bool | `true` |  |
 | kcp.auth.adminCert.privateKey.algorithm | string | `"RSA"` |  |
 | kcp.auth.adminCert.privateKey.size | int | `2048` |  |
