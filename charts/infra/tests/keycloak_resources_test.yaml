@@ -10,7 +10,7 @@ tests:
           path: spec.resources
       - notExists:
           path: spec.unsupported.podTemplate.spec.containers[0].resources
-  - it: sets resources through the supported field for headless installations
+  - it: sets resources through the supported field for Kind installations
     set:
       keycloak.operator.resources:
         requests:

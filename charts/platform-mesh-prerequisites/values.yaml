@@ -1,6 +1,12 @@
 # Set a component to false when it is supplied by the target cluster.
 flux2:
   enabled: true
+  kustomizeController:
+    # -- Enable when deploying Flux Kustomization resources. Platform Mesh uses Helm reconciliation.
+    create: false
+  notificationController:
+    # -- Enable when using Flux Alerts, Providers, or Receivers.
+    create: false
   imageAutomationController:
     # -- Enable Flux image updates when using ImageUpdateAutomation resources. Platform Mesh uses OCM component versions instead.
     create: false
@@ -12,13 +18,12 @@ flux2:
   # admission webhook, so do not install them alongside shared prerequisites.
   policies:
     create: false
-  # Platform Mesh creates several independent HelmReleases.  Some wait for KCP
-  # bootstrap resources, so the default four workers can otherwise starve the
-  # infra release that creates those resources.
+  # Leave workers available for kcp-operator and infra while other full-stack
+  # releases wait for bootstrap resources.
   helmController:
     container:
       additionalArgs:
-        - --concurrent=10
+        - --concurrent=20
 ocm-k8s-toolkit:
   enabled: true
 cert-manager:

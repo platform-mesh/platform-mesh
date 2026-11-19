@@ -12,9 +12,11 @@ Optional infrastructure prerequisites for Platform Mesh
 | cnpg.enabled | bool | `true` |  |
 | etcd-druid.enabled | bool | `true` |  |
 | flux2.enabled | bool | `true` |  |
-| flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=10"` |  |
+| flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=20"` |  |
 | flux2.imageAutomationController.create | bool | `false` | Enable Flux image updates when using ImageUpdateAutomation resources. Platform Mesh uses OCM component versions instead. |
 | flux2.imageReflectionController.create | bool | `false` | Enable Flux image scanning when using ImageRepository or ImagePolicy resources. |
+| flux2.kustomizeController.create | bool | `false` | Enable when deploying Flux Kustomization resources. Platform Mesh uses Helm reconciliation. |
+| flux2.notificationController.create | bool | `false` | Enable when using Flux Alerts, Providers, or Receivers. |
 | flux2.policies.create | bool | `false` |  |
 | keycloak-operator.enabled | bool | `true` |  |
 | localCertificates.caSecretName | string | `"domain-certificate-ca"` |  |
