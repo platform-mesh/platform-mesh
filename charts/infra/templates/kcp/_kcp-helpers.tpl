@@ -160,6 +160,9 @@ authorization:
     configSecretName: {{ .root.Values.kcp.webhook.authorizationWebhookSecretName }}
     version: {{ .root.Values.kcp.webhook.version | default "v1" }}
 {{- end }}
+{{- with (include "kcp.audit.spec" (dict "root" .root "audit" .audit "path" (.auditPath | default "kcp.audit"))) }}
+{{ . }}
+{{- end }}
 {{- with (include "kcp.image.block" .root.Values.kcp.image) }}
 {{ . }}
 {{- end }}
@@ -173,10 +176,17 @@ deploymentTemplate:
       metadata:
         annotations:
           traffic.sidecar.istio.io/excludeOutboundPorts: "{{ .webhookPort }}"
+          {{- if and (.audit).enabled (not ((.root.Values.kcp.audit).policy).existingConfigMap) }}
+          checksum/kcp-audit-policy: {{ include "kcp.audit.policyContent" .root | sha256sum }}
+          {{- end }}
       spec:
         {{- include "common.hostAliases" .root | nindent 8 }}
+{{- $extraArgs := .extraArgs }}
+{{- if and (.audit).enabled ((.audit).log).enabled }}
+{{- $extraArgs = concat (.extraArgs | default list) (list "--audit-log-path=-" (printf "--audit-log-format=%s" (.audit.log.format | default "json"))) }}
+{{- end }}
 extraArgs:
-{{ toYaml .extraArgs | indent 2 }}
+{{ toYaml $extraArgs | indent 2 }}
 {{- end -}}
 
 {{- define "kcp.certificates" -}}

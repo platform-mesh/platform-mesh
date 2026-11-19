@@ -70,3 +70,177 @@ tests:
   asserts:
     - hasDocuments:
         count: 0
+- it: RootShard is unchanged by default
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - notExists:
+        path: spec.audit
+    - notContains:
+        path: spec.extraArgs
+        content: "--audit-log-path=-"
+    - notExists:
+        path: spec.deploymentTemplate.spec.template.metadata.annotations["checksum/kcp-audit-policy"]
+- it: RootShard log backend appends flags and keeps existing extraArgs
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.audit.policy.configMap
+        value:
+          name: kcp-audit-policy
+          key: policy.yaml
+    - notExists:
+        path: spec.audit.webhook
+    - contains:
+        path: spec.extraArgs
+        content: "--feature-gates=WorkspaceAuthentication=true,CacheAPIs=true"
+    - contains:
+        path: spec.extraArgs
+        content: "--audit-log-path=-"
+    - contains:
+        path: spec.extraArgs
+        content: "--audit-log-format=json"
+    - matchRegex:
+        path: spec.deploymentTemplate.spec.template.metadata.annotations["checksum/kcp-audit-policy"]
+        pattern: "^[a-f0-9]{64}$"
+    - equal:
+        path: spec.deploymentTemplate.spec.template.metadata.annotations["traffic.sidecar.istio.io/excludeOutboundPorts"]
+        value: "9443"
+- it: RootShard webhook passes through without the enabled key
+  set:
+    kcp.audit:
+      enabled: true
+      webhook:
+        enabled: true
+        configSecretName: kcp-audit-webhook
+        mode: batch
+        batchMaxWait: 5s
+        truncateEnabled: true
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.audit.webhook
+        value:
+          configSecretName: kcp-audit-webhook
+          mode: batch
+          batchMaxWait: 5s
+          truncateEnabled: true
+    - notContains:
+        path: spec.extraArgs
+        content: "--audit-log-path=-"
+- it: RootShard renders log and webhook together
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+        format: legacy
+      webhook:
+        enabled: true
+        configSecretName: s
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.audit.webhook.configSecretName
+        value: s
+    - contains:
+        path: spec.extraArgs
+        content: "--audit-log-format=legacy"
+- it: RootShard references existingConfigMap and has no checksum
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+      policy:
+        existingConfigMap:
+          name: my-policy
+          key: p.yaml
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.audit.policy.configMap
+        value:
+          name: my-policy
+          key: p.yaml
+    - notExists:
+        path: spec.deploymentTemplate.spec.template.metadata.annotations["checksum/kcp-audit-policy"]
+- it: RootShard checksum changes with the policy
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+      policy:
+        inline:
+          apiVersion: audit.k8s.io/v1
+          kind: Policy
+          rules:
+            - level: Metadata
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - matchRegex:
+        path: spec.deploymentTemplate.spec.template.metadata.annotations["checksum/kcp-audit-policy"]
+        pattern: "^[a-f0-9]{64}$"
+    - notEqual:
+        path: spec.deploymentTemplate.spec.template.metadata.annotations["checksum/kcp-audit-policy"]
+        value: 4c9c4790e144653fc64e9122ffe600118054e2fbb2dfb754beecacf37ad1798a
+- it: fails when audit has no backend
+  set:
+    kcp.audit.enabled: true
+  templates:
+    - kcp/root-shard.yaml
+  asserts:
+    - failedTemplate:
+        errorMessage: "kcp.audit.enabled requires at least one backend: set kcp.audit.log.enabled or kcp.audit.webhook.enabled"
+- it: fails when the webhook has no secret
+  set:
+    kcp.audit:
+      enabled: true
+      webhook:
+        enabled: true
+  templates:
+    - kcp/root-shard.yaml
+  asserts:
+    - failedTemplate:
+        errorMessage: "kcp.audit.webhook.configSecretName is required when kcp.audit.webhook.enabled is true"
+- it: fails on an unknown log format
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+        format: yaml
+  templates:
+    - kcp/root-shard.yaml
+  asserts:
+    - failedTemplate:
+        errorMessage: 'kcp.audit.log.format must be "json" or "legacy"'
