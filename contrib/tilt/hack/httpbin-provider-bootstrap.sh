@@ -41,6 +41,19 @@ kcp() {
     kubectl --kubeconfig "$admin_kubeconfig" --server "$KCP_URL/clusters/$ws" "$@"
 }
 
+# kubectl wait gives up at once, whatever its timeout, while it cannot discover
+# the resource type. kcp restarts shortly after it first reports Available, so
+# wait until it serves workspaces before waiting for one.
+serving=false
+for _ in $(seq 180); do
+    if kcp root get workspaces > /dev/null 2>&1; then
+        serving=true
+        break
+    fi
+    sleep 5
+done
+"$serving" || die "kcp did not serve workspaces in root within 15m"
+
 # --for=jsonpath errors out on a missing object instead of waiting for it.
 kcp root wait workspace/providers --for=create --timeout=15m \
     || die "workspace root:providers was not created"
