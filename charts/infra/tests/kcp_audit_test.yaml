@@ -212,6 +212,7 @@ tests:
         value: 4c9c4790e144653fc64e9122ffe600118054e2fbb2dfb754beecacf37ad1798a
 - it: fails when audit has no backend
   set:
+    kcp.shards: []
     kcp.audit.enabled: true
   templates:
     - kcp/root-shard.yaml
@@ -220,6 +221,7 @@ tests:
         errorMessage: "kcp.audit.enabled requires at least one backend: set kcp.audit.log.enabled or kcp.audit.webhook.enabled"
 - it: fails when the webhook has no secret
   set:
+    kcp.shards: []
     kcp.audit:
       enabled: true
       webhook:
@@ -231,6 +233,7 @@ tests:
         errorMessage: "kcp.audit.webhook.configSecretName is required when kcp.audit.webhook.enabled is true"
 - it: fails on an unknown log format
   set:
+    kcp.shards: []
     kcp.audit:
       enabled: true
       log:
@@ -241,3 +244,143 @@ tests:
   asserts:
     - failedTemplate:
         errorMessage: 'kcp.audit.log.format must be "json" or "legacy"'
+- it: shards inherit the global audit config
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+  templates:
+    - kcp/shards.yaml
+  documentSelector:
+    path: metadata.name
+    value: triton
+  asserts:
+    - equal:
+        path: spec.audit.policy.configMap.name
+        value: kcp-audit-policy
+    - contains:
+        path: spec.extraArgs
+        content: "--audit-log-path=-"
+- it: a shard can opt out
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+    kcp.shards:
+      - name: nereus
+        spec:
+          audit:
+            enabled: false
+      - name: triton
+  templates:
+    - kcp/shards.yaml
+  documentSelector:
+    path: metadata.name
+    value: nereus
+  asserts:
+    - notExists:
+        path: spec.audit
+    - notContains:
+        path: spec.extraArgs
+        content: "--audit-log-path=-"
+    - notExists:
+        path: spec.deploymentTemplate.spec.template.metadata.annotations["checksum/kcp-audit-policy"]
+- it: a shard opt-out does not leak to other shards
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+    kcp.shards:
+      - name: nereus
+        spec:
+          audit:
+            enabled: false
+      - name: triton
+  templates:
+    - kcp/shards.yaml
+  documentSelector:
+    path: metadata.name
+    value: triton
+  asserts:
+    - exists:
+        path: spec.audit
+    - contains:
+        path: spec.extraArgs
+        content: "--audit-log-path=-"
+- it: a shard opt-out does not affect the RootShard
+  set:
+    kcp.audit:
+      enabled: true
+      log:
+        enabled: true
+    kcp.shards:
+      - name: nereus
+        spec:
+          audit:
+            enabled: false
+      - name: triton
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - exists:
+        path: spec.audit
+- it: a single shard can enable audit
+  set:
+    kcp.shards:
+      - name: nereus
+        spec:
+          audit:
+            enabled: true
+            log:
+              enabled: true
+      - name: triton
+  templates:
+    - kcp/shards.yaml
+  documentSelector:
+    path: metadata.name
+    value: nereus
+  asserts:
+    - equal:
+        path: spec.audit.policy.configMap.name
+        value: kcp-audit-policy
+- it: renders the ConfigMap when only a shard enables audit
+  set:
+    kcp.shards:
+      - name: nereus
+        spec:
+          audit:
+            enabled: true
+            log:
+              enabled: true
+      - name: triton
+  templates:
+    - kcp/audit-policy.yaml
+  asserts:
+    - hasDocuments:
+        count: 1
+- it: shard errors name the shard
+  set:
+    kcp.shards:
+      - name: nereus
+        spec:
+          audit:
+            enabled: true
+  templates:
+    - kcp/shards.yaml
+  asserts:
+    - failedTemplate:
+        errorMessage: "kcp.shards[nereus].spec.audit.enabled requires at least one backend: set kcp.shards[nereus].spec.audit.log.enabled or kcp.shards[nereus].spec.audit.webhook.enabled"
+- it: global misconfig is reported as kcp.audit even when a shard renders first
+  set:
+    kcp.audit.enabled: true
+  templates:
+    - kcp/shards.yaml
+  asserts:
+    - failedTemplate:
+        errorMessage: "kcp.audit.enabled requires at least one backend: set kcp.audit.log.enabled or kcp.audit.webhook.enabled"
