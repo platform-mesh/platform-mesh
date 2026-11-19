@@ -69,8 +69,14 @@ audit:
       {{- include "kcp.audit.configMapRef" .root | nindent 6 }}
   {{- $wh := $a.webhook | default dict }}
   {{- if $wh.enabled }}
+  {{- /* omit returns a copy, so the coercion below never touches .Values. */}}
+  {{- $webhook := omit $wh "enabled" }}
+  {{- /* The CRD types batchThrottleQPS as a string; values files may give a number. */}}
+  {{- if hasKey $webhook "batchThrottleQPS" }}
+  {{- $_ := set $webhook "batchThrottleQPS" (toString $webhook.batchThrottleQPS) }}
+  {{- end }}
   webhook:
-    {{- toYaml (omit $wh "enabled") | nindent 4 }}
+    {{- toYaml $webhook | nindent 4 }}
   {{- end }}
 {{- end -}}
 {{- end -}}

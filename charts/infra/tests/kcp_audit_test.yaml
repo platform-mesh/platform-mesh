@@ -387,3 +387,21 @@ tests:
   asserts:
     - failedTemplate:
         errorMessage: "kcp.audit.enabled requires at least one backend: set kcp.audit.log.enabled or kcp.audit.webhook.enabled"
+- it: renders batchThrottleQPS as a string when values give a number
+  set:
+    kcp.shards: []
+    kcp.audit:
+      enabled: true
+      webhook:
+        enabled: true
+        configSecretName: s
+        batchThrottleQPS: 3.1
+  templates:
+    - kcp/root-shard.yaml
+  documentSelector:
+    path: kind
+    value: RootShard
+  asserts:
+    - equal:
+        path: spec.audit.webhook.batchThrottleQPS
+        value: "3.1"
