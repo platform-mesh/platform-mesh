@@ -51,29 +51,31 @@ jobs:
     steps:
       # Pushed and opened as the PM Publisher app so that PR-triggered
       # workflows run without a maintainer approval prompt.
-      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+      - name: Create temporary publisher GitHub token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3
         id: app-token
         with:
           app-id: "1415820"
           private-key: ${{ secrets.PM_PUBLISHER_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
+
       # A second identity satisfies the required review.
-      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+      - name: Create temporary reviewer GitHub token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3
         id: approver-app-token
         with:
           app-id: "4247305"
           private-key: ${{ secrets.PM_APPROVER_PRIVATE_KEY }}
           permission-pull-requests: write
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Set appVersion
+
+      - name: Set Helm appVersion
         id: bump
-        env:
-          CHART: ${{ inputs.chart }}
-          APP_VERSION: ${{ inputs.appVersion }}
-          RELEASE_TOOLS_FROM_PATH: "true"
         run: |
           set -euo pipefail
           hack/charts/set-app-version.sh "$CHART" "$APP_VERSION"
@@ -89,14 +91,14 @@ jobs:
             echo "branch=bump/$CHART-$app_version"
             echo "title=Set appVersion $app_version in $chart_yaml"
           } >> "$GITHUB_OUTPUT"
-      - name: Open PR
+        env:
+          CHART: ${{ inputs.chart }}
+          APP_VERSION: ${{ inputs.appVersion }}
+          RELEASE_TOOLS_FROM_PATH: "true"
+
+      - name: Open Pull Request
         id: pr
         if: steps.bump.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          CHART: ${{ inputs.chart }}
-          BRANCH: ${{ steps.bump.outputs.branch }}
-          TITLE: ${{ steps.bump.outputs.title }}
         run: |
           set -euo pipefail
           git config user.name "Platform Mesh Publisher[bot]"
@@ -119,19 +121,21 @@ jobs:
             echo "Open PR already exists for $BRANCH; skipping create."
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
-      - name: Approve PR
-        if: steps.pr.outputs.url != ''
-        env:
-          GH_TOKEN: ${{ steps.approver-app-token.outputs.token }}
-          PR_URL: ${{ steps.pr.outputs.url }}
-        run: gh pr review "$PR_URL" --approve
-      - name: Close superseded PRs
-        if: steps.pr.outputs.url != ''
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           CHART: ${{ inputs.chart }}
           BRANCH: ${{ steps.bump.outputs.branch }}
+          TITLE: ${{ steps.bump.outputs.title }}
+
+      - name: Approve Pull Request
+        if: steps.pr.outputs.url != ''
+        run: gh pr review "$PR_URL" --approve
+        env:
+          GH_TOKEN: ${{ steps.approver-app-token.outputs.token }}
           PR_URL: ${{ steps.pr.outputs.url }}
+
+      - name: Close superseded Pull Requests
+        if: steps.pr.outputs.url != ''
         run: |
           set -euo pipefail
           # Older bump PRs for the same chart are dead once any of them merges.
@@ -149,3 +153,8 @@ jobs:
               echo "Closing #$number, superseded by $PR_URL"
               gh pr close "$number" --delete-branch --comment "Superseded by $PR_URL."
             done
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          CHART: ${{ inputs.chart }}
+          BRANCH: ${{ steps.bump.outputs.branch }}
+          PR_URL: ${{ steps.pr.outputs.url }}

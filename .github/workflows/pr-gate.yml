@@ -45,13 +45,14 @@ jobs:
       SHA: ${{ github.event.merge_group.head_sha || github.event.pull_request.head.sha }}
       SELF_WORKFLOW: ${{ github.workflow }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-          sparse-checkout: hack/pr-gate.bash
+          sparse-checkout: hack/pr-gate.sh
           sparse-checkout-cone-mode: false
 
-      - name: pr-gate
+      - name: Wait for all jobs to succeed or the first to fail
         run: |
           sleep 30  # let workflows register their checks first
-          hack/pr-gate.bash
+          hack/pr-gate.sh

@@ -52,11 +52,13 @@ jobs:
       contents: read
       packages: read # pull the third-party charts mirrored on ghcr.io
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - name: Setup Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
           cache: true # zizmor: ignore[cache-poisoning]
@@ -82,21 +84,23 @@ jobs:
           done
           exit 1
 
-      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+      - name: Setup Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: $/.github/actions/helm
+      - name: Setup Helm
+        uses: $/.github/actions/helm
         id: helm
 
-      - name: Install kind and tilt
+      - name: Setup kind and tilt
         run: |
           kind="$(UGET_PRINT_PATH=absolute task tools:kind)"
           sudo install -m 0755 "$kind" /usr/local/bin/kind
           kind version
           "$(UGET_PRINT_PATH=absolute task tools:tilt)" version
 
-      - name: Install kubectl oidc-login plugin
+      - name: Setup kubectl oidc-login plugin
         # The account-kubeconfig e2e runs kubectl with the downloaded OIDC kubeconfig.
         run: |
           set -euo pipefail
@@ -106,7 +110,8 @@ jobs:
           export PATH="$HOME/.krew/bin:$PATH"
           kubectl krew install oidc-login
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '26'
           cache: 'npm'

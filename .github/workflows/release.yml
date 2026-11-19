@@ -48,8 +48,6 @@ jobs:
     steps:
       - name: Resolve version from the tag
         id: v
-        env:
-          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           version="${TAG#v}"
@@ -58,6 +56,8 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
           echo "Releasing Platform Mesh $version (prerelease: $prerelease)" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          TAG: ${{ github.ref_name }}
 
   publish:
     needs: version
@@ -82,26 +82,33 @@ jobs:
     env:
       TAG: ${{ github.ref_name }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
           fetch-depth: 0 # release notes compare against the previous tag
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+
+      - name: Setup Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
           cache: false # Do not restore CI caches in a release job with write access.
-      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+
+      - name: Setup Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      # Outside the checkout: goreleaser refuses to release from a dirty tree.
-      - name: Release notes
+
+      - name: Generate release notes
+        # Outside the checkout: goreleaser refuses to release from a dirty tree.
+        run: go run ./hack/release/release-notes --end "$TAG" > "$RUNNER_TEMP/release-notes.md"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # raises the API rate limit
-        run: go run ./hack/release/release-notes --end "$TAG" > "$RUNNER_TEMP/release-notes.md"
+
       # Builds pmctl for every platform, renders component-constructor.yaml and
       # creates the release with both attached (.goreleaser.yaml).
-      - name: Create GitHub release with its assets
+      - name: Create GitHub release
+        run: task release-publish VERSION="$TAG" NOTES="$RUNNER_TEMP/release-notes.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
-        run: task release-publish VERSION="$TAG" NOTES="$RUNNER_TEMP/release-notes.md"
