@@ -289,8 +289,12 @@ func (s *Service) GetUsersByEmails(ctx context.Context, emails []string) (map[st
 	return result, nil
 }
 
+// maxConsecutivePageFailures stops fetchAllUsers when Keycloak keeps failing
+const maxConsecutivePageFailures = 3
+
 // fetchAllUsers retrieves all users from Keycloak using pagination
-// Caches individual users by email and uses best effort error handling
+// Caches individual users by email and skips failed pages, giving up after
+// maxConsecutivePageFailures failed pages in a row
 func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.User, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
@@ -298,6 +302,7 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 	var failedPages []int
 	pageSize := s.cfg.Keycloak.PageSize
 	var currentPage = 0
+	consecutiveFailures := 0
 
 	log.Debug().
 		Str("realm", realm).
@@ -305,6 +310,10 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 		Msg("Starting to fetch all users from Keycloak")
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		// Calculate offset for current page
 		first := currentPage * pageSize
 
@@ -326,6 +335,13 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 		// Query users for current page
 		resp, err := s.keycloakClient.GetUsersWithResponse(ctx, realm, params)
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			consecutiveFailures++
+			if consecutiveFailures >= maxConsecutivePageFailures {
+				return nil, errors.Wrap(err, "giving up after %d failed user pages in a row", consecutiveFailures)
+			}
 			log.Err(err).
 				Int("page", currentPage).
 				Msg("Failed to fetch users page, continuing with next page")
@@ -335,6 +351,10 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 		}
 
 		if resp.StatusCode() != http.StatusOK {
+			consecutiveFailures++
+			if consecutiveFailures >= maxConsecutivePageFailures {
+				return nil, errors.New("giving up after %d failed user pages in a row, last status %d", consecutiveFailures, resp.StatusCode())
+			}
 			log.Error().
 				Int("status_code", resp.StatusCode()).
 				Int("page", currentPage).
@@ -343,6 +363,7 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 			currentPage++
 			continue
 		}
+		consecutiveFailures = 0
 
 		if resp.JSON200 == nil {
 			log.Debug().Int("page", currentPage).Msg("No users returned, pagination complete")
