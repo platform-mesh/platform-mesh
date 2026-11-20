@@ -28,10 +28,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pmaccessproto "go.platform-mesh.io/protocol/access"
-	pmaccessv1 "go.platform-mesh.io/protocol/access/v1"
-	accessv1alpha1 "go.platform-mesh.io/sdk/access/apis/v1alpha1"
-	"go.platform-mesh.io/sdk/access/pkg/server"
+	pmaccessproto "go.platform-mesh.io/sdk-access-server/client"
+	pmaccessv1 "go.platform-mesh.io/sdk-access-server/client/v1"
+	accessv1alpha1 "go.platform-mesh.io/apis/sdk-access/v1alpha1"
+	"go.platform-mesh.io/sdk-access-server/pkg/server"
 	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	corev1 "k8s.io/api/core/v1"

@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	pmaccessv1alpha1 "go.platform-mesh.io/apis/access/v1alpha1"
-	pmaccessproto "go.platform-mesh.io/protocol/access"
+	pmaccessproto "go.platform-mesh.io/sdk-access-server/client"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

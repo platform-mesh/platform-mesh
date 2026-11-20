@@ -1,0 +1,107 @@
+crds:
+  # Install CRDs as a subchart of this release. Default off: the
+  # sdk-access-crds chart is expected to be installed
+  # once, independently, so controller + server releases can coexist
+  # without racing to own the CRDs. Flip to true for single-chart dev
+  # installs.
+  enabled: false
+
+image:
+  # -- Image registry.
+  registry: ghcr.io
+  # -- Image repository (without registry).
+  repository: platform-mesh/platform-mesh/sdk-access-server
+  # -- Image digest (when set, overrides tag: registry/repository@digest).
+  digest: ""
+
+# -- Optional URL path prefix under which /versions and /vN/access are
+# mounted. Leave empty for root. Use when fronting the server with an
+# ingress that preserves a prefix on the request path (e.g.
+# "/platform-mesh" to serve at https://host/platform-mesh/{versions,v1/access}).
+pathPrefix: ""
+
+# -- Port the /access listener binds to inside the Pod. Exposed
+# externally via the Service below.
+accessPort: 8443
+
+tls:
+  # -- Serve /access over TLS at the Pod. Set to false when TLS
+  # termination happens upstream (ingress / gateway) and the Pod
+  # should listen on plain HTTP. When false, no Certificate is issued
+  # and no cert volume is mounted.
+  enabled: true
+  # -- Name of the cert-manager Certificate / resulting Secret holding
+  # the TLS cert+key for /access. Created by the chart below.
+  secretName: platform-mesh-access-tls
+  # -- DNS names covered by the TLS cert. At minimum the service
+  # DNS name should be here; add external hostnames (if ingress is used)
+  # to the list.
+  dnsNames:
+    - platform-mesh-access.platform-mesh-system.svc
+  # -- IP addresses covered by the TLS cert.
+  ipAddresses: []
+  # -- cert-manager ClusterIssuer used to issue the Certificate. Leave
+  # empty to skip Certificate creation (user mounts an externally
+  # managed Secret under the configured secretName).
+  issuerRef: ""
+
+service:
+  # -- Service type exposing /access to access-operator. ClusterIP works
+  # for in-cluster deployments; LoadBalancer / NodePort for cross-cluster
+  # reachability.
+  type: ClusterIP
+  # -- Static NodePort to pin when service.type is NodePort. Leave unset
+  # to let Kubernetes assign one from the service-node-port-range.
+  nodePort: ""
+
+# -- Optional Gateway API HTTPRoute exposing /access through a cluster
+# Gateway. The HTTPRoute and the Service must live in the same namespace.
+# Users supply the Gateway themselves (shared or dedicated).
+httpRoute:
+  enabled: false
+  # -- Hostnames the route matches. Leave empty to match any host on
+  # the selected Gateway listener.
+  hostnames: []
+  # -- Gateways the route attaches to.
+  parentRefs: []
+  # - group: gateway.networking.k8s.io
+  #   kind: Gateway
+  #   name: shared
+  #   namespace: platform-mesh-system
+  # -- Path prefix matched by the route. "/" catches all paths; set to
+  # e.g. "/pm" to share a Gateway with other services. The server honors
+  # any path prefix in --path-prefix, so no URL rewrite is needed.
+  pathPrefix: /
+  # -- Optional filters (e.g. URLRewrite, RequestHeaderModifier).
+  filters: []
+  # -- Optional ReferenceGrant permitting HTTPRoutes from another
+  # namespace to backendRef this chart's Service. Only needed when the
+  # HTTPRoute is created in a different namespace than this release.
+  referenceGrant:
+    enabled: false
+    fromNamespace: ""
+
+# -- Optional classic Ingress exposing /access, for clusters without
+# Gateway API. The Ingress and the Service must live in the same namespace.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  # - host: access.example.com
+  #   paths:
+  #     - path: /
+  #       pathType: Prefix
+  tls: []
+  # - hosts:
+  #     - access.example.com
+  #   secretName: access-tls
+
+security:
+  mountServiceAccountToken: true
+
+deployment:
+  specTemplate:
+    annotations: {}
+    labels: {}
+  replicas: 1

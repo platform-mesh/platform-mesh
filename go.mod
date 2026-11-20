@@ -12,6 +12,8 @@ replace (
 	go.platform-mesh.io/kubernetes-graphql-gateway => ./services/kubernetes-graphql-gateway
 	go.platform-mesh.io/pm-openfga-operator => ./operators/pm-openfga-operator
 	go.platform-mesh.io/resource-broker => ./operators/resource-broker
+	go.platform-mesh.io/sdk-access-operator => ./operators/sdk-access-operator
+	go.platform-mesh.io/sdk-access-server => ./services/sdk-access-server
 	go.platform-mesh.io/subroutines => ./subroutines
 )
 

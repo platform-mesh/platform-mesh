@@ -1,0 +1,29 @@
+crds:
+  # Install CRDs as a subchart of this release. Default off: the
+  # sdk-access-crds chart is expected to be installed
+  # once, independently, so controller + server releases can coexist
+  # without racing to own the CRDs. Flip to true for single-chart dev
+  # installs.
+  enabled: false
+
+image:
+  # -- Image registry.
+  registry: ghcr.io
+  # -- Image repository (without registry).
+  repository: platform-mesh/platform-mesh/sdk-access-operator
+  # -- Image digest (when set, overrides tag: registry/repository@digest).
+  digest: ""
+
+security:
+  mountServiceAccountToken: true
+
+deployment:
+  specTemplate:
+    annotations: {}
+    labels: {}
+  replicas: 1
+
+operator:
+  # -- Enable leader election so only one replica mints tokens at a
+  # time. Keep on in production; safe to leave on with replicas=1.
+  leaderElect: true

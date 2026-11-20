@@ -25,9 +25,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	accessv1alpha1 "go.platform-mesh.io/sdk/access/apis/v1alpha1"
-	accessctrl "go.platform-mesh.io/sdk/access/pkg/controller/access"
-	identityctrl "go.platform-mesh.io/sdk/access/pkg/controller/accessidentity"
+	accessv1alpha1 "go.platform-mesh.io/apis/sdk-access/v1alpha1"
+	accessctrl "go.platform-mesh.io/sdk-access-operator/pkg/controller/access"
+	identityctrl "go.platform-mesh.io/sdk-access-operator/pkg/controller/accessidentity"
 	"go.platform-mesh.io/platform-mesh/tests/framework/fixtures"
 	"go.platform-mesh.io/platform-mesh/tests/framework/kcp"
 	"go.platform-mesh.io/platform-mesh/tests/framework/scheme"

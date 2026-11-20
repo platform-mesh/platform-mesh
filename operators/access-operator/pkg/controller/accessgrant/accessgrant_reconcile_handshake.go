@@ -27,8 +27,8 @@ import (
 
 	pmaccessv1alpha1 "go.platform-mesh.io/apis/access/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
-	pmaccessproto "go.platform-mesh.io/protocol/access"
-	pmaccessv1 "go.platform-mesh.io/protocol/access/v1"
+	pmaccessproto "go.platform-mesh.io/sdk-access-server/client"
+	pmaccessv1 "go.platform-mesh.io/sdk-access-server/client/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
