@@ -22,6 +22,7 @@ import (
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/merge"
+
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
