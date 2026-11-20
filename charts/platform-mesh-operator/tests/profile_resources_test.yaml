@@ -1,0 +1,55 @@
+suite: Installation profile resource budgets
+templates:
+  - installation-profile.yaml
+set:
+  ocm.enabled: true
+  gateway.baseDomain: portal.localhost
+  gateway.clusterIP: 10.96.188.4
+tests:
+  - it: reduces Kind backend requests while retaining frontend components
+    set:
+      ocm.profile: kind
+    asserts:
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'cacheServer:\n\s+replicas: 1\n\s+proxy:\n\s+replicas: 1'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'rootShard:\n\s+resources:\n\s+requests:\n\s+cpu: 250m\n\s+memory: 1Gi'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'httpEnabled: true\n\s+resources:\n\s+requests:\n\s+memory: 1Gi\n\s+limits:\n\s+memory: 2Gi'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'etcd:\n\s+resources:\n\s+requests:\n\s+memory: 128Mi\n\s+backup:\n\s+resources:\n\s+requests:\n\s+memory: 64Mi'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'cpu: 75m\n\s+memory: 64Mi'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?m)^    portal:\n(?:      .*\n)*      enabled: true$'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?m)^    kubernetes-graphql-gateway:\n(?:      .*\n)*      enabled: true$'
+  - it: retains production resource defaults and the multi-shard topology
+    set:
+      ocm.profile: production
+    asserts:
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'resources:|cacheServer:|(?m)^              proxy:'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'name: nereus\n\s+hostname: nereus\.kcp\.'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: 'name: triton\n\s+hostname: triton\.kcp\.'
+      - matchRegex:
+          path: data["profile.yaml"]
+          pattern: '(?m)^    portal:\n(?:      .*\n)*      enabled: true$'
+  - it: rejects the removed headless profile
+    set:
+      ocm.profile: kind-headless
+    asserts:
+      - failedTemplate:
+          errorMessage: 'unknown ocm.profile "kind-headless": no files/kind-headless-profile.yaml exists'

@@ -53,13 +53,6 @@ keycloak operator enabled renders all resources:
                     port: 9000
                   initialDelaySeconds: 0
                   periodSeconds: 10
-                resources:
-                  limits:
-                    cpu: "2"
-                    memory: 2Gi
-                  requests:
-                    cpu: 750m
-                    memory: 1Gi
                 startupProbe:
                   failureThreshold: 600
                   httpGet:

@@ -1,3 +1,23 @@
+## Installation profiles
+
+`production` uses public DNS and the production topology. `kind` uses smaller
+backend resource requests and one cache/proxy replica for local development.
+Both include frontend components.
+
+Disable optional components through `PlatformMesh.spec.values.services`:
+
+```yaml
+spec:
+  values:
+    services:
+      portal:
+        enabled: false
+```
+
+Use the same `enabled` setting for other services. When disabling
+`extension-manager-virtual-workspace` or `marketplace`, remove their matching
+`infra.values.kcp.frontProxy.additionalPathMappings` entries.
+
 ## Profile lifecycle
 
 With `ocm.enabled=true`, Helm creates `platform-mesh-profile` once during install,

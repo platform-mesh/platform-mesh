@@ -1,0 +1,22 @@
+suite: Optional Flux controllers
+templates:
+  - charts/flux2/templates/kustomize-controller.yaml
+  - charts/flux2/templates/notification-controller.yaml
+  - charts/flux2/templates/image-automation-controller.yaml
+  - charts/flux2/templates/image-reflector-controller.yaml
+tests:
+  - it: omits optional controllers by default
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: allows an installation to opt into optional controllers
+    set:
+      flux2.kustomizeController.create: true
+      flux2.notificationController.create: true
+      flux2.imageAutomationController.create: true
+      flux2.imageReflectionController.create: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
