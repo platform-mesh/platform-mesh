@@ -1,6 +1,0 @@
-apiVersion: v2
-name: platform-mesh-sdk-access-crds
-description: A Helm chart to deploy access SDK CRDs on a user-side cluster.
-type: application
-version: 0.0.0
-appVersion: "0.0.0"

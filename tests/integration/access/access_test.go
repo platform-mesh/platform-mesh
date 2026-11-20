@@ -24,7 +24,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	accessv1alpha1 "go.platform-mesh.io/sdk/access/apis/v1alpha1"
+	accessv1alpha1 "go.platform-mesh.io/apis/sdk-access/v1alpha1"
 	"go.platform-mesh.io/platform-mesh/tests/framework/wait"
 
 	authv1 "k8s.io/api/authentication/v1"

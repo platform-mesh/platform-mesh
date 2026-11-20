@@ -32,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	pmaccessproto "go.platform-mesh.io/protocol/access"
+	pmaccessproto "go.platform-mesh.io/sdk-access-server/client"
 )
 
 // saTokenSecretName derives the Secret name access-operator uses to

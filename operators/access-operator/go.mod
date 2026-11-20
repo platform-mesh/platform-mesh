@@ -4,7 +4,7 @@ go 1.26.10
 
 replace go.platform-mesh.io/apis => ../../apis
 
-replace go.platform-mesh.io/protocol => ../../protocol
+replace go.platform-mesh.io/sdk-access-server => ../../services/sdk-access-server
 
 require (
 	github.com/go-logr/logr v1.4.4
@@ -14,8 +14,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	go.platform-mesh.io/apis v0.0.0-00010101000000-000000000000
 	go.platform-mesh.io/golang-commons v0.20.0
-	go.platform-mesh.io/protocol v0.0.0-00010101000000-000000000000
-	go.platform-mesh.io/subroutines v0.7.0
+	go.platform-mesh.io/sdk-access-server v0.0.0-00010101000000-000000000000
 	k8s.io/api v0.37.0
 	k8s.io/apimachinery v0.37.0
 	k8s.io/client-go v0.37.0
@@ -67,7 +66,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/onsi/gomega v1.44.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.25.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
@@ -85,6 +83,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.45.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
+	go.platform-mesh.io/subroutines v0.7.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.62.0 // indirect

@@ -31,7 +31,7 @@ COPY go.work.sum go.work.sum
 COPY apis/ apis/
 COPY golang-commons/ golang-commons/
 COPY subroutines/ subroutines/
-COPY protocol/ protocol/
+COPY services/sdk-access-server/ services/sdk-access-server/
 COPY operators/access-operator/ operators/access-operator/
 
 # Drop every workspace module except the ones copied above, so the workspace
@@ -40,7 +40,7 @@ COPY operators/access-operator/ operators/access-operator/
 # dropped modules don't need to exist in the build context.
 RUN for m in $(go work edit -json | sed -n 's/.*"DiskPath": "\(.*\)".*/\1/p'); do \
       case "$m" in \
-        ./apis|./golang-commons|./subroutines|./protocol|./operators/access-operator) ;; \
+        ./apis|./golang-commons|./subroutines|./services/sdk-access-server|./operators/access-operator) ;; \
         *) go work edit -dropuse "$m" ;; \
       esac; \
     done

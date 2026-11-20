@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	pmaccessv1alpha1 "go.platform-mesh.io/apis/access/v1alpha1"
-	pmaccessproto "go.platform-mesh.io/protocol/access"
+	pmaccessproto "go.platform-mesh.io/sdk-access-server/client"
 
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
