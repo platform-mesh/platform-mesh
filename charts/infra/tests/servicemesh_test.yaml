@@ -1,3 +1,6 @@
+set:
+  exposure.baseDomain: example.com
+  exposure.gatewayClassName: traefik
 suite: Test service-mesh manifests
 templates:
   - keycloak/httproute.yaml
@@ -55,8 +58,6 @@ tests:
     gatewayApi:
       enabled: true
     kcp:
-      external:
-        hostname: kcp.api.example.com
       rootShard:
         hostname: root.kcp.example.com
       shards:
@@ -78,7 +79,7 @@ tests:
       path: spec.listeners
       content:
         name: passthrough-nereus
-        hostname: nereus.kcp.kcp.api.example.com
+        hostname: nereus.kcp.example.com
       any: true
 - it: leaves passthrough listeners to the user when generation is disabled
   templates:
@@ -94,19 +95,6 @@ tests:
       content:
         protocol: TLS
       any: true
-- it: fails when a user listener collides with a generated passthrough listener
-  templates:
-  - gatewayapi/gateway.yaml
-  set:
-    gatewayApi:
-      enabled: true
-      listenersExtra:
-      - name: passthrough
-        port: 8443
-        protocol: TLS
-  asserts:
-  - failedTemplate:
-      errorPattern: generated from the kcp hostnames
 - it: keycloak operator disabled by default
   templates:
   - keycloak/db-secret.yaml
@@ -163,3 +151,23 @@ tests:
   - equal:
       path: spec.truststores.domain-ca.secret.name
       value: domain-certificate-ca
+- it: renders the Keycloak serving path with the public port
+  set:
+    keycloak.operator.enabled: true
+    exposure.port: 8443
+  asserts:
+  - template: keycloak/keycloak.yaml
+    equal:
+      path: spec.hostname.hostname
+      value: https://example.com:8443/keycloak
+  template: keycloak/keycloak.yaml
+- it: retains an explicit Keycloak advertised URL
+  set:
+    keycloak.operator.enabled: true
+    keycloak.operator.hostname: https://identity.example.net/keycloak
+  asserts:
+  - template: keycloak/keycloak.yaml
+    equal:
+      path: spec.hostname.hostname
+      value: https://identity.example.net/keycloak
+  template: keycloak/keycloak.yaml

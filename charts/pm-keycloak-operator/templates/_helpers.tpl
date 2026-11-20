@@ -15,12 +15,22 @@ Feature gate arguments from .Values.featureGates.
 Keycloak connection arguments shared by every command.
 */}}
 {{- define "pm-keycloak-operator.keycloakArgs" -}}
-{{- with .Values.keycloak.baseUrl }}
-- --keycloak-base-url={{ . }}
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
+{{/* Omit HTTP :80 and HTTPS :443 to preserve advertised URLs and OIDC issuer strings. */}}
+{{- $standardPort := 443 -}}
+{{- if eq .Values.exposure.protocol "http" -}}
+  {{- $standardPort = 80 -}}
+{{- end -}}
+{{- $portSuffix := "" -}}
+{{- if ne (int .Values.exposure.port) $standardPort -}}
+  {{- $portSuffix = printf ":%d" (int .Values.exposure.port) -}}
+{{- end -}}
+{{- if .Values.keycloak.baseUrl }}
+- {{ printf "--keycloak-base-url=%s" .Values.keycloak.baseUrl | quote }}
+{{- else }}
+- "--keycloak-base-url={{ .Values.exposure.protocol }}://{{ .Values.exposure.baseDomain }}{{ $portSuffix }}/keycloak"
 {{- end }}
-{{- with .Values.baseDomain }}
-- --base-domain={{ . }}
-{{- end }}
+- "--base-domain={{ .Values.exposure.baseDomain }}{{ $portSuffix }}"
 {{- end -}}
 
 {{/*

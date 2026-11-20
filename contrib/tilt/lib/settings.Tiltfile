@@ -104,14 +104,12 @@ KCP_URL = "https://kcp.api." + BASE_DOMAIN_PORT
 # external port, so it is the NodePort here (the kind install has 8443 twice).
 KCP_FRONT_PROXY_URL = "https://frontproxy-front-proxy.{}:{}".format(NAMESPACE, PORT)
 
-# Values the kind-profile templates with (pkg/subroutines/subroutine_helpers.go
-# getExposureParams), plus the __PLACEHOLDER__ tokens the PMO chart replaces.
-# gatewayClusterIP only feeds hostAliases, which are dropped.
+# Runtime inputs for the shared chart contract and the remaining static-asset
+# templates. Tilt disables the kind profile's retained host aliases.
 TEMPLATE_VARS = {
     "baseDomain": BASE_DOMAIN,
     "baseDomainPort": BASE_DOMAIN_PORT,
     "port": str(PORT),
-    "gatewayClusterIP": "",
     "internalFrontProxyUrl": KCP_FRONT_PROXY_URL,
     "gatewayClassName": "traefik",
 }

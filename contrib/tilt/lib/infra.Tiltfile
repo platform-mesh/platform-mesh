@@ -27,7 +27,6 @@ load(
     "DEX_ISSUER",
     "DEX_USERS",
     "NAMESPACE",
-    "PORT",
     "TEMPLATE_VARS",
 )
 
@@ -118,15 +117,12 @@ def infra_blob(ctx):
     """The rendered chart, reduced to the selected components; applied on first use."""
     if "infra" not in ctx.cache:
         # Second shard, exercised by the e2e tests only.
-        shards = [{"name": "triton", "hostname": KCP_TRITON_HOSTNAME, "spec": {"resources": NO_REQUESTS}}]
+        shards = [{"name": "triton", "spec": {"resources": NO_REQUESTS}}]
         overrides = {
-            # The profile's 8443 literals mean "external port"; here that is the NodePort.
+            # Traefik exposes 8443; public URLs use the NodePort in the contract.
+            "gatewayApi": {"listenerPort": 8443},
             "kcp": {
-                "external": {"port": PORT},
-                "rootShard": {
-                    "shardBaseURL": "https://{}:{}/".format(KCP_ROOT_HOSTNAME, PORT),
-                    "resources": NO_REQUESTS,
-                },
+                "rootShard": {"resources": NO_REQUESTS},
                 "shards": shards if ctx.selected("kcp-triton") else [],
                 # kcp-operator defaults both to 2; one is enough on a single node.
                 "proxy": {"replicas": 1},

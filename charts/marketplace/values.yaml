@@ -16,8 +16,6 @@ image:
 deployment:
   # -- Label on an APIExport naming the ProviderMetadata it belongs to.
   contentForLabel: ui.platform-mesh.io/content-for
-  # -- URL of the kcp front-proxy service. The port must match front-proxy service port.
-  serverUrl: https://frontproxy-front-proxy.platform-mesh-system:8443
   # -- APIExportEndpointSlice through which ProviderMetadata and APIExports of all providers are read.
   resourceSchemaExportName: ui.platform-mesh.io
 
@@ -68,3 +66,7 @@ cert:
 #         target:
 #           type: Utilization
 #           averageUtilization: 80
+
+kcp:
+  # -- Required kcp front-proxy root URL supplied by the operator; used for cluster-aware clients.
+  internalFrontProxyUrl: ""

@@ -3,6 +3,10 @@
 A Helm chart containing reuse templates
 
 ![Type: library](https://img.shields.io/badge/Type-library-informational?style=flat-square)
+Runtime exposure is supplied by the platform-mesh operator and consumed directly by each chart.
+See the [Helm runtime contract](../../docs/deployment/helm-runtime-contract.md) for the inputs,
+inline URL examples, and values migration. The common chart provides no exposure resolver helpers.
+
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|

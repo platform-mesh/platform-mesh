@@ -523,6 +523,9 @@ match the Snapshot:
       name: platform-mesh-kubernetes-graphql-gateway
       namespace: platform-mesh-system
     spec:
+      hostnames:
+        - example.com
+        - '*.example.com'
       parentRefs:
         - name: k8sapi-gateway
       rules:
@@ -1143,6 +1146,9 @@ match the Snapshot with crds:
       name: platform-mesh-kubernetes-graphql-gateway
       namespace: platform-mesh-system
     spec:
+      hostnames:
+        - example.com
+        - '*.example.com'
       parentRefs:
         - name: k8sapi-gateway
       rules:

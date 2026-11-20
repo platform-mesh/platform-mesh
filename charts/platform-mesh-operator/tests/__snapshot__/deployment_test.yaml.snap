@@ -27,6 +27,7 @@ configure extraVolumes and extraVolumeMounts:
           containers:
             - args:
                 - operator
+                - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
@@ -121,6 +122,7 @@ configure hosAliases:
           containers:
             - args:
                 - operator
+                - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
@@ -215,6 +217,7 @@ deployment with tracing:
           containers:
             - args:
                 - operator
+                - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
@@ -308,6 +311,7 @@ disables istio sidecar injection:
           containers:
             - args:
                 - operator
+                - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
@@ -397,6 +401,7 @@ enable remote PlatformMesh and Infra:
           containers:
             - args:
                 - operator
+                - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
@@ -512,6 +517,7 @@ enables istio sidecar injection:
           containers:
             - args:
                 - operator
+                - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
@@ -779,6 +785,7 @@ operator match the snapshot:
           containers:
             - args:
                 - operator
+                - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090

@@ -1,3 +1,4 @@
+{{- $_ := required "kcp.internalFrontProxyUrl is required" .Values.kcp.internalFrontProxyUrl -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -52,9 +53,7 @@ spec:
           {{- with .Values.deployment.contentForLabel }}
           - --content-for-label={{ . }}
           {{- end }}
-          {{- with .Values.deployment.serverUrl }}
-          - --server-url={{ . }}
-          {{- end }}
+          - "--server-url={{ .Values.kcp.internalFrontProxyUrl }}"
           {{- with .Values.deployment.resourceSchemaName }}
           - --resource-schema-name={{ . }}
           {{- end }}

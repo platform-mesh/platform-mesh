@@ -1,3 +1,13 @@
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
+{{/* Omit HTTP :80 and HTTPS :443 to preserve advertised URLs and OIDC issuer strings. */}}
+{{- $standardPort := 443 -}}
+{{- if eq .Values.exposure.protocol "http" -}}
+  {{- $standardPort = 80 -}}
+{{- end -}}
+{{- $portSuffix := "" -}}
+{{- if ne (int .Values.exposure.port) $standardPort -}}
+  {{- $portSuffix = printf ":%d" (int .Values.exposure.port) -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -23,14 +33,18 @@ spec:
         {{- include "common.container.securityContext" . | indent 8 }}
         env:
         - name: HTTP_PROTOCOL
-          value: {{ .Values.http.protocol }}
+          value: {{ .Values.exposure.protocol | quote }}
         {{- with .Values.auth.default }}
         - name: DISCOVERY_ENDPOINT
-          value: {{ .discoveryUrl }}
+          {{- if .discoveryUrl }}
+          value: {{ .discoveryUrl | quote }}
+          {{- else }}
+          value: "{{ $.Values.exposure.protocol }}://{{ $.Values.exposure.baseDomain }}{{ $portSuffix }}/keycloak/realms/${org-name}/.well-known/openid-configuration"
+          {{- end }}
         - name: OIDC_CLIENT_ID_DEFAULT
           value: {{ .clientId }}
         - name: BASE_DOMAINS_DEFAULT
-          value: {{ .baseDomain }}
+          value: {{ $.Values.exposure.baseDomain | quote }}
         {{- end }}
         {{- if .Values.developmentLandcsape }}
         - name: DEVELOPMENT_INSTANCE
@@ -54,14 +68,10 @@ spec:
           value: "{{ .Chart.AppVersion }}"
         - name: IMAGE_NAME
           value: "{{ include "common.image.name" . }}"
-        {{- if .Values.cookieDomain }}
         - name: COOKIE_DOMAIN
-          value: {{ .Values.cookieDomain }}
-        {{- end }}
-        {{- if .Values.frontendPort }}
+          value: {{ .Values.exposure.baseDomain | quote }}
         - name: FRONTEND_PORT
-          value: "{{ .Values.frontendPort }}"
-        {{- end }}
+          value: {{ .Values.exposure.port | quote }}
         {{- if .Values.environment }}
         - name: ENVIRONMENT
           value: "{{ .Values.environment }}"
@@ -69,6 +79,18 @@ spec:
         {{- if .Values.validWebcomponentUrls }}
         - name: VALID_WEBCOMPONENT_URLS
           value: '{{ .Values.validWebcomponentUrls }}'
+        {{- end }}
+        {{- $envNames := list }}
+        {{- range .Values.extraEnvVars }}
+          {{- $envNames = append $envNames .name }}
+        {{- end }}
+        {{- if not (has "OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL" $envNames) }}
+        - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+          value: "{{ .Values.exposure.protocol }}://${org-subdomain}{{ .Values.exposure.baseDomain }}{{ $portSuffix }}/iam/graphql"
+        {{- end }}
+        {{- if not (has "OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL" $envNames) }}
+        - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+          value: "{{ .Values.exposure.protocol }}://${org-subdomain}{{ .Values.exposure.baseDomain }}{{ $portSuffix }}/gateway/api/clusters/root:orgs:${org-name}/graphql"
         {{- end }}
         {{ range .Values.extraEnvVars }}
         - name: {{ .name }}

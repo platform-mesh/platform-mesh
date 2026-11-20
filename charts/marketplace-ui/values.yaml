@@ -21,6 +21,8 @@ health:
 gatewayApi:
   enabled: false
   httpRoute:
+    # -- Explicit route hostnames; empty uses exposure.baseDomain and its wildcard.
+    hostnames: []
     pathPrefix: /ui/marketplace
     parentRefs:
     - name: k8sapi-gateway
@@ -28,5 +30,5 @@ gatewayApi:
     filters: []
 
 exposure:
-  # -- hostnames to be used for exposure
-  hostnames: []
+  # -- Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure.
+  baseDomain: ""

@@ -1,4 +1,5 @@
 {{- if .Values.gatewayApi.enabled }}
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
 apiVersion: gateway.networking.k8s.io/v1
 kind: TLSRoute
 metadata:
@@ -6,7 +7,7 @@ metadata:
   namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
 spec:
   hostnames:
-  - {{ .Values.kcp.external.hostname }}
+  - "kcp.api.{{ .Values.exposure.baseDomain }}"
   parentRefs:
   - group: gateway.networking.k8s.io
     kind: Gateway
@@ -18,5 +19,5 @@ spec:
       kind: Service
       name: frontproxy-front-proxy
       namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
-      port: {{ .Values.kcp.external.port }}
+      port: {{ .Values.kcp.external.port | default .Values.exposure.port }}
 {{- end }}

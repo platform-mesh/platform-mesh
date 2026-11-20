@@ -16,7 +16,7 @@ or on the command line:
 
   --set gateway.clusterIP=%s
 
-gateway.clusterIP is the ClusterIP of your gateway controller Service. It is only
-needed with ocm.profile=kind. The GatewayClass is selected with gateway.className.
+gateway.clusterIP is the ClusterIP of your gateway controller Service. It is
+required with ocm.profile=kind for host aliases. The GatewayClass is selected with gateway.className.
 ` (toString .Values.gateway.traefikClusterIP) (toString .Values.gateway.traefikClusterIP)) }}
 {{- end }}
