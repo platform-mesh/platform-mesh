@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Binary sdk-access-operator runs the user-side AccessIdentity
-// reconciler. It mints the HMAC token + Secret for each AccessIdentity
-// and keeps its Ready/status condition in sync. Deployed as a separate
-// workload from the /access HTTP server (sdk-access-server).
-package main
+// Package cmd is the entry point of sdk-access-operator: the user-side
+// AccessIdentity reconciler that mints the HMAC token + Secret and keeps
+// its Ready status in sync. The /access HTTP server lives in a separate
+// workload (sdk-access-server).
+package cmd
 
 import (
 	"fmt"
@@ -26,8 +26,8 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"go.platform-mesh.io/golang-commons/logger"
 	accessv1alpha1 "go.platform-mesh.io/apis/sdk-access/v1alpha1"
+	"go.platform-mesh.io/golang-commons/logger"
 	accessctrl "go.platform-mesh.io/sdk-access-operator/pkg/controller/access"
 	identityctrl "go.platform-mesh.io/sdk-access-operator/pkg/controller/accessidentity"
 
@@ -39,7 +39,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
-func main() {
+// Execute runs the sdk-access-operator binary.
+func Execute() {
 	var (
 		metricsAddr string
 		probeAddr   string
