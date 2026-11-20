@@ -1,0 +1,33 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../contrib/tilt/lib/component.Tiltfile", "component", "go_service")
+
+# sdk-access-operator is a remote-side component (RFC 016). Not part of
+# the kind profile; brought up by the "e2e" group so `task tilt:ci` (and
+# therefore the tests/e2e/access suite) sees it, while `task tilt:up`
+# leaves it out. crds.enabled is on because the kind profile does not
+# install sdk-access-crds separately.
+COMPONENT = component(
+    name="sdk-access-operator",
+    label="extern",
+    needs=["platform-mesh-operator"],
+    runtime=go_service(
+        path="operators/sdk-access-operator",
+        overrides={
+            "crds": {"enabled": True},
+            "operator": {"leaderElect": False},
+        },
+    ),
+)
