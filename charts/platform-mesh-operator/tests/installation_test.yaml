@@ -139,6 +139,39 @@ tests:
           path: stringData[".ocmconfig"]
           pattern: '(?s)type: signing\.config\.ocm\.software/v1alpha1\n\s+signature: "ocm\.platform-mesh".*type: RSACredentials/v1\n\s+publicKeyPEM: \|\n\s+-----BEGIN CERTIFICATE-----\n\s+MIIDHDCCAgSgAwIBAgIQTBfx'
 
+  # Each signature name has exactly one certificate: the verifier uses a
+  # single public key, so a second certificate in an entry would be ignored.
+  - it: verifies the default signature with the current signing certificate only
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - matchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: '(?s)signature: "v26\.11\.platform-mesh\.platform-mesh".*publicKeyPEM: \|\n\s+-----BEGIN CERTIFICATE-----\n\s+MIIDvDCCA0GgAwIBAgIUPsmO'
+      - notMatchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: '(?s)BEGIN CERTIFICATE.*BEGIN CERTIFICATE'
+
+  - it: keeps the certificate of the previous signing key for older releases
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+        signatureName: platform-mesh.platform-mesh
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - matchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: '(?s)signature: "platform-mesh\.platform-mesh".*publicKeyPEM: \|\n\s+-----BEGIN CERTIFICATE-----\n\s+MIIDJjCCAg6gAwIBAgIQD/Ei'
+      - notMatchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: '(?s)BEGIN CERTIFICATE.*BEGIN CERTIFICATE'
+
   - it: does not create the Secret when the key comes from elsewhere
     template: installation-signing-certificate.yaml
     set:

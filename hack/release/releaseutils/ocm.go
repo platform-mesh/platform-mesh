@@ -120,30 +120,15 @@ func (repo OCMRepository) Transfer(ctx context.Context, cv, target string, flags
 	return nil
 }
 
-// resignAfterKeyRotation lists the component versions, as name:version, whose
-// signature Sign may overwrite.
-//
-// These components are published by other repositories. A chart constructor
-// here only references them, at the chart's appVersion, but ocm reports
-// referenced component versions along with the ones it built, so Add returns
-// them and Sign signs them. The appVersion does not change from build to build,
-// so every build is handed the same component version, and these three still
-// carry the signature an earlier build made with the signing key that was
-// rotated out on 2026-11-19. ocm refuses to replace a signature unless forced.
-//
-// An entry is dead once the version is re-signed or the chart moves to a newer
-// appVersion, and can then be removed.
-var resignAfterKeyRotation = map[string]bool{
-	"github.com/platform-mesh/images/example-httpbin-operator:v0.6.19": true,
-	"github.com/platform-mesh/images/iam-ui:v0.12.34":                  true,
-	"github.com/platform-mesh/images/marketplace-ui:v0.15.19":          true,
-}
-
 // Sign signs each component version that does not already verify with the signature.
 // An empty Signature skips signing.
 //
-// A version that carries the signature but does not verify with the current
-// key fails, unless it is listed in resignAfterKeyRotation.
+// A component version holds one signature per name, and ocm does not replace
+// one. Component versions that other repositories publish at a version of
+// their own are signed here as well, and are the same from build to build, so
+// they keep the signature of the build that first signed them. A new signing
+// key therefore needs a new signature name: under the old name those
+// component versions no longer verify and cannot be signed again.
 func (repo OCMRepository) Sign(ctx context.Context, cvs []string) error {
 	if repo.Signature == "" {
 		return nil
@@ -162,14 +147,10 @@ func (repo OCMRepository) Sign(ctx context.Context, cvs []string) error {
 			continue
 		}
 
-		args := []string{"sign", "component-version", "--signature", repo.Signature}
-		if resignAfterKeyRotation[cv] {
-			log.Printf("signing %s, replacing a signature of the previous key", cv)
-			args = append(args, "--force")
-		} else {
-			log.Printf("signing %s", cv)
-		}
-		_, err = ocmCall{Args: append(args, ref)}.run(ctx)
+		log.Printf("signing %s", cv)
+		_, err = ocmCall{
+			Args: []string{"sign", "component-version", "--signature", repo.Signature, ref},
+		}.run(ctx)
 		if err != nil {
 			return fmt.Errorf("signing %s: %w", cv, err)
 		}
