@@ -8,6 +8,7 @@ replace (
 )
 
 require (
+	github.com/kcp-dev/kcp-operator/sdk v0.10.3
 	github.com/kcp-dev/sdk v0.33.5
 	github.com/prometheus/client_golang v1.25.0
 	github.com/stretchr/testify v1.12.1

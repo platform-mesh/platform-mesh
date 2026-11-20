@@ -29,6 +29,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | Operator | Description |
 |----------|-------------|
 | [account-operator](operators/account-operator) | Manages the core `Account` grouping resource and its owned namespace. |
+| [backup-operator](operators/backup-operator) | Backs up and restores the kcp etcd (through etcd-druid) and the kcp certificates and secrets. |
 | [extension-manager-operator](operators/extension-manager-operator) | Lifecycle management of `ContentConfiguration` resources for Micro Frontends. |
 | [extension-manager-virtual-workspace](operators/extension-manager-operator/virtual-workspace) | kcp virtual workspace serving the `ContentConfiguration` resources that apply to a workspace. |
 | [pm-keycloak-operator](operators/pm-keycloak-operator) | Manages the Keycloak identity provider: realms and OIDC clients (`IdentityProviderConfiguration`), user invites (`Invite`) and the per-organization kcp authentication configuration. |
