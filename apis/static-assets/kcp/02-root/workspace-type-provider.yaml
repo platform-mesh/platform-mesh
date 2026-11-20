@@ -30,6 +30,8 @@ spec:
     - export: provider-openfga.platform-mesh.io
       path: root:platform-mesh-system
 {{- end }}
+    - export: access.platform-mesh.io
+      path: root:platform-mesh-system
   limitAllowedParents:
     types:
       - name: providers

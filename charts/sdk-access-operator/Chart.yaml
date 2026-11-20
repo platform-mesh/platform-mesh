@@ -1,0 +1,14 @@
+apiVersion: v2
+name: sdk-access-operator
+description: A Helm chart to deploy the Platform Mesh sdk-access operator on a user-side cluster.
+type: application
+version: 0.0.0
+appVersion: "0.0.0"
+dependencies:
+  - name: common
+    version: 0.0.0
+    repository: file://../common
+  - name: sdk-access-crds
+    version: 0.0.0
+    repository: file://../sdk-access-crds
+    condition: crds.enabled

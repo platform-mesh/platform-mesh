@@ -29,13 +29,17 @@ GROUPS = {
     "iam": ["authz", "pm-keycloak-operator", "iam-service", "iam-ui"],
     # GraphQL gateway and virtual workspaces.
     "api": ["core", "kubernetes-graphql-gateway", "marketplace", "extension-manager-virtual-workspace"],
+    # Federation with external actors (e.g. providers, consumers).
+    "extern": ["core", "access-operator"],
     # The portal and what it talks to.
-    "ui": ["api", "iam", "extension-manager-operator", "portal", "marketplace-ui"],
+    "ui": ["api", "iam", "extern", "extension-manager-operator", "portal", "marketplace-ui"],
     # Optional kcp virtual workspaces behind the front proxy: permission-aware
     # workspace discovery and the MCP server on top of it.
     "vw": ["kcp-access-vw", "kcp-mcp-vw"],
-    # Fixtures of the e2e suites: HTTPBin provider and a second kcp shard.
-    "e2e": ["httpbin", "kcp-triton"],
+    # Fixtures of the e2e suites: HTTPBin provider, a second kcp shard,
+    # and the remote-side access SDK pair the tests/e2e/access suite
+    # treats PM's own runtime cluster as the "remote cluster" of (RFC 016).
+    "e2e": ["httpbin", "kcp-triton", "sdk-access-operator", "sdk-access-server"],
     # Everything; what `task tilt:e2e` expects.
     "full": ["ui", "e2e"],
 }

@@ -1,0 +1,58 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../contrib/tilt/lib/component.Tiltfile", "component")
+load("../../contrib/tilt/lib/helpers.py", "IMAGE_PREFIX", "chart", "component_binary", "select_objects", "writable_rootfs", "write_values")
+load("../../contrib/tilt/lib/settings.Tiltfile", "GO_DEPS", "NAMESPACE")
+
+
+def _deploy(c, ctx):
+    image = IMAGE_PREFIX + c.name
+    component_binary(c.name, "services/sdk-access-server", deps=GO_DEPS, image=image, labels=[c.label])
+
+    # TLS is off so access-operator reaches /access over plain HTTP on
+    # the in-cluster Service, without a ClusterIssuer.
+    blob = chart(
+        c.name,
+        NAMESPACE,
+        values=[
+            write_values(
+                c.name,
+                {
+                    "tls": {"enabled": False},
+                    "service": {"type": "ClusterIP"},
+                },
+            )
+        ],
+    )
+    blob = writable_rootfs(blob, image)
+    k8s_yaml(blob)
+    k8s_resource(
+        c.name,
+        objects=select_objects(blob, lambda o: True),
+        resource_deps=ctx.deps,
+        labels=[c.label],
+    )
+
+
+# sdk-access-server is a remote-side RFC 016 component. It only runs
+# in the e2e stack ("e2e" group in contrib/tilt/groups.Tiltfile) so the
+# tests/e2e/access suite can hit /access on PM's own runtime cluster.
+# Not in the kind profile: the regular stack does not need it.
+COMPONENT = component(
+    name="sdk-access-server",
+    label="e2e",
+    needs=["sdk-access-operator"],
+    runtime=_deploy,
+)

@@ -40,12 +40,23 @@ tasks:
     cmds:
       - task: fmt
       - task: tools:lint
+  manifests:
+    desc: Generate CRD manifests for the apis types that emit from this module.
+    cmds:
+      # sdk-access CRDs (AccessIdentity, Access) ship in the sdk-access-crds
+      # chart, which is installed on the user-side cluster where the sdk-access
+      # components run.
+      - task: tools:generate-crds
+        vars:
+          PATH: /sdk-access/...
+          OUTPUT: '{{.TOPLEVEL}}/charts/sdk-access-crds/templates'
   generate:
-    desc: Regenerate deepcopy code for the apis types.
+    desc: Regenerate deepcopy code and CRD manifests for the apis types.
     cmds:
       - task: tools:generate-deepcopy
         vars:
           PATH: /...
+      - task: manifests
   test:
     desc: Run apis unit tests.
     cmds:
