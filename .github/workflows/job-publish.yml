@@ -58,7 +58,7 @@ on:
         description: "PEM private key the OCM components are signed with"
         required: true
       OCM_SIGNING_CERT:
-        description: "Certificate matching OCM_SIGNING_PRIVATE_KEY; its CN is the signature name"
+        description: "Certificate matching OCM_SIGNING_PRIVATE_KEY"
         required: true
 
 permissions:
@@ -68,8 +68,10 @@ env:
   OCM_REPO: ghcr.io/${{ github.repository_owner }}
   # Optional components this run leaves out, separated by commas without spaces.
   SKIP_COMPONENTS: ${{ inputs.skip-components }}
-  # The signature name must equal the CN of the signing certificate.
-  SIGNATURE: ${{ vars.OCM_SIGNATURE_NAME || 'platform-mesh.platform-mesh' }}
+  # The signature name belongs to one signing key: a new key needs a new name
+  # here and a certificate under that name in the operator chart
+  # (charts/platform-mesh-operator/files/ocm-signing-public-cert.yaml).
+  SIGNATURE: ${{ vars.OCM_SIGNATURE_NAME || 'v26.11.platform-mesh.platform-mesh' }}
 
 jobs:
   # ──────────────────────────────────────────────

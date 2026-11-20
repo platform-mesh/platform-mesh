@@ -251,7 +251,7 @@ on `PATH`. So one pin serves developers and CI. The remaining shell scripts
 
 ```sh
 ocm get component-version ghcr.io/platform-mesh//github.com/platform-mesh/platform-mesh:26.11.0 --recursive
-ocm verify component-version --signature platform-mesh.platform-mesh \
+ocm verify component-version --signature v26.11.platform-mesh.platform-mesh \
   ghcr.io/platform-mesh//github.com/platform-mesh/platform-mesh:26.11.0   # public key in ~/.ocmconfig
 helm pull oci://ghcr.io/platform-mesh/helm-charts/account-operator --version 26.11.0
 cosign verify ghcr.io/platform-mesh/platform-mesh/account-operator:v26.11.0 \
@@ -263,11 +263,40 @@ cosign verify ghcr.io/platform-mesh/platform-mesh/account-operator:v26.11.0 \
 
 | Where | Name | Purpose |
 |---|---|---|
-| repository secret | `OCM_SIGNING_PRIVATE_KEY`, `OCM_SIGNING_CERT` | RSA key and certificate for OCM signatures. The signature name must equal the certificate's CN. |
+| repository secret | `OCM_SIGNING_PRIVATE_KEY`, `OCM_SIGNING_CERT` | RSA key and certificate for OCM signatures. |
 | repository secret | `PM_PUBLISHER_PRIVATE_KEY` (planned) | private key of the "PM Publisher" GitHub App, to push to the `helm-charts/*` packages created by the former helm-charts repository. The fork uses `GITHUB_TOKEN`; see `cutover.md`. |
-| repository variable | `OCM_SIGNATURE_NAME` | signature name, default `platform-mesh.platform-mesh` |
+| repository variable | `OCM_SIGNATURE_NAME` | signature name, default `v26.11.platform-mesh.platform-mesh`. One name belongs to one signing key, see [Rotating the signing key](#rotating-the-signing-key). |
 
 Image signing uses keyless cosign (GitHub OIDC); no secret.
+
+### Rotating the signing key
+
+A new signing key needs a new signature name. A component version holds one
+signature per name, and the operator chart holds one certificate per name, so
+two keys cannot share a name:
+
+- The build also signs the component versions it only references at a fixed
+  version (third-party charts, images built by other repositories). They are
+  the same from build to build and already carry the signature of the old
+  key, which `ocm sign` does not replace.
+- Released versions keep the signatures of the key they were built with, and
+  installs of them verify with the certificate of that key.
+
+To rotate:
+
+1. Replace the `OCM_SIGNING_PRIVATE_KEY` secret and the `OCM_SIGNING_CERT`
+   variable.
+2. Pick a new signature name and make it the default of `SIGNATURE` in
+   `.github/workflows/job-publish.yml` (or set `OCM_SIGNATURE_NAME`).
+3. Add the new signing certificate under that name to
+   `charts/platform-mesh-operator/files/ocm-signing-public-cert.yaml`, and
+   make the name the default of `ocm.signatureName` in the chart's values.
+   Keep the existing entries: older releases are verified with them.
+
+The certificate in the chart is the signing certificate itself, not the CA
+that issued it: the signatures are plain RSA signatures without an embedded
+certificate chain, so they are verified with the public key of the signing
+certificate. The certificate's CN does not have to match the signature name.
 
 ## Building the graph locally
 
