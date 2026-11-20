@@ -690,21 +690,10 @@ func (r *DeploymentSubroutine) buildComponentsTemplateVars(ctx context.Context, 
 		return nil, nil, errors.Wrap(err, "Failed to merge services from PlatformMesh.spec.Values with profile-components.yaml services")
 	}
 
-	// Inject helm values retried from the runtime configuration 
-	helmValues := buildHelmValues(inst, r.cfgOperator)
-	for serviceName, serviceConfig := range mergedServices {
-		service, ok := serviceConfig.(map[string]any)
-		if !ok {
-			continue
-		}
-		if external, _ := service["external"].(bool); external {
-			continue
-		}
-		serviceValues, _ := service["values"].(map[string]any)
-		service["values"], err = merge.MergeMaps(serviceValues, helmValues, log)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to inject helm values into service %s", serviceName)
-		}
+	// Inject operator-owned
+	mergedServices, err = injectHelmValues(mergedServices, buildHelmValues(inst, r.cfgOperator), log)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// deploymentNamespace: where deployment CRs live (configurable via profile)

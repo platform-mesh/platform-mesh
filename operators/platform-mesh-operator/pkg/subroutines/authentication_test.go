@@ -213,7 +213,7 @@ func Test_buildComponentsTemplateVars_OIDCAuthentication(t *testing.T) {
 	expectedExposure := map[string]any{
 		"baseDomain":       "portal.localhost",
 		"protocol":         "https",
-		"port":             8443,
+		"port":             int64(8443),
 		"gatewayClassName": "traefik",
 	}
 	const expectedFrontProxyURL = "https://frontproxy-front-proxy.platform-mesh-system:8443"
