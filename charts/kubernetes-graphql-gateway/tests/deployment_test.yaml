@@ -1,3 +1,5 @@
+set:
+  exposure.baseDomain: example.com
 suite: Test the Template files
 values:
 - ../values.yaml

@@ -1,3 +1,4 @@
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
 apiVersion: operator.kcp.io/v1alpha1
 kind: FrontProxy
 metadata:
@@ -35,9 +36,8 @@ spec:
   additionalPathMappings:
 {{ toYaml .Values.kcp.frontProxy.additionalPathMappings | indent 4 }}
   external:
-    # replace the hostname with the external DNS name for your kcp instance
-    hostname: {{ (include "kcp.externalHostname" .) }}
-    port: {{ (include "kcp.externalPort" . | int) }}
+    hostname: "kcp.api.{{ .Values.exposure.baseDomain }}"
+    port: {{ .Values.kcp.external.port | default .Values.exposure.port }}
   rootShard:
     ref:
       name: root

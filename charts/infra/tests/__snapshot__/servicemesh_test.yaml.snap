@@ -25,7 +25,7 @@ keycloak operator enabled renders all resources:
         vendor: postgres
       hostname:
         backchannelDynamic: true
-        hostname: ""
+        hostname: https://example.com/keycloak
         strict: false
       http:
         httpEnabled: true
@@ -80,6 +80,8 @@ test HTTPRoutes:
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway

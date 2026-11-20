@@ -1,3 +1,5 @@
+set:
+  kcp.internalFrontProxyUrl: https://frontproxy-front-proxy.platform-mesh-system:8443
 suite: marketplace
 chart:
   appVersion: 0.0.0
@@ -12,4 +14,3 @@ tests:
           - my.example2.com
     asserts:
       - matchSnapshot: {}
-  

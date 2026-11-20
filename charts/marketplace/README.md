@@ -26,12 +26,11 @@ A Helm chart to deploy the Platform Mesh marketplace virtual workspace, which se
 | clusterAccess.marketplace.enabled | bool | `true` |  |
 | deployment.contentForLabel | string | `"ui.platform-mesh.io/content-for"` | Label on an APIExport naming the ProviderMetadata it belongs to. |
 | deployment.resourceSchemaExportName | string | `"ui.platform-mesh.io"` | APIExportEndpointSlice through which ProviderMetadata and APIExports of all providers are read. |
-| deployment.serverUrl | string | `""` | Explicit KCP front-proxy URL; empty uses kcp.internalFrontProxyUrl, or the existing standalone endpoint. |
 | hostAliases.enabled | bool | `false` |  |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/marketplace"` | The image repository path (without registry) |
-| kcp.internalFrontProxyUrl | string | `""` | Internal KCP front-proxy URL supplied by the operator. |
+| kcp.internalFrontProxyUrl | string | `""` | Required kcp front-proxy root URL supplied by the operator; used for cluster-aware clients. |
 | kubeconfigSecretName | string | `"account-operator-kubeconfig"` |  |
 | requestHeaderClientCASecretName | string | `"root-requestheader-client-ca"` |  |
 | service.port | int | `8443` |  |

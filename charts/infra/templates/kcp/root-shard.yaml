@@ -1,5 +1,12 @@
-{{- $rootShardHostname := include "kcp.rootHostname" . }}
-{{- $rootShardBaseURL := .Values.kcp.rootShard.shardBaseURL | default (include "kcp.shardBaseURL" (dict "root" . "hostname" $rootShardHostname)) }}
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
+{{- $kcpPort := int (.Values.kcp.external.port | default .Values.exposure.port) -}}
+{{/* kcp always uses HTTPS; omit only :443 from its advertised URLs. */}}
+{{- $kcpPortSuffix := "" -}}
+{{- if ne $kcpPort 443 -}}
+  {{- $kcpPortSuffix = printf ":%d" $kcpPort -}}
+{{- end -}}
+{{- $rootShardHostname := .Values.kcp.rootShard.hostname | default (printf "root.kcp.%s" .Values.exposure.baseDomain) -}}
+{{- $rootShardBaseURL := .Values.kcp.rootShard.shardBaseURL | default (printf "https://%s%s/" $rootShardHostname $kcpPortSuffix) -}}
 {{ include "kcp.etcd" (dict "name" (.Values.kcp.etcd.name | default "etcd-kcp-client") "namespace" (.Values.kcp.namespace | default "kcp-system") "etcd" .Values.kcp.etcd) }}
 ---
 apiVersion: operator.kcp.io/v1alpha1
@@ -8,7 +15,7 @@ metadata:
   name: root
   namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
 spec:
-{{- include "kcp.shard.spec" (dict "root" $ "replicas" .Values.kcp.rootShard.replicas "shardBaseURL" $rootShardBaseURL "extraArgs" .Values.kcp.rootShard.extraArgs "resources" .Values.kcp.rootShard.resources "hostname" (include "kcp.externalHostname" .) "port" (include "kcp.externalPort" . | int) "webhookPort" .Values.kcp.webhook.port) | nindent 2 }}
+{{- include "kcp.shard.spec" (dict "root" $ "replicas" .Values.kcp.rootShard.replicas "shardBaseURL" $rootShardBaseURL "extraArgs" .Values.kcp.rootShard.extraArgs "resources" .Values.kcp.rootShard.resources "port" $kcpPort "webhookPort" .Values.kcp.webhook.port) | nindent 2 }}
   certificates:
 {{- include "kcp.certificates" $ | nindent 4 }}
   cache:
@@ -26,7 +33,7 @@ spec:
           - root-kcp.{{ .Values.kcp.namespace | default "kcp-system" }}.svc.cluster.local
           - {{ $rootShardHostname }}
   external:
-    hostname: {{ (include "kcp.externalHostname" .) }}
-    port: {{ (include "kcp.externalPort" . | int) }}
+    hostname: "kcp.api.{{ .Values.exposure.baseDomain }}"
+    port: {{ $kcpPort }}
 ---
 {{ include "kcp.tlsroute" (dict "name" "kcp-root-shard-tlsroute" "hostname" $rootShardHostname "serviceName" "root-kcp" "namespace" (.Values.kcp.namespace | default "kcp-system") "gatewayName" .Values.gatewayApi.name "sectionName" (include "kcp.passthroughSectionName" (dict "root" $ "suffix" "root"))) }}

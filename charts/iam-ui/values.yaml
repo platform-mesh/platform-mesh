@@ -22,11 +22,11 @@ health:
 
 gatewayApi:
   httpRoute:
+    # -- Explicit route hostnames; empty uses exposure.baseDomain and its wildcard.
+    hostnames: []
     pathPrefix: /ui/iam
     parentRefs:
     - name: k8sapi-gateway
 exposure:
-  # -- Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec
+  # -- Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure.
   baseDomain: ""
-  # -- Explicit exposure hostnames; an empty list derives the base domain and its wildcard.
-  hostnames: []

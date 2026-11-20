@@ -6,7 +6,6 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| baseDomain | string | `""` | Base domain of the platform deployment (e.g. platform.example.com). Empty derives exposure.baseDomain with its public port. |
 | caSecret | string | `""` | Name of the secret containing the CA certificate for outbound TLS trust (key: tls.crt or ca.crt) |
 | clusterScopedName.prefix | string | `""` | Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one |
 | clusterScopedName.suffix | string | `""` | Suffix for the names of cluster-scoped resources |
@@ -32,10 +31,9 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/pm-keycloak-operator"` | The image repository path (without registry) |
-| initContainer | object | `{"clients":[{"name":"pm-keycloak-operator","secretRef":{"name":"pm-keycloak-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}],"enabled":true,"keycloakBaseURL":"","keycloakClientId":"admin-cli","keycloakUser":"keycloak-admin"}` | Init container configuration for bootstrapping Keycloak service account clients |
+| initContainer | object | `{"clients":[{"name":"pm-keycloak-operator","secretRef":{"name":"pm-keycloak-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}],"enabled":true,"keycloakClientId":"admin-cli","keycloakUser":"keycloak-admin"}` | Init container configuration for bootstrapping Keycloak service account clients |
 | initContainer.clients | list | `[{"name":"pm-keycloak-operator","secretRef":{"name":"pm-keycloak-operator-client-secret","namespace":"platform-mesh-system"}},{"name":"iam-service","secretRef":{"name":"iam-client-secret","namespace":"platform-mesh-system"}}]` | Service account clients to create (beyond the default one from keycloak.client.secret) |
 | initContainer.enabled | bool | `true` | Enable the init container |
-| initContainer.keycloakBaseURL | string | `""` | Keycloak base URL (e.g., https://keycloak.example.com). If empty, uses keycloak.baseUrl or the shared exposure contract. |
 | initContainer.keycloakClientId | string | `"admin-cli"` | Keycloak client ID for admin authentication |
 | initContainer.keycloakUser | string | `"keycloak-admin"` | Keycloak username for admin authentication |
 | initializer.extraArgs | list | `[]` |  |
@@ -44,7 +42,7 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | initializer.subroutines.inviteEnabled | bool | `true` | Enable InviteSubroutine (creates Invite resources for org creator) |
 | initializer.subroutines.workspaceAuthEnabled | bool | `true` | Enable WorkspaceAuthConfigurationSubroutine (JWT authentication setup) |
 | jwt.userIdClaim | string | `"email"` |  |
-| keycloak.baseUrl | string | `""` | Explicit Keycloak base URL; empty derives the public URL plus /keycloak. |
+| keycloak.baseUrl | string | `""` | Explicit Keycloak base URL for the operator and init container; empty derives the public URL plus /keycloak. |
 | keycloak.client.secret.key | string | `"client_secret"` |  |
 | keycloak.client.secret.name | string | `"pm-keycloak-operator-client-secret"` |  |
 | keycloakSecret | string | `"keycloak-admin"` | Name of the secret containing Keycloak admin credentials (keys: username, password, secret) |

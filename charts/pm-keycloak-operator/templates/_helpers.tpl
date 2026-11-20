@@ -15,12 +15,22 @@ Feature gate arguments from .Values.featureGates.
 Keycloak connection arguments shared by every command.
 */}}
 {{- define "pm-keycloak-operator.keycloakArgs" -}}
-{{- with (include "pm-keycloak-operator.keycloakBaseUrl" .) }}
-- --keycloak-base-url={{ . }}
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
+{{/* Omit HTTP :80 and HTTPS :443 to preserve advertised URLs and OIDC issuer strings. */}}
+{{- $standardPort := 443 -}}
+{{- if eq .Values.exposure.protocol "http" -}}
+  {{- $standardPort = 80 -}}
+{{- end -}}
+{{- $portSuffix := "" -}}
+{{- if ne (int .Values.exposure.port) $standardPort -}}
+  {{- $portSuffix = printf ":%d" (int .Values.exposure.port) -}}
+{{- end -}}
+{{- if .Values.keycloak.baseUrl }}
+- {{ printf "--keycloak-base-url=%s" .Values.keycloak.baseUrl | quote }}
+{{- else }}
+- "--keycloak-base-url={{ .Values.exposure.protocol }}://{{ .Values.exposure.baseDomain }}{{ $portSuffix }}/keycloak"
 {{- end }}
-{{- with (include "pm-keycloak-operator.baseDomain" .) }}
-- --base-domain={{ . }}
-{{- end }}
+- "--base-domain={{ .Values.exposure.baseDomain }}{{ $portSuffix }}"
 {{- end -}}
 
 {{/*
@@ -30,12 +40,4 @@ Keycloak connection arguments shared by every command.
 {{- if hasKey .Values.featureGates "LegacyAPIs" -}}
 {{- if .Values.featureGates.LegacyAPIs }}true{{ end -}}
 {{- else -}}true{{- end -}}
-{{- end -}}
-
-{{- define "pm-keycloak-operator.keycloakBaseUrl" -}}
-{{- .Values.keycloak.baseUrl | default (include "common.exposure.url" (dict "exposure" .Values.exposure "path" "/keycloak")) -}}
-{{- end -}}
-
-{{- define "pm-keycloak-operator.baseDomain" -}}
-{{- .Values.baseDomain | default (include "common.exposure.authority" (dict "exposure" .Values.exposure)) -}}
 {{- end -}}

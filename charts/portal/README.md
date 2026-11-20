@@ -10,27 +10,23 @@ Helm Chart for the Platform Mesh Portal
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| auth.default.baseDomain | string | `""` | Explicit portal base domain; empty derives exposure.baseDomain. |
 | auth.default.clientId | string | `""` | client id |
 | auth.default.discoveryUrl | string | `""` | Explicit discovery URL; empty derives the public Keycloak realm discovery URL. |
-| cookieDomain | string | `""` | cookie domain for auth session cookies. Must match the base domain of the portal deployment (e.g. example.com). Empty derives exposure.baseDomain. |
 | developmentLandcsape | string | `"false"` | development landscape toggle. Set to "true" only in local/dev environments to enable dev-only UI features. Permissible values: "true", "false" |
 | environment | string | `""` | environment label propagated to observability (e.g. logs, traces). Permissible values: any string (e.g. production, staging, development) |
-| exposure.baseDomain | string | `""` | Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure. |
 | exposure.port | int | `443` | Public URL port. Operator-owned in Platform Mesh. |
 | exposure.protocol | string | `"https"` | Public URL protocol. Operator-owned in Platform Mesh. |
 | featureToggles | string | `"enableSessionAutoRefresh=true"` |  |
-| frontendPort | string | `nil` | Explicit frontend port; empty derives exposure.port, or 8000 without a contract |
 | gatewayApi.enabled | bool | `true` | toggle to enable the Gateway API |
 | gatewayApi.httpRoute.filters | list | `[]` | list of HTTPRoute filters (default: none) |
-| gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. Empty derives the base domain and wildcard, or matches all hostnames without a contract. |
+| gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. Empty uses exposure.baseDomain and its wildcard. |
 | gatewayApi.httpRoute.parentRefs[0].name | string | `"k8sapi-gateway"` |  |
 | gatewayApi.httpRoute.pathPrefix | string | `"/"` |  |
 | health.port | int | `8080` | health port to be used by probes |
 | hostAliases | object | `{"enabled":false,"entries":[]}` | hostAliases configuration |
 | hostAliases.enabled | bool | `false` | enable hostAliases |
 | hostAliases.entries | list | `[]` | hostAliases entries |
-| http.protocol | string | `""` | protocol used by the portal backend. Must be set. Permissible values: http, https |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.pullPolicyOverride | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` | The image registry |

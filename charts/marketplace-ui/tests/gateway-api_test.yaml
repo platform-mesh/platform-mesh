@@ -1,3 +1,5 @@
+set:
+  exposure.baseDomain: example.com
 suite: Gateway API
 templates:
   - httproute.yaml
@@ -12,3 +14,15 @@ tests:
         enabled: false
     asserts:
       - matchSnapshot: {}
+  - it: uses the explicit route hostnames
+    set:
+      gatewayApi.enabled: true
+      gatewayApi.httpRoute.enabled: true
+      gatewayApi.httpRoute.hostnames:
+      - custom.example.net
+    asserts:
+    - equal:
+        path: spec.hostnames
+        value:
+        - custom.example.net
+    template: httproute.yaml

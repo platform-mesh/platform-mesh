@@ -1,3 +1,5 @@
+set:
+  exposure.baseDomain: example.com
 suite: operator
 chart:
   version: 1.0.0
@@ -85,3 +87,77 @@ tests:
       - lengthEqual:
           path: webhooks
           count: 1
+  - it: uses http exposure on port 80
+    set:
+      exposure.protocol: http
+      exposure.port: 80
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --keycloak-base-url=http://example.com/keycloak
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --base-domain=example.com
+    template: deployment.yaml
+  - it: uses http exposure on port 443
+    set:
+      exposure.protocol: http
+      exposure.port: 443
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --keycloak-base-url=http://example.com:443/keycloak
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --base-domain=example.com:443
+    template: deployment.yaml
+  - it: uses https exposure on port 80
+    set:
+      exposure.protocol: https
+      exposure.port: 80
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --keycloak-base-url=https://example.com:80/keycloak
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --base-domain=example.com:80
+    template: deployment.yaml
+  - it: uses https exposure on port 8443
+    set:
+      exposure.protocol: https
+      exposure.port: 8443
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --keycloak-base-url=https://example.com:8443/keycloak
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --base-domain=example.com:8443
+    template: deployment.yaml
+  - it: retains the explicit Keycloak endpoint
+    set:
+      keycloak.baseUrl: https://identity.example.net/keycloak
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --keycloak-base-url=https://identity.example.net/keycloak
+    template: deployment.yaml
+  - it: init-container uses the shared Keycloak endpoint
+    set:
+      keycloak.baseUrl: https://shared.example.net/keycloak
+      initContainer.enabled: true
+    asserts:
+    - matchRegex:
+        path: data["config.yaml"]
+        pattern: 'keycloakBaseURL: "https://shared\.example\.net/keycloak"'
+    template: init-container-config.yaml
+  - it: init-container derives the endpoint with the nonstandard port
+    set:
+      exposure.port: 8443
+      initContainer.enabled: true
+    asserts:
+    - matchRegex:
+        path: data["config.yaml"]
+        pattern: 'keycloakBaseURL: "https://example\.com:8443/keycloak"'
+    template: init-container-config.yaml

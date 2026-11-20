@@ -1,9 +1,16 @@
+{{- $kcpPort := int (.Values.kcp.external.port | default .Values.exposure.port) -}}
+{{/* kcp always uses HTTPS; omit only :443 from its advertised URLs. */}}
+{{- $kcpPortSuffix := "" -}}
+{{- if ne $kcpPort 443 -}}
+  {{- $kcpPortSuffix = printf ":%d" $kcpPort -}}
+{{- end -}}
 {{- range .Values.kcp.shards }}
+{{- $_ := required "exposure.baseDomain is required" $.Values.exposure.baseDomain -}}
 {{- $shardName := .name }}
 {{- $etcdName := printf "etcd-kcp-%s" $shardName }}
 {{- $etcdServiceName := printf "etcd-kcp-%s-client" $shardName }}
-{{- $hostname := include "kcp.shardHostname" (dict "root" $ "shard" .) }}
-{{- $shardBaseURL := (.spec).shardBaseURL | default (include "kcp.shardBaseURL" (dict "root" $ "hostname" $hostname)) }}
+{{- $hostname := .hostname | default (printf "%s.kcp.%s" .name $.Values.exposure.baseDomain) }}
+{{- $shardBaseURL := (.spec).shardBaseURL | default (printf "https://%s%s/" $hostname $kcpPortSuffix) }}
 {{- $mergedEtcd := mustMergeOverwrite (mustDeepCopy $.Values.kcp.etcd) (.etcd | default dict) }}
 {{- $defaultSpec := dict "replicas" $.Values.kcp.rootShard.replicas "extraArgs" $.Values.kcp.rootShard.extraArgs "resources" $.Values.kcp.rootShard.resources }}
 {{- $mergedSpec := mustMergeOverwrite $defaultSpec (.spec | default dict) }}
@@ -16,7 +23,7 @@ metadata:
   name: {{ $shardName }}
   namespace: {{ $.Values.kcp.namespace | default "kcp-system" }}
 spec:
-{{- include "kcp.shard.spec" (dict "root" $ "replicas" $mergedSpec.replicas "shardBaseURL" $shardBaseURL "extraArgs" $mergedSpec.extraArgs "resources" $mergedSpec.resources "hostname" (include "kcp.externalHostname" $) "port" (include "kcp.externalPort" $ | int) "webhookPort" $.Values.kcp.webhook.port) | nindent 2 }}
+{{- include "kcp.shard.spec" (dict "root" $ "replicas" $mergedSpec.replicas "shardBaseURL" $shardBaseURL "extraArgs" $mergedSpec.extraArgs "resources" $mergedSpec.resources "port" $kcpPort "webhookPort" $.Values.kcp.webhook.port) | nindent 2 }}
   rootShard:
     ref:
       name: root
