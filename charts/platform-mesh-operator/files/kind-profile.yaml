@@ -47,11 +47,13 @@ data:
         skipVerify: true
       services:
         access-operator:
+          suspend: true
           imageResources:
           - annotations:
               repo: oci
               artifact: image
               for: access-operator
+              unsuspend: "true"
           syncWave: 4
           enabled: true
           dependsOn: []
@@ -61,6 +63,7 @@ data:
               entries: *hostAliasesEntries
             kcp:
               externalUrl: "https://kcp.api.{{ .baseDomainPort }}"
+            kubeconfigSecret: access-operator-kubeconfig
             log:
               level: debug
               noJson: true
