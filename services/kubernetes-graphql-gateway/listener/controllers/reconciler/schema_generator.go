@@ -59,9 +59,11 @@ func generateSchemaWithMetadata(
 		}
 	}
 
-	// Create resolver with enrichers configured for this cluster
+	// Create resolver with enrichers configured for this cluster.
+	// Scope uses the discovery list (apiResources) as its primary source and
+	// the RESTMapper as a fallback; see enricher.NewScope.
 	resolver := apischema.NewResolver(
-		enricher.NewScope(params.RESTMapper),
+		enricher.NewScope(params.RESTMapper, apiResources),
 		enricher.NewCategories(apiResources),
 	)
 
