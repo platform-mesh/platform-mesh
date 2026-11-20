@@ -83,6 +83,8 @@ operator matches the snapshot:
           containers:
             - args:
                 - operator
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --user-claim=email
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --domain-ca-lookup
@@ -205,7 +207,7 @@ operator matches the snapshot:
     apiVersion: v1
     data:
       config.yaml: |
-        keycloakBaseURL: ""
+        keycloakBaseURL: "https://example.com/keycloak"
         keycloakClientID: "admin-cli"
         keycloakUser: "keycloak-admin"
         passwordFile: "/secrets/keycloak-password"
@@ -243,6 +245,8 @@ operator matches the snapshot:
           containers:
             - args:
                 - initializer
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --user-claim=email
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --domain-ca-lookup
@@ -355,6 +359,8 @@ operator matches the snapshot:
           containers:
             - args:
                 - terminator
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --leader-elect
                 - --metrics-bind-address=:9090
@@ -562,6 +568,8 @@ operator matches the snapshot w. sentry:
           containers:
             - args:
                 - operator
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --user-claim=email
                 - --domain-ca-lookup
                 - --webhooks-enabled=true
@@ -691,7 +699,7 @@ operator matches the snapshot w. sentry:
     apiVersion: v1
     data:
       config.yaml: |
-        keycloakBaseURL: ""
+        keycloakBaseURL: "https://example.com/keycloak"
         keycloakClientID: "admin-cli"
         keycloakUser: "keycloak-admin"
         passwordFile: "/secrets/keycloak-password"
@@ -729,6 +737,8 @@ operator matches the snapshot w. sentry:
           containers:
             - args:
                 - initializer
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --user-claim=email
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --domain-ca-lookup
@@ -873,6 +883,8 @@ operator matches the snapshot w. sentry:
           containers:
             - args:
                 - terminator
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --leader-elect
                 - --metrics-bind-address=:9090

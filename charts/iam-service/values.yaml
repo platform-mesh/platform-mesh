@@ -11,16 +11,16 @@ health:
   port: 8080
 
 exposure:
-  # -- Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec
+  # -- Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure.
   baseDomain: ""
   protocol: https
   # -- Public URL port. Operator-owned in Platform Mesh.
   port: 443
-  # -- Explicit exposure hostnames; an empty list derives the base domain and its wildcard.
-  hostnames: []
 
 gatewayApi:
   httpRoute:
+    # -- Explicit route hostnames; empty uses exposure.baseDomain and its wildcard.
+    hostnames: []
     pathPrefix: /iam/graphql
     parentRefs:
       - name: k8sapi-gateway

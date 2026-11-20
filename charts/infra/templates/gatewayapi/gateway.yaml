@@ -1,28 +1,78 @@
 {{- if .Values.gatewayApi.enabled }}
+{{/* The Gateway service port can differ from the public exposure port, for example with NodePort. */}}
+{{- $listenerPort := .Values.gatewayApi.listenerPort | default .Values.exposure.port -}}
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ .Values.gatewayApi.name }}
   namespace: {{ .Release.Namespace }}
 spec:
-  gatewayClassName: {{ .Values.gatewayApi.gatewayClassName | default .Values.exposure.gatewayClassName }}
+  gatewayClassName: {{ .Values.exposure.gatewayClassName | quote }}
   listeners:
-    {{- $listeners := include "infra.gateway.listeners" . | fromYamlArray }}
-    {{- if .Values.gatewayApi.passthrough.enabled }}
-    {{- $generated := include "kcp.passthroughListeners" . | fromYamlArray }}
-    {{- range $generated }}
-    {{- $name := .name }}
-    {{- range $listeners }}
-    {{- if eq .name $name }}
-    {{- fail (printf "gatewayApi listener %q is generated from the kcp hostnames; remove it from gatewayApi.listeners or set gatewayApi.passthrough.enabled=false" $name) }}
+  {{- range concat .Values.gatewayApi.listeners .Values.gatewayApi.listenersExtra }}
+    - name: {{ .name }}
+      port: {{ .port | default $listenerPort }}
+      protocol: {{ .protocol }}
+      {{- if .hostname }}
+      hostname: {{ .hostname | quote }}
+      {{- else if eq .name "terminate-services" }}
+      hostname: "*.services.{{ $.Values.exposure.baseDomain }}"
+      {{- end }}
+      {{- with .tls }}
+      tls:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .allowedRoutes }}
+      allowedRoutes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- end }}
+  {{- if .Values.gatewayApi.passthrough.enabled }}
+    {{- $passthroughPort := .Values.gatewayApi.passthrough.port | default $listenerPort }}
+    {{/* Istio needs a separate passthrough listener for each kcp hostname on the same port. */}}
+    - name: passthrough
+      hostname: "kcp.api.{{ .Values.exposure.baseDomain }}"
+      port: {{ $passthroughPort }}
+      protocol: TLS
+      tls:
+        mode: Passthrough
+      {{- with .Values.gatewayApi.passthrough.allowedRoutes }}
+      allowedRoutes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    - name: passthrough-root
+      {{- if .Values.kcp.rootShard.hostname }}
+      hostname: {{ .Values.kcp.rootShard.hostname | quote }}
+      {{- else }}
+      hostname: "root.kcp.{{ .Values.exposure.baseDomain }}"
+      {{- end }}
+      port: {{ $passthroughPort }}
+      protocol: TLS
+      tls:
+        mode: Passthrough
+      {{- with .Values.gatewayApi.passthrough.allowedRoutes }}
+      allowedRoutes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- range .Values.kcp.shards }}
+    - name: passthrough-{{ .name }}
+      {{- if .hostname }}
+      hostname: {{ .hostname | quote }}
+      {{- else }}
+      hostname: "{{ .name }}.kcp.{{ $.Values.exposure.baseDomain }}"
+      {{- end }}
+      port: {{ $passthroughPort }}
+      protocol: TLS
+      tls:
+        mode: Passthrough
+      {{- with $.Values.gatewayApi.passthrough.allowedRoutes }}
+      allowedRoutes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     {{- end }}
-    {{- end }}
-    {{- end }}
-    {{- $listeners = concat $listeners $generated }}
-    {{- end }}
-    {{- $listeners | toYaml | nindent 4 }}
-{{- with .Values.gatewayApi.infrastructure }}
+  {{- end }}
+  {{- with .Values.gatewayApi.infrastructure }}
   infrastructure:
     {{- toYaml . | nindent 4 }}
-{{- end }}
+  {{- end }}
 {{- end }}

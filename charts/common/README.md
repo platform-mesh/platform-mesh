@@ -3,16 +3,9 @@
 A Helm chart containing reuse templates
 
 ![Type: library](https://img.shields.io/badge/Type-library-informational?style=flat-square)
-
-The public runtime helpers consume the shared operator contract described in
-[helm-runtime-contract.md](../../docs/deployment/helm-runtime-contract.md):
-
-| Helper | Input | Result |
-| --- | --- | --- |
-| `common.exposure.host` | `dict "exposure" .Values.exposure`, optional `"prefix"` | Base domain, optionally prefixed with a subdomain or wildcard; empty without a base domain. |
-| `common.exposure.authority` | Same dictionary | Hostname with protocol-aware port handling, without a scheme. |
-| `common.exposure.url` | Same dictionary, optional `"path"` | Public URL; omits HTTP port 80 and HTTPS port 443; empty without a base domain. |
-| `common.exposure.hostnames` | Chart context `.`, or `dict "Values" .Values "hostnames" <nested-list>` | YAML list: explicit nonempty hostnames, otherwise the base domain and wildcard, otherwise `[]`. Parse with `fromYamlArray`. |
+Runtime exposure is supplied by the platform-mesh operator and consumed directly by each chart.
+See the [Helm runtime contract](../../docs/deployment/helm-runtime-contract.md) for the inputs,
+inline URL examples, and values migration. The common chart provides no exposure resolver helpers.
 
 ## Values
 | Key | Type | Default | Description |

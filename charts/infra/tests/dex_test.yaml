@@ -1,3 +1,6 @@
+set:
+  exposure.baseDomain: example.com
+  exposure.gatewayClassName: traefik
 # yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
 suite: Test Dex manifests
 release:

@@ -1,4 +1,14 @@
 {{- if .Values.keycloak.operator.enabled }}
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
+{{/* Omit HTTP :80 and HTTPS :443 to preserve advertised URLs and OIDC issuer strings. */}}
+{{- $standardPort := 443 -}}
+{{- if eq .Values.exposure.protocol "http" -}}
+  {{- $standardPort = 80 -}}
+{{- end -}}
+{{- $portSuffix := "" -}}
+{{- if ne (int .Values.exposure.port) $standardPort -}}
+  {{- $portSuffix = printf ":%d" (int .Values.exposure.port) -}}
+{{- end -}}
 apiVersion: k8s.keycloak.org/v2beta1
 kind: Keycloak
 metadata:
@@ -23,7 +33,11 @@ spec:
   ingress:
     enabled: false
   hostname:
-    hostname: {{ include "infra.keycloak.hostname" . | quote }}
+    {{- if .Values.keycloak.operator.hostname }}
+    hostname: {{ .Values.keycloak.operator.hostname | quote }}
+    {{- else }}
+    hostname: "{{ .Values.exposure.protocol }}://{{ .Values.exposure.baseDomain }}{{ $portSuffix }}/keycloak"
+    {{- end }}
     strict: false
     backchannelDynamic: true
   proxy:

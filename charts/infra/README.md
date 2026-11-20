@@ -52,13 +52,12 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.staticClient.redirectURIs | list | `[]` | Allowed redirect URIs (Keycloak broker callback URLs) |
 | dex.staticClient.secret | string | `"local-dev-broker-secret"` | OIDC client secret for Keycloak identity broker (local dev only) |
 | dex.staticPasswords[0] | object | `{"email":"dex@portal.localhost","groups":[],"hash":"$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm","userID":"08a868f8-4b4b-42f3-9d23-5f46eda2c3a0","username":"dex"}` | Local test user for Dex password connector (dex@portal.localhost/dex/dex) |
-| exposure.baseDomain | string | `""` | Public hostname without protocol or port; platform-mesh operator sets it based on PlatformMesh CR spec |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure. |
 | exposure.gatewayClassName | string | `""` | GatewayClass selected by operator configuration. Operator-owned in Platform Mesh. |
 | exposure.port | int | `443` |  |
 | exposure.protocol | string | `"https"` |  |
 | externalSecrets.enabled | bool | `false` |  |
 | gatewayApi.enabled | bool | `true` | Toggle to enable/disable Gateway API resources |
-| gatewayApi.gatewayClassName | string | `""` | GatewayClass name |
 | gatewayApi.infrastructure | object | `{}` | HTTPS Terminate configuration |
 | gatewayApi.listenerPort | string | `nil` | Shared Gateway listener port; empty derives exposure.port. Set when the gateway Service port differs from the public port (e.g. NodePort). |
 | gatewayApi.listeners | list | `[{"name":"terminate","port":null,"protocol":"HTTPS","tls":{"certificateRefs":[{"group":"","kind":"Secret","name":"domain-certificate","namespace":"platform-mesh-system"}],"mode":"Terminate"}}]` | Gateway listeners. The HTTPS listener is hostname-less so all route hostnames share one listener (needed for HTTP/2 connection reuse on Istio). |
@@ -67,7 +66,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | gatewayApi.name | string | `"k8sapi-gateway"` | Name of the Gateway resource |
 | gatewayApi.passthrough.allowedRoutes | object | `{"namespaces":{"from":"All"}}` | allowedRoutes of the generated passthrough listeners |
 | gatewayApi.passthrough.enabled | bool | `true` | Generate one TLS passthrough listener per kcp hostname (front proxy, root shard, shards). Disable to manage passthrough listeners yourself; kcp TLSRoutes then attach to a listener named "passthrough". |
-| gatewayApi.passthrough.port | string | `nil` | Port of the generated passthrough listeners; empty derives exposure.port, or 443 without a contract |
+| gatewayApi.passthrough.port | string | `nil` | Port of the generated passthrough listeners; empty uses the shared listenerPort or exposure.port |
 | hostAliases.enabled | bool | `false` |  |
 | kcp.auth.adminCert.enabled | bool | `true` |  |
 | kcp.auth.adminCert.privateKey.algorithm | string | `"RSA"` |  |
@@ -122,8 +121,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.etcd.service.port | int | `2379` |  |
 | kcp.etcd.sharedConfig.autoCompactionMode | string | `"periodic"` |  |
 | kcp.etcd.sharedConfig.autoCompactionRetention | string | `"30m"` |  |
-| kcp.external.hostname | string | `""` | External hostname for kcp. Empty derives kcp.api.<exposure.baseDomain>; required without a contract (e.g. kcp.api.example.com). |
-| kcp.external.port | string | `nil` | External port override; when unset, uses exposure.port if exposure.baseDomain is set, otherwise 8443. |
+| kcp.external.port | string | `nil` | External port override; when unset, uses exposure.port. |
 | kcp.frontProxy.additionalPathMappings[0].backend | string | `"https://extension-manager-virtual-workspace.platform-mesh-system:8443"` |  |
 | kcp.frontProxy.additionalPathMappings[0].backend_server_ca | string | `"/etc/kcp/tls/ca/tls.crt"` |  |
 | kcp.frontProxy.additionalPathMappings[0].path | string | `"/services/contentconfigurations"` |  |
@@ -144,10 +142,10 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.namespace | string | `"platform-mesh-system"` |  |
 | kcp.proxy.replicas | string | `""` |  |
 | kcp.rootShard.extraArgs[0] | string | `"--feature-gates=WorkspaceAuthentication=true,CacheAPIs=true"` |  |
-| kcp.rootShard.hostname | string | `""` | Hostname for the root shard. Derives root.kcp.<exposure.baseDomain>; without a contract, defaults to root.kcp.<kcp.external.hostname>. |
+| kcp.rootShard.hostname | string | `""` | Hostname for the root shard. Empty uses root.kcp.<exposure.baseDomain>. |
 | kcp.rootShard.replicas | int | `1` |  |
 | kcp.rootShard.resources | object | `{}` | Optional resource requests and limits for the root shard |
-| kcp.rootShard.shardBaseURL | string | `""` | Base URL the root shard advertises. Derives the HTTPS root-shard URL with protocol-aware port handling; explicit values override derivation. |
+| kcp.rootShard.shardBaseURL | string | `""` | Base URL the root shard advertises. Empty uses the HTTPS root-shard URL, omitting port 443. Explicit values override it. |
 | kcp.shards[0].name | string | `"nereus"` |  |
 | kcp.shards[1].name | string | `"triton"` |  |
 | kcp.webhook.authorizationWebhookSecretName | string | `"kcp-webhook-secret"` |  |

@@ -66,9 +66,6 @@ caSecret: ""
 # -- Enable domain CA lookup for TLS verification on kcp side
 domainCALookup: true
 
-# -- Base domain of the platform deployment (e.g. platform.example.com). Empty derives exposure.baseDomain with its public port.
-baseDomain: ""
-
 # JWT configuration
 jwt:
   userIdClaim: "email"
@@ -93,7 +90,7 @@ idp:
 
 
 keycloak:
-  # -- Explicit Keycloak base URL; empty derives the public URL plus /keycloak.
+  # -- Explicit Keycloak base URL for the operator and init container; empty derives the public URL plus /keycloak.
   baseUrl: ""
   client:
     secret:
@@ -121,8 +118,6 @@ terminator:
 initContainer:
   # -- Enable the init container
   enabled: true
-  # -- Keycloak base URL (e.g., https://keycloak.example.com). If empty, uses keycloak.baseUrl or the shared exposure contract.
-  keycloakBaseURL: ""
   # -- Keycloak client ID for admin authentication
   keycloakClientId: admin-cli
   # -- Keycloak username for admin authentication

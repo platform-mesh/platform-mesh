@@ -6,6 +6,9 @@ HTTPRoute matches snapshot:
       name: kubernetes-graphql-gateway
       namespace: platform-mesh-system
     spec:
+      hostnames:
+        - example.com
+        - '*.example.com'
       parentRefs:
         - name: k8sapi-gateway
       rules:
