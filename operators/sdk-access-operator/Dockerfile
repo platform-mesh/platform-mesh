@@ -52,7 +52,7 @@ RUN go mod download
 
 # Build
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
-    go build -ldflags '-w -s' -o /workspace/sdk-access-operator ./cmd/sdk-access-operator
+    go build -ldflags '-w -s' -o /workspace/sdk-access-operator .
 
 FROM scratch
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo

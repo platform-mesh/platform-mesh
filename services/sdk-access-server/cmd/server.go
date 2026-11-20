@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Binary sdk-access-server exposes the user-side /access
-// HTTP endpoints: the unauthenticated /versions probe and one
-// /vN/access handler per supported handshake version (currently
+// Package cmd is the entry point of sdk-access-server: the user-side
+// /access HTTP endpoints (the unauthenticated /versions probe and one
+// /vN/access handler per supported handshake version, currently
 // /v1/access). The AccessIdentity reconciler lives in a separate
 // workload (sdk-access-operator).
-package main
+package cmd
 
 import (
 	"context"
@@ -34,10 +34,10 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/net/netutil"
 
+	accessv1alpha1 "go.platform-mesh.io/apis/sdk-access/v1alpha1"
 	"go.platform-mesh.io/golang-commons/logger"
 	pmmws "go.platform-mesh.io/golang-commons/middleware"
 	pmaccessproto "go.platform-mesh.io/sdk-access-server/client"
-	accessv1alpha1 "go.platform-mesh.io/apis/sdk-access/v1alpha1"
 	accessserver "go.platform-mesh.io/sdk-access-server/pkg/server"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -58,7 +58,8 @@ const replayCacheSize = 1000
 // accepting traffic.
 const cacheSyncTimeout = 2 * time.Minute
 
-func main() {
+// Execute runs the sdk-access-server binary.
+func Execute() {
 	var (
 		pathPrefix   string
 		tlsCertFile  string
