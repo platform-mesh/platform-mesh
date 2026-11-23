@@ -1,0 +1,16 @@
+image:
+  registry: ghcr.io
+  repository: platform-mesh/platform-mesh/provider-operator
+  # -- When set, the image is pulled by digest instead of by tag
+  digest: ""
+
+kcp:
+  # -- Port of the kcp front-proxy Service in the release namespace: 443 in production, 8443 on kind
+  frontProxyPort: 443
+
+extraArgs: []
+
+clusterScopedName:
+  # -- Prefix for the names of the ClusterRole and ClusterRoleBinding, so several installations can share a cluster. A global.clusterScopedName value takes precedence
+  prefix: ""
+  suffix: ""

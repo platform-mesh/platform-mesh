@@ -72,6 +72,9 @@ components:
       - name: platform-mesh-operator
         componentName: github.com/platform-mesh/platform-mesh-operator
         version: ${PM_VERSION}
+      - name: provider-operator
+        componentName: github.com/platform-mesh/provider-operator
+        version: ${PM_VERSION}
       - name: portal
         componentName: github.com/platform-mesh/portal
         version: ${PM_VERSION}
