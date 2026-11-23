@@ -74,7 +74,19 @@ spec:
           mountPath: /etc/platformmesh
           readOnly: true
         {{- end }}
-      {{ include "common.hostAliases" $ | nindent 6 }}
+      {{- $hostAliases := include "common.hostAliases" $ }}
+      {{- if $hostAliases }}
+      {{ $hostAliases | nindent 6 }}
+      {{- else if and .Values.ocm.enabled (eq .Values.ocm.profile "kind") .Values.gateway.clusterIP }}
+      # The kind profile points the components at the gateway for the Platform
+      # Mesh host names. The operator watches kcp through the same names.
+      hostAliases:
+        - ip: {{ .Values.gateway.clusterIP | quote }}
+          hostnames:
+            - {{ .Values.gateway.baseDomain | quote }}
+            - {{ printf "kcp.api.%s" .Values.gateway.baseDomain | quote }}
+            - {{ printf "root.kcp.%s" .Values.gateway.baseDomain | quote }}
+      {{- end }}
       terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
       {{- if or .Values.extraVolumes .Values.remoteRuntime.enabled .Values.remoteInfra.enabled .Values.ocm.enabled }}
       volumes:
