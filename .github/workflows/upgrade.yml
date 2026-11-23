@@ -17,28 +17,13 @@ name: upgrade
 # The upgrade test (tests/upgrade, `task test-upgrade`): installs the latest
 # release into a kind cluster, then upgrades it to this checkout, built into
 # a local registry. Both go through the code of `pmctl quickstart`.
+#
+# Runs nightly on the default branch and must never run on fork PRs.
+# A failure opens or updates a tracking issue.
 
 on:
-  pull_request:
-    paths:
-      - 'apis/**'
-      - 'golang-commons/**'
-      - 'subroutines/**'
-      - 'operators/**'
-      - 'services/**'
-      - 'charts/**'
-      - 'third_party/**'
-      - 'ocm/**'
-      - 'cmd/**'
-      - 'hack/release/**'
-      - 'hack/charts/**'
-      - 'tests/upgrade/**'
-      - 'tests/Taskfile.yaml'
-      - 'component-constructor.yaml'
-      - 'go.mod'
-      - 'go.sum'
-      - 'Taskfile.yaml'
-      - '.github/workflows/upgrade.yml'
+  schedule:
+    - cron: '0 2 * * *' # nightly, 02:00 UTC
   workflow_dispatch:
     inputs:
       from:
@@ -50,7 +35,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -62,6 +47,7 @@ jobs:
     timeout-minutes: 180
     permissions:
       contents: read
+      issues: write # open a tracking issue when the nightly run fails
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -118,3 +104,24 @@ jobs:
             runtime-artifacts/
             upgrade.log
           retention-days: 5
+
+      # Open one tracking issue per failing nightly, reuse the open one so
+      # consecutive failures comment instead of piling up new issues.
+      - name: Open issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: 'Nightly upgrade test failed'
+          GH_REF: ${{ github.ref_name }}
+        run: |
+          set -o pipefail
+          gh label create upgrade-failure --color B60205 --description 'Nightly upgrade test failure' 2>/dev/null || true
+          existing=$(gh issue list --state open --label upgrade-failure --json number --jq '.[0].number')
+          body="Nightly upgrade test failed on '$GH_REF'.\n\nRun: $RUN_URL"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$(printf '%b' "$body")"
+          else
+            gh issue create --title "$TITLE" --label upgrade-failure --body "$(printf '%b' "$body")"
+          fi
