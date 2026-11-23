@@ -124,6 +124,11 @@ func (o *Options) prerequisitesValues(traefik bool) prerequisitesValues {
 		Flux2: flux2Values{
 			ImageAutomationController: fluxControllerValues{Create: false},
 			ImageReflectionController: fluxControllerValues{Create: false},
+			// More workers than HelmReleases. Ten of them wait for what
+			// kcp brings up, and with the ten workers the charts up to
+			// 26.11 set, they can take every one before infra, which
+			// installs kcp, gets its turn.
+			HelmController: helmControllerValues{Container: fluxContainerValues{AdditionalArgs: []string{"--concurrent=20"}}},
 		},
 	}
 	if traefik {

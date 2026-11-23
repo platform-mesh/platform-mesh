@@ -43,6 +43,15 @@ type keycloakOperatorValues struct {
 type flux2Values struct {
 	ImageAutomationController fluxControllerValues `json:"imageAutomationController"`
 	ImageReflectionController fluxControllerValues `json:"imageReflectionController"`
+	HelmController            helmControllerValues `json:"helmController"`
+}
+
+type helmControllerValues struct {
+	Container fluxContainerValues `json:"container"`
+}
+
+type fluxContainerValues struct {
+	AdditionalArgs []string `json:"additionalArgs"`
 }
 
 type fluxControllerValues struct {
