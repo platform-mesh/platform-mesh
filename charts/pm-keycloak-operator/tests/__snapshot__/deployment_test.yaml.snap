@@ -83,6 +83,8 @@ operator matches the snapshot:
           containers:
             - args:
                 - operator
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --user-claim=email
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --domain-ca-lookup
@@ -204,7 +206,20 @@ operator matches the snapshot:
   4: |
     apiVersion: v1
     data:
-      config.yaml: "keycloakBaseURL: \nkeycloakClientID: \"admin-cli\"\nkeycloakUser: \"keycloak-admin\"\npasswordFile: \"/secrets/keycloak-password\"\nclients:\n  - name: \"pm-keycloak-operator\"\n    secretRef:\n      name: \"pm-keycloak-operator-client-secret\"\n      namespace: \"platform-mesh-system\"\n  - name: \"iam-service\"\n    secretRef:\n      name: \"iam-client-secret\"\n      namespace: \"platform-mesh-system\"\n"
+      config.yaml: |
+        keycloakBaseURL: "https://example.com/keycloak"
+        keycloakClientID: "admin-cli"
+        keycloakUser: "keycloak-admin"
+        passwordFile: "/secrets/keycloak-password"
+        clients:
+          - name: "pm-keycloak-operator"
+            secretRef:
+              name: "pm-keycloak-operator-client-secret"
+              namespace: "platform-mesh-system"
+          - name: "iam-service"
+            secretRef:
+              name: "iam-client-secret"
+              namespace: "platform-mesh-system"
     kind: ConfigMap
     metadata:
       name: RELEASE-NAME-pm-keycloak-operator-init-container-config
@@ -230,6 +245,8 @@ operator matches the snapshot:
           containers:
             - args:
                 - initializer
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --user-claim=email
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --domain-ca-lookup
@@ -342,6 +359,8 @@ operator matches the snapshot:
           containers:
             - args:
                 - terminator
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --leader-elect
                 - --metrics-bind-address=:9090
@@ -549,6 +568,8 @@ operator matches the snapshot w. sentry:
           containers:
             - args:
                 - operator
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --user-claim=email
                 - --domain-ca-lookup
                 - --webhooks-enabled=true
@@ -677,7 +698,20 @@ operator matches the snapshot w. sentry:
   4: |
     apiVersion: v1
     data:
-      config.yaml: "keycloakBaseURL: \nkeycloakClientID: \"admin-cli\"\nkeycloakUser: \"keycloak-admin\"\npasswordFile: \"/secrets/keycloak-password\"\nclients:\n  - name: \"pm-keycloak-operator\"\n    secretRef:\n      name: \"pm-keycloak-operator-client-secret\"\n      namespace: \"platform-mesh-system\"\n  - name: \"iam-service\"\n    secretRef:\n      name: \"iam-client-secret\"\n      namespace: \"platform-mesh-system\"\n"
+      config.yaml: |
+        keycloakBaseURL: "https://example.com/keycloak"
+        keycloakClientID: "admin-cli"
+        keycloakUser: "keycloak-admin"
+        passwordFile: "/secrets/keycloak-password"
+        clients:
+          - name: "pm-keycloak-operator"
+            secretRef:
+              name: "pm-keycloak-operator-client-secret"
+              namespace: "platform-mesh-system"
+          - name: "iam-service"
+            secretRef:
+              name: "iam-client-secret"
+              namespace: "platform-mesh-system"
     kind: ConfigMap
     metadata:
       name: RELEASE-NAME-pm-keycloak-operator-init-container-config
@@ -703,6 +737,8 @@ operator matches the snapshot w. sentry:
           containers:
             - args:
                 - initializer
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --user-claim=email
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --domain-ca-lookup
@@ -847,6 +883,8 @@ operator matches the snapshot w. sentry:
           containers:
             - args:
                 - terminator
+                - --keycloak-base-url=https://example.com/keycloak
+                - --base-domain=example.com
                 - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
                 - --leader-elect
                 - --metrics-bind-address=:9090

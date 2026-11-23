@@ -15,12 +15,13 @@ Feature gate arguments from .Values.featureGates.
 Keycloak connection arguments shared by every command.
 */}}
 {{- define "pm-keycloak-operator.keycloakArgs" -}}
-{{- with .Values.keycloak.baseUrl }}
-- --keycloak-base-url={{ . }}
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
+{{- if .Values.keycloak.baseUrl }}
+- {{ printf "--keycloak-base-url=%s" .Values.keycloak.baseUrl | quote }}
+{{- else }}
+- "--keycloak-base-url={{ .Values.exposure.protocol }}://{{ .Values.exposure.baseDomain }}{{ .Values.exposure.normalizedPort }}/keycloak"
 {{- end }}
-{{- with .Values.baseDomain }}
-- --base-domain={{ . }}
-{{- end }}
+- "--base-domain={{ .Values.exposure.baseDomain }}{{ .Values.exposure.normalizedPort }}"
 {{- end -}}
 
 {{/*

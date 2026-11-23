@@ -2,6 +2,7 @@ suite: clusterScopedName
 release:
   name: pm-keycloak-operator
 set:
+  exposure.baseDomain: example.com
   clusterScopedName:
     prefix: pm-a
     suffix: stg

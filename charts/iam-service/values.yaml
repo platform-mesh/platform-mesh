@@ -11,11 +11,18 @@ health:
   port: 8080
 
 exposure:
-  # -- hostnames to be used for exposure
-  hostnames: []
+  # -- Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure.
+  baseDomain: ""
+  protocol: https
+  # -- Public port.
+  port: 443
+  # -- URL port string derived by the platform-mesh operator from protocol and port: empty for HTTP/80 or HTTPS/443, otherwise ":<port>".
+  normalizedPort: ""
 
 gatewayApi:
   httpRoute:
+    # -- Explicit route hostnames; empty uses exposure.baseDomain and its wildcard.
+    hostnames: []
     pathPrefix: /iam/graphql
     parentRefs:
       - name: k8sapi-gateway
@@ -42,7 +49,7 @@ openfga:
   endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
 
 keycloak:
-  # -- base URL of the Keycloak instance (e.g. https://example.com/keycloak). Required.
+  # -- Explicit Keycloak base URL for an external identity provider; empty derives the public URL plus /keycloak when exposure.baseDomain is set. Required without a base domain.
   baseUrl: ""
   client:
     id: iam-service

@@ -6,7 +6,7 @@ Gateway API enabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: null
+      gatewayClassName: traefik
       listeners:
         - name: terminate
           port: 443
@@ -21,7 +21,7 @@ Gateway API enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: ""
+          hostname: '*.services.example.com'
           name: terminate-services
           port: 443
           protocol: HTTPS
@@ -35,7 +35,7 @@ Gateway API enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: localhost
+          hostname: kcp.api.example.com
           name: passthrough
           port: 443
           protocol: TLS
@@ -44,7 +44,7 @@ Gateway API enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: root.kcp.localhost
+          hostname: root.kcp.example.com
           name: passthrough-root
           port: 443
           protocol: TLS
@@ -53,7 +53,7 @@ Gateway API enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: nereus.kcp.localhost
+          hostname: nereus.kcp.example.com
           name: passthrough-nereus
           port: 443
           protocol: TLS
@@ -62,7 +62,7 @@ Gateway API enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: triton.kcp.localhost
+          hostname: triton.kcp.example.com
           name: passthrough-triton
           port: 443
           protocol: TLS
@@ -205,8 +205,8 @@ Gateway API enabled:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -309,7 +309,7 @@ Gateway API enabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -326,8 +326,8 @@ Gateway API enabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -342,7 +342,7 @@ Gateway API enabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -351,7 +351,7 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -446,7 +446,7 @@ Gateway API enabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -474,7 +474,7 @@ Gateway API enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
+      shardBaseURL: https://nereus.kcp.example.com/
   13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -483,7 +483,7 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -578,7 +578,7 @@ Gateway API enabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -606,7 +606,7 @@ Gateway API enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
+      shardBaseURL: https://triton.kcp.example.com/
   16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -615,7 +615,7 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -636,7 +636,7 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -648,13 +648,15 @@ Gateway API enabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
+              port: 443
   18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -678,7 +680,7 @@ Istio disabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: null
+      gatewayClassName: traefik
       listeners:
         - name: terminate
           port: 443
@@ -693,7 +695,7 @@ Istio disabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: ""
+          hostname: '*.services.example.com'
           name: terminate-services
           port: 443
           protocol: HTTPS
@@ -707,7 +709,7 @@ Istio disabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: localhost
+          hostname: kcp.api.example.com
           name: passthrough
           port: 443
           protocol: TLS
@@ -716,7 +718,7 @@ Istio disabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: root.kcp.localhost
+          hostname: root.kcp.example.com
           name: passthrough-root
           port: 443
           protocol: TLS
@@ -725,7 +727,7 @@ Istio disabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: nereus.kcp.localhost
+          hostname: nereus.kcp.example.com
           name: passthrough-nereus
           port: 443
           protocol: TLS
@@ -734,7 +736,7 @@ Istio disabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: triton.kcp.localhost
+          hostname: triton.kcp.example.com
           name: passthrough-triton
           port: 443
           protocol: TLS
@@ -877,8 +879,8 @@ Istio disabled:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -981,7 +983,7 @@ Istio disabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -998,8 +1000,8 @@ Istio disabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -1014,7 +1016,7 @@ Istio disabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -1023,7 +1025,7 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1118,7 +1120,7 @@ Istio disabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -1146,7 +1148,7 @@ Istio disabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
+      shardBaseURL: https://nereus.kcp.example.com/
   13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -1155,7 +1157,7 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1250,7 +1252,7 @@ Istio disabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -1278,7 +1280,7 @@ Istio disabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
+      shardBaseURL: https://triton.kcp.example.com/
   16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -1287,7 +1289,7 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1308,7 +1310,7 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1320,13 +1322,15 @@ Istio disabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
+              port: 443
   18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1350,7 +1354,7 @@ Istio enabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: null
+      gatewayClassName: traefik
       listeners:
         - name: terminate
           port: 443
@@ -1365,7 +1369,7 @@ Istio enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: ""
+          hostname: '*.services.example.com'
           name: terminate-services
           port: 443
           protocol: HTTPS
@@ -1379,7 +1383,7 @@ Istio enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: localhost
+          hostname: kcp.api.example.com
           name: passthrough
           port: 443
           protocol: TLS
@@ -1388,7 +1392,7 @@ Istio enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: root.kcp.localhost
+          hostname: root.kcp.example.com
           name: passthrough-root
           port: 443
           protocol: TLS
@@ -1397,7 +1401,7 @@ Istio enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: nereus.kcp.localhost
+          hostname: nereus.kcp.example.com
           name: passthrough-nereus
           port: 443
           protocol: TLS
@@ -1406,7 +1410,7 @@ Istio enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: triton.kcp.localhost
+          hostname: triton.kcp.example.com
           name: passthrough-triton
           port: 443
           protocol: TLS
@@ -1549,8 +1553,8 @@ Istio enabled:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -1653,7 +1657,7 @@ Istio enabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -1670,8 +1674,8 @@ Istio enabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -1686,7 +1690,7 @@ Istio enabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -1695,7 +1699,7 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1790,7 +1794,7 @@ Istio enabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -1818,7 +1822,7 @@ Istio enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
+      shardBaseURL: https://nereus.kcp.example.com/
   13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -1827,7 +1831,7 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1922,7 +1926,7 @@ Istio enabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -1950,7 +1954,7 @@ Istio enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
+      shardBaseURL: https://triton.kcp.example.com/
   16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -1959,7 +1963,7 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1980,7 +1984,7 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1992,13 +1996,15 @@ Istio enabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
+              port: 443
   18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2104,7 +2110,7 @@ configure etcd backup store:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -2121,8 +2127,8 @@ configure etcd backup store:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -2137,7 +2143,7 @@ configure etcd backup store:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   3: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -2146,7 +2152,7 @@ configure etcd backup store:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2186,8 +2192,8 @@ configure frontproxy resources:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -2290,7 +2296,7 @@ configure rootshard resources:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -2307,8 +2313,8 @@ configure rootshard resources:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -2330,7 +2336,7 @@ configure rootshard resources:
         requests:
           cpu: 200m
           memory: 256Mi
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   3: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -2339,7 +2345,7 @@ configure rootshard resources:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2360,7 +2366,7 @@ match snapshots:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: null
+      gatewayClassName: traefik
       listeners:
         - name: terminate
           port: 443
@@ -2375,7 +2381,7 @@ match snapshots:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: ""
+          hostname: '*.services.example.com'
           name: terminate-services
           port: 443
           protocol: HTTPS
@@ -2389,7 +2395,7 @@ match snapshots:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: localhost
+          hostname: kcp.api.example.com
           name: passthrough
           port: 443
           protocol: TLS
@@ -2398,7 +2404,7 @@ match snapshots:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: root.kcp.localhost
+          hostname: root.kcp.example.com
           name: passthrough-root
           port: 443
           protocol: TLS
@@ -2407,7 +2413,7 @@ match snapshots:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: nereus.kcp.localhost
+          hostname: nereus.kcp.example.com
           name: passthrough-nereus
           port: 443
           protocol: TLS
@@ -2416,7 +2422,7 @@ match snapshots:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: triton.kcp.localhost
+          hostname: triton.kcp.example.com
           name: passthrough-triton
           port: 443
           protocol: TLS
@@ -2559,8 +2565,8 @@ match snapshots:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -2663,7 +2669,7 @@ match snapshots:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -2680,8 +2686,8 @@ match snapshots:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -2696,7 +2702,7 @@ match snapshots:
           repository: ghcr.io/kcp-dev/kcp
           tag: 0.0.0
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -2705,7 +2711,7 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2800,7 +2806,7 @@ match snapshots:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -2828,7 +2834,7 @@ match snapshots:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
+      shardBaseURL: https://nereus.kcp.example.com/
   13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -2837,7 +2843,7 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2932,7 +2938,7 @@ match snapshots:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -2960,7 +2966,7 @@ match snapshots:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
+      shardBaseURL: https://triton.kcp.example.com/
   16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -2969,7 +2975,7 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2990,7 +2996,7 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3002,13 +3008,15 @@ match snapshots:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
+              port: 443
   18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3032,7 +3040,7 @@ match snapshots w. hostAliases enabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: null
+      gatewayClassName: traefik
       listeners:
         - name: terminate
           port: 443
@@ -3047,7 +3055,7 @@ match snapshots w. hostAliases enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: ""
+          hostname: '*.services.example.com'
           name: terminate-services
           port: 443
           protocol: HTTPS
@@ -3061,7 +3069,7 @@ match snapshots w. hostAliases enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: localhost
+          hostname: kcp.api.example.com
           name: passthrough
           port: 443
           protocol: TLS
@@ -3070,7 +3078,7 @@ match snapshots w. hostAliases enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: root.kcp.localhost
+          hostname: root.kcp.example.com
           name: passthrough-root
           port: 443
           protocol: TLS
@@ -3079,7 +3087,7 @@ match snapshots w. hostAliases enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: nereus.kcp.localhost
+          hostname: nereus.kcp.example.com
           name: passthrough-nereus
           port: 443
           protocol: TLS
@@ -3088,7 +3096,7 @@ match snapshots w. hostAliases enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: triton.kcp.localhost
+          hostname: triton.kcp.example.com
           name: passthrough-triton
           port: 443
           protocol: TLS
@@ -3232,8 +3240,8 @@ match snapshots w. hostAliases enabled:
             spec:
               hostAliases: []
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -3337,7 +3345,7 @@ match snapshots w. hostAliases enabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -3355,8 +3363,8 @@ match snapshots w. hostAliases enabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -3372,7 +3380,7 @@ match snapshots w. hostAliases enabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -3381,7 +3389,7 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3476,7 +3484,7 @@ match snapshots w. hostAliases enabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -3506,7 +3514,7 @@ match snapshots w. hostAliases enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
+      shardBaseURL: https://nereus.kcp.example.com/
   13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -3515,7 +3523,7 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3610,7 +3618,7 @@ match snapshots w. hostAliases enabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -3640,7 +3648,7 @@ match snapshots w. hostAliases enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
+      shardBaseURL: https://triton.kcp.example.com/
   16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -3649,7 +3657,7 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3670,7 +3678,7 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3682,13 +3690,15 @@ match snapshots w. hostAliases enabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
+              port: 443
   18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3712,7 +3722,7 @@ match snapshots w. kcp version:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: null
+      gatewayClassName: traefik
       listeners:
         - name: terminate
           port: 443
@@ -3727,7 +3737,7 @@ match snapshots w. kcp version:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: ""
+          hostname: '*.services.example.com'
           name: terminate-services
           port: 443
           protocol: HTTPS
@@ -3741,7 +3751,7 @@ match snapshots w. kcp version:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: localhost
+          hostname: kcp.api.example.com
           name: passthrough
           port: 443
           protocol: TLS
@@ -3750,7 +3760,7 @@ match snapshots w. kcp version:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: root.kcp.localhost
+          hostname: root.kcp.example.com
           name: passthrough-root
           port: 443
           protocol: TLS
@@ -3759,7 +3769,7 @@ match snapshots w. kcp version:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: nereus.kcp.localhost
+          hostname: nereus.kcp.example.com
           name: passthrough-nereus
           port: 443
           protocol: TLS
@@ -3768,7 +3778,7 @@ match snapshots w. kcp version:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: triton.kcp.localhost
+          hostname: triton.kcp.example.com
           name: passthrough-triton
           port: 443
           protocol: TLS
@@ -3911,8 +3921,8 @@ match snapshots w. kcp version:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -4015,7 +4025,7 @@ match snapshots w. kcp version:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -4032,8 +4042,8 @@ match snapshots w. kcp version:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -4048,7 +4058,7 @@ match snapshots w. kcp version:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.1.0
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -4057,7 +4067,7 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4152,7 +4162,7 @@ match snapshots w. kcp version:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -4180,7 +4190,7 @@ match snapshots w. kcp version:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
+      shardBaseURL: https://nereus.kcp.example.com/
   13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -4189,7 +4199,7 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4284,7 +4294,7 @@ match snapshots w. kcp version:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -4312,7 +4322,7 @@ match snapshots w. kcp version:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
+      shardBaseURL: https://triton.kcp.example.com/
   16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -4321,7 +4331,7 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4342,7 +4352,7 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4354,13 +4364,15 @@ match snapshots w. kcp version:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
+              port: 443
   18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4384,7 +4396,7 @@ match snapshots with mailpit enabled:
       name: k8sapi-gateway
       namespace: platform-mesh-system
     spec:
-      gatewayClassName: null
+      gatewayClassName: traefik
       listeners:
         - name: terminate
           port: 443
@@ -4399,7 +4411,7 @@ match snapshots with mailpit enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: ""
+          hostname: '*.services.example.com'
           name: terminate-services
           port: 443
           protocol: HTTPS
@@ -4413,7 +4425,7 @@ match snapshots with mailpit enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: localhost
+          hostname: kcp.api.example.com
           name: passthrough
           port: 443
           protocol: TLS
@@ -4422,7 +4434,7 @@ match snapshots with mailpit enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: root.kcp.localhost
+          hostname: root.kcp.example.com
           name: passthrough-root
           port: 443
           protocol: TLS
@@ -4431,7 +4443,7 @@ match snapshots with mailpit enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: nereus.kcp.localhost
+          hostname: nereus.kcp.example.com
           name: passthrough-nereus
           port: 443
           protocol: TLS
@@ -4440,7 +4452,7 @@ match snapshots with mailpit enabled:
         - allowedRoutes:
             namespaces:
               from: All
-          hostname: triton.kcp.localhost
+          hostname: triton.kcp.example.com
           name: passthrough-triton
           port: 443
           protocol: TLS
@@ -4583,8 +4595,8 @@ match snapshots with mailpit enabled:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -4687,7 +4699,7 @@ match snapshots with mailpit enabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -4704,8 +4716,8 @@ match snapshots with mailpit enabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -4720,7 +4732,7 @@ match snapshots with mailpit enabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -4729,7 +4741,7 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4824,7 +4836,7 @@ match snapshots with mailpit enabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -4852,7 +4864,7 @@ match snapshots with mailpit enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
+      shardBaseURL: https://nereus.kcp.example.com/
   13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -4861,7 +4873,7 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4956,7 +4968,7 @@ match snapshots with mailpit enabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -4984,7 +4996,7 @@ match snapshots with mailpit enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
+      shardBaseURL: https://triton.kcp.example.com/
   16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -4993,7 +5005,7 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -5014,7 +5026,7 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -5026,13 +5038,15 @@ match snapshots with mailpit enabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
+              port: 443
   18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -5159,7 +5173,7 @@ render additional shard with explicit hostname:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://shard-1.kcp.localhost:8443/
+      shardBaseURL: https://shard-1.kcp.localhost/
   3: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute

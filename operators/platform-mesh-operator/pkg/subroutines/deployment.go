@@ -690,6 +690,12 @@ func (r *DeploymentSubroutine) buildComponentsTemplateVars(ctx context.Context, 
 		return nil, nil, errors.Wrap(err, "Failed to merge services from PlatformMesh.spec.Values with profile-components.yaml services")
 	}
 
+	// Inject operator-owned
+	mergedServices, err = injectHelmValues(mergedServices, buildHelmValues(inst, r.cfgOperator), log)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// deploymentNamespace: where deployment CRs live (configurable via profile)
 	componentsNamespace := inst.Namespace
 	if deployNs, ok := values["deploymentNamespace"].(string); ok && deployNs != "" {

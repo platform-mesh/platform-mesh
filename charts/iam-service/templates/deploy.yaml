@@ -1,3 +1,5 @@
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,7 +29,11 @@ spec:
           protocol: TCP
         args:
           - serve
-          - --keycloak-base-url={{ .Values.keycloak.baseUrl }}
+          {{- if .Values.keycloak.baseUrl }}
+          - {{ printf "--keycloak-base-url=%s" .Values.keycloak.baseUrl | quote }}
+          {{- else }}
+          - "--keycloak-base-url={{ .Values.exposure.protocol }}://{{ .Values.exposure.baseDomain }}{{ .Values.exposure.normalizedPort }}/keycloak"
+          {{- end }}
           - --keycloak-client-id={{ .Values.keycloak.client.id }}
           - --roles-file-path=/roles/roles.yaml
           - --jwt-user-id-claim={{ .Values.jwt.userIdClaim  }}

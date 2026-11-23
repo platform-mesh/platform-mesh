@@ -197,6 +197,11 @@ func oidcTestInstance(t *testing.T, profileYAML string) (*DeploymentSubroutine, 
 	t.Helper()
 
 	sub, inst := newSubroutineWithProfile(t, profileYAML, "test-pm", "test-ns", config.RemoteClusterConfig{})
+	sub.cfgOperator.KCP = config.KCPConfig{
+		Namespace:      "platform-mesh-system",
+		FrontProxyName: "frontproxy",
+		FrontProxyPort: "8443",
+	}
 	inst.Spec.FeatureToggles = []pmcorev1alpha1.FeatureToggle{
 		{Name: FeatureDisableKeycloak},
 	}
@@ -225,6 +230,15 @@ func servicesOf(t *testing.T, sub *DeploymentSubroutine, inst *pmcorev1alpha1.Pl
 func Test_buildComponentsTemplateVars_OIDCAuthentication(t *testing.T) {
 	t.Parallel()
 
+	expectedExposure := map[string]any{
+		"baseDomain":       "portal.localhost",
+		"protocol":         "https",
+		"port":             int64(8443),
+		"normalizedPort":   ":8443",
+		"gatewayClassName": "traefik",
+	}
+	const expectedFrontProxyURL = "https://frontproxy-front-proxy.platform-mesh-system:8443"
+
 	t.Run("merges the issuer over the profile and keeps what the profile set", func(t *testing.T) {
 		t.Parallel()
 
@@ -237,7 +251,9 @@ func Test_buildComponentsTemplateVars_OIDCAuthentication(t *testing.T) {
 		require.True(t, ok, "portal is a map")
 
 		assert.Equal(t, map[string]any{
+			"exposure": expectedExposure,
 			"kcp": map[string]any{
+				"internalFrontProxyUrl": expectedFrontProxyURL,
 				"auth": map[string]any{
 					"serviceAccount": map[string]any{
 						"enabled": true,
@@ -251,6 +267,10 @@ func Test_buildComponentsTemplateVars_OIDCAuthentication(t *testing.T) {
 			},
 		}, infra["values"], "service account authentication of the profile stays")
 		assert.Equal(t, map[string]any{
+			"exposure": expectedExposure,
+			"kcp": map[string]any{
+				"internalFrontProxyUrl": expectedFrontProxyURL,
+			},
 			"auth": map[string]any{
 				"default": map[string]any{
 					"clientId":     "welcome",
@@ -260,7 +280,7 @@ func Test_buildComponentsTemplateVars_OIDCAuthentication(t *testing.T) {
 		}, portal["values"], "the Keycloak discovery URL of the profile is replaced")
 	})
 
-	t.Run("spec.values keeps the last word", func(t *testing.T) {
+	t.Run("spec.values overrides authentication settings", func(t *testing.T) {
 		t.Parallel()
 
 		sub, inst := oidcTestInstance(t, oidcTestProfile)
@@ -287,7 +307,9 @@ func Test_buildComponentsTemplateVars_OIDCAuthentication(t *testing.T) {
 		infra, ok := services["infra"].(map[string]any)
 		require.True(t, ok, "infra is a map")
 		assert.Equal(t, map[string]any{
+			"exposure": expectedExposure,
 			"kcp": map[string]any{
+				"internalFrontProxyUrl": expectedFrontProxyURL,
 				"auth": map[string]any{
 					"serviceAccount": map[string]any{
 						"enabled": true,
@@ -331,7 +353,7 @@ components:
 		assert.ErrorContains(t, err, "spec.authentication.oidc needs the feature toggle "+FeatureDisableKeycloak)
 	})
 
-	t.Run("without spec.authentication the profile is untouched", func(t *testing.T) {
+	t.Run("without spec.authentication the profile authentication is preserved", func(t *testing.T) {
 		t.Parallel()
 
 		sub, inst := oidcTestInstance(t, oidcTestProfile)
@@ -342,6 +364,10 @@ components:
 		portal, ok := services["portal"].(map[string]any)
 		require.True(t, ok, "portal is a map")
 		assert.Equal(t, map[string]any{
+			"exposure": expectedExposure,
+			"kcp": map[string]any{
+				"internalFrontProxyUrl": expectedFrontProxyURL,
+			},
 			"auth": map[string]any{
 				"default": map[string]any{
 					"clientId":     "welcome",

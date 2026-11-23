@@ -27,7 +27,7 @@ gateway:
   port: 8443
   # -- Name of the GatewayClass the Platform Mesh Gateway attaches to. Set this to the GatewayClass registered by your own controller (e.g. `envoy`, `istio`) to run Platform Mesh on a different Gateway API implementation.
   className: ""
-  # -- ClusterIP of the gateway controller Service. Required when ocm.profile=kind, where component pods resolve the Platform Mesh hostnames to it through host aliases; production uses public DNS.
+  # -- ClusterIP of the gateway controller Service. Required with the kind profile for its shared host aliases; production uses public DNS.
   clusterIP: ""
 
 # -- Additions to the PlatformMesh resource (used when ocm.enabled=true).
@@ -39,10 +39,10 @@ platformMesh:
   # -- `spec.values` of the PlatformMesh resource: values merged over the services of the profile, e.g. to disable a service.
   values: {}
 
-# -- KCP connectivity configuration (used when ocm.enabled=true).
+# -- kcp connectivity configuration (used when ocm.enabled=true).
 kcp:
-  # -- Internal port of the KCP front-proxy Service. Production Services expose 443; the kind profile uses 8443.
-  frontProxyPort: 443
+  # -- Internal kcp front-proxy Service port; empty uses gateway.port, matching the derived FrontProxy external port.
+  frontProxyPort: null
 
 # -- TLS Secret containing tls.crt, tls.key, and ca.crt. Its ca.crt is trusted by the operator.
 certificateSecretName: domain-certificate

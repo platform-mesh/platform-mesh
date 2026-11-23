@@ -28,11 +28,11 @@ A Helm chart to deploy the Platform Mesh contentconfigurations virtual workspace
 | deployment.mainEntityName | string | `"main"` |  |
 | deployment.resourceSchemaName | string | `"v250704-6d57f16.contentconfigurations.ui.platform-mesh.io"` |  |
 | deployment.resourceSchemaWorkspace | string | `"root:platform-mesh-system"` |  |
-| deployment.serverUrl | string | `"https://frontproxy-front-proxy.platform-mesh-system:8443"` | URL of the kcp front-proxy service. The port must match front-proxy service port. |
 | hostAliases.enabled | bool | `false` |  |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.registry | string | `"ghcr.io"` | The image registry |
 | image.repository | string | `"platform-mesh/platform-mesh/extension-manager-virtual-workspace"` | The image repository path (without registry) |
+| kcp.internalFrontProxyUrl | string | `""` | Required kcp front-proxy root URL supplied by the operator; used for cluster-aware clients. |
 | kubeconfigSecretName | string | `"account-operator-kubeconfig"` |  |
 | requestHeaderClientCASecretName | string | `"root-requestheader-client-ca"` |  |
 | service.port | int | `8443` |  |

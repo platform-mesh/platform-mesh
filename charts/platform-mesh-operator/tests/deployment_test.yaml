@@ -53,9 +53,9 @@ tests:
     - equal:
         path: spec.replicas
         value: 3
-    - equal:
-        path: spec.template.spec.containers[0].args[1]
-        value: "--leader-elect"
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: "--leader-elect"
 
 - it: enables istio sidecar injection
   template: deployment.yaml

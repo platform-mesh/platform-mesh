@@ -16,8 +16,6 @@ image:
 deployment:
   entityLabel: ui.platform-mesh.io/entity
   contentForLabel: ui.platform-mesh.io/content-for
-  # -- URL of the kcp front-proxy service. The port must match front-proxy service port.
-  serverUrl: https://frontproxy-front-proxy.platform-mesh-system:8443
   resourceSchemaName: "v250704-6d57f16.contentconfigurations.ui.platform-mesh.io"
   resourceSchemaWorkspace: root:platform-mesh-system
   mainEntityName: main
@@ -60,3 +58,7 @@ cert:
 #         target:
 #           type: Utilization
 #           averageUtilization: 80
+
+kcp:
+  # -- Required kcp front-proxy root URL supplied by the operator; used for cluster-aware clients.
+  internalFrontProxyUrl: ""

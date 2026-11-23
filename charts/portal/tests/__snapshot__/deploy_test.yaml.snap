@@ -25,13 +25,13 @@ matches the snapshot:
           containers:
             - env:
                 - name: HTTP_PROTOCOL
-                  value: null
+                  value: https
                 - name: DISCOVERY_ENDPOINT
-                  value: null
+                  value: https://example.com/keycloak/realms/${org-name}/.well-known/openid-configuration
                 - name: OIDC_CLIENT_ID_DEFAULT
                   value: null
                 - name: BASE_DOMAINS_DEFAULT
-                  value: null
+                  value: example.com
                 - name: DEVELOPMENT_INSTANCE
                   value: "false"
                 - name: FEATURE_TOGGLES
@@ -48,10 +48,16 @@ matches the snapshot:
                   value: 1.0.0
                 - name: IMAGE_NAME
                   value: ghcr.io/platform-mesh/portal
+                - name: COOKIE_DOMAIN
+                  value: example.com
                 - name: FRONTEND_PORT
-                  value: "8000"
+                  value: "443"
                 - name: VALID_WEBCOMPONENT_URLS
                   value: .?
+                - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+                  value: https://${org-subdomain}example.com/iam/graphql
+                - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+                  value: https://${org-subdomain}example.com/gateway/api/clusters/root:orgs:${org-name}/graphql
                 - name: TEST_TEST
                   value: test test
                 - name: DEMO_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
@@ -130,13 +136,13 @@ test hosAliases:
           containers:
             - env:
                 - name: HTTP_PROTOCOL
-                  value: null
+                  value: https
                 - name: DISCOVERY_ENDPOINT
-                  value: null
+                  value: https://example.com/keycloak/realms/${org-name}/.well-known/openid-configuration
                 - name: OIDC_CLIENT_ID_DEFAULT
                   value: null
                 - name: BASE_DOMAINS_DEFAULT
-                  value: null
+                  value: example.com
                 - name: DEVELOPMENT_INSTANCE
                   value: "false"
                 - name: FEATURE_TOGGLES
@@ -153,10 +159,16 @@ test hosAliases:
                   value: 1.0.0
                 - name: IMAGE_NAME
                   value: ghcr.io/platform-mesh/portal
+                - name: COOKIE_DOMAIN
+                  value: example.com
                 - name: FRONTEND_PORT
-                  value: "8000"
+                  value: "443"
                 - name: VALID_WEBCOMPONENT_URLS
                   value: .?
+                - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+                  value: https://${org-subdomain}example.com/iam/graphql
+                - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+                  value: https://${org-subdomain}example.com/gateway/api/clusters/root:orgs:${org-name}/graphql
               image: ghcr.io/platform-mesh/portal:1.0.0
               imagePullPolicy: IfNotPresent
               name: portal

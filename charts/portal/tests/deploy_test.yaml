@@ -1,3 +1,5 @@
+set:
+  exposure.baseDomain: example.com
 suite: deploy
 templates:
   - deploy.yaml
@@ -27,3 +29,54 @@ tests:
     template: deploy.yaml
     asserts:
       - matchSnapshot: {}
+  - it: uses normalized exposure port consistently for discovery and API URLs
+    set:
+      exposure.protocol: https
+      exposure.port: 8443
+      exposure.normalizedPort: ":8443"
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: DISCOVERY_ENDPOINT
+          value: https://example.com:8443/keycloak/realms/${org-name}/.well-known/openid-configuration
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+          value: https://${org-subdomain}example.com:8443/iam/graphql
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+          value: https://${org-subdomain}example.com:8443/gateway/api/clusters/root:orgs:${org-name}/graphql
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: FRONTEND_PORT
+          value: '8443'
+  - it: uses an external discovery endpoint
+    set:
+      auth.default.discoveryUrl: https://identity.example.net/.well-known/openid-configuration
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: DISCOVERY_ENDPOINT
+          value: https://identity.example.net/.well-known/openid-configuration
+  - it: explicit API environment entry suppresses the generated default
+    set:
+      extraEnvVars:
+      - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+        value: https://custom.example.net/graphql
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+          value: https://custom.example.net/graphql
+    - notContains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+          value: https://${org-subdomain}example.com/iam/graphql

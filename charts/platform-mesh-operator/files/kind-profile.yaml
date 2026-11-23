@@ -92,8 +92,6 @@ data:
           enabled: true
           dependsOn: []
           values:
-            crds:
-              enabled: false
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
@@ -161,7 +159,6 @@ data:
           values:
             keycloak:
               operator:
-                hostname: https://{{ .baseDomainPort }}/keycloak/
                 enabled: true
                 # cert-manager writes the issuing CA as ca.crt in the leaf certificate Secret.
                 caSecret: domain-certificate
@@ -184,9 +181,6 @@ data:
                   startup:
                     path: /keycloak/health
                     failureThreshold: 600
-              gatewayApi:
-                hostnames:
-                  - "{{ .baseDomain }}"
               service:
                 name: keycloak-service
                 port: 8080
@@ -206,62 +200,15 @@ data:
                   password: openfga-password
             gatewayApi:
               enabled: true
-              gatewayClassName: __GATEWAY_CLASS_NAME__
-              listeners:
-                - name: terminate
-                  hostname: "{{ .baseDomain }}"
-                  port: 8443
-                  protocol: HTTPS
-                  tls:
-                    mode: Terminate
-                    certificateRefs:
-                      - kind: Secret
-                        name: domain-certificate
-                        namespace: platform-mesh-system
-                - name: terminate-wildstar
-                  hostname: "*.{{ .baseDomain }}"
-                  port: 8443
-                  protocol: HTTPS
-                  tls:
-                    mode: Terminate
-                    certificateRefs:
-                      - kind: Secret
-                        name: domain-certificate
-                        namespace: platform-mesh-system
               passthrough:
                 enabled: true
-                port: 8443
-              listenersExtra:
-                - name: terminate-services
-                  hostname: "*.services.{{ .baseDomain }}"
-                  port: 8443
-                  protocol: HTTPS
-                  tls:
-                    mode: Terminate
-                    certificateRefs:
-                      - kind: Secret
-                        name: domain-certificate
-                        namespace: platform-mesh-system
-                  allowedRoutes:
-                    namespaces:
-                      from: All
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             kcp:
-              external:
-                hostname: kcp.api.{{ .baseDomain }}
-                port: 8443
               auth:
                 serviceAccount:
                   enabled: true
-              frontProxy:
-                port: 8443
               proxy:
                 replicas: 1
               rootShard:
-                hostname: "root.kcp.{{ .baseDomain }}"
-                shardBaseURL: https://root.kcp.{{ .baseDomain }}:8443/
                 extraArgs:
                 - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
               shards: []
@@ -278,11 +225,7 @@ data:
               artifact: image
               for: iam-ui
               unsuspend: "true"
-          values:
-            exposure:
-              hostnames:
-              - "{{ .baseDomain }}"
-              - "*.{{ .baseDomain }}"
+          values: {}
         iam-service:
           suspend: true
           imageResources:
@@ -295,14 +238,12 @@ data:
           enabled: true
           dependsOn: []
           values:
-            caSecret: domain-certificate
-            extraArgs:
-            - --no-json
-            keycloak:
-              baseUrl: "https://{{ .baseDomainPort }}/keycloak"
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
+            caSecret: domain-certificate
+            extraArgs:
+            - --no-json
         kcp:
           external: true
           dependsOn: []
@@ -364,7 +305,6 @@ data:
           targetNamespace: platform-mesh-system
           absoluteReferencePath:
           - name: cnpg-operator
-          values: {}
           imageResources:
           - name: cnpg-operator-image
             annotations:
@@ -372,6 +312,7 @@ data:
               artifact: image
               for: cnpg-operator
               image-ref: combined
+          values: {}
         kubernetes-graphql-gateway:
           suspend: true
           imageResources:
@@ -384,37 +325,21 @@ data:
           enabled: true
           dependsOn: []
           values:
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
             gateway:
               playground: true
               logLevel: trace
             gatewayApi:
               enabled: true
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             kubeConfig:
               enabled: true
               secretName: kubernetes-graphql-gateway-kubeconfig
-            listener:
-              virtualWorkspacesConfig:
-                content:
-                  virtualWorkspaces:
-                  - kubeconfig: /app/kubeconfig/kubeconfig
-                    name: contentconfigurations
-                    url: "{{ .internalFrontProxyUrl }}/services/contentconfigurations"
-                  - kubeconfig: /app/kubeconfig/kubeconfig
-                    name: marketplace
-                    url: "{{ .internalFrontProxyUrl }}/services/marketplace"
-                enabled: true
             sentry:
               environment: dev
             tracing:
               enabled: false
-            trust:
-              default:
-                audience: default
-                jwksUrl: http://keycloak-headless.platform-mesh-system:8080/keycloak/realms/default/protocol/openid-connect/certs
-                trustedIssuer: 'https://{{ .baseDomainPort }}/keycloak/realms/default'
         openfga:
           enabled: true
           external: true
@@ -510,19 +435,11 @@ data:
           values:
             auth:
               default:
-                baseDomain: '{{ .baseDomain }}'
                 clientId: welcome
                 clientSecretKey: attribute.client_secret
                 clientSecretName: portal-client-secret-welcome
-                discoveryUrl: 'https://{{ .baseDomainPort }}/keycloak/realms/${org-name}/.well-known/openid-configuration'
-            cookieDomain: '{{ .baseDomain }}'
-            crdGatewayApiUrl: 'https://${org-subdomain}{{ .baseDomain }}/api/kubernetes-graphql-gateway/root:orgs:${org-name}/graphql'
             environment: kind
             extraEnvVars:
-            - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
-              value: https://${org-subdomain}{{ .baseDomainPort }}/iam/graphql
-            - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
-              value: https://${org-subdomain}{{ .baseDomainPort }}/gateway/api/clusters/root:orgs:${org-name}/graphql
             - name: NODE_EXTRA_CA_CERTS
               value: /etc/ssl/certs/ca-bundle.crt
             - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
@@ -560,21 +477,12 @@ data:
               mountPath: /etc/ssl/certs/ca-bundle.crt
               subPath: ca-bundle.crt
               readOnly: true
-            frontendPort: '8443'
             gatewayApi:
               enabled: true
               httpRoute:
-                hostnames:
-                - "{{ .baseDomain }}"
-                - "*.{{ .baseDomain }}"
                 parentRefs:
                 - name: k8sapi-gateway
                   kind: Gateway
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
-            http:
-              protocol: https
             kcp:
               kubeconfigSecret: portal-kubeconfig
         pm-openfga-authz-webhook:
@@ -614,12 +522,12 @@ data:
           enabled: true
           dependsOn: []
           values:
-            baseDomain: '{{ .baseDomainPort }}'
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
             caSecret: domain-certificate
             crds:
               enabled: false
-            keycloak:
-              baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
             idp:
               smtp:
                 # REQUIRED: configure a production SMTP server
@@ -630,9 +538,6 @@ data:
               registrationAllowed: false
               allowUnverifiedEmails: false
               setDefaultPassword: false
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             initializer:
               kubeconfigSecret: keycloak-initializer-kubeconfig
             kubeconfigSecret: pm-keycloak-operator-kubeconfig
@@ -653,14 +558,14 @@ data:
           enabled: true
           dependsOn: []
           values:
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
             caSecret: domain-certificate
             crds:
               enabled: false
             openfga:
               endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             initializer:
               kubeconfigSecret: openfga-initializer-kubeconfig
             kubeconfigSecret: pm-openfga-operator-kubeconfig
@@ -686,7 +591,6 @@ data:
               enabled: true
               entries: *hostAliasesEntries
             deployment:
-              serverUrl: "{{ .internalFrontProxyUrl }}"
               resourceSchemaName: "v250704-6d57f16.contentconfigurations.ui.platform-mesh.io"
               resourceSchemaWorkspace: "root:platform-mesh-system"
         marketplace:
@@ -705,8 +609,6 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            deployment:
-              serverUrl: "{{ .internalFrontProxyUrl }}"
         marketplace-ui:
           enabled: true
           dependsOn: []
@@ -718,13 +620,6 @@ data:
               for: marketplace-ui
               unsuspend: "true"
           values:
-            contentConfig:
-              baseDomain: '{{ .baseDomain }}'
-              protocol: https
-            exposure:
-              hostnames:
-              - "{{ .baseDomain }}"
-              - "*.{{ .baseDomain }}"
             gatewayApi:
               enabled: true
             http:

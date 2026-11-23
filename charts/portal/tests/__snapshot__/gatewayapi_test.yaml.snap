@@ -5,6 +5,9 @@ match the Snapshot:
     metadata:
       name: platform-mesh-portal
     spec:
+      hostnames:
+        - example.com
+        - '*.example.com'
       parentRefs:
         - name: k8sapi-gateway
       rules:

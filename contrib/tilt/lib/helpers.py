@@ -80,28 +80,39 @@ def _deep_merge(base, overrides):
 
 
 def profile_values(service, tvars, overrides={}):
-    """Helm values of one service from the kind-profile, templated and overridden.
+    """Merge static profile settings and overrides, then inject the shared contract.
 
-    tvars:     {{ .name }} substitutions (baseDomain, baseDomainPort, ...),
-               plus gatewayClassName/gatewayClusterIP/port for the
-               __PLACEHOLDER__ tokens the PMO chart replaces
+    tvars:     runtime inputs (baseDomain, port, internalFrontProxyUrl, gatewayClassName)
     overrides: deep-merged on top of the profile's values
     """
     profile = str(decode_yaml(read_file(KIND_PROFILE))['data']['profile.yaml'])
-    for k, v in tvars.items():
-        profile = profile.replace('{{ .%s }}' % k, v)
-    profile = profile.replace('__GATEWAY_CLASS_NAME__', tvars['gatewayClassName'])
-    profile = profile.replace('__EXTERNAL_PORT__', tvars['port'])
-    profile = profile.replace('__GATEWAY_SERVICE_CLUSTER_IP__', tvars['gatewayClusterIP'])
     services = decode_yaml(profile)['components']['services']
     if service not in services:
         fail('{} is not a service in {}'.format(service, KIND_PROFILE))
     values = services[service].get('values', {})
-    # Every hostname resolves to the node via sslip.io; the profile's aliases
-    # would pin kcp names to a gateway service ClusterIP instead.
+    # Tilt uses sslip.io; ignore the kind profile's gateway Service host aliases.
     if 'hostAliases' in values:
         values['hostAliases'] = {'enabled': False}
-    return _deep_merge(values, overrides)
+    values = _deep_merge(values, overrides)
+    if services[service].get('external', False):
+        return values
+    protocol = tvars.get('protocol', 'https')
+    port = int(tvars['port'])
+    # Match the operator's URL port formatting when Tilt renders charts directly.
+    normalized_port = ':%d' % port
+    if (protocol == 'http' and port == 80) or (protocol == 'https' and port == 443):
+        normalized_port = ''
+    pm_operator_cfg = {
+        'exposure': {
+            'baseDomain': tvars['baseDomain'],
+            'protocol': protocol,
+            'port': port,
+            'normalizedPort': normalized_port,
+            'gatewayClassName': tvars['gatewayClassName'],
+        },
+        'kcp': {'internalFrontProxyUrl': tvars['internalFrontProxyUrl']},
+    }
+    return _deep_merge(values, pm_operator_cfg)
 
 
 def write_yaml(path, obj):

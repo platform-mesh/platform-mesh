@@ -7,9 +7,10 @@ Helm Chart for the marketplace-ui
 |-----|------|---------|-------------|
 | deployment.maxSurge | int | `5` |  |
 | deployment.maxUnavailable | int | `0` |  |
-| exposure.hostnames | list | `[]` | hostnames to be used for exposure |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure. |
 | gatewayApi.enabled | bool | `false` |  |
 | gatewayApi.httpRoute.filters | list | `[]` | list of HTTPRoute filters (default: none) |
+| gatewayApi.httpRoute.hostnames | list | `[]` | Explicit route hostnames; empty uses exposure.baseDomain and its wildcard. |
 | gatewayApi.httpRoute.parentRefs[0].name | string | `"k8sapi-gateway"` |  |
 | gatewayApi.httpRoute.pathPrefix | string | `"/ui/marketplace"` |  |
 | health.port | int | `8080` |  |

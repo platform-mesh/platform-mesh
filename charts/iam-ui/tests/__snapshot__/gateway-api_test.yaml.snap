@@ -6,6 +6,9 @@ matches the snapshot:
       name: RELEASE-NAME-iam-ui
       namespace: NAMESPACE
     spec:
+      hostnames:
+        - example.com
+        - '*.example.com'
       parentRefs:
         - name: k8sapi-gateway
       rules:
