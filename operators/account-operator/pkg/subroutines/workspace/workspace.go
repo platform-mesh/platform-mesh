@@ -122,6 +122,7 @@ func (r *WorkspaceSubroutine) Process(ctx context.Context, obj ctrlruntimeclient
 	clusterClient := clusterRef.GetClient()
 
 	workspaceTypeName := util.GetWorkspaceTypeName(instance.Name, instance.Spec.Type)
+	orgsClusterName := clusterName
 	if instance.Spec.Type != pmcorev1alpha1.AccountTypeOrg {
 		accountInfo := &pmcorev1alpha1.AccountInfo{}
 		if err := clusterClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: manageaccountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
@@ -135,11 +136,15 @@ func (r *WorkspaceSubroutine) Process(ctx context.Context, obj ctrlruntimeclient
 		if accountInfo.Spec.Organization.Name == "" {
 			return subroutines.StopWithRequeue(r.limiter.When(instance), "AccountInfo organization name not set yet"), nil
 		}
+		if accountInfo.Spec.Organization.OriginClusterId == "" {
+			return subroutines.StopWithRequeue(r.limiter.When(instance), "AccountInfo organization origin cluster ID not set yet"), nil
+		}
 
+		orgsClusterName = multicluster.ClusterName(accountInfo.Spec.Organization.OriginClusterId)
 		workspaceTypeName = util.GetWorkspaceTypeName(accountInfo.Spec.Organization.Name, instance.Spec.Type)
 	}
 
-	ready, err := r.checkWorkspaceTypeReady(ctx, workspaceTypeName)
+	ready, err := r.checkWorkspaceTypeReady(ctx, orgsClusterName, workspaceTypeName)
 	if err != nil {
 		return subroutines.OK(), err
 	}
@@ -163,10 +168,9 @@ func (r *WorkspaceSubroutine) Process(ctx context.Context, obj ctrlruntimeclient
 	return subroutines.OK(), nil
 }
 
-// TODO: could potentially work without the orgsClient when we look up the
-// orgs workspaceid on startup
-func (r *WorkspaceSubroutine) checkWorkspaceTypeReady(ctx context.Context, workspaceTypeName string) (bool, error) {
-	cluster, err := r.mgr.GetCluster(ctx, orgsWorkspacePath)
+// WorkspaceTypes live in the workspace that holds the organization Account.
+func (r *WorkspaceSubroutine) checkWorkspaceTypeReady(ctx context.Context, orgsClusterName multicluster.ClusterName, workspaceTypeName string) (bool, error) {
+	cluster, err := r.mgr.GetCluster(ctx, orgsClusterName)
 	if err != nil {
 		return false, err
 	}

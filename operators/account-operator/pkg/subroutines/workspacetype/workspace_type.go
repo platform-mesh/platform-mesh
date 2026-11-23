@@ -67,18 +67,26 @@ func (w *WorkspaceTypeSubroutine) Process(ctx context.Context, obj ctrlruntimecl
 		return subroutines.OK(), nil
 	}
 
+	// Organization Accounts live alongside their WorkspaceTypes. Use the
+	// engaged cluster from the request; path aliases are only best effort.
+	orgsCluster, err := w.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return subroutines.OK(), err
+	}
+	orgsClusterClient := orgsCluster.GetClient()
+
 	orgWorkspaceTypeName := util.GetWorkspaceTypeName(instance.Name, instance.Spec.Type)
 	accountWorkspaceTypeName := util.GetWorkspaceTypeName(instance.Name, pmcorev1alpha1.AccountTypeAccount)
 
 	orgWst := generateOrgWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName, instance.Name)
 	accWst := generateAccountWorkspaceType(orgWorkspaceTypeName, accountWorkspaceTypeName, instance.Name)
 
-	if err := w.createOrPatchWorkspaceType(ctx, orgWst, "org"); err != nil {
+	if err := w.createOrPatchWorkspaceType(ctx, orgsClusterClient, orgWst, "org"); err != nil {
 		log.Error().Err(err).Str("name", orgWst.Name).Msg("failed to create or update org workspace type")
 		return subroutines.OK(), err
 	}
 
-	if err := w.createOrPatchWorkspaceType(ctx, accWst, "account"); err != nil {
+	if err := w.createOrPatchWorkspaceType(ctx, orgsClusterClient, accWst, "account"); err != nil {
 		log.Error().Err(err).Str("name", accWst.Name).Msg("failed to create or update account workspace type")
 		return subroutines.OK(), err
 	}
@@ -86,13 +94,7 @@ func (w *WorkspaceTypeSubroutine) Process(ctx context.Context, obj ctrlruntimecl
 	return subroutines.OK(), nil
 }
 
-func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context, desiredWst kcptenancyv1alpha1.WorkspaceType, wstKind string) error {
-	orgsCluster, err := w.mgr.GetCluster(ctx, orgsWorkspacePath)
-	if err != nil {
-		return err
-	}
-	orgsClusterClient := orgsCluster.GetClient()
-
+func (w *WorkspaceTypeSubroutine) createOrPatchWorkspaceType(ctx context.Context, orgsClusterClient ctrlruntimeclient.Client, desiredWst kcptenancyv1alpha1.WorkspaceType, wstKind string) error {
 	wst := &kcptenancyv1alpha1.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: desiredWst.Name}}
 	result, err := controllerutil.CreateOrPatch(ctx, orgsClusterClient, wst, func() error {
 		if wst.Labels == nil {
@@ -120,7 +122,7 @@ func (w *WorkspaceTypeSubroutine) Finalize(ctx context.Context, obj ctrlruntimec
 		return subroutines.OK(), nil
 	}
 
-	orgsCluster, err := w.mgr.GetCluster(ctx, "root:orgs")
+	orgsCluster, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return subroutines.OK(), err
 	}

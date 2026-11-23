@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
@@ -180,7 +181,7 @@ func TestProcess(t *testing.T) {
 						}
 
 						return nil
-					})
+					}).Once()
 			},
 			k8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
@@ -218,7 +219,7 @@ func TestProcess(t *testing.T) {
 						}
 
 						return nil
-					})
+					}).Once()
 			},
 			k8sMocks: func(m *mocks.Client) {
 				m.EXPECT().
@@ -226,6 +227,7 @@ func TestProcess(t *testing.T) {
 					RunAndReturn(func(ctx context.Context, key ctrlruntimeclient.ObjectKey, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 						ai := obj.(*pmcorev1alpha1.AccountInfo)
 						ai.Spec.Organization.Name = "org"
+						ai.Spec.Organization.OriginClusterId = "orgs-generated-id"
 
 						return nil
 					}).Once()
@@ -290,12 +292,8 @@ func TestProcess(t *testing.T) {
 			orgsCluster := mocks.NewCluster(t)
 			orgsClient := mocks.NewClient(t)
 
-			if test.orgsK8sMocks != nil {
-				test.orgsK8sMocks(orgsClient)
-			}
-
 			mgr.EXPECT().
-				GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).
+				GetCluster(mock.Anything, multicluster.ClusterName("orgs-generated-id")).
 				Return(orgsCluster, nil).
 				Maybe()
 			mgr.EXPECT().
@@ -306,6 +304,13 @@ func TestProcess(t *testing.T) {
 			cluster.EXPECT().GetClient().Return(client)
 			orgsCluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 
+			if test.orgsK8sMocks != nil {
+				if test.obj.Spec.Type == pmcorev1alpha1.AccountTypeOrg {
+					test.orgsK8sMocks(client)
+				} else {
+					test.orgsK8sMocks(orgsClient)
+				}
+			}
 			if test.k8sMocks != nil {
 				test.k8sMocks(client)
 			}
@@ -325,6 +330,68 @@ func TestProcess(t *testing.T) {
 			if test.expectRequeue {
 				assert.Greater(t, result.Requeue().Microseconds(), int64(0))
 			}
+		})
+	}
+}
+
+func TestWorkspaceCreationWithoutPathAlias(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		accountType pmcorev1alpha1.AccountType
+		parentID    string
+		originID    string
+		wantRequeue bool
+	}{
+		{name: "organization", accountType: pmcorev1alpha1.AccountTypeOrg, parentID: "orgs-generated-id"},
+		{name: "nested account", accountType: pmcorev1alpha1.AccountTypeAccount, parentID: "parent-account-id", originID: "orgs-generated-id"},
+		{name: "organization origin not populated", accountType: pmcorev1alpha1.AccountTypeAccount, parentID: "parent-account-id", wantRequeue: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			require.NoError(t, pmcorev1alpha1.AddToScheme(scheme))
+			require.NoError(t, kcptenancyv1alpha1.AddToScheme(scheme))
+			wst := &kcptenancyv1alpha1.WorkspaceType{ObjectMeta: metav1.ObjectMeta{Name: "org-a-account"}}
+			if test.accountType == pmcorev1alpha1.AccountTypeOrg {
+				wst.Name = "org-a-org"
+			}
+			wst.Status.Conditions = []conditionsapi.Condition{{Type: conditionsapi.ReadyCondition, Status: corev1.ConditionTrue}}
+			orgsClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(wst).Build()
+			parentClient := orgsClient
+			if test.accountType != pmcorev1alpha1.AccountTypeOrg {
+				info := &pmcorev1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: "account"}}
+				info.Spec.Organization.Name = "org-a"
+				info.Spec.Organization.OriginClusterId = test.originID
+				parentClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(info).Build()
+			}
+			mgr := mocks.NewManager(t)
+			parentCluster := mocks.NewCluster(t)
+			parentCluster.EXPECT().GetClient().Return(parentClient)
+			mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName(test.parentID)).Return(parentCluster, nil)
+			if test.accountType != pmcorev1alpha1.AccountTypeOrg && !test.wantRequeue {
+				orgsCluster := mocks.NewCluster(t)
+				orgsCluster.EXPECT().GetClient().Return(orgsClient)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("orgs-generated-id")).Return(orgsCluster, nil)
+			}
+			mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(nil, errors.New("cluster not found")).Maybe()
+			s, err := workspace.New(mgr)
+			require.NoError(t, err)
+			account := &pmcorev1alpha1.Account{
+				ObjectMeta: metav1.ObjectMeta{Name: "org-a", UID: "account-uid"},
+				Spec:       pmcorev1alpha1.AccountSpec{Type: test.accountType},
+			}
+			ctx := mccontext.WithCluster(t.Context(), multicluster.ClusterName(test.parentID))
+			result, err := s.Process(ctx, account)
+			require.NoError(t, err)
+			if test.wantRequeue {
+				assert.Positive(t, result.Requeue())
+				assert.True(t, apierrors.IsNotFound(parentClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: account.Name}, &kcptenancyv1alpha1.Workspace{})))
+				return
+			}
+			var created kcptenancyv1alpha1.Workspace
+			require.NoError(t, parentClient.Get(ctx, ctrlruntimeclient.ObjectKey{Name: account.Name}, &created))
+			assert.Equal(t, wst.Name, string(created.Spec.Type.Name))
+			assert.Equal(t, "root:orgs", created.Spec.Type.Path)
+			assert.Equal(t, account.UID, created.OwnerReferences[0].UID)
 		})
 	}
 }
