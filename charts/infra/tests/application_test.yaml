@@ -241,18 +241,77 @@ tests:
             replicas: 2
   asserts:
   - matchSnapshot: {}
-- it: render additional shard with hostname fallback
+- it: renders one TLSRoute for every configured shard
   templates:
     - kcp/shards.yaml
   set:
-    kcp:
-      shards:
-        - name: shard-2
+    kcp.shards:
+    - name: nereus
+    - name: triton
+      hostname: triton.custom.example.net
+    - name: cronus
   asserts:
-  - contains:
+  - hasDocuments:
+      count: 3
+      filterAware: true
+    documentSelector:
+      path: kind
+      value: TLSRoute
+      matchMany: true
+  - equal:
       path: spec.hostnames
-      content: shard-2.kcp.example.com
-    documentIndex: 2
+      value: [nereus.kcp.example.com]
+    documentSelector:
+      path: metadata.name
+      value: kcp-nereus-tlsroute
+  - equal:
+      path: spec.parentRefs[0].sectionName
+      value: passthrough-nereus
+    documentSelector:
+      path: metadata.name
+      value: kcp-nereus-tlsroute
+  - equal:
+      path: spec.rules[0].backendRefs[0].name
+      value: nereus-shard-kcp
+    documentSelector:
+      path: metadata.name
+      value: kcp-nereus-tlsroute
+  - equal:
+      path: spec.hostnames
+      value: [triton.custom.example.net]
+    documentSelector:
+      path: metadata.name
+      value: kcp-triton-tlsroute
+  - equal:
+      path: spec.parentRefs[0].sectionName
+      value: passthrough-triton
+    documentSelector:
+      path: metadata.name
+      value: kcp-triton-tlsroute
+  - equal:
+      path: spec.rules[0].backendRefs[0].name
+      value: triton-shard-kcp
+    documentSelector:
+      path: metadata.name
+      value: kcp-triton-tlsroute
+  - equal:
+      path: spec.hostnames
+      value: [cronus.kcp.example.com]
+    documentSelector:
+      path: metadata.name
+      value: kcp-cronus-tlsroute
+  - equal:
+      path: spec.parentRefs[0].sectionName
+      value: passthrough-cronus
+    documentSelector:
+      path: metadata.name
+      value: kcp-cronus-tlsroute
+  - equal:
+      path: spec.rules[0].backendRefs[0].name
+      value: cronus-shard-kcp
+    documentSelector:
+      path: metadata.name
+      value: kcp-cronus-tlsroute
 - it: render additional shard with etcd override
   templates:
     - kcp/shards.yaml
@@ -312,13 +371,46 @@ tests:
 - it: attaches kcp TLSRoutes to a user-managed passthrough listener when generation is disabled
   templates:
     - kcp/root-shard.yaml
+    - kcp/shards.yaml
   set:
-    gatewayApi:
-      passthrough:
-        enabled: false
+    gatewayApi.passthrough.enabled: false
+    kcp.shards:
+    - name: nereus
+    - name: triton
+      hostname: triton.custom.example.net
+    - name: cronus
+  documentSelector:
+    path: kind
+    value: TLSRoute
+    matchMany: true
   asserts:
-  - documentIndex: 2
-    equal:
+  - template: kcp/root-shard.yaml
+    hasDocuments:
+      count: 1
+      filterAware: true
+  - template: kcp/shards.yaml
+    hasDocuments:
+      count: 3
+      filterAware: true
+  - template: kcp/shards.yaml
+    containsDocument:
+      kind: TLSRoute
+      apiVersion: gateway.networking.k8s.io/v1
+      name: kcp-nereus-tlsroute
+      any: true
+  - template: kcp/shards.yaml
+    containsDocument:
+      kind: TLSRoute
+      apiVersion: gateway.networking.k8s.io/v1
+      name: kcp-triton-tlsroute
+      any: true
+  - template: kcp/shards.yaml
+    containsDocument:
+      kind: TLSRoute
+      apiVersion: gateway.networking.k8s.io/v1
+      name: kcp-cronus-tlsroute
+      any: true
+  - equal:
       path: spec.parentRefs[0].sectionName
       value: passthrough
 - it: keeps kcp URLs certificates routes and listeners consistent on port 8443

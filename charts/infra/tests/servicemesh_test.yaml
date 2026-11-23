@@ -51,7 +51,7 @@ tests:
       content:
         name: terminate-wildstar
       any: true
-- it: generates one passthrough listener per kcp hostname
+- it: generates one passthrough listener for every configured kcp shard
   templates:
   - gatewayapi/gateway.yaml
   set:
@@ -61,7 +61,10 @@ tests:
       rootShard:
         hostname: root.kcp.example.com
       shards:
-      - name: nereus
+      - name: atlas
+      - name: boreas
+        hostname: boreas.custom.example.net
+      - name: cronus
   asserts:
   - contains:
       path: spec.listeners
@@ -78,8 +81,20 @@ tests:
   - contains:
       path: spec.listeners
       content:
-        name: passthrough-nereus
-        hostname: nereus.kcp.example.com
+        name: passthrough-atlas
+        hostname: atlas.kcp.example.com
+      any: true
+  - contains:
+      path: spec.listeners
+      content:
+        name: passthrough-boreas
+        hostname: boreas.custom.example.net
+      any: true
+  - contains:
+      path: spec.listeners
+      content:
+        name: passthrough-cronus
+        hostname: cronus.kcp.example.com
       any: true
 - it: leaves passthrough listeners to the user when generation is disabled
   templates:
