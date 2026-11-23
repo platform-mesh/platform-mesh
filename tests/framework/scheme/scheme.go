@@ -25,6 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	pmuiv1alpha1 "go.platform-mesh.io/apis/ui/v1alpha1"
 
@@ -71,10 +73,16 @@ func Build(adders ...func(*runtime.Scheme) error) (*runtime.Scheme, error) {
 }
 
 // Platform returns the one scheme the helpers of the framework share for a
-// deployed Platform Mesh: what New registers, plus the core, providers and
-// ui types of Platform Mesh. It is built once; do not register types in it.
+// deployed Platform Mesh: what New registers, plus the core, keycloak,
+// openfga, providers and ui types of Platform Mesh. It is built once; do not register types in it.
 var Platform = sync.OnceValue(func() *runtime.Scheme {
-	s, err := Build(pmcorev1alpha1.AddToScheme, pmprovidersv1alpha1.AddToScheme, pmuiv1alpha1.AddToScheme)
+	s, err := Build(
+		pmcorev1alpha1.AddToScheme,
+		pmkeycloakv1alpha1.AddToScheme,
+		pmopenfgav1alpha1.AddToScheme,
+		pmprovidersv1alpha1.AddToScheme,
+		pmuiv1alpha1.AddToScheme,
+	)
 	utilruntime.Must(err)
 	return s
 })

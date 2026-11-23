@@ -24,6 +24,8 @@ import (
 	"strings"
 
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
+	pmkeycloakv1alpha1 "go.platform-mesh.io/apis/keycloak/v1alpha1"
+	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/platform-mesh/tests/framework/steps"
 	"go.platform-mesh.io/platform-mesh/tests/framework/tenant"
 
@@ -139,9 +141,10 @@ func accountIdentity(parent, name string) identity {
 
 // organizationIdentity is what the users and roles of the organization hang
 // on, beyond accountIdentity: its authorization store, and the OIDC client
-// that kubeconfigs handed out to its users name.
-//
-//nolint:staticcheck // the deprecated kind must keep working for existing integrations
+// that kubeconfigs handed out to its users name. Both are read in the API
+// groups every supported release creates them in (openfga.platform-mesh.io,
+// keycloak.platform-mesh.io): the deprecated core.platform-mesh.io twins are
+// not there on every installation.
 func organizationIdentity(org string) identity {
 	return func(ctx context.Context, env Environment) (map[string]string, error) {
 		cl, err := adminClient(ctx, env, tenant.OrgsPath)
@@ -149,11 +152,11 @@ func organizationIdentity(org string) identity {
 			return nil, err
 		}
 		key := ctrlruntimeclient.ObjectKey{Name: org}
-		store := &pmcorev1alpha1.Store{}
+		store := &pmopenfgav1alpha1.Store{}
 		if err := cl.Get(ctx, key, store); err != nil {
 			return nil, fmt.Errorf("store %s: %w", org, err)
 		}
-		idp := &pmcorev1alpha1.IdentityProviderConfiguration{}
+		idp := &pmkeycloakv1alpha1.IdentityProviderConfiguration{}
 		if err := cl.Get(ctx, key, idp); err != nil {
 			return nil, fmt.Errorf("identity provider configuration %s: %w", org, err)
 		}
