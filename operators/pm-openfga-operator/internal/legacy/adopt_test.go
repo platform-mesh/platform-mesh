@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	pmopenfgav1alpha1 "go.platform-mesh.io/apis/openfga/v1alpha1"
 	"go.platform-mesh.io/pm-openfga-operator/internal/legacy"
