@@ -58,7 +58,7 @@ on:
         description: "PEM private key the OCM components are signed with"
         required: true
       OCM_SIGNING_CERT:
-        description: "Certificate matching OCM_SIGNING_PRIVATE_KEY; its CN is the signature name"
+        description: "Certificate matching OCM_SIGNING_PRIVATE_KEY"
         required: true
 
 permissions:
@@ -68,8 +68,10 @@ env:
   OCM_REPO: ghcr.io/${{ github.repository_owner }}
   # Optional components this run leaves out, separated by commas without spaces.
   SKIP_COMPONENTS: ${{ inputs.skip-components }}
-  # The signature name must equal the CN of the signing certificate.
-  SIGNATURE: ${{ vars.OCM_SIGNATURE_NAME || 'platform-mesh.platform-mesh' }}
+  # The signature name belongs to one signing key: a new key needs a new name
+  # here and a certificate under that name in the operator chart
+  # (charts/platform-mesh-operator/files/ocm-signing-public-cert.yaml).
+  SIGNATURE: ${{ vars.OCM_SIGNATURE_NAME || 'v26.11.platform-mesh.platform-mesh' }}
 
 jobs:
   # ──────────────────────────────────────────────
@@ -80,10 +82,12 @@ jobs:
     outputs:
       images: ${{ steps.c.outputs.images }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
+
       - name: List image components
         id: c
         run: |
@@ -116,20 +120,30 @@ jobs:
       COMPONENT: ${{ matrix.component }}
       COMPONENT_DIR: ${{ matrix.path }}
     steps:
-      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-          persist-credentials: false
-      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+
+      - name: Setup Docker qemu
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Setup Docker buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Setup Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push
         # Writes images.txt, one "<name> <ref>@<digest>" per image.
         run: |
@@ -154,13 +168,15 @@ jobs:
             echo "${name} ${IMAGE_REPO}/${name}@$(jq -r '."containerimage.digest"' "${RUNNER_TEMP}/${name}.json")" >> images.txt
           done
           cat images.txt
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+
+      - name: Setup cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Setup syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
         id: syft
+
       - name: Sign images, generate and attest SBOMs
-        # sbom/<name>/sbom-*.json is where the constructors' file inputs point.
-        env:
-          SYFT: ${{ steps.syft.outputs.cmd }}
         run: |
           set -euo pipefail
           while read -r name ref; do
@@ -172,29 +188,37 @@ jobs:
             cosign attest --yes --type cyclonedx --predicate "sbom/$name/sbom-cyclonedx.json" "$ref"
             cosign attest --yes --type spdxjson --predicate "sbom/$name/sbom-spdx.json" "$ref"
           done < images.txt
-      - name: OCM config (registry credentials + signing key)
+        # sbom/<name>/sbom-*.json is where the constructors' file inputs point.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
-          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+          SYFT: ${{ steps.syft.outputs.cmd }}
+
+      - name: Generate OCM config (registry credentials + signing key)
         run: |
           set -euo pipefail
           if [ -z "$OCM_SIGNING_PRIVATE_KEY" ] || [ -z "$OCM_SIGNING_CERT" ]; then
             echo "::error::OCM_SIGNING_PRIVATE_KEY / OCM_SIGNING_CERT secrets are not set"; exit 1
           fi
           hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" > "$HOME/.ocmconfig"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
+          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+
+      - name: Setup Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
-      - name: Install ocm (pinned in tools/Taskfile.yaml)
+
+      - name: Setup OCM
         run: |
           task tools:ocm
           echo "$PWD/bin" >> "$GITHUB_PATH"
+
       - name: Publish OCM component github.com/platform-mesh/images/${{ matrix.component }}
+        run: go run ./hack/release/ocm-build-image "$COMPONENT_DIR" sbom
         env:
           PM_VERSION: ${{ inputs.version }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
-        run: go run ./hack/release/ocm-build-image "$COMPONENT_DIR" sbom
 
   # ──────────────────────────────────────────────
   # Charts, chart components, third-party wrappers, aggregate.
@@ -209,21 +233,28 @@ jobs:
     env:
       PM_VERSION: ${{ inputs.version }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
-      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+
+      - name: Setup Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+
+      - name: Setup Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
-      - name: Install ocm, helm, yq (pinned in tools/Taskfile.yaml)
+
+      - name: Install OCM, Helm, yq (pinned in tools/Taskfile.yaml)
         run: |
           task tools:ocm tools:helm tools:yq
           echo "$PWD/bin" >> "$GITHUB_PATH"
-      - name: Registry credentials
+
+      - name: Login to ghcr.io
         run: |
           set -euo pipefail
           if [ -z "$OCM_SIGNING_PRIVATE_KEY" ] || [ -z "$OCM_SIGNING_CERT" ]; then
@@ -235,15 +266,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
           OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+
       - name: Build and publish OCM components
-        env:
-          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
           set -euo pipefail
           go build -o bin/ ./hack/release/ocm-build-third-party ./hack/release/ocm-build-chart ./hack/release/ocm-build-aggregate
           for dir in third_party/*/; do ocm-build-third-party "${dir%/}"; done
           for chart_yaml in charts/*/Chart.yaml; do ocm-build-chart "${chart_yaml%/Chart.yaml}"; done
           ocm-build-aggregate
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
 
   # ──────────────────────────────────────────────
   # Check the published result the way a consumer would see it.
@@ -259,26 +291,32 @@ jobs:
       COMPONENT: github.com/platform-mesh/platform-mesh
       VERSION: ${{ inputs.version }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
-      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+
+      - name: Setup Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install ocm, helm, yq (pinned in tools/Taskfile.yaml)
+
+      - name: Install OCM, Helm, yq
         run: |
           task tools:ocm tools:helm tools:yq
           echo "$PWD/bin" >> "$GITHUB_PATH"
+
       - name: Registry credentials (public key only, no signing key)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
         run: |
           set -euo pipefail
           echo "$GITHUB_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           OCM_SIGNING_PRIVATE_KEY=unused hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" \
             | yq 'del(.configurations[].consumers[].credentials[].privateKeyPEM)' > "$HOME/.ocmconfig"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+
       - name: Component graph
         run: |
           set -euo pipefail
@@ -288,6 +326,7 @@ jobs:
             ocm get component-version "$OCM_REPO//$COMPONENT:$VERSION" --recursive
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Signatures
         run: |
           set -euo pipefail
@@ -301,7 +340,8 @@ jobs:
             ocm verify component-version --signature "$SIGNATURE" "$OCM_REPO//$cv" >/dev/null
             echo "verified $cv"
           done
-      - name: Charts are installable
+
+      - name: Verify that charts are installable
         run: |
           set -euo pipefail
           for chart in account-operator infra common; do

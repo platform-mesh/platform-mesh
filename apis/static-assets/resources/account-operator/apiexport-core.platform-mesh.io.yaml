@@ -66,7 +66,7 @@ spec:
   resources:
     - group: core.platform-mesh.io
       name: accountinfos
-      schema: v261117-d39c6ad0.accountinfos.core.platform-mesh.io
+      schema: v261118-5ce35f0c.accountinfos.core.platform-mesh.io
       storage:
         crd: {}
     - group: core.platform-mesh.io
@@ -96,7 +96,7 @@ spec:
         crd: {}
     - group: core.platform-mesh.io
       name: platformmeshes
-      schema: v261117-fc4f3e07.platformmeshes.core.platform-mesh.io
+      schema: v261118-9f9230c1.platformmeshes.core.platform-mesh.io
       storage:
         crd: {}
     - group: core.platform-mesh.io

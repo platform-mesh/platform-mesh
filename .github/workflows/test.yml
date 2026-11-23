@@ -39,11 +39,14 @@ jobs:
       components: ${{ steps.changes.outputs.components }}
       tests: ${{ steps.changes.outputs.tests }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: $/.github/actions/changes
+
+      - name: Determine changed components
+        uses: $/.github/actions/changes
         id: changes
 
   # One job, not a matrix: every component is run even if an earlier one
@@ -53,19 +56,23 @@ jobs:
     if: needs.changes.outputs.components != '[]'
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+
+      - name: Setup Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
           cache: true # zizmor: ignore[cache-poisoning]
-      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+
+      - name: Setup Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Unit tests
-        env:
-          COMPONENTS: ${{ needs.changes.outputs.components }}
+
+      - name: Run unit tests
         run: |
           set -euo pipefail
           failed=()
@@ -78,6 +85,8 @@ jobs:
             echo "::error title=test::Unit tests failed for: ${failed[*]}. Reproduce with 'task test-<component>'."
             exit 1
           fi
+        env:
+          COMPONENTS: ${{ needs.changes.outputs.components }}
 
   # tests/integration: the packages share one sharded kcp in Docker
   # (kcp-testcontainers) and run the components in-process.
@@ -88,20 +97,28 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+
+      - name: Setup Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
           cache: true # zizmor: ignore[cache-poisoning]
-      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+
+      - name: Setup Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Root module unit tests (test framework)
+
+      - name: Run root module unit tests (test framework)
         run: task test-root
-      - name: Integration tests
+
+      - name: Run integration tests
         run: task test-integration
+
       - name: Upload kcp test server logs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

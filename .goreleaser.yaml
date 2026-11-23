@@ -1,0 +1,80 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Release assets of a Platform Mesh release, attached to the GitHub release:
+#
+#   pmctl_<version>_<os>_<arch>.tar.gz   the pmctl CLI
+#   pmctl_<version>_checksums.txt        SHA-256 of the archives
+#   component-constructor.yaml           the root OCM constructor at this version
+#
+# Images, charts and OCM components are not built here, job-publish.yml
+# publishes them to the registry before this runs.
+#
+# Run through the tasks, which set the environment this file reads:
+#
+#   task release-snapshot                build everything into dist/, publish nothing
+#   task release-publish NOTES=<file>    create the GitHub release (release.yml)
+#
+# Environment:
+#
+#   LDFLAGS                  linker flags stamping pmctl (`task pmctl-ldflags`)
+#   PM_VERSION               version the constructor is rendered at
+#   GORELEASER_CURRENT_TAG   the release tag; set explicitly because the
+#                            repository also carries library tags (<name>/vX.Y.Z)
+
+version: 2
+
+project_name: platform-mesh
+
+before:
+  hooks:
+    # bin/ is ignored by git; goreleaser refuses to release from a dirty tree.
+    - go run ./hack/release/render-constructor bin/release/component-constructor.yaml
+
+builds:
+  - id: pmctl
+    main: ./cmd/pmctl
+    binary: pmctl
+    ldflags:
+      - "{{ .Env.LDFLAGS }}"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: pmctl
+    ids:
+      - pmctl
+    formats:
+      - tar.gz
+    name_template: "pmctl_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "pmctl_{{ .Version }}_checksums.txt"
+
+# A snapshot is named after the version the task passes in, like a release.
+snapshot:
+  version_template: "{{ .Version }}"
+
+release:
+  name_template: "Platform Mesh {{ .Version }}"
+  # vYY.MM.P-rc.N is a prerelease, vYY.MM.P is not.
+  prerelease: auto
+  extra_files:
+    - glob: ./bin/release/component-constructor.yaml

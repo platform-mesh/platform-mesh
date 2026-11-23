@@ -98,6 +98,39 @@ tests:
     - matchRegex:
         path: data["config.yaml"]
         pattern: '\nexpiry:\n  refreshTokens:\n    disableRotation: true\n    reuseInterval: 8760h\nenablePasswordDB: true'
+- it: dex trusted peers and extra clients not rendered by default
+  set:
+    dex:
+      enabled: true
+  templates:
+    - dex/configmap.yaml
+  asserts:
+    - notMatchRegex:
+        path: data["config.yaml"]
+        pattern: trustedPeers
+    - notMatchRegex:
+        path: data["config.yaml"]
+        pattern: 'public:'
+- it: dex public client for kubectl rendered when set
+  set:
+    dex:
+      enabled: true
+      staticClient:
+        id: platform-mesh
+        redirectURIs:
+          - https://portal.localhost:8443/callback
+        trustedPeers:
+          - kubectl
+      extraStaticClients:
+        - id: kubectl
+          name: kubectl
+          public: true
+  templates:
+    - dex/configmap.yaml
+  asserts:
+    - matchRegex:
+        path: data["config.yaml"]
+        pattern: 'redirectURIs:\n  - "https://portal.localhost:8443/callback"\n  trustedPeers:\n  - "kubectl"\n- id: kubectl\n  name: kubectl\n  public: true\n?$'
 - it: dex deployment restarts on config change
   set:
     dex:

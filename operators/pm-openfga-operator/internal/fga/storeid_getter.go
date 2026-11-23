@@ -53,17 +53,15 @@ type StoreIDGetter interface {
 // CachingStoreIDGetter maps store names to IDs by listing stores in OpenFGA but keeps
 // a local cache to avoid frequent list calls.
 type CachingStoreIDGetter struct {
-	cache  *ttlcache.Cache[string, string]
-	loader *storeIDLoader
-	logger *logger.Logger
+	cache   *ttlcache.Cache[string, string]
+	fga     openfgav1.OpenFGAServiceClient
+	loadCtx context.Context
+	logger  *logger.Logger
 }
 
 func NewCachingStoreIDGetter(loadCtx context.Context, fga openfgav1.OpenFGAServiceClient, ttl time.Duration, log *logger.Logger) *CachingStoreIDGetter {
-	loader := &storeIDLoader{fga: fga, loadCtx: loadCtx}
-
 	cache := ttlcache.New(
 		ttlcache.WithTTL[string, string](ttl),
-		ttlcache.WithLoader(loader),
 	)
 	cache.OnInsertion(func(_ context.Context, item *ttlcache.Item[string, string]) {
 		log.Debug().
@@ -86,16 +84,22 @@ func NewCachingStoreIDGetter(loadCtx context.Context, fga openfgav1.OpenFGAServi
 	})
 
 	return &CachingStoreIDGetter{
-		cache:  cache,
-		loader: loader,
-		logger: log,
+		cache:   cache,
+		fga:     fga,
+		loadCtx: loadCtx,
+		logger:  log,
 	}
 }
 
 // Get returns the store ID for the given store name.
 func (m *CachingStoreIDGetter) Get(ctx context.Context, storeName string) (string, error) {
-	item := m.cache.Get(storeName)
-	if err := m.loader.Err(); err != nil {
+	// The loader is of this call alone: ttlcache has no way to return an error
+	// from a load, so the loader keeps it, and a loader shared between calls
+	// would hand the error of one failed load to every later call, and to
+	// calls running at the same time.
+	loader := &storeIDLoader{fga: m.fga, loadCtx: m.loadCtx}
+	item := m.cache.Get(storeName, ttlcache.WithLoader[string, string](loader))
+	if err := loader.Err(); err != nil {
 		return "", fmt.Errorf("populating cache: %w", err)
 	}
 
@@ -144,8 +148,8 @@ func (l *storeIDLoader) Load(c *ttlcache.Cache[string, string], storeName string
 	return wantedItem
 }
 
-// Err returns the last error occurred during Load. See [0] for why it works like
-// this.
+// Err returns the error of Load, nil if the cache had the item and Load was not
+// called. See [0] for why it works like this.
 // [0] https://github.com/jellydator/ttlcache/issues/74#issuecomment-1133012806
 func (l *storeIDLoader) Err() error {
 	return l.loadError

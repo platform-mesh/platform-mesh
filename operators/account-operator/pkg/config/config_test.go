@@ -130,6 +130,42 @@ func TestOIDCConfig(t *testing.T) {
 		}, info)
 	})
 
+	t.Run("secret of a confidential client is published", func(t *testing.T) {
+		t.Parallel()
+		// As a Secret is mounted: one file per client, here with the newline
+		// an editor leaves.
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "kubectl"), []byte("not-a-secret\n"), 0o600))
+		cfg := parse(t,
+			"--oidc-issuer-url=https://issuer.example/dex",
+			"--oidc-clients=kubectl=cli,portal=platform-mesh",
+			"--oidc-client-secrets-dir="+dir,
+		)
+		require.NoError(t, cfg.Validate())
+		info, err := cfg.OIDC.Info()
+		require.NoError(t, err)
+		require.Equal(t, map[string]pmcorev1alpha1.ClientInfo{
+			"kubectl": {ClientID: "cli", ClientSecret: "not-a-secret"},
+			"portal":  {ClientID: "platform-mesh"},
+		}, info.Clients)
+	})
+
+	t.Run("secret that is empty or unreadable is an error", func(t *testing.T) {
+		t.Parallel()
+		empty := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(empty, "kubectl"), []byte("\n"), 0o600))
+		// A directory where the file of the client is expected.
+		unreadable := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(unreadable, "kubectl"), 0o700))
+
+		for _, dir := range []string{empty, unreadable} {
+			cfg := parse(t, "--oidc-issuer-url=https://issuer.example", "--oidc-clients=kubectl=cli", "--oidc-client-secrets-dir="+dir)
+			require.NoError(t, cfg.Validate())
+			_, err := cfg.OIDC.Info()
+			require.Error(t, err)
+		}
+	})
+
 	t.Run("CA of the issuer is published", func(t *testing.T) {
 		t.Parallel()
 		const pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
@@ -162,6 +198,7 @@ func TestOIDCConfig(t *testing.T) {
 		"issuer without a client":   {"--oidc-issuer-url=https://issuer.example"},
 		"issuer that is not https":  {"--oidc-issuer-url=http://issuer.example", "--oidc-clients=kubectl=cli"},
 		"client without an id":      {"--oidc-issuer-url=https://issuer.example", "--oidc-clients=kubectl="},
+		"secrets without an issuer": {"--oidc-client-secrets-dir=/secrets"},
 	}
 	for title, args := range invalid {
 		t.Run(title, func(t *testing.T) {

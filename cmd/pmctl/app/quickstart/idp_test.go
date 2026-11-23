@@ -65,6 +65,17 @@ func TestDexValues(t *testing.T) {
 	redirects, _, _ := unstructured.NestedStringSlice(services, "infra", "values", "dex", "staticClient", "redirectURIs")
 	assert.Equal(t, []string{"https://pm.127-0-0-1.sslip.io:8443/callback?storageType=none"}, redirects)
 
+	// Kubeconfigs log in with a public client, whose tokens kcp accepts as
+	// the client of the portal trusts it.
+	kubectlClient, _, _ := unstructured.NestedString(values, "platformMesh", "authentication", "oidc", "kubectlClientID")
+	assert.Equal(t, "kubectl", kubectlClient)
+	kubectlScopes, _, _ := unstructured.NestedStringSlice(values, "platformMesh", "authentication", "oidc", "kubectlScopes")
+	assert.Equal(t, []string{"email", "groups", "audience:server:client_id:platform-mesh"}, kubectlScopes)
+	peers, _, _ := unstructured.NestedStringSlice(services, "infra", "values", "dex", "staticClient", "trustedPeers")
+	assert.Equal(t, []string{"kubectl"}, peers)
+	extraClients, _, _ := unstructured.NestedSlice(services, "infra", "values", "dex", "extraStaticClients")
+	assert.Equal(t, []any{map[string]any{"id": "kubectl", "name": "kubectl", "public": true}}, extraClients)
+
 	// The environment of the profile is kept, and the client of Dex added.
 	env, _, _ := unstructured.NestedSlice(services, "portal", "values", "extraEnvVars")
 	names := map[string]any{}
