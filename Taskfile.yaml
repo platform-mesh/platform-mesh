@@ -306,6 +306,35 @@ tasks:
     desc: Build the pmctl CLI into bin/pmctl (VERSION= to override the stamped version). Also built by `task build-root`.
     cmds:
       - task --taskfile Taskfile.root.yaml pmctl {{if .VERSION}}VERSION={{.VERSION}}{{end}}
+  # The release assets: pmctl for every platform and the rendered root
+  # component-constructor.yaml, see .goreleaser.yaml.
+  release-snapshot:
+    desc: Build the release assets into dist/ without publishing anything (VERSION= to override the version).
+    cmds:
+      - task: _goreleaser
+        vars: {VERSION: '{{.VERSION}}', ARGS: 'release --snapshot --clean'}
+  release-publish:
+    desc: 'Create the GitHub release of the tag VERSION with its assets and the release notes NOTES (run by release.yml; needs GITHUB_TOKEN).'
+    requires:
+      vars: [VERSION, NOTES]
+    cmds:
+      - task: _goreleaser
+        vars: {VERSION: '{{.VERSION}}', ARGS: 'release --clean --release-notes {{.NOTES}}'}
+  _goreleaser:
+    internal: true
+    deps: [tools:goreleaser]
+    vars:
+      # The tag being released, with its leading v.
+      TAG:
+        sh: '{{if .VERSION}}echo {{.VERSION}}{{else}}go run ./hack/release/get-version current{{end}}'
+      LDFLAGS:
+        sh: task --taskfile Taskfile.root.yaml pmctl-ldflags VERSION={{.TAG}}
+    env:
+      GORELEASER_CURRENT_TAG: '{{.TAG}}'
+      PM_VERSION: '{{.TAG | trimPrefix "v"}}'
+      LDFLAGS: '{{.LDFLAGS}}'
+    cmds:
+      - '{{.GORELEASER}} {{.ARGS}}'
   images:
     desc: 'Build container images for every component that ships a Dockerfile (VERSION=, PUSH=, PLATFORMS= to override).'
     cmds:

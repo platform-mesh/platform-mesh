@@ -58,20 +58,20 @@ jobs:
       version: ${{ steps.v.outputs.version }}
       sha: ${{ steps.v.outputs.sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.ref || github.ref }}
           persist-credentials: false
           fetch-depth: 0 # tags are needed to derive the version
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+
+      - name: Setup Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
-      - name: Derive version
+
+      - name: Derive Platform Mesh version
         id: v
-        env:
-          # The checkout is detached, a ref input that is a branch selects
-          # the release branch rule, a commit falls back to main.
-          GITHUB_REF_NAME: ${{ inputs.ref || github.ref_name }}
         run: |
           set -euo pipefail
           version="$(go run ./hack/release/get-version current)"
@@ -83,6 +83,10 @@ jobs:
             echo
             echo "Install it like a release (https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with \`--set-string ocm.version=$version\`."
           } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          # The checkout is detached, a ref input that is a branch selects
+          # the release branch rule, a commit falls back to main.
+          GITHUB_REF_NAME: ${{ inputs.ref || github.ref_name }}
 
   publish:
     needs: version

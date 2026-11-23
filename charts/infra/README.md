@@ -26,6 +26,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.roles.openfga.username | string | `"openfga"` | PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret. |
 | dex.enabled | bool | `false` | Enable Dex as a local upstream OIDC identity provider |
 | dex.expiry | object | `{}` | Dex `expiry` settings (token lifetimes, refresh token rotation), rendered as given (default: Dex defaults) |
+| dex.extraStaticClients | list | `[]` | Further static clients, rendered as given. A client with `public: true` needs no secret and accepts any `http://localhost` redirect, which is what kubectl logs in with (default: none) |
 | dex.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | dex.gatewayApi.hostnames | list | `[]` | hostnames for the Dex HTTPRoute |
 | dex.gatewayApi.pathPrefix | string | `"/dex"` | path prefix for the Dex HTTPRoute |
@@ -51,6 +52,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | dex.staticClient.name | string | `"Keycloak Broker"` | Display name for the static OIDC client |
 | dex.staticClient.redirectURIs | list | `[]` | Allowed redirect URIs (Keycloak broker callback URLs) |
 | dex.staticClient.secret | string | `"local-dev-broker-secret"` | OIDC client secret for Keycloak identity broker (local dev only) |
+| dex.staticClient.trustedPeers | list | `[]` | IDs of clients that may request tokens for this client, with the scope `audience:server:client_id:<id>`: the clients of `extraStaticClients` whose tokens the audience of this client has to accept (default: none) |
 | dex.staticPasswords[0] | object | `{"email":"dex@portal.localhost","groups":[],"hash":"$2a$10$mhivFdR/0pGuCR85LuEerOcYhCuiU294J3dHbtSU3UKDHLNQ6gNHm","userID":"08a868f8-4b4b-42f3-9d23-5f46eda2c3a0","username":"dex"}` | Local test user for Dex password connector (dex@portal.localhost/dex/dex) |
 | externalSecrets.enabled | bool | `false` |  |
 | gatewayApi.baseDomain | string | `""` | Base domain used to build listener hostnames (terminate, wildstar, services). Required — must be set via the operator (derived from PlatformMesh spec.exposure.baseDomain). |

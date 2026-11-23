@@ -42,4 +42,13 @@ data:
       {{- range .Values.dex.staticClient.redirectURIs }}
       - {{ . | quote }}
       {{- end }}
+      {{- with .Values.dex.staticClient.trustedPeers }}
+      trustedPeers:
+      {{- range . }}
+      - {{ . | quote }}
+      {{- end }}
+      {{- end }}
+    {{- with .Values.dex.extraStaticClients }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 {{- end }}

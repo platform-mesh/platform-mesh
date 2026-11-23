@@ -34,13 +34,14 @@ jobs:
     timeout-minutes: 5
     if: github.event.pull_request.user.type != 'Bot'
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
           sparse-checkout: hack/verify-release-note.sh
           sparse-checkout-cone-mode: false
 
-      - name: verify-release-note
+      - name: Verify release-note block in Pull Request
+        run: hack/verify-release-note.sh
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
-        run: hack/verify-release-note.sh

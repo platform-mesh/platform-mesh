@@ -51,6 +51,11 @@ const (
 	// offline_access gives a refresh token.
 	dexScope = "openid email profile groups offline_access"
 
+	// dexKubectlClientID is the client of Dex kubeconfigs log in with. It is
+	// public: no secret, and any http://localhost redirect, which is where
+	// "kubectl oidc-login" listens.
+	dexKubectlClientID = "kubectl"
+
 	// DexPassword is the password of every user in DexUsers.
 	DexPassword = "password"
 	// dexPasswordHash is the bcrypt hash of DexPassword.
@@ -59,6 +64,11 @@ const (
 
 // keycloakServices are the services of the profile that only exist for
 // Keycloak. The operator refuses the disableKeycloakToggle while they are on.
+// dexKubectlScopes are the scopes kubeconfigs request besides openid. kcp
+// accepts tokens for dexClientID only; Dex adds that audience to a token of
+// dexKubectlClientID for the last scope, as dexClientID trusts it.
+var dexKubectlScopes = []string{"email", "groups", "audience:server:client_id:" + dexClientID}
+
 var keycloakServices = []string{"pm-keycloak-operator", "iam-service", "iam-ui"}
 
 // dexUsers are the static users of Dex, the same as in the Tilt environment
@@ -179,7 +189,9 @@ func (o *Options) dexValues(manifest string) (*platformMeshValues, error) {
 					// Dex compares redirect URIs exactly; this is the
 					// callback of the portal.
 					RedirectURIs: []string{o.URL() + "callback?storageType=none"},
+					TrustedPeers: []string{dexKubectlClientID},
 				},
+				ExtraStaticClients: []dexExtraClientValues{{ID: dexKubectlClientID, Name: "kubectl", Public: true}},
 			},
 		}},
 		"portal": {Values: portalValues{ExtraEnvVars: portalEnv}},
@@ -191,8 +203,13 @@ func (o *Options) dexValues(manifest string) (*platformMeshValues, error) {
 	return &platformMeshValues{
 		ExtraFeatureToggles: []string{disableKeycloakToggle},
 		// kcp and the portal: the operator derives their values from this.
-		Authentication: &authenticationValues{OIDC: oidcValues{IssuerURL: o.DexIssuer(), ClientID: dexClientID}},
-		Values:         &platformMeshSpecValues{Services: services},
+		Authentication: &authenticationValues{OIDC: oidcValues{
+			IssuerURL:       o.DexIssuer(),
+			ClientID:        dexClientID,
+			KubectlClientID: dexKubectlClientID,
+			KubectlScopes:   dexKubectlScopes,
+		}},
+		Values: &platformMeshSpecValues{Services: services},
 	}, nil
 }
 

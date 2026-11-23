@@ -105,6 +105,57 @@ func TestCachingStoreIDGetter_Get(t *testing.T) {
 		assert.Error(t, err)
 		assert.Empty(t, id)
 	})
+
+	// OpenFGA is down while it is upgraded: lookups fail during that time and
+	// must work again once it is back.
+	t.Run("recovers once ListStores works again", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		client.EXPECT().ListStores(mock.Anything, mock.Anything).Return(nil, errors.New("connection refused")).Once()
+		client.EXPECT().ListStores(mock.Anything, mock.Anything).Return(&openfgav1.ListStoresResponse{
+			Stores: []*openfgav1.Store{
+				{Name: "foo", Id: "DEADBEEF"},
+			},
+		}, nil).Once()
+
+		log := testlogger.New()
+		getter := NewCachingStoreIDGetter(context.Background(), client, 5*time.Minute, log.Logger)
+
+		_, err := getter.Get(context.Background(), "foo")
+		require.Error(t, err)
+		assert.False(t, IsStoreNotFound(err), "an unreachable OpenFGA must not read as a missing store")
+
+		id, err := getter.Get(context.Background(), "foo")
+		require.NoError(t, err)
+		assert.Equal(t, "DEADBEEF", id)
+
+		// From the cache, without another call to OpenFGA.
+		id, err = getter.Get(context.Background(), "foo")
+		require.NoError(t, err)
+		assert.Equal(t, "DEADBEEF", id)
+	})
+
+	t.Run("a failed lookup does not fail the lookup of a cached store", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		client.EXPECT().ListStores(mock.Anything, mock.Anything).Return(&openfgav1.ListStoresResponse{
+			Stores: []*openfgav1.Store{
+				{Name: "foo", Id: "DEADBEEF"},
+			},
+		}, nil).Once()
+		client.EXPECT().ListStores(mock.Anything, mock.Anything).Return(nil, errors.New("connection refused")).Once()
+
+		log := testlogger.New()
+		getter := NewCachingStoreIDGetter(context.Background(), client, 5*time.Minute, log.Logger)
+
+		_, err := getter.Get(context.Background(), "foo")
+		require.NoError(t, err)
+
+		_, err = getter.Get(context.Background(), "bar")
+		require.Error(t, err)
+
+		id, err := getter.Get(context.Background(), "foo")
+		require.NoError(t, err)
+		assert.Equal(t, "DEADBEEF", id)
+	})
 }
 
 func TestIsStoreNotFound(t *testing.T) {

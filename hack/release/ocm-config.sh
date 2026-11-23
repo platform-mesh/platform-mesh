@@ -22,8 +22,8 @@
 #   ocm-config.sh <ocm-repository> [<signature-name>] > ~/.ocmconfig
 #
 #   <ocm-repository>   e.g. ghcr.io/platform-mesh
-#   <signature-name>   OCM signature name; must equal the CN of the signing
-#                      certificate. If omitted, no signing section is written.
+#   <signature-name>   OCM signature name the key signs and verifies under.
+#                      If omitted, no signing section is written.
 #
 # Environment:
 #   GITHUB_TOKEN              registry password (username "github"); if unset

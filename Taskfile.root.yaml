@@ -37,7 +37,7 @@ tasks:
       - task: pmctl
   pmctl:
     desc: Build the pmctl CLI into bin/pmctl (VERSION= to override the stamped version).
-    vars:
+    vars: &pmctl-vars
       VERSION:
         sh: 'echo "${VERSION:-$(go run ./hack/release/get-version current)}"'
       GIT_COMMIT:
@@ -50,6 +50,12 @@ tasks:
         -X k8s.io/component-base/version.buildDate={{.BUILD_DATE}}
     cmds:
       - go build -ldflags '{{.LDFLAGS}}' -o {{.ROOT_DIR}}/bin/pmctl ./cmd/pmctl
+  pmctl-ldflags:
+    desc: Print the linker flags that stamp pmctl, for goreleaser (VERSION= to override the stamped version).
+    silent: true
+    vars: *pmctl-vars
+    cmds:
+      - echo '{{.LDFLAGS}}'
   generate:
     desc: Nothing to generate in the root module.
     cmds:

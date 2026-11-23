@@ -46,7 +46,7 @@ stringData:
     rfCnWros84HAi10shwcW38onK4pdnfjgv3NIt0DGZT+ATYA2Fmp0gDoYjsY4iJUy
     TUBiZmEb9sPGteTmpJwDTy1GeZwGNc+eb16/6sA9jdurTa57deJfsoo=
     -----END CERTIFICATE-----
-  # platform-mesh.platform-mesh is valid after the calver switch
+  # platform-mesh.platform-mesh is for PM from the calver switch up to 26.10.x
   platform-mesh.platform-mesh: |
     -----BEGIN CERTIFICATE-----
     MIIDJjCCAg6gAwIBAgIQD/EiXBB8gw5NZdeJ1yiW5jANBgkqhkiG9w0BAQsFADAw
@@ -66,4 +66,30 @@ stringData:
     Ajkyacy1VLq8+R8WSjJL3sB1u2DX04W7XekEZ9Nk+C1JHWpfhW7jfI8Tnxj25j7h
     3y8dK/cbWstl1k5Z17nzaemODT1+W35WwcKgzKQyRz9ZTXltGnmV69sUsX5ScSOL
     ZakfoP7W+TcOWGLlFpwVBkgtUdZVWr7uIfvH+SnNFwbgBj/nqZnZCfOy
+    -----END CERTIFICATE-----
+  # v26.11.platform-mesh.platform-mesh is for PM >= 26.11.0, signed with the key
+  # introduced in November 2026. A signature name selects one certificate, so a
+  # new signing key gets a name of its own instead of joining an existing entry.
+  v26.11.platform-mesh.platform-mesh: |
+    -----BEGIN CERTIFICATE-----
+    MIIDvDCCA0GgAwIBAgIUPsmOwXxvR1R+ul6SO8G71AtUkI4wCgYIKoZIzj0EAwMw
+    MDEWMBQGA1UECgwNUGxhdGZvcm0gTWVzaDEWMBQGA1UEAwwNcGxhdGZvcm0tbWVz
+    aDAeFw0yNjExMTgxMzMyMTRaFw0yOTExMTcxMzMyMTRaMCYxJDAiBgNVBAMMG3Bs
+    YXRmb3JtLW1lc2gucGxhdGZvcm0tbWVzaDCCAiIwDQYJKoZIhvcNAQEBBQADggIP
+    ADCCAgoCggIBALQ2SkhvC10XyaGcCSO+AeAAeNjD8jEFhiaDALEQO6BUqyhWzC1Q
+    6kNQw1LGqj5a/wnebZhqL4Agm5WywFujGh8OQgG5rcFaVFw7R8dMzv+r6vNsVs+S
+    mYnxpw1ag7mAEOIF6QCKaDwG6JQ2Qj4xUHqdA1D1TGaXFLQw38NdhQ5OjXy9WiW+
+    Bb0ssn3NXS9GuJ9Hn/De0W2ENShMzHgE7iI5g9EqEsuw87y6f1H8gvApe+mvVdsi
+    ZROaa8B2Ki3i4IfN9K6rJft5Ypd5fMXLedVBruTd34pBFBjYjZNh8BqmVVCjVBfJ
+    lIJzaH6/Y/XkosvJHGFJAqnNLaUl0k00bfkirjx+NFqlvI/ZjBXWtDV4Vlfvh55C
+    YfWAsmteouCUVEqXiWKlApikkUJxFN3zT/n4wgKF3MtTlkUjzVtVRNxktvbxfwvT
+    FOYToOMwwiXJ2XORtQYvMgsnN5lDl/r7mEfmTHeg858SZmkhP9Dv0qWNH/F3pNs0
+    aQ8HgVKCOwACLdtE0gn9C4YF8pptXeq1qyIKNJprQ7U1U3oTLU5gapU2xLMDnwfv
+    UvzfXRwKq5BmFa0erhdxKf7PlvUBbG8XcTYhsPsHBlR/zgF4Alr6KEyXa4V3jGOt
+    p3wNbQBl4Yk5XV6oLv2rTzIczNdlB/tzfHAqklIN5e0sUmioVvpquwWxAgMBAAGj
+    eDB2MAwGA1UdEwEB/wQCMAAwDgYDVR0PAQH/BAQDAgeAMBYGA1UdJQEB/wQMMAoG
+    CCsGAQUFBwMDMB0GA1UdDgQWBBQwQIrzxhN9A0CdO9UzQ8vTC6YdijAfBgNVHSME
+    GDAWgBSUDBjGcRSs+mij+NNsH6byvL6A5zAKBggqhkjOPQQDAwNpADBmAjEA6Q8K
+    Igtpc5va1GydBC9+AyBkbAUDD3Vy+gO+FIfYGuIqsKP/gHb76wUglazwoUjuAjEA
+    8IjXxf9Zdgxf/EWelrZNeptAlp3VE6rd+Qjr9IMy2i7QPjwg/vqUhPiOXfD+YgyY
     -----END CERTIFICATE-----

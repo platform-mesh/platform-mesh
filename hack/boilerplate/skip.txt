@@ -27,6 +27,10 @@ services/kubernetes-graphql-gateway/sdk/schemahandler_grpc.pb.go
 contrib/tilt/bin
 contrib/tilt/.cache
 
+# Release assets built by goreleaser (task release-snapshot), gitignored
+/dist/
+/bin/release/
+
 # Derived from the kcp project, keeps the upstream copyright
 operators/platform-mesh-operator/hack/download-tool.sh
 

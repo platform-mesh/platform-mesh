@@ -111,6 +111,13 @@ spec:
                       properties:
                         clientId:
                           type: string
+                        clientSecret:
+                          description: |-
+                            ClientSecret is the secret a confidential client logs in with, such as
+                            the kubeconfigs the portal hands out. It is readable by everyone who can
+                            read the AccountInfo, so it protects nothing: it is for issuers whose
+                            clients cannot be public. Empty for a public client.
+                          type: string
                       required:
                       - clientId
                       type: object
