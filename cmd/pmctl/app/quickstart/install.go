@@ -225,6 +225,10 @@ func (o *Options) install(ctx context.Context, helm *helmClient, src *source) er
 	if err != nil {
 		return err
 	}
+	values, err = o.withServiceValues(values)
+	if err != nil {
+		return err
+	}
 
 	return o.step("Installing Platform Mesh operator", func() error {
 		if upgrading {

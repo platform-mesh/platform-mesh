@@ -248,3 +248,49 @@ func helmValues(values any) (map[string]any, error) {
 	}
 	return out, nil
 }
+
+// withServiceValues merges o.ServiceValues over what values sets on the
+// services of the profile.
+func (o *Options) withServiceValues(values operatorValues) (operatorValues, error) {
+	if len(o.ServiceValues) == 0 {
+		return values, nil
+	}
+	if values.PlatformMesh == nil {
+		values.PlatformMesh = &platformMeshValues{}
+	}
+	if values.PlatformMesh.Values == nil {
+		values.PlatformMesh.Values = &platformMeshSpecValues{}
+	}
+	services := values.PlatformMesh.Values.Services
+	if services == nil {
+		services = map[string]serviceValues{}
+		values.PlatformMesh.Values.Services = services
+	}
+	for name, extra := range o.ServiceValues {
+		service := services[name]
+		set, err := helmValues(service.Values)
+		if err != nil {
+			return values, err
+		}
+		service.Values = mergeValues(set, extra)
+		services[name] = service
+	}
+	return values, nil
+}
+
+// mergeValues merges src over dst, map by map, and returns dst.
+func mergeValues(dst, src map[string]any) map[string]any {
+	if dst == nil {
+		dst = map[string]any{}
+	}
+	for key, value := range src {
+		if sub, ok := value.(map[string]any); ok {
+			if current, ok := dst[key].(map[string]any); ok {
+				dst[key] = mergeValues(current, sub)
+				continue
+			}
+		}
+		dst[key] = value
+	}
+	return dst
+}
