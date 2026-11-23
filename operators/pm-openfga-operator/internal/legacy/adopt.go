@@ -52,6 +52,10 @@ type adopter struct {
 	// handOver copies the legacy status into current, if current has none yet,
 	// and may move legacy metadata along; legacy is patched afterwards.
 	handOver func(legacy, current ctrlruntimeclient.Object)
+	// retire reports whether the migrated legacy object can be deleted: what
+	// was handed over is stored in current. nil keeps the legacy object, for
+	// kinds whose objects are not platform-owned.
+	retire func(legacy, current ctrlruntimeclient.Object) bool
 }
 
 var _ subroutines.Processor = &adopter{}
@@ -81,6 +85,14 @@ func (a *adopter) Process(ctx context.Context, obj ctrlruntimeclient.Object) (su
 		return subroutines.OK(), fmt.Errorf("getting legacy %s %q: %w", a.name, obj.GetName(), err)
 	}
 	if Migrated(legacy) {
+		// Only on a later reconcile than the hand-over: obj then is what kcp
+		// holds, the handed-over status included.
+		if a.retire == nil || !legacy.GetDeletionTimestamp().IsZero() || !a.retire(legacy, obj) {
+			return subroutines.OK(), nil
+		}
+		if err := cl.Delete(ctx, legacy); err != nil && !apierrors.IsNotFound(err) {
+			return subroutines.OK(), fmt.Errorf("deleting migrated legacy %s %q: %w", a.name, obj.GetName(), err)
+		}
 		return subroutines.OK(), nil
 	}
 	patch := ctrlruntimeclient.MergeFrom(legacy.DeepCopyObject().(ctrlruntimeclient.Object))
@@ -97,7 +109,10 @@ func (a *adopter) Process(ctx context.Context, obj ctrlruntimeclient.Object) (su
 	return subroutines.OK(), nil
 }
 
-// StoreAdopter takes over the OpenFGA store of a same-name deprecated Store.
+// StoreAdopter takes over the OpenFGA store of a same-name deprecated Store
+// and deletes the deprecated Store once the take-over is stored: Stores are
+// platform-owned, nobody else is left to remove it. A migrated Store is
+// released without touching OpenFGA (Subroutine.Finalize).
 func StoreAdopter(mgr mcmanager.Manager) subroutines.Subroutine {
 	return &adopter{
 		name:           "StoreAdopter",
@@ -116,6 +131,21 @@ func StoreAdopter(mgr mcmanager.Manager) subroutines.Subroutine {
 			current.Status.StoreID = legacy.Status.StoreID
 			current.Status.AuthorizationModelID = legacy.Status.AuthorizationModelID
 			current.Status.ManagedTuples = tuplesToCurrent(legacy.Status.ManagedTuples)
+		},
+		retire: func(legacyObj, currentObj ctrlruntimeclient.Object) bool {
+			//nolint:staticcheck // legacy kind served on purpose
+			legacy := legacyObj.(*pmcorev1alpha1.Store)
+			current := currentObj.(*pmopenfgav1alpha1.Store)
+			if current.Status.StoreID == "" {
+				return false
+			}
+			// A successor on another OpenFGA store did not take this one over.
+			if legacy.Status.StoreID != "" && legacy.Status.StoreID != current.Status.StoreID {
+				return false
+			}
+			return !slices.ContainsFunc(legacy.GetFinalizers(), func(f string) bool {
+				return strings.HasPrefix(f, DependencyFinalizerPrefix)
+			})
 		},
 	}
 }
