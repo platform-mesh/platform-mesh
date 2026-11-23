@@ -27,23 +27,11 @@ matches the snapshot:
                 - name: HTTP_PROTOCOL
                   value: https
                 - name: DISCOVERY_ENDPOINT
-                  value: https://portal.example.com:443/keycloak/realms/${org-name}/.well-known/openid-configuration
+                  value: https://example.com/keycloak/realms/${org-name}/.well-known/openid-configuration
                 - name: OIDC_CLIENT_ID_DEFAULT
                   value: welcome
                 - name: BASE_DOMAINS_DEFAULT
-                  value: portal.example.com
-                - name: COOKIE_DOMAIN
-                  value: portal.example.com
-                - name: FRONTEND_PORT
-                  value: "443"
-                - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
-                  value: https://${org-subdomain}portal.example.com:443/iam/graphql
-                - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
-                  value: https://${org-subdomain}portal.example.com:443/gateway/api/clusters/root:orgs:${org-name}/graphql
-                - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
-                  value: https://pm-openfga-authz-webhook.NAMESPACE.svc.cluster.local:9443
-                - name: NODE_EXTRA_CA_CERTS
-                  value: /etc/ssl/certs/ca-bundle.crt
+                  value: example.com
                 - name: PORT
                   value: "8080"
                 - name: REGION
@@ -62,6 +50,18 @@ matches the snapshot:
                   value: http://extension-manager-operator-server.NAMESPACE.svc.cluster.local:8088/validate
                 - name: VALID_WEBCOMPONENT_URLS
                   value: .?
+                - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+                  value: https://pm-openfga-authz-webhook.NAMESPACE.svc.cluster.local:9443
+                - name: NODE_EXTRA_CA_CERTS
+                  value: /etc/ssl/certs/ca-bundle.crt
+                - name: COOKIE_DOMAIN
+                  value: example.com
+                - name: FRONTEND_PORT
+                  value: "443"
+                - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+                  value: https://${org-subdomain}example.com/iam/graphql
+                - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+                  value: https://${org-subdomain}example.com/gateway/api/clusters/root:orgs:${org-name}/graphql
                 - name: TEST_TEST
                   value: test test
                 - name: DEMO_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
@@ -172,23 +172,11 @@ test hosAliases:
                 - name: HTTP_PROTOCOL
                   value: https
                 - name: DISCOVERY_ENDPOINT
-                  value: https://:/keycloak/realms/${org-name}/.well-known/openid-configuration
+                  value: https://example.com/keycloak/realms/${org-name}/.well-known/openid-configuration
                 - name: OIDC_CLIENT_ID_DEFAULT
                   value: welcome
                 - name: BASE_DOMAINS_DEFAULT
-                  value: null
-                - name: COOKIE_DOMAIN
-                  value: null
-                - name: FRONTEND_PORT
-                  value: ""
-                - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
-                  value: https://${org-subdomain}:/iam/graphql
-                - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
-                  value: https://${org-subdomain}:/gateway/api/clusters/root:orgs:${org-name}/graphql
-                - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
-                  value: https://pm-openfga-authz-webhook.NAMESPACE.svc.cluster.local:9443
-                - name: NODE_EXTRA_CA_CERTS
-                  value: /etc/ssl/certs/ca-bundle.crt
+                  value: example.com
                 - name: PORT
                   value: "8080"
                 - name: REGION
@@ -207,6 +195,18 @@ test hosAliases:
                   value: http://extension-manager-operator-server.NAMESPACE.svc.cluster.local:8088/validate
                 - name: VALID_WEBCOMPONENT_URLS
                   value: .?
+                - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+                  value: https://pm-openfga-authz-webhook.NAMESPACE.svc.cluster.local:9443
+                - name: NODE_EXTRA_CA_CERTS
+                  value: /etc/ssl/certs/ca-bundle.crt
+                - name: COOKIE_DOMAIN
+                  value: example.com
+                - name: FRONTEND_PORT
+                  value: "443"
+                - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+                  value: https://${org-subdomain}example.com/iam/graphql
+                - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+                  value: https://${org-subdomain}example.com/gateway/api/clusters/root:orgs:${org-name}/graphql
                 - name: KUBECONFIG_KCP
                   value: /kcp-kubeconfig/kubeconfig
               image: ghcr.io/platform-mesh/portal:1.0.0

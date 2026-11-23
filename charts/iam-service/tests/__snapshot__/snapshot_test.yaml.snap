@@ -19,11 +19,12 @@ match the snapshots:
           containers:
             - args:
                 - serve
-                - --keycloak-base-url=
+                - --keycloak-base-url=https://example.com/keycloak
                 - --keycloak-client-id=iam-service
                 - --roles-file-path=/roles/roles.yaml
                 - --jwt-user-id-claim=email
                 - --openfga-grpc-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --no-json
                 - --test=abc
               env:
                 - name: KUBECONFIG
@@ -85,7 +86,9 @@ match the snapshots:
     metadata:
       name: iam-service
     spec:
-      hostnames: null
+      hostnames:
+        - example.com
+        - '*.example.com'
       parentRefs:
         - name: k8sapi-gateway
       rules:

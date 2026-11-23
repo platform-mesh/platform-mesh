@@ -1,3 +1,13 @@
+exposure:
+  # -- Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure.
+  baseDomain: ""
+  # -- Public URL protocol. Operator-owned in Platform Mesh.
+  protocol: https
+  # -- Public port.
+  port: 443
+  # -- URL port string derived by the platform-mesh operator from protocol and port: empty for HTTP/80 or HTTPS/443, otherwise ":<port>".
+  normalizedPort: ""
+
 image:
   # -- The image registry
   registry: ghcr.io
@@ -7,14 +17,6 @@ image:
   digest: ""
   pullPolicyOverride: IfNotPresent
 
-# -- Base domain for the portal deployment. The operator substitutes this value. All derived
-# -- URLs (cookieDomain, discoveryUrl, crdGatewayApiUrl, httpRoute hostnames) are built from it.
-baseDomain: ""
-
-# -- External HTTPS port for browser-facing URLs. The operator substitutes this value.
-# -- Does not affect the container listen port (which defaults to 8080 via common chart defaults).
-frontendPort: ""
-
 # -- Name of the Secret containing the domain TLS CA certificate (key: ca.crt).
 # -- When set together with webhookCaSecret, the chart renders a combine-ca init container
 # -- that merges both CAs into /etc/ssl/certs/ca-bundle.crt.
@@ -23,10 +25,6 @@ caSecret: domain-certificate
 # -- Name of the Secret containing the pm-openfga-authz-webhook CA certificate (key: ca.crt).
 # -- Required when caSecret is also set; the two are concatenated by the combine-ca init container.
 webhookCaSecret: pm-openfga-authz-webhook-cert
-
-http:
-  # -- protocol used by the portal backend. Must be set. Permissible values: http, https
-  protocol: https
 
 validWebcomponentUrls: ".?"
 featureToggles: "enableSessionAutoRefresh=true"
@@ -47,15 +45,10 @@ kcp:
 
 auth:
   default:
+    # -- Explicit discovery URL; empty derives the public Keycloak realm discovery URL.
+    discoveryUrl: ""
     # -- client id
     clientId: welcome
-    # -- Secret key holding the client secret
-    clientSecretKey: attribute.client_secret
-    # -- Secret name holding the client secret
-    clientSecretName: portal-client-secret-welcome
-    # -- Explicit OIDC discovery URL; empty derives the Keycloak URL from baseDomain and frontendPort.
-    discoveryUrl: ""
-
 health:
   # -- health port to be used by probes
   port: 8080
@@ -85,7 +78,7 @@ gatewayApi:
   enabled: true
   httpRoute:
     pathPrefix: /
-    # -- hostnames for the HTTPRoute.
+    # -- hostnames for the HTTPRoute. Empty uses exposure.baseDomain and its wildcard.
     hostnames: []
     parentRefs:
     - name: k8sapi-gateway

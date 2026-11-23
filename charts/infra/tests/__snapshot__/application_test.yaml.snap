@@ -1,5 +1,74 @@
 Gateway API enabled:
   1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: '*.services.example.com'
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: kcp.api.example.com
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.example.com
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.example.com
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.example.com
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Kubeconfig
     metadata:
@@ -15,7 +84,7 @@ Gateway API enabled:
           name: frontproxy
       username: kcp-admin
       validity: 8766h
-  2: |
+  3: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -34,7 +103,7 @@ Gateway API enabled:
           - system:kcp:admin
       usages:
         - client auth
-  3: |
+  4: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -92,7 +161,7 @@ Gateway API enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  4: |
+  5: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: CacheServer
     metadata:
@@ -110,7 +179,7 @@ Gateway API enabled:
       image:
         repository: ghcr.io/kcp-dev/kcp
         tag: v0.33.6
-  5: |
+  6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
     metadata:
@@ -136,8 +205,8 @@ Gateway API enabled:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -150,7 +219,7 @@ Gateway API enabled:
       serviceTemplate:
         spec:
           type: ClusterIP
-  6: |
+  7: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
@@ -158,7 +227,7 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
-  7: |
+  8: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -216,7 +285,7 @@ Gateway API enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  8: |
+  9: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: RootShard
     metadata:
@@ -240,7 +309,7 @@ Gateway API enabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -257,8 +326,8 @@ Gateway API enabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -273,8 +342,8 @@ Gateway API enabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
-  9: |
+      shardBaseURL: https://root.kcp.example.com/
+  10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -282,7 +351,7 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -295,7 +364,7 @@ Gateway API enabled:
               name: root-kcp
               namespace: platform-mesh-system
               port: 6443
-  10: |
+  11: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -353,7 +422,7 @@ Gateway API enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  11: |
+  12: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -377,7 +446,7 @@ Gateway API enabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -405,8 +474,8 @@ Gateway API enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
-  12: |
+      shardBaseURL: https://nereus.kcp.example.com/
+  13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -414,7 +483,7 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -427,7 +496,7 @@ Gateway API enabled:
               name: nereus-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  13: |
+  14: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -485,7 +554,7 @@ Gateway API enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  14: |
+  15: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -509,7 +578,7 @@ Gateway API enabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -537,8 +606,8 @@ Gateway API enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
-  15: |
+      shardBaseURL: https://triton.kcp.example.com/
+  16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -546,7 +615,7 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -559,7 +628,7 @@ Gateway API enabled:
               name: triton-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  16: |
+  17: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -567,7 +636,7 @@ Gateway API enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -579,13 +648,15 @@ Gateway API enabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
-  17: |
+              port: 443
+  18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -603,6 +674,75 @@ Gateway API enabled:
                 value: /keycloak
 Istio disabled:
   1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: '*.services.example.com'
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: kcp.api.example.com
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.example.com
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.example.com
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.example.com
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Kubeconfig
     metadata:
@@ -618,7 +758,7 @@ Istio disabled:
           name: frontproxy
       username: kcp-admin
       validity: 8766h
-  2: |
+  3: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -637,7 +777,7 @@ Istio disabled:
           - system:kcp:admin
       usages:
         - client auth
-  3: |
+  4: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -695,7 +835,7 @@ Istio disabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  4: |
+  5: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: CacheServer
     metadata:
@@ -713,7 +853,7 @@ Istio disabled:
       image:
         repository: ghcr.io/kcp-dev/kcp
         tag: v0.33.6
-  5: |
+  6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
     metadata:
@@ -739,8 +879,8 @@ Istio disabled:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -753,7 +893,7 @@ Istio disabled:
       serviceTemplate:
         spec:
           type: ClusterIP
-  6: |
+  7: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
@@ -761,7 +901,7 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
-  7: |
+  8: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -819,7 +959,7 @@ Istio disabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  8: |
+  9: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: RootShard
     metadata:
@@ -843,7 +983,7 @@ Istio disabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -860,8 +1000,8 @@ Istio disabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -876,8 +1016,8 @@ Istio disabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
-  9: |
+      shardBaseURL: https://root.kcp.example.com/
+  10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -885,7 +1025,7 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -898,7 +1038,7 @@ Istio disabled:
               name: root-kcp
               namespace: platform-mesh-system
               port: 6443
-  10: |
+  11: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -956,7 +1096,7 @@ Istio disabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  11: |
+  12: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -980,7 +1120,7 @@ Istio disabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -1008,8 +1148,8 @@ Istio disabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
-  12: |
+      shardBaseURL: https://nereus.kcp.example.com/
+  13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -1017,7 +1157,7 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1030,7 +1170,7 @@ Istio disabled:
               name: nereus-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  13: |
+  14: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -1088,7 +1228,7 @@ Istio disabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  14: |
+  15: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -1112,7 +1252,7 @@ Istio disabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -1140,8 +1280,8 @@ Istio disabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
-  15: |
+      shardBaseURL: https://triton.kcp.example.com/
+  16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -1149,7 +1289,7 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1162,7 +1302,7 @@ Istio disabled:
               name: triton-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  16: |
+  17: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -1170,7 +1310,7 @@ Istio disabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1182,13 +1322,15 @@ Istio disabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
-  17: |
+              port: 443
+  18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1206,6 +1348,75 @@ Istio disabled:
                 value: /keycloak
 Istio enabled:
   1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: '*.services.example.com'
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: kcp.api.example.com
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.example.com
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.example.com
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.example.com
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Kubeconfig
     metadata:
@@ -1221,7 +1432,7 @@ Istio enabled:
           name: frontproxy
       username: kcp-admin
       validity: 8766h
-  2: |
+  3: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -1240,7 +1451,7 @@ Istio enabled:
           - system:kcp:admin
       usages:
         - client auth
-  3: |
+  4: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -1298,7 +1509,7 @@ Istio enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  4: |
+  5: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: CacheServer
     metadata:
@@ -1316,7 +1527,7 @@ Istio enabled:
       image:
         repository: ghcr.io/kcp-dev/kcp
         tag: v0.33.6
-  5: |
+  6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
     metadata:
@@ -1342,8 +1553,8 @@ Istio enabled:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -1356,7 +1567,7 @@ Istio enabled:
       serviceTemplate:
         spec:
           type: ClusterIP
-  6: |
+  7: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
@@ -1364,7 +1575,7 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
-  7: |
+  8: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -1422,7 +1633,7 @@ Istio enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  8: |
+  9: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: RootShard
     metadata:
@@ -1446,7 +1657,7 @@ Istio enabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -1463,8 +1674,8 @@ Istio enabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -1479,8 +1690,8 @@ Istio enabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
-  9: |
+      shardBaseURL: https://root.kcp.example.com/
+  10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -1488,7 +1699,7 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1501,7 +1712,7 @@ Istio enabled:
               name: root-kcp
               namespace: platform-mesh-system
               port: 6443
-  10: |
+  11: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -1559,7 +1770,7 @@ Istio enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  11: |
+  12: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -1583,7 +1794,7 @@ Istio enabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -1611,8 +1822,8 @@ Istio enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
-  12: |
+      shardBaseURL: https://nereus.kcp.example.com/
+  13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -1620,7 +1831,7 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1633,7 +1844,7 @@ Istio enabled:
               name: nereus-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  13: |
+  14: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -1691,7 +1902,7 @@ Istio enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  14: |
+  15: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -1715,7 +1926,7 @@ Istio enabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -1743,8 +1954,8 @@ Istio enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
-  15: |
+      shardBaseURL: https://triton.kcp.example.com/
+  16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -1752,7 +1963,7 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1765,7 +1976,7 @@ Istio enabled:
               name: triton-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  16: |
+  17: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -1773,7 +1984,7 @@ Istio enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1785,13 +1996,15 @@ Istio enabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
-  17: |
+              port: 443
+  18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1897,7 +2110,7 @@ configure etcd backup store:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -1914,8 +2127,8 @@ configure etcd backup store:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -1930,7 +2143,7 @@ configure etcd backup store:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   3: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -1939,7 +2152,7 @@ configure etcd backup store:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -1979,8 +2192,8 @@ configure frontproxy resources:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -2083,7 +2296,7 @@ configure rootshard resources:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -2100,8 +2313,8 @@ configure rootshard resources:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -2123,7 +2336,7 @@ configure rootshard resources:
         requests:
           cpu: 200m
           memory: 256Mi
-      shardBaseURL: https://root.kcp.localhost:8443/
+      shardBaseURL: https://root.kcp.example.com/
   3: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
@@ -2132,7 +2345,7 @@ configure rootshard resources:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2147,6 +2360,75 @@ configure rootshard resources:
               port: 6443
 match snapshots:
   1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: '*.services.example.com'
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: kcp.api.example.com
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.example.com
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.example.com
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.example.com
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Kubeconfig
     metadata:
@@ -2162,7 +2444,7 @@ match snapshots:
           name: frontproxy
       username: kcp-admin
       validity: 8766h
-  2: |
+  3: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -2181,7 +2463,7 @@ match snapshots:
           - system:kcp:admin
       usages:
         - client auth
-  3: |
+  4: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -2239,7 +2521,7 @@ match snapshots:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  4: |
+  5: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: CacheServer
     metadata:
@@ -2257,7 +2539,7 @@ match snapshots:
       image:
         repository: ghcr.io/kcp-dev/kcp
         tag: 0.0.0
-  5: |
+  6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
     metadata:
@@ -2283,8 +2565,8 @@ match snapshots:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -2297,7 +2579,7 @@ match snapshots:
       serviceTemplate:
         spec:
           type: ClusterIP
-  6: |
+  7: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
@@ -2305,7 +2587,7 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
-  7: |
+  8: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -2363,7 +2645,7 @@ match snapshots:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  8: |
+  9: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: RootShard
     metadata:
@@ -2387,7 +2669,7 @@ match snapshots:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -2404,8 +2686,8 @@ match snapshots:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -2420,8 +2702,8 @@ match snapshots:
           repository: ghcr.io/kcp-dev/kcp
           tag: 0.0.0
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
-  9: |
+      shardBaseURL: https://root.kcp.example.com/
+  10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -2429,7 +2711,7 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2442,7 +2724,7 @@ match snapshots:
               name: root-kcp
               namespace: platform-mesh-system
               port: 6443
-  10: |
+  11: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -2500,7 +2782,7 @@ match snapshots:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  11: |
+  12: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -2524,7 +2806,7 @@ match snapshots:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -2552,8 +2834,8 @@ match snapshots:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
-  12: |
+      shardBaseURL: https://nereus.kcp.example.com/
+  13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -2561,7 +2843,7 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2574,7 +2856,7 @@ match snapshots:
               name: nereus-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  13: |
+  14: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -2632,7 +2914,7 @@ match snapshots:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  14: |
+  15: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -2656,7 +2938,7 @@ match snapshots:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -2684,8 +2966,8 @@ match snapshots:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
-  15: |
+      shardBaseURL: https://triton.kcp.example.com/
+  16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -2693,7 +2975,7 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2706,7 +2988,7 @@ match snapshots:
               name: triton-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  16: |
+  17: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -2714,7 +2996,7 @@ match snapshots:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2726,13 +3008,15 @@ match snapshots:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
-  17: |
+              port: 443
+  18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -2750,6 +3034,75 @@ match snapshots:
                 value: /keycloak
 match snapshots w. hostAliases enabled:
   1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: '*.services.example.com'
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: kcp.api.example.com
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.example.com
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.example.com
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.example.com
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Kubeconfig
     metadata:
@@ -2765,7 +3118,7 @@ match snapshots w. hostAliases enabled:
           name: frontproxy
       username: kcp-admin
       validity: 8766h
-  2: |
+  3: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -2784,7 +3137,7 @@ match snapshots w. hostAliases enabled:
           - system:kcp:admin
       usages:
         - client auth
-  3: |
+  4: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -2842,7 +3195,7 @@ match snapshots w. hostAliases enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  4: |
+  5: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: CacheServer
     metadata:
@@ -2860,7 +3213,7 @@ match snapshots w. hostAliases enabled:
       image:
         repository: ghcr.io/kcp-dev/kcp
         tag: v0.33.6
-  5: |
+  6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
     metadata:
@@ -2887,8 +3240,8 @@ match snapshots w. hostAliases enabled:
             spec:
               hostAliases: []
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -2902,7 +3255,7 @@ match snapshots w. hostAliases enabled:
         spec:
           clusterIP: 10.0.0.1
           type: ClusterIP
-  6: |
+  7: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
@@ -2910,7 +3263,7 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
-  7: |
+  8: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -2968,7 +3321,7 @@ match snapshots w. hostAliases enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  8: |
+  9: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: RootShard
     metadata:
@@ -2992,7 +3345,7 @@ match snapshots w. hostAliases enabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -3010,8 +3363,8 @@ match snapshots w. hostAliases enabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -3027,8 +3380,8 @@ match snapshots w. hostAliases enabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
-  9: |
+      shardBaseURL: https://root.kcp.example.com/
+  10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -3036,7 +3389,7 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3049,7 +3402,7 @@ match snapshots w. hostAliases enabled:
               name: root-kcp
               namespace: platform-mesh-system
               port: 6443
-  10: |
+  11: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -3107,7 +3460,7 @@ match snapshots w. hostAliases enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  11: |
+  12: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -3131,7 +3484,7 @@ match snapshots w. hostAliases enabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -3161,8 +3514,8 @@ match snapshots w. hostAliases enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
-  12: |
+      shardBaseURL: https://nereus.kcp.example.com/
+  13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -3170,7 +3523,7 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3183,7 +3536,7 @@ match snapshots w. hostAliases enabled:
               name: nereus-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  13: |
+  14: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -3241,7 +3594,7 @@ match snapshots w. hostAliases enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  14: |
+  15: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -3265,7 +3618,7 @@ match snapshots w. hostAliases enabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -3295,8 +3648,8 @@ match snapshots w. hostAliases enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
-  15: |
+      shardBaseURL: https://triton.kcp.example.com/
+  16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -3304,7 +3657,7 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3317,7 +3670,7 @@ match snapshots w. hostAliases enabled:
               name: triton-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  16: |
+  17: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -3325,7 +3678,7 @@ match snapshots w. hostAliases enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3337,13 +3690,15 @@ match snapshots w. hostAliases enabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
-  17: |
+              port: 443
+  18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3361,6 +3716,75 @@ match snapshots w. hostAliases enabled:
                 value: /keycloak
 match snapshots w. kcp version:
   1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: '*.services.example.com'
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: kcp.api.example.com
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.example.com
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.example.com
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.example.com
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Kubeconfig
     metadata:
@@ -3376,7 +3800,7 @@ match snapshots w. kcp version:
           name: frontproxy
       username: kcp-admin
       validity: 8766h
-  2: |
+  3: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -3395,7 +3819,7 @@ match snapshots w. kcp version:
           - system:kcp:admin
       usages:
         - client auth
-  3: |
+  4: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -3453,7 +3877,7 @@ match snapshots w. kcp version:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  4: |
+  5: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: CacheServer
     metadata:
@@ -3471,7 +3895,7 @@ match snapshots w. kcp version:
       image:
         repository: ghcr.io/kcp-dev/kcp
         tag: v0.1.0
-  5: |
+  6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
     metadata:
@@ -3497,8 +3921,8 @@ match snapshots w. kcp version:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -3511,7 +3935,7 @@ match snapshots w. kcp version:
       serviceTemplate:
         spec:
           type: ClusterIP
-  6: |
+  7: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
@@ -3519,7 +3943,7 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
-  7: |
+  8: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -3577,7 +4001,7 @@ match snapshots w. kcp version:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  8: |
+  9: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: RootShard
     metadata:
@@ -3601,7 +4025,7 @@ match snapshots w. kcp version:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -3618,8 +4042,8 @@ match snapshots w. kcp version:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -3634,8 +4058,8 @@ match snapshots w. kcp version:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.1.0
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
-  9: |
+      shardBaseURL: https://root.kcp.example.com/
+  10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -3643,7 +4067,7 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3656,7 +4080,7 @@ match snapshots w. kcp version:
               name: root-kcp
               namespace: platform-mesh-system
               port: 6443
-  10: |
+  11: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -3714,7 +4138,7 @@ match snapshots w. kcp version:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  11: |
+  12: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -3738,7 +4162,7 @@ match snapshots w. kcp version:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -3766,8 +4190,8 @@ match snapshots w. kcp version:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
-  12: |
+      shardBaseURL: https://nereus.kcp.example.com/
+  13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -3775,7 +4199,7 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3788,7 +4212,7 @@ match snapshots w. kcp version:
               name: nereus-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  13: |
+  14: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -3846,7 +4270,7 @@ match snapshots w. kcp version:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  14: |
+  15: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -3870,7 +4294,7 @@ match snapshots w. kcp version:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -3898,8 +4322,8 @@ match snapshots w. kcp version:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
-  15: |
+      shardBaseURL: https://triton.kcp.example.com/
+  16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -3907,7 +4331,7 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3920,7 +4344,7 @@ match snapshots w. kcp version:
               name: triton-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  16: |
+  17: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -3928,7 +4352,7 @@ match snapshots w. kcp version:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3940,13 +4364,15 @@ match snapshots w. kcp version:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
-  17: |
+              port: 443
+  18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -3964,6 +4390,75 @@ match snapshots w. kcp version:
                 value: /keycloak
 match snapshots with mailpit enabled:
   1: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: k8sapi-gateway
+      namespace: platform-mesh-system
+    spec:
+      gatewayClassName: traefik
+      listeners:
+        - name: terminate
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: '*.services.example.com'
+          name: terminate-services
+          port: 443
+          protocol: HTTPS
+          tls:
+            certificateRefs:
+              - group: ""
+                kind: Secret
+                name: domain-certificate
+                namespace: platform-mesh-system
+            mode: Terminate
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: kcp.api.example.com
+          name: passthrough
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: root.kcp.example.com
+          name: passthrough-root
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: nereus.kcp.example.com
+          name: passthrough-nereus
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+        - allowedRoutes:
+            namespaces:
+              from: All
+          hostname: triton.kcp.example.com
+          name: passthrough-triton
+          port: 443
+          protocol: TLS
+          tls:
+            mode: Passthrough
+  2: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Kubeconfig
     metadata:
@@ -3979,7 +4474,7 @@ match snapshots with mailpit enabled:
           name: frontproxy
       username: kcp-admin
       validity: 8766h
-  2: |
+  3: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -3998,7 +4493,7 @@ match snapshots with mailpit enabled:
           - system:kcp:admin
       usages:
         - client auth
-  3: |
+  4: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -4056,7 +4551,7 @@ match snapshots with mailpit enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  4: |
+  5: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: CacheServer
     metadata:
@@ -4074,7 +4569,7 @@ match snapshots with mailpit enabled:
       image:
         repository: ghcr.io/kcp-dev/kcp
         tag: v0.33.6
-  5: |
+  6: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: FrontProxy
     metadata:
@@ -4100,8 +4595,8 @@ match snapshots with mailpit enabled:
           template:
             spec: null
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true
       image:
@@ -4114,7 +4609,7 @@ match snapshots with mailpit enabled:
       serviceTemplate:
         spec:
           type: ClusterIP
-  6: |
+  7: |
     apiVersion: cert-manager.io/v1
     kind: Issuer
     metadata:
@@ -4122,7 +4617,7 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       selfSigned: {}
-  7: |
+  8: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -4180,7 +4675,7 @@ match snapshots with mailpit enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  8: |
+  9: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: RootShard
     metadata:
@@ -4204,7 +4699,7 @@ match snapshots with mailpit enabled:
               - root-kcp
               - root-kcp.platform-mesh-system
               - root-kcp.platform-mesh-system.svc.cluster.local
-              - root.kcp.localhost
+              - root.kcp.example.com
       certificates:
         issuerRef:
           group: cert-manager.io
@@ -4221,8 +4716,8 @@ match snapshots with mailpit enabled:
         endpoints:
           - http://etcd-kcp-client.platform-mesh-system.svc.cluster.local:2379
       external:
-        hostname: localhost
-        port: 8443
+        hostname: kcp.api.example.com
+        port: 443
       extraArgs:
         - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
       image:
@@ -4237,8 +4732,8 @@ match snapshots with mailpit enabled:
           repository: ghcr.io/kcp-dev/kcp
           tag: v0.33.6
       replicas: 1
-      shardBaseURL: https://root.kcp.localhost:8443/
-  9: |
+      shardBaseURL: https://root.kcp.example.com/
+  10: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -4246,7 +4741,7 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - root.kcp.localhost
+        - root.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4259,7 +4754,7 @@ match snapshots with mailpit enabled:
               name: root-kcp
               namespace: platform-mesh-system
               port: 6443
-  10: |
+  11: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -4317,7 +4812,7 @@ match snapshots with mailpit enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  11: |
+  12: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -4341,7 +4836,7 @@ match snapshots with mailpit enabled:
               - nereus-shard-kcp
               - nereus-shard-kcp.platform-mesh-system
               - nereus-shard-kcp.platform-mesh-system.svc.cluster.local
-              - nereus.kcp.localhost
+              - nereus.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -4369,8 +4864,8 @@ match snapshots with mailpit enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://nereus.kcp.localhost:8443/
-  12: |
+      shardBaseURL: https://nereus.kcp.example.com/
+  13: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -4378,7 +4873,7 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - nereus.kcp.localhost
+        - nereus.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4391,7 +4886,7 @@ match snapshots with mailpit enabled:
               name: nereus-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  13: |
+  14: |
     apiVersion: druid.gardener.cloud/v1alpha1
     kind: Etcd
     metadata:
@@ -4449,7 +4944,7 @@ match snapshots with mailpit enabled:
       sharedConfig:
         autoCompactionMode: periodic
         autoCompactionRetention: 30m
-  14: |
+  15: |
     apiVersion: operator.kcp.io/v1alpha1
     kind: Shard
     metadata:
@@ -4473,7 +4968,7 @@ match snapshots with mailpit enabled:
               - triton-shard-kcp
               - triton-shard-kcp.platform-mesh-system
               - triton-shard-kcp.platform-mesh-system.svc.cluster.local
-              - triton.kcp.localhost
+              - triton.kcp.example.com
       deploymentTemplate:
         spec:
           template:
@@ -4501,8 +4996,8 @@ match snapshots with mailpit enabled:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://triton.kcp.localhost:8443/
-  15: |
+      shardBaseURL: https://triton.kcp.example.com/
+  16: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -4510,7 +5005,7 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - triton.kcp.localhost
+        - triton.kcp.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4523,7 +5018,7 @@ match snapshots with mailpit enabled:
               name: triton-shard-kcp
               namespace: platform-mesh-system
               port: 6443
-  16: |
+  17: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute
     metadata:
@@ -4531,7 +5026,7 @@ match snapshots with mailpit enabled:
       namespace: platform-mesh-system
     spec:
       hostnames:
-        - localhost
+        - kcp.api.example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4543,13 +5038,15 @@ match snapshots with mailpit enabled:
               kind: Service
               name: frontproxy-front-proxy
               namespace: platform-mesh-system
-              port: 8443
-  17: |
+              port: 443
+  18: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: keycloak
     spec:
+      hostnames:
+        - example.com
       parentRefs:
         - group: gateway.networking.k8s.io
           kind: Gateway
@@ -4676,7 +5173,7 @@ render additional shard with explicit hostname:
       rootShard:
         ref:
           name: root
-      shardBaseURL: https://shard-1.kcp.localhost:8443/
+      shardBaseURL: https://shard-1.kcp.localhost/
   3: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: TLSRoute

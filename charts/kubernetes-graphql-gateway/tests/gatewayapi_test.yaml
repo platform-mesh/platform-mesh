@@ -1,3 +1,5 @@
+set:
+  exposure.baseDomain: example.com
 suite: Test Kubernetes Gateway API
 values:
 - ../values.yaml
@@ -13,3 +15,15 @@ tests:
   - it: HTTPRoute matches snapshot
     asserts:
       - matchSnapshot: {}
+  - it: uses the explicit route hostnames
+    set:
+      gatewayApi.enabled: true
+      gatewayApi.httpRoute.enabled: true
+      gatewayApi.httpRoute.hostnames:
+      - custom.example.net
+    asserts:
+    - equal:
+        path: spec.hostnames
+        value:
+        - custom.example.net
+    template: httproute.yaml

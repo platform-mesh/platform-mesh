@@ -1,50 +1,78 @@
-{{- if and .Values.gatewayApi.enabled .Values.gatewayApi.baseDomain }}
+{{- if .Values.gatewayApi.enabled }}
+{{/* The Gateway service port can differ from the public exposure port, for example with NodePort. */}}
+{{- $listenerPort := .Values.gatewayApi.listenerPort | default .Values.exposure.port -}}
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ .Values.gatewayApi.name }}
   namespace: {{ .Release.Namespace }}
 spec:
-  gatewayClassName: {{ .Values.gatewayApi.gatewayClassName | quote }}
+  gatewayClassName: {{ .Values.exposure.gatewayClassName | quote }}
   listeners:
-    - name: terminate
-      hostname: {{ .Values.gatewayApi.baseDomain | quote }}
-      port: {{ .Values.gatewayApi.port }}
-      protocol: HTTPS
+  {{- range concat .Values.gatewayApi.listeners .Values.gatewayApi.listenersExtra }}
+    - name: {{ .name }}
+      port: {{ .port | default $listenerPort }}
+      protocol: {{ .protocol }}
+      {{- if .hostname }}
+      hostname: {{ .hostname | quote }}
+      {{- else if eq .name "terminate-services" }}
+      hostname: "*.services.{{ $.Values.exposure.baseDomain }}"
+      {{- end }}
+      {{- with .tls }}
       tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: domain-certificate
-            namespace: {{ .Release.Namespace }}
-    - name: terminate-wildstar
-      hostname: {{ printf "*.%s" .Values.gatewayApi.baseDomain | quote }}
-      port: {{ .Values.gatewayApi.port }}
-      protocol: HTTPS
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: domain-certificate
-            namespace: {{ .Release.Namespace }}
-    - name: terminate-services
-      hostname: {{ printf "*.services.%s" .Values.gatewayApi.baseDomain | quote }}
-      port: {{ .Values.gatewayApi.port }}
-      protocol: HTTPS
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: domain-certificate
-            namespace: {{ .Release.Namespace }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .allowedRoutes }}
       allowedRoutes:
-        namespaces:
-          from: All
-    {{- if .Values.gatewayApi.passthrough.enabled }}
-    {{- include "kcp.passthroughListeners" . | nindent 4 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- end }}
+  {{- if .Values.gatewayApi.passthrough.enabled }}
+    {{- $passthroughPort := .Values.gatewayApi.passthrough.port | default $listenerPort }}
+    {{/* Istio needs a separate passthrough listener for each kcp hostname on the same port. */}}
+    - name: passthrough
+      hostname: "kcp.api.{{ .Values.exposure.baseDomain }}"
+      port: {{ $passthroughPort }}
+      protocol: TLS
+      tls:
+        mode: Passthrough
+      {{- with .Values.gatewayApi.passthrough.allowedRoutes }}
+      allowedRoutes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    - name: passthrough-root
+      {{- if .Values.kcp.rootShard.hostname }}
+      hostname: {{ .Values.kcp.rootShard.hostname | quote }}
+      {{- else }}
+      hostname: "root.kcp.{{ .Values.exposure.baseDomain }}"
+      {{- end }}
+      port: {{ $passthroughPort }}
+      protocol: TLS
+      tls:
+        mode: Passthrough
+      {{- with .Values.gatewayApi.passthrough.allowedRoutes }}
+      allowedRoutes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- range .Values.kcp.shards }}
+    - name: passthrough-{{ .name }}
+      {{- if .hostname }}
+      hostname: {{ .hostname | quote }}
+      {{- else }}
+      hostname: "{{ .name }}.kcp.{{ $.Values.exposure.baseDomain }}"
+      {{- end }}
+      port: {{ $passthroughPort }}
+      protocol: TLS
+      tls:
+        mode: Passthrough
+      {{- with $.Values.gatewayApi.passthrough.allowedRoutes }}
+      allowedRoutes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     {{- end }}
-{{- with .Values.gatewayApi.infrastructure }}
+  {{- end }}
+  {{- with .Values.gatewayApi.infrastructure }}
   infrastructure:
     {{- toYaml . | nindent 4 }}
-{{- end }}
+  {{- end }}
 {{- end }}

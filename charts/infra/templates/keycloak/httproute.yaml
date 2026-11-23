@@ -1,13 +1,14 @@
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: keycloak
 spec:
-  {{- with .Values.keycloak.gatewayApi.hostnames }}
   hostnames:
-  {{- range . }}
-  - {{ . | quote }}
-  {{- end }}
+  {{- if .Values.keycloak.gatewayApi.hostnames }}
+    {{- toYaml .Values.keycloak.gatewayApi.hostnames | nindent 4 }}
+  {{- else }}
+    - {{ .Values.exposure.baseDomain | quote }}
   {{- end }}
   parentRefs:
   - group: gateway.networking.k8s.io

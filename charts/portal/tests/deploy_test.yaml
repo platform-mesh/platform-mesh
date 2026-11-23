@@ -1,3 +1,5 @@
+set:
+  exposure.baseDomain: example.com
 suite: deploy
 templates:
   - deploy.yaml
@@ -9,8 +11,9 @@ release:
 tests:
   - it: uses the configured OIDC discovery endpoint
     set:
-      baseDomain: portal.example.com
-      frontendPort: "8443"
+      exposure.baseDomain: portal.example.com
+      exposure.port: 8443
+      exposure.normalizedPort: ":8443"
       auth:
         default:
           discoveryUrl: https://issuer.example.com/dex/.well-known/openid-configuration
@@ -40,3 +43,118 @@ tests:
     template: deploy.yaml
     asserts:
       - matchSnapshot: {}
+  - it: uses normalized exposure port consistently for discovery and API URLs
+    set:
+      exposure.protocol: https
+      exposure.port: 8443
+      exposure.normalizedPort: ":8443"
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: DISCOVERY_ENDPOINT
+          value: https://example.com:8443/keycloak/realms/${org-name}/.well-known/openid-configuration
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+          value: https://${org-subdomain}example.com:8443/iam/graphql
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
+          value: https://${org-subdomain}example.com:8443/gateway/api/clusters/root:orgs:${org-name}/graphql
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: FRONTEND_PORT
+          value: '8443'
+  - it: uses an external discovery endpoint
+    set:
+      auth.default.discoveryUrl: https://identity.example.net/.well-known/openid-configuration
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: DISCOVERY_ENDPOINT
+          value: https://identity.example.net/.well-known/openid-configuration
+  - it: explicit API environment entry suppresses the generated default
+    set:
+      extraEnvVars:
+      - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+        value: https://custom.example.net/graphql
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+          value: https://custom.example.net/graphql
+    - notContains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
+          value: https://${org-subdomain}example.com/iam/graphql
+
+  - it: combines the domain and webhook issuing CAs by default
+    asserts:
+    - equal:
+        path: spec.template.spec.initContainers[0].command[2]
+        value: cat /domain-ca/ca.crt /webhook-ca/ca.crt > /combined-ca/ca-bundle.crt
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: NODE_EXTRA_CA_CERTS
+          value: /etc/ssl/certs/ca-bundle.crt
+  - it: mounts a domain-only CA without an empty init-container list
+    set:
+      webhookCaSecret: ""
+    asserts:
+    - notExists:
+        path: spec.template.spec.initContainers
+    - contains:
+        path: spec.template.spec.containers[0].volumeMounts
+        content:
+          name: domain-ca
+          mountPath: /etc/ssl/certs/ca-bundle.crt
+          subPath: ca.crt
+          readOnly: true
+  - it: disables custom CA trust when both CA secrets are empty
+    set:
+      caSecret: ""
+      webhookCaSecret: ""
+    asserts:
+    - notExists:
+        path: spec.template.spec.initContainers
+    - notContains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: NODE_EXTRA_CA_CERTS
+          value: /etc/ssl/certs/ca-bundle.crt
+  - it: preserves explicit webhook URL and Node CA environment overrides
+    set:
+      extraEnvVars:
+      - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+        value: https://custom.example.net/authorize
+      - name: NODE_EXTRA_CA_CERTS
+        value: /custom/ca.crt
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+          value: https://custom.example.net/authorize
+    - notContains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+          value: https://pm-openfga-authz-webhook.NAMESPACE.svc.cluster.local:9443
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: NODE_EXTRA_CA_CERTS
+          value: /custom/ca.crt
+    - notContains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: NODE_EXTRA_CA_CERTS
+          value: /etc/ssl/certs/ca-bundle.crt

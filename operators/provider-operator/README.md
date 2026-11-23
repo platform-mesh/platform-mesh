@@ -1,104 +1,47 @@
-# provider-operator
+> [!WARNING]
+> This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
 
-Onboards providers into Platform Mesh: creates their kcp workspace, a kubeconfig scoped to it, and
-deploys their runtime components.
+# platform-mesh - provider-operator
 
 ## Description
 
-The provider-operator reconciles two resources from `providers.platform-mesh.io`
-(`go.platform-mesh.io/apis/providers/v1alpha1`):
+provider-operator onboards providers into Platform Mesh. It is being split out of
+[platform-mesh-operator](../platform-mesh-operator) and is not deployed yet: it has no
+image and no Helm chart.
 
-- **`ManagedProvider`** (namespaced, on the runtime cluster): a provider that Platform Mesh
-  installs and runs. Its reconciler creates the matching `Provider` in kcp, waits until that
-  `Provider` is ready (ServiceAccount, RBAC and kubeconfig Secret exist), copies the kubeconfig
-  Secret to the runtime cluster and deploys the components listed in
-  `spec.runtimeDeployments` as Flux `OCIRepository`/`HelmRepository` and `HelmRelease` objects.
-- **`Provider`** (cluster-scoped, in kcp, watched through the providers APIExport endpoint
-  slice): its reconciler creates the provider's workspace under `root:providers` and a
-  kubeconfig scoped to that workspace.
+## API description
 
-**Status:**
+- **ManagedProvider** - a provider that Platform Mesh installs and runs, created on the
+  runtime cluster. The reconciler creates the matching Provider in kcp, waits for it to
+  become ready, copies its kubeconfig Secret to the runtime cluster and deploys
+  `spec.runtimeDeployments` through Flux.
+- **Provider** - a provider in kcp. The reconciler creates its workspace under
+  `root:providers` and a kubeconfig scoped to that workspace. Not moved yet:
+  platform-mesh-operator still reconciles it.
 
-- The `ManagedProvider` controller and its four subroutines are copied from
-  [platform-mesh-operator](../platform-mesh-operator) and registered in the binary. The copy
-  leaves out platform-mesh-operator's first step, which waits for the `PlatformMesh` resource.
-- The `Provider` controller still exists only in platform-mesh-operator. The `ManagedProvider`
-  controller needs it running there: it waits for the `Provider` to become ready and copies the
-  kubeconfig Secret that controller writes.
-- Nothing deploys provider-operator yet: it has no image and no Helm chart, and
-  platform-mesh-operator runs both controllers in production. Do not run provider-operator
-  against a cluster where platform-mesh-operator runs; both would reconcile every
-  `ManagedProvider`.
-- Until platform-mesh-operator's copy is removed, the same code lives in both operators. Fix
-  bugs in both.
+## Status
 
-## Getting Started
+- The ManagedProvider controller is a copy of platform-mesh-operator's. Until that copy is
+  removed, fix bugs in both.
+- Do not run both ManagedProvider controllers against the same cluster. Start
+  platform-mesh-operator with `--controllers-managed-provider-enabled=false` to switch its
+  one off.
 
-### Prerequisites
+## Getting started
 
-- Go, as pinned in the repository-root `go.mod`
-- [Task](https://taskfile.dev)
-- docker, for the image
+- For running and building the operator, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+- `go run . operator --help` lists the flags. Names and defaults are the same as in platform-mesh-operator.
 
-### Build and test
+## Requirements
 
-From `operators/provider-operator`:
-
-```sh
-task build
-task test
-task lint
-task generate       # config/rbac/role.yaml from the RBAC markers, and the test mocks
-task docker-build   # IMG defaults to localhost/provider-operator:dev
-```
-
-From the repository root, `task verify-provider-operator` runs the checks CI runs.
-
-### Run
-
-```sh
-go run . operator --help
-```
-
-The binary has one subcommand, `operator`, which starts the controller manager. Common flags
-(`--leader-elect`, `--health-probe-bind-address`, `--metrics-bind-address`, logging, tracing)
-come from `go.platform-mesh.io/golang-commons/config`.
-
-The `operator` subcommand also takes the `ManagedProvider` flags. Names and defaults are the
-same as in platform-mesh-operator:
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--kcp-url` | empty: `https://<front-proxy-name>-front-proxy.<namespace>:<port>` | kcp front-proxy URL |
-| `--kcp-namespace` | `platform-mesh-system` | namespace of the kcp installation and its admin certificate Secret |
-| `--kcp-front-proxy-name` | `frontproxy` | used to build the default URL |
-| `--kcp-front-proxy-port` | `8443` | used to build the default URL |
-| `--kcp-cluster-admin-secret-name` | `kcp-cluster-admin-client-cert` | Secret with the kcp admin credentials |
-| `--subroutines-managed-provider-resource-enabled` | `true` | create the `Provider` in kcp |
-| `--subroutines-managed-provider-wait-enabled` | `true` | wait for the `Provider` to become ready |
-| `--subroutines-managed-provider-kubeconfig-enabled` | `true` | copy the kubeconfig Secret to the runtime cluster |
-| `--subroutines-managed-provider-deploy-enabled` | `true` | deploy `spec.runtimeDeployments` through Flux |
-
-Production deploys through the `provider-operator` Helm chart in
-[platform-mesh/helm-charts](https://github.com/platform-mesh/helm-charts) (not created yet).
-`config/` holds kustomize manifests for local use.
+provider-operator requires an installation of go. Checkout the [go.mod](go.mod) for the required go version and dependencies.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Coding agents start with [AGENTS.md](AGENTS.md).
+Please refer to the [CONTRIBUTING.md](../../CONTRIBUTING.md) file in this repository for instructions on how to contribute to platform-mesh.
 
-## License
+## Code of Conduct
 
-Copyright The Platform Mesh Authors.
+Please refer to our [Code of Conduct](https://github.com/platform-mesh/.github/blob/main/CODE_OF_CONDUCT.md) for information on the expected conduct for contributing to Platform Mesh.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+<p align="center"><img alt="Bundesministerium für Wirtschaft und Energie (BMWE)-EU funding logo" src="https://apeirora.eu/assets/img/BMWK-EU.png" width="400"/></p>

@@ -1,3 +1,5 @@
+set:
+  kcp.internalFrontProxyUrl: https://frontproxy-front-proxy.platform-mesh-system:8443
 suite: extension-manager-virtual-workspace
 chart:
   appVersion: 0.0.0

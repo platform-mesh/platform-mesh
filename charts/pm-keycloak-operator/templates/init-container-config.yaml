@@ -1,4 +1,5 @@
 {{- if .Values.initContainer.enabled }}
+{{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -6,7 +7,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   config.yaml: |
-    keycloakBaseURL: {{ .Values.keycloak.baseUrl }}
+    {{- if .Values.keycloak.baseUrl }}
+    keycloakBaseURL: {{ .Values.keycloak.baseUrl | quote }}
+    {{- else }}
+    keycloakBaseURL: "{{ .Values.exposure.protocol }}://{{ .Values.exposure.baseDomain }}{{ .Values.exposure.normalizedPort }}/keycloak"
+    {{- end }}
     keycloakClientID: {{ .Values.initContainer.keycloakClientId | quote }}
     keycloakUser: {{ .Values.initContainer.keycloakUser | quote }}
     passwordFile: "/secrets/keycloak-password"

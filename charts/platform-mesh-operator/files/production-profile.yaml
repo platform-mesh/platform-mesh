@@ -18,7 +18,6 @@ data:
     components:
       # Production workloads resolve public Platform Mesh hostnames through DNS.
       # Do not route them to an implementation-specific Service ClusterIP.
-      hostAliasesEntries: &hostAliasesEntries []
       deploymentTechnology: fluxcd
       ocm:
         component:
@@ -39,10 +38,7 @@ data:
               for: account-operator
           syncWave: 4
           enabled: true
-          values:
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
+          values: {}
         extension-manager-operator:
           imageResources:
           - annotations:
@@ -51,13 +47,7 @@ data:
               for: extension-manager-operator
           syncWave: 4
           enabled: true
-          values:
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
-            kcp:
-              enabled: true
-              kubeconfigSecret: extension-manager-operator-kubeconfig
+          values: {}
         infra:
           enabled: true
           imageResources:
@@ -114,37 +104,15 @@ data:
           values:
             keycloak:
               operator:
-                hostname: https://{{ .baseDomainPort }}/keycloak/
                 enabled: true
-              gatewayApi:
-                hostnames:
-                  - "{{ .baseDomain }}"
             cnpg:
               enabled: true
             gatewayApi:
               enabled: true
-              baseDomain: "{{ .baseDomain }}"
-              gatewayClassName: __GATEWAY_CLASS_NAME__
-              port: __EXTERNAL_PORT__
-              passthrough:
-                port: __EXTERNAL_PORT__
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             kcp:
-              external:
-                hostname: kcp.api.{{ .baseDomain }}
-                port: __EXTERNAL_PORT__
-              frontProxy:
-                port: __EXTERNAL_PORT__
-              rootShard:
-                hostname: "root.kcp.{{ .baseDomain }}"
-                shardBaseURL: https://root.kcp.{{ .baseDomain }}:__EXTERNAL_PORT__/
               shards:
                 - name: nereus
-                  hostname: nereus.kcp.{{ .baseDomain }}
                 - name: triton
-                  hostname: triton.kcp.{{ .baseDomain }}
         iam-ui:
           enabled: true
           syncWave: 4
@@ -153,11 +121,7 @@ data:
               repo: oci
               artifact: image
               for: iam-ui
-          values:
-            exposure:
-              hostnames:
-              - "{{ .baseDomain }}"
-              - "*.{{ .baseDomain }}"
+          values: {}
         iam-service:
           imageResources:
           - annotations:
@@ -166,12 +130,7 @@ data:
               for: iam-service
           syncWave: 4
           enabled: true
-          values:
-            keycloak:
-              baseUrl: "https://{{ .baseDomainPort }}/keycloak"
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
+          values: {}
         kcp:
           external: true
         kcp-operator:
@@ -203,32 +162,13 @@ data:
               logLevel: trace
             gatewayApi:
               enabled: true
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             kubeConfig:
               enabled: true
               secretName: kubernetes-graphql-gateway-kubeconfig
-            listener:
-              virtualWorkspacesConfig:
-                content:
-                  virtualWorkspaces:
-                  - kubeconfig: /app/kubeconfig/kubeconfig
-                    name: contentconfigurations
-                    url: "{{ .internalFrontProxyUrl }}/services/contentconfigurations"
-                  - kubeconfig: /app/kubeconfig/kubeconfig
-                    name: marketplace
-                    url: "{{ .internalFrontProxyUrl }}/services/marketplace"
-                enabled: true
             sentry:
               environment: dev
             tracing:
               enabled: false
-            trust:
-              default:
-                audience: default
-                jwksUrl: http://keycloak-headless.platform-mesh-system:8080/keycloak/realms/default/protocol/openid-connect/certs
-                trustedIssuer: 'https://{{ .baseDomainPort }}/keycloak/realms/default'
         openfga:
           enabled: true
           external: true
@@ -318,17 +258,7 @@ data:
           syncWave: 4
           enabled: true
           values:
-            baseDomain: '{{ .baseDomain }}'
             environment: kind
-            frontendPort: '__EXTERNAL_PORT__'
-            gatewayApi:
-              httpRoute:
-                hostnames:
-                - "{{ .baseDomain }}"
-                - "*.{{ .baseDomain }}"
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
         pm-openfga-authz-webhook:
           imageResources:
           - annotations:
@@ -337,10 +267,7 @@ data:
               for: pm-openfga-authz-webhook
           syncWave: 4
           enabled: true
-          values:
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
+          values: {}
         pm-keycloak-operator:
           imageResources:
           - annotations:
@@ -350,16 +277,9 @@ data:
           syncWave: 4
           enabled: true
           values:
-            baseDomain: '{{ .baseDomainPort }}'
-            keycloak:
-              baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
-            # Installation can opt out of email verification through this override.
             idp:
               allowUnverifiedEmails: false
               setDefaultPassword: false
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
         pm-openfga-operator:
           imageResources:
           - annotations:
@@ -368,10 +288,7 @@ data:
               for: pm-openfga-operator
           syncWave: 4
           enabled: true
-          values:
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
+          values: {}
         extension-manager-virtual-workspace:
           imageResources:
           - annotations:
@@ -381,12 +298,7 @@ data:
           syncWave: 4
           enabled: true
           targetNamespace: platform-mesh-system
-          values:
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
-            deployment:
-              serverUrl: "{{ .internalFrontProxyUrl }}"
+          values: {}
         marketplace:
           imageResources:
           - annotations:
@@ -396,12 +308,7 @@ data:
           syncWave: 4
           enabled: true
           targetNamespace: platform-mesh-system
-          values:
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
-            deployment:
-              serverUrl: "{{ .internalFrontProxyUrl }}"
+          values: {}
         marketplace-ui:
           enabled: true
           imageResources:
@@ -410,10 +317,6 @@ data:
               artifact: image
               for: marketplace-ui
           values:
-            exposure:
-              hostnames:
-              - "{{ .baseDomain }}"
-              - "*.{{ .baseDomain }}"
             gatewayApi:
               enabled: true
       targetNamespace: platform-mesh-system

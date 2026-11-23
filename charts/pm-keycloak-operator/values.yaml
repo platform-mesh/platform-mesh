@@ -1,3 +1,13 @@
+exposure:
+  # -- Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh.
+  baseDomain: ""
+  # -- Public URL protocol. Operator-owned in Platform Mesh.
+  protocol: https
+  # -- Public port.
+  port: 443
+  # -- URL port string derived by the platform-mesh operator from protocol and port: empty for HTTP/80 or HTTPS/443, otherwise ":<port>".
+  normalizedPort: ""
+
 image:
   # -- The image registry
   registry: ghcr.io
@@ -64,9 +74,6 @@ caSecret: "domain-certificate"
 # -- Enable domain CA lookup for TLS verification on kcp side
 domainCALookup: true
 
-# -- Base domain of the platform deployment (e.g. platform.example.com). Used to derive internal service URLs when explicit URLs are not set. Required.
-baseDomain: ""
-
 # JWT configuration
 jwt:
   userIdClaim: "email"
@@ -91,7 +98,7 @@ idp:
 
 
 keycloak:
-  # -- base URL of the Keycloak instance (e.g. https://example.com/keycloak). Required.
+  # -- Explicit Keycloak base URL for the operator and init container; empty derives the public URL plus /keycloak.
   baseUrl: ""
   client:
     secret:

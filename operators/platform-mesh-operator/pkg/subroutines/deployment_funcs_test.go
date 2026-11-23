@@ -981,3 +981,84 @@ func (s *DeploymentFuncsTestSuite) Test_loadProfileSections_CustomConfigMapRef()
 	s.Contains(infraYAML, "enabled")
 	s.Contains(componentsYAML, "svc")
 }
+
+func TestBuildHelmValuesNormalizedPort(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		protocol           string
+		port               int
+		wantNormalizedPort string
+	}{
+		{name: "default exposure", wantNormalizedPort: ":8443"},
+		{name: "http on 80", protocol: "http", port: 80},
+		{name: "https on 443", protocol: "https", port: 443},
+		{name: "http on 443", protocol: "http", port: 443, wantNormalizedPort: ":443"},
+		{name: "https on 80", protocol: "https", port: 80, wantNormalizedPort: ":80"},
+		{name: "https on 8443", protocol: "https", port: 8443, wantNormalizedPort: ":8443"},
+		{name: "http on 8080", protocol: "http", port: 8080, wantNormalizedPort: ":8080"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			inst := &pmcorev1alpha1.PlatformMesh{
+				Spec: pmcorev1alpha1.PlatformMeshSpec{
+					Exposure: &pmcorev1alpha1.ExposureConfig{Protocol: tc.protocol, Port: tc.port},
+				},
+			}
+			values := buildHelmValues(inst, &config.OperatorConfig{})
+			require.Equal(t, tc.wantNormalizedPort, values.Exposure.NormalizedPort)
+		})
+	}
+}
+
+func TestInjectHelmValuesServiceValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		service any
+		wantErr bool
+	}{
+		{name: "null service", service: nil},
+		{name: "nil service map", service: map[string]any(nil)},
+		{name: "missing values", service: map[string]any{}},
+		{name: "null values", service: map[string]any{"values": nil}},
+		{name: "invalid service", service: "invalid", wantErr: true},
+		{name: "invalid external flag", service: map[string]any{"external": "invalid"}, wantErr: true},
+		{name: "invalid values", service: map[string]any{"values": "invalid"}, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := injectHelmValues(map[string]any{"portal": tc.service}, helmValues{}, testLogger(t))
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestInjectHelmValuesPreservesServiceSettings(t *testing.T) {
+	services := map[string]any{
+		"portal": map[string]any{
+			"namespace": "custom-ns",
+			"enabled":   false,
+			"values": map[string]any{
+				"replicas": float64(2),
+				"exposure": map[string]any{"baseDomain": "profile.example.com", "normalizedPort": ":9443"},
+				"kcp":      map[string]any{"auth": map[string]any{"enabled": true}},
+			},
+		},
+		"external": map[string]any{"external": true, "values": map[string]any{"endpoint": "custom"}},
+	}
+	values := helmValues{Exposure: helmExposureValues{BaseDomain: "example.com", Port: 443}}
+	resolved, err := injectHelmValues(services, values, testLogger(t))
+	require.NoError(t, err)
+	service := resolved["portal"].(map[string]any)
+	require.Equal(t, "custom-ns", service["namespace"])
+	require.Equal(t, false, service["enabled"])
+	chartValues := service["values"].(map[string]any)
+	require.Equal(t, float64(2), chartValues["replicas"])
+	require.Equal(t, "example.com", chartValues["exposure"].(map[string]any)["baseDomain"])
+	require.Equal(t, int64(443), chartValues["exposure"].(map[string]any)["port"])
+	require.Equal(t, "", chartValues["exposure"].(map[string]any)["normalizedPort"])
+	require.Equal(t, map[string]any{"enabled": true}, chartValues["kcp"].(map[string]any)["auth"])
+	require.Equal(t, services["external"], resolved["external"])
+	require.Equal(t, "profile.example.com", services["portal"].(map[string]any)["values"].(map[string]any)["exposure"].(map[string]any)["baseDomain"])
+}

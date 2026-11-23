@@ -11,18 +11,18 @@ Helm Chart for the Platform Mesh Portal
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | auth.default.clientId | string | `"welcome"` | client id |
-| auth.default.clientSecretKey | string | `"attribute.client_secret"` | Secret key holding the client secret |
-| auth.default.clientSecretName | string | `"portal-client-secret-welcome"` | Secret name holding the client secret |
-| auth.default.discoveryUrl | string | `""` | Explicit OIDC discovery URL; empty derives the Keycloak URL from baseDomain and frontendPort. |
-| baseDomain | string | `""` | URLs (cookieDomain, discoveryUrl, crdGatewayApiUrl, httpRoute hostnames) are built from it. |
+| auth.default.discoveryUrl | string | `""` | Explicit discovery URL; empty derives the public Keycloak realm discovery URL. |
 | caSecret | string | `"domain-certificate"` | that merges both CAs into /etc/ssl/certs/ca-bundle.crt. |
 | developmentLandcsape | string | `"false"` | development landscape toggle. Set to "true" only in local/dev environments to enable dev-only UI features. Permissible values: "true", "false" |
 | environment | string | `""` | environment label propagated to observability (e.g. logs, traces). Permissible values: any string (e.g. production, staging, development) |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure. |
+| exposure.normalizedPort | string | `""` | URL port string derived by the platform-mesh operator from protocol and port: empty for HTTP/80 or HTTPS/443, otherwise ":<port>". |
+| exposure.port | int | `443` | Public port. |
+| exposure.protocol | string | `"https"` | Public URL protocol. Operator-owned in Platform Mesh. |
 | featureToggles | string | `"enableSessionAutoRefresh=true"` |  |
-| frontendPort | string | `""` | Does not affect the container listen port (which defaults to 8080 via common chart defaults). |
 | gatewayApi.enabled | bool | `true` | toggle to enable the Gateway API |
 | gatewayApi.httpRoute.filters | list | `[]` | list of HTTPRoute filters (default: none) |
-| gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. |
+| gatewayApi.httpRoute.hostnames | list | `[]` | hostnames for the HTTPRoute. Empty uses exposure.baseDomain and its wildcard. |
 | gatewayApi.httpRoute.parentRefs[0].kind | string | `"Gateway"` |  |
 | gatewayApi.httpRoute.parentRefs[0].name | string | `"k8sapi-gateway"` |  |
 | gatewayApi.httpRoute.pathPrefix | string | `"/"` |  |
@@ -30,7 +30,6 @@ Helm Chart for the Platform Mesh Portal
 | hostAliases | object | `{"enabled":false,"entries":[]}` | hostAliases configuration |
 | hostAliases.enabled | bool | `false` | enable hostAliases |
 | hostAliases.entries | list | `[]` | hostAliases entries |
-| http.protocol | string | `"https"` | protocol used by the portal backend. Must be set. Permissible values: http, https |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.pullPolicyOverride | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` | The image registry |

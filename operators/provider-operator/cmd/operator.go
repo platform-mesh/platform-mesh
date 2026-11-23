@@ -28,7 +28,9 @@ import (
 	"go.platform-mesh.io/golang-commons/traces"
 	"go.platform-mesh.io/provider-operator/internal/controller/providers"
 
+	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -85,6 +87,11 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	// only events for the cluster(s) it is supposed to.
 	mgr, err := mcmanager.New(restCfg, mcmultiprovider.New(mcmultiprovider.Options{}), mcmanager.Options{
 		Scheme: scheme,
+		Client: ctrlruntimeclient.Options{
+			Cache: &ctrlruntimeclient.CacheOptions{
+				DisableFor: []ctrlruntimeclient.Object{&corev1.Secret{}},
+			},
+		},
 		Metrics: metricsserver.Options{
 			BindAddress:   defaultCfg.Metrics.BindAddress,
 			SecureServing: defaultCfg.Metrics.Secure,

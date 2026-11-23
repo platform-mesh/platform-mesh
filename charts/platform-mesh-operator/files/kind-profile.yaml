@@ -124,34 +124,14 @@ data:
           values:
             keycloak:
               operator:
-                hostname: https://{{ .baseDomainPort }}/keycloak/
                 enabled: true
-              gatewayApi:
-                hostnames:
-                  - "{{ .baseDomain }}"
             cnpg:
               enabled: true
             gatewayApi:
               enabled: true
-              baseDomain: "{{ .baseDomain }}"
-              gatewayClassName: __GATEWAY_CLASS_NAME__
-              port: __EXTERNAL_PORT__
-              passthrough:
-                port: __EXTERNAL_PORT__
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             kcp:
-              external:
-                hostname: kcp.api.{{ .baseDomain }}
-                port: __EXTERNAL_PORT__
-              frontProxy:
-                port: __EXTERNAL_PORT__
               proxy:
                 replicas: 1
-              rootShard:
-                hostname: "root.kcp.{{ .baseDomain }}"
-                shardBaseURL: https://root.kcp.{{ .baseDomain }}:__EXTERNAL_PORT__/
               shards: []
         iam-ui:
           enabled: true
@@ -163,11 +143,7 @@ data:
               artifact: image
               for: iam-ui
               unsuspend: "true"
-          values:
-            exposure:
-              hostnames:
-              - "{{ .baseDomain }}"
-              - "*.{{ .baseDomain }}"
+          values: {}
         iam-service:
           suspend: true
           imageResources:
@@ -179,8 +155,6 @@ data:
           syncWave: 4
           enabled: true
           values:
-            keycloak:
-              baseUrl: "https://{{ .baseDomainPort }}/keycloak"
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
@@ -212,35 +186,19 @@ data:
           syncWave: 4
           enabled: true
           values:
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
             gateway:
               playground: true
               logLevel: trace
             gatewayApi:
               enabled: true
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
             kubeConfig:
               enabled: true
               secretName: kubernetes-graphql-gateway-kubeconfig
-            listener:
-              virtualWorkspacesConfig:
-                content:
-                  virtualWorkspaces:
-                  - kubeconfig: /app/kubeconfig/kubeconfig
-                    name: contentconfigurations
-                    url: "{{ .internalFrontProxyUrl }}/services/contentconfigurations"
-                  - kubeconfig: /app/kubeconfig/kubeconfig
-                    name: marketplace
-                    url: "{{ .internalFrontProxyUrl }}/services/marketplace"
-                enabled: true
             sentry:
               environment: dev
-            trust:
-              default:
-                audience: default
-                jwksUrl: http://keycloak-headless.platform-mesh-system:8080/keycloak/realms/default/protocol/openid-connect/certs
-                trustedIssuer: 'https://{{ .baseDomainPort }}/keycloak/realms/default'
         openfga:
           enabled: true
           external: true
@@ -332,17 +290,7 @@ data:
           syncWave: 4
           enabled: true
           values:
-            baseDomain: '{{ .baseDomain }}'
             environment: kind
-            frontendPort: '__EXTERNAL_PORT__'
-            gatewayApi:
-              httpRoute:
-                hostnames:
-                - "{{ .baseDomain }}"
-                - "*.{{ .baseDomain }}"
-            hostAliases:
-              enabled: true
-              entries: *hostAliasesEntries
         pm-openfga-authz-webhook:
           suspend: true
           imageResources:
@@ -368,10 +316,6 @@ data:
           syncWave: 4
           enabled: true
           values:
-            baseDomain: '{{ .baseDomainPort }}'
-            keycloak:
-              baseUrl: 'https://{{ .baseDomainPort }}/keycloak'
-            # Installation can opt out of email verification through this override.
             idp:
               allowUnverifiedEmails: false
               setDefaultPassword: false
@@ -407,8 +351,6 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            deployment:
-              serverUrl: "{{ .internalFrontProxyUrl }}"
         marketplace:
           suspend: true
           imageResources:
@@ -424,8 +366,6 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
-            deployment:
-              serverUrl: "{{ .internalFrontProxyUrl }}"
         marketplace-ui:
           enabled: true
           suspend: true
@@ -436,10 +376,6 @@ data:
               for: marketplace-ui
               unsuspend: "true"
           values:
-            exposure:
-              hostnames:
-              - "{{ .baseDomain }}"
-              - "*.{{ .baseDomain }}"
             gatewayApi:
               enabled: true
         terminal-controller-manager:

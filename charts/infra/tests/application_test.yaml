@@ -1,3 +1,6 @@
+set:
+  exposure.baseDomain: example.com
+  exposure.gatewayClassName: traefik
 # yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
 suite: Test the application manifests
 release:
@@ -7,8 +10,6 @@ tests:
 - it: match snapshots
   set:
     kcp:
-      external:
-        hostname: localhost
       image:
         tag: 0.0.0
   asserts:
@@ -16,8 +17,6 @@ tests:
 - it: match snapshots w. hostAliases enabled
   set:
     kcp:
-      external:
-        hostname: localhost
       frontProxy:
         clusterIP: "10.0.0.1"
     hostAliases:
@@ -27,44 +26,30 @@ tests:
 - it: match snapshots w. kcp version
   set:
     kcp:
-      external:
-        hostname: localhost
       image:
         tag: "v0.1.0"
   asserts:
     - matchSnapshot: {}
 - it: match snapshots with mailpit enabled
   set:
-    kcp:
-      external:
-        hostname: localhost
     mailpit:
       enabled: true
   asserts:
   - matchSnapshot: {}
 - it: Gateway API enabled
   set:
-    kcp:
-      external:
-        hostname: localhost
     gatewayApi:
       enabled: true
   asserts:
     - matchSnapshot: {}
 - it: Istio disabled
   set:
-    kcp:
-      external:
-        hostname: localhost
     istio:
       enabled: false
   asserts:
     - matchSnapshot: {}
 - it: Istio enabled
   set:
-    kcp:
-      external:
-        hostname: localhost
     istio:
       enabled: true
   asserts:
@@ -86,8 +71,6 @@ tests:
     - kcp/front-proxy.yaml
   set:
     kcp:
-      external:
-        hostname: localhost
       frontProxy:
         resources:
           limits:
@@ -120,8 +103,6 @@ tests:
     - kcp/root-shard.yaml
   set:
     kcp:
-      external:
-        hostname: localhost
       rootShard:
         resources:
           limits:
@@ -132,13 +113,12 @@ tests:
             memory: 256Mi
   asserts:
   - matchSnapshot: {}
-- it: root-shard TLSRoute uses kcp.external.hostname
+- it: root-shard TLSRoute uses the exposure domain
   templates:
     - kcp/root-shard.yaml
   set:
     kcp:
       external:
-        hostname: example.com
         port: 8443
       rootShard:
         hostname: null
@@ -148,13 +128,12 @@ tests:
     equal:
       path: spec.hostnames[0]
       value: root.kcp.example.com
-- it: root-shard shardBaseURL derived from kcp.external.hostname
+- it: root-shard shardBaseURL uses the exposure domain and external port
   templates:
     - kcp/root-shard.yaml
   set:
     kcp:
       external:
-        hostname: example.com
         port: 8443
       rootShard:
         hostname: null
@@ -164,33 +143,28 @@ tests:
     equal:
       path: spec.shardBaseURL
       value: https://root.kcp.example.com:8443/
-- it: root-shard defaults to root.kcp.<external.hostname>
+- it: root-shard defaults to root.kcp.<exposure.baseDomain>
   templates:
     - kcp/root-shard.yaml
-  set:
-    kcp:
-      external:
-        hostname: localhost
   asserts:
   - documentIndex: 1
     equal:
       path: spec.shardBaseURL
-      value: https://root.kcp.localhost:8443/
+      value: https://root.kcp.example.com/
   - documentIndex: 2
     equal:
       path: spec.hostnames[0]
-      value: root.kcp.localhost
+      value: root.kcp.example.com
   - documentIndex: 1
     contains:
       path: spec.certificateTemplates.server.spec.dnsNames
-      content: root.kcp.localhost
+      content: root.kcp.example.com
 - it: root-shard honors explicit kcp.rootShard.hostname override
   templates:
     - kcp/root-shard.yaml
   set:
     kcp:
       external:
-        hostname: example.com
         port: 8443
       rootShard:
         hostname: my-root.example.org
@@ -210,7 +184,6 @@ tests:
   set:
     kcp:
       external:
-        hostname: example.com
         port: 8443
       rootShard:
         hostname: null
@@ -225,8 +198,6 @@ tests:
     - kcp/root-shard.yaml
   set:
     kcp:
-      external:
-        hostname: localhost
       etcd:
         backup:
           store:
@@ -253,8 +224,6 @@ tests:
     - kcp/shards.yaml
   set:
     kcp:
-      external:
-        hostname: localhost
       shards:
         - name: shard-1
           hostname: shard-1.kcp.localhost
@@ -262,20 +231,77 @@ tests:
             replicas: 2
   asserts:
   - matchSnapshot: {}
-- it: render additional shard with hostname fallback
+- it: renders one TLSRoute for every configured shard
   templates:
     - kcp/shards.yaml
   set:
-    kcp:
-      external:
-        hostname: localhost
-      shards:
-        - name: shard-2
+    kcp.shards:
+    - name: nereus
+    - name: triton
+      hostname: triton.custom.example.net
+    - name: cronus
   asserts:
-  - contains:
+  - hasDocuments:
+      count: 3
+      filterAware: true
+    documentSelector:
+      path: kind
+      value: TLSRoute
+      matchMany: true
+  - equal:
       path: spec.hostnames
-      content: shard-2.kcp.localhost
-    documentIndex: 2
+      value: [nereus.kcp.example.com]
+    documentSelector:
+      path: metadata.name
+      value: kcp-nereus-tlsroute
+  - equal:
+      path: spec.parentRefs[0].sectionName
+      value: passthrough-nereus
+    documentSelector:
+      path: metadata.name
+      value: kcp-nereus-tlsroute
+  - equal:
+      path: spec.rules[0].backendRefs[0].name
+      value: nereus-shard-kcp
+    documentSelector:
+      path: metadata.name
+      value: kcp-nereus-tlsroute
+  - equal:
+      path: spec.hostnames
+      value: [triton.custom.example.net]
+    documentSelector:
+      path: metadata.name
+      value: kcp-triton-tlsroute
+  - equal:
+      path: spec.parentRefs[0].sectionName
+      value: passthrough-triton
+    documentSelector:
+      path: metadata.name
+      value: kcp-triton-tlsroute
+  - equal:
+      path: spec.rules[0].backendRefs[0].name
+      value: triton-shard-kcp
+    documentSelector:
+      path: metadata.name
+      value: kcp-triton-tlsroute
+  - equal:
+      path: spec.hostnames
+      value: [cronus.kcp.example.com]
+    documentSelector:
+      path: metadata.name
+      value: kcp-cronus-tlsroute
+  - equal:
+      path: spec.parentRefs[0].sectionName
+      value: passthrough-cronus
+    documentSelector:
+      path: metadata.name
+      value: kcp-cronus-tlsroute
+  - equal:
+      path: spec.rules[0].backendRefs[0].name
+      value: cronus-shard-kcp
+    documentSelector:
+      path: metadata.name
+      value: kcp-cronus-tlsroute
 - it: render additional shard with etcd override
   templates:
     - kcp/shards.yaml
@@ -335,12 +361,190 @@ tests:
 - it: attaches kcp TLSRoutes to a user-managed passthrough listener when generation is disabled
   templates:
     - kcp/root-shard.yaml
+    - kcp/shards.yaml
   set:
-    gatewayApi:
-      passthrough:
-        enabled: false
+    gatewayApi.passthrough.enabled: false
+    kcp.shards:
+    - name: nereus
+    - name: triton
+      hostname: triton.custom.example.net
+    - name: cronus
+  documentSelector:
+    path: kind
+    value: TLSRoute
+    matchMany: true
   asserts:
-  - documentIndex: 2
-    equal:
+  - template: kcp/root-shard.yaml
+    hasDocuments:
+      count: 1
+      filterAware: true
+  - template: kcp/shards.yaml
+    hasDocuments:
+      count: 3
+      filterAware: true
+  - template: kcp/shards.yaml
+    containsDocument:
+      kind: TLSRoute
+      apiVersion: gateway.networking.k8s.io/v1
+      name: kcp-nereus-tlsroute
+      any: true
+  - template: kcp/shards.yaml
+    containsDocument:
+      kind: TLSRoute
+      apiVersion: gateway.networking.k8s.io/v1
+      name: kcp-triton-tlsroute
+      any: true
+  - template: kcp/shards.yaml
+    containsDocument:
+      kind: TLSRoute
+      apiVersion: gateway.networking.k8s.io/v1
+      name: kcp-cronus-tlsroute
+      any: true
+  - equal:
       path: spec.parentRefs[0].sectionName
       value: passthrough
+- it: keeps kcp URLs certificates routes and listeners consistent on port 8443
+  set:
+    exposure.protocol: https
+    exposure.port: 8443
+    kcp.shards:
+    - name: nereus
+  asserts:
+  - template: kcp/front-proxy.yaml
+    equal:
+      path: spec.external.hostname
+      value: kcp.api.example.com
+  - template: kcp/front-proxy.yaml
+    equal:
+      path: spec.external.port
+      value: 8443
+  - template: kcp/root-shard.yaml
+    equal:
+      path: spec.shardBaseURL
+      value: https://root.kcp.example.com:8443/
+    documentSelector:
+      path: kind
+      value: RootShard
+  - template: kcp/root-shard.yaml
+    documentSelector:
+      path: kind
+      value: RootShard
+    contains:
+      path: spec.certificateTemplates.server.spec.dnsNames
+      content: root.kcp.example.com
+  - template: kcp/root-shard.yaml
+    equal:
+      path: spec.hostnames
+      value:
+      - root.kcp.example.com
+    documentSelector:
+      path: kind
+      value: TLSRoute
+  - template: kcp/tlsroute.yaml
+    equal:
+      path: spec.hostnames
+      value:
+      - kcp.api.example.com
+  - template: kcp/tlsroute.yaml
+    equal:
+      path: spec.rules[0].backendRefs[0].port
+      value: 8443
+  - template: kcp/shards.yaml
+    equal:
+      path: spec.shardBaseURL
+      value: https://nereus.kcp.example.com:8443/
+    documentSelector:
+      path: metadata.name
+      value: nereus
+  - template: kcp/shards.yaml
+    documentSelector:
+      path: metadata.name
+      value: nereus
+    contains:
+      path: spec.certificateTemplates.server.spec.dnsNames
+      content: nereus.kcp.example.com
+  - template: kcp/shards.yaml
+    equal:
+      path: spec.hostnames
+      value:
+      - nereus.kcp.example.com
+    documentSelector:
+      path: metadata.name
+      value: kcp-nereus-tlsroute
+  - template: gatewayapi/gateway.yaml
+    contains:
+      path: spec.listeners
+      content:
+        name: passthrough-nereus
+        hostname: nereus.kcp.example.com
+        port: 8443
+        protocol: TLS
+        tls:
+          mode: Passthrough
+        allowedRoutes:
+          namespaces:
+            from: All
+- it: keeps kcp shard URLs on HTTPS with HTTP exposure on port 80
+  set:
+    exposure.protocol: http
+    exposure.port: 80
+    kcp.shards:
+    - name: nereus
+  asserts:
+  - template: kcp/root-shard.yaml
+    equal:
+      path: spec.shardBaseURL
+      value: https://root.kcp.example.com:80/
+    documentSelector:
+      path: kind
+      value: RootShard
+  - template: kcp/shards.yaml
+    equal:
+      path: spec.shardBaseURL
+      value: https://nereus.kcp.example.com:80/
+    documentSelector:
+      path: metadata.name
+      value: nereus
+- it: additional shard spec URL overrides its generated public URL
+  set:
+    exposure.port: 31000
+    kcp.shards:
+    - name: nereus
+      hostname: nereus.custom.example.net
+      spec:
+        shardBaseURL: https://shard.custom.example.net:10443/
+  asserts:
+  - template: kcp/shards.yaml
+    equal:
+      path: spec.shardBaseURL
+      value: https://shard.custom.example.net:10443/
+    documentSelector:
+      path: metadata.name
+      value: nereus
+  template: kcp/shards.yaml
+- it: listener ports can differ from the public kcp port
+  set:
+    exposure.port: 31000
+    gatewayApi.listenerPort: 443
+    gatewayApi.passthrough.port: 9443
+    kcp.external.port: 8443
+    kcp.shards:
+    - name: nereus
+      hostname: nereus.custom.example.net
+  asserts:
+  - template: kcp/front-proxy.yaml
+    equal:
+      path: spec.external.port
+      value: 8443
+  - template: gatewayapi/gateway.yaml
+    contains:
+      path: spec.listeners
+      content:
+        name: passthrough-nereus
+        hostname: nereus.custom.example.net
+        port: 9443
+      any: true
+  - template: gatewayapi/gateway.yaml
+    equal:
+      path: spec.listeners[0].port
+      value: 443
