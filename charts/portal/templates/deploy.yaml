@@ -1,13 +1,4 @@
 {{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
-{{/* Omit HTTP :80 and HTTPS :443 to preserve advertised URLs and OIDC issuer strings. */}}
-{{- $standardPort := 443 -}}
-{{- if eq .Values.exposure.protocol "http" -}}
-  {{- $standardPort = 80 -}}
-{{- end -}}
-{{- $portSuffix := "" -}}
-{{- if ne (int .Values.exposure.port) $standardPort -}}
-  {{- $portSuffix = printf ":%d" (int .Values.exposure.port) -}}
-{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -39,7 +30,7 @@ spec:
           {{- if .discoveryUrl }}
           value: {{ .discoveryUrl | quote }}
           {{- else }}
-          value: "{{ $.Values.exposure.protocol }}://{{ $.Values.exposure.baseDomain }}{{ $portSuffix }}/keycloak/realms/${org-name}/.well-known/openid-configuration"
+          value: "{{ $.Values.exposure.protocol }}://{{ $.Values.exposure.baseDomain }}{{ $.Values.exposure.normalizedPort }}/keycloak/realms/${org-name}/.well-known/openid-configuration"
           {{- end }}
         - name: OIDC_CLIENT_ID_DEFAULT
           value: {{ .clientId }}
@@ -86,11 +77,11 @@ spec:
         {{- end }}
         {{- if not (has "OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL" $envNames) }}
         - name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
-          value: "{{ .Values.exposure.protocol }}://${org-subdomain}{{ .Values.exposure.baseDomain }}{{ $portSuffix }}/iam/graphql"
+          value: "{{ .Values.exposure.protocol }}://${org-subdomain}{{ .Values.exposure.baseDomain }}{{ .Values.exposure.normalizedPort }}/iam/graphql"
         {{- end }}
         {{- if not (has "OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL" $envNames) }}
         - name: OPENMFP_PORTAL_CONTEXT_CRD_GATEWAY_API_URL
-          value: "{{ .Values.exposure.protocol }}://${org-subdomain}{{ .Values.exposure.baseDomain }}{{ $portSuffix }}/gateway/api/clusters/root:orgs:${org-name}/graphql"
+          value: "{{ .Values.exposure.protocol }}://${org-subdomain}{{ .Values.exposure.baseDomain }}{{ .Values.exposure.normalizedPort }}/gateway/api/clusters/root:orgs:${org-name}/graphql"
         {{- end }}
         {{ range .Values.extraEnvVars }}
         - name: {{ .name }}

@@ -17,6 +17,8 @@ limitations under the License.
 package subroutines
 
 import (
+	"fmt"
+
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/errors"
 	"go.platform-mesh.io/golang-commons/logger"
@@ -32,9 +34,11 @@ type helmValues struct {
 }
 
 type helmExposureValues struct {
-	BaseDomain       string `json:"baseDomain"`
-	Protocol         string `json:"protocol"`
-	Port             int    `json:"port"`
+	BaseDomain string `json:"baseDomain"`
+	Protocol   string `json:"protocol"`
+	Port       int    `json:"port"`
+	// NormalizedPort is the URL suffix; Port stays numeric for Gateway listeners and portal configuration.
+	NormalizedPort   string `json:"normalizedPort"`
 	GatewayClassName string `json:"gatewayClassName"`
 }
 
@@ -51,6 +55,11 @@ type helmService struct {
 // buildHelmValues resolves operator-owned chart inputs without consulting a profile.
 func buildHelmValues(inst *pmcorev1alpha1.PlatformMesh, cfg *config.OperatorConfig) helmValues {
 	exposure := getExposureParams(inst, cfg.Exposure)
+	normalizedPort := fmt.Sprintf(":%d", exposure.port)
+	// Omit default ports to preserve advertised URLs and OIDC issuer strings.
+	if (exposure.protocol == "http" && exposure.port == 80) || (exposure.protocol == "https" && exposure.port == 443) {
+		normalizedPort = ""
+	}
 	gatewayClassName := cfg.Exposure.GatewayClassName
 	if gatewayClassName == "" {
 		gatewayClassName = "traefik"
@@ -60,6 +69,7 @@ func buildHelmValues(inst *pmcorev1alpha1.PlatformMesh, cfg *config.OperatorConf
 			BaseDomain:       exposure.baseDomain,
 			Protocol:         exposure.protocol,
 			Port:             exposure.port,
+			NormalizedPort:   normalizedPort,
 			GatewayClassName: gatewayClassName,
 		},
 		KCP: helmKCPValues{

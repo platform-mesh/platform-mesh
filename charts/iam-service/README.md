@@ -7,7 +7,8 @@ A Helm chart for Kubernetes
 |-----|------|---------|-------------|
 | caSecret | string | `""` |  |
 | exposure.baseDomain | string | `""` | Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure. |
-| exposure.port | int | `443` | Public URL port. Operator-owned in Platform Mesh. |
+| exposure.normalizedPort | string | `""` | URL port string derived by the platform-mesh operator from protocol and port: empty for HTTP/80 or HTTPS/443, otherwise ":<port>". |
+| exposure.port | int | `443` | Public port. |
 | exposure.protocol | string | `"https"` |  |
 | gatewayApi.httpRoute.filters | list | `[{"type":"URLRewrite","urlRewrite":{"path":{"replacePrefixMatch":"/graphql","type":"ReplacePrefixMatch"}}}]` | list of HTTPRoute filters (default: URLRewrite only, no CORS) |
 | gatewayApi.httpRoute.hostnames | list | `[]` | Explicit route hostnames; empty uses exposure.baseDomain and its wildcard. |

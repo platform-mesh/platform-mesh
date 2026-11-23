@@ -17,7 +17,8 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | domainCALookup | bool | `true` | Enable domain CA lookup for TLS verification on kcp side |
 | environment | string | `""` | environment indicator, used for logging and observability |
 | exposure.baseDomain | string | `""` | Public hostname without protocol or port; empty preserves standalone behavior. Operator-owned in Platform Mesh. |
-| exposure.port | int | `443` | Public URL port. Operator-owned in Platform Mesh. |
+| exposure.normalizedPort | string | `""` | URL port string derived by the platform-mesh operator from protocol and port: empty for HTTP/80 or HTTPS/443, otherwise ":<port>". |
+| exposure.port | int | `443` | Public port. |
 | exposure.protocol | string | `"https"` | Public URL protocol. Operator-owned in Platform Mesh. |
 | featureGates | object | `{}` |  |
 | hostAliases.enabled | bool | `false` |  |

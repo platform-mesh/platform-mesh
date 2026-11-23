@@ -214,6 +214,7 @@ func Test_buildComponentsTemplateVars_OIDCAuthentication(t *testing.T) {
 		"baseDomain":       "portal.localhost",
 		"protocol":         "https",
 		"port":             int64(8443),
+		"normalizedPort":   ":8443",
 		"gatewayClassName": "traefik",
 	}
 	const expectedFrontProxyURL = "https://frontproxy-front-proxy.platform-mesh-system:8443"

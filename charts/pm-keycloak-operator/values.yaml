@@ -3,8 +3,10 @@ exposure:
   baseDomain: ""
   # -- Public URL protocol. Operator-owned in Platform Mesh.
   protocol: https
-  # -- Public URL port. Operator-owned in Platform Mesh.
+  # -- Public port.
   port: 443
+  # -- URL port string derived by the platform-mesh operator from protocol and port: empty for HTTP/80 or HTTPS/443, otherwise ":<port>".
+  normalizedPort: ""
 
 image:
   # -- The image registry

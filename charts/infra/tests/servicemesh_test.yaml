@@ -151,10 +151,11 @@ tests:
   - equal:
       path: spec.truststores.domain-ca.secret.name
       value: domain-certificate-ca
-- it: renders the Keycloak serving path with the public port
+- it: renders the Keycloak serving path with the operator-supplied normalized port
   set:
     keycloak.operator.enabled: true
     exposure.port: 8443
+    exposure.normalizedPort: ":8443"
   asserts:
   - template: keycloak/keycloak.yaml
     equal:

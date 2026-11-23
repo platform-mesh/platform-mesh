@@ -1,14 +1,5 @@
 {{- if .Values.initContainer.enabled }}
 {{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
-{{/* Omit HTTP :80 and HTTPS :443 to preserve advertised URLs and OIDC issuer strings. */}}
-{{- $standardPort := 443 -}}
-{{- if eq .Values.exposure.protocol "http" -}}
-  {{- $standardPort = 80 -}}
-{{- end -}}
-{{- $portSuffix := "" -}}
-{{- if ne (int .Values.exposure.port) $standardPort -}}
-  {{- $portSuffix = printf ":%d" (int .Values.exposure.port) -}}
-{{- end -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -19,7 +10,7 @@ data:
     {{- if .Values.keycloak.baseUrl }}
     keycloakBaseURL: {{ .Values.keycloak.baseUrl | quote }}
     {{- else }}
-    keycloakBaseURL: "{{ .Values.exposure.protocol }}://{{ .Values.exposure.baseDomain }}{{ $portSuffix }}/keycloak"
+    keycloakBaseURL: "{{ .Values.exposure.protocol }}://{{ .Values.exposure.baseDomain }}{{ .Values.exposure.normalizedPort }}/keycloak"
     {{- end }}
     keycloakClientID: {{ .Values.initContainer.keycloakClientId | quote }}
     keycloakUser: {{ .Values.initContainer.keycloakUser | quote }}

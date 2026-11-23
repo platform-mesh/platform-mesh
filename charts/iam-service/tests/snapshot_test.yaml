@@ -19,42 +19,6 @@ tests:
         enabled: true
     asserts:
       - matchSnapshot: {}
-  - it: uses http exposure on port 80
-    set:
-      exposure.protocol: http
-      exposure.port: 80
-    asserts:
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --keycloak-base-url=http://example.com/keycloak
-    template: deploy.yaml
-  - it: uses http exposure on port 443
-    set:
-      exposure.protocol: http
-      exposure.port: 443
-    asserts:
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --keycloak-base-url=http://example.com:443/keycloak
-    template: deploy.yaml
-  - it: uses https exposure on port 80
-    set:
-      exposure.protocol: https
-      exposure.port: 80
-    asserts:
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --keycloak-base-url=https://example.com:80/keycloak
-    template: deploy.yaml
-  - it: uses https exposure on port 8443
-    set:
-      exposure.protocol: https
-      exposure.port: 8443
-    asserts:
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --keycloak-base-url=https://example.com:8443/keycloak
-    template: deploy.yaml
   - it: retains the explicit Keycloak endpoint
     set:
       keycloak.baseUrl: https://identity.example.net/keycloak

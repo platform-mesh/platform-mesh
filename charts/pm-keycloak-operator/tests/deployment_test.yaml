@@ -87,46 +87,11 @@ tests:
       - lengthEqual:
           path: webhooks
           count: 1
-  - it: uses http exposure on port 80
-    set:
-      exposure.protocol: http
-      exposure.port: 80
-    asserts:
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --keycloak-base-url=http://example.com/keycloak
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --base-domain=example.com
-    template: deployment.yaml
-  - it: uses http exposure on port 443
-    set:
-      exposure.protocol: http
-      exposure.port: 443
-    asserts:
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --keycloak-base-url=http://example.com:443/keycloak
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --base-domain=example.com:443
-    template: deployment.yaml
-  - it: uses https exposure on port 80
-    set:
-      exposure.protocol: https
-      exposure.port: 80
-    asserts:
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --keycloak-base-url=https://example.com:80/keycloak
-    - contains:
-        path: spec.template.spec.containers[0].args
-        content: --base-domain=example.com:80
-    template: deployment.yaml
-  - it: uses https exposure on port 8443
+  - it: uses normalized exposure port consistently for Keycloak arguments
     set:
       exposure.protocol: https
       exposure.port: 8443
+      exposure.normalizedPort: ":8443"
     asserts:
     - contains:
         path: spec.template.spec.containers[0].args
@@ -152,9 +117,10 @@ tests:
         path: data["config.yaml"]
         pattern: 'keycloakBaseURL: "https://shared\.example\.net/keycloak"'
     template: init-container-config.yaml
-  - it: init-container derives the endpoint with the nonstandard port
+  - it: init-container derives the endpoint using normalized exposure port
     set:
       exposure.port: 8443
+      exposure.normalizedPort: ":8443"
       initContainer.enabled: true
     asserts:
     - matchRegex:

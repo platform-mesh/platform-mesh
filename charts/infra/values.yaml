@@ -2,7 +2,10 @@ exposure:
   # -- Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure.
   baseDomain: ""
   protocol: https
+  # -- Public port.
   port: 443
+  # -- URL port string derived by the platform-mesh operator from protocol and port: empty for HTTP/80 or HTTPS/443, otherwise ":<port>".
+  normalizedPort: ""
   # -- GatewayClass selected by operator configuration. Operator-owned in Platform Mesh.
   gatewayClassName: ""
 
