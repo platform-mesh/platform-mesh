@@ -96,11 +96,18 @@ def profile_values(service, tvars, overrides={}):
     values = _deep_merge(values, overrides)
     if services[service].get('external', False):
         return values
+    protocol = tvars.get('protocol', 'https')
+    port = int(tvars['port'])
+    # Match the operator's URL port formatting when Tilt renders charts directly.
+    normalized_port = ':%d' % port
+    if (protocol == 'http' and port == 80) or (protocol == 'https' and port == 443):
+        normalized_port = ''
     pm_operator_cfg = {
         'exposure': {
             'baseDomain': tvars['baseDomain'],
-            'protocol': tvars.get('protocol', 'https'),
-            'port': int(tvars['port']),
+            'protocol': protocol,
+            'port': port,
+            'normalizedPort': normalized_port,
             'gatewayClassName': tvars['gatewayClassName'],
         },
         'kcp': {'internalFrontProxyUrl': tvars['internalFrontProxyUrl']},
