@@ -120,6 +120,8 @@ def infra_blob(ctx):
         # Second shard, exercised by the e2e tests only.
         shards = [{"name": "triton", "spec": {"resources": NO_REQUESTS}}]
         overrides = {
+            # One PostgreSQL instance is sufficient for local development.
+            "cnpg": {"cluster": {"instances": 1}},
             # Traefik exposes 8443; public URLs use the NodePort in the contract.
             "gatewayApi": {"listenerPort": GATEWAY_PORT},
             "kcp": {

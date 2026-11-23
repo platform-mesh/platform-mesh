@@ -96,7 +96,7 @@ spec:
         - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
           value: "https://pm-openfga-authz-webhook.{{ .Release.Namespace }}.svc.cluster.local:9443"
         {{- end }}
-        {{- if and .Values.caSecret (not (has "NODE_EXTRA_CA_CERTS" $envNames)) }}
+        {{- if and (or .Values.caSecret .Values.webhookCaSecret) (not (has "NODE_EXTRA_CA_CERTS" $envNames)) }}
         - name: NODE_EXTRA_CA_CERTS
           value: /etc/ssl/certs/ca-bundle.crt
         {{- end }}
@@ -139,6 +139,11 @@ spec:
           readOnly: true
         {{- else if .Values.caSecret }}
         - name: domain-ca
+          mountPath: /etc/ssl/certs/ca-bundle.crt
+          subPath: ca.crt
+          readOnly: true
+        {{- else if .Values.webhookCaSecret }}
+        - name: webhook-ca
           mountPath: /etc/ssl/certs/ca-bundle.crt
           subPath: ca.crt
           readOnly: true

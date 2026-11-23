@@ -10,7 +10,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.cluster.image.registry | string | `"ghcr.io"` | PostgreSQL image registry |
 | cnpg.cluster.image.repository | string | `"cloudnative-pg/postgresql"` | PostgreSQL image repository (without registry) |
 | cnpg.cluster.image.tag | string | `"18.6-system-trixie"` | PostgreSQL image tag |
-| cnpg.cluster.instances | int | `1` |  |
+| cnpg.cluster.instances | int | `2` | PostgreSQL instances, including a standby for failover. Tilt overrides this to one for local development. |
 | cnpg.cluster.name | string | `"platform-mesh-pg"` |  |
 | cnpg.cluster.postgresql.maxConnections | string | `"200"` |  |
 | cnpg.cluster.postgresql.sharedBuffers | string | `"128MB"` |  |

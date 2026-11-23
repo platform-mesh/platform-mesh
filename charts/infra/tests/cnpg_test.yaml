@@ -15,6 +15,23 @@ tests:
   asserts:
     - hasDocuments:
         count: 0
+- it: defaults to two PostgreSQL instances for failover
+  template: cnpg/cluster.yaml
+  set:
+    cnpg.enabled: true
+  asserts:
+    - equal:
+        path: spec.instances
+        value: 2
+- it: allows one PostgreSQL instance for local development
+  template: cnpg/cluster.yaml
+  set:
+    cnpg.enabled: true
+    cnpg.cluster.instances: 1
+  asserts:
+    - equal:
+        path: spec.instances
+        value: 1
 - it: postgres resources survive an uninstall of the release
   set:
     cnpg:

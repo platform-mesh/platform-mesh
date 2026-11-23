@@ -18,12 +18,13 @@ image:
   pullPolicyOverride: IfNotPresent
 
 # -- Name of the Secret containing the domain TLS CA certificate (key: ca.crt).
-# -- When set together with webhookCaSecret, the chart renders a combine-ca init container
-# -- that merges both CAs into /etc/ssl/certs/ca-bundle.crt.
+# Trusted independently when set alone. When webhookCaSecret is also set, a combine-ca
+# init container merges both CAs into /etc/ssl/certs/ca-bundle.crt.
 caSecret: domain-certificate
 
 # -- Name of the Secret containing the pm-openfga-authz-webhook CA certificate (key: ca.crt).
-# -- Required when caSecret is also set; the two are concatenated by the combine-ca init container.
+# Trusted independently when set alone, or combined with caSecret when both are set.
+# Setting both CA secrets to empty disables NODE_EXTRA_CA_CERTS.
 webhookCaSecret: pm-openfga-authz-webhook-cert
 
 validWebcomponentUrls: ".?"
