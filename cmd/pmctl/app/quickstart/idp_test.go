@@ -109,6 +109,7 @@ func TestWithServiceValues(t *testing.T) {
 		"infra":   {"kcp": map[string]any{"cacheServer": map[string]any{"replicas": 1}}, "dex": map[string]any{"enabled": false}},
 		"gateway": {"resources": map[string]any{"requests": map[string]any{"cpu": "50m"}}},
 	}
+	o.ServiceDependsOn = map[string][]string{"infra": {"kcp-operator"}}
 
 	set := operatorValues{PlatformMesh: &platformMeshValues{Values: &platformMeshSpecValues{Services: map[string]serviceValues{
 		"infra": {Values: infraValues{Dex: dexValues{Enabled: true, Issuer: "https://dex"}}},
@@ -125,6 +126,8 @@ func TestWithServiceValues(t *testing.T) {
 			assert.EqualValues(t, 1, replicas)
 			cpu, _, _ := unstructured.NestedString(services, "gateway", "values", "resources", "requests", "cpu")
 			assert.Equal(t, "50m", cpu)
+			dependsOn, _, _ := unstructured.NestedSlice(services, "infra", "dependsOn")
+			assert.Equal(t, []any{map[string]any{"name": "kcp-operator"}}, dependsOn)
 			dex, _, _ := unstructured.NestedBool(services, "infra", "values", "dex", "enabled")
 			assert.False(t, dex)
 			if in.PlatformMesh != nil {

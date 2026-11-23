@@ -119,6 +119,14 @@ type serviceValues struct {
 	// Values are values of the chart of the service: infraValues,
 	// portalValues.
 	Values any `json:"values,omitempty"`
+	// DependsOn are the services this one is installed after; unset keeps
+	// the profile's.
+	DependsOn []dependencyValues `json:"dependsOn,omitempty"`
+}
+
+// dependencyValues names a service another one depends on.
+type dependencyValues struct {
+	Name string `json:"name"`
 }
 
 type enabledValues struct {
@@ -250,9 +258,9 @@ func helmValues(values any) (map[string]any, error) {
 }
 
 // withServiceValues merges o.ServiceValues over what values sets on the
-// services of the profile.
+// services of the profile, and sets o.ServiceDependsOn on them.
 func (o *Options) withServiceValues(values operatorValues) (operatorValues, error) {
-	if len(o.ServiceValues) == 0 {
+	if len(o.ServiceValues) == 0 && len(o.ServiceDependsOn) == 0 {
 		return values, nil
 	}
 	if values.PlatformMesh == nil {
@@ -273,6 +281,14 @@ func (o *Options) withServiceValues(values operatorValues) (operatorValues, erro
 			return values, err
 		}
 		service.Values = mergeValues(set, extra)
+		services[name] = service
+	}
+	for name, dependencies := range o.ServiceDependsOn {
+		service := services[name]
+		service.DependsOn = nil
+		for _, dependency := range dependencies {
+			service.DependsOn = append(service.DependsOn, dependencyValues{Name: dependency})
+		}
 		services[name] = service
 	}
 	return values, nil

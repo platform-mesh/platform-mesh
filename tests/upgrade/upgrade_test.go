@@ -216,6 +216,14 @@ var smallRequests = map[string]map[string]any{
 	"pm-openfga-operator":  {"deployment": map[string]any{"resources": requests("50m", "")}},
 }
 
+// installOrder has the infra chart installed after kcp-operator, whose CRDs
+// it needs, as the kind profile of the checkout does. In v26.11.0 the two
+// race: when infra loses, its retry waits behind the installs of all other
+// services, which wait for kcp, until they time out.
+//
+// TODO(mjudeikis): drop together with smallRequests.
+var installOrder = map[string][]string{"infra": {"kcp-operator"}}
+
 // requests are the resources of a container that requests cpu and, unless
 // empty, memory.
 func requests(cpu, memory string) map[string]any {
@@ -245,6 +253,7 @@ func (e *environment) quickstart(t *testing.T, version string, dev bool, timeout
 	o.Dev = dev
 	o.IDP = quickstart.IDPKeycloak
 	o.ServiceValues = smallRequests
+	o.ServiceDependsOn = installOrder
 	o.Timeout = timeout
 	if n := os.Getenv("UPGRADE_PARALLEL_BUILD"); n != "" {
 		parallel, err := strconv.Atoi(n)
