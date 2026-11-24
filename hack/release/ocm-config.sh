@@ -76,15 +76,13 @@ if [ -n "$signature" ]; then
   : "${OCM_SIGNING_IDENTITY:?OCM_SIGNING_IDENTITY must be set to sign}"
   : "${OCM_SIGNING_ISSUER:?OCM_SIGNING_ISSUER must be set to sign}"
   cat <<EOF
-  - type: generic.config.ocm.software/v1
-    configurations:
-    - type: signing.config.ocm.software/v1alpha1
-      signature: $signature
-      signer:
-        type: SigstoreSigningConfiguration/v1alpha1
-      verifier:
-        type: SigstoreVerificationConfiguration/v1alpha1
-        certificateIdentity: $OCM_SIGNING_IDENTITY
-        certificateOIDCIssuer: $OCM_SIGNING_ISSUER
+  - type: signing.config.ocm.software/v1alpha1
+    signature: $signature
+    signer:
+      type: SigstoreSigningConfiguration/v1alpha1
+    verifier:
+      type: SigstoreVerificationConfiguration/v1alpha1
+      certificateIdentity: $OCM_SIGNING_IDENTITY
+      certificateOIDCIssuer: $OCM_SIGNING_ISSUER
 EOF
 fi
