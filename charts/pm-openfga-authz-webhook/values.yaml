@@ -61,7 +61,7 @@ openfga:
 
 log:
   # -- Log level
-  level: debug
+  level: info
 
 webhook:
   cacheMissMaxRetries: 1

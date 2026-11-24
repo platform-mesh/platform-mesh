@@ -68,7 +68,7 @@ subroutines:
 
 log:
   # -- Log level
-  level: debug
+  level: info
   # -- Disable JSON log formatting
   noJson: true
 

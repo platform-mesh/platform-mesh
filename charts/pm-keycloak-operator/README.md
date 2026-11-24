@@ -48,7 +48,7 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | keycloak.client.secret.name | string | `"pm-keycloak-operator-client-secret"` |  |
 | keycloakSecret | string | `"keycloak-admin"` | Name of the secret containing Keycloak admin credentials (keys: username, password, secret) |
 | kubeconfigSecret | string | `"pm-keycloak-operator-kubeconfig"` | The kubeconfig secret for the operator |
-| log.level | string | `"debug"` | Log level |
+| log.level | string | `"info"` | Log level |
 | log.noJson | bool | `true` | Disable JSON log formatting |
 | operator.extraArgs | list | `[]` |  |
 | region | string | `""` | region indicator, used for logging and observability |

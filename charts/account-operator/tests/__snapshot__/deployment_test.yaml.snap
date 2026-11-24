@@ -26,7 +26,7 @@ deployment with tracing:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=
@@ -210,7 +210,7 @@ disable istio:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=
@@ -467,7 +467,7 @@ operator match the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=
@@ -725,7 +725,7 @@ operator match the snapshot (with kubeconfigSecret):
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=
@@ -982,7 +982,7 @@ operator match the snapshot with webhook enabled:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=

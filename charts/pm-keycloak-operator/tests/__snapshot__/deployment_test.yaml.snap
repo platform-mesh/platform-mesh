@@ -94,7 +94,7 @@ operator matches the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=
@@ -267,7 +267,7 @@ operator matches the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=
@@ -378,7 +378,7 @@ operator matches the snapshot:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=
@@ -593,7 +593,7 @@ operator matches the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=
@@ -777,7 +777,7 @@ operator matches the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=
@@ -922,7 +922,7 @@ operator matches the snapshot w. sentry:
                 - --leader-elect
                 - --metrics-bind-address=:9090
                 - --health-probe-bind-address=:8090
-                - --log-level=debug
+                - --log-level=info
                 - --no-json
                 - --region=
                 - --environment=

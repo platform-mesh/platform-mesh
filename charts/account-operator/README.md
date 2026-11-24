@@ -26,7 +26,7 @@ A Helm chart to deploy platform-mesh Account-Operator
 | kcp | object | `{"apiExportEndpointSliceName":"core.platform-mesh.io"}` | The kcp configuration |
 | kcp.apiExportEndpointSliceName | string | `"core.platform-mesh.io"` | kcp APIExportEndpointSliceName which is used for reconciliation |
 | kubeconfigSecret | string | `"account-operator-kubeconfig"` | Name of the Secret holding the kubeconfig used to reach the API server. This Secret is not created by this Helm chart and is not meant to be created by the user: in a regular Platform Mesh installation it is created and managed by the PM Operator, which provisions a `<component>-kubeconfig` Secret for each PM component. |
-| log.level | string | `"debug"` | Log level |
+| log.level | string | `"info"` | Log level |
 | log.noJson | bool | `true` | Disable JSON log formatting |
 | oidc | object | `{"caFileRef":{"key":"tls.crt","name":"domain-certificate-ca"},"clientSecretRefs":{},"clients":{},"issuerUrl":"","scopes":[]}` | An OIDC issuer that is the same for every account: an external issuer, used instead of Keycloak. The operator publishes it in every AccountInfo, where the portal reads it for the kubeconfigs it hands out. Leave the issuer empty with Keycloak, whose operator publishes the realm of each organization |
 | oidc.caFileRef | object | `{"key":"tls.crt","name":"domain-certificate-ca"}` | Secret with the CA of the issuer, published for clients to verify the issuer with. The default is the CA of the domain certificate, as for kcp. Set the name to "" for an issuer whose certificate is publicly trusted |

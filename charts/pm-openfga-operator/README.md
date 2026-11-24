@@ -26,7 +26,7 @@ Manages OpenFGA authorization of a Platform Mesh installation (openfga.platform-
 | initializer.kubeconfigSecret | string | `"openfga-initializer-kubeconfig"` | The kubeconfig secret for the initializer |
 | initializer.subroutines.workspaceEnabled | bool | `true` | Enable WorkspaceInitializer subroutine (FGA Store + AccountInfo setup) |
 | kubeconfigSecret | string | `"pm-openfga-operator-kubeconfig"` | The kubeconfig secret for operator and generator |
-| log.level | string | `"debug"` | Log level |
+| log.level | string | `"info"` | Log level |
 | log.noJson | bool | `true` | Disable JSON log formatting |
 | openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` | OpenFGA gRPC endpoint (host:port) |
 | openfga.storeIDCacheTTL | string | `""` | TTL for the OpenFGA store ID cache (e.g. 5m, 1h). Empty uses app default (5m). |
