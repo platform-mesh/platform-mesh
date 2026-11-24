@@ -306,8 +306,7 @@ tasks:
     desc: Build the pmctl CLI into bin/pmctl (VERSION= to override the stamped version). Also built by `task build-root`.
     cmds:
       - task --taskfile Taskfile.root.yaml pmctl {{if .VERSION}}VERSION={{.VERSION}}{{end}}
-  # The release assets: pmctl for every platform and the rendered root
-  # component-constructor.yaml, see .goreleaser.yaml.
+  # The release assets: pmctl for every platform, see .goreleaser.yaml.
   release-snapshot:
     desc: Build the release assets into dist/ without publishing anything (VERSION= to override the version).
     cmds:
@@ -331,7 +330,6 @@ tasks:
         sh: task --taskfile Taskfile.root.yaml pmctl-ldflags VERSION={{.TAG}}
     env:
       GORELEASER_CURRENT_TAG: '{{.TAG}}'
-      PM_VERSION: '{{.TAG | trimPrefix "v"}}'
       LDFLAGS: '{{.LDFLAGS}}'
     cmds:
       - '{{.GORELEASER}} {{.ARGS}}'

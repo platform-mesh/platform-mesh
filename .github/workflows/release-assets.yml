@@ -14,10 +14,8 @@
 
 name: release-assets
 
-# Builds the release assets (.goreleaser.yaml: pmctl for every platform, the
-# rendered component-constructor.yaml) without publishing anything, on pull
-# requests that change how they are built. release.yml only runs for a tag, so
-# this is where a broken release configuration shows up before one is pushed.
+# Builds the release assets without publishing anything, on pull requests 
+# that change how they are built. release.yml only runs for a tag.
 #
 # Locally: `task release-snapshot`.
 
@@ -31,9 +29,7 @@ on:
       - Taskfile.root.yaml
       - tools/Taskfile.yaml
       - hack/tools.checksums
-      - hack/release/render-constructor/**
       - hack/release/get-version/**
-      - component-constructor.yaml
 
 permissions:
   contents: read
@@ -66,4 +62,3 @@ jobs:
           path: |
             dist/*.tar.gz
             dist/*_checksums.txt
-            bin/release/component-constructor.yaml

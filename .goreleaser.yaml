@@ -16,7 +16,6 @@
 #
 #   pmctl_<version>_<os>_<arch>.tar.gz   the pmctl CLI
 #   pmctl_<version>_checksums.txt        SHA-256 of the archives
-#   component-constructor.yaml           the root OCM constructor at this version
 #
 # Images, charts and OCM components are not built here, job-publish.yml
 # publishes them to the registry before this runs.
@@ -29,18 +28,12 @@
 # Environment:
 #
 #   LDFLAGS                  linker flags stamping pmctl (`task pmctl-ldflags`)
-#   PM_VERSION               version the constructor is rendered at
 #   GORELEASER_CURRENT_TAG   the release tag; set explicitly because the
 #                            repository also carries library tags (<name>/vX.Y.Z)
 
 version: 2
 
 project_name: platform-mesh
-
-before:
-  hooks:
-    # bin/ is ignored by git; goreleaser refuses to release from a dirty tree.
-    - go run ./hack/release/render-constructor bin/release/component-constructor.yaml
 
 builds:
   - id: pmctl
@@ -76,5 +69,3 @@ release:
   name_template: "Platform Mesh {{ .Version }}"
   # vYY.MM.P-rc.N is a prerelease, vYY.MM.P is not.
   prerelease: auto
-  extra_files:
-    - glob: ./bin/release/component-constructor.yaml
