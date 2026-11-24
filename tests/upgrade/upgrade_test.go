@@ -33,7 +33,7 @@ limitations under the License.
 // Environment:
 //
 //	UPGRADE_TEST          true runs the test; `task test-upgrade` sets it
-//	UPGRADE_FROM          release to upgrade from, e.g. v26.10.2 (default: the latest)
+//	UPGRADE_FROM          release to upgrade from, e.g. v26.11.0 (default: the latest)
 //	UPGRADE_CLUSTER       name of the kind cluster (default: pm-upgrade)
 //	UPGRADE_KEEP_CLUSTER  true keeps the cluster after a passed run; after a
 //	                      failed one it is always kept, for a look at it
