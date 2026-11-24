@@ -12,7 +12,7 @@ Optional infrastructure prerequisites for Platform Mesh
 | cnpg.enabled | bool | `true` |  |
 | etcd-druid.enabled | bool | `true` |  |
 | flux2.enabled | bool | `true` |  |
-| flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=10"` |  |
+| flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=20"` |  |
 | flux2.policies.create | bool | `false` |  |
 | keycloak-operator.enabled | bool | `true` |  |
 | localCertificates.caSecretName | string | `"domain-certificate-ca"` |  |
@@ -77,7 +77,7 @@ Optional infrastructure prerequisites for Platform Mesh
 | cnpg.enabled | bool | `true` |  |
 | etcd-druid.enabled | bool | `true` |  |
 | flux2.enabled | bool | `true` |  |
-| flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=10"` |  |
+| flux2.helmController.container.additionalArgs[0] | string | `"--concurrent=20"` |  |
 | flux2.policies.create | bool | `false` |  |
 | keycloak-operator.enabled | bool | `true` |  |
 | localCertificates.caSecretName | string | `"domain-certificate-ca"` |  |

@@ -197,6 +197,14 @@ type Options struct {
 	// temporary password "password". The installation has no SMTP server
 	// to send them an invitation with.
 	SetDefaultPassword bool
+	// ServiceValues are chart values merged over the services of the
+	// profile, by service name: spec.values.services.<name>.values of the
+	// PlatformMesh resource. Charts older than that field ignore them.
+	ServiceValues map[string]map[string]any
+	// ServiceDependsOn are the services a service of the profile is
+	// installed after, by service name: spec.values.services.<name>.dependsOn
+	// of the PlatformMesh resource.
+	ServiceDependsOn map[string][]string
 	// Timeout bounds the whole run.
 	Timeout time.Duration
 	// StallTimeout is how long a HelmRelease may keep failing before the

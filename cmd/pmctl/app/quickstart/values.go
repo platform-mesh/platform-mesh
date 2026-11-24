@@ -43,6 +43,15 @@ type keycloakOperatorValues struct {
 type flux2Values struct {
 	ImageAutomationController fluxControllerValues `json:"imageAutomationController"`
 	ImageReflectionController fluxControllerValues `json:"imageReflectionController"`
+	HelmController            helmControllerValues `json:"helmController"`
+}
+
+type helmControllerValues struct {
+	Container fluxContainerValues `json:"container"`
+}
+
+type fluxContainerValues struct {
+	AdditionalArgs []string `json:"additionalArgs"`
 }
 
 type fluxControllerValues struct {
@@ -119,6 +128,14 @@ type serviceValues struct {
 	// Values are values of the chart of the service: infraValues,
 	// portalValues.
 	Values any `json:"values,omitempty"`
+	// DependsOn are the services this one is installed after; unset keeps
+	// the profile's.
+	DependsOn []dependencyValues `json:"dependsOn,omitempty"`
+}
+
+// dependencyValues names a service another one depends on.
+type dependencyValues struct {
+	Name string `json:"name"`
 }
 
 type enabledValues struct {
@@ -247,4 +264,58 @@ func helmValues(values any) (map[string]any, error) {
 		return nil, fmt.Errorf("decoding chart values: %w", err)
 	}
 	return out, nil
+}
+
+// withServiceValues merges o.ServiceValues over what values sets on the
+// services of the profile, and sets o.ServiceDependsOn on them.
+func (o *Options) withServiceValues(values operatorValues) (operatorValues, error) {
+	if len(o.ServiceValues) == 0 && len(o.ServiceDependsOn) == 0 {
+		return values, nil
+	}
+	if values.PlatformMesh == nil {
+		values.PlatformMesh = &platformMeshValues{}
+	}
+	if values.PlatformMesh.Values == nil {
+		values.PlatformMesh.Values = &platformMeshSpecValues{}
+	}
+	services := values.PlatformMesh.Values.Services
+	if services == nil {
+		services = map[string]serviceValues{}
+		values.PlatformMesh.Values.Services = services
+	}
+	for name, extra := range o.ServiceValues {
+		service := services[name]
+		set, err := helmValues(service.Values)
+		if err != nil {
+			return values, err
+		}
+		service.Values = mergeValues(set, extra)
+		services[name] = service
+	}
+	for name, dependencies := range o.ServiceDependsOn {
+		service := services[name]
+		service.DependsOn = nil
+		for _, dependency := range dependencies {
+			service.DependsOn = append(service.DependsOn, dependencyValues{Name: dependency})
+		}
+		services[name] = service
+	}
+	return values, nil
+}
+
+// mergeValues merges src over dst, map by map, and returns dst.
+func mergeValues(dst, src map[string]any) map[string]any {
+	if dst == nil {
+		dst = map[string]any{}
+	}
+	for key, value := range src {
+		if sub, ok := value.(map[string]any); ok {
+			if current, ok := dst[key].(map[string]any); ok {
+				dst[key] = mergeValues(current, sub)
+				continue
+			}
+		}
+		dst[key] = value
+	}
+	return dst
 }

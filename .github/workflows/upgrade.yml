@@ -55,10 +55,10 @@ concurrency:
 
 jobs:
   upgrade:
-    # Larger runner: on the 8-CPU runner, the CPU requests of a full
-    # Platform Mesh install (kcp shard, cache server, proxies) don't fit on
-    # one kind node and pods stay Pending.
-    runs-on: ubuntu-latest-large-arm
+    # The 4-CPU runner: the kind profile keeps the CPU requests of a full
+    # Platform Mesh install at about 3 CPUs, and the test sets the same on
+    # the release it upgrades from (smallRequests in tests/upgrade).
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
     permissions:
       contents: read
