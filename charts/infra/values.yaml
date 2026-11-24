@@ -171,6 +171,22 @@ kcp:
         backend_server_ca: /etc/kcp/tls/ca/tls.crt
         proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
         proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      # The access virtual workspace (chart access-vw). The {cluster}
+      # placeholder names the workspace a review is addressed to, so that the
+      # front-proxy authenticates the caller with that workspace's
+      # authenticators too; the plain path only knows the global ones. The
+      # serving certificate kcp-operator issues names the Service by its full
+      # cluster-local name only.
+      - path: /services/access/clusters/{cluster}
+        backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+        backend_server_ca: /etc/kcp/tls/ca/tls.crt
+        proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+        proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+      - path: /services/access
+        backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+        backend_server_ca: /etc/kcp/tls/ca/tls.crt
+        proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+        proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
     extraArgs:
     - --feature-gates=WorkspaceAuthentication=true
 

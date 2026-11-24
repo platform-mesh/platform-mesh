@@ -27,7 +27,7 @@ load("../../lib/settings.Tiltfile", "PORT")
 COMPONENT = component(
     name="kcp-mcp-vw",
     label="api",
-    needs=["kcp-gateway", "kcp-access-vw"],
+    needs=["kcp-gateway", "access-vw"],
     runtime=chart_objects(
         values={
             "external": {"hostname": KCP_API_HOSTNAME, "port": PORT},

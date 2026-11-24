@@ -135,6 +135,16 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | kcp.frontProxy.additionalPathMappings[1].path | string | `"/services/marketplace"` |  |
 | kcp.frontProxy.additionalPathMappings[1].proxy_client_cert | string | `"/etc/kcp-front-proxy/requestheader-client/tls.crt"` |  |
 | kcp.frontProxy.additionalPathMappings[1].proxy_client_key | string | `"/etc/kcp-front-proxy/requestheader-client/tls.key"` |  |
+| kcp.frontProxy.additionalPathMappings[2].backend | string | `"https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443"` |  |
+| kcp.frontProxy.additionalPathMappings[2].backend_server_ca | string | `"/etc/kcp/tls/ca/tls.crt"` |  |
+| kcp.frontProxy.additionalPathMappings[2].path | string | `"/services/access/clusters/{cluster}"` |  |
+| kcp.frontProxy.additionalPathMappings[2].proxy_client_cert | string | `"/etc/kcp-front-proxy/requestheader-client/tls.crt"` |  |
+| kcp.frontProxy.additionalPathMappings[2].proxy_client_key | string | `"/etc/kcp-front-proxy/requestheader-client/tls.key"` |  |
+| kcp.frontProxy.additionalPathMappings[3].backend | string | `"https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443"` |  |
+| kcp.frontProxy.additionalPathMappings[3].backend_server_ca | string | `"/etc/kcp/tls/ca/tls.crt"` |  |
+| kcp.frontProxy.additionalPathMappings[3].path | string | `"/services/access"` |  |
+| kcp.frontProxy.additionalPathMappings[3].proxy_client_cert | string | `"/etc/kcp-front-proxy/requestheader-client/tls.crt"` |  |
+| kcp.frontProxy.additionalPathMappings[3].proxy_client_key | string | `"/etc/kcp-front-proxy/requestheader-client/tls.key"` |  |
 | kcp.frontProxy.clusterIP | string | `""` |  |
 | kcp.frontProxy.extraArgs[0] | string | `"--feature-gates=WorkspaceAuthentication=true"` |  |
 | kcp.frontProxy.name | string | `"frontproxy"` |  |

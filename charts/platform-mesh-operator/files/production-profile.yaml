@@ -511,6 +511,20 @@ data:
           dependsOn: []
           targetNamespace: platform-mesh-system
           values: {}
+        # The access virtual workspace: which workspaces of an organization a
+        # user can access (SelfClusterAccessReview), answered from OpenFGA.
+        # The chart renders kcp-operator objects; the operator runs the pod.
+        access-vw:
+          imageResources:
+          - annotations:
+              repo: oci
+              artifact: image
+              for: access-vw
+          syncWave: 4
+          enabled: true
+          dependsOn: []
+          targetNamespace: platform-mesh-system
+          values: {}
         marketplace-ui:
           enabled: true
           dependsOn: []

@@ -49,7 +49,14 @@ config.define_string_list(
 )
 config.define_string(
     "access-vw-src",
-    usage="checkout of kcp-dev/contrib-access-virtual-workspace to build kcp-access-vw from, rebuilt on every change (default: the released image)",
+    usage="another checkout of the access virtual workspace to build access-vw from, e.g. of kcp-dev/contrib-access-virtual-workspace (default: operators/account-operator/virtual-workspace)",
+)
+ACCESS_VW_PROVIDERS = ["rbac", "openfga"]
+config.define_string(
+    "access-vw-provider",
+    usage="what access-vw answers reviews from: {}, or both merged as rbac,openfga (default: openfga when OpenFGA runs, else rbac)".format(
+        "|".join(ACCESS_VW_PROVIDERS)
+    ),
 )
 cfg = config.parse()
 
@@ -97,8 +104,14 @@ def _checkout(path):
     return path
 
 
-# --access-vw-src: build the access virtual workspace from this checkout.
-ACCESS_VW_SRC = _checkout(cfg.get("access-vw-src", ""))
+# --access-vw-src: build the access virtual workspace from this checkout
+# instead of the one in this repository.
+ACCESS_VW_SRC = _checkout(cfg.get("access-vw-src", "")) or os.path.join(REPO, "operators/account-operator/virtual-workspace")
+# --access-vw-provider: empty leaves the choice to the component.
+ACCESS_VW_PROVIDER = cfg.get("access-vw-provider", "")
+for _p in ACCESS_VW_PROVIDER.split(",") if ACCESS_VW_PROVIDER else []:
+    if _p not in ACCESS_VW_PROVIDERS:
+        fail("--access-vw-provider={}: use {}, or both separated by a comma".format(ACCESS_VW_PROVIDER, ", ".join(ACCESS_VW_PROVIDERS)))
 GO_DEPS = ["apis", "subroutines", "golang-commons"]
 
 

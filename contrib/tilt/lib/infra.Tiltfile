@@ -54,15 +54,11 @@ INFRA_OWNED = {
 }
 
 
-# Component -> (front-proxy paths, kcp-operator VirtualWorkspace) of the virtual
-# workspaces served behind the front proxy (charts kcp-access-vw, kcp-mcp-vw).
-#
-# A path with the {cluster} placeholder tells the front proxy which workspace a
-# request is for, so that it authenticates the caller with that workspace's
-# authenticator as well (WorkspaceAuthentication); the plain path only knows
-# the global ones. docs/design/access-vw-openfga.md
+# Component -> (front-proxy paths, kcp-operator VirtualWorkspace) of the
+# optional virtual workspaces served behind the front proxy (chart kcp-mcp-vw).
+# The access virtual workspace (chart access-vw) is routed by the infra
+# chart itself.
 _VIRTUAL_WORKSPACES = {
-    "kcp-access-vw": (["/services/access/clusters/{cluster}", "/services/access"], "access-vw"),
     "kcp-mcp-vw": (["/services/mcp"], "mcp-vw"),
 }
 

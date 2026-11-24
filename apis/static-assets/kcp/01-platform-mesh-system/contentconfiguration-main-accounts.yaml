@@ -60,6 +60,7 @@ spec:
                                   "ui": {
                                       "logoUrl": "https://platform-mesh.io/main/pm_logo.svg",
                                       "listView": {
+                                          "accessReview": true,
                                           "fields": [
                                               {
                                                   "label": "Name",

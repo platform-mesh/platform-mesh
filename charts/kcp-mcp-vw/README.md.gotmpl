@@ -14,7 +14,7 @@ RootShard and FrontProxy must exist, and the front-proxy needs an
 workspace service.
 
 The server scopes each MCP session to the workspaces the caller can access,
-resolved through the access virtual workspace (`kcp-access-vw` chart) at
+resolved through the access virtual workspace (`access-vw` chart) at
 `--access-url`, and performs all resource operations via impersonation, so
 kcp authorizes every request as the caller. The
 `mcp-virtual-workspace-impersonator` ClusterRole from the upstream
@@ -35,7 +35,7 @@ front-proxy does not allow — route them to the service directly.
 ## Installing on top of Platform Mesh
 
 The chart is not part of the Platform Mesh default profile; it is an optional
-add-on for a running installation, alongside `kcp-access-vw`:
+add-on for a running installation, alongside `access-vw`:
 
 ```sh
 helm install kcp-mcp-vw oci://ghcr.io/platform-mesh/helm-charts/kcp-mcp-vw \

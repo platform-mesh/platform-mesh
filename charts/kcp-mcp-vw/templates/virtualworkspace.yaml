@@ -4,7 +4,7 @@
 # apiserver arguments (including --kubeconfig for the secret below). Only
 # server-specific flags appear in extraArgs.
 #
-# Depends on the kcp-access-vw chart: each request fetches the caller's
+# Depends on the access-vw chart: each request fetches the caller's
 # workspace list from /services/access.
 apiVersion: operator.kcp.io/v1alpha1
 kind: VirtualWorkspace

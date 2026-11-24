@@ -1,0 +1,144 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("../../lib/component.Tiltfile", "component", "wait", "workload_kind")
+load("../../lib/helpers.py", "BUILD_GOARCH", "TILT_DIR", "chart", "select_objects", "write_values")
+load("../../lib/infra.Tiltfile", "KCP_API_HOSTNAME")
+load("../../lib/settings.Tiltfile", "ACCESS_VW_PROVIDER", "ACCESS_VW_SRC", "NAMESPACE", "PORT")
+
+# The access virtual workspace (operators/account-operator/virtual-workspace): serves
+# SelfClusterAccessReview, which workspaces a caller can access, at
+# /services/access of the front proxy (routed by the infra chart).
+#
+# It answers from OpenFGA when OpenFGA is part of the run, and from the RBAC
+# bindings of kcp otherwise; --access-vw-provider=rbac|openfga decides
+# explicitly. docs/design/access-vw-openfga.md
+#
+# The chart only renders a VirtualWorkspace and its Kubeconfigs; kcp-operator
+# runs the pod. Its kubeconfigs address the front proxy by the external
+# hostname, hence kcp-gateway.
+#
+# kcp-operator owns the pod, so this is not a go_service(): every change of
+# the sources is compiled on the host and rolled out as a new image, see
+# from_source(). --access-vw-src=<checkout> builds another checkout instead,
+# e.g. of kcp-dev/contrib-access-virtual-workspace.
+
+VALUES = {
+    "external": {"hostname": KCP_API_HOSTNAME, "port": PORT},
+    "resources": {"requests": {"cpu": "1m", "memory": "1Mi"}},
+}
+
+# The OpenFGA provider: --openfga-addr, --openfga-relation,
+# --openfga-object-type and --openfga-orgs-workspace of access-vw.
+OPENFGA = {
+    # gRPC port of the openfga chart.
+    "addr": "openfga.{}.svc.cluster.local:8081".format(NAMESPACE),
+    # Being able to read an account is what lists its workspace.
+    "relation": "get",
+    "objectType": "core_platform-mesh_io_account",
+    "orgsWorkspace": "root:orgs",
+}
+
+
+def _provider(ctx):
+    if "openfga" in ACCESS_VW_PROVIDER.split(",") and not ctx.selected("openfga"):
+        fail("--access-vw-provider={}: OpenFGA is not part of this run".format(ACCESS_VW_PROVIDER))
+    if ACCESS_VW_PROVIDER:
+        return ACCESS_VW_PROVIDER
+    return "openfga" if ctx.selected("openfga") else "rbac"
+
+
+def _values(ctx):
+    provider = _provider(ctx)
+    values = dict(VALUES)
+    values["provider"] = provider
+    if "openfga" in provider.split(","):
+        values["openfga"] = OPENFGA
+    return values
+
+# The server and its init container run from one image, by their path in it
+# (command of the VirtualWorkspace).
+BINARIES = {"access-vw": "./cmd/access-vw", "access-vw-init": "./cmd/init"}
+
+# Pinned like runtime.Dockerfile; a shell in the image helps while debugging.
+DOCKERFILE = """
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+COPY {} /
+USER 65532:65532
+ENTRYPOINT ["/access-vw"]
+""".format(" ".join(sorted(BINARIES.keys())))
+
+
+def from_source(src):
+    """Runtime: the chart, with the image built from the checkout src.
+
+    Not go_service()'s live_update: kcp-operator owns the pod and starts the
+    binaries by `command`, which leaves no room for the restart wrapper that
+    syncing into a running container needs. Tilt instead puts every new image
+    into the VirtualWorkspace and the operator rolls the Deployment; the init
+    container runs again, it is idempotent.
+    """
+
+    def run(c, ctx):
+        blob = chart(c.name, NAMESPACE, values=[write_values(c.name, _values(ctx))])
+        vw = [o for o in decode_yaml_stream(blob) if o and o["kind"] == "VirtualWorkspace"][0]
+        name = vw["metadata"]["name"]
+
+        bin_dir = os.path.join(TILT_DIR, "bin", c.name)
+        build = "build:" + c.name
+        local_resource(
+            build,
+            cmd="mkdir -p {bin} && ".format(bin=bin_dir)
+            + " && ".join(
+                [
+                    "CGO_ENABLED=0 GOOS=linux GOARCH={} go build -o {}/{} {}".format(BUILD_GOARCH, bin_dir, out, pkg)
+                    for out, pkg in BINARIES.items()
+                ]
+            ),
+            dir=src,
+            deps=[src],
+            ignore=[os.path.join(src, d) for d in [".git", "bin", "cover.out", "test"]],
+            labels=[c.label],
+            allow_parallel=True,
+        )
+        # The image the chart renders, so that Tilt finds it in the VirtualWorkspace.
+        docker_build(vw["spec"]["image"]["repository"], context=bin_dir, dockerfile_contents=DOCKERFILE)
+        workload_kind(
+            ctx,
+            "VirtualWorkspace",
+            api_version="operator.kcp.io/v1alpha1",
+            image_object={"json_path": "{.spec.image}", "repo_field": "repository", "tag_field": "tag"},
+        )
+        k8s_yaml(blob)
+        k8s_resource(
+            name,
+            new_name=c.name,
+            objects=select_objects(blob, lambda o: o["kind"] != "VirtualWorkspace"),
+            # Logs of the pod; nothing ties it to the VirtualWorkspace for Tilt.
+            extra_pod_selectors=[{"app.kubernetes.io/instance": name, "app.kubernetes.io/component": "virtual-workspace"}],
+            resource_deps=ctx.deps + [build],
+            labels=[c.label],
+        )
+
+    return run
+
+
+COMPONENT = component(
+    name="access-vw",
+    label="api",
+    # The chart ships a ClusterAccess, and platform-mesh-operator its kubeconfig.
+    needs=["kcp-gateway", "platform-mesh-operator", "kubernetes-graphql-gateway-crds"],
+    runtime=from_source(ACCESS_VW_SRC),
+    ready=[wait("virtualworkspace/access-vw", "condition=Available", timeout="10m")],
+)

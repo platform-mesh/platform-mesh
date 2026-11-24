@@ -14,6 +14,8 @@ The platform-mesh account-operator manages the core Account resource which is a 
 - Validating webhook to ensure that immutable information is not changed
 - Cleanup on Account deletion including namespace cleanup
 
+The [access virtual workspace](virtual-workspace), which answers which accounts a user can access, lives in this directory as a separate module with its own image and chart.
+
 ## Getting started
 
 - For running and building the account-operator, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository.

@@ -197,6 +197,16 @@ Gateway API enabled:
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access/clusters/{cluster}
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       auth:
         serviceAccount:
           enabled: true
@@ -869,6 +879,16 @@ Istio disabled:
         - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access/clusters/{cluster}
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       auth:
@@ -1545,6 +1565,16 @@ Istio enabled:
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access/clusters/{cluster}
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       auth:
         serviceAccount:
           enabled: true
@@ -2184,6 +2214,16 @@ configure frontproxy resources:
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access/clusters/{cluster}
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       auth:
         serviceAccount:
           enabled: true
@@ -2555,6 +2595,16 @@ match snapshots:
         - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access/clusters/{cluster}
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       auth:
@@ -3229,6 +3279,16 @@ match snapshots w. hostAliases enabled:
         - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access/clusters/{cluster}
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       auth:
@@ -3913,6 +3973,16 @@ match snapshots w. kcp version:
           path: /services/marketplace
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access/clusters/{cluster}
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       auth:
         serviceAccount:
           enabled: true
@@ -4585,6 +4655,16 @@ match snapshots with mailpit enabled:
         - backend: https://marketplace.platform-mesh-system:8443
           backend_server_ca: /etc/kcp/tls/ca/tls.crt
           path: /services/marketplace
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access/clusters/{cluster}
+          proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+          proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+        - backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+          backend_server_ca: /etc/kcp/tls/ca/tls.crt
+          path: /services/access
           proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
           proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
       auth:

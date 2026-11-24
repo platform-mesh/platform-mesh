@@ -70,6 +70,16 @@ components:
     path: operators/account-operator
     image: account-operator
     chart: charts/account-operator
+  # The access virtual workspace (SelfClusterAccessReview: the accounts a
+  # caller can access). A module of its own inside the operator's directory:
+  # it answers for the tenancy model the operator owns, but builds against the
+  # kcp fork of Kubernetes and the operator does not. Its chart keeps the name
+  # of the kcp-operator VirtualWorkspace it renders.
+  access-virtual-workspaces:
+    path: operators/account-operator/virtual-workspace
+    image: access-virtual-workspaces
+    chart: charts/access-vw
+    e2e: false # no e2e suite yet
   extension-manager-operator:
     path: operators/extension-manager-operator
     image: extension-manager-operator

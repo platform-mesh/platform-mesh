@@ -105,6 +105,13 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 		AdminAuth: ptr.To(true),
 	},
 	{
+		// The access virtual workspace as the GraphQL gateway reaches it: the
+		// ClusterAccess "access" of the access-vw chart.
+		RawPath:   ptr.To("/services/access"),
+		Secret:    "access-vw-clusteraccess-kubeconfig",
+		AdminAuth: ptr.To(true),
+	},
+	{
 		Path:           "root:platform-mesh-system",
 		Secret:         "extension-manager-operator-kubeconfig",
 		APIExportNames: []string{"core.platform-mesh.io", "ui.platform-mesh.io"},

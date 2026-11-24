@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Talks to the access virtual workspace (chart kcp-access-vw) of the Tilt
+# Talks to the access virtual workspace (chart access-vw) of the Tilt
 # environment with curl, through the kcp front proxy at /services/access.
 #
 #   hack/access-vw.sh [review]            POST a SelfClusterAccessReview: the workspaces the caller can access
@@ -22,9 +22,20 @@
 #   hack/access-vw.sh bind <workspace>    bind the access APIExport in a workspace (e.g. root:orgs:bob)
 #   hack/access-vw.sh unbind <workspace>  remove that binding again
 #
-# Only workspaces that bind access.contrib.kcp.io are indexed, so a review is
-# empty until `bind` ran for at least one workspace the caller has a
-# (Cluster)RoleBinding in.
+# What a review answers depends on the provider the workspace runs with
+# (docs/design/access-vw-openfga.md):
+#
+# - rbac: only workspaces that bind access.platform-mesh.io are indexed, so a
+#   review is empty until `bind` ran for at least one workspace the caller has
+#   a (Cluster)RoleBinding in.
+# - openfga: the accounts of one organization the caller can access. The
+#   review has to name a workspace of the organization with --cluster, and the
+#   caller has to be a user OpenFGA knows, so not the kcp admin: use --as or
+#   --token. bind and unbind do not apply.
+#
+#   --cluster WORKSPACE  address the review to a workspace, by path or cluster
+#                        id (e.g. root:orgs:bob); the front proxy then also
+#                        accepts tokens of that workspace's identity provider
 #
 # The caller is the kcp admin (client certificate) unless told otherwise:
 #
@@ -45,15 +56,16 @@ set -euo pipefail
 
 die() { echo "$@" >&2; exit 1; }
 
-GROUP_VERSION="access.contrib.kcp.io/v1alpha1"
+GROUP_VERSION="access.platform-mesh.io/v1alpha1"
 EXPORT_PATH="root:access:controllers"
-EXPORT_NAME="access.contrib.kcp.io"
+EXPORT_NAME="access.platform-mesh.io"
 
 repo="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 secret_dir="$repo/contrib/tilt/.secret"
 
 kubeconfig=""
 token=""
+cluster=""
 as=""
 as_groups=()
 args=()
@@ -63,7 +75,8 @@ while [ $# -gt 0 ]; do
         --token) token="${2:?--token needs a token}"; shift 2 ;;
         --as) as="${2:?--as needs a user}"; shift 2 ;;
         --as-group) as_groups+=("${2:?--as-group needs a group}"); shift 2 ;;
-        -h | --help) sed -n '17,43p' "$0" | sed -E 's/^# ?//'; exit 0 ;;
+        --cluster) cluster="${2:?--cluster needs a workspace}"; shift 2 ;;
+        -h | --help) awk 'NR >= 17 && !/^#/ { exit } NR >= 17 { sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
         -*) die "unknown flag $1" ;;
         *) args+=("$1"); shift ;;
     esac
@@ -89,7 +102,7 @@ field() { kc config view --raw --minify --flatten -o jsonpath="$1"; }
 # https://<front proxy>, without the /clusters/<workspace> of the context.
 server="$(field '{.clusters[0].cluster.server}')"
 server="${server%%/clusters/*}"
-url="$server/services/access/apis/$GROUP_VERSION"
+url="$server/services/access${cluster:+/clusters/$cluster}/apis/$GROUP_VERSION"
 
 # curl wants the credentials of the kubeconfig as files.
 umask 077
@@ -125,7 +138,8 @@ run_curl() {
         esac
     done
     echo "$line" >&2
-    "${c[@]}"
+    # Print the HTTP status when it is not a success: a gateway error has no body.
+    "${c[@]}" -w '%{stderr}%{onerror}HTTP %{http_code}\n' --fail-with-body
     echo
 }
 

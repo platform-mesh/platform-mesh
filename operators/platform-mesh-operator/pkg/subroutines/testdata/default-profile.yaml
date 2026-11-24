@@ -620,6 +620,20 @@ data:
                 requests:
                   cpu: 20m
                   memory: 64Mi
+        access-vw:
+          imageResources:
+          - annotations:
+              repo: oci
+              artifact: image
+              for: access-vw
+          syncWave: 4
+          enabled: true
+          targetNamespace: platform-mesh-system
+          values:
+            resources:
+              requests:
+                cpu: 20m
+                memory: 64Mi
         marketplace-ui:
           enabled: true
           imageResources:
