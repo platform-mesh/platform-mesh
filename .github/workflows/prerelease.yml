@@ -81,12 +81,14 @@ jobs:
           {
             echo "Publishing prerelease $version from $(git rev-parse HEAD)."
             echo
-            echo "Install it like a release (https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with \`--set-string ocm.version=$version\`."
+            echo "Install it like a release (https://platform-mesh.github.io/main/how-to-guides/install-platform-mesh) with \`--set-string ocm.version=$version\` and \`--set-string ocm.signingIdentity=$SIGNING_IDENTITY\`."
           } >> "$GITHUB_STEP_SUMMARY"
         env:
           # The checkout is detached, a ref input that is a branch selects
           # the release branch rule, a commit falls back to main.
           GITHUB_REF_NAME: ${{ inputs.ref || github.ref_name }}
+          # The chart derives the identity of a tag.
+          SIGNING_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/job-publish.yml@${{ github.ref }}
 
   publish:
     needs: version
@@ -96,9 +98,6 @@ jobs:
       packages: write # push images, charts and OCM components
       id-token: write # keyless cosign signing
       security-events: write # trivy SARIF reports
-    secrets:
-      OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
-      OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
     with:
       version: ${{ needs.version.outputs.version }}
       ref: ${{ needs.version.outputs.sha }}
