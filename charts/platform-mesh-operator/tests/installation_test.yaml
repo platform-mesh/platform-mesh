@@ -24,6 +24,13 @@ tests:
             kind: Secret
             apiVersion: v1
             name: ocm-signing-public-cert
+        documentIndex: 0
+      - contains:
+          path: spec.ocmConfig
+          content:
+            kind: Secret
+            apiVersion: v1
+            name: ocm-signing-public-cert
         documentIndex: 1
       - equal:
           path: spec.exposure.baseDomain

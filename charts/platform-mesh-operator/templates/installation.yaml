@@ -13,6 +13,11 @@ spec:
     baseUrl: {{ .Values.ocm.repository | quote }}
     type: OCIRegistry
   interval: 1m0s
+  ocmConfig:
+    # The Secret's .ocmconfig also configures how the registry is reached.
+    - kind: Secret
+      apiVersion: v1
+      name: ocm-signing-public-cert
 ---
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Component

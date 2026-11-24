@@ -213,8 +213,9 @@ func (o *Options) buildSnapshot(ctx context.Context) (*source, error) {
 			Repository: imageRepo + "/platform-mesh-operator",
 			Tag:        "v" + s.version,
 		},
-		signature:   snapshotSignature,
-		signingCert: cert,
+		signature:     snapshotSignature,
+		signingCert:   cert,
+		plainHTTPHost: s.registry.host(),
 		details: []string{
 			"OCM repository  " + s.ocmRepo(),
 			"OCM config      " + s.ocmConfig(),
@@ -504,7 +505,7 @@ func (s *snapshot) prepareTooling(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(s.ocmConfig(), ocmConfig(key, cert, os.Getenv("GITHUB_TOKEN")), 0o600); err != nil {
+	if err := os.WriteFile(s.ocmConfig(), ocmConfig(key, cert, os.Getenv("GITHUB_TOKEN"), s.registry.host()), 0o600); err != nil {
 		return nil, err
 	}
 	return cert, nil
@@ -554,11 +555,11 @@ func (s *snapshot) signingKey() (key, cert []byte, err error) {
 	return key, cert, nil
 }
 
-// ocmConfig renders the configuration of the ocm CLI: the signing key, and
-// credentials for the published repository when there is a token (anonymous
-// access works, with lower rate limits). hack/release/ocm-config.sh writes
-// the same for the release.
-func ocmConfig(key, cert []byte, token string) []byte {
+// ocmConfig renders the configuration of the ocm CLI: the signing key, plain
+// HTTP for plainHTTPHost, and credentials for the published repository when
+// there is a token (anonymous access works, with lower rate limits).
+// hack/release/ocm-config.sh writes the same for the release.
+func ocmConfig(key, cert []byte, token, plainHTTPHost string) []byte {
 	consumer := func(identity, credential map[string]any) map[string]any {
 		return map[string]any{
 			"type": "credentials.config.ocm.software/v1",
@@ -574,6 +575,14 @@ func ocmConfig(key, cert []byte, token string) []byte {
 			map[string]any{"type": "RSA/v1alpha1", "algorithm": "RSASSA-PSS", "signature": snapshotSignature},
 			map[string]any{"type": "RSACredentials/v1", "privateKeyPEM": string(key), "publicKeyPEM": string(cert)},
 		),
+		map[string]any{
+			"type": "http.config.ocm.software/v1alpha1",
+			"hosts": map[string]any{
+				plainHTTPHost: map[string]any{
+					"plainHTTP": true,
+				},
+			},
+		},
 	}
 	if token != "" {
 		host, _, _ := strings.Cut(publishedOCMRepo, "/")
