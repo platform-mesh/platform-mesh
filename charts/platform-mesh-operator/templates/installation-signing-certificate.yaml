@@ -1,6 +1,13 @@
 {{- if and .Values.ocm.enabled .Values.ocm.installSigningCertificate }}
-{{- $certificates := fromYaml (.Files.Get "files/ocm-signing-public-cert.yaml") }}
-{{- $certificate := required (printf "ocm.signatureName %q has no certificate in files/ocm-signing-public-cert.yaml" .Values.ocm.signatureName) (index $certificates "stringData" .Values.ocm.signatureName) }}
+{{- $signature := required "ocm.signatureName must be set to verify the OCM components" .Values.ocm.signatureName }}
+{{- $certificate := get (fromYaml (.Files.Get "files/ocm-signing-public-cert.yaml")).stringData $signature }}
+{{- $identity := .Values.ocm.signingIdentity }}
+{{- if not (or $certificate $identity) }}
+{{- if not (regexMatch "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$" (toString .Values.ocm.version)) }}
+{{- fail (printf "ocm.version %q is not a single version, so the identity that signed it cannot be derived: set ocm.signingIdentity" (toString .Values.ocm.version)) }}
+{{- end }}
+{{- $identity = printf "https://github.com/platform-mesh/platform-mesh/.github/workflows/job-publish.yml@refs/tags/v%s" .Values.ocm.version }}
+{{- end }}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -9,14 +16,15 @@ metadata:
 type: Opaque
 stringData:
   # The OCM controller verifies component versions from this configuration: the
-  # signing entry names the signature to require, the credentials entry supplies
-  # the key to verify it with.
+  # signing entry names the signature to require and who must have made it, the
+  # credentials entry supplies what to verify it with.
   # https://ocm.software/docs/how-to/verify-component-signatures-on-deployment/
   .ocmconfig: |
     type: generic.config.ocm.software/v1
     configurations:
       - type: signing.config.ocm.software/v1alpha1
-        signature: {{ .Values.ocm.signatureName | quote }}
+        signature: {{ $signature | quote }}
+{{- if $certificate }}
         verifier:
           type: RSASigningConfiguration/v1alpha1
       - type: credentials.config.ocm.software/v1
@@ -24,9 +32,26 @@ stringData:
           - identities:
               - type: RSA/v1alpha1
                 algorithm: RSASSA-PSS
-                signature: {{ .Values.ocm.signatureName | quote }}
+                signature: {{ $signature | quote }}
             credentials:
               - type: RSACredentials/v1
                 publicKeyPEM: |
 {{ $certificate | trim | indent 18 }}
+{{- else }}
+        verifier:
+          type: SigstoreVerificationConfiguration/v1alpha1
+          certificateIdentity: {{ $identity | quote }}
+          certificateOIDCIssuer: {{ required "ocm.signingIssuer must be set to verify a keyless signature" .Values.ocm.signingIssuer | quote }}
+{{- if .Values.ocm.bundledTrustedRoot }}
+      - type: credentials.config.ocm.software/v1
+        consumers:
+          - identities:
+              - type: SigstoreVerifier/v1alpha1
+                signature: {{ $signature | quote }}
+            credentials:
+              - type: TrustedRoot/v1alpha1
+                trustedRootJSON: |
+{{ .Files.Get "files/sigstore-trusted-root.json" | trim | indent 18 }}
+{{- end }}
+{{- end }}
 {{- end }}

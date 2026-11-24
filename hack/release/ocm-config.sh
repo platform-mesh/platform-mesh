@@ -16,7 +16,7 @@
 
 # Prints an OCM CLI configuration (.ocmconfig) to stdout with
 #   - credentials for the OCI registry the components are published to, and
-#   - the RSA signing key used for `ocm sign component-version`.
+#   - the oidc information used for `ocm sign component-version`.
 #
 # Usage:
 #   ocm-config.sh <ocm-repository> [<signature-name>] > ~/.ocmconfig
@@ -30,8 +30,16 @@
 #                             or empty, no credentials section is written and
 #                             the registry is accessed anonymously
 #   REGISTRY_USERNAME         override the registry username
-#   OCM_SIGNING_PRIVATE_KEY   PEM private key   (required with <signature-name>)
-#   OCM_SIGNING_CERT          PEM certificate   (required with <signature-name>)
+#   OCM_SIGNING_IDENTITY      identity to sign as    (required with <signature-name>)
+#   OCM_SIGNING_ISSUER        issuer of the identity (required with <signature-name>)
+#
+# To sign as a human user use these values:
+#
+#   OCM_SIGNING_IDENTITY=jane.doe@example.org         # your github email
+#   OCM_SIGNING_ISSUER=https://github.com/login/oauth
+#
+# Signing will open a login with sigstore, which will then validate your
+# identity and produce the signature for the OCM CV.
 
 set -euo pipefail
 
@@ -65,20 +73,18 @@ EOF
 fi
 
 if [ -n "$signature" ]; then
-  : "${OCM_SIGNING_PRIVATE_KEY:?OCM_SIGNING_PRIVATE_KEY must be set to sign}"
-  : "${OCM_SIGNING_CERT:?OCM_SIGNING_CERT must be set to sign}"
+  : "${OCM_SIGNING_IDENTITY:?OCM_SIGNING_IDENTITY must be set to sign}"
+  : "${OCM_SIGNING_ISSUER:?OCM_SIGNING_ISSUER must be set to sign}"
   cat <<EOF
-  - type: credentials.config.ocm.software/v1
-    consumers:
-      - identities:
-          - type: RSA/v1alpha1
-            algorithm: RSASSA-PSS
-            signature: ${signature}
-        credentials:
-          - type: RSACredentials/v1
-            privateKeyPEM: |
-$(printf '%s\n' "$OCM_SIGNING_PRIVATE_KEY" | indent '              ')
-            publicKeyPEM: |
-$(printf '%s\n' "$OCM_SIGNING_CERT" | indent '              ')
+  - type: generic.config.ocm.software/v1
+    configurations:
+    - type: signing.config.ocm.software/v1alpha1
+      signature: $signature
+      signer:
+        type: SigstoreSigningConfiguration/v1alpha1
+      verifier:
+        type: SigstoreVerificationConfiguration/v1alpha1
+        certificateIdentity: $OCM_SIGNING_IDENTITY
+        certificateOIDCIssuer: $OCM_SIGNING_ISSUER
 EOF
 fi

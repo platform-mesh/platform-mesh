@@ -67,9 +67,6 @@ jobs:
       packages: write # push images, charts and OCM components
       id-token: write # keyless cosign signing
       security-events: write # trivy SARIF reports
-    secrets:
-      OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
-      OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
     with:
       version: ${{ needs.version.outputs.version }}
 

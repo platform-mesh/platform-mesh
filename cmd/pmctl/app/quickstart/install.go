@@ -98,6 +98,9 @@ type source struct {
 	// release: the operator chart brings the certificate of those.
 	signature   string
 	signingCert []byte
+	// plainHTTPHost is the registry host the OCM controller reaches over
+	// plain HTTP. Unset for a release.
+	plainHTTPHost string
 	// details are further lines for the summary.
 	details []string
 }
@@ -299,7 +302,7 @@ func protectProfile(ctx context.Context, kube kubernetes.Interface) error {
 func applyOCMConfig(ctx context.Context, kube kubernetes.Interface, src *source) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: ocmConfigSecret, Namespace: namespace},
-		Data:       map[string][]byte{ocmConfigKey: verificationOCMConfig(src.signature, src.signingCert)},
+		Data:       map[string][]byte{ocmConfigKey: verificationOCMConfig(src.signature, src.signingCert, src.plainHTTPHost)},
 	}
 	_, err := kube.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
@@ -313,10 +316,23 @@ func applyOCMConfig(ctx context.Context, kube kubernetes.Interface, src *source)
 
 // verificationOCMConfig returns the OCM configuration that requires the
 // signature named signature and verifies it with the PEM certificate cert.
-func verificationOCMConfig(signature string, cert []byte) []byte {
-	return []byte(fmt.Sprintf(verificationOCMConfigTemplate, strconv.Quote(signature),
-		strconv.Quote(signature), indent(string(cert), "        ")))
+// A non-empty plainHTTPHost is reached over plain HTTP.
+func verificationOCMConfig(signature string, cert []byte, plainHTTPHost string) []byte {
+	config := fmt.Sprintf(verificationOCMConfigTemplate, strconv.Quote(signature),
+		strconv.Quote(signature), indent(string(cert), "        "))
+	if plainHTTPHost != "" {
+		config += fmt.Sprintf(plainHTTPOCMConfigTemplate, strconv.Quote(plainHTTPHost))
+	}
+	return []byte(config)
 }
+
+// plainHTTPOCMConfigTemplate takes the registry host. Since OCM 0.25.0 an
+// http:// prefix on a repository URL no longer selects plain HTTP.
+const plainHTTPOCMConfigTemplate = `- type: http.config.ocm.software/v1alpha1
+  hosts:
+    %s:
+      plainHTTP: true
+`
 
 // verificationOCMConfigTemplate takes the signature name twice, then the
 // indented certificate.

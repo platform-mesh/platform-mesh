@@ -24,6 +24,13 @@ tests:
             kind: Secret
             apiVersion: v1
             name: ocm-signing-public-cert
+        documentIndex: 0
+      - contains:
+          path: spec.ocmConfig
+          content:
+            kind: Secret
+            apiVersion: v1
+            name: ocm-signing-public-cert
         documentIndex: 1
       - equal:
           path: spec.exposure.baseDomain
@@ -141,11 +148,12 @@ tests:
 
   # Each signature name has exactly one certificate: the verifier uses a
   # single public key, so a second certificate in an entry would be ignored.
-  - it: verifies the default signature with the current signing certificate only
+  - it: verifies the signature of a release signed with a key with its certificate only
     template: installation-signing-certificate.yaml
     set:
       ocm:
         enabled: true
+        signatureName: v26.11.platform-mesh.platform-mesh
       gateway:
         baseDomain: platform.example.com
     asserts:
@@ -184,17 +192,81 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: refuses a signature name without a bundled certificate
+  - it: verifies the keyless signature of a release by the workflow run of its tag
     template: installation-signing-certificate.yaml
     set:
       ocm:
         enabled: true
-        signatureName: nosuch.platform-mesh
+        version: 26.12.0
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - matchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: '(?s)signature: "platform-mesh"\n\s+verifier:\n\s+type: SigstoreVerificationConfiguration/v1alpha1\n\s+certificateIdentity: "https://github\.com/platform-mesh/platform-mesh/\.github/workflows/job-publish\.yml@refs/tags/v26\.12\.0"\n\s+certificateOIDCIssuer: "https://token\.actions\.githubusercontent\.com"\n'
+      - matchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: '(?s)type: SigstoreVerifier/v1alpha1\n\s+signature: "platform-mesh"\n\s+credentials:\n\s+- type: TrustedRoot/v1alpha1\n\s+trustedRootJSON: \|\n\s+\{\n\s+"mediaType": "application/vnd\.dev\.sigstore\.trustedroot\+json;version=0\.1"'
+      - notMatchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: 'RSA|privateInfrastructure'
+
+  - it: leaves the trusted root to the OCM controller when it is not bundled
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+        version: 26.12.0
+        bundledTrustedRoot: false
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - matchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: 'type: SigstoreVerificationConfiguration/v1alpha1'
+      - notMatchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: 'credentials\.config\.ocm\.software|TrustedRoot'
+
+  - it: verifies a keyless signature made by another identity
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+        version: 26.12.0-dev.4.g11f9780
+        signingIdentity: https://github.com/platform-mesh/platform-mesh/.github/workflows/job-publish.yml@refs/heads/main
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - matchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: 'signature: "platform-mesh"\n\s+verifier:\n\s+type: SigstoreVerificationConfiguration/v1alpha1\n\s+certificateIdentity: "https://github\.com/platform-mesh/platform-mesh/\.github/workflows/job-publish\.yml@refs/heads/main"\n'
+
+  # An identity derived from a version range would match no certificate.
+  - it: refuses to derive the signing identity from a version range
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+        version: ">=26.12.0"
       gateway:
         baseDomain: platform.example.com
     asserts:
       - failedTemplate:
-          errorMessage: 'ocm.signatureName "nosuch.platform-mesh" has no certificate in files/ocm-signing-public-cert.yaml'
+          errorMessage: 'ocm.version ">=26.12.0" is not a single version, so the identity that signed it cannot be derived: set ocm.signingIdentity'
+
+  - it: refuses a keyless signature without an issuer
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+        version: 26.12.0
+        signingIssuer: ""
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - failedTemplate:
+          errorMessage: ocm.signingIssuer must be set to verify a keyless signature
   - it: bundles the default profile
     template: installation-profile.yaml
     set:

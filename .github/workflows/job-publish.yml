@@ -53,13 +53,6 @@ on:
         required: false
         type: string
         default: ""
-    secrets:
-      OCM_SIGNING_PRIVATE_KEY:
-        description: "PEM private key the OCM components are signed with"
-        required: true
-      OCM_SIGNING_CERT:
-        description: "Certificate matching OCM_SIGNING_PRIVATE_KEY"
-        required: true
 
 permissions:
   contents: read
@@ -68,10 +61,8 @@ env:
   OCM_REPO: ghcr.io/${{ github.repository_owner }}
   # Optional components this run leaves out, separated by commas without spaces.
   SKIP_COMPONENTS: ${{ inputs.skip-components }}
-  # The signature name belongs to one signing key: a new key needs a new name
-  # here and a certificate under that name in the operator chart
-  # (charts/platform-mesh-operator/files/ocm-signing-public-cert.yaml).
-  SIGNATURE: ${{ vars.OCM_SIGNATURE_NAME || 'v26.11.platform-mesh.platform-mesh' }}
+  SIGNATURE: platform-mesh
+  OCM_SIGNING_ISSUER: https://token.actions.githubusercontent.com
 
 jobs:
   # ──────────────────────────────────────────────
@@ -195,14 +186,10 @@ jobs:
       - name: Generate OCM config (registry credentials + signing key)
         run: |
           set -euo pipefail
-          if [ -z "$OCM_SIGNING_PRIVATE_KEY" ] || [ -z "$OCM_SIGNING_CERT" ]; then
-            echo "::error::OCM_SIGNING_PRIVATE_KEY / OCM_SIGNING_CERT secrets are not set"; exit 1
-          fi
           hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" > "$HOME/.ocmconfig"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
-          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+          OCM_SIGNING_IDENTITY: https://github.com/${{ job.workflow_ref }}
 
       - name: Setup Go
         uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
@@ -230,6 +217,7 @@ jobs:
     permissions:
       contents: read
       packages: write # push charts and OCM components
+      id-token: write # keyless OCM signing
     env:
       PM_VERSION: ${{ inputs.version }}
     steps:
@@ -257,15 +245,11 @@ jobs:
       - name: Login to ghcr.io
         run: |
           set -euo pipefail
-          if [ -z "$OCM_SIGNING_PRIVATE_KEY" ] || [ -z "$OCM_SIGNING_CERT" ]; then
-            echo "::error::OCM_SIGNING_PRIVATE_KEY / OCM_SIGNING_CERT secrets are not set"; exit 1
-          fi
           echo "$GITHUB_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" > "$HOME/.ocmconfig"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OCM_SIGNING_PRIVATE_KEY: ${{ secrets.OCM_SIGNING_PRIVATE_KEY }}
-          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+          OCM_SIGNING_IDENTITY: https://github.com/${{ job.workflow_ref }}
 
       - name: Build and publish OCM components
         run: |
@@ -311,11 +295,11 @@ jobs:
         run: |
           set -euo pipefail
           echo "$GITHUB_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          OCM_SIGNING_PRIVATE_KEY=unused hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" \
+          hack/release/ocm-config.sh "$OCM_REPO" "$SIGNATURE" \
             | yq 'del(.configurations[].consumers[].credentials[].privateKeyPEM)' > "$HOME/.ocmconfig"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OCM_SIGNING_CERT: ${{ vars.OCM_SIGNING_CERT }}
+          OCM_SIGNING_IDENTITY: https://github.com/${{ job.workflow_ref }}
 
       - name: Component graph
         run: |

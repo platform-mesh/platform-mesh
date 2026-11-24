@@ -31,6 +31,22 @@ into this directory, pinned to the same version.
 
 ## Releasing
 
+### Before tagging
+
+The platform-mesh-operator chart bundles the Sigstore trusted root that keyless
+signatures are verified with. An installation whose trusted root is older than
+a Sigstore key rotation rejects the releases signed after it, so refresh it
+before every release, on `main`, and for a patch release cherry-pick the
+change into the release branch:
+
+```sh
+task charts:sigstore-trusted-root
+git diff charts/platform-mesh-operator/files/sigstore-trusted-root.json
+```
+
+Review and merge a change like any other: the file is the trust anchor of the
+installation.
+
 ### A feature release
 
 1. On `main`, cut a release candidate:
@@ -261,8 +277,6 @@ cosign verify ghcr.io/platform-mesh/platform-mesh/account-operator:v26.11.0 \
 
 | Where | Name | Purpose |
 |---|---|---|
-| repository secret | `OCM_SIGNING_PRIVATE_KEY`, `OCM_SIGNING_CERT` | RSA key and certificate for OCM signatures. |
-| repository secret | `PM_PUBLISHER_PRIVATE_KEY` (planned) | private key of the "PM Publisher" GitHub App, to push to the `helm-charts/*` packages created by the former helm-charts repository. The fork uses `GITHUB_TOKEN`; see `cutover.md`. |
 | repository variable | `OCM_SIGNATURE_NAME` | signature name, default `v26.11.platform-mesh.platform-mesh`. One name belongs to one signing key, see [Rotating the signing key](#rotating-the-signing-key). |
 
 Image signing uses keyless cosign (GitHub OIDC); no secret.
