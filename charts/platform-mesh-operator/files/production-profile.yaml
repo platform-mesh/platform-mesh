@@ -276,10 +276,7 @@ data:
               for: pm-keycloak-operator
           syncWave: 4
           enabled: true
-          values:
-            idp:
-              allowUnverifiedEmails: false
-              setDefaultPassword: false
+          values: {}
         pm-openfga-operator:
           imageResources:
           - annotations:
@@ -316,7 +313,5 @@ data:
               repo: oci
               artifact: image
               for: marketplace-ui
-          values:
-            gatewayApi:
-              enabled: true
+          values: {}
       targetNamespace: platform-mesh-system

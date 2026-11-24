@@ -19,7 +19,7 @@ health:
     path: /healthz
 
 gatewayApi:
-  enabled: false
+  enabled: true
   httpRoute:
     # -- Explicit route hostnames; empty uses exposure.baseDomain and its wildcard.
     hostnames: []
