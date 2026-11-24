@@ -197,9 +197,29 @@ tests:
       - matchRegex:
           path: stringData[".ocmconfig"]
           pattern: '(?s)signature: "platform-mesh"\n\s+verifier:\n\s+type: SigstoreVerificationConfiguration/v1alpha1\n\s+certificateIdentity: "https://github\.com/platform-mesh/platform-mesh/\.github/workflows/job-publish\.yml@refs/tags/v26\.12\.0"\n\s+certificateOIDCIssuer: "https://token\.actions\.githubusercontent\.com"\n'
+      - matchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: '(?s)type: SigstoreVerifier/v1alpha1\n\s+signature: "platform-mesh"\n\s+credentials:\n\s+- type: TrustedRoot/v1alpha1\n\s+trustedRootJSON: \|\n\s+\{\n\s+"mediaType": "application/vnd\.dev\.sigstore\.trustedroot\+json;version=0\.1"'
       - notMatchRegex:
           path: stringData[".ocmconfig"]
-          pattern: 'RSA|credentials\.config\.ocm\.software'
+          pattern: 'RSA|privateInfrastructure'
+
+  - it: leaves the trusted root to the OCM controller when it is not bundled
+    template: installation-signing-certificate.yaml
+    set:
+      ocm:
+        enabled: true
+        version: 26.12.0
+        bundledTrustedRoot: false
+      gateway:
+        baseDomain: platform.example.com
+    asserts:
+      - matchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: 'type: SigstoreVerificationConfiguration/v1alpha1'
+      - notMatchRegex:
+          path: stringData[".ocmconfig"]
+          pattern: 'credentials\.config\.ocm\.software|TrustedRoot'
 
   - it: verifies a keyless signature made by another identity
     template: installation-signing-certificate.yaml

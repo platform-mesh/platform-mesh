@@ -42,5 +42,16 @@ stringData:
           type: SigstoreVerificationConfiguration/v1alpha1
           certificateIdentity: {{ $identity | quote }}
           certificateOIDCIssuer: {{ required "ocm.signingIssuer must be set to verify a keyless signature" .Values.ocm.signingIssuer | quote }}
+{{- if .Values.ocm.bundledTrustedRoot }}
+      - type: credentials.config.ocm.software/v1
+        consumers:
+          - identities:
+              - type: SigstoreVerifier/v1alpha1
+                signature: {{ $signature | quote }}
+            credentials:
+              - type: TrustedRoot/v1alpha1
+                trustedRootJSON: |
+{{ .Files.Get "files/sigstore-trusted-root.json" | trim | indent 18 }}
+{{- end }}
 {{- end }}
 {{- end }}

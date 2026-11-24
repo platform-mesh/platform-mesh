@@ -20,6 +20,8 @@ ocm:
   signingIdentity: ""
   # -- OIDC issuer of `ocm.signingIdentity`.
   signingIssuer: https://token.actions.githubusercontent.com
+  # -- Verify keyless signatures with the Sigstore trusted root bundled in the chart, without access to Sigstore. Set to false to have the OCM controller fetch the current trusted root instead.
+  bundledTrustedRoot: true
   # -- Set to false when the OCM component is signed by a different trusted key, the Secret ocm-signing-public-cert must then exist with a .ocmconfig key verifying ocm.signatureName.
   installSigningCertificate: true
 
