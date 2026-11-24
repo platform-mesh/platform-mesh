@@ -39,6 +39,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -144,14 +146,24 @@ func TestBackupPreflightFails(t *testing.T) {
 			},
 			msg: "etcd etcd-kcp-triton is not ready",
 		},
-		"etcd without store": {
+		"shard etcd without store": {
 			change: func(t *testing.T, cl ctrlruntimeclient.Client) {
 				e := &druidv1alpha1.Etcd{}
-				require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Namespace: testfixtures.Namespace, Name: "etcd-cache"}, e))
+				require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Namespace: testfixtures.Namespace, Name: "etcd-kcp"}, e))
 				e.Spec.Backup.Store = nil
 				require.NoError(t, cl.Update(context.Background(), e))
 			},
-			msg: "etcd etcd-cache has no backup store",
+			msg: "etcd etcd-kcp has no backup store, it is the etcd of RootShard root",
+		},
+		"shard etcd is not a druid etcd": {
+			change: func(t *testing.T, cl ctrlruntimeclient.Client) {
+				shard := &unstructured.Unstructured{}
+				shard.SetGroupVersionKind(schema.GroupVersionKind{Group: "operator.kcp.io", Version: "v1alpha1", Kind: "Shard"})
+				require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Namespace: testfixtures.Namespace, Name: "triton"}, shard))
+				require.NoError(t, unstructured.SetNestedStringSlice(shard.Object, []string{"https://etcd.example.com:2379"}, "spec", "etcd", "endpoints"))
+				require.NoError(t, cl.Update(context.Background(), shard))
+			},
+			msg: "Shard triton uses etcd https://etcd.example.com:2379, it is not an etcd-druid Etcd in namespace platform-mesh-system",
 		},
 		"store prefixes overlap": {
 			change: func(t *testing.T, cl ctrlruntimeclient.Client) {
@@ -200,6 +212,39 @@ func TestBackupPreflightFails(t *testing.T) {
 			assert.False(t, res.Ready())
 		})
 	}
+}
+
+// The cache server etcd may have no store, its data can be rebuilt from the shards.
+func TestBackupSkipsEtcdWithoutStore(t *testing.T) {
+	ctx := context.Background()
+	cl := testfixtures.Cluster(t)
+	e := &druidv1alpha1.Etcd{}
+	require.NoError(t, cl.Get(ctx, types.NamespacedName{Namespace: testfixtures.Namespace, Name: "etcd-cache"}, e))
+	e.Spec.Backup.Store = nil
+	require.NoError(t, cl.Update(ctx, e))
+	stores := &storage.MemoryFactory{}
+	subs := newSubs(cl, stores)
+	b := newBackup("daily")
+
+	res, stoppedAt := testfixtures.Run(ctx, t, subs, b)
+	require.True(t, res.IsStopWithRequeue())
+	assert.Equal(t, "EtcdSnapshot", stoppedAt)
+	assert.Equal(t, []pmbackupv1alpha1.EtcdSnapshot{
+		{Name: "etcd-kcp", Task: subbackup.TaskName("daily", "etcd-kcp")},
+		{Name: "etcd-kcp-triton", Task: subbackup.TaskName("daily", "etcd-kcp-triton")},
+	}, b.Status.Etcds)
+	assert.Equal(t, "preflight passed, etcds without backup store skipped: etcd-cache", b.Status.Message)
+
+	testfixtures.SimulateDruid(ctx, t, cl, stores, 100)
+	res, stoppedAt = testfixtures.Run(ctx, t, subs, b)
+	require.True(t, res.IsContinue(), "stopped at %s", stoppedAt)
+	assert.Equal(t, pmbackupv1alpha1.PhaseCompleted, b.Status.Phase)
+	x := extract(t, stores, b.Status.Archive)
+	names := make([]string, 0, len(x.Manifest.Etcds))
+	for _, me := range x.Manifest.Etcds {
+		names = append(names, me.Name)
+	}
+	assert.Equal(t, []string{"etcd-kcp", "etcd-kcp-triton"}, names)
 }
 
 // An error of the API server while the BackupStorage is read is retried, it does not fail the Backup.

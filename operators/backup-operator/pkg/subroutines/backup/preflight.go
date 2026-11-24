@@ -20,7 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"sort"
+	"strings"
 
 	druidv1alpha1 "github.com/gardener/etcd-druid/api/core/v1alpha1"
 
@@ -65,18 +67,6 @@ func (p *Preflight) Process(ctx context.Context, obj ctrlruntimeclient.Object) (
 		return fail(b, "no etcd-druid Etcd found in namespace "+b.Namespace)
 	}
 	sort.Slice(etcds.Items, func(i, j int) bool { return etcds.Items[i].Name < etcds.Items[j].Name })
-	for i := range etcds.Items {
-		e := &etcds.Items[i]
-		if err := storage.CheckEtcdStore(e); err != nil {
-			return fail(b, err.Error())
-		}
-		if !druid.IsReady(e) {
-			return fail(b, fmt.Sprintf("etcd %s is not ready", e.Name))
-		}
-	}
-	if err := storage.CheckEtcdStorePrefixes(etcds.Items); err != nil {
-		return fail(b, err.Error())
-	}
 
 	rootShards, err := kcp.List(ctx, p.cl, b.Namespace, "RootShard")
 	if err != nil {
@@ -89,6 +79,35 @@ func (p *Preflight) Process(ctx context.Context, obj ctrlruntimeclient.Object) (
 		if phase, _, _ := unstructured.NestedString(rs.Object, "status", "phase"); phase != "Running" {
 			return fail(b, fmt.Sprintf("RootShard %s is not running (phase %q)", rs.GetName(), phase))
 		}
+	}
+	shards, err := kcp.List(ctx, p.cl, b.Namespace, "Shard")
+	if err != nil {
+		return subroutines.OK(), err
+	}
+	shardEtcds, err := etcdsOfShards(etcds.Items, append(rootShards, shards...))
+	if err != nil {
+		return fail(b, err.Error())
+	}
+
+	// The data of an etcd without store that no shard uses can be rebuilt, like the cache server's.
+	var included []druidv1alpha1.Etcd
+	var skipped []string
+	for i := range etcds.Items {
+		e := &etcds.Items[i]
+		if err := storage.CheckEtcdStore(e); err != nil {
+			if shard, ok := shardEtcds[e.Name]; ok {
+				return fail(b, fmt.Sprintf("%s, it is the etcd of %s", err, shard))
+			}
+			skipped = append(skipped, e.Name)
+			continue
+		}
+		if !druid.IsReady(e) {
+			return fail(b, fmt.Sprintf("etcd %s is not ready", e.Name))
+		}
+		included = append(included, *e)
+	}
+	if err := storage.CheckEtcdStorePrefixes(included); err != nil {
+		return fail(b, err.Error())
 	}
 
 	key := manifest.ArchiveKey(target.Prefix, b.Namespace, b.Name)
@@ -103,9 +122,42 @@ func (p *Preflight) Process(ctx context.Context, obj ctrlruntimeclient.Object) (
 
 	b.Status.Archive = key
 	b.Status.Etcds = nil
-	for _, e := range etcds.Items {
+	for _, e := range included {
 		b.Status.Etcds = append(b.Status.Etcds, pmbackupv1alpha1.EtcdSnapshot{Name: e.Name, Task: TaskName(b.Name, e.Name)})
 	}
 	b.Status.Message = "preflight passed"
+	if len(skipped) > 0 {
+		b.Status.Message += ", etcds without backup store skipped: " + strings.Join(skipped, ", ")
+	}
 	return subroutines.OK(), nil
+}
+
+// etcdsOfShards maps each Etcd that a RootShard or Shard uses to that shard. kcp reaches the Etcd
+// through its client service.
+func etcdsOfShards(etcds []druidv1alpha1.Etcd, shards []unstructured.Unstructured) (map[string]string, error) {
+	byService := map[string]string{}
+	for _, e := range etcds {
+		byService[druidv1alpha1.GetClientServiceName(e.ObjectMeta)] = e.Name
+	}
+	out := map[string]string{}
+	for _, s := range shards {
+		shard := s.GetKind() + " " + s.GetName()
+		endpoints, _, _ := unstructured.NestedStringSlice(s.Object, "spec", "etcd", "endpoints")
+		if len(endpoints) == 0 {
+			return nil, fmt.Errorf("%s has no etcd endpoints", shard)
+		}
+		for _, ep := range endpoints {
+			u, err := url.Parse(ep)
+			if err != nil || u.Hostname() == "" {
+				return nil, fmt.Errorf("%s: etcd endpoint %q is not a URL", shard, ep)
+			}
+			host := strings.Split(u.Hostname(), ".")
+			name, ok := byService[host[0]]
+			if !ok || (len(host) > 1 && host[1] != s.GetNamespace()) {
+				return nil, fmt.Errorf("%s uses etcd %s, it is not an etcd-druid Etcd in namespace %s", shard, ep, s.GetNamespace())
+			}
+			out[name] = shard
+		}
+	}
+	return out, nil
 }

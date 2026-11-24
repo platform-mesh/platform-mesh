@@ -6,7 +6,7 @@ The backup-operator backs up the kcp of Platform Mesh into one archive in S3, an
 
 A backup has three parts:
 
-- **etcd**: one full snapshot of every etcd-druid `Etcd` in the namespace (root shard, other shards, cache server).
+- **etcd**: one full snapshot of every etcd-druid `Etcd` in the namespace that has a backup store (root shard, other shards, cache server).
 - **secrets**: the secrets of the kcp certificates: CAs, service account keys and leaf certificates.
 - **certificates**: the cert-manager `Certificate` and `Issuer` objects of kcp.
 
@@ -81,7 +81,7 @@ A kubeconfig from before the backup works after the restore, also in a new insta
 
 ## Requirements and limits
 
-- etcd-druid with an S3 store on every `Etcd`, each with its own prefix. No prefix may start with the prefix of another `Etcd` in the same bucket, like `etcd-kcp` and `etcd-kcp-triton`: druid lists the store without a trailing slash and mixes their snapshots. Backup and restore check this.
+- etcd-druid with an S3 store on the `Etcd` of every `RootShard` and `Shard`, each with its own prefix. An `Etcd` without store that no shard uses is skipped, for example the cache server etcd: kcp fills the cache again from the shards. A restore does not change a skipped `Etcd`. No prefix may start with the prefix of another `Etcd` in the same bucket, like `etcd-kcp` and `etcd-kcp-triton`: druid lists the store without a trailing slash and mixes their snapshots. Backup and restore check this.
 - A new install must start with an empty druid store, else druid restores the old data before the restore runs.
 - OpenFGA and Keycloak data (Postgres) are not in the backup.
 - Only one restore may run at a time.

@@ -94,6 +94,9 @@ func Cluster(t *testing.T, extra ...ctrlruntimeclient.Object) ctrlruntimeclient.
 	owners := map[string]*unstructured.Unstructured{}
 	for kind, name := range map[string]string{"RootShard": "root", "Shard": "triton", "CacheServer": "cache-server", "FrontProxy": "frontproxy"} {
 		u := kcpObject(kind, name)
+		if etcd, ok := map[string]string{"RootShard": "etcd-kcp", "Shard": "etcd-kcp-triton"}[kind]; ok {
+			_ = unstructured.SetNestedStringSlice(u.Object, []string{"http://" + etcd + "-client." + Namespace + ".svc.cluster.local:2379"}, "spec", "etcd", "endpoints")
+		}
 		owners[kind] = u
 		objs = append(objs, u)
 	}
