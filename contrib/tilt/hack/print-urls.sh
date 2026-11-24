@@ -46,17 +46,7 @@ test -n "$port" || port=31000
 
 base="$base:$port"
 secret="$(git rev-parse --show-toplevel)/contrib/tilt/.secret"
-
-# A kubeconfig holding only the kind cluster, read-write only for the user.
 kind_kubeconfig="$secret/kind.kubeconfig"
-(
-    umask 077
-    mkdir -p "$secret" || exit 1
-    tmp="$(mktemp "$kind_kubeconfig.XXXXXX")" || exit 1
-    kubectl config view --context "$ctx" --minify --flatten > "$tmp" \
-        && mv "$tmp" "$kind_kubeconfig" \
-        || { rm -f "$tmp"; exit 1; }
-) || die "writing $kind_kubeconfig failed"
 
 # The keycloak-admin secret exists only after Tilt has deployed Keycloak.
 keycloak_field() {
