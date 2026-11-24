@@ -31,6 +31,22 @@ into this directory, pinned to the same version.
 
 ## Releasing
 
+### Before tagging
+
+The platform-mesh-operator chart bundles the Sigstore trusted root that keyless
+signatures are verified with. An installation whose trusted root is older than
+a Sigstore key rotation rejects the releases signed after it, so refresh it
+before every release, on `main`, and for a patch release cherry-pick the
+change into the release branch:
+
+```sh
+task charts:sigstore-trusted-root
+git diff charts/platform-mesh-operator/files/sigstore-trusted-root.json
+```
+
+Review and merge a change like any other: the file is the trust anchor of the
+installation.
+
 ### A feature release
 
 1. On `main`, cut a release candidate:
