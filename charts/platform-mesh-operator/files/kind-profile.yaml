@@ -316,6 +316,9 @@ data:
           syncWave: 4
           enabled: true
           values:
+            idp:
+              allowUnverifiedEmails: false
+              setDefaultPassword: false
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries

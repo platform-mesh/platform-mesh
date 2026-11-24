@@ -276,7 +276,10 @@ data:
               for: pm-keycloak-operator
           syncWave: 4
           enabled: true
-          values: {}
+          values:
+            idp:
+              allowUnverifiedEmails: false
+              setDefaultPassword: false
         pm-openfga-operator:
           imageResources:
           - annotations:
