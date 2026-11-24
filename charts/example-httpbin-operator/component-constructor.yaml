@@ -41,6 +41,3 @@ components:
       - name: api-syncagent
         componentName: github.com/platform-mesh/api-syncagent
         version: ${PM_VERSION}
-      - name: ingress-nginx
-        componentName: github.com/kubernetes/ingress-nginx
-        version: 4.11.3
