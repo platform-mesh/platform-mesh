@@ -113,10 +113,8 @@ from the tag:
    and creates the GitHub release with goreleaser
    ([`.goreleaser.yaml`](../../.goreleaser.yaml)), marked as prerelease for
    `-rc.N` tags. The release carries the assets
-   `pmctl_YY.MM.P_<os>_<arch>.tar.gz` (linux and darwin, amd64 and arm64),
-   `pmctl_YY.MM.P_checksums.txt` and `component-constructor.yaml`, the root
-   constructor with the version, repository and commit filled in
-   ([`hack/release/render-constructor`](../../hack/release/render-constructor/main.go)).
+   `pmctl_YY.MM.P_<os>_<arch>.tar.gz` (linux and darwin, amd64 and arm64)
+   and `pmctl_YY.MM.P_checksums.txt`.
    `task release-snapshot` builds the same assets into `dist/` without
    publishing anything; `release-assets.yml` runs it on pull requests that
    change the release configuration.

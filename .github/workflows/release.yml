@@ -19,7 +19,7 @@ name: release
 # job-publish.yml builds and publishes every image, chart and OCM component at
 # that version, then goreleaser creates a GitHub release with generated notes
 # and the release assets (.goreleaser.yaml): pmctl for linux and darwin on
-# amd64 and arm64, and the rendered component-constructor.yaml.
+# amd64 and arm64.
 #
 # There is nothing to prepare before tagging: charts carry no versions in git
 # (RFC 015), third-party versions live in third_party/*/component-constructor.yaml.
@@ -105,10 +105,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # raises the API rate limit
 
-      # Builds pmctl for every platform, renders component-constructor.yaml and
-      # creates the release with both attached (.goreleaser.yaml).
+      # Builds pmctl for every platform and creates the release with it
+      # attached (.goreleaser.yaml).
       - name: Create GitHub release
         run: task release-publish VERSION="$TAG" NOTES="$RUNNER_TEMP/release-notes.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
