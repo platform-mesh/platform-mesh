@@ -12,26 +12,104 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("../../lib/component.Tiltfile", "chart_objects", "component", "wait")
+load("../../lib/component.Tiltfile", "chart_objects", "component", "wait", "workload_kind")
+load("../../lib/helpers.py", "BUILD_GOARCH", "TILT_DIR", "chart", "select_objects", "write_values")
 load("../../lib/infra.Tiltfile", "KCP_API_HOSTNAME")
-load("../../lib/settings.Tiltfile", "PORT")
+load("../../lib/settings.Tiltfile", "ACCESS_VW_SRC", "NAMESPACE", "PORT")
 
-# The access virtual workspace (kcp-dev/contrib-virtual-workspaces): serves
-# SelfClusterAccessReview, permission-aware workspace discovery, at
+# The access virtual workspace (kcp-dev/contrib-access-virtual-workspace):
+# serves SelfClusterAccessReview, permission-aware workspace discovery, at
 # /services/access of the front proxy (lib/infra.Tiltfile adds the route).
 #
 # The chart only renders a VirtualWorkspace and its Kubeconfigs; kcp-operator
 # runs the pod. Its kubeconfigs address the front proxy by the external
 # hostname, hence kcp-gateway.
+#
+# HACK: This ia more of the hack to allow hot reloads for VW
+#
+# The pod runs the released image, or with
+#
+#   task tilt:up -- vw --access-vw-src=<checkout of contrib-access-virtual-workspace>
+#   tilt args -- <what runs> --access-vw-src=<checkout>      (a running Tilt)
+#
+# the checkout: every change there is compiled on the host and rolled out.
+
+VALUES = {
+    "external": {"hostname": KCP_API_HOSTNAME, "port": PORT},
+    "resources": {"requests": {"cpu": "1m", "memory": "1Mi"}},
+}
+
+# The server and its init container run from one image, by their path in it
+# (command of the VirtualWorkspace).
+BINARIES = {"access-vw": "./cmd/access-vw", "access-vw-init": "./cmd/init"}
+
+# Pinned like runtime.Dockerfile; a shell in the image helps while debugging.
+DOCKERFILE = """
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+COPY {} /
+USER 65532:65532
+ENTRYPOINT ["/access-vw"]
+""".format(" ".join(sorted(BINARIES.keys())))
+
+
+def from_source(src):
+    """Runtime: the chart, with the image built from the checkout src.
+
+    Not go_service()'s live_update: kcp-operator owns the pod and starts the
+    binaries by `command`, which leaves no room for the restart wrapper that
+    syncing into a running container needs. Tilt instead puts every new image
+    into the VirtualWorkspace and the operator rolls the Deployment; the init
+    container runs again, it is idempotent.
+    """
+
+    def run(c, ctx):
+        blob = chart(c.name, NAMESPACE, values=[write_values(c.name, VALUES)])
+        vw = [o for o in decode_yaml_stream(blob) if o and o["kind"] == "VirtualWorkspace"][0]
+        name = vw["metadata"]["name"]
+
+        bin_dir = os.path.join(TILT_DIR, "bin", c.name)
+        build = "build:" + c.name
+        local_resource(
+            build,
+            cmd="mkdir -p {bin} && ".format(bin=bin_dir)
+            + " && ".join(
+                [
+                    "CGO_ENABLED=0 GOOS=linux GOARCH={} go build -o {}/{} {}".format(BUILD_GOARCH, bin_dir, out, pkg)
+                    for out, pkg in BINARIES.items()
+                ]
+            ),
+            dir=src,
+            deps=[src],
+            ignore=[os.path.join(src, d) for d in [".git", "bin", "cover.out", "test"]],
+            labels=[c.label],
+            allow_parallel=True,
+        )
+        # The image the chart renders, so that Tilt finds it in the VirtualWorkspace.
+        docker_build(vw["spec"]["image"]["repository"], context=bin_dir, dockerfile_contents=DOCKERFILE)
+        workload_kind(
+            ctx,
+            "VirtualWorkspace",
+            api_version="operator.kcp.io/v1alpha1",
+            image_object={"json_path": "{.spec.image}", "repo_field": "repository", "tag_field": "tag"},
+        )
+        k8s_yaml(blob)
+        k8s_resource(
+            name,
+            new_name=c.name,
+            objects=select_objects(blob, lambda o: o["kind"] != "VirtualWorkspace"),
+            # Logs of the pod; nothing ties it to the VirtualWorkspace for Tilt.
+            extra_pod_selectors=[{"app.kubernetes.io/instance": name, "app.kubernetes.io/component": "virtual-workspace"}],
+            resource_deps=ctx.deps + [build],
+            labels=[c.label],
+        )
+
+    return run
+
+
 COMPONENT = component(
     name="kcp-access-vw",
     label="api",
     needs=["kcp-gateway"],
-    runtime=chart_objects(
-        values={
-            "external": {"hostname": KCP_API_HOSTNAME, "port": PORT},
-            "resources": {"requests": {"cpu": "1m", "memory": "1Mi"}},
-        },
-    ),
+    runtime=from_source(ACCESS_VW_SRC) if ACCESS_VW_SRC else chart_objects(values=VALUES),
     ready=[wait("virtualworkspace/access-vw", "condition=Available", timeout="10m")],
 )

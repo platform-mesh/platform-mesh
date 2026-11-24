@@ -152,14 +152,33 @@ def chart_objects(values={}):
     def run(c, ctx):
         blob = chart(c.name, NAMESPACE, values=[write_values(c.name, values)] if values else [])
         k8s_yaml(blob)
-        k8s_resource(
-            new_name=c.name,
-            objects=select_objects(blob, lambda o: True),
-            resource_deps=ctx.deps,
-            labels=[c.label],
-        )
+        # Objects of a kind another component made a workload (workload_kind)
+        # are resources of their own to Tilt; the first one becomes <name>.
+        kinds = ctx.cache.get(_WORKLOAD_KINDS, [])
+        workloads = [o["metadata"]["name"] for o in decode_yaml_stream(blob) if o and o["kind"] in kinds]
+        objects = select_objects(blob, lambda o: o["kind"] not in kinds)
+        if not workloads:
+            k8s_resource(new_name=c.name, objects=objects, resource_deps=ctx.deps, labels=[c.label])
+            return
+        k8s_resource(workloads[0], new_name=c.name, objects=objects, resource_deps=ctx.deps, labels=[c.label])
+        for workload in workloads[1:]:
+            k8s_resource(workload, resource_deps=ctx.deps, labels=[c.label])
 
     return run
+
+
+_WORKLOAD_KINDS = "workload-kinds"
+
+
+def workload_kind(ctx, kind, api_version, image_object):
+    """Have Tilt put the images it builds into objects of a custom kind.
+
+    Tilt then lists every object of that kind as a resource of its own, in
+    all components: chart_objects() accounts for it. The pods are an
+    operator's, so readiness stays with the component's ready conditions.
+    """
+    k8s_kind(kind, api_version=api_version, image_object=image_object, pod_readiness="ignore")
+    ctx.cache.setdefault(_WORKLOAD_KINDS, []).append(kind)
 
 
 def remote_chart_service(repo, profile_values=False):

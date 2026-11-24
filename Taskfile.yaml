@@ -153,6 +153,9 @@ tasks:
           task tilt:up -- --without=keycloak   leave Keycloak (and iam-service, iam-ui, pm-keycloak-operator) out
           task tilt:up -- --without=openfga    leave OpenFGA (and pm-openfga-authz-webhook, pm-openfga-operator) out
           task tilt:up -- --with=dex           Dex with static users as identity provider of kcp, disables Keycloak
+          task tilt:up -- vw --access-vw-src=<dir>
+                                               build kcp-access-vw from a checkout of
+                                               kcp-dev/contrib-access-virtual-workspace, rebuilt on change
           task tilt:e2e                        run the e2e suites (Go, then portal) against Tilt
           task tilt:trust                      trust the environment's CA on this machine, for the browser and
                                                kubeconfigs from the portal; again after recreating the cluster
@@ -182,7 +185,7 @@ tasks:
 
         task tilt:up without a group runs ui and vw; task tilt:ci runs full.
 
-        Tiltfile options (after `--`): --frontend-cors, --without, --with, --context, --cluster-id, --httpbin-namespace
+        Tiltfile options (after `--`): --frontend-cors, --without, --with, --context, --cluster-id, --httpbin-namespace, --access-vw-src
         EOF
       - contrib/tilt/hack/print-urls.sh
       - |

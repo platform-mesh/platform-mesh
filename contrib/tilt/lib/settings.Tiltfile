@@ -47,6 +47,10 @@ config.define_string_list(
         "|".join(WITH_BACKENDS)
     ),
 )
+config.define_string(
+    "access-vw-src",
+    usage="checkout of kcp-dev/contrib-access-virtual-workspace to build kcp-access-vw from, rebuilt on every change (default: the released image)",
+)
 cfg = config.parse()
 
 
@@ -79,6 +83,22 @@ for name in WITH:
 if "dex" in WITH and "keycloak" not in WITHOUT:
     WITHOUT.append("keycloak")
 KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
+
+
+def _checkout(path):
+    """Absolute path of a source checkout given on the command line, "" if none."""
+    if not path:
+        return ""
+    if path.startswith("~/"):
+        path = os.path.join(os.getenv("HOME"), path[2:])
+    path = os.path.abspath(path)
+    if not os.path.exists(os.path.join(path, "go.mod")):
+        fail("{}: no go.mod, expected a source checkout".format(path))
+    return path
+
+
+# --access-vw-src: build the access virtual workspace from this checkout.
+ACCESS_VW_SRC = _checkout(cfg.get("access-vw-src", ""))
 GO_DEPS = ["apis", "subroutines", "golang-commons"]
 
 
