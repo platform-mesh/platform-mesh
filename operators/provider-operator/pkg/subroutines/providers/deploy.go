@@ -164,7 +164,7 @@ func (r *DeploySubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Ob
 func (r *DeploySubroutine) doRuntimeDeployments(ctx context.Context, managedProvider *pmprovidersv1alpha1.ManagedProvider) (subroutines.Result, error) {
 	runtimeKubeconfigSecretName := managedProvider.Spec.RuntimeKubeconfigSecretName
 
-	for _, component := range managedProvider.Spec.RuntimeDeployments {
+	for i, component := range managedProvider.Spec.RuntimeDeployments {
 		switch {
 		case component.Flux != nil:
 			flux := component.Flux
@@ -186,6 +186,8 @@ func (r *DeploySubroutine) doRuntimeDeployments(ctx context.Context, managedProv
 			if !result.IsContinue() {
 				return result, nil
 			}
+		default:
+			return subroutines.OK(), fmt.Errorf("runtimeDeployments[%d]: neither flux nor ocm is set", i)
 		}
 	}
 
