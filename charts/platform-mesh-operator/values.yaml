@@ -14,8 +14,12 @@ ocm:
   # -- OCI registry (and optional path) the Platform Mesh OCM components are read from. Point this
   # at a mirror, or at a fork's registry, to install from there.
   repository: ghcr.io/platform-mesh
-  # -- Name of the OCM signature the components are verified against. The name selects the signing key: Platform Mesh 26.10.x and older are signed as `platform-mesh.platform-mesh`.
-  signatureName: v26.11.platform-mesh.platform-mesh
+  # -- Name of the OCM signature the components are verified against. `platform-mesh` is the keyless signature of a release. Releases signed with a key need their name: `v26.11.platform-mesh.platform-mesh`, or `platform-mesh.platform-mesh` for Platform Mesh 26.10.x and older.
+  signatureName: platform-mesh
+  # -- Identity that must have made a keyless signature. Empty derives the release workflow at the tag of `ocm.version`; set it for prereleases, forks and mirrors.
+  signingIdentity: ""
+  # -- OIDC issuer of `ocm.signingIdentity`.
+  signingIssuer: https://token.actions.githubusercontent.com
   # -- Set to false when the OCM component is signed by a different trusted key, the Secret ocm-signing-public-cert must then exist with a .ocmconfig key verifying ocm.signatureName.
   installSigningCertificate: true
 
