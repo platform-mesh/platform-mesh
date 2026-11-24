@@ -78,6 +78,10 @@ vars:
   OCM_VERSION: 0.25.0
   OCM: '{{.BIN}}/ocm-{{.OCM_VERSION}}'
 
+  # renovate: datasource=github-releases depName=sigstore/cosign
+  COSIGN_VERSION: v3.1.4
+  COSIGN: '{{.BIN}}/cosign-{{.COSIGN_VERSION}}'
+
   # renovate: datasource=github-releases depName=helm/helm
   HELM_VERSION: v4.3.1
   HELM: '{{.BIN}}/helm-{{.HELM_VERSION}}'
@@ -245,6 +249,15 @@ tasks:
           version: '{{ .OCM_VERSION }}'
           uncompressed: true
           extractArg: 'ocm-*'
+  cosign:
+    cmds:
+      - task: uget
+        vars:
+          tool: cosign
+          source: 'https://github.com/sigstore/cosign/releases/download/{VERSION}/cosign-{GOOS}-{GOARCH}'
+          version: '{{ .COSIGN_VERSION }}'
+          uncompressed: true
+          extractArg: 'cosign-*'
   helm:
     cmds:
       - task: uget
