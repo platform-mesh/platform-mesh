@@ -100,3 +100,40 @@ func TestValidateIDP(t *testing.T) {
 		}
 	}
 }
+
+// TestWithServiceValues checks that ServiceValues are merged over the values
+// quickstart sets itself, and stand alone where it sets none.
+func TestWithServiceValues(t *testing.T) {
+	o := NewOptions(genericiooptions.NewTestIOStreamsDiscard())
+	o.ServiceValues = map[string]map[string]any{
+		"infra":   {"kcp": map[string]any{"cacheServer": map[string]any{"replicas": 1}}, "dex": map[string]any{"enabled": false}},
+		"gateway": {"resources": map[string]any{"requests": map[string]any{"cpu": "50m"}}},
+	}
+	o.ServiceDependsOn = map[string][]string{"infra": {"kcp-operator"}}
+
+	set := operatorValues{PlatformMesh: &platformMeshValues{Values: &platformMeshSpecValues{Services: map[string]serviceValues{
+		"infra": {Values: infraValues{Dex: dexValues{Enabled: true, Issuer: "https://dex"}}},
+	}}}}
+	for name, in := range map[string]operatorValues{"over quickstart's": set, "alone": {}} {
+		t.Run(name, func(t *testing.T) {
+			out, err := o.withServiceValues(in)
+			require.NoError(t, err)
+			values, err := helmValues(out)
+			require.NoError(t, err)
+			services, _, _ := unstructured.NestedMap(values, "platformMesh", "values", "services")
+
+			replicas, _, _ := unstructured.NestedFieldNoCopy(services, "infra", "values", "kcp", "cacheServer", "replicas")
+			assert.EqualValues(t, 1, replicas)
+			cpu, _, _ := unstructured.NestedString(services, "gateway", "values", "resources", "requests", "cpu")
+			assert.Equal(t, "50m", cpu)
+			dependsOn, _, _ := unstructured.NestedSlice(services, "infra", "dependsOn")
+			assert.Equal(t, []any{map[string]any{"name": "kcp-operator"}}, dependsOn)
+			dex, _, _ := unstructured.NestedBool(services, "infra", "values", "dex", "enabled")
+			assert.False(t, dex)
+			if in.PlatformMesh != nil {
+				issuer, _, _ := unstructured.NestedString(services, "infra", "values", "dex", "issuer")
+				assert.Equal(t, "https://dex", issuer)
+			}
+		})
+	}
+}

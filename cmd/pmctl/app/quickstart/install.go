@@ -124,6 +124,11 @@ func (o *Options) prerequisitesValues(traefik bool) prerequisitesValues {
 		Flux2: flux2Values{
 			ImageAutomationController: fluxControllerValues{Create: false},
 			ImageReflectionController: fluxControllerValues{Create: false},
+			// More workers than HelmReleases. Ten of them wait for what
+			// kcp brings up, and with the ten workers the charts up to
+			// 26.11 set, they can take every one before infra, which
+			// installs kcp, gets its turn.
+			HelmController: helmControllerValues{Container: fluxContainerValues{AdditionalArgs: []string{"--concurrent=20"}}},
 		},
 	}
 	if traefik {
@@ -222,6 +227,10 @@ func (o *Options) install(ctx context.Context, helm *helmClient, src *source) er
 	}
 	upgrading := last != nil
 	values, err := o.withIDP(ctx, helm, src, o.operatorValues(src, gatewayClusterIP))
+	if err != nil {
+		return err
+	}
+	values, err = o.withServiceValues(values)
 	if err != nil {
 		return err
 	}

@@ -155,7 +155,12 @@ data:
               for: infra
               path: kcp.etcd.backup.image.tag
               image-ref: combined
-          dependsOn: []
+          # The chart creates kcp-operator resources (RootShard, CacheServer,
+          # FrontProxy). Without their CRDs its install fails, and the retry
+          # can starve: the other installs take every worker of the
+          # helm-controller while they wait for kcp.
+          dependsOn:
+          - name: kcp-operator
           values:
             keycloak:
               operator:
@@ -208,9 +213,22 @@ data:
                   enabled: true
               proxy:
                 replicas: 1
+              # One kind node: a single cache server, and CPU requests far
+              # below what kcp-operator defaults to (1 CPU per shard, 500m
+              # per cache server), so the installation fits on 4 CPUs.
+              cacheServer:
+                replicas: 1
+                resources:
+                  requests:
+                    cpu: 50m
+                    memory: 256Mi
               rootShard:
                 extraArgs:
                 - --feature-gates=WorkspaceAuthentication=true,CacheAPIs=true
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 512Mi
               shards: []
               webhook:
                 enabled: true
@@ -331,11 +349,18 @@ data:
             gateway:
               playground: true
               logLevel: trace
+              resources:
+                requests:
+                  cpu: 50m
             gatewayApi:
               enabled: true
             kubeConfig:
               enabled: true
               secretName: kubernetes-graphql-gateway-kubeconfig
+            listener:
+              resources:
+                requests:
+                  cpu: 50m
             sentry:
               environment: dev
             tracing:
@@ -528,6 +553,11 @@ data:
             caSecret: domain-certificate
             crds:
               enabled: false
+            # Each of the chart's three Deployments requests this.
+            deployment:
+              resources:
+                requests:
+                  cpu: 50m
             idp:
               smtp:
                 # REQUIRED: configure a production SMTP server
@@ -564,6 +594,11 @@ data:
             caSecret: domain-certificate
             crds:
               enabled: false
+            # Each of the chart's five Deployments requests this.
+            deployment:
+              resources:
+                requests:
+                  cpu: 50m
             openfga:
               endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
             initializer:

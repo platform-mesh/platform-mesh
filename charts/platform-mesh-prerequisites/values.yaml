@@ -8,11 +8,12 @@ flux2:
     create: false
   # Platform Mesh creates several independent HelmReleases.  Some wait for KCP
   # bootstrap resources, so the default four workers can otherwise starve the
-  # infra release that creates those resources.
+  # infra release that creates those resources. Ten of them wait like that:
+  # keep more workers than HelmReleases.
   helmController:
     container:
       additionalArgs:
-        - --concurrent=10
+        - --concurrent=20
 ocm-k8s-toolkit:
   enabled: true
 cert-manager:

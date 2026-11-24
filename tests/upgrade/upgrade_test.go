@@ -196,6 +196,44 @@ func newEnvironment(t *testing.T) *environment {
 	return env
 }
 
+// smallRequests are what the kind profile of the checkout sets to fit the
+// installation on a 4-CPU node: one cache server, and small CPU requests for
+// kcp and the operators with many Deployments. The profile of v26.11.0 has
+// none of it and requests 6 CPUs, so the test sets them on the release too.
+//
+// TODO(mjudeikis): drop once the test upgrades from a release whose kind
+// profile has them.
+var smallRequests = map[string]map[string]any{
+	"infra": {"kcp": map[string]any{
+		"cacheServer": map[string]any{"replicas": 1, "resources": requests("50m", "256Mi")},
+		"rootShard":   map[string]any{"resources": requests("100m", "512Mi")},
+	}},
+	"kubernetes-graphql-gateway": {
+		"gateway":  map[string]any{"resources": requests("50m", "")},
+		"listener": map[string]any{"resources": requests("50m", "")},
+	},
+	"pm-keycloak-operator": {"deployment": map[string]any{"resources": requests("50m", "")}},
+	"pm-openfga-operator":  {"deployment": map[string]any{"resources": requests("50m", "")}},
+}
+
+// installOrder has the infra chart installed after kcp-operator, whose CRDs
+// it needs, as the kind profile of the checkout does. In v26.11.0 the two
+// race: when infra loses, its retry waits behind the installs of all other
+// services, which wait for kcp, until they time out.
+//
+// TODO(mjudeikis): drop together with smallRequests.
+var installOrder = map[string][]string{"infra": {"kcp-operator"}}
+
+// requests are the resources of a container that requests cpu and, unless
+// empty, memory.
+func requests(cpu, memory string) map[string]any {
+	r := map[string]any{"cpu": cpu}
+	if memory != "" {
+		r["memory"] = memory
+	}
+	return map[string]any{"requests": r}
+}
+
 // streams are what quickstart writes its progress and summary to.
 func streams() genericiooptions.IOStreams {
 	return genericiooptions.IOStreams{In: os.Stdin, Out: os.Stderr, ErrOut: os.Stderr}
@@ -214,6 +252,8 @@ func (e *environment) quickstart(t *testing.T, version string, dev bool, timeout
 	o.Version = version
 	o.Dev = dev
 	o.IDP = quickstart.IDPKeycloak
+	o.ServiceValues = smallRequests
+	o.ServiceDependsOn = installOrder
 	o.Timeout = timeout
 	if n := os.Getenv("UPGRADE_PARALLEL_BUILD"); n != "" {
 		parallel, err := strconv.Atoi(n)
