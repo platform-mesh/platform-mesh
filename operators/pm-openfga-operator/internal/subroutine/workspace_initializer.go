@@ -41,11 +41,11 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-func NewWorkspaceInitializer(cfg config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, creatorRelation, objectType string, kcpHelper iclient.KCPClientGetter) *workspaceInitializer {
-	// read file from path
+// NewWorkspaceInitializer reads the core module from cfg.CoreModulePath.
+func NewWorkspaceInitializer(cfg config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, creatorRelation, objectType string, kcpHelper iclient.KCPClientGetter) (*workspaceInitializer, error) {
 	res, err := os.ReadFile(cfg.CoreModulePath)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("reading core module: %w", err)
 	}
 
 	return &workspaceInitializer{
@@ -56,7 +56,7 @@ func NewWorkspaceInitializer(cfg config.Config, mgr mcmanager.Manager, kcpClient
 		cfg:             cfg,
 		creatorRelation: creatorRelation,
 		objectType:      objectType,
-	}
+	}, nil
 }
 
 var (
