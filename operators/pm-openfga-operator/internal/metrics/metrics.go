@@ -17,6 +17,8 @@ limitations under the License.
 package metrics
 
 import (
+	"errors"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -63,10 +65,25 @@ var (
 )
 
 func init() {
-	ctrlmetrics.Registry.MustRegister(
-		ReconcileTotal,
-		ReconcileDuration,
-		FGAOperations,
-		RekeyedTuples,
-	)
+	ReconcileTotal = register(ReconcileTotal)
+	ReconcileDuration = register(ReconcileDuration)
+	FGAOperations = register(FGAOperations)
+	RekeyedTuples = register(RekeyedTuples)
+}
+
+// register registers c on the controller-runtime registry. pm-keycloak-operator
+// registers collectors of the same names, so in a process that links both
+// operators the one registered first is used by both.
+func register[C prometheus.Collector](c C) C {
+	err := ctrlmetrics.Registry.Register(c)
+	if err == nil {
+		return c
+	}
+	var registered prometheus.AlreadyRegisteredError
+	if errors.As(err, &registered) {
+		if existing, ok := registered.ExistingCollector.(C); ok {
+			return existing
+		}
+	}
+	panic(err)
 }

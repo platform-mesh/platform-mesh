@@ -29,6 +29,12 @@ type IDMConfig struct {
 	ExcludedTenants []string
 }
 
+type CORSConfig struct {
+	// AllowedOrigins are the origins that may call the service cross-origin.
+	// An entry may contain "*" as a wildcard. Empty disables CORS handling.
+	AllowedOrigins []string
+}
+
 type OpenFGAConfig struct {
 	GRPCAddr      string
 	StoreCacheTTL time.Duration
@@ -75,6 +81,7 @@ type ServiceConfig struct {
 	// config, and with it the APIExportEndpointSlices and the local manager
 	// client, is pointed at it. Empty keeps the workspace of the kubeconfig.
 	KCPWorkspace string
+	CORS         CORSConfig
 	OpenFGA      OpenFGAConfig
 	JWT          JWTConfig
 	IDM          IDMConfig
@@ -126,6 +133,7 @@ func (c *ServiceConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&c.Port, "port", c.Port, "Set the service port")
 	fs.StringVar(&c.ListenAddress, "listen-address", c.ListenAddress, "Set the address (host:port) the service binds to, overrides --port")
 	fs.StringVar(&c.KCPWorkspace, "kcp-workspace", c.KCPWorkspace, "Workspace the component runs against in kcp, replacing the path of the kubeconfig; empty keeps the workspace the kubeconfig points at")
+	fs.StringSliceVar(&c.CORS.AllowedOrigins, "cors-allowed-origins", c.CORS.AllowedOrigins, "Set the origins that may call the service cross-origin, \"*\" is a wildcard, empty disables CORS handling")
 
 	fs.StringVar(&c.OpenFGA.GRPCAddr, "openfga-grpc-addr", c.OpenFGA.GRPCAddr, "Set OpenFGA gRPC address")
 	fs.DurationVar(&c.OpenFGA.StoreCacheTTL, "openfga-store-cache-ttl", c.OpenFGA.StoreCacheTTL, "Set OpenFGA store cache TTL")
