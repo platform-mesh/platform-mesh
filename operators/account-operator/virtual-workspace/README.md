@@ -49,6 +49,14 @@ sees all of its accounts and a member of one account sees that account and
 what is below it. Any workspace inside the organization gives the same
 answer.
 
+The same resource can be listed and watched (`GET .../selfclusteraccessreviews`,
+with `?watch=true`), which is what a GraphQL gateway subscription does. A list
+holds one review, the caller's, named `self`. Nothing is stored and the
+providers do not report changes, so an open watch asks the provider again
+every 10 seconds and sends the review as `MODIFIED` when its status differs.
+The resource version is a hash of the status: a watch from a version that is
+not the current answer fails with 410, and the client lists again.
+
 - An organization is a workspace directly below `--openfga-orgs-workspace`
   (default `root:orgs`). Its OpenFGA store id is read from the `Store` object
   (`openfga.platform-mesh.io`) named like the organization in that workspace.

@@ -19,13 +19,17 @@ package scar
 import (
 	"context"
 	"reflect"
+	"sync"
 	"testing"
+	"time"
 
 	"go.platform-mesh.io/account-operator/virtual-workspace/pkg/accessprovider"
 	"go.platform-mesh.io/account-operator/virtual-workspace/pkg/graph"
 	accessv1alpha1 "go.platform-mesh.io/account-operator/virtual-workspace/sdk/apis/access/v1alpha1"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/authentication/user"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
@@ -172,5 +176,149 @@ func TestResolveRootPath(t *testing.T) {
 		if got := ClusterFrom(ctx); got != tc.wantCluster {
 			t.Errorf("resolveRootPath(%q) cluster = %q, want %q", tc.path, got, tc.wantCluster)
 		}
+	}
+}
+
+// changingProvider answers with whatever clusters it was last set to.
+type changingProvider struct {
+	mu       sync.Mutex
+	clusters []graph.AccessEndpointSlice
+	err      error
+}
+
+func (p *changingProvider) Ready() bool { return true }
+
+func (p *changingProvider) ClustersFor(context.Context, accessprovider.Identity, string) ([]graph.AccessEndpointSlice, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.clusters, p.err
+}
+
+func (p *changingProvider) set(err error, names ...string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.err = err
+	p.clusters = nil
+	for _, name := range names {
+		p.clusters = append(p.clusters, graph.AccessEndpointSlice{ClusterName: name, Endpoint: "https://kcp.example/clusters/" + name})
+	}
+}
+
+func nextEvent(t *testing.T, w watch.Interface) watch.Event {
+	t.Helper()
+	select {
+	case event, ok := <-w.ResultChan():
+		if !ok {
+			t.Fatal("watch closed")
+		}
+		return event
+	case <-time.After(5 * time.Second):
+		t.Fatal("no watch event")
+	}
+	return watch.Event{}
+}
+
+func clusterNames(t *testing.T, event watch.Event) []string {
+	t.Helper()
+	review, ok := event.Object.(*accessv1alpha1.SelfClusterAccessReview)
+	if !ok {
+		t.Fatalf("event %s carries %T", event.Type, event.Object)
+	}
+	var names []string
+	for _, c := range review.Status.Clusters {
+		names = append(names, c.ClusterName)
+	}
+	return names
+}
+
+func TestList_ReturnsTheCallersReview(t *testing.T) {
+	t.Parallel()
+
+	provider := &changingProvider{}
+	provider.set(nil, "ws1", "ws2")
+	r := NewREST(provider)
+	ctx := genericapirequest.WithUser(context.Background(), &user.DefaultInfo{Name: "alice"})
+
+	obj, err := r.List(ctx, &metainternalversion.ListOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	list := obj.(*accessv1alpha1.SelfClusterAccessReviewList)
+	if len(list.Items) != 1 || list.Items[0].Name != SelfName || len(list.Items[0].Status.Clusters) != 2 {
+		t.Fatalf("expected one review %q with 2 clusters, got %+v", SelfName, list.Items)
+	}
+	if list.ResourceVersion == "" || list.ResourceVersion != list.Items[0].ResourceVersion {
+		t.Errorf("list version %q, item version %q", list.ResourceVersion, list.Items[0].ResourceVersion)
+	}
+
+	again, _ := r.List(ctx, &metainternalversion.ListOptions{})
+	if got := again.(*accessv1alpha1.SelfClusterAccessReviewList).ResourceVersion; got != list.ResourceVersion {
+		t.Errorf("version changed without a change: %q, then %q", list.ResourceVersion, got)
+	}
+
+	provider.set(nil, "ws1")
+	changed, _ := r.List(ctx, &metainternalversion.ListOptions{})
+	if got := changed.(*accessv1alpha1.SelfClusterAccessReviewList).ResourceVersion; got == list.ResourceVersion {
+		t.Errorf("version %q did not change with the answer", got)
+	}
+
+	if _, err := r.List(context.Background(), &metainternalversion.ListOptions{}); !apierrors.IsUnauthorized(err) {
+		t.Errorf("expected Unauthorized without a user, got %v", err)
+	}
+}
+
+func TestWatch(t *testing.T) {
+	t.Parallel()
+
+	provider := &changingProvider{}
+	provider.set(nil, "ws1")
+	r := NewREST(provider)
+	r.interval = 10 * time.Millisecond
+	ctx, cancel := context.WithCancel(genericapirequest.WithUser(context.Background(), &user.DefaultInfo{Name: "alice"}))
+	defer cancel()
+
+	// Without a version the watch starts with the review.
+	w, err := r.Watch(ctx, &metainternalversion.ListOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	event := nextEvent(t, w)
+	if event.Type != watch.Added || !reflect.DeepEqual(clusterNames(t, event), []string{"ws1"}) {
+		t.Fatalf("expected ADDED with ws1, got %s %v", event.Type, clusterNames(t, event))
+	}
+
+	provider.set(nil, "ws1", "ws2")
+	event = nextEvent(t, w)
+	if event.Type != watch.Modified || !reflect.DeepEqual(clusterNames(t, event), []string{"ws1", "ws2"}) {
+		t.Fatalf("expected MODIFIED with ws1 and ws2, got %s %v", event.Type, clusterNames(t, event))
+	}
+	version := event.Object.(*accessv1alpha1.SelfClusterAccessReview).ResourceVersion
+	w.Stop()
+
+	// From the current version the watch reports only what changes.
+	w, err = r.Watch(ctx, &metainternalversion.ListOptions{ResourceVersion: version})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	provider.set(nil)
+	event = nextEvent(t, w)
+	if event.Type != watch.Modified || len(clusterNames(t, event)) != 0 {
+		t.Fatalf("expected MODIFIED with no clusters, got %s %v", event.Type, clusterNames(t, event))
+	}
+
+	// A provider error ends the watch with an error event.
+	provider.set(apierrors.NewServiceUnavailable("openfga is down"))
+	event = nextEvent(t, w)
+	if event.Type != watch.Error || !apierrors.IsServiceUnavailable(apierrors.FromObject(event.Object)) {
+		t.Fatalf("expected the provider's error, got %s %+v", event.Type, event.Object)
+	}
+	if _, ok := <-w.ResultChan(); ok {
+		t.Error("watch stayed open after an error")
+	}
+
+	// A version that is not the current answer expired.
+	provider.set(nil, "ws3")
+	if _, err := r.Watch(ctx, &metainternalversion.ListOptions{ResourceVersion: version}); !apierrors.IsResourceExpired(err) {
+		t.Errorf("expected Expired for a stale version, got %v", err)
 	}
 }
