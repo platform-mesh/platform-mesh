@@ -19,6 +19,7 @@ package providers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	pmprovidersv1alpha1 "go.platform-mesh.io/apis/providers/v1alpha1"
 	gcerrors "go.platform-mesh.io/golang-commons/errors"
@@ -27,6 +28,7 @@ import (
 	pmsubs "go.platform-mesh.io/platform-mesh-operator/pkg/subroutines"
 	"go.platform-mesh.io/subroutines"
 
+	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,6 +47,11 @@ const (
 	scopedKubeconfigFinalizer      = "providers.platform-mesh.io/scoped-kubeconfig"
 
 	providerSANamespace = "default"
+
+	rootCAConfigMapName      = "kube-root-ca.crt"
+	providerTokenKey         = "token"
+	tokenExpiresAtAnnotation = "providers.platform-mesh.io/token-expires-at"
+	defaultTokenExpiration   = time.Hour
 )
 
 func providerKubeconfigSecretName(providerName string) string {
@@ -63,8 +70,8 @@ func providerClusterRoleBindingName(provider *pmprovidersv1alpha1.Provider) stri
 	return provider.Name + "-provider"
 }
 
-// ScopedKubeconfigSubroutine creates the ServiceAccount, RBAC, static SA token
-// Secret, and kubeconfig Secret inside the dedicated provider workspace in
+// ScopedKubeconfigSubroutine creates the ServiceAccount, RBAC, a short-lived SA
+// token, and kubeconfig Secret inside the dedicated provider workspace in
 // a single reconciliation step. The kubeconfig Secret is stored in the user
 // workspace (where Provider object is created)
 // via the cluster client.
@@ -75,6 +82,16 @@ type ScopedKubeconfigSubroutine struct {
 	kcpUrl      string
 
 	getClusterClientFromContext func(context.Context) (ctrlruntimeclient.Client, error)
+
+	tokenExpiration time.Duration
+}
+
+// WithTokenExpiration sets the lifetime of the token in the kubeconfig; zero keeps the default.
+func (r *ScopedKubeconfigSubroutine) WithTokenExpiration(d time.Duration) *ScopedKubeconfigSubroutine {
+	if d > 0 {
+		r.tokenExpiration = d
+	}
+	return r
 }
 
 func NewScopedKubeconfigSubroutine(localClient ctrlruntimeclient.Client, kcpHelper pmsubs.KcpHelper, kcpCfg config.KCPConfig, kcpUrl string, getClusterClientFromContext func(context.Context) (ctrlruntimeclient.Client, error)) *ScopedKubeconfigSubroutine {
@@ -84,6 +101,7 @@ func NewScopedKubeconfigSubroutine(localClient ctrlruntimeclient.Client, kcpHelp
 		kcpCfg:                      kcpCfg,
 		kcpUrl:                      kcpUrl,
 		getClusterClientFromContext: getClusterClientFromContext,
+		tokenExpiration:             defaultTokenExpiration,
 	}
 }
 
@@ -167,25 +185,21 @@ func (r *ScopedKubeconfigSubroutine) Process(ctx context.Context, obj ctrlruntim
 		return subroutines.OK(), gcerrors.Wrap(err, "create or update ClusterRoleBinding %s", clusterRoleBindingName)
 	}
 
-	// Ensure a static long-lived SA token Secret.
-	tokenSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: tokenSecretName, Namespace: providerSANamespace}}
-	if _, err := controllerutil.CreateOrUpdate(ctx, providerWsClient, tokenSecret, func() error {
-		tokenSecret.Type = corev1.SecretTypeServiceAccountToken
-		if tokenSecret.Annotations == nil {
-			tokenSecret.Annotations = map[string]string{}
-		}
-		tokenSecret.Annotations[corev1.ServiceAccountNameKey] = saName
-		return nil
-	}); err != nil {
-		return subroutines.OK(), gcerrors.Wrap(err, "create or update token Secret %s", tokenSecretName)
-	}
-	if len(tokenSecret.Data["token"]) == 0 || len(tokenSecret.Data["ca.crt"]) == 0 {
-		log.Info().Str("secret", tokenSecretName).Msg("SA token not yet populated, requeuing")
-		return subroutines.StopWithRequeue(waitProviderRequeueDuration, "waiting for SA token to be populated"), nil
+	// Older versions stored a token that never expires; deleting its Secret revokes it.
+	legacyTokenSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: tokenSecretName, Namespace: providerSANamespace}}
+	if err := ctrlruntimeclient.IgnoreNotFound(providerWsClient.Delete(ctx, legacyTokenSecret)); err != nil {
+		return subroutines.OK(), gcerrors.Wrap(err, "delete legacy token Secret %s", tokenSecretName)
 	}
 
-	token := string(tokenSecret.Data["token"])
-	caData := tokenSecret.Data["ca.crt"]
+	rootCA := &corev1.ConfigMap{}
+	if err := providerWsClient.Get(ctx, types.NamespacedName{Name: rootCAConfigMapName, Namespace: providerSANamespace}, rootCA); ctrlruntimeclient.IgnoreNotFound(err) != nil {
+		return subroutines.OK(), gcerrors.Wrap(err, "get ConfigMap %s", rootCAConfigMapName)
+	}
+	caData := []byte(rootCA.Data["ca.crt"])
+	if len(caData) == 0 {
+		log.Info().Str("configmap", rootCAConfigMapName).Msg("Root CA not yet published, requeuing")
+		return subroutines.StopWithRequeue(waitProviderRequeueDuration, "waiting for the root CA ConfigMap"), nil
+	}
 
 	// Compute host URL: prefer HostOverride, else use workspace URL.
 	hostURL := inst.Spec.HostOverride
@@ -193,11 +207,6 @@ func (r *ScopedKubeconfigSubroutine) Process(ctx context.Context, obj ctrlruntim
 		hostURL = r.kcpUrl
 	}
 	hostURL += fmt.Sprintf("/clusters/%s", ws.Spec.Cluster)
-
-	kubeconfigBytes, err := clientcmd.Write(buildProviderScopedKubeconfigForToken(hostURL, token, caData))
-	if err != nil {
-		return subroutines.OK(), gcerrors.Wrap(err, "serialize kubeconfig")
-	}
 
 	// Determine kubeconfig Secret target.
 	var kubeconfigSecretName, kubeconfigSecretNamespace, kubeconfigSecretKey string
@@ -217,24 +226,82 @@ func (r *ScopedKubeconfigSubroutine) Process(ctx context.Context, obj ctrlruntim
 		return subroutines.OK(), gcerrors.Wrap(err, "ensure namespace %s in provider workspace", providerSANamespace)
 	}
 
-	// Write kubeconfig Secret into user's ws.
-	kubeconfigSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: kubeconfigSecretName, Namespace: kubeconfigSecretNamespace}}
-	if _, err := controllerutil.CreateOrUpdate(ctx, userWsClient, kubeconfigSecret, func() error {
-		kubeconfigSecret.Data = map[string][]byte{kubeconfigSecretKey: kubeconfigBytes}
-		return nil
-	}); err != nil {
-		return subroutines.OK(), gcerrors.Wrap(err, "write kubeconfig Secret %s", kubeconfigSecretName)
-	}
-
 	inst.Status.ProviderKubeconfigSecretRef = &corev1.SecretReference{
 		Name:      kubeconfigSecretName,
 		Namespace: kubeconfigSecretNamespace,
 	}
 
+	kubeconfigSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: kubeconfigSecretName, Namespace: kubeconfigSecretNamespace}}
+	if err := userWsClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(kubeconfigSecret), kubeconfigSecret); ctrlruntimeclient.IgnoreNotFound(err) != nil {
+		return subroutines.OK(), gcerrors.Wrap(err, "get kubeconfig Secret %s", kubeconfigSecretName)
+	}
+	now := time.Now()
+	if refreshAt, ok := tokenRefreshTime(kubeconfigSecret, kubeconfigSecretKey, hostURL, r.tokenExpiration); ok && now.Before(refreshAt) {
+		inst.Status.Phase = pmprovidersv1alpha1.ProviderPhaseReady
+		return subroutines.OKWithRequeue(refreshAt.Sub(now)), nil
+	}
+
+	expirationSeconds := int64(r.tokenExpiration.Seconds())
+	tokenRequest := &authenticationv1.TokenRequest{Spec: authenticationv1.TokenRequestSpec{ExpirationSeconds: &expirationSeconds}}
+	if err := providerWsClient.SubResource("token").Create(ctx, sa, tokenRequest); err != nil {
+		return subroutines.OK(), gcerrors.Wrap(err, "request token for ServiceAccount %s", saName)
+	}
+	expiresAt := tokenRequest.Status.ExpirationTimestamp.Time
+
+	tokenKey := providerTokenSecretKey(kubeconfigSecretKey)
+	kubeconfigBytes, err := clientcmd.Write(buildProviderScopedKubeconfigForToken(hostURL, tokenRequest.Status.Token, tokenKey, caData))
+	if err != nil {
+		return subroutines.OK(), gcerrors.Wrap(err, "serialize kubeconfig")
+	}
+
+	// Write kubeconfig Secret into user's ws.
+	if _, err := controllerutil.CreateOrUpdate(ctx, userWsClient, kubeconfigSecret, func() error {
+		kubeconfigSecret.Data = map[string][]byte{
+			kubeconfigSecretKey: kubeconfigBytes,
+			tokenKey:            []byte(tokenRequest.Status.Token),
+		}
+		if kubeconfigSecret.Annotations == nil {
+			kubeconfigSecret.Annotations = map[string]string{}
+		}
+		kubeconfigSecret.Annotations[tokenExpiresAtAnnotation] = expiresAt.UTC().Format(time.RFC3339)
+		return nil
+	}); err != nil {
+		return subroutines.OK(), gcerrors.Wrap(err, "write kubeconfig Secret %s", kubeconfigSecretName)
+	}
+
 	inst.Status.Phase = pmprovidersv1alpha1.ProviderPhaseReady
 
-	log.Info().Str("provider", inst.Name).Str("secret", kubeconfigSecretName).Msg("Ensured scoped kubeconfig in provider workspace")
-	return subroutines.OK(), nil
+	log.Info().Str("provider", inst.Name).Str("secret", kubeconfigSecretName).Time("expiresAt", expiresAt).Msg("Ensured scoped kubeconfig in provider workspace")
+	return subroutines.OKWithRequeue(expiresAt.Sub(now) * 2 / 3), nil
+}
+
+// tokenRefreshTime returns when the token in the kubeconfig Secret must be renewed.
+// ok is false if the Secret has no token for hostURL yet.
+func tokenRefreshTime(secret *corev1.Secret, kubeconfigKey, hostURL string, lifetime time.Duration) (refreshAt time.Time, ok bool) {
+	expiresAt, err := time.Parse(time.RFC3339, secret.Annotations[tokenExpiresAtAnnotation])
+	if err != nil || len(secret.Data[providerTokenSecretKey(kubeconfigKey)]) == 0 {
+		return time.Time{}, false
+	}
+	kubeconfig, err := clientcmd.Load(secret.Data[kubeconfigKey])
+	if err != nil {
+		return time.Time{}, false
+	}
+	kubeContext, found := kubeconfig.Contexts[kubeconfig.CurrentContext]
+	if !found {
+		return time.Time{}, false
+	}
+	if cluster, found := kubeconfig.Clusters[kubeContext.Cluster]; !found || cluster.Server != hostURL {
+		return time.Time{}, false
+	}
+	return expiresAt.Add(-lifetime / 3), true
+}
+
+// providerTokenSecretKey is the Secret key of the plain token, next to the kubeconfig key.
+func providerTokenSecretKey(kubeconfigKey string) string {
+	if kubeconfigKey == providerTokenKey {
+		return providerTokenKey + "-file"
+	}
+	return providerTokenKey
 }
 
 func (r *ScopedKubeconfigSubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
@@ -295,10 +362,12 @@ func (r *ScopedKubeconfigSubroutine) Finalizers(_ ctrlruntimeclient.Object) []st
 	return []string{scopedKubeconfigFinalizer}
 }
 
-func buildProviderScopedKubeconfigForToken(hostURL, token string, caData []byte) clientcmdapi.Config {
+// buildProviderScopedKubeconfigForToken sets both token and tokenFile: client-go re-reads
+// tokenFile (relative to the kubeconfig) and uses token when the file is not there.
+func buildProviderScopedKubeconfigForToken(hostURL, token, tokenFile string, caData []byte) clientcmdapi.Config {
 	return clientcmdapi.Config{
 		Clusters:       map[string]*clientcmdapi.Cluster{"default-cluster": {Server: hostURL, CertificateAuthorityData: caData}},
-		AuthInfos:      map[string]*clientcmdapi.AuthInfo{"default-auth": {Token: token}},
+		AuthInfos:      map[string]*clientcmdapi.AuthInfo{"default-auth": {Token: token, TokenFile: tokenFile}},
 		Contexts:       map[string]*clientcmdapi.Context{"default-context": {Cluster: "default-cluster", AuthInfo: "default-auth"}},
 		CurrentContext: "default-context",
 	}

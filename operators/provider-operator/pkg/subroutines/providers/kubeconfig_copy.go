@@ -42,6 +42,10 @@ const (
 	KubeconfigCopySubroutineName  = "KubeconfigCopySubroutine"
 	kubeconfigCopyFinalizer       = "providers.platform-mesh.io/kubeconfig-secret"
 	kubeconfigCopyRequeueDuration = 10 * time.Second
+	// The Provider renews its short-lived token; copy it again well before it expires.
+	kubeconfigCopyResyncDuration = 5 * time.Minute
+	// providerTokenKey matches the token key of the Provider kubeconfig Secret in platform-mesh-operator.
+	providerTokenKey = "token"
 )
 
 // KubeconfigCopySubroutine copies the kubeconfig Secret produced by the
@@ -186,6 +190,10 @@ func (r *KubeconfigCopySubroutine) Process(ctx context.Context, obj ctrlruntimec
 		copySecret.Data = map[string][]byte{
 			managedProviderKubeconfigSecretSpec.Key: kcpKubeconfig,
 		}
+		tokenKey := providerTokenSecretKey(managedProviderKubeconfigSecretSpec.Key)
+		if token := origSecret.Data[tokenKey]; len(token) > 0 {
+			copySecret.Data[tokenKey] = token
+		}
 		return nil
 	}); err != nil {
 		return subroutines.OK(), gcerrors.Wrap(err, "failed to copy kubeconfig Secret %s/%s from workspace %s", copySecret.Namespace, copySecret.Name, wsPath)
@@ -197,7 +205,15 @@ func (r *KubeconfigCopySubroutine) Process(ctx context.Context, obj ctrlruntimec
 	}
 
 	log.Info().Str("workspace", wsPath).Str("secret", copySecret.Name).Msg("Copied kubeconfig Secret to runtime cluster")
-	return subroutines.OK(), nil
+	return subroutines.OKWithRequeue(kubeconfigCopyResyncDuration), nil
+}
+
+// providerTokenSecretKey is the Secret key of the plain token, next to the kubeconfig key.
+func providerTokenSecretKey(kubeconfigKey string) string {
+	if kubeconfigKey == providerTokenKey {
+		return providerTokenKey + "-file"
+	}
+	return providerTokenKey
 }
 
 func (r *KubeconfigCopySubroutine) Finalize(ctx context.Context, obj ctrlruntimeclient.Object) (subroutines.Result, error) {
