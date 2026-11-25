@@ -29,7 +29,10 @@ import (
 )
 
 type WebhooksConfig struct {
-	Enabled                bool
+	Enabled bool
+	// Host is the address the webhook server binds to. Empty means all
+	// interfaces.
+	Host                   string
 	CertDir                string
 	Port                   int
 	DenyList               string
@@ -220,6 +223,7 @@ func NewOperatorConfig() OperatorConfig {
 
 func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&c.Webhooks.Enabled, "webhooks-enabled", c.Webhooks.Enabled, "Enable webhook server")
+	fs.StringVar(&c.Webhooks.Host, "webhooks-host", c.Webhooks.Host, "Set the address the webhook server binds to; empty means all interfaces")
 	fs.StringVar(&c.Webhooks.CertDir, "webhooks-cert-dir", c.Webhooks.CertDir, "Set webhook certificate directory")
 	fs.IntVar(&c.Webhooks.Port, "webhooks-port", c.Webhooks.Port, "Set webhook server port")
 	fs.StringVar(&c.Webhooks.DenyList, "webhooks-deny-list", c.Webhooks.DenyList, "Comma-separated list of denied account names")
