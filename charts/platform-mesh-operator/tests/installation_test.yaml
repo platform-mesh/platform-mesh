@@ -59,6 +59,9 @@ tests:
         enabled: true
       gateway:
         baseDomain: platform.example.com
+      services:
+        iam-ui:
+          enabled: false
       platformMesh:
         extraFeatureToggles:
           - feature-disable-keycloak

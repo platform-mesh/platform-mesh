@@ -690,6 +690,14 @@ func (r *DeploymentSubroutine) buildComponentsTemplateVars(ctx context.Context, 
 		return nil, nil, errors.Wrap(err, "Failed to merge services from PlatformMesh.spec.Values with profile-components.yaml services")
 	}
 
+	mergedServices, err = applyServiceEnablementFromFile(mergedServices, r.cfgOperator.Subroutines.Deployment.ServicesConfigFile, log)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := injectDefaultImageResources(mergedServices); err != nil {
+		return nil, nil, err
+	}
+
 	// Inject operator-owned
 	mergedServices, err = injectHelmValues(mergedServices, buildHelmValues(inst, r.cfgOperator), log)
 	if err != nil {

@@ -55,7 +55,6 @@ data:
               artifact: image
               for: account-operator
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             crds:
@@ -80,7 +79,6 @@ data:
               artifact: image
               for: extension-manager-operator
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             crds:
@@ -93,7 +91,6 @@ data:
                 host: observability-opentelemetry-collector.observability.svc.cluster.local:4317
               enabled: false
         infra:
-          enabled: true
           imageResources:
           - name: keycloak-image
             resource: keycloak-image
@@ -201,7 +198,6 @@ data:
               webhook:
                 enabled: true
         iam-ui:
-          enabled: true
           dependsOn: []
           syncWave: 4
           imageResources:
@@ -217,7 +213,6 @@ data:
               artifact: image
               for: iam-service
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             caSecret: domain-certificate
@@ -232,7 +227,6 @@ data:
           # The chart comes from kcp's Helm repository, not from an OCI registry
           # (third_party/kcp-operator/component-constructor.yaml).
           helmRepo: true
-          enabled: true
           dependsOn: []
           imageResources:
           - name: kcp-operator-image
@@ -243,10 +237,8 @@ data:
               image-ref: combined
           targetNamespace: platform-mesh-system
           values: {}
-        keycloak-operator:
-          enabled: false
-        cnpg-operator:
-          enabled: false
+        keycloak-operator: {}
+        cnpg-operator: {}
         kubernetes-graphql-gateway:
           imageResources:
           - annotations:
@@ -254,7 +246,6 @@ data:
               artifact: image
               for: kubernetes-graphql-gateway
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             gateway:
@@ -270,7 +261,6 @@ data:
             tracing:
               enabled: false
         openfga:
-          enabled: true
           external: true
           dependsOn: []
           syncWave: 2
@@ -357,7 +347,6 @@ data:
               artifact: image
               for: portal
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             auth:
@@ -419,7 +408,6 @@ data:
               artifact: image
               for: pm-openfga-authz-webhook
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             certManager:
@@ -439,7 +427,6 @@ data:
               artifact: image
               for: pm-keycloak-operator
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             caSecret: domain-certificate
@@ -470,7 +457,6 @@ data:
               artifact: image
               for: pm-openfga-operator
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             caSecret: domain-certificate
@@ -493,7 +479,6 @@ data:
               artifact: image
               for: extension-manager-virtual-workspace
           syncWave: 4
-          enabled: true
           dependsOn: []
           targetNamespace: platform-mesh-system
           values:
@@ -507,12 +492,10 @@ data:
               artifact: image
               for: marketplace
           syncWave: 4
-          enabled: true
           dependsOn: []
           targetNamespace: platform-mesh-system
           values: {}
         marketplace-ui:
-          enabled: true
           dependsOn: []
           imageResources:
           - annotations:
@@ -526,10 +509,8 @@ data:
               protocol: https
             istio:
               enabled: false
-        terminal-controller-manager:
-          enabled: false
+        terminal-controller-manager: {}
         observability:
           syncWave: 4
           # when enabled, enable opentelemetryOperator and prometheusOperatorCRDs component as well
-          enabled: false
       targetNamespace: platform-mesh-system

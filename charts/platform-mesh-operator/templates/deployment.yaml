@@ -15,6 +15,7 @@ spec:
         {{- include "common.labelMatcher" . | indent 8 }}
         control-plane: controller-manager
       annotations:
+        checksum/services-config: {{ printf "services:%s" (toYaml .Values.services | nindent 2) | sha256sum }}
       {{- if eq (include "common.getKeyValue" (dict "Values" .Values "key" "istio.enabled")) "true" }}
         sidecar.istio.io/inject: "{{ (include "common.istioEnabled" .) }}"
       {{- end -}}
@@ -29,6 +30,7 @@ spec:
         {{- include "common.healthAndReadiness" . | indent 8 }}
         args:
           - operator
+          - --services-config-file=/etc/platform-mesh/services/services.yaml
           - --gateway-class-name={{ .Values.gateway.className | default "traefik" }}
           {{- include "common.commonOperatorArgs" . | indent 8 }}
           {{- if .Values.ocm.enabled }}
@@ -59,6 +61,9 @@ spec:
           value: /etc/platform-mesh-ca/ca.crt
         {{- end }}
         volumeMounts:
+        - name: services-config
+          mountPath: /etc/platform-mesh/services
+          readOnly: true
         {{- include "common.extraVolumeMounts" . | nindent 8 }}
         {{- if .Values.ocm.enabled }}
         - name: platform-mesh-ca
@@ -77,8 +82,13 @@ spec:
         {{- end }}
       {{ include "common.hostAliases" $ | nindent 6 }}
       terminationGracePeriodSeconds: {{ include "common.terminationGracePeriodSeconds" .}}
-      {{- if or .Values.extraVolumes .Values.remoteRuntime.enabled .Values.remoteInfra.enabled .Values.ocm.enabled }}
       volumes:
+      - name: services-config
+        secret:
+          secretName: {{ printf "%s-services" (include "common.entity.name" . | trunc 54 | trimSuffix "-") }}
+          items:
+          - key: services.yaml
+            path: services.yaml
       {{- include "common.extraVolumes" . | nindent 6 }}
       {{- if .Values.ocm.enabled }}
       - name: platform-mesh-ca
@@ -106,5 +116,4 @@ spec:
           - key: {{ .Values.remoteRuntime.secretKey }}
             path: kubeconfig
           defaultMode: 420
-      {{- end }}
       {{- end }}

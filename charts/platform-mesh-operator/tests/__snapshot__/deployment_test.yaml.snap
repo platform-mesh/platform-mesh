@@ -18,7 +18,8 @@ configure extraVolumes and extraVolumeMounts:
         type: RollingUpdate
       template:
         metadata:
-          annotations: null
+          annotations:
+            checksum/services-config: e11a5c0ffd9dfcc5849f5601280d40f6c8615d7613f088822c59a9c224ffe46c
           labels:
             app: platform-mesh-operator
             control-plane: controller-manager
@@ -27,6 +28,7 @@ configure extraVolumes and extraVolumeMounts:
           containers:
             - args:
                 - operator
+                - --services-config-file=/etc/platform-mesh/services/services.yaml
                 - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
@@ -82,6 +84,9 @@ configure extraVolumes and extraVolumeMounts:
                   port: 8090
                 periodSeconds: 10
               volumeMounts:
+                - mountPath: /etc/platform-mesh/services
+                  name: services-config
+                  readOnly: true
                 - mountPath: /mnt/extra
                   name: extra-volume-mount
           securityContext:
@@ -91,6 +96,12 @@ configure extraVolumes and extraVolumeMounts:
           serviceAccountName: platform-mesh-operator
           terminationGracePeriodSeconds: 10
           volumes:
+            - name: services-config
+              secret:
+                items:
+                  - key: services.yaml
+                    path: services.yaml
+                secretName: platform-mesh-operator-services
             - emptyDir: {}
               name: extra-volume
 configure hosAliases:
@@ -113,7 +124,8 @@ configure hosAliases:
         type: RollingUpdate
       template:
         metadata:
-          annotations: null
+          annotations:
+            checksum/services-config: e11a5c0ffd9dfcc5849f5601280d40f6c8615d7613f088822c59a9c224ffe46c
           labels:
             app: platform-mesh-operator
             control-plane: controller-manager
@@ -122,6 +134,7 @@ configure hosAliases:
           containers:
             - args:
                 - operator
+                - --services-config-file=/etc/platform-mesh/services/services.yaml
                 - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
@@ -176,7 +189,10 @@ configure hosAliases:
                   path: /readyz
                   port: 8090
                 periodSeconds: 10
-              volumeMounts: null
+              volumeMounts:
+                - mountPath: /etc/platform-mesh/services
+                  name: services-config
+                  readOnly: true
           hostAliases:
             - hostnames:
                 - example.com
@@ -188,6 +204,13 @@ configure hosAliases:
               type: RuntimeDefault
           serviceAccountName: platform-mesh-operator
           terminationGracePeriodSeconds: 10
+          volumes:
+            - name: services-config
+              secret:
+                items:
+                  - key: services.yaml
+                    path: services.yaml
+                secretName: platform-mesh-operator-services
 deployment with tracing:
   1: |
     apiVersion: apps/v1
@@ -208,7 +231,8 @@ deployment with tracing:
         type: RollingUpdate
       template:
         metadata:
-          annotations: null
+          annotations:
+            checksum/services-config: e11a5c0ffd9dfcc5849f5601280d40f6c8615d7613f088822c59a9c224ffe46c
           labels:
             app: platform-mesh-operator
             control-plane: controller-manager
@@ -217,6 +241,7 @@ deployment with tracing:
           containers:
             - args:
                 - operator
+                - --services-config-file=/etc/platform-mesh/services/services.yaml
                 - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
@@ -275,13 +300,23 @@ deployment with tracing:
                   path: /readyz
                   port: 8090
                 periodSeconds: 10
-              volumeMounts: null
+              volumeMounts:
+                - mountPath: /etc/platform-mesh/services
+                  name: services-config
+                  readOnly: true
           securityContext:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
           serviceAccountName: platform-mesh-operator
           terminationGracePeriodSeconds: 10
+          volumes:
+            - name: services-config
+              secret:
+                items:
+                  - key: services.yaml
+                    path: services.yaml
+                secretName: platform-mesh-operator-services
 disables istio sidecar injection:
   1: |
     apiVersion: apps/v1
@@ -302,7 +337,8 @@ disables istio sidecar injection:
         type: RollingUpdate
       template:
         metadata:
-          annotations: null
+          annotations:
+            checksum/services-config: e11a5c0ffd9dfcc5849f5601280d40f6c8615d7613f088822c59a9c224ffe46c
           labels:
             app: platform-mesh-operator
             control-plane: controller-manager
@@ -311,6 +347,7 @@ disables istio sidecar injection:
           containers:
             - args:
                 - operator
+                - --services-config-file=/etc/platform-mesh/services/services.yaml
                 - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
@@ -365,13 +402,23 @@ disables istio sidecar injection:
                   path: /readyz
                   port: 8090
                 periodSeconds: 10
-              volumeMounts: null
+              volumeMounts:
+                - mountPath: /etc/platform-mesh/services
+                  name: services-config
+                  readOnly: true
           securityContext:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
           serviceAccountName: platform-mesh-operator
           terminationGracePeriodSeconds: 10
+          volumes:
+            - name: services-config
+              secret:
+                items:
+                  - key: services.yaml
+                    path: services.yaml
+                secretName: platform-mesh-operator-services
 enable remote PlatformMesh and Infra:
   1: |
     apiVersion: apps/v1
@@ -392,7 +439,8 @@ enable remote PlatformMesh and Infra:
         type: RollingUpdate
       template:
         metadata:
-          annotations: null
+          annotations:
+            checksum/services-config: e11a5c0ffd9dfcc5849f5601280d40f6c8615d7613f088822c59a9c224ffe46c
           labels:
             app: platform-mesh-operator
             control-plane: controller-manager
@@ -401,6 +449,7 @@ enable remote PlatformMesh and Infra:
           containers:
             - args:
                 - operator
+                - --services-config-file=/etc/platform-mesh/services/services.yaml
                 - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
@@ -460,6 +509,9 @@ enable remote PlatformMesh and Infra:
                   port: 8090
                 periodSeconds: 10
               volumeMounts:
+                - mountPath: /etc/platform-mesh/services
+                  name: services-config
+                  readOnly: true
                 - mountPath: /etc/infra
                   name: external-infra-deployment
                   readOnly: true
@@ -473,6 +525,12 @@ enable remote PlatformMesh and Infra:
           serviceAccountName: platform-mesh-operator
           terminationGracePeriodSeconds: 10
           volumes:
+            - name: services-config
+              secret:
+                items:
+                  - key: services.yaml
+                    path: services.yaml
+                secretName: platform-mesh-operator-services
             - name: external-infra-deployment
               secret:
                 defaultMode: 420
@@ -508,6 +566,7 @@ enables istio sidecar injection:
       template:
         metadata:
           annotations:
+            checksum/services-config: e11a5c0ffd9dfcc5849f5601280d40f6c8615d7613f088822c59a9c224ffe46c
             sidecar.istio.io/inject: "true"
           labels:
             app: platform-mesh-operator
@@ -517,6 +576,7 @@ enables istio sidecar injection:
           containers:
             - args:
                 - operator
+                - --services-config-file=/etc/platform-mesh/services/services.yaml
                 - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
@@ -571,13 +631,23 @@ enables istio sidecar injection:
                   path: /readyz
                   port: 8090
                 periodSeconds: 10
-              volumeMounts: null
+              volumeMounts:
+                - mountPath: /etc/platform-mesh/services
+                  name: services-config
+                  readOnly: true
           securityContext:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
           serviceAccountName: platform-mesh-operator
           terminationGracePeriodSeconds: 10
+          volumes:
+            - name: services-config
+              secret:
+                items:
+                  - key: services.yaml
+                    path: services.yaml
+                secretName: platform-mesh-operator-services
 operator match the snapshot:
   1: |
     apiVersion: rbac.authorization.k8s.io/v1
@@ -776,7 +846,8 @@ operator match the snapshot:
         type: RollingUpdate
       template:
         metadata:
-          annotations: null
+          annotations:
+            checksum/services-config: e11a5c0ffd9dfcc5849f5601280d40f6c8615d7613f088822c59a9c224ffe46c
           labels:
             app: platform-mesh-operator
             control-plane: controller-manager
@@ -785,6 +856,7 @@ operator match the snapshot:
           containers:
             - args:
                 - operator
+                - --services-config-file=/etc/platform-mesh/services/services.yaml
                 - --gateway-class-name=traefik
                 - --leader-elect
                 - --metrics-bind-address=:9090
@@ -839,13 +911,23 @@ operator match the snapshot:
                   path: /readyz
                   port: 8090
                 periodSeconds: 10
-              volumeMounts: null
+              volumeMounts:
+                - mountPath: /etc/platform-mesh/services
+                  name: services-config
+                  readOnly: true
           securityContext:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
           serviceAccountName: platform-mesh-operator
           terminationGracePeriodSeconds: 10
+          volumes:
+            - name: services-config
+              secret:
+                items:
+                  - key: services.yaml
+                    path: services.yaml
+                secretName: platform-mesh-operator-services
   4: |
     apiVersion: rbac.authorization.k8s.io/v1
     kind: Role

@@ -52,14 +52,7 @@ data:
           # then waits out the install timeout on an image that may not exist.
           # The same goes for the services below.
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: account-operator
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             hostAliases:
@@ -82,14 +75,7 @@ data:
               enabled: false
         extension-manager-operator:
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: extension-manager-operator
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             hostAliases:
@@ -103,58 +89,6 @@ data:
                 host: observability-opentelemetry-collector.observability.svc.cluster.local:4317
               enabled: false
         infra:
-          enabled: true
-          imageResources:
-          - name: keycloak-image
-            resource: keycloak-image
-            resourceName: keycloak-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: keycloak.operator.image.tag
-          - name: busybox-image
-            resource: busybox-image
-            resourceName: busybox-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: keycloak.operator.waitForDb.image.tag
-          - name: postgres-image
-            resource: postgres-image
-            resourceName: postgres-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: cnpg.cluster.image.tag
-          - name: kcp-server-image
-            resource: image
-            absoluteReferencePath:
-            - name: kcp
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: kcp.image.tag
-              image-ref: combined
-          - name: etcd-wrapper-image
-            resource: etcd-wrapper-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: kcp.etcd.image.tag
-              image-ref: combined
-          - name: etcdbrctl-image
-            resource: etcdbrctl-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: infra
-              path: kcp.etcd.backup.image.tag
-              image-ref: combined
           # The chart creates kcp-operator resources (RootShard, CacheServer,
           # FrontProxy). Without their CRDs its install fails, and the retry
           # can starve: the other installs take every worker of the
@@ -233,27 +167,13 @@ data:
               webhook:
                 enabled: true
         iam-ui:
-          enabled: true
           dependsOn: []
           syncWave: 4
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: iam-ui
-              unsuspend: "true"
           values: {}
         iam-service:
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: iam-service
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             hostAliases:
@@ -271,45 +191,13 @@ data:
           # The chart comes from kcp's Helm repository, not from an OCI registry
           # (third_party/kcp-operator/component-constructor.yaml).
           helmRepo: true
-          enabled: true
           dependsOn: []
-          imageResources:
-          - name: kcp-operator-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: kcp-operator
-              image-ref: combined
           targetNamespace: platform-mesh-system
           values: {}
         keycloak-operator:
           # Installed by platform-mesh-prerequisites.
-          enabled: false
           external: true
           dependsOn: []
-          imageResources:
-          - name: keycloak-operator-keycloak-image
-            resource: keycloak-image
-            resourceName: keycloak-image
-            absoluteReferencePath:
-              - name: keycloak-operator
-              - name: image
-            annotations:
-              repo: oci
-              artifact: image
-              for: keycloak-operator
-              path: keycloakImage.tag
-          - name: keycloak-operator-image
-            resource: manager-image
-            resourceName: manager-image
-            absoluteReferencePath:
-              - name: keycloak-operator
-              - name: image
-            annotations:
-              repo: oci
-              artifact: image
-              for: keycloak-operator
-              path: image.tag
           absoluteReferencePath:
             - name: keycloak-operator
             - name: chart
@@ -317,30 +205,15 @@ data:
             watchNamespaces: platform-mesh-system
         cnpg-operator:
           # Installed by platform-mesh-prerequisites.
-          enabled: false
           external: true
           dependsOn: []
           targetNamespace: platform-mesh-system
           absoluteReferencePath:
           - name: cnpg-operator
-          imageResources:
-          - name: cnpg-operator-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: cnpg-operator
-              image-ref: combined
           values: {}
         kubernetes-graphql-gateway:
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: kubernetes-graphql-gateway
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             hostAliases:
@@ -366,19 +239,10 @@ data:
             tracing:
               enabled: false
         openfga:
-          enabled: true
           external: true
           dependsOn: []
           syncWave: 2
           suspend: true
-          imageResources:
-          - name: openfga-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: openfga
-              image-ref: combined
-              unsuspend: "true"
           values:
             autoscaling:
               enabled: false
@@ -448,14 +312,7 @@ data:
                     enabled: false
         portal:
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: portal
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             auth:
@@ -512,14 +369,7 @@ data:
               kubeconfigSecret: portal-kubeconfig
         pm-openfga-authz-webhook:
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: pm-openfga-authz-webhook
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             hostAliases:
@@ -537,14 +387,7 @@ data:
               url: openfga:8081
         pm-keycloak-operator:
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: pm-keycloak-operator
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             hostAliases:
@@ -578,14 +421,7 @@ data:
               kubeconfigSecret: keycloak-terminator-kubeconfig
         pm-openfga-operator:
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: pm-openfga-operator
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           values:
             hostAliases:
@@ -611,14 +447,7 @@ data:
               kubeconfigSecret: openfga-terminator-kubeconfig
         extension-manager-virtual-workspace:
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: extension-manager-virtual-workspace
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           targetNamespace: platform-mesh-system
           values:
@@ -630,14 +459,7 @@ data:
               resourceSchemaWorkspace: "root:platform-mesh-system"
         marketplace:
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: marketplace
-              unsuspend: "true"
           syncWave: 4
-          enabled: true
           dependsOn: []
           targetNamespace: platform-mesh-system
           values:
@@ -645,15 +467,8 @@ data:
               enabled: true
               entries: *hostAliasesEntries
         marketplace-ui:
-          enabled: true
           dependsOn: []
           suspend: true
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: marketplace-ui
-              unsuspend: "true"
           values:
             gatewayApi:
               enabled: true
@@ -662,54 +477,13 @@ data:
             istio:
               enabled: false
         terminal-controller-manager:
-          enabled: false
           dependsOn: []
-          imageResources:
-          - annotations:
-              repo: oci
-              artifact: image
-              for: terminal-controller-manager
-          - name: terminal-image
-            annotations:
-              path: terminal.image.tag
-              for: terminal-controller-manager
-              repo: oci
-              artifact: image
-            resource: terminal-image
-            referencePath:
-            - name: terminal-controller-manager
           values:
             kcp:
               kubeconfigSecret: terminal-controller-manager-kubeconfig
         observability:
           syncWave: 4
-          enabled: false
           targetNamespace: observability
-          imageResources:
-          - name: otel-collector-image
-            resource: otel-collector-image
-            resourceName: otel-collector-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: otelCollector.image.tag
-          - name: prometheus-server-image
-            resource: prometheus-server-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: prometheus.server.image.tag
-              image-ref: combined
-          - name: prometheus-config-reloader-image
-            resource: prometheus-config-reloader-image
-            annotations:
-              repo: oci
-              artifact: image
-              for: observability
-              path: prometheus.configmapReload.prometheus.image.tag
-              image-ref: combined
           dependsOn: []
           values:
             prometheus:

@@ -214,3 +214,385 @@ var DEFAULT_WAIT_CONFIG = pmcorev1alpha1.WaitConfig{
 		},
 	},
 }
+
+// DefaultImageResources defines each service's OCM image mappings.
+var DefaultImageResources = []ServiceDefaults{
+	// Platform Mesh operators.
+	{
+		ServiceName: "account-operator",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "account-operator",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "extension-manager-operator",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "extension-manager-operator",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "pm-keycloak-operator",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "pm-keycloak-operator",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "pm-openfga-operator",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "pm-openfga-operator",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+
+	// Platform Mesh services.
+	{
+		ServiceName: "infra",
+		ImageResources: []ImageResource{
+			{
+				Name:         "keycloak-image",
+				Resource:     "keycloak-image",
+				ResourceName: "keycloak-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "infra",
+					Path:     "keycloak.operator.image.tag",
+				},
+			},
+			{
+				Name:         "busybox-image",
+				Resource:     "busybox-image",
+				ResourceName: "busybox-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "infra",
+					Path:     "keycloak.operator.waitForDb.image.tag",
+				},
+			},
+			{
+				Name:         "postgres-image",
+				Resource:     "postgres-image",
+				ResourceName: "postgres-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "infra",
+					Path:     "cnpg.cluster.image.tag",
+				},
+			},
+			{
+				Name:     "kcp-server-image",
+				Resource: "image",
+				AbsoluteReferencePath: []pmcorev1alpha1.ReferencePathElement{
+					{Name: "kcp"},
+				},
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "infra",
+					Path:     "kcp.image.tag",
+					ImageRef: "combined",
+				},
+			},
+			{
+				Name:     "etcd-wrapper-image",
+				Resource: "etcd-wrapper-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "infra",
+					Path:     "kcp.etcd.image.tag",
+					ImageRef: "combined",
+				},
+			},
+			{
+				Name:     "etcdbrctl-image",
+				Resource: "etcdbrctl-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "infra",
+					Path:     "kcp.etcd.backup.image.tag",
+					ImageRef: "combined",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "kubernetes-graphql-gateway",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "kubernetes-graphql-gateway",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "iam-service",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "iam-service",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "pm-openfga-authz-webhook",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "pm-openfga-authz-webhook",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "extension-manager-virtual-workspace",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "extension-manager-virtual-workspace",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "marketplace",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "marketplace",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+
+	// UI.
+	{
+		ServiceName: "portal",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "portal",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "marketplace-ui",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "marketplace-ui",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "iam-ui",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "iam-ui",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+
+	// Third party tools.
+	{
+		ServiceName: "openfga",
+		ImageResources: []ImageResource{
+			{
+				Name: "openfga-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:      "oci",
+					Artifact:  "image",
+					For:       "openfga",
+					ImageRef:  "combined",
+					Unsuspend: "true",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "kcp-operator",
+		ImageResources: []ImageResource{
+			{
+				Name: "kcp-operator-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "kcp-operator",
+					ImageRef: "combined",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "keycloak-operator",
+		ImageResources: []ImageResource{
+			{
+				Name:         "keycloak-operator-keycloak-image",
+				Resource:     "keycloak-image",
+				ResourceName: "keycloak-image",
+				AbsoluteReferencePath: []pmcorev1alpha1.ReferencePathElement{
+					{Name: "keycloak-operator"},
+					{Name: "image"},
+				},
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "keycloak-operator",
+					Path:     "keycloakImage.tag",
+				},
+			},
+			{
+				Name:         "keycloak-operator-image",
+				Resource:     "manager-image",
+				ResourceName: "manager-image",
+				AbsoluteReferencePath: []pmcorev1alpha1.ReferencePathElement{
+					{Name: "keycloak-operator"},
+					{Name: "image"},
+				},
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "keycloak-operator",
+					Path:     "image.tag",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "cnpg-operator",
+		ImageResources: []ImageResource{
+			{
+				Name: "cnpg-operator-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "cnpg-operator",
+					ImageRef: "combined",
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "terminal-controller-manager",
+		ImageResources: []ImageResource{
+			{
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "terminal-controller-manager",
+				},
+			},
+			{
+				Name: "terminal-image",
+				Annotations: ImageResourceAnnotations{
+					Path:     "terminal.image.tag",
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "terminal-controller-manager",
+				},
+				Resource: "terminal-image",
+				ReferencePath: []pmcorev1alpha1.ReferencePathElement{
+					{Name: "terminal-controller-manager"},
+				},
+			},
+		},
+	},
+	{
+		ServiceName: "observability",
+		ImageResources: []ImageResource{
+			{
+				Name:         "otel-collector-image",
+				Resource:     "otel-collector-image",
+				ResourceName: "otel-collector-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "observability",
+					Path:     "otelCollector.image.tag",
+				},
+			},
+			{
+				Name:     "prometheus-server-image",
+				Resource: "prometheus-server-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "observability",
+					Path:     "prometheus.server.image.tag",
+					ImageRef: "combined",
+				},
+			},
+			{
+				Name:     "prometheus-config-reloader-image",
+				Resource: "prometheus-config-reloader-image",
+				Annotations: ImageResourceAnnotations{
+					Repo:     "oci",
+					Artifact: "image",
+					For:      "observability",
+					Path:     "prometheus.configmapReload.prometheus.image.tag",
+					ImageRef: "combined",
+				},
+			},
+		},
+	},
+}
