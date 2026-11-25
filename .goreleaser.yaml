@@ -43,6 +43,7 @@ builds:
       - "{{ .Env.LDFLAGS }}"
     env:
       - CGO_ENABLED=0
+      - GOFIPS140=certified
     goos:
       - linux
       - darwin

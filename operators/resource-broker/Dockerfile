@@ -36,6 +36,7 @@ RUN --mount=type=cache,target=/go/pkg/mod,id=gomod-broker go mod download
 RUN --mount=type=cache,target=/go/pkg/mod,id=gomod-broker \
     --mount=type=cache,target=/root/.cache/go-build,id=gobuild-broker \
     CGO_ENABLED=0 \
+    GOFIPS140=certified \
     GOCACHE=/root/.cache/go-build \
     GOOS=${TARGETOS:-linux} \
     GOARCH=${TARGETARCH} \

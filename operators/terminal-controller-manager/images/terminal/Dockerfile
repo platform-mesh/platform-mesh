@@ -25,7 +25,7 @@ ENV GOTOOLCHAIN=auto
 
 RUN git clone --depth 1 -b feat/kcp-support https://github.com/nexus49/k9s.git /tmp/k9s && \
     cd /tmp/k9s && \
-    GOOS=${TARGETOS} GOARCH=${TARGETARCH} make build
+    GOFIPS140=certified GOOS=${TARGETOS} GOARCH=${TARGETARCH} make build
 
 # Runtime stage
 FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
