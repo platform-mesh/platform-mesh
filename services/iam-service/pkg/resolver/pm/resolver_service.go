@@ -25,7 +25,7 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/config"
 	"go.platform-mesh.io/iam-service/pkg/fga"
 	"go.platform-mesh.io/iam-service/pkg/graph"
-	"go.platform-mesh.io/iam-service/pkg/keycloak"
+	"go.platform-mesh.io/iam-service/pkg/idm"
 	"go.platform-mesh.io/iam-service/pkg/pager"
 	"go.platform-mesh.io/iam-service/pkg/resolver/api"
 	serrors "go.platform-mesh.io/iam-service/pkg/resolver/errors"
@@ -42,12 +42,12 @@ var _ api.ResolverService = (*Service)(nil)
 const ownerRoleID = "owner"
 
 type Service struct {
-	fgaService      *fga.Service
-	keycloakService *keycloak.Service
-	userSorter      sorter.UserSorter
-	pager           pager.Pager
-	mgr             mcmanager.Manager
-	transformer     *transformer.UserTransformer
+	fgaService    *fga.Service
+	userDirectory idm.UserDirectory
+	userSorter    sorter.UserSorter
+	pager         pager.Pager
+	mgr           mcmanager.Manager
+	transformer   *transformer.UserTransformer
 }
 
 func (s *Service) Me(ctx context.Context) (*graph.User, error) {
@@ -67,7 +67,7 @@ func (s *Service) Me(ctx context.Context) (*graph.User, error) {
 }
 
 func (s *Service) User(ctx context.Context, userID string) (*graph.User, error) {
-	user, err := s.keycloakService.UserByMail(ctx, userID)
+	user, err := s.userDirectory.UserByMail(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (s *Service) Users(ctx context.Context, rctx graph.ResourceContext, roleFil
 		return nil, err
 	}
 
-	err = s.keycloakService.EnrichUserRoles(ctx, allUserRoles)
+	err = s.userDirectory.EnrichUserRoles(ctx, allUserRoles)
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +108,8 @@ func (s *Service) Users(ctx context.Context, rctx graph.ResourceContext, roleFil
 }
 
 func (s *Service) KnownUsers(ctx context.Context, sortBy *graph.SortByInput, page *graph.PageInput) (*graph.UserConnection, error) {
-	// Fetch all known users from Keycloak
-	users, err := s.keycloakService.GetUsers(ctx)
+	// Fetch all known users from the identity provider
+	users, err := s.userDirectory.GetUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -150,16 +150,16 @@ func (s *Service) Roles(ctx context.Context, context graph.ResourceContext) ([]*
 	return s.fgaService.GetRoles(ctx, context)
 }
 
-func NewResolverService(fgaClient openfgav1.OpenFGAServiceClient, service *keycloak.Service, cfg *config.ServiceConfig, mgr mcmanager.Manager, rolesRetriever roles.RolesRetriever) *Service {
+func NewResolverService(fgaClient openfgav1.OpenFGAServiceClient, userDirectory idm.UserDirectory, cfg *config.ServiceConfig, mgr mcmanager.Manager, rolesRetriever roles.RolesRetriever) *Service {
 	wsClientFactory := workspace.NewClientFactory(mgr)
-	fgaService := fga.New(fgaClient, cfg, wsClientFactory, service, rolesRetriever)
+	fgaService := fga.New(fgaClient, cfg, wsClientFactory, userDirectory, rolesRetriever)
 
 	return &Service{
-		fgaService:      fgaService,
-		keycloakService: service,
-		userSorter:      sorter.NewUserSorterWithConfig(cfg),
-		pager:           pager.NewPager(cfg),
-		mgr:             mgr,
-		transformer:     transformer.NewUserTransformer(&cfg.JWT),
+		fgaService:    fgaService,
+		userDirectory: userDirectory,
+		userSorter:    sorter.NewUserSorterWithConfig(cfg),
+		pager:         pager.NewPager(cfg),
+		mgr:           mgr,
+		transformer:   transformer.NewUserTransformer(&cfg.JWT),
 	}
 }

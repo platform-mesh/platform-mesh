@@ -77,11 +77,11 @@ func createTestResolverService(t *testing.T) (*Service, *mocks.OpenFGAServiceCli
 	paginator := pager.NewPager(cfg)
 
 	service := &Service{
-		fgaService:      fgaService,
-		keycloakService: keycloakService,
-		userSorter:      userSorter,
-		pager:           paginator,
-		mgr:             nil, // nil for tests that don't use the manager
+		fgaService:    fgaService,
+		userDirectory: keycloakService,
+		userSorter:    userSorter,
+		pager:         paginator,
+		mgr:           nil, // nil for tests that don't use the manager
 	}
 
 	return service, mockFGA
@@ -316,7 +316,7 @@ func TestNewResolverService(t *testing.T) {
 
 	assert.NotNil(t, service)
 	assert.NotNil(t, service.fgaService)
-	assert.NotNil(t, service.keycloakService)
+	assert.NotNil(t, service.userDirectory)
 	assert.NotNil(t, service.userSorter)
 	assert.NotNil(t, service.pager)
 	// mgr is nil in tests that don't require it
@@ -352,7 +352,7 @@ func TestService_Methods_Coverage(t *testing.T) {
 // Additional specific method coverage tests
 func TestService_Me_ErrorPath(t *testing.T) {
 	realService := &Service{
-		keycloakService: &keycloak.Service{},
+		userDirectory: &keycloak.Service{},
 	}
 
 	// Call Me with empty context (will trigger the GetWebTokenFromContext error path)
@@ -365,7 +365,7 @@ func TestService_Me_ErrorPath(t *testing.T) {
 
 func TestService_User_DirectCall(t *testing.T) {
 	realService := &Service{
-		keycloakService: &keycloak.Service{},
+		userDirectory: &keycloak.Service{},
 	}
 
 	// Call User method directly (this covers the method body)
@@ -373,5 +373,5 @@ func TestService_User_DirectCall(t *testing.T) {
 	_, _ = realService.User(ctx, "test-user")
 
 	// This covers the User method implementation
-	assert.NotNil(t, realService.keycloakService)
+	assert.NotNil(t, realService.userDirectory)
 }

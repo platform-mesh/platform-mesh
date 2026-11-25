@@ -24,6 +24,8 @@ import (
 )
 
 type IDMConfig struct {
+	// Provider selects the identity provider integration: "keycloak" or "none".
+	Provider        string
 	ExcludedTenants []string
 }
 
@@ -86,6 +88,7 @@ func NewServiceConfig() *ServiceConfig {
 			UserIDClaim: "sub",
 		},
 		IDM: IDMConfig{
+			Provider:        "keycloak",
 			ExcludedTenants: []string{"welcome"},
 		},
 		Keycloak: KeycloakConfig{
@@ -119,6 +122,7 @@ func (c *ServiceConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&c.OpenFGA.StoreCacheTTL, "openfga-store-cache-ttl", c.OpenFGA.StoreCacheTTL, "Set OpenFGA store cache TTL")
 
 	fs.StringVar(&c.JWT.UserIDClaim, "jwt-user-id-claim", c.JWT.UserIDClaim, "Set JWT user id claim")
+	fs.StringVar(&c.IDM.Provider, "idm-provider", c.IDM.Provider, "Set the identity provider integration: keycloak, or none to run without a user directory")
 	fs.StringSliceVar(&c.IDM.ExcludedTenants, "excluded-tenants", c.IDM.ExcludedTenants, "Set IDM excluded tenants")
 
 	fs.StringVar(&c.Keycloak.BaseURL, "keycloak-base-url", c.Keycloak.BaseURL, "Set Keycloak base URL")
