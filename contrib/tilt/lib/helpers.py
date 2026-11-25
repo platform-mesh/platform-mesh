@@ -329,7 +329,7 @@ def component_binary(name, path, deps, image, extra_dirs={}, labels=['platform-m
     # match nothing. A per-component context needs neither.
     bin_dir = os.path.join(TILT_DIR, 'bin', name)
     # Build inside the component module to not be affected by the root-level go.mod file.
-    cmd = 'mkdir -p {bin} && (cd {path} && CGO_ENABLED=0 GOOS=linux GOARCH={arch} go build -o {bin}/entrypoint .)'.format(
+    cmd = 'mkdir -p {bin} && (cd {path} && CGO_ENABLED=0 GOFIPS140=certified GOOS=linux GOARCH={arch} go build -o {bin}/entrypoint .)'.format(
         bin=bin_dir, arch=BUILD_GOARCH, path=path)
     for src, dst in extra_dirs.items():
         cmd += ' && mkdir -p {bin}/{dst} && rsync -a --delete {src}/ {bin}/{dst}/'.format(bin=bin_dir, src=src, dst=dst)

@@ -31,6 +31,7 @@ RUN --mount=type=cache,target=/go/pkg/mod,id=gomod-kco go mod download
 RUN --mount=type=cache,target=/go/pkg/mod,id=gomod-kco \
     --mount=type=cache,target=/root/.cache/go-build,id=gobuild-kco \
     CGO_ENABLED=0 \
+    GOFIPS140=certified \
     GOCACHE=/root/.cache/go-build \
     GOOS=${TARGETOS:-linux} \
     GOARCH=${TARGETARCH} \

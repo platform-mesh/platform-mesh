@@ -161,7 +161,7 @@ tasks:
         ignore_error: false
   build:
     cmds:
-      - go build -o bin/platform-mesh-operator main.go
+      - CGO_ENABLED=0 GOFIPS140=certified go build -o bin/platform-mesh-operator main.go
   fuzz-api:
     desc: "Run fuzz tests with a configurable duration (default 30s per target)"
     vars:

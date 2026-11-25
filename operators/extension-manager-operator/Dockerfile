@@ -36,7 +36,7 @@ WORKDIR /workspace/operators/extension-manager-operator
 RUN go mod download
 
 # Build
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/extension-manager-operator main.go
+RUN CGO_ENABLED=0 GOFIPS140=certified GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -ldflags '-w -s' -o /workspace/extension-manager-operator main.go
 
 FROM scratch
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
