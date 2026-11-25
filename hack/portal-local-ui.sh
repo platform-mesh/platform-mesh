@@ -18,8 +18,9 @@
 # and create views) of a local portal-ui-lib checkout, to try a change of it
 # in the browser.
 #
-#   hack/portal-local-ui.sh           build the checkout and roll it out
-#   hack/portal-local-ui.sh --reset   back to the released portal image
+#   hack/portal-local-ui.sh                build the checkout and roll it out
+#   hack/portal-local-ui.sh --push IMAGE   the same, as IMAGE, which is also pushed to its registry
+#   hack/portal-local-ui.sh --reset        back to the released portal image
 #
 # The generic UI is one file the portal serves,
 # /assets/platform-mesh-portal-ui-wc.js. The script builds it in the checkout
@@ -35,6 +36,9 @@
 #   --ui-lib DIR   the portal-ui-lib checkout (default: ../portal-ui-lib,
 #                  next to this repository)
 #   --skip-build   use the bundle already built in the checkout
+#   --push IMAGE   name the image IMAGE (e.g. ghcr.io/<user>/portal:<tag>)
+#                  instead of a tag per build, and push it (docker login
+#                  first), for others or another cluster to run
 #   --reset        roll back to the released image and stop
 #
 # Environment:
@@ -56,17 +60,22 @@ node_version="${PORTAL_UI_NODE:-24.15.0}"
 
 # Marks the images of this script; what precedes it is the released image.
 suffix="-local-ui-"
+# Where the released image is kept while the portal runs an image of --push,
+# whose name does not tell.
+released_annotation="platform-mesh.io/released-portal-image"
 bundle="platform-mesh-portal-ui-wc.js"
 bundle_in_image="/app/frontend/dist/frontend/browser/assets/$bundle"
 
 ui_lib="$repo/../portal-ui-lib"
 build=true
 reset=false
+push=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --ui-lib) ui_lib="${2:?--ui-lib needs a directory}"; shift 2 ;;
         --skip-build) build=false; shift ;;
         --reset) reset=true; shift ;;
+        --push) push="${2:?--push needs an image}"; shift 2 ;;
         -h | --help) awk 'NR >= 17 && !/^#/ { exit } NR >= 17 { sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
         *) die "unknown argument $1" ;;
     esac
@@ -77,10 +86,13 @@ kc() { kubectl --context "$context" -n "$namespace" "$@"; }
 current="$(kc get deployment portal -o jsonpath='{.spec.template.spec.containers[?(@.name=="portal")].image}')" \
     || die "no portal Deployment in $namespace of $context; is the Tilt environment up?"
 [ -n "$current" ] || die "the portal Deployment has no container named portal"
-released="${current%%"$suffix"*}"
+released="$(kc get deployment portal -o "jsonpath={.metadata.annotations['${released_annotation//./\\.}']}")"
+[ -n "$released" ] || released="${current%%"$suffix"*}"
 
 roll_out() {
     kc set image deployment/portal "portal=$1"
+    # A pushed image keeps its name from build to build.
+    [ "$1" != "$current" ] || kc rollout restart deployment/portal
     kc rollout status deployment/portal --timeout=3m
 }
 
@@ -90,6 +102,7 @@ if $reset; then
     else
         roll_out "$released"
     fi
+    kc annotate deployment/portal "$released_annotation-"
     exit 0
 fi
 
@@ -120,12 +133,18 @@ COPY --chown=1001:1001 $bundle $bundle_in_image
 EOF
 
 # A tag of its own per build, so that the Deployment rolls.
-image="$released$suffix$(date +%Y%m%d%H%M%S)"
+image="${push:-$released$suffix$(date +%Y%m%d%H%M%S)}"
 arch="$(kubectl --context "$context" get nodes -o jsonpath='{.items[0].status.nodeInfo.architecture}')"
 
 echo "building $image"
 docker build --quiet --platform "linux/$arch" -t "$image" "$context_dir" > /dev/null
+if [ -n "$push" ]; then
+    echo "pushing $image"
+    docker push --quiet "$image"
+fi
+# Also for a pushed image: its registry may not let the cluster pull.
 kind load docker-image "$image" --name "$cluster"
+kc annotate --overwrite deployment/portal "$released_annotation=$released"
 roll_out "$image"
 
 cat <<EOF

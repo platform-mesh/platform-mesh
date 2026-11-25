@@ -18,6 +18,9 @@
 # environment with curl, through the kcp front proxy at /services/access.
 #
 #   hack/access-vw.sh [review]            POST a SelfClusterAccessReview: the workspaces the caller can access
+#   hack/access-vw.sh list                GET the same review as a list of one, with the resource version to watch from
+#   hack/access-vw.sh watch [VERSION]     follow the review until interrupted: it is sent again when it changes
+#                                         (checked every 10s); from VERSION of a list, or starting with the review as it is
 #   hack/access-vw.sh discovery           GET the API resources the virtual workspace serves
 #   hack/access-vw.sh bind <workspace>    bind the access APIExport in a workspace (e.g. root:orgs:bob)
 #   hack/access-vw.sh unbind <workspace>  remove that binding again
@@ -29,7 +32,7 @@
 #   review is empty until `bind` ran for at least one workspace the caller has
 #   a (Cluster)RoleBinding in.
 # - openfga: the accounts of one organization the caller can access. The
-#   review has to name a workspace of the organization with --cluster, and the
+#   review (also list and watch) has to name a workspace of the organization with --cluster, and the
 #   caller has to be a user OpenFGA knows, so not the kcp admin: use --as or
 #   --token. bind and unbind do not apply.
 #
@@ -174,6 +177,13 @@ case "$cmd" in
             -d "{\"apiVersion\":\"$GROUP_VERSION\",\"kind\":\"SelfClusterAccessReview\"}" \
             "$url/selfclusteraccessreviews"
         ;;
+    list)
+        run_curl "$url/selfclusteraccessreviews"
+        ;;
+    watch)
+        # -N: print each event as it arrives.
+        run_curl -N "$url/selfclusteraccessreviews?watch=true${2:+&resourceVersion=$2}"
+        ;;
     discovery)
         run_curl "$url"
         ;;
@@ -187,6 +197,6 @@ case "$cmd" in
         kc --server "$server/clusters/$ws" delete apibinding "$EXPORT_NAME"
         ;;
     *)
-        die "unknown command $cmd (review, discovery, bind, unbind)"
+        die "unknown command $cmd (review, list, watch, discovery, bind, unbind)"
         ;;
 esac
