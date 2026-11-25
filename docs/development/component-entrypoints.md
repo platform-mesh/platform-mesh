@@ -2,8 +2,9 @@
 
 Every Platform Mesh component that is a Go program can be started in two
 ways: as its own binary, and as a goroutine of a process that hosts several
-components (`pm start` in `cmd/pm`, the integration tests). Both go through
-the same exported function. This page says what that function looks like.
+components (the integration tests, a single-binary Platform Mesh). Both go
+through the same exported function. This page says what that function looks
+like.
 
 ## The shape
 
@@ -83,4 +84,4 @@ host process cannot use.
 | iam-service | `pkg/app.Run` | |
 | kubernetes-graphql-gateway | `listener.NewConfig`/`NewServer`/`Run`, `gateway.NewConfig`/`NewServer`/`Run` | older shape of the same idea; takes kubeconfig paths, not a rest config (rule 2) |
 | virtual workspaces (marketplace, extension-manager) | `golang-commons/virtual-workspaces/server.Serve` plus each one's `BuildVirtualWorkspace` | takes a kubeconfig path (rule 2) |
-| pm-keycloak-operator, platform-mesh-operator, provider-operator, terminal-controller-manager, kro-composition-operator, resource-broker | not converted | not hosted by `pm start` |
+| pm-keycloak-operator, platform-mesh-operator, provider-operator, terminal-controller-manager, kro-composition-operator, resource-broker | not converted | |
