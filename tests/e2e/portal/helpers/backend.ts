@@ -58,6 +58,7 @@ function waitForAccountDeleted(orgName?: string, accountName?: string, timeoutSe
   const org = orgName ?? newOrgName;
   const account = accountName ?? defaultAccountName;
   const timeout = timeoutSeconds ?? Number(accountReadyTimeoutSeconds);
+  const start = Date.now();
   logStep(`waitForAccountDeleted:start account=${account} timeout=${timeout}s`);
   runAdminKubectl([
     'wait',
@@ -65,9 +66,10 @@ function waitForAccountDeleted(orgName?: string, accountName?: string, timeoutSe
     kcpClusterServer(`root:orgs:${org}`),
     '--for=delete',
     `--timeout=${timeout}s`,
+    `--request-timeout=${timeout}s`,
     `accounts.core.platform-mesh.io/${account}`,
   ]);
-  logStep(`waitForAccountDeleted:done account=${account}`);
+  logStep(`waitForAccountDeleted:done account=${account} elapsedMs=${Date.now() - start}`);
 }
 
 function ensureInvitedUserExists(user: TestUser, orgName?: string): void {
