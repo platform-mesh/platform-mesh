@@ -84,6 +84,17 @@ type BuildFunc func(ctx context.Context, clients Clients) ([]virtualrootapiserve
 // Run serves the virtual workspaces returned by build until the process is
 // signalled. ctx bounds what build starts in the background.
 func Run(ctx context.Context, o *Options, scheme *runtime.Scheme, build BuildFunc) error {
+	return serve(ctx, genericapiserver.SetupSignalContext, o, scheme, build)
+}
+
+// Serve is Run for a process that hosts more than the virtual workspaces: it
+// serves until ctx is done and leaves the signal handlers, of which a process
+// has one set, to its caller.
+func Serve(ctx context.Context, o *Options, scheme *runtime.Scheme, build BuildFunc) error {
+	return serve(ctx, func() context.Context { return ctx }, o, scheme, build)
+}
+
+func serve(ctx context.Context, serveCtx func() context.Context, o *Options, scheme *runtime.Scheme, build BuildFunc) error {
 	ctrl.SetLogger(klog.Background())
 	codecs := serializer.NewCodecFactory(scheme)
 
@@ -155,5 +166,5 @@ func Run(ctx context.Context, o *Options, scheme *runtime.Scheme, build BuildFun
 		return err
 	}
 
-	return preparedRootAPIServer.RunWithContext(genericapiserver.SetupSignalContext())
+	return preparedRootAPIServer.RunWithContext(serveCtx())
 }
