@@ -189,15 +189,21 @@ func (c *contextualAuthorizer) handleKCPBindCheck(ctx context.Context, req autho
 		"consumerParentClusterID", consumerInfo.ParentClusterID,
 		"storeID", consumerInfo.StoreID)
 
-	singular, err := consumerInfo.RESTMapper.ResourceSingularizer(attrs.Resource)
-	if err != nil {
-		klog.ErrorS(err, "failed to singularize resource", "resource", attrs.Resource)
-		return authorization.NoOpinion()
-	}
-
 	gvr := schema.GroupVersionResource{
 		Group:    attrs.Group,
 		Resource: attrs.Resource,
+	}
+
+	// The lazy RESTMapper only knows a group after a lookup like KindFor; before it the singular is empty.
+	if _, err := consumerInfo.RESTMapper.KindFor(gvr); err != nil {
+		klog.ErrorS(err, "failed to get kind for resource", "resource", gvr)
+		return authorization.NoOpinion()
+	}
+
+	singular, err := consumerInfo.RESTMapper.ResourceSingularizer(attrs.Resource)
+	if err != nil || singular == "" {
+		klog.ErrorS(err, "failed to singularize resource", "resource", attrs.Resource)
+		return authorization.NoOpinion()
 	}
 
 	_, resourceObjectType := BuildObjectType(gvr, singular)
