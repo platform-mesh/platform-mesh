@@ -242,10 +242,15 @@ func start(ctx context.Context, serviceCfg *config.ServiceConfig, router *chi.Mu
 		WriteTimeout: 20 * time.Second,
 		BaseContext:  func(listener net.Listener) context.Context { return ctx },
 	}
+	// Bind before going on: a port that cannot be bound must stop the
+	// process, not leave it running without an HTTP server.
+	listener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to start http server")
+	}
 	go func() {
-		err := server.ListenAndServe()
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Error().Err(err).Msg("failed to start http server")
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Err(err).Msg("http server failed")
 		}
 	}()
 
@@ -258,8 +263,7 @@ func start(ctx context.Context, serviceCfg *config.ServiceConfig, router *chi.Mu
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := server.Shutdown(shutdownCtx)
-	if err != nil {
+	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Panic().Err(err).Msg("Graceful shutdown failed")
 	}
 }
