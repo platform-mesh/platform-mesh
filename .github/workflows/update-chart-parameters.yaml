@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
-      # Pushed and opened as the PM Publisher app so that PR-triggered
+      # Committed and opened as the PM Publisher app so that PR-triggered
       # workflows run without a maintainer approval prompt.
       - name: Create temporary publisher GitHub token
         uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3
@@ -101,16 +101,25 @@ jobs:
         if: steps.bump.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          git config user.name "Platform Mesh Publisher[bot]"
-          git config user.email "platformmesh@gmail.com"
-          gh auth setup-git
-          git checkout -b "$BRANCH"
-          git add "charts/$CHART/Chart.yaml"
-          git commit -s -m "$TITLE"
-          # Bot-owned, disposable branch: a plain force push is safe and avoids
-          # the "stale info" rejection from --force-with-lease, which needs a
-          # remote-tracking ref this fresh checkout never fetched.
-          git push --force origin "$BRANCH"
+          path="charts/$CHART/Chart.yaml"
+          parent="$(git rev-parse HEAD)"
+          # Committed through the API so that GitHub signs the commit as the app
+          tree="$(jq -n \
+              --arg base "$(git rev-parse 'HEAD^{tree}')" \
+              --arg path "$path" \
+              --rawfile content "$path" \
+              '{base_tree: $base, tree: [{path: $path, mode: "100644", type: "blob", content: $content}]}' \
+            | gh api "repos/{owner}/{repo}/git/trees" --input - --jq .sha)"
+          commit="$(gh api "repos/{owner}/{repo}/git/commits" \
+            -f message="$TITLE" -f tree="$tree" -f "parents[]=$parent" --jq .sha)"
+          # Bot-owned, disposable branch: a forced ref update is safe.
+          if gh api "repos/{owner}/{repo}/git/ref/heads/$BRANCH" --silent 2>/dev/null; then
+            gh api -X PATCH "repos/{owner}/{repo}/git/refs/heads/$BRANCH" \
+              -f sha="$commit" -F force=true --silent
+          else
+            gh api "repos/{owner}/{repo}/git/refs" \
+              -f ref="refs/heads/$BRANCH" -f sha="$commit" --silent
+          fi
           # Reuse an existing PR for this branch only if one is still open;
           # re-running after a manual close creates a fresh PR off current main.
           url="$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url')"
