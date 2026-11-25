@@ -108,6 +108,16 @@ func (r *ProviderWorkspaceSubroutine) Process(ctx context.Context, obj ctrlrunti
 		return subroutines.OK(), gcerrors.Wrap(err, "failed to create kcp client for parent workspace %s", defaultWorkspaceParent)
 	}
 
+	if providerOIDC(inst) != nil {
+		rootClient, err := r.kcpHelper.NewKcpClient(restCfg, oidcAuthenticationParent)
+		if err != nil {
+			return subroutines.OK(), gcerrors.Wrap(err, "failed to create kcp client for %s", oidcAuthenticationParent)
+		}
+		if err := ensureOIDCWorkspaceType(ctx, rootClient, inst); err != nil {
+			return subroutines.OK(), err
+		}
+	}
+
 	// Ensure the provider workspace with "root:providers" workspace type.
 	ws := kcptenancyv1alpha1.Workspace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -115,9 +125,8 @@ func (r *ProviderWorkspaceSubroutine) Process(ctx context.Context, obj ctrlrunti
 		},
 	}
 	if _, err := controllerutil.CreateOrUpdate(ctx, scopedKcpClient, &ws, func() error {
-		ws.Spec.Type = &kcptenancyv1alpha1.WorkspaceTypeReference{
-			Name: providerWorkspaceTypeName,
-			Path: providerWorkspaceTypePath,
+		if ws.Spec.Type == nil {
+			ws.Spec.Type = providerWorkspaceType(inst)
 		}
 		return nil
 	}); err != nil {
@@ -169,6 +178,15 @@ func (r *ProviderWorkspaceSubroutine) Finalize(ctx context.Context, obj ctrlrunt
 		if apierrors.IsNotFound(err) {
 			log.Info().Str("parentPath", defaultWorkspaceParent).Str("workspaceName", providerWsName).Msg("Deleted provider workspace")
 			r.limiter.Forget(&ws)
+			if providerOIDC(inst) != nil {
+				rootClient, err := r.kcpHelper.NewKcpClient(restCfg, oidcAuthenticationParent)
+				if err != nil {
+					return subroutines.OK(), gcerrors.Wrap(err, "failed to create kcp client for %s", oidcAuthenticationParent)
+				}
+				if err := deleteOIDCWorkspaceType(ctx, rootClient, inst); err != nil {
+					return subroutines.OK(), err
+				}
+			}
 			return subroutines.OK(), nil
 		}
 		return subroutines.OK(), gcerrors.Wrap(err, "failed to delete provider workspace %s", providerWsPath)

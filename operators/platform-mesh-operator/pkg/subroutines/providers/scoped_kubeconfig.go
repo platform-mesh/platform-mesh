@@ -162,6 +162,10 @@ func (r *ScopedKubeconfigSubroutine) Process(ctx context.Context, obj ctrlruntim
 		return subroutines.OK(), gcerrors.Wrap(err, "failed to create kcp client for provider workspace %s", wsPath)
 	}
 
+	if providerOIDC(inst) != nil {
+		return r.processOIDC(ctx, inst, ws, providerWsClient, userWsClient)
+	}
+
 	// Ensure the default namespace exists in the provider workspace.
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: providerSANamespace}}
 	if err := providerWsClient.Create(ctx, ns); err != nil && !apierrors.IsAlreadyExists(err) {

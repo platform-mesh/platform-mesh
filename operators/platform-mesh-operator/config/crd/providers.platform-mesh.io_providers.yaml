@@ -67,6 +67,52 @@ spec:
           spec:
             description: spec defines the desired state of Provider
             properties:
+              authentication:
+                description: |-
+                  authentication sets how the provider controllers log in to the provider workspace.
+                  Not set means a ServiceAccount token in the kubeconfig Secret. It cannot change later.
+                properties:
+                  oidc:
+                    description: |-
+                      oidc lets the provider controllers log in with tokens of their own issuer,
+                      e.g. ServiceAccount tokens of their cluster. No credential is stored in Platform Mesh.
+                    properties:
+                      audiences:
+                        description: audiences are the accepted values of the "aud"
+                          claim.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      certificateAuthority:
+                        description: certificateAuthority is the PEM CA of the discovery
+                          and JWKS endpoints.
+                        type: string
+                      discoveryURL:
+                        description: discoveryURL is where kcp reads the discovery
+                          document, if not under issuerURL.
+                        type: string
+                      issuerURL:
+                        description: issuerURL must match the "iss" claim of the tokens.
+                        pattern: ^https://
+                        type: string
+                      subjects:
+                        description: |-
+                          subjects are the "sub" claims with full access to the provider workspace,
+                          e.g. system:serviceaccount:my-provider:controller.
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                    required:
+                    - audiences
+                    - issuerURL
+                    - subjects
+                    type: object
+                type: object
+                x-kubernetes-validations:
+                - message: authentication is immutable
+                  rule: self == oldSelf
               hostOverride:
                 description: |-
                   hostOverride overrides the kcp front-proxy host written into the

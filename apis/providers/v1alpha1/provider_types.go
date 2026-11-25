@@ -47,6 +47,47 @@ type ProviderSpec struct {
 	// front-proxy URL.
 	// +optional
 	HostOverride string `json:"hostOverride,omitempty"`
+
+	// authentication sets how the provider controllers log in to the provider workspace.
+	// Not set means a ServiceAccount token in the kubeconfig Secret. It cannot change later.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="authentication is immutable"
+	Authentication *ProviderAuthentication `json:"authentication,omitempty"`
+}
+
+// ProviderAuthentication sets how the provider controllers log in to the provider workspace.
+type ProviderAuthentication struct {
+	// oidc lets the provider controllers log in with tokens of their own issuer,
+	// e.g. ServiceAccount tokens of their cluster. No credential is stored in Platform Mesh.
+	// +optional
+	OIDC *ProviderOIDCAuthentication `json:"oidc,omitempty"`
+}
+
+// ProviderOIDCAuthentication is a JWT issuer that kcp trusts for the provider workspace only.
+type ProviderOIDCAuthentication struct {
+	// issuerURL must match the "iss" claim of the tokens.
+	// +required
+	// +kubebuilder:validation:Pattern=`^https://`
+	IssuerURL string `json:"issuerURL"`
+
+	// discoveryURL is where kcp reads the discovery document, if not under issuerURL.
+	// +optional
+	DiscoveryURL string `json:"discoveryURL,omitempty"`
+
+	// certificateAuthority is the PEM CA of the discovery and JWKS endpoints.
+	// +optional
+	CertificateAuthority string `json:"certificateAuthority,omitempty"`
+
+	// audiences are the accepted values of the "aud" claim.
+	// +required
+	// +kubebuilder:validation:MinItems=1
+	Audiences []string `json:"audiences"`
+
+	// subjects are the "sub" claims with full access to the provider workspace,
+	// e.g. system:serviceaccount:my-provider:controller.
+	// +required
+	// +kubebuilder:validation:MinItems=1
+	Subjects []string `json:"subjects"`
 }
 
 // KubeconfigSecretSpec describes a Secret and the key with kubeconfig YAML content.
