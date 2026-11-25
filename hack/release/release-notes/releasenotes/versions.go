@@ -134,19 +134,9 @@ func ThirdPartyVersions(ctx context.Context, commit string) (map[string]string, 
 		if err != nil || !ok {
 			return nil, err
 		}
-		// TODO(ntnn): Should replace this with the ocm library or
-		// another package when we do have more than one consumer
-		// parsing OCM constructors.
-		var file struct {
-			Components []struct {
-				Resources []struct {
-					Name    string `yaml:"name"`
-					Version string `yaml:"version"`
-				} `yaml:"resources"`
-			} `yaml:"components"`
-		}
-		if err := yaml.Unmarshal(data, &file); err != nil {
-			return nil, fmt.Errorf("parsing %s at %s: %w", path, commit, err)
+		file, err := releaseutils.ParseOCMConstructor(data)
+		if err != nil {
+			return nil, fmt.Errorf("%s at %s: %w", path, commit, err)
 		}
 		for _, c := range file.Components {
 			for _, r := range c.Resources {
