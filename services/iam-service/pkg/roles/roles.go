@@ -63,17 +63,24 @@ func NewFileBasedRolesRetriever(filePath string) (*FileBasedRolesRetriever, erro
 		return nil, errors.Wrap(err, "failed to read roles file %s", filePath)
 	}
 
-	var config RolesConfig
-	err = yaml.Unmarshal(data, &config)
+	retriever, err := NewRolesRetrieverFromYAML(data)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal roles YAML from file %s", filePath)
 	}
+	retriever.filePath = filePath
 
-	retriever := &FileBasedRolesRetriever{
-		filePath: filePath,
-		config:   &config,
-	}
 	return retriever, nil
+}
+
+// NewRolesRetrieverFromYAML creates a roles retriever from the content of a
+// roles file, e.g. the embedded default roles.
+func NewRolesRetrieverFromYAML(data []byte) (*FileBasedRolesRetriever, error) {
+	var config RolesConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+
+	return &FileBasedRolesRetriever{config: &config}, nil
 }
 
 // GetRoleDefinitions returns the full role definitions for a given group resource
