@@ -53,7 +53,8 @@ func TestOrgSubroutines(t *testing.T) {
 			cfg.Initializer.WorkspaceInitializerEnabled = cas.workspace
 			cfg.RekeyOrphanedTuplesEnabled = cas.rekey
 
-			subs := orgSubroutines(cfg, nil, nil, nil, nil)
+			subs, err := orgSubroutines(cfg, nil, nil, nil, nil)
+			require.NoError(t, err)
 
 			names := make([]string, 0, len(subs))
 			for _, sub := range subs {
@@ -62,4 +63,16 @@ func TestOrgSubroutines(t *testing.T) {
 			assert.Equal(t, cas.expected, names)
 		})
 	}
+}
+
+// An unreadable core module is an error to return, not a panic.
+func TestOrgSubroutinesUnreadableCoreModule(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.NewConfig()
+	cfg.CoreModulePath = filepath.Join(t.TempDir(), "missing.fga")
+	cfg.Initializer.WorkspaceInitializerEnabled = true
+
+	_, err := orgSubroutines(cfg, nil, nil, nil, nil)
+	require.ErrorIs(t, err, os.ErrNotExist)
 }

@@ -68,9 +68,13 @@ func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
+	subs, err := orgSubroutines(cfg, mgr, kcpClientGetter, fgaClient, storeIDGetter)
+	if err != nil {
+		return nil, err
+	}
 	lc := lifecycle.New(mgr, opts.Name, func() ctrlruntimeclient.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
-	}, orgSubroutines(cfg, mgr, kcpClientGetter, fgaClient, storeIDGetter)...)
+	}, subs...)
 
 	if opts.InitializerName != "" {
 		lc = lc.WithInitializer(opts.InitializerName)
@@ -88,16 +92,20 @@ func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.
 }
 
 // orgSubroutines builds the organization subroutine chain from the initializer toggles.
-func orgSubroutines(cfg config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter) []subroutines.Subroutine {
+func orgSubroutines(cfg config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter) ([]subroutines.Subroutine, error) {
 	var subs []subroutines.Subroutine
 
 	if cfg.Initializer.WorkspaceInitializerEnabled {
-		subs = append(subs, subroutine.NewWorkspaceInitializer(cfg, mgr, kcpClientGetter, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientGetter))
+		workspaceInitializer, err := subroutine.NewWorkspaceInitializer(cfg, mgr, kcpClientGetter, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientGetter)
+		if err != nil {
+			return nil, fmt.Errorf("creating workspace initializer: %w", err)
+		}
+		subs = append(subs, workspaceInitializer)
 	}
 	if cfg.RekeyOrphanedTuplesEnabled {
 		subs = append(subs, subroutine.NewRekeyTuplesSubroutine(cfg, mgr, fgaClient, storeIDGetter, kcpClientGetter))
 	}
-	return subs
+	return subs, nil
 }
 
 func (r *OrgLogicalClusterController) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
