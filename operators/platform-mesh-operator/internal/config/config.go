@@ -18,6 +18,7 @@ package config
 
 import (
 	"strings"
+	"time"
 
 	"github.com/spf13/pflag"
 
@@ -193,6 +194,8 @@ func NewOperatorConfig() OperatorConfig {
 			Provider: ProviderSubroutinesConfig{
 				Workspace:  ProviderSubroutineConfig{Enabled: true},
 				Kubeconfig: ProviderSubroutineConfig{Enabled: true},
+
+				KubeconfigTokenExpiration: time.Hour,
 			},
 		},
 	}
@@ -242,6 +245,7 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&c.Subroutines.ManagedProvider.Deploy.Enabled, "subroutines-managed-provider-deploy-enabled", c.Subroutines.ManagedProvider.Deploy.Enabled, "Enable ManagedProvider deploy subroutine")
 	fs.BoolVar(&c.Subroutines.Provider.Workspace.Enabled, "subroutines-providers-workspace-enabled", c.Subroutines.Provider.Workspace.Enabled, "Enable Provider workspace subroutine")
 	fs.BoolVar(&c.Subroutines.Provider.Kubeconfig.Enabled, "subroutines-providers-kubeconfig-enabled", c.Subroutines.Provider.Kubeconfig.Enabled, "Enable Provider scoped-kubeconfig subroutine")
+	fs.DurationVar(&c.Subroutines.Provider.KubeconfigTokenExpiration, "subroutines-providers-kubeconfig-token-expiration", c.Subroutines.Provider.KubeconfigTokenExpiration, "Lifetime of the token in the Provider kubeconfig; it is renewed after two thirds of it")
 
 	fs.StringVar(&c.Providers.ProvidersAPIExportEndpointSliceName, "providers-apiexport-endpointslice-name", c.Providers.ProvidersAPIExportEndpointSliceName, "Set name of the Providers APIExport endpoint slice to use")
 	fs.StringVar(&c.Providers.ProvidersAPIExportEndpointSliceWorkspace, "providers-apiexport-endpointslice-workspace", c.Providers.ProvidersAPIExportEndpointSliceWorkspace, "Set workspace of the Providers APIExport endpoint slice to use")
@@ -256,6 +260,8 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 type ProviderSubroutinesConfig struct {
 	Workspace  ProviderSubroutineConfig
 	Kubeconfig ProviderSubroutineConfig
+
+	KubeconfigTokenExpiration time.Duration
 }
 
 type ProvidersConfig struct {

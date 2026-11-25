@@ -107,7 +107,7 @@ func NewProviderReconciler(mgr mcmanager.Manager, operatorCfg *config.OperatorCo
 				}
 				return cluster.GetClient(), nil
 			},
-		))
+		).WithTokenExpiration(operatorCfg.Subroutines.Provider.KubeconfigTokenExpiration))
 	}
 
 	lc := lifecycle.New(mgr, ProviderControllerName, func() ctrlruntimeclient.Object {

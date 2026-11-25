@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -30,12 +31,14 @@ import (
 	"go.platform-mesh.io/platform-mesh-operator/internal/config"
 	"go.platform-mesh.io/platform-mesh-operator/pkg/subroutines/mocks"
 
+	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
@@ -140,6 +143,7 @@ func (s *ScopedKubeconfigTestSuite) mockWorkspaceReady() {
 		Get(mock.Anything, types.NamespacedName{Name: "wildwest-abc123"}, mock.AnythingOfType("*v1alpha1.Workspace")).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
 			ws := obj.(*kcptenancyv1alpha1.Workspace)
+			ws.Spec.Cluster = "wildwest-cluster"
 			ws.Status.Phase = "Ready"
 			return nil
 		})
@@ -277,15 +281,74 @@ func (s *ScopedKubeconfigTestSuite) TestProcess_SACreateFails() {
 	s.Assert().Contains(err.Error(), "create ServiceAccount")
 }
 
-func (s *ScopedKubeconfigTestSuite) TestProcess_TokenNotPopulatedYet() {
+// fakeTokenClient answers the TokenRequest of the "token" subresource.
+type fakeTokenClient struct {
+	ctrlruntimeclient.SubResourceClient
+	expiresAt time.Time
+	calls     int
+}
+
+func (f *fakeTokenClient) Create(_ context.Context, _ ctrlruntimeclient.Object, subResource ctrlruntimeclient.Object, _ ...ctrlruntimeclient.SubResourceCreateOption) error {
+	f.calls++
+	tr := subResource.(*authenticationv1.TokenRequest)
+	tr.Status.Token = "short-lived-token"
+	tr.Status.ExpirationTimestamp = metav1.NewTime(f.expiresAt)
+	return nil
+}
+
+func (s *ScopedKubeconfigTestSuite) mockTokenPreconditions() *fakeTokenClient {
 	s.mockPreTokenSteps()
-	// Token secret Create succeeds but leaves Data empty (no SA token controller).
 	s.wsClientMock.EXPECT().
-		Get(mock.Anything, types.NamespacedName{Name: "wildwest-provider-token", Namespace: "default"}, mock.AnythingOfType("*v1.Secret")).
+		Delete(mock.Anything, mock.MatchedBy(func(o *corev1.Secret) bool { return o.Name == "wildwest-provider-token" }), mock.Anything).
 		Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "wildwest-provider-token"))
 	s.wsClientMock.EXPECT().
-		Create(mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+		Get(mock.Anything, types.NamespacedName{Name: "kube-root-ca.crt", Namespace: "default"}, mock.AnythingOfType("*v1.ConfigMap")).
+		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+			obj.(*corev1.ConfigMap).Data = map[string]string{"ca.crt": "fake-ca"}
+			return nil
+		})
+	s.clMock.EXPECT().
+		Create(mock.Anything, mock.AnythingOfType("*v1.Namespace"), mock.Anything).
 		Return(nil)
+	tokens := &fakeTokenClient{expiresAt: time.Now().Add(time.Hour)}
+	s.wsClientMock.EXPECT().SubResource("token").Return(tokens).Maybe()
+	return tokens
+}
+
+// mockKubeconfigSecret makes the user workspace return existing, or NotFound if it is nil,
+// and captures the Secret that is written.
+func (s *ScopedKubeconfigTestSuite) mockKubeconfigSecret(existing *corev1.Secret) **corev1.Secret {
+	key := types.NamespacedName{Name: "wildwest-provider-kubeconfig", Namespace: "default"}
+	s.clMock.EXPECT().
+		Get(mock.Anything, key, mock.AnythingOfType("*v1.Secret")).
+		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
+			if existing == nil {
+				return apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, key.Name)
+			}
+			existing.DeepCopyInto(obj.(*corev1.Secret))
+			return nil
+		})
+	written := new(*corev1.Secret)
+	capture := func(_ context.Context, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
+		*written = obj.(*corev1.Secret)
+		return nil
+	}
+	s.clMock.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).RunAndReturn(capture).Maybe()
+	s.clMock.EXPECT().Update(mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+		RunAndReturn(func(ctx context.Context, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.UpdateOption) error {
+			return capture(ctx, obj)
+		}).Maybe()
+	return written
+}
+
+func (s *ScopedKubeconfigTestSuite) TestProcess_RootCANotPublished_Requeue() {
+	s.mockPreTokenSteps()
+	s.wsClientMock.EXPECT().
+		Delete(mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
+		Return(nil)
+	s.wsClientMock.EXPECT().
+		Get(mock.Anything, types.NamespacedName{Name: "kube-root-ca.crt", Namespace: "default"}, mock.AnythingOfType("*v1.ConfigMap")).
+		Return(apierrors.NewNotFound(schema.GroupResource{Resource: "configmaps"}, "kube-root-ca.crt"))
 
 	result, err := s.testObj.Process(s.newCtx(), s.newProvider())
 
@@ -295,78 +358,86 @@ func (s *ScopedKubeconfigTestSuite) TestProcess_TokenNotPopulatedYet() {
 
 func (s *ScopedKubeconfigTestSuite) TestProcess_HappyPath() {
 	inst := s.newProvider()
-	s.mockPreTokenSteps()
-	// Token secret: already exists with token data populated → Update.
-	s.wsClientMock.EXPECT().
-		Get(mock.Anything, types.NamespacedName{Name: "wildwest-provider-token", Namespace: "default"}, mock.AnythingOfType("*v1.Secret")).
-		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			secret := obj.(*corev1.Secret)
-			secret.ResourceVersion = "1"
-			secret.Data = map[string][]byte{
-				"token":  []byte("fake-token"),
-				"ca.crt": []byte("fake-ca"),
-			}
-			return nil
-		})
-	s.wsClientMock.EXPECT().
-		Update(mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
-		Return(nil)
-	// Ensure namespace "default" in user's workspace before writing kubeconfig Secret.
-	s.clMock.EXPECT().
-		Create(mock.Anything, mock.AnythingOfType("*v1.Namespace"), mock.Anything).
-		Return(nil)
-	// Default kubeconfig secret name: "wildwest-provider-kubeconfig"
-	s.clMock.EXPECT().
-		Get(mock.Anything, types.NamespacedName{Name: "wildwest-provider-kubeconfig", Namespace: "default"}, mock.AnythingOfType("*v1.Secret")).
-		Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "wildwest-provider-kubeconfig"))
-	s.clMock.EXPECT().
-		Create(mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
-		Return(nil)
+	tokens := s.mockTokenPreconditions()
+	written := s.mockKubeconfigSecret(nil)
 
 	result, err := s.testObj.Process(s.newCtx(), inst)
 
 	s.Require().NoError(err)
 	s.Assert().True(result.IsContinue())
+	s.Assert().Equal(1, tokens.calls)
+	s.Assert().InDelta((40 * time.Minute).Seconds(), result.Requeue().Seconds(), 5, "renew after two thirds of the lifetime")
 	s.Require().NotNil(inst.Status.ProviderKubeconfigSecretRef)
 	s.Assert().Equal("wildwest-provider-kubeconfig", inst.Status.ProviderKubeconfigSecretRef.Name)
 	s.Assert().Equal("default", inst.Status.ProviderKubeconfigSecretRef.Namespace)
 	s.Assert().Equal(pmprovidersv1alpha1.ProviderPhaseReady, inst.Status.Phase)
+
+	s.Require().NotNil(*written)
+	secret := *written
+	s.Assert().Equal("short-lived-token", string(secret.Data["token"]))
+	s.Assert().NotEmpty(secret.Annotations[tokenExpiresAtAnnotation])
+	kubeconfig, err := clientcmd.Load(secret.Data["kubeconfig"])
+	s.Require().NoError(err)
+	auth := kubeconfig.AuthInfos[kubeconfig.Contexts[kubeconfig.CurrentContext].AuthInfo]
+	s.Assert().Equal("short-lived-token", auth.Token)
+	s.Assert().Equal("token", auth.TokenFile, "pods that mount the Secret pick up renewed tokens")
+	s.Assert().Equal([]byte("fake-ca"), kubeconfig.Clusters["default-cluster"].CertificateAuthorityData)
+}
+
+func (s *ScopedKubeconfigTestSuite) TestProcess_FreshTokenIsReused() {
+	inst := s.newProvider()
+	tokens := s.mockTokenPreconditions()
+	existing := s.existingKubeconfigSecret("https://kcp.api.example.com/clusters/wildwest-cluster", time.Now().Add(50*time.Minute))
+	s.mockKubeconfigSecret(existing)
+
+	result, err := s.testObj.Process(s.newCtx(), inst)
+
+	s.Require().NoError(err)
+	s.Assert().Equal(0, tokens.calls)
+	s.Assert().InDelta((30 * time.Minute).Seconds(), result.Requeue().Seconds(), 5)
+	s.Assert().Equal(pmprovidersv1alpha1.ProviderPhaseReady, inst.Status.Phase)
+}
+
+func (s *ScopedKubeconfigTestSuite) TestProcess_ExpiringTokenIsRenewed() {
+	tokens := s.mockTokenPreconditions()
+	existing := s.existingKubeconfigSecret("https://kcp.api.example.com/clusters/wildwest-cluster", time.Now().Add(10*time.Minute))
+	written := s.mockKubeconfigSecret(existing)
+
+	_, err := s.testObj.Process(s.newCtx(), s.newProvider())
+
+	s.Require().NoError(err)
+	s.Assert().Equal(1, tokens.calls)
+	s.Require().NotNil(*written)
 }
 
 func (s *ScopedKubeconfigTestSuite) TestProcess_HostOverride() {
 	inst := s.newProvider()
 	inst.Spec.HostOverride = "https://custom.kcp.host"
-
-	s.mockPreTokenSteps()
-	s.wsClientMock.EXPECT().
-		Get(mock.Anything, types.NamespacedName{Name: "wildwest-provider-token", Namespace: "default"}, mock.AnythingOfType("*v1.Secret")).
-		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.GetOption) error {
-			secret := obj.(*corev1.Secret)
-			secret.ResourceVersion = "1"
-			secret.Data = map[string][]byte{"token": []byte("t"), "ca.crt": []byte("ca")}
-			return nil
-		})
-	s.wsClientMock.EXPECT().Update(mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).Return(nil)
-	s.clMock.EXPECT().
-		Create(mock.Anything, mock.AnythingOfType("*v1.Namespace"), mock.Anything).
-		Return(nil)
-	s.clMock.EXPECT().
-		Get(mock.Anything, types.NamespacedName{Name: "wildwest-provider-kubeconfig", Namespace: "default"}, mock.AnythingOfType("*v1.Secret")).
-		Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "wildwest-provider-kubeconfig"))
-
-	var capturedSecret *corev1.Secret
-	s.clMock.EXPECT().
-		Create(mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
-		RunAndReturn(func(_ context.Context, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
-			capturedSecret = obj.(*corev1.Secret)
-			return nil
-		})
+	tokens := s.mockTokenPreconditions()
+	// A fresh token for the old host must not be reused.
+	existing := s.existingKubeconfigSecret("https://kcp.api.example.com/clusters/wildwest-cluster", time.Now().Add(50*time.Minute))
+	written := s.mockKubeconfigSecret(existing)
 
 	_, err := s.testObj.Process(s.newCtx(), inst)
 
 	s.Require().NoError(err)
-	s.Require().NotNil(capturedSecret)
-	s.Assert().Contains(string(capturedSecret.Data["kubeconfig"]), "https://custom.kcp.host")
+	s.Assert().Equal(1, tokens.calls)
+	s.Require().NotNil(*written)
+	s.Assert().Contains(string((*written).Data["kubeconfig"]), "https://custom.kcp.host")
+}
+
+func (s *ScopedKubeconfigTestSuite) existingKubeconfigSecret(server string, expiresAt time.Time) *corev1.Secret {
+	kubeconfig, err := clientcmd.Write(buildProviderScopedKubeconfigForToken(server, "old-token", "token", []byte("fake-ca")))
+	s.Require().NoError(err)
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "wildwest-provider-kubeconfig",
+			Namespace:       "default",
+			ResourceVersion: "1",
+			Annotations:     map[string]string{tokenExpiresAtAnnotation: expiresAt.UTC().Format(time.RFC3339)},
+		},
+		Data: map[string][]byte{"kubeconfig": kubeconfig, "token": []byte("old-token")},
+	}
 }
 
 // --- Finalize ---

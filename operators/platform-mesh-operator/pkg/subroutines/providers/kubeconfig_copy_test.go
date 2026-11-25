@@ -228,7 +228,7 @@ func (s *KubeconfigCopyTestSuite) TestProcess_HappyPath() {
 		Get(mock.Anything, types.NamespacedName{Name: "cowboys-kubeconfig", Namespace: "kcp-side-ns"}, mock.AnythingOfType("*v1.Secret")).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, obj ctrlruntimeclient.Object, opts ...ctrlruntimeclient.GetOption) error {
 			secret := obj.(*corev1.Secret)
-			secret.Data = map[string][]byte{"kubeconfig": secretKubeconfigData}
+			secret.Data = map[string][]byte{"kubeconfig": secretKubeconfigData, "token": []byte("short-lived-token")}
 			return nil
 		})
 	// Ensure namespace "default" in runtime cluster (r.client, since RuntimeKubeconfigSecretName is empty)
@@ -239,9 +239,13 @@ func (s *KubeconfigCopyTestSuite) TestProcess_HappyPath() {
 	s.clientMock.EXPECT().
 		Get(mock.Anything, types.NamespacedName{Name: "cowboys-provider-kubeconfig", Namespace: "providers-wildwest-ns"}, mock.AnythingOfType("*v1.Secret")).
 		Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "cowboys-provider-kubeconfig"))
+	var copied *corev1.Secret
 	s.clientMock.EXPECT().
 		Create(mock.Anything, mock.AnythingOfType("*v1.Secret"), mock.Anything).
-		Return(nil)
+		RunAndReturn(func(_ context.Context, obj ctrlruntimeclient.Object, _ ...ctrlruntimeclient.CreateOption) error {
+			copied = obj.(*corev1.Secret)
+			return nil
+		})
 
 	result, err := s.testObj.Process(ctx, inst)
 
@@ -250,6 +254,9 @@ func (s *KubeconfigCopyTestSuite) TestProcess_HappyPath() {
 	s.Require().NotNil(inst.Status.ProviderKubeconfigSecretRef)
 	s.Assert().Equal("cowboys-provider-kubeconfig", inst.Status.ProviderKubeconfigSecretRef.Name)
 	s.Assert().Equal("providers-wildwest-ns", inst.Status.ProviderKubeconfigSecretRef.Namespace)
+	s.Require().NotNil(copied)
+	s.Assert().Equal("short-lived-token", string(copied.Data["token"]), "the token file of the kubeconfig is copied too")
+	s.Assert().Equal(kubeconfigCopyResyncDuration, result.Requeue(), "renewed tokens are copied again")
 }
 
 func (s *KubeconfigCopyTestSuite) TestProcess_CustomProviderReference() {
