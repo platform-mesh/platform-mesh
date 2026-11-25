@@ -701,3 +701,68 @@ func TestHandler(t *testing.T) {
 		})
 	}
 }
+
+// lazyRESTMapper behaves like a lazy RESTMapper: the group is unknown until KindFor runs.
+type lazyRESTMapper struct {
+	meta.RESTMapper
+	loaded bool
+}
+
+func (m *lazyRESTMapper) KindFor(gvr schema.GroupVersionResource) (schema.GroupVersionKind, error) {
+	m.loaded = true
+	return m.RESTMapper.KindFor(gvr)
+}
+
+func (m *lazyRESTMapper) ResourceSingularizer(resource string) (string, error) {
+	if !m.loaded {
+		return "", nil
+	}
+	return m.RESTMapper.ResourceSingularizer(resource)
+}
+
+func TestBindCheckWithLazyRESTMapper(t *testing.T) {
+	gv := schema.GroupVersion{Group: "apis.kcp.io", Version: "v1alpha1"}
+	rm := meta.NewDefaultRESTMapper([]schema.GroupVersion{})
+	rm.AddSpecific(gv.WithKind("APIExport"), gv.WithResource("apiexports"), gv.WithResource("apiexport"), meta.RESTScopeRoot)
+
+	cc := mocks.NewClusterCacheProvider(t)
+	cc.EXPECT().Get(multicluster.ClusterName("consumer-cluster-id")).Return(clustercache.ClusterInfo{
+		StoreID:         "consumer-store-id",
+		RESTMapper:      &lazyRESTMapper{RESTMapper: rm},
+		AccountName:     "consumer-account",
+		ParentClusterID: "consumer-parent",
+	}, true)
+
+	openfga := mocks.NewOpenFGAServiceClient(t)
+	openfga.EXPECT().Check(mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, in *openfgav1.CheckRequest, opts ...grpc.CallOption) (*openfgav1.CheckResponse, error) {
+			assert.Equal(t, "apis_kcp_io_apiexport:provider-cluster-id/test-export", in.TupleKey.User)
+			return &openfgav1.CheckResponse{Allowed: true}, nil
+		},
+	)
+
+	cacheMissTracker := mocks.NewTracker[string](t)
+	cacheMissTracker.EXPECT().ShouldRetry(mock.Anything).Return(false).Maybe()
+
+	h := contextual.New(openfga, cc, "authorization.kubernetes.io/cluster-name", cacheMissTracker, time.Second)
+	res := h.Handle(t.Context(), authorization.Request{
+		SubjectAccessReview: authorizationv1.SubjectAccessReview{
+			Spec: authorizationv1.SubjectAccessReviewSpec{
+				User:   "system:serviceaccount:default:bot",
+				Groups: []string{"system:authenticated", "system:cluster:consumer-cluster-id"},
+				Extra: map[string]authorizationv1.ExtraValue{
+					"authorization.kubernetes.io/cluster-name": {"provider-cluster-id"},
+				},
+				ResourceAttributes: &authorizationv1.ResourceAttributes{
+					Group:    "apis.kcp.io",
+					Version:  "v1alpha1",
+					Resource: "apiexports",
+					Verb:     "bind",
+					Name:     "test-export",
+				},
+			},
+		},
+	})
+
+	assert.Equal(t, authorization.Allowed(), res)
+}
