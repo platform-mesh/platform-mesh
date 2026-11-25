@@ -281,6 +281,33 @@ func (s *DeployTestSuite) TestProcess_ControllerReady_NoPortal() {
 	s.Assert().Equal(pmprovidersv1alpha1.ManagedProviderPhaseReady, inst.Status.Phase)
 }
 
+func (s *DeployTestSuite) TestProcess_EntryWithNeitherFluxNorOCM_ReturnsError() {
+	ctx := s.newCtx()
+	inst := s.newManagedProvider()
+	inst.Spec.RuntimeDeployments = []pmprovidersv1alpha1.ProviderComponentSpec{{}}
+
+	result, err := s.testObj.Process(ctx, inst)
+
+	s.Require().Error(err, "an entry with no deployment is not valid")
+	s.Assert().True(result.IsContinue())
+	s.Assert().NotEqual(pmprovidersv1alpha1.ManagedProviderPhaseReady, inst.Status.Phase, "nothing was deployed")
+}
+
+func (s *DeployTestSuite) TestProcess_EntryWithNeitherFluxNorOCM_AfterDeployedEntry_ReturnsError() {
+	ctx := s.newCtx()
+	inst := s.newManagedProvider()
+	flux := inst.Spec.RuntimeDeployments[0].Flux
+	inst.Spec.RuntimeDeployments = append(inst.Spec.RuntimeDeployments, pmprovidersv1alpha1.ProviderComponentSpec{})
+
+	s.mockComponentDeployed("wildwest-controller", "providers-wildwest-ns", flux, true)
+
+	result, err := s.testObj.Process(ctx, inst)
+
+	s.Require().Error(err, "every entry needs a deployment")
+	s.Assert().True(result.IsContinue())
+	s.Assert().NotEqual(pmprovidersv1alpha1.ManagedProviderPhaseReady, inst.Status.Phase, "not Ready while one entry is not valid")
+}
+
 func (s *DeployTestSuite) TestProcess_ControllerReady_PortalNotReady() {
 	ctx := s.newCtx()
 	inst := s.newManagedProviderWithPortal()
