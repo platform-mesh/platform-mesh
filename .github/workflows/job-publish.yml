@@ -328,9 +328,22 @@ jobs:
       - name: Verify that charts are installable
         run: |
           set -euo pipefail
+          shopt -s nullglob
           for chart in account-operator infra common; do
             helm pull "oci://$OCM_REPO/helm-charts/$chart" --version "$VERSION" --destination /tmp
-            [ "$chart" = common ] || helm template "/tmp/$chart-$VERSION.tgz" >/dev/null
+            if [ "$chart" != common ]; then
+              # If the chart has ci values (e.g. as used by `ct lint`)
+              # use those to template the chart to validate it is
+              # deployable.
+              values=( "charts/$chart/ci/"*-values.yaml )
+              if [ "${#values[@]}" -eq 0 ]; then
+                helm template "/tmp/$chart-$VERSION.tgz" >/dev/null
+              else
+                for file in "${values[@]}"; do
+                  helm template "/tmp/$chart-$VERSION.tgz" --values "$file" >/dev/null
+                done
+              fi
+            fi
             echo "ok: $chart $VERSION"
           done
 
