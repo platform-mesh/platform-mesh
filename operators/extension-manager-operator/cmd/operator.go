@@ -63,7 +63,11 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		}
 	}()
 
-	if err := app.Run(ctx, &config.Config{Common: defaultCfg, Operator: operatorCfg}, app.Deps{Log: log}); err != nil {
+	restCfg, err := app.LoadConfig()
+	if err != nil {
+		log.Fatal().Err(err).Msg("operator failed")
+	}
+	if err := app.Run(ctx, restCfg, &config.Config{Common: defaultCfg, Operator: operatorCfg}, app.Deps{Log: log}); err != nil {
 		log.Fatal().Err(err).Msg("operator failed")
 	}
 }
