@@ -15,7 +15,7 @@
 apiVersion: ui.platform-mesh.io/v1alpha1
 kind: ProviderMetadata
 metadata:
-  name: orchestrate.platform-mesh.io
+  name: httpbin
 spec:
   displayName: ABC MSP Provider
   description: |

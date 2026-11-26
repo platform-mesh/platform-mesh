@@ -33,7 +33,7 @@ def _deploy(c, ctx):
             write_values(
                 "api-syncagent",
                 {
-                    "apiExportEndpointSliceName": "orchestrate.platform-mesh.io",
+                    "apiExportEndpointSliceName": "httpbin",
                     "agentName": "kcp-api-syncagent",
                     "kcpKubeconfig": "httpbin-kubeconfig",
                     "image": {"tag": third_party_version("api-syncagent", "image")},
@@ -129,7 +129,7 @@ def _deploy(c, ctx):
         "httpbin-api-ready",
         [
             """kubectl --kubeconfig .secret/httpbin-provider.kubeconfig \
-                   wait apiexport/orchestrate.platform-mesh.io \
+                   wait apiexport/httpbin \
                    --for=jsonpath='{.spec.resources[?(@.name=="httpbins")].schema}' --timeout=5m"""
         ],
         ["api-syncagent", "httpbin-apiexportpolicy"],

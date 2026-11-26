@@ -44,3 +44,5 @@ export {
 } from './account';
 
 export { expectUnauthorizedAccountAccess } from './users';
+
+export { waitForHttpbinBindingReady } from './httpbin-provider';

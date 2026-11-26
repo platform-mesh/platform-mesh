@@ -15,10 +15,10 @@
 apiVersion: core.platform-mesh.io/v1alpha1
 kind: APIExportPolicy
 metadata:
-  name: orchestrate.platform-mesh.io
+  name: httpbin
 spec:
   apiExportRef:
-    name: orchestrate.platform-mesh.io
+    name: httpbin
     clusterPath: root:providers:httpbin-provider
 
   allowPathExpressions:

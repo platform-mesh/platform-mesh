@@ -46,7 +46,7 @@ __AUTHENTICATION__
         adminAuth: true
     extraDefaultAPIBindings:
       - workspaceTypePath: root:account
-        export: orchestrate.platform-mesh.io
+        export: httpbin
         path: root:providers:httpbin-provider
   # platform-mesh-operator is not deploying anything, so it doesn't need
   # to wait on anything

@@ -17,7 +17,7 @@ kind: ContentConfiguration
 metadata:
   labels:
     ui.platform-mesh.io/entity: core_platform-mesh_io_account
-    ui.platform-mesh.io/content-for: orchestrate.platform-mesh.io
+    ui.platform-mesh.io/content-for: httpbin
   name: httpbin-ui
 spec:
   inlineConfiguration:

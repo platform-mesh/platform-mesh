@@ -25,6 +25,8 @@ const mkcertCaPath = process.env.MKCERT_CA_PATH || path.join(repoRoot, 'contrib'
 const adminKubeconfigPath = process.env.ADMIN_KUBECONFIG || path.join(repoRoot, '.secret/kcp/admin.kubeconfig');
 const platformNamespace = process.env.PLATFORM_NAMESPACE || 'platform-mesh-system';
 const httpbinNamespace = process.env.HTTPBIN_NAMESPACE || 'example-httpbin-provider';
+const httpbinApiExportName = 'httpbin';
+const httpbinProviderPath = 'root:providers:httpbin-provider';
 const httpbinProviderKubeconfigPath = process.env.HTTPBIN_PROVIDER_KUBECONFIG || path.join(repoRoot, 'contrib', 'tilt', '.secret', 'httpbin-provider.kubeconfig');
 
 // Remote mode = both kubeconfigs are present (start.sh writes both when invoked
@@ -33,7 +35,7 @@ const httpbinProviderKubeconfigPath = process.env.HTTPBIN_PROVIDER_KUBECONFIG ||
 const infraKubeconfigPath = process.env.INFRA_KUBECONFIG || path.join(repoRoot, '.secret/platform-mesh-infra.kubeconfig');
 const runtimeKubeconfigPath = process.env.RUNTIME_KUBECONFIG || path.join(repoRoot, '.secret/platform-mesh.kubeconfig');
 const remoteMode = existsSync(infraKubeconfigPath) && existsSync(runtimeKubeconfigPath);
-const exampleMarketplaceEntryName = process.env.EXAMPLE_MARKETPLACE_ENTRY_NAME || 'orchestrate.platform-mesh.io-orchestrate.platform-mesh.io';
+const exampleMarketplaceEntryName = process.env.EXAMPLE_MARKETPLACE_ENTRY_NAME || 'httpbin-httpbin';
 const exampleProviderDisplayName = process.env.EXAMPLE_PROVIDER_DISPLAY_NAME || 'ABC MSP Provider';
 
 type TestUser = {
@@ -89,6 +91,8 @@ export {
   adminKubeconfigPath,
   platformNamespace,
   httpbinNamespace,
+  httpbinApiExportName,
+  httpbinProviderPath,
   httpbinProviderKubeconfigPath,
   infraKubeconfigPath,
   runtimeKubeconfigPath,
