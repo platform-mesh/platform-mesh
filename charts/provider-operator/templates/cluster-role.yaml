@@ -1,0 +1,76 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "common.clusterScoped.name" . }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - components
+  - repositories
+  - resources
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+- apiGroups:
+  - helm.toolkit.fluxcd.io
+  resources:
+  - helmreleases
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+- apiGroups:
+  - providers.platform-mesh.io
+  resources:
+  - managedproviders
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - providers.platform-mesh.io
+  resources:
+  - managedproviders/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - providers.platform-mesh.io
+  resources:
+  - managedproviders/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - source.toolkit.fluxcd.io
+  resources:
+  - helmrepositories
+  - ocirepositories
+  verbs:
+  - create
+  - delete
+  - get
+  - update

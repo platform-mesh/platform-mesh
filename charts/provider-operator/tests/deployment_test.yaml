@@ -1,0 +1,44 @@
+suite: operator
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+release:
+  name: provider-operator
+  namespace: platform-mesh-system
+tests:
+  - it: operator matches the snapshot
+    asserts:
+      - matchSnapshot: {}
+  - it: points the operator at kcp in the release namespace
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --kcp-namespace=platform-mesh-system
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --kcp-front-proxy-port=443
+  - it: takes the kcp front-proxy port from values
+    template: deployment.yaml
+    set:
+      kcp:
+        frontProxyPort: 8443
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --kcp-front-proxy-port=8443
+  - it: grants no list or watch on Secrets
+    template: cluster-role.yaml
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - secrets
+            verbs:
+              - create
+              - delete
+              - get
+              - update

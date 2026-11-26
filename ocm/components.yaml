@@ -92,7 +92,10 @@ components:
     chart: charts/platform-mesh-operator
   provider-operator:
     path: operators/provider-operator
-    e2e: false # scaffold only, no e2e suite yet
+    image: provider-operator
+    chart: charts/provider-operator
+    optional: true # referenced by the aggregate, but no profile installs it yet
+    e2e: false # no e2e suite of its own
   resource-broker:
     path: operators/resource-broker
     image: resource-broker
