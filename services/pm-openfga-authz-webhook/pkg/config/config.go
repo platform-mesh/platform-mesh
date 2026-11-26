@@ -45,8 +45,9 @@ type Config struct {
 
 	Webhook WebhookConfig
 
-	// KCPWorkspace is the workspace of the APIExportEndpointSlices. Empty
-	// means the workspace the kcp config points at.
+	// KCPWorkspace is the workspace the component runs against in kcp: the rest
+	// config, and with it the APIExportEndpointSlices and the local manager
+	// client, is pointed at it. Empty keeps the workspace of the kubeconfig.
 	KCPWorkspace                    string
 	APIExportEndpointSliceName      string
 	StoreAPIExportEndpointSliceName string
@@ -85,7 +86,7 @@ func (cfg *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&cfg.Webhook.CacheMissTTL, "webhook-cache-miss-ttl", cfg.Webhook.CacheMissTTL, "Duration after which cache miss count resets for a cluster")
 	fs.DurationVar(&cfg.Webhook.CacheMissCleanupInterval, "webhook-cache-miss-cleanup-interval", cfg.Webhook.CacheMissCleanupInterval, "Interval at which cache miss keys are checked for expiration")
 	fs.DurationVar(&cfg.Webhook.CacheMissRetryAfter, "webhook-cache-miss-retry-after", cfg.Webhook.CacheMissRetryAfter, "Delay before retrying on cache miss")
-	fs.StringVar(&cfg.KCPWorkspace, "kcp-workspace", cfg.KCPWorkspace, "Workspace of the APIExportEndpointSlices; empty means the workspace the kubeconfig points at")
+	fs.StringVar(&cfg.KCPWorkspace, "kcp-workspace", cfg.KCPWorkspace, "Workspace the component runs against in kcp, replacing the path of the kubeconfig; empty keeps the workspace the kubeconfig points at")
 	fs.StringVar(&cfg.APIExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", cfg.APIExportEndpointSliceName, "Set the kcp API export endpoint slice name")
 	fs.StringVar(&cfg.StoreAPIExportEndpointSliceName, "kcp-store-api-export-endpoint-slice-name", cfg.StoreAPIExportEndpointSliceName, "Set the kcp API export endpoint slice name that serves Stores")
 }

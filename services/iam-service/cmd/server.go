@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -104,7 +103,7 @@ func setupIDM(ctx context.Context, fgaClient openfgav1.OpenFGAServiceClient) (id
 }
 
 func setupRouter(ctx context.Context, mgr mcmanager.Manager, fgaClient openfgav1.OpenFGAServiceClient) *chi.Mux {
-	restcfg, err := getRootConfig(mgr)
+	restcfg, err := kcpconfig.Root(mgr.GetLocalManager().GetConfig())
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get root config")
 	}
@@ -164,17 +163,6 @@ func setupRouter(ctx context.Context, mgr mcmanager.Manager, fgaClient openfgav1
 	res := resolver.New(svc, log.ComponentLogger("resolver"))
 	router := iamRouter.CreateRouter(defaultCfg, serviceCfg, res, log, mws, dr)
 	return router
-}
-
-func getRootConfig(mgr mcmanager.Manager) (*rest.Config, error) {
-	restcfg := rest.CopyConfig(mgr.GetLocalManager().GetConfig())
-	host, err := url.Parse(restcfg.Host)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to parse host from rest config")
-	}
-	host.Path = ""
-	restcfg.Host = host.String()
-	return restcfg, err
 }
 
 func setupFGAClient() openfgav1.OpenFGAServiceClient {
