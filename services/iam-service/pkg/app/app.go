@@ -52,7 +52,6 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/idm"
 	"go.platform-mesh.io/iam-service/pkg/idm/none"
 	"go.platform-mesh.io/iam-service/pkg/keycloak"
-	"go.platform-mesh.io/iam-service/pkg/middleware/cors"
 	idmmw "go.platform-mesh.io/iam-service/pkg/middleware/idm"
 	kcpmiddleware "go.platform-mesh.io/iam-service/pkg/middleware/kcp"
 	keycloakmw "go.platform-mesh.io/iam-service/pkg/middleware/keycloak"
@@ -122,21 +121,14 @@ func NewScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(pmcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(pmkeycloakv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(pmprovidersv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(pmprovidersv1alpha1.AddToScheme(scheme))
 	return scheme
 }
 
 // Run starts iam-service and blocks until ctx is done or a component fails.
 // When ctx is done the HTTP server is shut down gracefully and Run returns nil.
-//
-// kcpCfg is a kcp rest config; cfg.Service.KCPWorkspace names the workspace in
-// it that holds the APIExportEndpointSlice named core.platform-mesh.io
-// (root:platform-mesh-system in a Platform Mesh installation; empty: the one
-// kcpCfg points at). Requests to other workspaces are sent to the same host
-// with the path replaced. kcpCfg is copied, the caller's config is not
-// modified.
 //
 // Run does not install signal handlers, does not configure logging and never
 // exits the process.
@@ -383,12 +375,7 @@ func newRouter(
 		return nil, fmt.Errorf("failed to create cluster client: %w", err)
 	}
 
-	var mws []func(http.Handler) http.Handler
-	if len(serviceCfg.CORS.AllowedOrigins) > 0 {
-		// Has to come first: preflight requests carry no credentials.
-		mws = append(mws, cors.New(serviceCfg.CORS.AllowedOrigins))
-	}
-	mws = append(mws, pmmws.CreateMiddleware(log, true)...)
+	mws := pmmws.CreateMiddleware(log, true)
 	kcpmw := kcpmiddleware.New(mgr.GetLocalManager().GetConfig(), serviceCfg.IDM.ExcludedTenants, tenantRetriever, log)
 	mws = append(mws, kcpmw.SetKCPUserContext())
 

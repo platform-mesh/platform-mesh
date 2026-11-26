@@ -47,17 +47,7 @@ const (
 	systemLeaderElectionID         = "pm-openfga-operator-system.platform-mesh.io"
 )
 
-// Controller names of the LogicalCluster controllers. controller-runtime
-// keeps the names of all controllers of a process and rejects a second
-// controller of the same name, so the names of all roles are distinct:
-//
-//	fga:             store, authorizationmodel, accountinfo (with LegacyAPIs
-//	                 also store-legacy, authorizationmodel-legacy) and the
-//	                 two ...Reconciler names below
-//	initializer:     the two ...Initializer names below
-//	terminator:      the two ...Terminator names below
-//	system:          apiexportpolicy (with LegacyAPIs also apiexportpolicy-legacy)
-//	model-generator: apibinding
+// Controller names of the LogicalCluster controllers.
 const (
 	orgReconcilerName      = "OrgLogicalClusterReconciler"
 	accountReconcilerName  = "AccountLogicalClusterReconciler"

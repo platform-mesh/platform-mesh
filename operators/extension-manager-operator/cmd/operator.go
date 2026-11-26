@@ -63,7 +63,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		}
 	}()
 
-	restCfg, err := app.LoadConfig()
+	restCfg, err := ctrl.GetConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("operator failed")
 	}
