@@ -67,14 +67,17 @@ type RolesConfig struct {
 }
 
 type ServiceConfig struct {
-	Port       int
-	OpenFGA    OpenFGAConfig
-	JWT        JWTConfig
-	IDM        IDMConfig
-	Keycloak   KeycloakConfig
-	Pagination PaginationConfig
-	Sorting    SortingConfig
-	Roles      RolesConfig
+	Port int
+	// KCPWorkspace is the workspace of the APIExportEndpointSlices. Empty
+	// means the workspace the kcp config points at.
+	KCPWorkspace string
+	OpenFGA      OpenFGAConfig
+	JWT          JWTConfig
+	IDM          IDMConfig
+	Keycloak     KeycloakConfig
+	Pagination   PaginationConfig
+	Sorting      SortingConfig
+	Roles        RolesConfig
 }
 
 func NewServiceConfig() *ServiceConfig {
@@ -117,6 +120,7 @@ func NewServiceConfig() *ServiceConfig {
 
 func (c *ServiceConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&c.Port, "port", c.Port, "Set the service port")
+	fs.StringVar(&c.KCPWorkspace, "kcp-workspace", c.KCPWorkspace, "Workspace of the APIExportEndpointSlices; empty means the workspace the kubeconfig points at")
 
 	fs.StringVar(&c.OpenFGA.GRPCAddr, "openfga-grpc-addr", c.OpenFGA.GRPCAddr, "Set OpenFGA gRPC address")
 	fs.DurationVar(&c.OpenFGA.StoreCacheTTL, "openfga-store-cache-ttl", c.OpenFGA.StoreCacheTTL, "Set OpenFGA store cache TTL")

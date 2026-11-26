@@ -40,6 +40,9 @@ func (c *ServerConfig) AddFlags(fs *pflag.FlagSet) {
 }
 
 type OperatorConfig struct {
+	// KCPWorkspace is the workspace of the APIExportEndpointSlice. Empty
+	// means the workspace the kcp config points at.
+	KCPWorkspace                           string
 	KCPAPIExportEndpointSliceName          string
 	SubroutinesContentConfigurationEnabled bool
 	EntityTypeValidationEnabled            bool
@@ -53,6 +56,7 @@ func NewOperatorConfig() *OperatorConfig {
 }
 
 func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&c.KCPWorkspace, "kcp-workspace", c.KCPWorkspace, "Workspace of the APIExportEndpointSlice; empty means the workspace the kubeconfig points at")
 	fs.StringVar(&c.KCPAPIExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.KCPAPIExportEndpointSliceName, "Optional APIExportEndpointSlice name to reconcile against")
 	fs.BoolVar(&c.SubroutinesContentConfigurationEnabled, "subroutines-content-configuration-enabled", c.SubroutinesContentConfigurationEnabled, "Enable the content configuration subroutine")
 	fs.BoolVar(&c.EntityTypeValidationEnabled, "entity-type-validation-enabled", c.EntityTypeValidationEnabled, "Enable entityType validation for ContentConfigurations")

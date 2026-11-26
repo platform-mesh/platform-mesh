@@ -68,6 +68,9 @@ type ControllersConfig struct {
 }
 
 type KcpConfig struct {
+	// Workspace is the workspace of the APIExportEndpointSlice. Empty means
+	// the workspace the kcp config points at.
+	Workspace                  string
 	ApiExportEndpointSliceName string
 	ProviderWorkspace          string
 }
@@ -228,6 +231,7 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 
 	fs.BoolVar(&c.Controllers.AccountInfo.Enabled, "controllers-account-info-enabled", c.Controllers.AccountInfo.Enabled, "Enable account info controller")
 
+	fs.StringVar(&c.Kcp.Workspace, "kcp-workspace", c.Kcp.Workspace, "Workspace of the APIExportEndpointSlice; empty means the workspace the kubeconfig points at")
 	fs.StringVar(&c.Kcp.ApiExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.Kcp.ApiExportEndpointSliceName, "Set APIExportEndpointSlice name")
 	fs.StringVar(&c.Kcp.ProviderWorkspace, "kcp-provider-workspace", c.Kcp.ProviderWorkspace, "Set provider workspace")
 

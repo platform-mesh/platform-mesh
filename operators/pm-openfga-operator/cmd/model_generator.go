@@ -33,7 +33,7 @@ var modelGeneratorCmd = &cobra.Command{
 		ctx, _, shutdown := platformeshcontext.StartContext(log, defaultCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
-		restCfg, err := getKubeconfigFromPath(generatorCfg.KCP.Kubeconfig)
+		restCfg, err := getKCPConfig(&generatorCfg)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to get kcp kubeconfig")
 			return err

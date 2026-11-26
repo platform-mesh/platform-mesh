@@ -34,6 +34,7 @@ import (
 	"go.platform-mesh.io/account-operator/pkg/config"
 	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/kcpconfig"
 	"go.platform-mesh.io/golang-commons/logger"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -188,6 +189,10 @@ func Run(ctx context.Context, cfg config.OperatorConfig, deps Deps) error { // c
 	restCfg, err := ctrl.GetConfig()
 	if err != nil {
 		return fmt.Errorf("getting rest config: %w", err)
+	}
+	restCfg, err = kcpconfig.ForWorkspace(restCfg, cfg.Kcp.Workspace)
+	if err != nil {
+		return err
 	}
 	restCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)

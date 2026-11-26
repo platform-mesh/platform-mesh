@@ -44,7 +44,7 @@ var initializerCmd = &cobra.Command{
 	Use:   "initializer",
 	Short: "FGA initializer for the organization workspacetype",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		restCfg, err := getKubeconfigFromPath(initializerCfg.KCP.Kubeconfig)
+		restCfg, err := getKCPConfig(&initializerCfg)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to get kcp kubeconfig")
 			os.Exit(1)

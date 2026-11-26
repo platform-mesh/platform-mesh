@@ -35,6 +35,7 @@ import (
 
 	pmcontext "go.platform-mesh.io/golang-commons/context"
 	"go.platform-mesh.io/golang-commons/errors"
+	"go.platform-mesh.io/golang-commons/kcpconfig"
 	"go.platform-mesh.io/golang-commons/logger"
 	pmmws "go.platform-mesh.io/golang-commons/middleware"
 	"go.platform-mesh.io/iam-service/pkg/accountinfo"
@@ -190,7 +191,7 @@ func setupFGAClient() openfgav1.OpenFGAServiceClient {
 }
 
 func setupProvider(ctx context.Context, log *logger.Logger, apiExportName string) *provider.Provider {
-	restCfg := ctrl.GetConfigOrDie()
+	restCfg := getKCPConfig()
 	restCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)
 	})
@@ -211,7 +212,7 @@ func setupProvider(ctx context.Context, log *logger.Logger, apiExportName string
 
 func setupManager(ctx context.Context, log *logger.Logger) mcmanager.Manager {
 	ctrl.SetLogger(log.Logr())
-	restCfg := ctrl.GetConfigOrDie()
+	restCfg := getKCPConfig()
 	restCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)
 	})
@@ -288,4 +289,14 @@ func start(ctx context.Context, serviceCfg *config.ServiceConfig, router *chi.Mu
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Panic().Err(err).Msg("Graceful shutdown failed")
 	}
+}
+
+// getKCPConfig returns the kcp rest config, pointed at the workspace of
+// --kcp-workspace if that is set.
+func getKCPConfig() *rest.Config {
+	restCfg, err := kcpconfig.ForWorkspace(ctrl.GetConfigOrDie(), serviceCfg.KCPWorkspace)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to point the kcp config at the workspace")
+	}
+	return restCfg
 }
