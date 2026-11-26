@@ -16,6 +16,7 @@ A Helm chart for Kubernetes
 | gatewayApi.httpRoute.pathPrefix | string | `"/iam/graphql"` |  |
 | health.port | int | `8080` |  |
 | hostAliases.enabled | bool | `false` |  |
+| idm.provider | string | `"keycloak"` | Identity provider integration: keycloak, or none to run without a user directory. With none the keycloak values are ignored and the client secret is not needed. |
 | image.digest | string | `""` | The image digest (when set, overrides tag: registry/repository@digest) |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` | The image registry |
