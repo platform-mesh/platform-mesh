@@ -27,6 +27,29 @@ tests:
         path: spec.template.spec.containers[0].args
         content: --keycloak-base-url=https://identity.example.net/keycloak
     template: deploy.yaml
+  - it: omits the Keycloak settings without an identity provider
+    set:
+      idm.provider: none
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --idm-provider=none
+    - notContains:
+        path: spec.template.spec.containers[0].args
+        content: --keycloak-client-id=iam-service
+    - notContains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: KEYCLOAK_CLIENT_SECRET
+        any: true
+    template: deploy.yaml
+  - it: rejects an unknown identity provider
+    set:
+      idm.provider: dex
+    asserts:
+    - failedTemplate:
+        errorMessage: idm.provider must be keycloak or none, got "dex"
+    template: deploy.yaml
   - it: uses the explicit route hostnames
     set:
       gatewayApi.enabled: true

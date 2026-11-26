@@ -48,6 +48,10 @@ hostAliases:
 openfga:
   endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
 
+idm:
+  # -- Identity provider integration: keycloak, or none to run without a user directory. With none the keycloak values are ignored and the client secret is not needed.
+  provider: keycloak
+
 keycloak:
   # -- Explicit Keycloak base URL for an external identity provider; empty derives the public URL plus /keycloak when exposure.baseDomain is set. Required without a base domain.
   baseUrl: ""

@@ -40,8 +40,12 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/accountinfo"
 	"go.platform-mesh.io/iam-service/pkg/config"
 	"go.platform-mesh.io/iam-service/pkg/directive"
+	"go.platform-mesh.io/iam-service/pkg/fga/store"
 	"go.platform-mesh.io/iam-service/pkg/graph"
+	"go.platform-mesh.io/iam-service/pkg/idm"
+	"go.platform-mesh.io/iam-service/pkg/idm/none"
 	"go.platform-mesh.io/iam-service/pkg/keycloak"
+	idmmw "go.platform-mesh.io/iam-service/pkg/middleware/idm"
 	kcpmiddleware "go.platform-mesh.io/iam-service/pkg/middleware/kcp"
 	keycloakmw "go.platform-mesh.io/iam-service/pkg/middleware/keycloak"
 	"go.platform-mesh.io/iam-service/pkg/resolver"
@@ -77,6 +81,27 @@ var serverCmd = &cobra.Command{
 	},
 }
 
+// setupIDM returns the user directory and the tenant retriever of the
+// identity provider selected with --idm-provider.
+func setupIDM(ctx context.Context, fgaClient openfgav1.OpenFGAServiceClient) (idm.UserDirectory, idmmw.IDMTenantRetriever) {
+	switch serviceCfg.IDM.Provider {
+	case idm.ProviderKeycloak, "":
+		// Keycloak has to be reachable at this point: the OIDC discovery of
+		// its master realm is done here.
+		userDirectory, err := keycloak.New(ctx, serviceCfg)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to create keycloak client")
+		}
+		return userDirectory, keycloakmw.New()
+	case idm.ProviderNone:
+		log.Info().Msg("Running without an identity provider directory, users are known by their email address only")
+		return none.New(fgaClient, store.NewFGAStoreHelper(serviceCfg.OpenFGA.StoreCacheTTL)), none.TenantRetriever{}
+	default:
+		log.Fatal().Msgf("unknown idm provider %q, must be %q or %q", serviceCfg.IDM.Provider, idm.ProviderKeycloak, idm.ProviderNone)
+		return nil, nil
+	}
+}
+
 func setupRouter(ctx context.Context, mgr mcmanager.Manager, fgaClient openfgav1.OpenFGAServiceClient) *chi.Mux {
 	restcfg, err := getRootConfig(mgr)
 	if err != nil {
@@ -89,7 +114,8 @@ func setupRouter(ctx context.Context, mgr mcmanager.Manager, fgaClient openfgav1
 	}
 
 	mws := pmmws.CreateMiddleware(log, true)
-	kcpmw := kcpmiddleware.New(mgr.GetLocalManager().GetConfig(), serviceCfg.IDM.ExcludedTenants, keycloakmw.New(), log)
+	userDirectory, tenantRetriever := setupIDM(ctx, fgaClient)
+	kcpmw := kcpmiddleware.New(mgr.GetLocalManager().GetConfig(), serviceCfg.IDM.ExcludedTenants, tenantRetriever, log)
 	mws = append(mws, kcpmw.SetKCPUserContext())
 
 	// Prepare AccountInfo Retriever
@@ -133,11 +159,7 @@ func setupRouter(ctx context.Context, mgr mcmanager.Manager, fgaClient openfgav1
 	}
 
 	// create Resolver Service
-	idmClient, err := keycloak.New(ctx, serviceCfg)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create keycloak client")
-	}
-	svc := pm.NewResolverService(fgaClient, idmClient, serviceCfg, mgr, rolesRetriever)
+	svc := pm.NewResolverService(fgaClient, userDirectory, serviceCfg, mgr, rolesRetriever)
 	res := resolver.New(svc, log.ComponentLogger("resolver"))
 	router := iamRouter.CreateRouter(defaultCfg, serviceCfg, res, log, mws, dr)
 	return router

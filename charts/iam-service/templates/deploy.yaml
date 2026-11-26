@@ -1,4 +1,7 @@
 {{- $_ := required "exposure.baseDomain is required" .Values.exposure.baseDomain -}}
+{{- if not (has .Values.idm.provider (list "keycloak" "none")) -}}
+{{- fail (printf "idm.provider must be keycloak or none, got %q" .Values.idm.provider) -}}
+{{- end -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -29,12 +32,16 @@ spec:
           protocol: TCP
         args:
           - serve
+          {{- if eq .Values.idm.provider "keycloak" }}
           {{- if .Values.keycloak.baseUrl }}
           - {{ printf "--keycloak-base-url=%s" .Values.keycloak.baseUrl | quote }}
           {{- else }}
           - "--keycloak-base-url={{ .Values.exposure.protocol }}://{{ .Values.exposure.baseDomain }}{{ .Values.exposure.normalizedPort }}/keycloak"
           {{- end }}
           - --keycloak-client-id={{ .Values.keycloak.client.id }}
+          {{- else }}
+          - --idm-provider={{ .Values.idm.provider }}
+          {{- end }}
           - --roles-file-path=/roles/roles.yaml
           - --jwt-user-id-claim={{ .Values.jwt.userIdClaim  }}
           - --openfga-grpc-addr={{ .Values.openfga.endpoint }}
@@ -43,11 +50,13 @@ spec:
           {{- include "common.basicEnvironment" . | nindent 10 }}
           - name: KUBECONFIG
             value: /api-kubeconfig/kubeconfig
+          {{- if eq .Values.idm.provider "keycloak" }}
           - name: KEYCLOAK_CLIENT_SECRET
             valueFrom:
               secretKeyRef:
                 name: {{ .Values.keycloak.client.secret.name }}
                 key: {{ .Values.keycloak.client.secret.key }}
+          {{- end }}
         volumeMounts:
         {{- include "common.extraVolumeMounts" . | nindent 8 }}
           - name: external-api-server
