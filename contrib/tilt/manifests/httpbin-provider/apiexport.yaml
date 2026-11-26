@@ -14,7 +14,6 @@
 
 apiVersion: apis.kcp.io/v1alpha2
 kind: APIExport
-# Default binding names follow this name; platform-mesh.io names skip provider finalizers.
 metadata:
   name: httpbin
   labels:

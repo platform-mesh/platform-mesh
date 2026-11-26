@@ -47,7 +47,6 @@ type APIBinding = {
 function waitForHttpbinBindingReady(org: string, account: string, kubectl = runAdminKubectl): void {
   const server = kcpClusterServer(`root:orgs:${org}:${account}`);
   const run = (args: string[]) => kubectl(['--server', server, ...args]);
-  const start = Date.now();
   logStep(`provider:binding:start account=${account}`);
 
   const bindings: APIBinding[] = JSON.parse(run(['get', 'apibindings.apis.kcp.io', '-o', 'json', '--request-timeout=10s'])).items;
@@ -61,12 +60,11 @@ function waitForHttpbinBindingReady(org: string, account: string, kubectl = runA
     throw new Error(`HTTPBin binding ${binding.metadata.name} is already terminating`);
   }
 
-  // Require the native binding's finalizer to exercise PR #710 during account deletion.
   const resource = `apibindings.apis.kcp.io/${binding.metadata.name}`;
   const timeoutArgs = ['--timeout=120s', '--request-timeout=120s'];
   run(['wait', resource, '--for=jsonpath={.status.phase}=Bound', ...timeoutArgs]);
   run(['wait', resource, '--for=jsonpath={.metadata.finalizers[?(@=="core.platform-mesh.io/apibinding-finalizer")]}', ...timeoutArgs]);
-  logStep(`provider:binding:done account=${account} elapsedMs=${Date.now() - start}`);
+  logStep(`provider:binding:done account=${account}`);
 }
 
 export { ensureExampleHttpbinProviderWorkspace, waitForHttpbinBindingReady };

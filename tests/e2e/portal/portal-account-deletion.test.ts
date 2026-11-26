@@ -26,7 +26,7 @@ test.describe('Portal Account Deletion', () => {
 
     const url = await ensureAccountExists(page);
 
-    // Exercise account deletion with the operator's APIBinding finalizer present.
+    // Verify the provider binding's finalizer before deleting the account.
     waitForHttpbinBindingReady(newOrgName, testAccountName);
 
     await deleteAccount(page, url);
