@@ -308,6 +308,84 @@ func (s *DeployTestSuite) TestProcess_EntryWithNeitherFluxNorOCM_AfterDeployedEn
 	s.Assert().NotEqual(pmprovidersv1alpha1.ManagedProviderPhaseReady, inst.Status.Phase, "not Ready while one entry is not valid")
 }
 
+func (s *DeployTestSuite) TestProcess_SameFluxChartTwice_ReturnsError() {
+	ctx := s.newCtx()
+	inst := s.newManagedProvider()
+	inst.Spec.RuntimeDeployments = append(inst.Spec.RuntimeDeployments, pmprovidersv1alpha1.ProviderComponentSpec{
+		Flux: &pmprovidersv1alpha1.FluxComponentSpec{
+			Chart:    "github.com/platform-mesh/wildwest-controller",
+			Version:  "0.2.0",
+			Registry: "ghcr.io/platform-mesh/ocm",
+		},
+	})
+
+	result, err := s.testObj.Process(ctx, inst)
+
+	s.Require().Error(err, "two entries with the same name are not valid")
+	s.Assert().True(result.IsContinue())
+	s.Assert().NotEqual(pmprovidersv1alpha1.ManagedProviderPhaseReady, inst.Status.Phase, "nothing was deployed")
+}
+
+func (s *DeployTestSuite) TestProcess_FluxEntryAndOCMEntryWithSameName_ReturnsError() {
+	ctx := s.newCtx()
+	inst := s.newManagedProvider()
+	inst.Spec.RuntimeDeployments = append(inst.Spec.RuntimeDeployments, pmprovidersv1alpha1.ProviderComponentSpec{
+		OCM: &pmprovidersv1alpha1.OCMComponentSpec{
+			Name:      "wildwest-controller",
+			Registry:  "ghcr.io/platform-mesh",
+			Component: "github.com/platform-mesh/provider-quickstart",
+			Version:   "0.0.8",
+		},
+	})
+
+	result, err := s.testObj.Process(ctx, inst)
+
+	s.Require().Error(err, "a flux entry and an ocm entry with the same name are not valid")
+	s.Assert().True(result.IsContinue())
+	s.Assert().NotEqual(pmprovidersv1alpha1.ManagedProviderPhaseReady, inst.Status.Phase, "nothing was deployed")
+}
+
+func (s *DeployTestSuite) TestProcess_TwoFluxChartsWithSameLastPathSegment_ReturnsError() {
+	ctx := s.newCtx()
+	inst := s.newManagedProvider()
+	inst.Spec.RuntimeDeployments = []pmprovidersv1alpha1.ProviderComponentSpec{
+		{Flux: &pmprovidersv1alpha1.FluxComponentSpec{
+			Chart:    "github.com/platform-mesh/controller",
+			Version:  "0.1.0",
+			Registry: "ghcr.io/platform-mesh/ocm",
+		}},
+		{Flux: &pmprovidersv1alpha1.FluxComponentSpec{
+			Chart:    "github.com/wildwest/controller",
+			Version:  "0.1.0",
+			Registry: "ghcr.io/platform-mesh/ocm",
+		}},
+	}
+
+	result, err := s.testObj.Process(ctx, inst)
+
+	s.Require().Error(err, "two charts with the same last path segment get the same name")
+	s.Assert().True(result.IsContinue())
+	s.Assert().NotEqual(pmprovidersv1alpha1.ManagedProviderPhaseReady, inst.Status.Phase, "nothing was deployed")
+}
+
+func (s *DeployTestSuite) TestProcess_SameFluxChartTwice_AfterEntryWithOtherName_ReturnsError() {
+	ctx := s.newCtx()
+	inst := s.newManagedProviderWithPortal()
+	inst.Spec.RuntimeDeployments = append(inst.Spec.RuntimeDeployments, pmprovidersv1alpha1.ProviderComponentSpec{
+		Flux: &pmprovidersv1alpha1.FluxComponentSpec{
+			Chart:    "github.com/platform-mesh/wildwest-portal",
+			Version:  "0.2.0",
+			Registry: "ghcr.io/platform-mesh/ocm",
+		},
+	})
+
+	result, err := s.testObj.Process(ctx, inst)
+
+	s.Require().Error(err, "two entries with the same name are not valid")
+	s.Assert().True(result.IsContinue())
+	s.Assert().NotEqual(pmprovidersv1alpha1.ManagedProviderPhaseReady, inst.Status.Phase, "nothing was deployed, including the entry with its own name")
+}
+
 func (s *DeployTestSuite) TestProcess_ControllerReady_PortalNotReady() {
 	ctx := s.newCtx()
 	inst := s.newManagedProviderWithPortal()
