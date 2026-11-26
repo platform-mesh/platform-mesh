@@ -52,7 +52,7 @@ var systemCmd = &cobra.Command{
 		ctx, _, shutdown := platformeshcontext.StartContext(log, defaultCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
-		restCfg, err := getKubeconfigFromPath(systemCfg.KCP.Kubeconfig)
+		restCfg, err := getKCPConfig(&systemCfg)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to get kcp kubeconfig")
 			return err

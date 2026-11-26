@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"go.platform-mesh.io/golang-commons/fga/store"
+	"go.platform-mesh.io/golang-commons/kcpconfig"
 	"go.platform-mesh.io/pm-openfga-authz-webhook/pkg/authorization"
 	"go.platform-mesh.io/pm-openfga-authz-webhook/pkg/authorization/union"
 	"go.platform-mesh.io/pm-openfga-authz-webhook/pkg/clustercache"
@@ -65,7 +66,10 @@ func NewServeCmd() *cobra.Command {
 
 			ctrl.SetLogger(klog.NewKlogr())
 
-			restCfg := ctrl.GetConfigOrDie()
+			restCfg, err := kcpconfig.ForWorkspace(ctrl.GetConfigOrDie(), serverCfg.KCPWorkspace)
+			if err != nil {
+				klog.Exit(err, "unable to point the kcp config at the workspace")
+			}
 
 			restCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 				return otelhttp.NewTransport(rt)

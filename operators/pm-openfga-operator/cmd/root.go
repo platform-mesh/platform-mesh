@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/kcpconfig"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
@@ -102,4 +103,14 @@ func initLog() { // coverage-ignore
 
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
+}
+
+// getKCPConfig returns the kcp rest config of cfg: its kubeconfig, pointed at
+// the workspace of --kcp-workspace if that is set.
+func getKCPConfig(cfg *config.Config) (*rest.Config, error) {
+	restCfg, err := getKubeconfigFromPath(cfg.KCP.Kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	return kcpconfig.ForWorkspace(restCfg, cfg.KCP.Workspace)
 }

@@ -33,6 +33,7 @@ import (
 	"go.platform-mesh.io/extension-manager-operator/internal/controller"
 	"go.platform-mesh.io/extension-manager-operator/pkg/config"
 	platformmeshconfig "go.platform-mesh.io/golang-commons/config"
+	"go.platform-mesh.io/golang-commons/kcpconfig"
 	"go.platform-mesh.io/golang-commons/logger"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -111,6 +112,14 @@ func Run(ctx context.Context, cfg *config.Config, deps Deps) error { // coverage
 		reconcileCfg, err = ctrl.GetConfig()
 		if err != nil {
 			return fmt.Errorf("unable to get kubeconfig: %w", err)
+		}
+	}
+	// The workspace only applies when reconciling through kcp; without an
+	// APIExportEndpointSlice the config is a plain cluster.
+	if operator.KCPAPIExportEndpointSliceName != "" {
+		reconcileCfg, err = kcpconfig.ForWorkspace(reconcileCfg, operator.KCPWorkspace)
+		if err != nil {
+			return err
 		}
 	}
 	reconcileCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {

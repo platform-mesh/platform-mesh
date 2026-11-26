@@ -43,7 +43,7 @@ var terminatorCmd = &cobra.Command{
 	Use:   "terminator",
 	Short: "FGA terminator for organization and account workspaces",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		kcpCfg, err := getKubeconfigFromPath(terminatorCfg.KCP.Kubeconfig)
+		kcpCfg, err := getKCPConfig(&terminatorCfg)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to get kcp kubeconfig")
 			os.Exit(1)
