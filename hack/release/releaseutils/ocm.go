@@ -39,7 +39,9 @@ type OCMRepository struct {
 // Add builds a constructor into the repository.
 // workingDir resolves the constructor's file inputs, empty keeps ocm's default.
 // env is a map of ENV_VAR=VALUE pairs to set in the environment for ocm, primarily for ocm to expand in constructors.
-// Returns the component versions ocm reports, built or skipped, as name:version.
+// Returns the component versions the constructor declares, built or skipped, as name:version.
+// Component versions the constructor only references belong to whoever
+// published them and are not returned.
 //
 // ocm replaces a version that already exists, so a retried or repeated build
 // is safe, and callers that must not overwrite check Exists first.
@@ -53,6 +55,19 @@ func (repo OCMRepository) Add(ctx context.Context, constructor, workingDir strin
 	}
 	if workingDir != "" {
 		args = append(args, "--working-directory", workingDir)
+	}
+
+	data, err := os.ReadFile(constructor)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", constructor, err)
+	}
+	parsed, err := ParseOCMConstructor(data)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", constructor, err)
+	}
+	declared := make(map[string]bool, len(parsed.Components))
+	for _, component := range parsed.Components {
+		declared[component.Name] = true
 	}
 
 	out, err := ocmCall{Args: args, Env: env}.run(ctx)
@@ -71,6 +86,9 @@ func (repo OCMRepository) Add(ctx context.Context, constructor, workingDir strin
 	}
 	cvs := make([]string, 0, len(descriptors))
 	for _, d := range descriptors {
+		if !declared[d.Component.Name] {
+			continue
+		}
 		cvs = append(cvs, d.Component.Name+":"+d.Component.Version)
 	}
 	return cvs, nil
@@ -124,11 +142,7 @@ func (repo OCMRepository) Transfer(ctx context.Context, cv, target string, flags
 // An empty Signature skips signing.
 //
 // A component version holds one signature per name, and ocm does not replace
-// one. Component versions that other repositories publish at a version of
-// their own are signed here as well, and are the same from build to build, so
-// they keep the signature of the build that first signed them. A new signing
-// key therefore needs a new signature name: under the old name those
-// component versions no longer verify and cannot be signed again.
+// one, so only component versions built here may be passed.
 func (repo OCMRepository) Sign(ctx context.Context, cvs []string) error {
 	if repo.Signature == "" {
 		return nil
