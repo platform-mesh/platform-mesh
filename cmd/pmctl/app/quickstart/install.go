@@ -154,11 +154,12 @@ func (o *Options) prerequisitesValues(traefik bool) prerequisitesValues {
 func (o *Options) operatorValues(src *source, gatewayClusterIP string) operatorValues {
 	values := operatorValues{
 		OCM: ocmValues{
-			Enabled:       true,
-			Profile:       "kind",
-			Version:       o.Version,
-			Repository:    o.OCMRepository,
-			SignatureName: src.signature,
+			Enabled:         true,
+			Profile:         "kind",
+			Version:         o.Version,
+			Repository:      o.OCMRepository,
+			SignatureName:   src.signature,
+			SigningIdentity: o.SigningIdentity,
 		},
 		Gateway: gatewayValues{
 			BaseDomain: o.BaseDomain,

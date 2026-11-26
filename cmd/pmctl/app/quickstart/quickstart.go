@@ -162,6 +162,9 @@ type Options struct {
 	// Version is the Platform Mesh release, vYY.MM.P; empty means latest.
 	// With Dev it is the version of the build, once that is known.
 	Version string
+	// SigningIdentity is the identity that made the keyless signature of
+	// the release, empty derives it from Version's tag.
+	SigningIdentity string
 	// Dev builds the installation from the checkout at GitRoot instead of
 	// installing a release.
 	Dev bool
@@ -258,6 +261,7 @@ func NewQuickstartCommand(streams genericiooptions.IOStreams) *cobra.Command {
 	}
 	o.AddFlags(cmd)
 	cmd.Flags().StringVar(&o.Version, "version", o.Version, "Platform Mesh release to install, e.g. v26.10.2 (default: the latest release).")
+	cmd.Flags().StringVar(&o.SigningIdentity, "signing-identity", o.SigningIdentity, "Identity that made the keyless signature of --version, e.g. https://github.com/platform-mesh/platform-mesh/.github/workflows/job-publish.yml@refs/heads/main for a prerelease (default: the release tag of --version).")
 	cmd.Flags().BoolVar(&o.Dev, "dev", o.Dev, "Build and install the working tree of the checkout at --git-root instead of a release. Needs docker.")
 	cmd.Flags().StringVar(&o.GitRoot, "git-root", o.GitRoot, "platform-mesh checkout that --dev builds (default: the repository of the current directory).")
 	cmd.Flags().IntVar(&o.ParallelBuilds, "parallel-build", o.ParallelBuilds, "Number of images --dev builds at a time.")
@@ -355,6 +359,9 @@ func (o *Options) Validate() error {
 	}
 	if o.Version != "" {
 		return errors.New("--dev builds the checkout and --version installs a release: use one of them")
+	}
+	if o.SigningIdentity != "" {
+		return errors.New("--signing-identity is only used with --version, not --dev")
 	}
 	if o.ContainerRuntime != runtimeDocker {
 		return fmt.Errorf("--dev only works with docker for now, not %s", o.ContainerRuntime)
