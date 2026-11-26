@@ -164,6 +164,10 @@ func (r *DeploySubroutine) Process(ctx context.Context, obj ctrlruntimeclient.Ob
 func (r *DeploySubroutine) doRuntimeDeployments(ctx context.Context, managedProvider *pmprovidersv1alpha1.ManagedProvider) (subroutines.Result, error) {
 	runtimeKubeconfigSecretName := managedProvider.Spec.RuntimeKubeconfigSecretName
 
+	if err := checkDeploymentNames(managedProvider.Spec.RuntimeDeployments); err != nil {
+		return subroutines.OK(), err
+	}
+
 	for i, component := range managedProvider.Spec.RuntimeDeployments {
 		switch {
 		case component.Flux != nil:
@@ -192,6 +196,27 @@ func (r *DeploySubroutine) doRuntimeDeployments(ctx context.Context, managedProv
 	}
 
 	return subroutines.OK(), nil
+}
+
+// checkDeploymentNames returns an error when two entries have the same name.
+func checkDeploymentNames(runtimeDeployments []pmprovidersv1alpha1.ProviderComponentSpec) error {
+	indexByName := make(map[string]int, len(runtimeDeployments))
+	for i, component := range runtimeDeployments {
+		var name string
+		switch {
+		case component.Flux != nil:
+			name = chartResourceName(component.Flux.Chart)
+		case component.OCM != nil:
+			name = ocmDeploymentName(component.OCM)
+		default:
+			continue
+		}
+		if first, ok := indexByName[name]; ok {
+			return fmt.Errorf("runtimeDeployments[%d] and runtimeDeployments[%d] resolve to the same name %q", first, i, name)
+		}
+		indexByName[name] = i
+	}
+	return nil
 }
 
 // deployFluxComponent dispatches to the OCI or classic Helm-repository deploy path
