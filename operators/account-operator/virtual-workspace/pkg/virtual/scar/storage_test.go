@@ -224,7 +224,7 @@ func clusterNames(t *testing.T, event watch.Event) []string {
 	if !ok {
 		t.Fatalf("event %s carries %T", event.Type, event.Object)
 	}
-	var names []string
+	names := make([]string, 0, len(review.Status.Clusters))
 	for _, c := range review.Status.Clusters {
 		names = append(names, c.ClusterName)
 	}
