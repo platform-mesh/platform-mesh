@@ -153,6 +153,8 @@ tasks:
           task tilt:up -- --without=keycloak   leave Keycloak (and iam-service, iam-ui, pm-keycloak-operator) out
           task tilt:up -- --without=openfga    leave OpenFGA (and pm-openfga-authz-webhook, pm-openfga-operator) out
           task tilt:up -- --with=dex           Dex with static users as identity provider of kcp, disables Keycloak
+          task tilt:up -- --with=provider-operator
+                                               provider-operator reconciles the ManagedProviders
           task tilt:e2e                        run the e2e suites (Go, then portal) against Tilt
           task tilt:trust                      trust the environment's CA on this machine, for the browser and
                                                kubeconfigs from the portal; again after recreating the cluster

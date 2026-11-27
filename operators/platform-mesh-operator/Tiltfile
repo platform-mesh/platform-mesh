@@ -37,7 +37,8 @@ def _deploy(c, ctx):
                         "--subroutines-feature-toggles-enabled=true",
                         "--kcp-front-proxy-port={}".format(PORT),
                         "--kcp-url=" + KCP_FRONT_PROXY_URL,
-                    ],
+                    ]
+                    + (["--controllers-managed-provider-enabled=false"] if ctx.selected("provider-operator") else []),
                     "extraEnvs": [{"name": "SSL_CERT_FILE", "value": "/etc/platform-mesh-ca/ca.crt"}],
                     "extraVolumeMounts": [
                         {"name": "platform-mesh-ca", "mountPath": "/etc/platform-mesh-ca", "readOnly": True}

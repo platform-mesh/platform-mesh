@@ -40,7 +40,7 @@ config.define_string_list(
     usage="groups or components to run, with everything they need (default: see groups.Tiltfile)",
 )
 
-WITH_BACKENDS = ["dex"]
+WITH_BACKENDS = ["dex", "provider-operator"]
 config.define_string_list(
     "with",
     usage="comma-separated components to add to what runs: {} (repeatable); dex leaves Keycloak out".format(
