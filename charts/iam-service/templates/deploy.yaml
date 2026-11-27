@@ -38,7 +38,7 @@ spec:
           - --roles-file-path=/roles/roles.yaml
           - --jwt-user-id-claim={{ .Values.jwt.userIdClaim  }}
           - --openfga-grpc-addr={{ .Values.openfga.endpoint }}
-          {{- if eq (include "common.getKeyValue" (dict "Values" .Values "key" "log.noJson")) "true" }}
+          {{- if .Values.log.noJson }}
           - --no-json
           {{- end }}
           {{- include "common.extraArgs" . | indent 10 }}

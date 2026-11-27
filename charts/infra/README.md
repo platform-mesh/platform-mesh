@@ -20,9 +20,9 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.databases[1].name | string | `"openfga"` |  |
 | cnpg.databases[1].owner | string | `"openfga"` |  |
 | cnpg.enabled | bool | `false` |  |
-| cnpg.roles.keycloak.password | string | `"keycloak-password"` | REQUIRED: set to a strong random value. TODO: replace hardcoded passwords with a proper secrets management solution. |
+| cnpg.roles.keycloak.password | string | `"keycloak-password"` | REQUIRED: set to a strong random value. |
 | cnpg.roles.keycloak.username | string | `"keycloak"` | PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret. |
-| cnpg.roles.openfga.password | string | `"openfga-password"` | REQUIRED: set to a strong random value. TODO: replace hardcoded passwords with a proper secrets management solution. |
+| cnpg.roles.openfga.password | string | `"openfga-password"` | REQUIRED: set to a strong random value. |
 | cnpg.roles.openfga.username | string | `"openfga"` | PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret. |
 | dex.enabled | bool | `false` | Enable Dex as a local upstream OIDC identity provider |
 | dex.expiry | object | `{}` | Dex `expiry` settings (token lifetimes, refresh token rotation), rendered as given (default: Dex defaults) |
@@ -158,13 +158,13 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | keycloak.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | keycloak.gatewayApi.hostnames | list | `[]` | hostnames for the Keycloak HTTPRoute |
 | keycloak.gatewayApi.pathPrefix | string | `"/keycloak"` | path prefix for the Keycloak HTTPRoute |
-| keycloak.operator.admin.password | string | `"admin"` | Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value. TODO: replace hardcoded passwords with a proper secrets management solution. |
-| keycloak.operator.admin.secret | string | `"admin"` | Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value. TODO: replace hardcoded passwords with a proper secrets management solution. |
+| keycloak.operator.admin.password | string | `"admin"` | Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
+| keycloak.operator.admin.secret | string | `"admin"` | Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
 | keycloak.operator.admin.username | string | `"keycloak-admin"` | Bootstrap admin username (written to keycloak-admin secret) |
 | keycloak.operator.caSecret | string | `"domain-certificate"` | Secret with PEM CA for outbound HTTPS trust (e.g. local mkcert CA) |
 | keycloak.operator.db.database | string | `"keycloak"` | Database name |
 | keycloak.operator.db.host | string | `"platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local"` | PostgreSQL host |
-| keycloak.operator.db.password | string | `"keycloak-password"` | Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value. TODO: replace hardcoded passwords with a proper secrets management solution. |
+| keycloak.operator.db.password | string | `"keycloak-password"` | Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value. |
 | keycloak.operator.db.port | int | `5432` | PostgreSQL port |
 | keycloak.operator.db.username | string | `"keycloak"` | Database username (written to keycloak-db-credentials secret) |
 | keycloak.operator.enabled | bool | `false` | Enable Keycloak CR and supporting secrets managed by Keycloak Operator |

@@ -19,11 +19,18 @@ spec:
       initContainers:
         {{- if and .Values.caSecret .Values.webhookCaSecret }}
         - name: combine-ca
-          image: busybox:1.36 # image-schema:allow third-party utility image for CA concatenation, not a first-party component
+          image: {{ include "common.image" . }}
+          {{- include "common.imagePullPolicy" . | nindent 10 }}
           command:
-          - sh
-          - -c
-          - cat /domain-ca/ca.crt /webhook-ca/ca.crt > /combined-ca/ca-bundle.crt
+          - node
+          args:
+          - -e
+          - >-
+            const fs = require('node:fs');
+            fs.writeFileSync('/combined-ca/ca-bundle.crt', Buffer.concat([
+              fs.readFileSync('/domain-ca/ca.crt'),
+              fs.readFileSync('/webhook-ca/ca.crt')
+            ]));
           securityContext:
             runAsUser: 1000
           volumeMounts:

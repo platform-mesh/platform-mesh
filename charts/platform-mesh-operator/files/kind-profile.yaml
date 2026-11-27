@@ -195,6 +195,7 @@ data:
               for: kcp-operator
               image-ref: combined
           targetNamespace: platform-mesh-system
+          values: {}
         kubernetes-graphql-gateway:
           suspend: true
           imageResources:

@@ -104,9 +104,6 @@ data:
             log:
               level: debug
               noJson: true
-            subroutines:
-              fga:
-                grpcAddr: openfga:8081
             tracing:
               collector:
                 host: observability-opentelemetry-collector.observability.svc.cluster.local:4317
@@ -555,8 +552,6 @@ data:
               dnsNames:
               - pm-openfga-authz-webhook.platform-mesh-system.svc.cluster.local
               exposed: false
-            log:
-              level: debug
             openfga:
               url: openfga:8081
         pm-openfga-operator:

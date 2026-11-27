@@ -59,10 +59,6 @@ service:
 openfga:
   endpoint: openfga.platform-mesh-system.svc.cluster.local:8081
 
-log:
-  # -- Log level
-  level: info
-
 webhook:
   cacheMissMaxRetries: 1
   cacheMissTTL: 5m

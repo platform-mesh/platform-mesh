@@ -62,9 +62,6 @@ subroutines:
   workspaceReady:
     # -- Enable workspace ready subroutine
     enabled: true
-  fga:
-    # -- gRPC address of the OpenFGA service
-    grpcAddr: openfga.platform-mesh-system.svc.cluster.local:8081
 
 log:
   # -- Log level

@@ -155,12 +155,25 @@ data:
 	assert.Len(t, env, 4)
 }
 
-// TestWithServiceValues checks that ServiceValues are merged over the values
-// quickstart sets itself, and stand alone where it sets none.
+// TestWithServiceValues checks local defaults and that ServiceValues take
+// precedence while preserving other values quickstart sets itself.
 func TestWithServiceValues(t *testing.T) {
 	o := NewOptions(genericiooptions.NewTestIOStreamsDiscard())
+	defaults, err := o.withServiceValues(operatorValues{})
+	require.NoError(t, err)
+	defaultValues, err := helmValues(defaults)
+	require.NoError(t, err)
+	instances, found, err := unstructured.NestedFieldNoCopy(defaultValues, "platformMesh", "values", "services", "infra", "values", "cnpg", "cluster", "instances")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.EqualValues(t, 1, instances)
+
 	o.ServiceValues = map[string]map[string]any{
-		"infra":   {"kcp": map[string]any{"cacheServer": map[string]any{"replicas": 1}}, "dex": map[string]any{"enabled": false}},
+		"infra": {
+			"kcp":  map[string]any{"cacheServer": map[string]any{"replicas": 1}},
+			"dex":  map[string]any{"enabled": false},
+			"cnpg": map[string]any{"cluster": map[string]any{"instances": 3}},
+		},
 		"gateway": {"resources": map[string]any{"requests": map[string]any{"cpu": "50m"}}},
 	}
 	o.ServiceDependsOn = map[string][]string{"infra": {"kcp-operator"}}
@@ -176,6 +189,8 @@ func TestWithServiceValues(t *testing.T) {
 			require.NoError(t, err)
 			services, _, _ := unstructured.NestedMap(values, "platformMesh", "values", "services")
 
+			instances, _, _ := unstructured.NestedFieldNoCopy(services, "infra", "values", "cnpg", "cluster", "instances")
+			assert.EqualValues(t, 3, instances)
 			replicas, _, _ := unstructured.NestedFieldNoCopy(services, "infra", "values", "kcp", "cacheServer", "replicas")
 			assert.EqualValues(t, 1, replicas)
 			cpu, _, _ := unstructured.NestedString(services, "gateway", "values", "resources", "requests", "cpu")

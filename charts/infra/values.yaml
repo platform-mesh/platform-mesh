@@ -218,16 +218,13 @@ keycloak:
       # -- Database username (written to keycloak-db-credentials secret)
       username: keycloak
       # -- Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value.
-      # TODO: replace hardcoded passwords with a proper secrets management solution.
       password: "keycloak-password"
     admin:
       # -- Bootstrap admin username (written to keycloak-admin secret)
       username: keycloak-admin
       # -- Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value.
-      # TODO: replace hardcoded passwords with a proper secrets management solution.
       password: "admin"
       # -- Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value.
-      # TODO: replace hardcoded passwords with a proper secrets management solution.
       secret: "admin"
     # -- Secret with PEM CA for outbound HTTPS trust (e.g. local mkcert CA)
     caSecret: "domain-certificate"
@@ -365,13 +362,11 @@ cnpg:
       # -- PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret.
       username: keycloak
       # -- REQUIRED: set to a strong random value.
-      # TODO: replace hardcoded passwords with a proper secrets management solution.
       password: "keycloak-password"
     openfga:
       # -- PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret.
       username: openfga
       # -- REQUIRED: set to a strong random value.
-      # TODO: replace hardcoded passwords with a proper secrets management solution.
       password: "openfga-password"
   databases:
     - name: keycloak

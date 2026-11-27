@@ -148,6 +148,19 @@ type infraValues struct {
 	Dex      dexValues           `json:"dex"`
 }
 
+// InfraOverrides are local infra chart defaults set by quickstart.
+type InfraOverrides struct {
+	CNPG cnpgValues `json:"cnpg"`
+}
+
+type cnpgValues struct {
+	Cluster cnpgClusterValues `json:"cluster"`
+}
+
+type cnpgClusterValues struct {
+	Instances int `json:"instances"`
+}
+
 type infraKeycloakValues struct {
 	Operator enabledValues `json:"operator"`
 }
@@ -269,8 +282,17 @@ func helmValues(values any) (map[string]any, error) {
 // withServiceValues merges o.ServiceValues over what values sets on the
 // services of the profile, and sets o.ServiceDependsOn on them.
 func (o *Options) withServiceValues(values operatorValues) (operatorValues, error) {
-	if len(o.ServiceValues) == 0 && len(o.ServiceDependsOn) == 0 {
-		return values, nil
+	infra, err := helmValues(InfraOverrides{
+		CNPG: cnpgValues{Cluster: cnpgClusterValues{Instances: 1}},
+	})
+	if err != nil {
+		return values, err
+	}
+	overrides := map[string]map[string]any{
+		"infra": infra,
+	}
+	for name, extra := range o.ServiceValues {
+		overrides[name] = mergeValues(overrides[name], extra)
 	}
 	if values.PlatformMesh == nil {
 		values.PlatformMesh = &platformMeshValues{}
@@ -283,7 +305,7 @@ func (o *Options) withServiceValues(values operatorValues) (operatorValues, erro
 		services = map[string]serviceValues{}
 		values.PlatformMesh.Values.Services = services
 	}
-	for name, extra := range o.ServiceValues {
+	for name, extra := range overrides {
 		service := services[name]
 		set, err := helmValues(service.Values)
 		if err != nil {

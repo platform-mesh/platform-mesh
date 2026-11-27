@@ -98,13 +98,29 @@ tests:
   - it: combines the domain and webhook issuing CAs by default
     asserts:
     - equal:
-        path: spec.template.spec.initContainers[0].command[2]
-        value: cat /domain-ca/ca.crt /webhook-ca/ca.crt > /combined-ca/ca-bundle.crt
+        path: spec.template.spec.initContainers[0].command
+        value: [node]
+    - equal:
+        path: spec.template.spec.initContainers[0].args[0]
+        value: -e
     - contains:
         path: spec.template.spec.containers[0].env
         content:
           name: NODE_EXTRA_CA_CERTS
           value: /etc/ssl/certs/ca-bundle.crt
+  - it: uses the portal image for CA initialization and the application
+    set:
+      image.registry: mirror.example.com
+      image.repository: platform-mesh/portal
+      image.tag: 2.0.0
+      image.digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    asserts:
+    - equal:
+        path: spec.template.spec.initContainers[0].image
+        value: mirror.example.com/platform-mesh/portal@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    - equal:
+        path: spec.template.spec.containers[0].image
+        value: mirror.example.com/platform-mesh/portal@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
   - it: mounts a domain-only CA without an empty init-container list
     set:
       webhookCaSecret: ""
