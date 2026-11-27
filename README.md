@@ -29,6 +29,7 @@ This repository is the Platform Mesh **monorepo**: it consolidates the shared li
 | Operator | Description |
 |----------|-------------|
 | [account-operator](operators/account-operator) | Manages the core `Account` grouping resource and its owned namespace. |
+| [access-virtual-workspaces](operators/account-operator/virtual-workspace) | kcp virtual workspace answering which accounts (workspaces) a user can access (`SelfClusterAccessReview`), from OpenFGA or kcp RBAC. |
 | [extension-manager-operator](operators/extension-manager-operator) | Lifecycle management of `ContentConfiguration` resources for Micro Frontends. |
 | [extension-manager-virtual-workspace](operators/extension-manager-operator/virtual-workspace) | kcp virtual workspace serving the `ContentConfiguration` resources that apply to a workspace. |
 | [pm-keycloak-operator](operators/pm-keycloak-operator) | Manages the Keycloak identity provider: realms and OIDC clients (`IdentityProviderConfiguration`), user invites (`Invite`) and the per-organization kcp authentication configuration. |

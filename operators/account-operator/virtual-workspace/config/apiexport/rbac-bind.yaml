@@ -1,0 +1,37 @@
+# Who may BIND the access APIExport. Applied into the workspace that hosts it.
+#
+# kcp gates both APIBinding and APIExportEndpointSlice creation on a `bind` verb
+# against the APIExport, evaluated in the EXPORT's own workspace. It is a separate
+# admission check, so holding cluster-admin does not satisfy it — without this an
+# export is one nobody, including this component's own init, can bind. kcp does
+# the same for its own exports; see config/root/clusterrole-tenancy-apiexport-bind.yaml
+# upstream.
+#
+# Open to system:authenticated on purpose. Binding this export lets a workspace
+# serve SelfClusterAccessReview in itself and offers the provider read access to
+# that workspace's RBAC — but the claims are only in force once the CONSUMER
+# accepts them on its own APIBinding, so opening `bind` grants nothing by itself.
+# A deployment that wants the export restricted replaces the ClusterRoleBinding
+# subject with its own group.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:kcp:apiexport:access.platform-mesh.io:bind
+rules:
+  - apiGroups: ["apis.kcp.io"]
+    resources: ["apiexports"]
+    resourceNames: ["access.platform-mesh.io"]
+    verbs: ["bind"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:kcp:authenticated:apiexport:access.platform-mesh.io:bind
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:kcp:apiexport:access.platform-mesh.io:bind
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:authenticated

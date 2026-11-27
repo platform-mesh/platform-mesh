@@ -1,0 +1,14 @@
+apiVersion: v2
+name: access-vw
+description: >-
+  kcp Access Virtual Workspace — serves SelfClusterAccessReview (which workspaces can the caller access) behind kcp's front-proxy at /services/access, answered from OpenFGA or from kcp RBAC. Renders kcp-operator VirtualWorkspace and Kubeconfig resources (kcp-operator v0.9.0 or newer required).
+type: application
+version: 0.0.0
+appVersion: "0.0.0"
+home: https://github.com/platform-mesh/platform-mesh/tree/main/operators/account-operator/virtual-workspace
+sources:
+  - https://github.com/platform-mesh/platform-mesh
+dependencies:
+  - name: common
+    version: 0.0.0
+    repository: file://../common

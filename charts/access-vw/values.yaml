@@ -1,0 +1,116 @@
+image:
+  # -- The image registry
+  registry: ghcr.io
+  # -- The image repository path (without registry)
+  repository: platform-mesh/platform-mesh/access-virtual-workspaces
+  # -- The image tag (defaults to appVersion)
+  tag: ""
+
+# -- The graph is held in memory; keep a single replica.
+replicas: 1
+
+# kcp-operator objects the chart depends on, in the release namespace.
+kcp:
+  # -- RootShard the VirtualWorkspace connects to.
+  rootShard: root
+  # -- FrontProxy the Kubeconfig CRs target. Bootstrapping walks workspace
+  # paths, which only resolve through the front-proxy.
+  frontProxy: frontproxy
+
+# Supplied by the platform-mesh operator from PlatformMesh.spec.exposure.
+exposure:
+  # -- Public hostname without protocol or port; the kcp front-proxy is at kcp.api.<baseDomain>.
+  baseDomain: ""
+  # -- Public port.
+  port: 443
+
+# The front-proxy address clients use; the operator puts it in the
+# VirtualWorkspace status URL, and the chart derives endpoint-base from it.
+external:
+  # -- External hostname of the kcp front-proxy; defaults to kcp.api.<exposure.baseDomain>
+  hostname: ""
+  # -- External port of the kcp front-proxy; defaults to exposure.port
+  port: null
+
+# -- Where the answer of a review comes from. `openfga` asks OpenFGA per
+# review and does not look at RBAC; a review has to be addressed to a
+# workspace of an organization, /services/access/clusters/<workspace>/...
+# `rbac` indexes the RBAC bindings of the workspaces that bind the access
+# APIExport.
+# `rbac,openfga` merges both: a workspace either of them lists is listed.
+provider: openfga
+
+# The OpenFGA provider (provider: openfga).
+openfga:
+  # -- gRPC address of OpenFGA, host:port; defaults to the `openfga` Service
+  # of the release namespace, port 8081.
+  addr: ""
+  # -- Relation a user needs on an account for its workspace to be listed.
+  relation: get
+  # -- OpenFGA type of an account.
+  objectType: core_platform-mesh_io_account
+  # -- Workspace holding the organizations, each with an OpenFGA store named
+  # by the Store object of the organization's name in it.
+  orgsWorkspace: root:orgs
+  # -- Secret with the kubeconfig the provider reads kcp with, in the release
+  # namespace; platform-mesh-operator creates it. It is scoped: a
+  # ServiceAccount of the workspace holding the two exports below, allowed to
+  # read through them and nothing else.
+  kubeconfigSecret: access-vw-kubeconfig
+  # -- APIExportEndpointSlice of the export of Accounts, in the workspace the
+  # kubeconfig points at. LogicalClusters, Workspaces and Accounts are read
+  # through the virtual workspace of that export.
+  accountsEndpointSlice: core.platform-mesh.io
+  # -- APIExportEndpointSlice of the export of Stores, read the same way.
+  storesEndpointSlice: openfga.platform-mesh.io
+
+# -- Bootstrap (init container, provider rbac): workspace prefix for the access APIExport tree.
+workspacePrefix: root:access
+# -- Workspace under workspacePrefix holding the APIExport (provider rbac).
+controllersWorkspace: controllers
+
+server:
+  # -- Name of the APIExportEndpointSlice for the access VW's APIExport (provider rbac).
+  apiExportEndpointSlice: access.platform-mesh.io
+  # -- Base URL for per-cluster endpoints returned in SCAR responses; defaults
+  # to https://<external.hostname>:<external.port>/clusters/.
+  endpointBase: ""
+
+resources:
+  requests:
+    # -- CPU request
+    cpu: 100m
+    # -- Memory request
+    memory: 128Mi
+  limits:
+    # -- Memory limit
+    memory: 512Mi
+
+# /etc/hosts entries for the pod: its kubeconfigs address the front-proxy by
+# the external hostname, which has to resolve from inside the pod.
+hostAliases:
+  # -- Add the entries to the pod
+  enabled: false
+  # -- Entries, each with `ip` and `hostnames`
+  entries: []
+
+# Registration with the GraphQL gateway (a ClusterAccess), the way browsers
+# reach the virtual workspace: through the gateway on the portal's origin.
+clusterAccess:
+  # -- Register the virtual workspace with the GraphQL gateway. Needs the
+  # ClusterAccess CRD of the gateway.
+  enabled: true
+  # -- Name of the ClusterAccess. The gateway serves it at
+  # /api/clusters/<provider>-<name>/graphql, single-access in a Platform Mesh
+  # installation.
+  name: access
+  # -- Name in the gateway URL, if it should differ from the name.
+  path: ""
+  auth:
+    kubeconfigSecretRef:
+      # -- Secret with a kubeconfig for /services/access of the kcp front
+      # proxy; platform-mesh-operator creates it.
+      name: access-vw-clusteraccess-kubeconfig
+      # -- Namespace of the Secret; defaults to the release namespace.
+      namespace: ""
+      key: kubeconfig

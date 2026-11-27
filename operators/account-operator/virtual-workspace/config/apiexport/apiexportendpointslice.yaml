@@ -1,0 +1,13 @@
+# The APIExportEndpointSlice is what the access VW actually watches: its
+# status carries one virtual-workspace URL per shard serving the APIExport,
+# and the RBAC provider follows those URLs to discover consumer workspaces.
+#
+# Lives in the same workspace as the APIExport, so spec.export.path is omitted
+# and defaults to this logical cluster.
+apiVersion: apis.kcp.io/v1alpha1
+kind: APIExportEndpointSlice
+metadata:
+  name: access.platform-mesh.io
+spec:
+  export:
+    name: access.platform-mesh.io

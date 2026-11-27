@@ -1,0 +1,80 @@
+## Requirements
+
+| Repository | Name | Description | Sources |
+|------------|------|-------------|---------|
+| `file://../common` | `common` | The `common` chart is a library of common resources that are shared across all other charts in the repository. It has no templates, but provides helm template functions and [default values](https://github.com/platform-mesh/platform-mesh/blob/main/charts/common/values.yaml) that can be used by other charts. |[source](https://github.com/platform-mesh/platform-mesh/tree/main/charts/common)|
+
+## What it serves
+
+The access virtual workspace
+([operators/account-operator/virtual-workspace](https://github.com/platform-mesh/platform-mesh/tree/main/operators/account-operator/virtual-workspace))
+answers a `SelfClusterAccessReview`: which workspaces can the caller access.
+It is part of the Platform Mesh profiles.
+
+With `provider: openfga` (the default) the answer comes from OpenFGA. A review
+is addressed to a workspace of an organization and lists the workspaces of the
+accounts of that organization the caller can access:
+
+```sh
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}' \
+  https://kcp.api.<base domain>/services/access/clusters/root:orgs:<organization>/apis/access.platform-mesh.io/v1alpha1/selfclusteraccessreviews
+```
+
+With `provider: rbac` the answer comes from the RBAC bindings of the
+workspaces that bind the `access.platform-mesh.io` APIExport; an init
+container installs that export on every pod start (idempotent).
+
+`provider: rbac,openfga` runs both and merges their answers; the chart then
+renders what each of them needs.
+
+## Through the GraphQL gateway
+
+Browsers do not call kcp directly. The chart registers the virtual workspace
+with the GraphQL gateway (`clusterAccess.enabled`, a `ClusterAccess` named
+`access`), which serves it on the portal's origin as the endpoint
+`single-access`. The workspace a review is addressed to goes into the
+`clusterTarget` extension of the request, and the gateway insists on a name
+for the object:
+
+```sh
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  https://<portal>/gateway/api/clusters/single-access/graphql -d '{
+    "query": "mutation { access_platform_mesh_io { v1alpha1 { createSelfClusterAccessReview(object: {metadata: {name: \"review\"}}) { status { clusters { clusterName account { name path displayName type ready } } } } } } }",
+    "extensions": {"clusterTarget": "root:orgs:<organization>"}
+  }'
+```
+
+The gateway validates the token against kcp for that workspace and forwards
+it. The kubeconfig Secret the `ClusterAccess` refers to
+(`access-vw-clusteraccess-kubeconfig`, created by platform-mesh-operator) is
+used for discovery only.
+
+## kcp prerequisites
+
+The chart renders [kcp-operator](https://github.com/kcp-dev/kcp-operator)
+`VirtualWorkspace` and `Kubeconfig` resources (operator v0.9.0 or newer) in
+the release namespace; it deploys no workloads itself. The referenced
+RootShard and FrontProxy must exist.
+
+The front-proxy routes `/services/access/clusters/{cluster}` and
+`/services/access` to the virtual workspace; both are in the default
+`kcp.frontProxy.additionalPathMappings` of the `infra` chart. The `{cluster}`
+placeholder lets the front-proxy authenticate a caller with the
+authenticators of the workspace a review is addressed to, which is what
+accepts tokens of an organization's own identity provider.
+
+With `provider: openfga` the server reads kcp with the kubeconfig of the
+Secret `openfga.kubeconfigSecret` (`access-vw-kubeconfig`, created by
+platform-mesh-operator): a ServiceAccount of the workspace holding the
+APIExports `core.platform-mesh.io` and `openfga.platform-mesh.io`, allowed to
+read through the two exports and nothing else. LogicalClusters, Workspaces,
+Accounts and Stores are read through the virtual workspaces of the exports
+(`openfga.accountsEndpointSlice`, `openfga.storesEndpointSlice`), in the
+workspaces that bind them. The server is no administrator of kcp.
+
+With `provider: rbac` it runs as the `access-vw-server` Kubeconfig, which
+holds what the init container grants it in the controllers workspace. Only
+the init container bootstraps as an administrator.
+
+The kubeconfigs address the front-proxy by its external hostname, which has to
+resolve from inside the pod; where it does not, set `hostAliases`.

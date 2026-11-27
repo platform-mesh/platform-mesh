@@ -28,12 +28,12 @@ GROUPS = {
     # Keycloak identity provider, users and roles.
     "iam": ["authz", "pm-keycloak-operator", "iam-service", "iam-ui"],
     # GraphQL gateway and virtual workspaces.
-    "api": ["core", "kubernetes-graphql-gateway", "marketplace", "extension-manager-virtual-workspace"],
+    "api": ["core", "kubernetes-graphql-gateway", "marketplace", "extension-manager-virtual-workspace", "access-vw"],
     # The portal and what it talks to.
     "ui": ["api", "iam", "extension-manager-operator", "portal", "marketplace-ui"],
-    # Optional kcp virtual workspaces behind the front proxy: permission-aware
-    # workspace discovery and the MCP server on top of it.
-    "vw": ["kcp-access-vw", "kcp-mcp-vw"],
+    # Optional kcp virtual workspaces behind the front proxy: the MCP server
+    # on top of the access virtual workspace.
+    "vw": ["access-vw", "kcp-mcp-vw"],
     # Fixtures of the e2e suites: HTTPBin provider and a second kcp shard.
     "e2e": ["httpbin", "kcp-triton"],
     # Everything; what `task tilt:e2e` expects.

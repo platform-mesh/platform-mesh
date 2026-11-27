@@ -72,18 +72,16 @@ jobs:
 
       # Everything a generator writes: controller-gen CRDs, deepcopy, mocks,
       # apigen APIExports/APIResourceSchemas, the chart copies of the CRDs
-      # (hack/charts/sync-crds.sh, run by `task generate`) and the helm-docs
-      # READMEs. All components, not only the changed ones: a change in a shared
-      # module (apis/) regenerates everyone.
+      # (hack/charts/sync-crds.sh) and the helm-docs READMEs (`task charts:docs`),
+      # both run by `task generate`. All components, not only the changed ones:
+      # a change in a shared module (apis/) regenerates everyone.
       - name: Regenerate
-        run: |
-          task generate
-          task charts:docs
+        run: task generate
 
       - name: Generated files must be committed
         run: |
           set -euo pipefail
-          hint="Generated files are out of date. Run 'task generate' and 'task charts:docs', then commit the result (a changed *-crds chart also needs 'task charts:update-changed' for the snapshots). Renames of APIResourceSchemas (v<date>-<hash>.*) alone are ignored and need no commit."
+          hint="Generated files are out of date. Run 'task generate', then commit the result (a changed *-crds chart also needs 'task charts:update-changed' for the snapshots). Renames of APIResourceSchemas (v<date>-<hash>.*) alone are ignored and need no commit."
           untracked="$(git ls-files --others --exclude-standard)"
           if [ -n "$untracked" ]; then
             echo "generated files that are not committed:" >&2

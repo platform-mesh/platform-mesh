@@ -1,0 +1,39 @@
+# Rights the access virtual workspace needs in the workspace hosting its
+# APIExport.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: access-vw-controller
+rules:
+  - verbs: ["access"]
+    nonResourceURLs: ["/"]
+  # Reach the APIExport's virtual workspace, which is how the provider sees
+  # RBAC objects in every workspace that bound the export.
+  - apiGroups: ["apis.kcp.io"]
+    resources: ["apiexports"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apis.kcp.io"]
+    resources: ["apiexports/content"]
+    verbs: ["*"]
+  # Follow the endpoint slice to discover the per-shard URLs to watch.
+  - apiGroups: ["apis.kcp.io"]
+    resources: ["apiexportendpointslices"]
+    verbs: ["get", "list", "watch"]
+  # The bindings the access graph is built from. Read-only: this component
+  # never writes RBAC.
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterrolebindings", "rolebindings", "clusterroles", "roles"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: access-vw-controller
+subjects:
+  - kind: ServiceAccount
+    name: access-vw-controller
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: access-vw-controller

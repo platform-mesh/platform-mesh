@@ -84,6 +84,9 @@ components:
       - name: marketplace
         componentName: github.com/platform-mesh/marketplace
         version: ${PM_VERSION}
+      - name: access-vw
+        componentName: github.com/platform-mesh/access-vw
+        version: ${PM_VERSION}
       - name: iam-service
         componentName: github.com/platform-mesh/iam-service
         version: ${PM_VERSION}

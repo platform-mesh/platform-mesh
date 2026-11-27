@@ -102,6 +102,10 @@ func baseTuples(in BaseTuplesInput) ([]pmopenfgav1alpha1.Tuple, error) {
 
 // formatUser formats a user to be stored in an FGA tuple, i.e. replaces colons
 // with dots.
+//
+// The access virtual workspace reads these tuples and repeats the convention:
+// fgaUser in operators/account-operator/virtual-workspace/pkg/openfgaprovider/resolver.go
+// has to change with it.
 func formatUser(user string) string {
 	return strings.ReplaceAll(user, ":", ".")
 }

@@ -18,6 +18,7 @@
 - `apis/static-assets/resources/account-operator`: generated API resources applied at runtime.
 - `cmd` and `main.go`: CLI and process entrypoints.
 - `hack`: tooling helpers and boilerplate for generation.
+- `virtual-workspace`: the access virtual workspace (`SelfClusterAccessReview`: the accounts a caller can access). A Go module of its own with its own image and chart (`charts/access-vw`); it has its own [AGENTS.md](virtual-workspace/AGENTS.md) and is not built or tested with the operator.
 
 ## Architecture
 This is not a standard controller-runtime operator. Read this before touching reconcilers or subroutines.

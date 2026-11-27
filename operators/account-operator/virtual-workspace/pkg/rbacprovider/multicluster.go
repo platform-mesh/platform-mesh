@@ -1,0 +1,218 @@
+/*
+Copyright 2026 The kcp Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package rbacprovider
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/go-logr/logr"
+
+	"go.platform-mesh.io/account-operator/virtual-workspace/pkg/graph"
+
+	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
+
+	"github.com/kcp-dev/logicalcluster/v3"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
+	"github.com/kcp-dev/multicluster-provider/pkg/handlers"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+)
+
+func (p *Provider) runMulticluster(ctx context.Context, cfg *rest.Config, g *graph.Graph) error {
+	if p.APIExportEndpointSlice == "" {
+		return fmt.Errorf("APIExportEndpointSlice is required for multi-shard mode")
+	}
+
+	logger := log.FromContext(ctx).WithName("rbacprovider")
+
+	sch := runtime.NewScheme()
+	utilruntime.Must(scheme.AddToScheme(sch))
+	utilruntime.Must(kcpcorev1alpha1.AddToScheme(sch))
+	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(sch))
+	utilruntime.Must(kcpapisv1alpha1.AddToScheme(sch))
+
+	provider, err := apiexport.New(cfg, p.APIExportEndpointSlice, apiexport.Options{
+		Scheme:   sch,
+		Log:      &logger,
+		Handlers: handlers.Handlers{clusterLifecycle{t: p.translator, engaged: &p.engaged, logger: logger}},
+	})
+	if err != nil {
+		return fmt.Errorf("construct apiexport provider: %w", err)
+	}
+
+	mgr, err := mcmanager.New(cfg, provider, manager.Options{
+		Scheme:  sch,
+		Metrics: metricsserver.Options{BindAddress: "0"}, // disable; access-vw has its own HTTP server
+	})
+	if err != nil {
+		return fmt.Errorf("construct multicluster manager: %w", err)
+	}
+
+	if err := registerRBACControllers(mgr, p.translator, p.endpointFor); err != nil {
+		return fmt.Errorf("register controllers: %w", err)
+	}
+
+	if err := mgr.GetLocalManager().Add(manager.RunnableFunc(func(ctx context.Context) error {
+		// Without this the graph reports ready the moment the manager starts,
+		// and SCAR returns a partial answer that looks authoritative.
+		if !mgr.GetLocalManager().GetCache().WaitForCacheSync(ctx) {
+			return fmt.Errorf("discovery cache did not sync")
+		}
+
+		g.SetReady()
+
+		engaged := p.EngagedClusters()
+		if engaged == 0 {
+			logger.Info("access graph is ready but no logical clusters were discovered; "+
+				"check that the APIExportEndpointSlice exists and that consumer workspaces have an "+
+				"APIBinding accepting this APIExport's permission claims",
+				"apiExportEndpointSlice", p.APIExportEndpointSlice)
+		} else {
+			logger.Info("access graph marked ready (cluster discovery cache synced)",
+				"engagedClusters", engaged)
+		}
+
+		<-ctx.Done()
+		return nil
+	})); err != nil {
+		return fmt.Errorf("register readiness runnable: %w", err)
+	}
+
+	return mgr.Start(ctx)
+}
+
+type clusterLifecycle struct {
+	t       *Translator
+	engaged *clusterSet
+	logger  logr.Logger
+}
+
+func (c clusterLifecycle) OnAdd(obj ctrlruntimeclient.Object) {
+	cluster := graph.LogicalCluster(logicalcluster.From(obj).String())
+	if cluster == "" {
+		return
+	}
+	c.engaged.add(cluster)
+	c.logger.V(2).Info("cluster joined the fleet", "cluster", cluster, "engagedClusters", c.engaged.len())
+}
+
+func (c clusterLifecycle) OnUpdate(ctrlruntimeclient.Object, ctrlruntimeclient.Object) {}
+
+func (c clusterLifecycle) OnDelete(obj ctrlruntimeclient.Object) {
+	cluster := graph.LogicalCluster(logicalcluster.From(obj).String())
+	if cluster == "" {
+		return
+	}
+	c.engaged.remove(cluster)
+	c.logger.Info("cluster left the fleet, dropping from access graph",
+		"cluster", cluster, "engagedClusters", c.engaged.len())
+	c.t.ForgetCluster(cluster)
+}
+
+func registerRBACControllers(
+	mgr mcmanager.Manager,
+	t *Translator,
+	endpointFor func(graph.LogicalCluster) string,
+) error {
+	if err := mcbuilder.ControllerManagedBy(mgr).
+		Named("access-vw-clusterrolebinding").
+		For(&rbacv1.ClusterRoleBinding{}).
+		Complete(mcreconcile.Func(func(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+			return reconcileCRB(ctx, mgr, t, endpointFor, req)
+		})); err != nil {
+		return fmt.Errorf("build CRB controller: %w", err)
+	}
+
+	if err := mcbuilder.ControllerManagedBy(mgr).
+		Named("access-vw-rolebinding").
+		For(&rbacv1.RoleBinding{}).
+		Complete(mcreconcile.Func(func(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+			return reconcileRB(ctx, mgr, t, endpointFor, req)
+		})); err != nil {
+		return fmt.Errorf("build RB controller: %w", err)
+	}
+
+	return nil
+}
+
+func reconcileCRB(
+	ctx context.Context,
+	mgr mcmanager.Manager,
+	t *Translator,
+	endpointFor func(graph.LogicalCluster) string,
+	req mcreconcile.Request,
+) (ctrl.Result, error) {
+	cluster := graph.LogicalCluster(req.ClusterName)
+
+	cl, err := mgr.GetCluster(ctx, req.ClusterName)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("get cluster %q: %w", req.ClusterName, err)
+	}
+
+	var crb rbacv1.ClusterRoleBinding
+	if err := cl.GetClient().Get(ctx, req.NamespacedName, &crb); err != nil {
+		if apierrors.IsNotFound(err) {
+			t.RemoveClusterRoleBinding(req.Name, cluster)
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, fmt.Errorf("get ClusterRoleBinding: %w", err)
+	}
+	t.ApplyClusterRoleBinding(&crb, cluster, endpointFor(cluster))
+	return reconcile.Result{}, nil
+}
+
+func reconcileRB(
+	ctx context.Context,
+	mgr mcmanager.Manager,
+	t *Translator,
+	endpointFor func(graph.LogicalCluster) string,
+	req mcreconcile.Request,
+) (ctrl.Result, error) {
+	cluster := graph.LogicalCluster(req.ClusterName)
+
+	cl, err := mgr.GetCluster(ctx, req.ClusterName)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("get cluster %q: %w", req.ClusterName, err)
+	}
+
+	var rb rbacv1.RoleBinding
+	if err := cl.GetClient().Get(ctx, req.NamespacedName, &rb); err != nil {
+		if apierrors.IsNotFound(err) {
+			t.RemoveRoleBinding(req.Namespace, req.Name, cluster)
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, fmt.Errorf("get RoleBinding: %w", err)
+	}
+	t.ApplyRoleBinding(&rb, cluster, endpointFor(cluster))
+	return reconcile.Result{}, nil
+}

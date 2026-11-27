@@ -47,6 +47,17 @@ config.define_string_list(
         "|".join(WITH_BACKENDS)
     ),
 )
+config.define_string(
+    "access-vw-src",
+    usage="another checkout of the access virtual workspace to build access-vw from, e.g. of kcp-dev/contrib-access-virtual-workspace (default: operators/account-operator/virtual-workspace)",
+)
+ACCESS_VW_PROVIDERS = ["rbac", "openfga"]
+config.define_string(
+    "access-vw-provider",
+    usage="what access-vw answers reviews from: {}, or both merged as rbac,openfga (default: openfga when OpenFGA runs, else rbac)".format(
+        "|".join(ACCESS_VW_PROVIDERS)
+    ),
+)
 cfg = config.parse()
 
 
@@ -79,6 +90,28 @@ for name in WITH:
 if "dex" in WITH and "keycloak" not in WITHOUT:
     WITHOUT.append("keycloak")
 KUBECTL = "kubectl --context {} -n {}".format(CONTEXT, NAMESPACE)
+
+
+def _checkout(path):
+    """Absolute path of a source checkout given on the command line, "" if none."""
+    if not path:
+        return ""
+    if path.startswith("~/"):
+        path = os.path.join(os.getenv("HOME"), path[2:])
+    path = os.path.abspath(path)
+    if not os.path.exists(os.path.join(path, "go.mod")):
+        fail("{}: no go.mod, expected a source checkout".format(path))
+    return path
+
+
+# --access-vw-src: build the access virtual workspace from this checkout
+# instead of the one in this repository.
+ACCESS_VW_SRC = _checkout(cfg.get("access-vw-src", "")) or os.path.join(REPO, "operators/account-operator/virtual-workspace")
+# --access-vw-provider: empty leaves the choice to the component.
+ACCESS_VW_PROVIDER = cfg.get("access-vw-provider", "")
+for _p in ACCESS_VW_PROVIDER.split(",") if ACCESS_VW_PROVIDER else []:
+    if _p not in ACCESS_VW_PROVIDERS:
+        fail("--access-vw-provider={}: use {}, or both separated by a comma".format(ACCESS_VW_PROVIDER, ", ".join(ACCESS_VW_PROVIDERS)))
 GO_DEPS = ["apis", "subroutines", "golang-commons"]
 
 

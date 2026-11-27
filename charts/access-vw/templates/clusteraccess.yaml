@@ -1,0 +1,31 @@
+{{- if .Values.clusterAccess.enabled }}
+# Registers the access virtual workspace with the GraphQL gateway, so that a
+# browser can ask a SelfClusterAccessReview on the portal's own origin:
+#
+#   POST <gateway>/api/clusters/<provider>-{{ .Values.clusterAccess.name }}/graphql
+#   {"query": "mutation { access_platform_mesh_io { v1alpha1 {
+#        createSelfClusterAccessReview(object: {metadata: {name: \"review\"}}) { status { ... } } } } }",
+#    "extensions": {"clusterTarget": "root:orgs:<organization>"}}
+#
+# The gateway validates the caller's token against kcp for the workspace in
+# clusterTarget and forwards it; the kubeconfig is only used for discovery.
+apiVersion: gateway.platform-mesh.io/v1alpha1
+kind: ClusterAccess
+metadata:
+  name: {{ .Values.clusterAccess.name }}
+  labels:
+    {{- include "access-vw.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.clusterAccess.path }}
+  path: {{ . }}
+  {{- end }}
+  # Discovery is the same for every workspace; requests are addressed to the
+  # workspace the caller names.
+  introspectionPath: "/clusters/*"
+  requestPathTemplate: "/clusters/{clusterTarget}"
+  auth:
+    kubeconfigSecretRef:
+      name: {{ .Values.clusterAccess.auth.kubeconfigSecretRef.name }}
+      namespace: {{ .Values.clusterAccess.auth.kubeconfigSecretRef.namespace | default .Release.Namespace }}
+      key: {{ .Values.clusterAccess.auth.kubeconfigSecretRef.key }}
+{{- end }}

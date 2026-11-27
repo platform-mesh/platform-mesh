@@ -32,6 +32,11 @@ contrib/tilt/.cache
 
 # Derived from the kcp project, keeps the upstream copyright
 operators/platform-mesh-operator/hack/download-tool.sh
+# Imported from kcp-dev/contrib-access-virtual-workspace
+operators/account-operator/virtual-workspace/cmd
+operators/account-operator/virtual-workspace/config
+operators/account-operator/virtual-workspace/pkg
+operators/account-operator/virtual-workspace/sdk
 
 # Imported from the helm-charts repository without headers; to be added
 # chart by chart. (A leading / anchors the entry at the repository root.)

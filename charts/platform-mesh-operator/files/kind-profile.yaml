@@ -644,6 +644,25 @@ data:
             hostAliases:
               enabled: true
               entries: *hostAliasesEntries
+        # The access virtual workspace: which workspaces of an organization a
+        # user can access (SelfClusterAccessReview), answered from OpenFGA.
+        # The chart renders kcp-operator objects; the operator runs the pod.
+        access-vw:
+          suspend: true
+          imageResources:
+          - annotations:
+              repo: oci
+              artifact: image
+              for: access-vw
+              unsuspend: "true"
+          syncWave: 4
+          enabled: true
+          dependsOn: []
+          targetNamespace: platform-mesh-system
+          values:
+            hostAliases:
+              enabled: true
+              entries: *hostAliasesEntries
         marketplace-ui:
           enabled: true
           dependsOn: []
