@@ -91,6 +91,9 @@ func SetupControllers(mgr mcmanager.Manager, cfg *config.Config, deps Deps) erro
 // the workspace of the slice in it (empty: the one restCfg points at); otherwise the
 // manager reconciles the cluster restCfg points at. Run does not change restCfg.
 func Run(ctx context.Context, restCfg *rest.Config, cfg *config.Config, deps Deps) error { // coverage-ignore
+	if restCfg == nil {
+		return errors.New("app: rest config is required")
+	}
 	if deps.Log == nil {
 		return errors.New("app: Deps.Log is required")
 	}

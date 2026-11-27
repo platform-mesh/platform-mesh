@@ -164,6 +164,9 @@ func SetupWebhooks(mgr mcmanager.Manager, cfg config.OperatorConfig, deps Deps) 
 // APIExportEndpointSlice in it (empty: the one kcpCfg points at). Run does
 // not change kcpCfg.
 func Run(ctx context.Context, kcpCfg *rest.Config, cfg config.OperatorConfig, deps Deps) error { // coverage-ignore
+	if kcpCfg == nil {
+		return errors.New("kcp rest config is required")
+	}
 	if deps.Log == nil {
 		return errors.New("app.Deps.Log is required")
 	}

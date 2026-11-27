@@ -212,10 +212,11 @@ func Run(ctx context.Context, kcpCfg *rest.Config, cfg Config, deps Deps) error 
 	}
 
 	server := &http.Server{
-		Handler:      router,
-		ReadTimeout:  20 * time.Second,
-		WriteTimeout: 20 * time.Second,
-		BaseContext:  func(net.Listener) context.Context { return ctx },
+		Handler:           router,
+		ReadHeaderTimeout: 20 * time.Second,
+		ReadTimeout:       20 * time.Second,
+		WriteTimeout:      20 * time.Second,
+		BaseContext:       func(net.Listener) context.Context { return ctx },
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
