@@ -32,10 +32,10 @@ import (
 // registerMember adds a resource type under the given GVK in the registry.
 func registerMember(r *types.Registry, group, version, kind string) schema.GroupVersionKind {
 	gvk := schema.GroupVersionKind{Group: group, Version: version, Kind: kind}
-	r.Register(r.GetUniqueTypeName(&gvk), graphql.NewObject(graphql.ObjectConfig{
+	r.RegisterResource(gvk, graphql.NewObject(graphql.ObjectConfig{
 		Name:   r.GetUniqueTypeName(&gvk),
 		Fields: graphql.Fields{"apiVersion": {Type: graphql.String}},
-	}), nil)
+	}))
 	return gvk
 }
 
