@@ -63,10 +63,18 @@ placeholder lets the front-proxy authenticate a caller with the
 authenticators of the workspace a review is addressed to, which is what
 accepts tokens of an organization's own identity provider.
 
-The server reads kcp with the identity of the `access-vw-server` Kubeconfig.
-With `provider: openfga` it has to get Stores in the organizations workspace
-and LogicalClusters and Workspaces in every workspace of an organization, and
-carries the groups of `openfga.serverGroups` for that.
+With `provider: openfga` the server reads kcp with the kubeconfig of the
+Secret `openfga.kubeconfigSecret` (`access-vw-kubeconfig`, created by
+platform-mesh-operator): a ServiceAccount of the workspace holding the
+APIExports `core.platform-mesh.io` and `openfga.platform-mesh.io`, allowed to
+read through the two exports and nothing else. LogicalClusters, Workspaces,
+Accounts and Stores are read through the virtual workspaces of the exports
+(`openfga.accountsEndpointSlice`, `openfga.storesEndpointSlice`), in the
+workspaces that bind them. The server is no administrator of kcp.
+
+With `provider: rbac` it runs as the `access-vw-server` Kubeconfig, which
+holds what the init container grants it in the controllers workspace. Only
+the init container bootstraps as an administrator.
 
 The kubeconfigs address the front-proxy by its external hostname, which has to
 resolve from inside the pod; where it does not, set `hostAliases`.

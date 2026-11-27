@@ -137,8 +137,13 @@ func New(fga ObjectLister, directory Directory, opts Options) *Resolver {
 	return &Resolver{fga: fga, directory: directory, opts: opts}
 }
 
-// Ready is always true: there is no state to build before the first review.
+// Ready reports whether reviews can be answered. The resolver has no state
+// to build before the first review; a directory may have, and says so.
 func (r *Resolver) Ready() bool {
+	if d, ok := r.directory.(interface{ Ready() bool }); ok {
+		return d.Ready()
+	}
+
 	return true
 }
 
@@ -335,6 +340,11 @@ func (r *Resolver) account(ctx context.Context, parent, name string) (*graph.Acc
 
 // fgaUser renders a kcp username the way Platform Mesh writes it into
 // tuples: OpenFGA allows one colon in a user, so colons become dots.
+//
+// The tuples are written by pm-openfga-operator, formatUser in
+// operators/pm-openfga-operator/internal/fga/tuples.go. That is another
+// module, so the convention is repeated here and has to follow it: if the two
+// differ, reviews come back empty.
 func fgaUser(name string) string {
 	return "user:" + strings.ReplaceAll(name, ":", ".")
 }

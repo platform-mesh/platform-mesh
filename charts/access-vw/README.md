@@ -68,10 +68,18 @@ placeholder lets the front-proxy authenticate a caller with the
 authenticators of the workspace a review is addressed to, which is what
 accepts tokens of an organization's own identity provider.
 
-The server reads kcp with the identity of the `access-vw-server` Kubeconfig.
-With `provider: openfga` it has to get Stores in the organizations workspace
-and LogicalClusters and Workspaces in every workspace of an organization, and
-carries the groups of `openfga.serverGroups` for that.
+With `provider: openfga` the server reads kcp with the kubeconfig of the
+Secret `openfga.kubeconfigSecret` (`access-vw-kubeconfig`, created by
+platform-mesh-operator): a ServiceAccount of the workspace holding the
+APIExports `core.platform-mesh.io` and `openfga.platform-mesh.io`, allowed to
+read through the two exports and nothing else. LogicalClusters, Workspaces,
+Accounts and Stores are read through the virtual workspaces of the exports
+(`openfga.accountsEndpointSlice`, `openfga.storesEndpointSlice`), in the
+workspaces that bind them. The server is no administrator of kcp.
+
+With `provider: rbac` it runs as the `access-vw-server` Kubeconfig, which
+holds what the init container grants it in the controllers workspace. Only
+the init container bootstraps as an administrator.
 
 The kubeconfigs address the front-proxy by its external hostname, which has to
 resolve from inside the pod; where it does not, set `hostAliases`.
@@ -96,11 +104,13 @@ resolve from inside the pod; where it does not, set `hostAliases`.
 | image.tag | string | `""` | The image tag (defaults to appVersion) |
 | kcp.frontProxy | string | `"frontproxy"` | FrontProxy the Kubeconfig CRs target. Bootstrapping walks workspace paths, which only resolve through the front-proxy. |
 | kcp.rootShard | string | `"root"` | RootShard the VirtualWorkspace connects to. |
+| openfga.accountsEndpointSlice | string | `"core.platform-mesh.io"` | APIExportEndpointSlice of the export of Accounts, in the workspace the kubeconfig points at. LogicalClusters, Workspaces and Accounts are read through the virtual workspace of that export. |
 | openfga.addr | string | `""` | gRPC address of OpenFGA, host:port; defaults to the `openfga` Service of the release namespace, port 8081. |
+| openfga.kubeconfigSecret | string | `"access-vw-kubeconfig"` | Secret with the kubeconfig the provider reads kcp with, in the release namespace; platform-mesh-operator creates it. It is scoped: a ServiceAccount of the workspace holding the two exports below, allowed to read through them and nothing else. |
 | openfga.objectType | string | `"core_platform-mesh_io_account"` | OpenFGA type of an account. |
 | openfga.orgsWorkspace | string | `"root:orgs"` | Workspace holding the organizations, each with an OpenFGA store named by the Store object of the organization's name in it. |
 | openfga.relation | string | `"get"` | Relation a user needs on an account for its workspace to be listed. |
-| openfga.serverGroups | list | `["system:kcp:admin"]` | Groups of the identity the server reads kcp with. It has to get Stores in orgsWorkspace, and LogicalClusters and Workspaces in every workspace of an organization. |
+| openfga.storesEndpointSlice | string | `"openfga.platform-mesh.io"` | APIExportEndpointSlice of the export of Stores, read the same way. |
 | provider | string | `"openfga"` | Where the answer of a review comes from. `openfga` asks OpenFGA per review and does not look at RBAC; a review has to be addressed to a workspace of an organization, /services/access/clusters/<workspace>/... `rbac` indexes the RBAC bindings of the workspaces that bind the access APIExport. `rbac,openfga` merges both: a workspace either of them lists is listed. |
 | replicas | int | `1` | The graph is held in memory; keep a single replica. |
 | resources.limits.memory | string | `"512Mi"` | Memory limit |

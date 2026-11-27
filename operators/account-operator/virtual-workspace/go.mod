@@ -150,7 +150,7 @@ require (
 // module boundaries, so this module must mirror the framework's replace block.
 //
 // Keep this pin in lockstep with the virtual-workspace-framework release in the
-// require block above — see hack/verify-fork-pin.sh.
+// require block above.
 replace (
 	k8s.io/api => github.com/kcp-dev/kubernetes/staging/src/k8s.io/api v0.0.0-20260602065202-e006560fc76a
 	k8s.io/apiextensions-apiserver => github.com/kcp-dev/kubernetes/staging/src/k8s.io/apiextensions-apiserver v0.0.0-20260602065202-e006560fc76a

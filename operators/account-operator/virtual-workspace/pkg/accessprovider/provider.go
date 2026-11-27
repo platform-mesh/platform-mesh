@@ -26,6 +26,9 @@ import (
 	"go.platform-mesh.io/account-operator/virtual-workspace/pkg/graph"
 
 	"k8s.io/apiserver/pkg/authentication/user"
+	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 // GraphPopulator fills the shared access graph from an authorization source
@@ -73,7 +76,9 @@ func IdentityOf(u user.Info) Identity {
 // GraphAdapter answers from the in-memory access graph.
 //
 // The graph spans every indexed cluster and has no notion of a scope, so the
-// cluster a request was scoped to does not narrow the answer.
+// cluster a request was scoped to does not narrow the answer. What narrows it
+// is the identity: the graph is keyed on bare names, while an identity of kcp
+// is not always global, see inScope.
 type GraphAdapter struct {
 	Graph *graph.Graph
 }
@@ -86,7 +91,37 @@ func (a GraphAdapter) Ready() bool {
 }
 
 // ClustersFor returns the clusters the user, or one of its groups, was
-// granted access to.
+// granted access to, as far as the identity is valid there.
 func (a GraphAdapter) ClustersFor(_ context.Context, id Identity, _ string) ([]graph.AccessEndpointSlice, error) {
-	return a.Graph.ClustersFor(id.Name, id.Groups), nil
+	clusters := a.Graph.ClustersFor(id.Name, id.Groups)
+
+	out := clusters[:0]
+	for _, c := range clusters {
+		if inScope(id, c.ClusterName) {
+			out = append(out, c)
+		}
+	}
+
+	return out, nil
+}
+
+// inScope reports whether the identity is the one a binding in the cluster
+// names, by the rules kcp authorizes with:
+//
+//   - a service account exists in one logical cluster, named by the extra
+//     authentication.kcp.io/cluster-name. The same namespace and name in
+//     another cluster is somebody else. kcp takes a service account without
+//     that extra for a local one; here there is no "local", so it is in scope
+//     nowhere.
+//   - an identity with the extra authentication.kcp.io/scopes, like a user
+//     authenticated by the authenticators of one workspace, is valid in the
+//     clusters its scopes name only.
+func inScope(id Identity, cluster string) bool {
+	u := &user.DefaultInfo{Name: id.Name, Groups: id.Groups, Extra: id.Extra}
+
+	if rbacregistryvalidation.IsServiceAccount(u) && len(id.Extra[rbacregistryvalidation.ClusterExtraKey]) == 0 {
+		return false
+	}
+
+	return rbacregistryvalidation.IsInScope(u, logicalcluster.Name(cluster))
 }

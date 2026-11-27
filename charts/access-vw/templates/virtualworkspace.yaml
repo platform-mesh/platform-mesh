@@ -35,9 +35,30 @@ spec:
   # avoids each replica answering from its own copy.
   replicas: {{ .Values.replicas }}
 
-  # The identity the server runs as, minted by the server Kubeconfig CR.
+  {{- if $rbac }}
+  # The identity the RBAC provider runs as, minted by the server Kubeconfig CR.
   kubeconfigSecretRef:
     name: access-vw-server-kubeconfig
+  {{- if $openfga }}
+
+  # The OpenFGA provider reads kcp with a kubeconfig of its own. The whole
+  # Secret is mounted: the kubeconfig refers to the token file next to it,
+  # which is renewed.
+  extraVolumes:
+    - name: openfga-kubeconfig
+      secret:
+        secretName: {{ include "access-vw.openfgaKubeconfigSecret" . }}
+  extraVolumeMounts:
+    - name: openfga-kubeconfig
+      mountPath: /etc/access-vw/openfga-kubeconfig
+      readOnly: true
+  {{- end }}
+  {{- else }}
+  # What the OpenFGA provider reads kcp with, minted by platform-mesh-operator:
+  # scoped to reading through the two APIExports.
+  kubeconfigSecretRef:
+    name: {{ include "access-vw.openfgaKubeconfigSecret" . }}
+  {{- end }}
 
   {{- if $rbac }}
   # Bootstraps kcp before the server starts: creates the controllers
@@ -76,6 +97,13 @@ spec:
     - --openfga-relation={{ .Values.openfga.relation }}
     - --openfga-object-type={{ .Values.openfga.objectType }}
     - --openfga-orgs-workspace={{ .Values.openfga.orgsWorkspace }}
+    # kcp is read through the virtual workspaces of these two exports, which
+    # is all the identity of the provider is allowed to.
+    - --openfga-accounts-endpointslice={{ required "openfga.accountsEndpointSlice is required" .Values.openfga.accountsEndpointSlice }}
+    - --openfga-stores-endpointslice={{ required "openfga.storesEndpointSlice is required" .Values.openfga.storesEndpointSlice }}
+    {{- if $rbac }}
+    - --openfga-kubeconfig=/etc/access-vw/openfga-kubeconfig/kubeconfig
+    {{- end }}
     {{- end }}
     # Prefix for per-cluster endpoints returned in SCAR responses: the
     # external front-proxy URL clients use, not an in-cluster address.

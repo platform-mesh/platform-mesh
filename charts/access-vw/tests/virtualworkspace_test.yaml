@@ -143,21 +143,43 @@ tests:
           path: spec.extraArgs
           content: --openfga-addr=fga.example.com:8081
 
-  - it: provider openfga mints only the server identity, with groups and no target workspace
+  - it: provider openfga mints no identity and runs with the scoped kubeconfig
     template: templates/kubeconfig.yaml
     set:
       provider: openfga
     asserts:
       - hasDocuments:
-          count: 1
+          count: 0
+
+  - it: provider openfga reads kcp through the APIExports with the scoped kubeconfig
+    template: templates/virtualworkspace.yaml
+    set:
+      provider: openfga
+    asserts:
       - equal:
-          path: metadata.name
-          value: access-vw-server
-      - equal:
-          path: spec.groups
-          value: [system:kcp:admin]
+          path: spec.kubeconfigSecretRef.name
+          value: access-vw-kubeconfig
+      - contains:
+          path: spec.extraArgs
+          content: --openfga-accounts-endpointslice=core.platform-mesh.io
+      - contains:
+          path: spec.extraArgs
+          content: --openfga-stores-endpointslice=openfga.platform-mesh.io
+      - notContains:
+          path: spec.extraArgs
+          content: --openfga-kubeconfig=/etc/access-vw/openfga-kubeconfig/kubeconfig
       - notExists:
-          path: spec.targetWorkspace
+          path: spec.extraVolumes
+
+  - it: provider openfga needs the scoped kubeconfig
+    template: templates/virtualworkspace.yaml
+    set:
+      provider: openfga
+      openfga:
+        kubeconfigSecret: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: openfga.kubeconfigSecret is required with the openfga provider
 
   - it: provider rbac keeps the server identity without groups
     template: templates/kubeconfig.yaml
@@ -196,18 +218,38 @@ tests:
           path: spec.initContainers[0].name
           value: init
 
-  - it: both providers give the server identity the target workspace and the groups
+  - it: both providers keep the identities apart
+    template: templates/virtualworkspace.yaml
+    set:
+      provider: rbac,openfga
+    asserts:
+      - equal:
+          path: spec.kubeconfigSecretRef.name
+          value: access-vw-server-kubeconfig
+      - equal:
+          path: spec.extraVolumes[0].secret.secretName
+          value: access-vw-kubeconfig
+      - equal:
+          path: spec.extraVolumeMounts[0].mountPath
+          value: /etc/access-vw/openfga-kubeconfig
+      - contains:
+          path: spec.extraArgs
+          content: --openfga-kubeconfig=/etc/access-vw/openfga-kubeconfig/kubeconfig
+
+  - it: no identity of the server is an administrator
     template: templates/kubeconfig.yaml
     set:
       provider: rbac,openfga
     documentIndex: 1
     asserts:
       - equal:
+          path: metadata.name
+          value: access-vw-server
+      - equal:
           path: spec.targetWorkspace
           value: root:access:controllers
-      - equal:
+      - notExists:
           path: spec.groups
-          value: [system:kcp:admin]
 
   - it: registers the virtual workspace with the GraphQL gateway
     template: templates/clusteraccess.yaml

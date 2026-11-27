@@ -26,7 +26,7 @@
 #   hack/access-vw.sh unbind <workspace>  remove that binding again
 #
 # What a review answers depends on the provider the workspace runs with
-# (docs/design/access-vw-openfga.md):
+# (operators/account-operator/virtual-workspace/README.md):
 #
 # - rbac: only workspaces that bind access.platform-mesh.io are indexed, so a
 #   review is empty until `bind` ran for at least one workspace the caller has

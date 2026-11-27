@@ -20,28 +20,6 @@ matches snapshot (defaults, provider openfga):
       requestPathTemplate: /clusters/{clusterTarget}
   2: |
     apiVersion: operator.kcp.io/v1alpha1
-    kind: Kubeconfig
-    metadata:
-      labels:
-        app: access-vw
-        app.kubernetes.io/instance: access-vw
-        app.kubernetes.io/managed-by: Helm
-        app.kubernetes.io/name: access-vw
-        helm.sh/chart: access-vw-0.0.0
-      name: access-vw-server
-      namespace: platform-mesh-system
-    spec:
-      groups:
-        - system:kcp:admin
-      secretRef:
-        name: access-vw-server-kubeconfig
-      target:
-        frontProxyRef:
-          name: frontproxy
-      username: access-vw
-      validity: 8766h
-  3: |
-    apiVersion: operator.kcp.io/v1alpha1
     kind: VirtualWorkspace
     metadata:
       labels:
@@ -64,12 +42,14 @@ matches snapshot (defaults, provider openfga):
         - --openfga-relation=get
         - --openfga-object-type=core_platform-mesh_io_account
         - --openfga-orgs-workspace=root:orgs
+        - --openfga-accounts-endpointslice=core.platform-mesh.io
+        - --openfga-stores-endpointslice=openfga.platform-mesh.io
         - --endpoint-base=https://kcp.api.example.com:8443/clusters/
       image:
         repository: ghcr.io/platform-mesh/platform-mesh/access-virtual-workspaces
         tag: 0.1.1
       kubeconfigSecretRef:
-        name: access-vw-server-kubeconfig
+        name: access-vw-kubeconfig
       replicas: 1
       resources:
         limits:

@@ -69,9 +69,26 @@ not the current answer fails with 410, and the client lists again.
   gives an empty result. If OpenFGA or kcp cannot be asked, the review fails
   with 503; it never returns part of the answer.
 
-The identity of `--kubeconfig` needs `get` on `stores` in the organizations
-workspace and on `logicalclusters` and `workspaces` in every workspace of an
-organization. The connection to OpenFGA (`--openfga-addr`) is not encrypted.
+kcp is read through the virtual workspaces of two APIExports:
+`--openfga-accounts-endpointslice` names the endpoint slice of the export of
+Accounts (`core.platform-mesh.io`, which also claims LogicalClusters and
+Workspaces), `--openfga-stores-endpointslice` the one of Stores
+(`openfga.platform-mesh.io`). The identity of `--openfga-kubeconfig` (default:
+`--kubeconfig`) then needs `get`, `list` and `watch` on `apiexports/content`
+of the two exports and on the endpoint slices, in the workspace that holds
+them, and nothing in the workspaces of the organizations. What the server can
+read is what the exports expose, in the workspaces that bind them; the only
+thing it watches is the APIBindings of the exports, to know those workspaces.
+In Platform Mesh, platform-mesh-operator mints that kubeconfig
+(`access-vw-kubeconfig`, a read-only scoped provider connection).
+
+Without the two flags the workspaces are read directly, `/clusters/<workspace>`.
+The identity then needs `get` on `stores` and `accounts` in the organizations
+workspace and on `logicalclusters`, `workspaces` and `accounts` in every
+workspace of an organization, which in kcp only an administrator has
+everywhere. It is there for running against a kcp without the exports.
+
+The connection to OpenFGA (`--openfga-addr`) is not encrypted.
 
 ### `rbac`
 
@@ -80,6 +97,17 @@ and `RoleBindings` of every workspace that binds the `access.platform-mesh.io`
 APIExport ([config/examples](config/examples)). `cmd/init` installs that
 export; the chart runs it as an init container. The workspace a review is
 addressed to does not narrow the answer.
+
+The identity does, by the rules kcp authorizes with: a service account is
+listed only the logical cluster it lives in
+(`authentication.kcp.io/cluster-name`; none without it), and an identity with
+`authentication.kcp.io/scopes`, like a user of a workspace's own
+authenticators, only the clusters its scopes name. A binding in another
+workspace that happens to name the same subject is somebody else's.
+
+`/debug/graph` shows the whole graph, every subject with the clusters it is
+bound in. It is served to the members of `--debug-groups` (default
+`system:masters`, `system:kcp:admin`); an empty list turns it off.
 
 ## Authentication
 

@@ -165,6 +165,12 @@ func TestResolveRootPath(t *testing.T) {
 		},
 		{path: "/services/access/clusters/2la74aji095sye06", wantOK: true, wantPrefix: "/services/access/clusters/2la74aji095sye06", wantCluster: "2la74aji095sye06"},
 		{path: "/services/access/clusters/", wantOK: false},
+		// Not a workspace path or logical cluster name: would rewrite the URL
+		// of the lookups in kcp.
+		{path: "/services/access/clusters/../apis", wantOK: false},
+		{path: "/services/access/clusters/root?x=1/apis", wantOK: false},
+		{path: "/services/access/clusters/root#frag/apis", wantOK: false},
+		{path: "/services/access/clusters/Root:Orgs/apis", wantOK: false},
 		{path: "/services/accessible", wantOK: false},
 		{path: "/services/other/clusters/root", wantOK: false},
 	}

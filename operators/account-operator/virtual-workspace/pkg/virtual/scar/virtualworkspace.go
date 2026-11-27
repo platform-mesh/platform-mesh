@@ -28,6 +28,7 @@ import (
 	restStorage "k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/virtual-workspace-framework/framework"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/fixedgvs"
 	"github.com/kcp-dev/virtual-workspace-framework/pkg/rootapiserver"
@@ -78,6 +79,12 @@ func resolveRootPath(urlPath string, ctx context.Context) (bool, string, context
 	cluster, _, _ := strings.Cut(rest, "/")
 	if cluster == "" {
 		// /services/access/clusters/ names no cluster: nothing is served there.
+		return false, "", ctx
+	}
+	// The cluster ends up in URLs of requests to kcp (the lookups of the
+	// OpenFGA provider), so nothing but a workspace path or a logical cluster
+	// name is accepted; anything else is not served.
+	if !logicalcluster.NewPath(cluster).IsValid() {
 		return false, "", ctx
 	}
 

@@ -52,11 +52,17 @@ openfga:
   # -- Workspace holding the organizations, each with an OpenFGA store named
   # by the Store object of the organization's name in it.
   orgsWorkspace: root:orgs
-  # -- Groups of the identity the server reads kcp with. It has to get
-  # Stores in orgsWorkspace, and LogicalClusters and Workspaces in every
-  # workspace of an organization.
-  serverGroups:
-    - system:kcp:admin
+  # -- Secret with the kubeconfig the provider reads kcp with, in the release
+  # namespace; platform-mesh-operator creates it. It is scoped: a
+  # ServiceAccount of the workspace holding the two exports below, allowed to
+  # read through them and nothing else.
+  kubeconfigSecret: access-vw-kubeconfig
+  # -- APIExportEndpointSlice of the export of Accounts, in the workspace the
+  # kubeconfig points at. LogicalClusters, Workspaces and Accounts are read
+  # through the virtual workspace of that export.
+  accountsEndpointSlice: core.platform-mesh.io
+  # -- APIExportEndpointSlice of the export of Stores, read the same way.
+  storesEndpointSlice: openfga.platform-mesh.io
 
 # -- Bootstrap (init container, provider rbac): workspace prefix for the access APIExport tree.
 workspacePrefix: root:access

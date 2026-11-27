@@ -19,12 +19,14 @@ package server
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/spf13/pflag"
 
 	"go.platform-mesh.io/account-operator/virtual-workspace/pkg/openfgaprovider"
 
+	"k8s.io/apiserver/pkg/authentication/user"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 
 	"github.com/kcp-dev/logicalcluster/v3"
@@ -68,6 +70,12 @@ type Options struct {
 	// per-cluster endpoints in SCAR responses.
 	EndpointBase string
 
+	// DebugGroups are the groups whose members may read /debug/graph. The
+	// graph holds every subject and the clusters it is bound in, which is
+	// more than a caller may learn from a review of itself. Empty disables
+	// the endpoint.
+	DebugGroups []string
+
 	// APIExportEndpointSlice is the name of the APIExportEndpointSlice
 	// for the access VW's system APIExport. When set, the RBAC provider
 	// runs in multi-shard mode and only indexes workspaces bound to
@@ -90,8 +98,6 @@ type Options struct {
 	cacheKubeconfig  string
 }
 
-// NewOptions returns options with defaults suitable for running behind
-// kcp's front-proxy.
 // The providers of --provider.
 const (
 	ProviderRBAC    = "rbac"
@@ -109,14 +115,35 @@ type OpenFGAOptions struct {
 	// OrgsWorkspace is the workspace holding the organizations, each with an
 	// OpenFGA store of its own.
 	OrgsWorkspace string
+
+	// Kubeconfig is what the provider reads kcp with; empty means the
+	// kubeconfig of the server.
+	Kubeconfig string
+	// AccountsEndpointSlice and StoresEndpointSlice name the
+	// APIExportEndpointSlices of the exports of Accounts and of Stores, in the
+	// workspace the kubeconfig points at. With them the provider reads kcp
+	// through the virtual workspaces of the two exports, and its identity
+	// needs get on apiexports/content of them only. Without them it reads
+	// every workspace directly, which takes an identity allowed to: in kcp,
+	// an administrator.
+	AccountsEndpointSlice string
+	StoresEndpointSlice   string
 }
 
+// ThroughExports reports whether kcp is read through APIExports.
+func (o OpenFGAOptions) ThroughExports() bool {
+	return o.AccountsEndpointSlice != "" || o.StoresEndpointSlice != ""
+}
+
+// NewOptions returns options with defaults suitable for running behind
+// kcp's front-proxy.
 func NewOptions() *Options {
 	o := &Options{
 		SecureServing:  genericoptions.NewSecureServingOptions(),
 		Authentication: NewAuthentication(),
 		Authorization:  vwoptions.NewAuthorization(),
 		Provider:       ProviderRBAC,
+		DebugGroups:    []string{user.SystemPrivilegedGroup, "system:kcp:admin"},
 		OpenFGA: OpenFGAOptions{
 			Relation:      openfgaprovider.DefaultRelation,
 			ObjectType:    openfgaprovider.DefaultObjectType,
@@ -153,8 +180,23 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 		"Workspace holding the organizations. Each organization has an OpenFGA store, "+
 			"named by the Store object of the organization's name in this workspace.")
 
-	fs.StringVar(&o.EndpointBase, "endpoint-base", "https://kcp.example.com/clusters/",
-		"FrontProxy URL prefix for cluster endpoints returned in SCAR responses.")
+	fs.StringVar(&o.OpenFGA.Kubeconfig, "openfga-kubeconfig", o.OpenFGA.Kubeconfig,
+		"Kubeconfig the "+ProviderOpenFGA+" provider reads kcp with; --kubeconfig if empty.")
+	fs.StringVar(&o.OpenFGA.AccountsEndpointSlice, "openfga-accounts-endpointslice", o.OpenFGA.AccountsEndpointSlice,
+		"Name of the APIExportEndpointSlice of the export of Accounts (core.platform-mesh.io), in the workspace "+
+			"the kubeconfig of the provider points at. Set together with --openfga-stores-endpointslice, the "+ProviderOpenFGA+
+			" provider reads kcp through the virtual workspaces of the two exports and needs get on apiexports/content "+
+			"of them only. Without them it reads every workspace directly and needs an identity allowed to.")
+	fs.StringVar(&o.OpenFGA.StoresEndpointSlice, "openfga-stores-endpointslice", o.OpenFGA.StoresEndpointSlice,
+		"Name of the APIExportEndpointSlice of the export of Stores (openfga.platform-mesh.io); "+
+			"see --openfga-accounts-endpointslice.")
+
+	fs.StringVar(&o.EndpointBase, "endpoint-base", o.EndpointBase,
+		"FrontProxy URL prefix for cluster endpoints returned in SCAR responses, "+
+			"e.g. https://kcp.example.com/clusters/ (required).")
+	fs.StringSliceVar(&o.DebugGroups, "debug-groups", o.DebugGroups,
+		"Groups whose members may read "+debugGraphPath+", the access graph of the "+ProviderRBAC+
+			" provider with every subject and the clusters it is bound in. Empty disables the endpoint.")
 	fs.StringVar(&o.APIExportEndpointSlice, "apiexport-endpointslice", "",
 		"Name of the APIExportEndpointSlice for the access VW's system APIExport. "+
 			"When set, the RBAC provider runs in multi-shard mode via multicluster-runtime; "+
@@ -200,6 +242,14 @@ func (o *Options) Validate() error {
 	errs = append(errs, authenticationErrs...)
 	errs = append(errs, authorizationErrs...)
 
+	// No default: a made-up one would be returned in every review as the
+	// endpoint of the caller's workspaces.
+	if u, err := url.Parse(o.EndpointBase); o.EndpointBase == "" {
+		errs = append(errs, errors.New("--endpoint-base is required"))
+	} else if err != nil || u.Scheme == "" || u.Host == "" {
+		errs = append(errs, fmt.Errorf("--endpoint-base %q is not an absolute URL", o.EndpointBase))
+	}
+
 	if o.WorkspacePath != "" {
 		if p := logicalcluster.NewPath(o.WorkspacePath); !p.IsValid() {
 			errs = append(errs, fmt.Errorf("--workspace-path %q is not a valid workspace path", o.WorkspacePath))
@@ -229,6 +279,9 @@ func (o *Options) Validate() error {
 			}
 			if o.OpenFGA.ObjectType == "" {
 				errs = append(errs, errors.New("--openfga-object-type must not be empty"))
+			}
+			if (o.OpenFGA.AccountsEndpointSlice == "") != (o.OpenFGA.StoresEndpointSlice == "") {
+				errs = append(errs, errors.New("--openfga-accounts-endpointslice and --openfga-stores-endpointslice have to be set together"))
 			}
 			if p := logicalcluster.NewPath(o.OpenFGA.OrgsWorkspace); !p.IsValid() {
 				errs = append(errs, fmt.Errorf("--openfga-orgs-workspace %q is not a valid workspace path", o.OpenFGA.OrgsWorkspace))

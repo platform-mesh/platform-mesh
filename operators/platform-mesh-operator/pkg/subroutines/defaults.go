@@ -72,6 +72,10 @@ var FeatureToggleConflicts = map[string][][]string{
 
 const OpenfgaAuthzWebhookKubeconfigSecret = "pm-openfga-authz-webhook-kubeconfig"
 
+// AccessVWKubeconfigSecret is the scoped, read-only kubeconfig of the access
+// virtual workspace; the access-vw chart mounts it (openfga.kubeconfigSecret).
+const AccessVWKubeconfigSecret = "access-vw-kubeconfig"
+
 var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 	{
 		Path:      "root:platform-mesh-system",
@@ -103,6 +107,16 @@ var DefaultProviderConnections = []pmcorev1alpha1.ProviderConnection{
 		RawPath:   ptr.To("/services/marketplace"),
 		Secret:    "virtual-workspace-clusteraccess-kubeconfig",
 		AdminAuth: ptr.To(true),
+	},
+	{
+		// What the access virtual workspace reads kcp with (provider openfga):
+		// LogicalClusters, Workspaces, Accounts and Stores, through the virtual
+		// workspaces of the two exports, and nothing it could write.
+		Path:           "root:platform-mesh-system",
+		Secret:         AccessVWKubeconfigSecret,
+		APIExportNames: []string{"core.platform-mesh.io", "openfga.platform-mesh.io"},
+		AdminAuth:      ptr.To(false),
+		ReadOnly:       true,
 	},
 	{
 		// The access virtual workspace as the GraphQL gateway reaches it: the

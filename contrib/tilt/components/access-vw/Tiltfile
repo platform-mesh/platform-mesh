@@ -23,7 +23,7 @@ load("../../lib/settings.Tiltfile", "ACCESS_VW_PROVIDER", "ACCESS_VW_SRC", "NAME
 #
 # It answers from OpenFGA when OpenFGA is part of the run, and from the RBAC
 # bindings of kcp otherwise; --access-vw-provider=rbac|openfga decides
-# explicitly. docs/design/access-vw-openfga.md
+# explicitly. operators/account-operator/virtual-workspace/README.md
 #
 # The chart only renders a VirtualWorkspace and its Kubeconfigs; kcp-operator
 # runs the pod. Its kubeconfigs address the front proxy by the external

@@ -16,7 +16,13 @@ limitations under the License.
 
 package server
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/apiserver/pkg/authorization/authorizer"
+)
 
 func TestRetargetHost(t *testing.T) {
 	tests := []struct {
@@ -59,8 +65,52 @@ func TestRetargetHost(t *testing.T) {
 	}
 }
 
-func TestValidateWorkspacePath(t *testing.T) {
+// validOptions are the defaults with what has no default.
+func validOptions() *Options {
 	o := NewOptions()
+	o.EndpointBase = "https://kcp.example.com/clusters/"
+	return o
+}
+
+func TestValidateEndpointBase(t *testing.T) {
+	o := NewOptions()
+	if err := o.Validate(); err == nil {
+		t.Error("expected error without --endpoint-base")
+	}
+	o.EndpointBase = "kcp.example.com/clusters/"
+	if err := o.Validate(); err == nil {
+		t.Error("expected error for an --endpoint-base that is not an absolute URL")
+	}
+	if err := validOptions().Validate(); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestGroupAuthorizer(t *testing.T) {
+	a := pathScopedAuthorizer(debugGraphPath, groupAuthorizer([]string{"system:kcp:admin"}))
+
+	for _, tc := range []struct {
+		name   string
+		path   string
+		groups []string
+		want   authorizer.Decision
+	}{
+		{name: "admin", path: debugGraphPath, groups: []string{"system:authenticated", "system:kcp:admin"}, want: authorizer.DecisionAllow},
+		{name: "any authenticated user", path: debugGraphPath, groups: []string{"system:authenticated"}, want: authorizer.DecisionNoOpinion},
+		{name: "admin, other path", path: "/debug/other", groups: []string{"system:kcp:admin"}, want: authorizer.DecisionNoOpinion},
+	} {
+		got, _, err := a.Authorize(context.Background(), authorizer.AttributesRecord{
+			User: &user.DefaultInfo{Name: "alice", Groups: tc.groups},
+			Path: tc.path,
+		})
+		if err != nil || got != tc.want {
+			t.Errorf("%s: decision = %v, error %v; want %v", tc.name, got, err, tc.want)
+		}
+	}
+}
+
+func TestValidateWorkspacePath(t *testing.T) {
+	o := validOptions()
 	o.WorkspacePath = "not a valid path!"
 	if err := o.Validate(); err == nil {
 		t.Error("expected error for invalid workspace path")
@@ -72,7 +122,7 @@ func TestValidateWorkspacePath(t *testing.T) {
 }
 
 func TestValidateProvider(t *testing.T) {
-	o := NewOptions()
+	o := validOptions()
 	if o.Provider != ProviderRBAC {
 		t.Errorf("default provider = %q, want %q", o.Provider, ProviderRBAC)
 	}
@@ -92,6 +142,16 @@ func TestValidateProvider(t *testing.T) {
 	o.OpenFGA.Addr = "openfga:8081"
 	if err := o.Validate(); err != nil {
 		t.Errorf("unexpected error for a configured OpenFGA provider: %v", err)
+	}
+
+	// kcp is read through both exports or through none.
+	o.OpenFGA.AccountsEndpointSlice = "core.platform-mesh.io"
+	if err := o.Validate(); err == nil {
+		t.Error("expected error for one endpoint slice without the other")
+	}
+	o.OpenFGA.StoresEndpointSlice = "openfga.platform-mesh.io"
+	if err := o.Validate(); err != nil {
+		t.Errorf("unexpected error for both endpoint slices: %v", err)
 	}
 
 	// Several providers are merged; each has to be valid and named once.

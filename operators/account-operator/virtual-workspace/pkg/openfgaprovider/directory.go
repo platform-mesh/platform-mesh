@@ -18,6 +18,7 @@ package openfgaprovider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -31,6 +32,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 )
@@ -50,17 +53,26 @@ var (
 const defaultCacheTTL = time.Minute
 
 // KCPDirectory is the Directory reading from kcp. Lookups are plain GETs
-// against the workspace in question, remembered for a short time; nothing is
-// watched, so it costs nothing while no reviews are asked.
+// against the workspace in question, remembered for a short time; nothing of
+// what it looks up is watched, so it costs nothing while no reviews are asked.
 //
-// Its identity needs get on logicalclusters, workspaces and accounts in the
-// workspaces of the organizations, and on stores and accounts in the
-// organizations workspace.
+// It reads in one of two ways:
+//
+//   - through the virtual workspaces of the APIExports that carry the
+//     resources (NewExportDirectory). Its identity then needs nothing but
+//     get on apiexports/content of the two exports, in the workspace that
+//     holds them; what it can read is what the exports and their permission
+//     claims expose, in the workspaces that bind them. This is what Platform
+//     Mesh runs.
+//   - directly, /clusters/<workspace> (NewKCPDirectory). Its identity then
+//     needs get on logicalclusters, workspaces and accounts in every workspace
+//     of an organization, and on stores and accounts in the organizations
+//     workspace, which in kcp only an administrator has everywhere.
 type KCPDirectory struct {
-	config        *rest.Config
-	httpClient    *http.Client
-	baseURL       string
-	orgsWorkspace string
+	// accounts serves LogicalClusters, Workspaces and Accounts; stores serves
+	// Stores.
+	accounts, stores clusterSource
+	orgsWorkspace    string
 
 	ttl   time.Duration
 	now   func() time.Time
@@ -75,14 +87,70 @@ type cacheEntry struct {
 
 var _ Directory = &KCPDirectory{}
 
-// NewKCPDirectory returns a directory reading with the given kcp client
-// configuration; any /clusters/ path in its host is dropped. orgsWorkspace is
-// the path of the workspace holding the organizations and their Stores.
-func NewKCPDirectory(config *rest.Config, orgsWorkspace string) (*KCPDirectory, error) {
-	if orgsWorkspace == "" {
-		orgsWorkspace = DefaultOrgsWorkspace
+// clusterSource knows where a workspace is read.
+type clusterSource interface {
+	// clientFor returns the client configuration for the workspace (path or
+	// logical cluster name), its host being the URL of the workspace. found
+	// is false for a workspace the source does not serve.
+	clientFor(ctx context.Context, cluster string) (config *rest.Config, httpClient *http.Client, found bool, err error)
+	// ready reports whether the source can find the workspace yet.
+	ready(ctx context.Context, cluster string) bool
+}
+
+// directSource reads a workspace at <base>/clusters/<workspace>.
+type directSource struct {
+	config     *rest.Config
+	httpClient *http.Client
+	baseURL    string
+}
+
+func (s *directSource) clientFor(_ context.Context, cluster string) (*rest.Config, *http.Client, bool, error) {
+	config := rest.CopyConfig(s.config)
+	config.Host = s.baseURL + "/clusters/" + cluster
+
+	return config, s.httpClient, true, nil
+}
+
+func (s *directSource) ready(context.Context, string) bool {
+	return true
+}
+
+// ClusterGetter returns a workspace by logical cluster name or path. The
+// path-aware APIExport provider of github.com/kcp-dev/multicluster-provider
+// implements it: its clusters are the workspaces binding an APIExport, read
+// through the virtual workspace of that export.
+type ClusterGetter interface {
+	Get(ctx context.Context, clusterName multicluster.ClusterName) (cluster.Cluster, error)
+}
+
+// exportSource reads a workspace through the virtual workspace of an
+// APIExport.
+type exportSource struct {
+	clusters ClusterGetter
+}
+
+func (s *exportSource) clientFor(ctx context.Context, cluster string) (*rest.Config, *http.Client, bool, error) {
+	cl, err := s.clusters.Get(ctx, multicluster.ClusterName(cluster))
+	if errors.Is(err, multicluster.ErrClusterNotFound) {
+		return nil, nil, false, nil
+	}
+	if err != nil {
+		return nil, nil, false, err
 	}
 
+	return cl.GetConfig(), cl.GetHTTPClient(), true, nil
+}
+
+func (s *exportSource) ready(ctx context.Context, cluster string) bool {
+	_, _, found, err := s.clientFor(ctx, cluster)
+	return found && err == nil
+}
+
+// NewKCPDirectory returns a directory reading the workspaces directly, with
+// the given kcp client configuration; any /clusters/ path in its host is
+// dropped. orgsWorkspace is the path of the workspace holding the
+// organizations and their Stores.
+func NewKCPDirectory(config *rest.Config, orgsWorkspace string) (*KCPDirectory, error) {
 	config = rest.CopyConfig(config)
 	httpClient, err := rest.HTTPClientFor(config)
 	if err != nil {
@@ -94,20 +162,47 @@ func NewKCPDirectory(config *rest.Config, orgsWorkspace string) (*KCPDirectory, 
 		base = base[:i]
 	}
 
+	source := &directSource{config: config, httpClient: httpClient, baseURL: strings.TrimSuffix(base, "/")}
+
+	return newDirectory(source, source, orgsWorkspace), nil
+}
+
+// NewExportDirectory returns a directory reading through the virtual
+// workspaces of two APIExports: accounts is the export of the Accounts, which
+// also claims LogicalClusters and Workspaces (core.platform-mesh.io), stores
+// the one of the Stores (openfga.platform-mesh.io). orgsWorkspace is the path
+// of the workspace holding the organizations and their Stores.
+func NewExportDirectory(accounts, stores ClusterGetter, orgsWorkspace string) *KCPDirectory {
+	return newDirectory(&exportSource{clusters: accounts}, &exportSource{clusters: stores}, orgsWorkspace)
+}
+
+func newDirectory(accounts, stores clusterSource, orgsWorkspace string) *KCPDirectory {
+	if orgsWorkspace == "" {
+		orgsWorkspace = DefaultOrgsWorkspace
+	}
+
 	return &KCPDirectory{
-		config:        config,
-		httpClient:    httpClient,
-		baseURL:       strings.TrimSuffix(base, "/"),
+		accounts:      accounts,
+		stores:        stores,
 		orgsWorkspace: orgsWorkspace,
 		ttl:           defaultCacheTTL,
 		now:           time.Now,
 		cache:         map[string]cacheEntry{},
-	}, nil
+	}
+}
+
+// Ready reports whether the organizations workspace can be read. Read through
+// APIExports, that takes until the workspaces binding them are known; before
+// that every workspace would look as if it did not exist, and a review would
+// be empty instead of failing.
+func (d *KCPDirectory) Ready() bool {
+	ctx := context.Background()
+	return d.accounts.ready(ctx, d.orgsWorkspace) && d.stores.ready(ctx, d.orgsWorkspace)
 }
 
 // WorkspacePath returns the kcp.io/path of the logical cluster.
 func (d *KCPDirectory) WorkspacePath(ctx context.Context, cluster string) (logicalcluster.Path, bool, error) {
-	path, found, err := d.lookup(ctx, "path/"+cluster, cluster, logicalClusterGVR, "cluster", func(obj *unstructured.Unstructured) string {
+	path, found, err := d.lookup(ctx, "path/"+cluster, d.accounts, cluster, logicalClusterGVR, "cluster", func(obj *unstructured.Unstructured) string {
 		return obj.GetAnnotations()["kcp.io/path"]
 	})
 
@@ -116,7 +211,7 @@ func (d *KCPDirectory) WorkspacePath(ctx context.Context, cluster string) (logic
 
 // StoreID returns status.storeId of the Store named like the organization.
 func (d *KCPDirectory) StoreID(ctx context.Context, org string) (string, bool, error) {
-	return d.lookup(ctx, "store/"+org, d.orgsWorkspace, storeGVR, org, func(obj *unstructured.Unstructured) string {
+	return d.lookup(ctx, "store/"+org, d.stores, d.orgsWorkspace, storeGVR, org, func(obj *unstructured.Unstructured) string {
 		id, _, _ := unstructured.NestedString(obj.Object, "status", "storeId")
 		return id
 	})
@@ -124,7 +219,7 @@ func (d *KCPDirectory) StoreID(ctx context.Context, org string) (string, bool, e
 
 // WorkspaceCluster returns spec.cluster of the Workspace name in parent.
 func (d *KCPDirectory) WorkspaceCluster(ctx context.Context, parent, name string) (string, bool, error) {
-	return d.lookup(ctx, "workspace/"+parent+"/"+name, parent, workspaceGVR, name, func(obj *unstructured.Unstructured) string {
+	return d.lookup(ctx, "workspace/"+parent+"/"+name, d.accounts, parent, workspaceGVR, name, func(obj *unstructured.Unstructured) string {
 		cluster, _, _ := unstructured.NestedString(obj.Object, "spec", "cluster")
 		return cluster
 	})
@@ -141,7 +236,7 @@ func (d *KCPDirectory) AccountDetails(ctx context.Context, parent, name string) 
 	const sep = "\x00"
 
 	key := "account/" + parent + "/" + name
-	value, found, err := d.lookup(ctx, key, parent, accountGVR, name, func(obj *unstructured.Unstructured) string {
+	value, found, err := d.lookup(ctx, key, d.accounts, parent, accountGVR, name, func(obj *unstructured.Unstructured) string {
 		accountType, _, _ := unstructured.NestedString(obj.Object, "spec", "type")
 		displayName, _, _ := unstructured.NestedString(obj.Object, "spec", "displayName")
 		return strings.Join([]string{accountType, strconv.FormatBool(isReady(obj)), displayName}, sep)
@@ -173,23 +268,38 @@ func isReady(obj *unstructured.Unstructured) bool {
 }
 
 // lookup gets one cluster-scoped object in a workspace and extracts a value.
-// A missing object, or an empty value (the object is not that far yet), is
-// "not found" and is not remembered.
+// A missing object or workspace, or an empty value (the object is not that
+// far yet), is "not found" and is not remembered.
 func (d *KCPDirectory) lookup(
 	ctx context.Context,
-	key, cluster string,
+	key string,
+	source clusterSource,
+	cluster string,
 	gvr schema.GroupVersionResource,
 	name string,
 	extract func(*unstructured.Unstructured) string,
 ) (string, bool, error) {
+	// The cluster becomes part of the URL asked with the identity of this
+	// server. It comes from the URL of a review or from an OpenFGA object, so
+	// anything that is not a workspace path or logical cluster name names
+	// nothing, rather than another URL.
+	if p := logicalcluster.NewPath(cluster); cluster == "" || p == logicalcluster.Wildcard || !p.IsValid() {
+		return "", false, nil
+	}
+
 	if value, ok := d.cached(key); ok {
 		return value, true, nil
 	}
 
-	config := rest.CopyConfig(d.config)
-	config.Host = d.baseURL + "/clusters/" + cluster
+	config, httpClient, found, err := source.clientFor(ctx, cluster)
+	if err != nil {
+		return "", false, fmt.Errorf("find %s: %w", cluster, err)
+	}
+	if !found {
+		return "", false, nil
+	}
 
-	client, err := dynamic.NewForConfigAndClient(config, d.httpClient)
+	client, err := dynamic.NewForConfigAndClient(config, httpClient)
 	if err != nil {
 		return "", false, fmt.Errorf("build client for %s: %w", cluster, err)
 	}

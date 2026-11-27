@@ -53,3 +53,10 @@ Base URL for per-cluster endpoints in SCAR responses: explicit value or
 {{- define "access-vw.endpointBase" -}}
 {{ .Values.server.endpointBase | default (printf "https://%s:%s/clusters/" (include "access-vw.externalHostname" .) (include "access-vw.externalPort" .)) }}
 {{- end }}
+
+{{/*
+Secret with the kubeconfig of the OpenFGA provider.
+*/}}
+{{- define "access-vw.openfgaKubeconfigSecret" -}}
+{{ required "openfga.kubeconfigSecret is required with the openfga provider" .Values.openfga.kubeconfigSecret }}
+{{- end }}

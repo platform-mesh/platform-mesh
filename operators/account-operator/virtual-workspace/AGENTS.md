@@ -23,6 +23,8 @@
 - A review is answered by an `accessprovider.AccessProvider`. `GraphAdapter` wraps the RBAC graph; `openfgaprovider.Resolver` asks OpenFGA per review and keeps no state.
 - `--provider=rbac,openfga` runs both behind `accessprovider.Union`: results are merged and deduplicated by cluster, and the union fails closed (one provider failing or not ready fails the review). Because the OpenFGA resolver rejects unscoped requests, every review has to be scoped then.
 - The OpenFGA resolver needs the workspace a review is addressed to: it reduces it to its organization, looks up the organization's store and makes one `ListObjects` call. It must fail with 503 rather than return a partial answer.
+- The OpenFGA resolver reads kcp through the virtual workspaces of the APIExports `core.platform-mesh.io` and `openfga.platform-mesh.io` (`NewExportDirectory`, `--openfga-*-endpointslice`), with the read-only scoped kubeconfig platform-mesh-operator mints (`access-vw-kubeconfig` in `DefaultProviderConnections`). The server must not need an administrator of kcp; reading workspaces directly (`NewKCPDirectory`) is the fallback without the exports.
+- The RBAC graph is keyed on bare subject names; `GraphAdapter` narrows an answer to the clusters the identity is valid in (service account cluster, `authentication.kcp.io/scopes`).
 - Authentication is the front-proxy's; the server reads the caller from the request headers.
 
 ## Commands
