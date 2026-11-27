@@ -19,15 +19,9 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/component-base/logs"
 	logsapi "k8s.io/component-base/logs/api/v1"
 	"k8s.io/klog/v2"
-
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 
 	_ "k8s.io/component-base/logs/json/register"
 )
@@ -41,15 +35,9 @@ var (
 			return logsapi.ValidateAndApply(logOpts, nil)
 		},
 	}
-
-	scheme = runtime.NewScheme()
 )
 
 func init() {
-	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	rootCmd.AddCommand(NewServeCmd())
 
 	logsapi.AddFlags(logOpts, rootCmd.PersistentFlags())

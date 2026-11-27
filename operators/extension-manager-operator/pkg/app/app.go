@@ -25,7 +25,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -40,8 +39,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -88,11 +85,15 @@ func SetupControllers(mgr mcmanager.Manager, cfg *config.Config, deps Deps) erro
 	return nil
 }
 
-// Run builds the manager the way the operator binary does and runs it until ctx is done.
-// The reconcile config comes from KUBECONFIG if set, otherwise from ctrl.GetConfig().
-// With Operator.KCPAPIExportEndpointSliceName set, the manager reconciles through an
-// APIExport provider; otherwise it reconciles the local cluster.
-func Run(ctx context.Context, cfg *config.Config, deps Deps) error { // coverage-ignore
+// Run builds the manager on restCfg and runs it until ctx is done. With
+// Operator.KCPAPIExportEndpointSliceName set, the manager reconciles through an
+// APIExport provider, restCfg is a kcp rest config and Operator.KCPWorkspace names
+// the workspace of the slice in it (empty: the one restCfg points at); otherwise the
+// manager reconciles the cluster restCfg points at. Run does not change restCfg.
+func Run(ctx context.Context, restCfg *rest.Config, cfg *config.Config, deps Deps) error { // coverage-ignore
+	if restCfg == nil {
+		return errors.New("app: rest config is required")
+	}
 	if deps.Log == nil {
 		return errors.New("app: Deps.Log is required")
 	}
@@ -100,27 +101,15 @@ func Run(ctx context.Context, cfg *config.Config, deps Deps) error { // coverage
 	common, operator := defaults(cfg)
 	scheme := NewScheme()
 
-	var reconcileCfg *rest.Config
-	var err error
-	if kubeconfigPath := os.Getenv("KUBECONFIG"); kubeconfigPath != "" {
-		reconcileCfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-		if err != nil {
-			return fmt.Errorf("unable to load kubeconfig from KUBECONFIG env var: %w", err)
-		}
-	} else {
-		log.Info().Msg("KUBECONFIG not set, using ctrl.GetConfig()")
-		reconcileCfg, err = ctrl.GetConfig()
-		if err != nil {
-			return fmt.Errorf("unable to get kubeconfig: %w", err)
-		}
-	}
 	// The workspace only applies when reconciling through kcp; without an
 	// APIExportEndpointSlice the config is a plain cluster.
+	workspace := ""
 	if operator.KCPAPIExportEndpointSliceName != "" {
-		reconcileCfg, err = kcpconfig.ForWorkspace(reconcileCfg, operator.KCPWorkspace)
-		if err != nil {
-			return err
-		}
+		workspace = operator.KCPWorkspace
+	}
+	reconcileCfg, err := kcpconfig.ForWorkspace(restCfg, workspace)
+	if err != nil {
+		return err
 	}
 	reconcileCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)

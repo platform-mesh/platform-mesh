@@ -81,3 +81,4 @@ tests/e2e/portal/*.png
 ocm/.ocmconfig
 /runtime-artifacts
 docs/deployment/migration-0.3/kcp-exports
+cmd/pm/.pm/

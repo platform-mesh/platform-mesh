@@ -68,6 +68,9 @@ type RolesConfig struct {
 
 type ServiceConfig struct {
 	Port int
+	// ListenAddress is the address (host:port) the HTTP server binds to. If
+	// empty the server binds to Port on all interfaces.
+	ListenAddress string
 	// KCPWorkspace is the workspace the component runs against in kcp: the rest
 	// config, and with it the APIExportEndpointSlices and the local manager
 	// client, is pointed at it. Empty keeps the workspace of the kubeconfig.
@@ -121,6 +124,7 @@ func NewServiceConfig() *ServiceConfig {
 
 func (c *ServiceConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&c.Port, "port", c.Port, "Set the service port")
+	fs.StringVar(&c.ListenAddress, "listen-address", c.ListenAddress, "Set the address (host:port) the service binds to, overrides --port")
 	fs.StringVar(&c.KCPWorkspace, "kcp-workspace", c.KCPWorkspace, "Workspace the component runs against in kcp, replacing the path of the kubeconfig; empty keeps the workspace the kubeconfig points at")
 
 	fs.StringVar(&c.OpenFGA.GRPCAddr, "openfga-grpc-addr", c.OpenFGA.GRPCAddr, "Set OpenFGA gRPC address")
@@ -140,6 +144,6 @@ func (c *ServiceConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&c.Pagination.DefaultPage, "pagination-default-page", c.Pagination.DefaultPage, "Set default pagination page")
 	fs.StringVar(&c.Sorting.DefaultField, "sorting-default-field", c.Sorting.DefaultField, "Set default sorting field")
 	fs.StringVar(&c.Sorting.DefaultDirection, "sorting-default-direction", c.Sorting.DefaultDirection, "Set default sorting direction")
-	fs.StringVar(&c.Roles.FilePath, "roles-file-path", c.Roles.FilePath, "Set roles file path")
+	fs.StringVar(&c.Roles.FilePath, "roles-file-path", c.Roles.FilePath, "Set roles file path, empty uses the built-in default roles")
 	fs.BoolVar(&c.Roles.UseProviderPermissionsRetriever, "use-provider-permissions-retriever", c.Roles.UseProviderPermissionsRetriever, "Use ProviderPermissions resources for role retrieval instead of file-based roles")
 }

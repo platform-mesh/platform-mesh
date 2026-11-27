@@ -23,6 +23,11 @@ import (
 )
 
 type WebhookConfig struct {
+	// Host is the address the webhook server binds to. Empty means all interfaces.
+	Host string
+	// Port is the port the webhook server binds to.
+	Port int
+	// CertDir is the directory holding the serving certificate (tls.crt, tls.key).
 	CertDir                    string
 	ClusterKey                 string
 	ClusterPathKey             string
@@ -43,6 +48,10 @@ type Config struct {
 	HealthProbeBindAddress string
 	OpenFGAAddr            string
 
+	// StoreWaitTimeout bounds how long to wait at startup for the orgs
+	// OpenFGA store to exist. Zero or less waits until the context is done.
+	StoreWaitTimeout time.Duration
+
 	Webhook WebhookConfig
 
 	// KCPWorkspace is the workspace the component runs against in kcp: the rest
@@ -58,7 +67,9 @@ func New() *Config {
 		MetricsBindAddress:     ":9090",
 		HealthProbeBindAddress: ":8090",
 		OpenFGAAddr:            "openfga.platform-mesh-system:8081",
+		StoreWaitTimeout:       4 * time.Minute,
 		Webhook: WebhookConfig{
+			Port:                       9443,
 			CertDir:                    "config",
 			ClusterKey:                 "authorization.kubernetes.io/cluster-name",
 			ClusterPathKey:             "authorization.kubernetes.io/cluster-path",
@@ -78,6 +89,9 @@ func (cfg *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&cfg.MetricsBindAddress, "metrics-bind-address", cfg.MetricsBindAddress, "Set the metrics bind address")
 	fs.StringVar(&cfg.HealthProbeBindAddress, "health-probe-bind-address", cfg.HealthProbeBindAddress, "Set the health probe bind address")
 	fs.StringVar(&cfg.OpenFGAAddr, "openfga-addr", cfg.OpenFGAAddr, "Set the OpenFGA address")
+	fs.DurationVar(&cfg.StoreWaitTimeout, "openfga-store-wait-timeout", cfg.StoreWaitTimeout, "How long to wait at startup for the orgs OpenFGA store to exist, 0 waits forever")
+	fs.StringVar(&cfg.Webhook.Host, "webhook-host", cfg.Webhook.Host, "Set the address the webhook server binds to, empty binds to all interfaces")
+	fs.IntVar(&cfg.Webhook.Port, "webhook-port", cfg.Webhook.Port, "Set the port the webhook server binds to")
 	fs.StringVar(&cfg.Webhook.CertDir, "webhook-cert-dir", cfg.Webhook.CertDir, "Set the webhook certificate directory")
 	fs.StringVar(&cfg.Webhook.ClusterKey, "webhook-cluster-key", cfg.Webhook.ClusterKey, "Set the webhook cluster key")
 	fs.StringVar(&cfg.Webhook.ClusterPathKey, "webhook-cluster-path-key", cfg.Webhook.ClusterPathKey, "Set the webhook cluster path key for batch authorization")

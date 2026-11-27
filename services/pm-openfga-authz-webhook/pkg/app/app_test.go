@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cmd
+package app
 
 import (
 	"context"
@@ -26,12 +26,15 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"go.platform-mesh.io/pm-openfga-authz-webhook/pkg/config"
 	"go.platform-mesh.io/pm-openfga-authz-webhook/pkg/handler/mocks"
+
+	"k8s.io/client-go/rest"
 )
 
 func orgsStoreResponse() *openfgav1.ListStoresResponse {
 	return &openfgav1.ListStoresResponse{
-		Stores: []*openfgav1.Store{{Id: "01ABC", Name: orgsStoreName}},
+		Stores: []*openfgav1.Store{{Id: "01ABC", Name: OrgsStoreName}},
 	}
 }
 
@@ -80,7 +83,7 @@ func TestWaitForStore_ReturnsStoreID(t *testing.T) {
 			fga := mocks.NewOpenFGAServiceClient(t)
 			tt.expect(fga)
 
-			storeID, err := waitForStore(t.Context(), fga, orgsStoreName)
+			storeID, err := WaitForStore(t.Context(), fga, OrgsStoreName, time.Minute)
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantID, storeID)
@@ -96,17 +99,44 @@ func TestWaitForStore_StoreNeverAppears(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			req, ok := args.Get(1).(*openfgav1.ListStoresRequest)
 			require.True(t, ok)
-			assert.Equal(t, orgsStoreName, req.GetName(), "the wait must ask OpenFGA for the orgs store by name")
+			assert.Equal(t, OrgsStoreName, req.GetName(), "the wait must ask OpenFGA for the orgs store by name")
 		}).
 		Return(&openfgav1.ListStoresResponse{}, nil)
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	t.Cleanup(cancel)
 
-	storeID, err := waitForStore(ctx, fga, orgsStoreName)
+	storeID, err := WaitForStore(ctx, fga, OrgsStoreName, 0)
 
 	require.Error(t, err)
 	assert.Empty(t, storeID)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.Contains(t, err.Error(), orgsStoreName, "the failure must name the store it waited for")
+	assert.Contains(t, err.Error(), OrgsStoreName, "the failure must name the store it waited for")
+}
+
+func TestWaitForStore_Timeout(t *testing.T) {
+	t.Parallel()
+
+	fga := mocks.NewOpenFGAServiceClient(t)
+	fga.EXPECT().ListStores(mock.Anything, mock.Anything).Maybe().Return(&openfgav1.ListStoresResponse{}, nil)
+
+	storeID, err := WaitForStore(t.Context(), fga, OrgsStoreName, 100*time.Millisecond)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Empty(t, storeID)
+	require.NoError(t, t.Context().Err(), "the timeout must not cancel the caller's context")
+}
+
+const workspacePrefix = "/clusters/root:platform-mesh-system"
+
+func TestRun_ReturnsErrors(t *testing.T) {
+	t.Run("missing arguments", func(t *testing.T) {
+		require.Error(t, Run(t.Context(), nil, config.New(), Deps{}))
+		require.Error(t, Run(t.Context(), &rest.Config{}, nil, Deps{}))
+	})
+
+	t.Run("kcp not reachable", func(t *testing.T) {
+		err := Run(t.Context(), &rest.Config{Host: "http://127.0.0.1:1" + workspacePrefix}, config.New(), Deps{})
+		require.ErrorContains(t, err, "unable to construct cluster provider")
+	})
 }

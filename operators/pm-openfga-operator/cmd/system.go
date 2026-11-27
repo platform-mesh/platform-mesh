@@ -17,30 +17,12 @@ limitations under the License.
 package cmd
 
 import (
-	"context"
-	"crypto/tls"
-
-	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	platformeshcontext "go.platform-mesh.io/golang-commons/context"
-	iclient "go.platform-mesh.io/pm-openfga-operator/internal/client"
-	"go.platform-mesh.io/pm-openfga-operator/internal/controller"
-	"go.platform-mesh.io/pm-openfga-operator/internal/features"
-	"go.platform-mesh.io/pm-openfga-operator/internal/fga"
-	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
+	"go.platform-mesh.io/pm-openfga-operator/pkg/app"
 
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	multiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
-
-	"github.com/kcp-dev/multicluster-provider/apiexport"
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 )
 
 var systemCmd = &cobra.Command{
@@ -52,119 +34,19 @@ var systemCmd = &cobra.Command{
 		ctx, _, shutdown := platformeshcontext.StartContext(log, defaultCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
-		restCfg, err := getKCPConfig(&systemCfg)
+		restCfg, err := getKubeconfigFromPath(systemCfg.KCP.Kubeconfig)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to get kcp kubeconfig")
 			return err
 		}
 
-		opts := ctrl.Options{
-			Scheme: scheme,
-			Metrics: metricsserver.Options{
-				BindAddress: defaultCfg.Metrics.BindAddress,
-				TLSOpts: []func(*tls.Config){
-					func(c *tls.Config) {
-						c.NextProtos = []string{"http/1.1"}
-					},
-				},
-			},
-			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
-			LeaderElection:         defaultCfg.LeaderElectionEnabled,
-			LeaderElectionID:       "pm-openfga-operator-system.platform-mesh.io",
-			BaseContext:            func() context.Context { return ctx },
-		}
-
-		if defaultCfg.LeaderElectionEnabled {
-			inClusterCfg, err := rest.InClusterConfig()
-			if err != nil {
-				setupLog.Error(err, "unable to get in-cluster config for leader election")
-				return err
-			}
-			opts.LeaderElectionConfig = inClusterCfg
-		}
-
-		openfgaProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.OpenfgaPlatformMeshIO, apiexport.Options{
-			Scheme: scheme,
-		})
-		if err != nil {
-			setupLog.Error(err, "unable to create openfga apiexport provider")
+		if err := app.RunSystem(ctx, restCfg, &systemCfg, app.Deps{
+			Log:          log,
+			CommonConfig: defaultCfg,
+		}); err != nil {
+			log.Error().Err(err).Msg("problem running system manager")
 			return err
 		}
-
-		coreProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
-			Scheme: scheme,
-		})
-		if err != nil {
-			setupLog.Error(err, "unable to create core apiexport provider")
-			return err
-		}
-
-		multiProv := multiprovider.New(multiprovider.Options{Separator: config.ProviderSeparator})
-		if err := multiProv.AddProvider(config.OpenfgaProviderName, openfgaProvider); err != nil {
-			return err
-		}
-		if err := multiProv.AddProvider(config.CoreProviderName, coreProvider); err != nil {
-			return err
-		}
-		kinds := []controller.Kinds{controller.CurrentKinds()}
-		if systemCfg.FeatureEnabled(features.LegacyAPIs) {
-			// Deprecated core.platform-mesh.io APIExportPolicies are served through system.platform-mesh.io.
-			systemProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.SystemPlatformMeshIO, apiexport.Options{
-				Scheme: scheme,
-			})
-			if err != nil {
-				setupLog.Error(err, "unable to create system apiexport provider")
-				return err
-			}
-			if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
-				return err
-			}
-			kinds = append(kinds, controller.LegacyKinds())
-		}
-
-		mgr, err := mcmanager.New(restCfg, multiProv, opts)
-		if err != nil {
-			setupLog.Error(err, "unable to create manager")
-			return err
-		}
-
-		conn, err := grpc.NewClient(systemCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			log.Error().Err(err).Msg("unable to create grpc client")
-			return err
-		}
-
-		fgaClient := openfgav1.NewOpenFGAServiceClient(conn)
-
-		storeIDGetter := fga.NewCachingStoreIDGetter(
-			ctx,
-			fgaClient,
-			systemCfg.FGA.StoreIDCacheTTL,
-			log,
-		)
-
-		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, coreProvider.Provider.Provider)
-
-		providerLister := iclient.NewProviderLister(coreProvider.Provider.Provider)
-
-		for _, k := range kinds {
-			if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, providerLister, &systemCfg, storeIDGetter, kcpClientGetter, k).SetupWithManager(mgr, defaultCfg); err != nil {
-				log.Error().Err(err).Str("controller", "apiexportpolicy"+k.Suffix).Msg("unable to create controller")
-				return err
-			}
-		}
-
-		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-			log.Error().Err(err).Msg("unable to set up health check")
-			return err
-		}
-		if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-			log.Error().Err(err).Msg("unable to set up ready check")
-			return err
-		}
-
-		setupLog.Info("starting system manager")
-
-		return mgr.Start(ctx)
+		return nil
 	},
 }

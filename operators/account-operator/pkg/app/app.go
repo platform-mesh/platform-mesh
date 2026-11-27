@@ -157,10 +157,16 @@ func SetupWebhooks(mgr mcmanager.Manager, cfg config.OperatorConfig, deps Deps) 
 	return nil
 }
 
-// Run builds the provider and the manager from the in-cluster/kubeconfig rest
-// config, wires controllers, webhooks and health checks, and runs the manager
-// until ctx is cancelled.
-func Run(ctx context.Context, cfg config.OperatorConfig, deps Deps) error { // coverage-ignore
+// Run builds the provider and the manager on kcpCfg, wires controllers,
+// webhooks and health checks, and runs the manager until ctx is cancelled.
+//
+// kcpCfg is a kcp rest config; cfg.Kcp.Workspace names the workspace of the
+// APIExportEndpointSlice in it (empty: the one kcpCfg points at). Run does
+// not change kcpCfg.
+func Run(ctx context.Context, kcpCfg *rest.Config, cfg config.OperatorConfig, deps Deps) error { // coverage-ignore
+	if kcpCfg == nil {
+		return errors.New("kcp rest config is required")
+	}
 	if deps.Log == nil {
 		return errors.New("app.Deps.Log is required")
 	}
@@ -182,15 +188,12 @@ func Run(ctx context.Context, cfg config.OperatorConfig, deps Deps) error { // c
 
 	webhookServer := webhook.NewServer(webhook.Options{
 		TLSOpts: tlsOpts,
+		Host:    cfg.Webhooks.Host,
 		CertDir: cfg.Webhooks.CertDir,
 		Port:    cfg.Webhooks.Port,
 	})
 
-	restCfg, err := ctrl.GetConfig()
-	if err != nil {
-		return fmt.Errorf("getting rest config: %w", err)
-	}
-	restCfg, err = kcpconfig.ForWorkspace(restCfg, cfg.Kcp.Workspace)
+	restCfg, err := kcpconfig.ForWorkspace(kcpCfg, cfg.Kcp.Workspace)
 	if err != nil {
 		return err
 	}

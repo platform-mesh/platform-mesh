@@ -52,7 +52,11 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		}()
 	}
 
-	if err := app.Run(ctx, operatorCfg, app.Deps{Log: log, Common: defaultCfg}); err != nil {
+	kcpCfg, err := ctrl.GetConfig()
+	if err != nil {
+		log.Fatal().Err(err).Msg("getting rest config")
+	}
+	if err := app.Run(ctx, kcpCfg, operatorCfg, app.Deps{Log: log, Common: defaultCfg}); err != nil {
 		log.Fatal().Err(err).Msg("problem running operator")
 	}
 }

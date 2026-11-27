@@ -19,11 +19,9 @@ package cmd
 import (
 	"errors"
 
-	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 
 	platformeshconfig "go.platform-mesh.io/golang-commons/config"
-	"go.platform-mesh.io/golang-commons/kcpconfig"
 	"go.platform-mesh.io/golang-commons/logger"
 	"go.platform-mesh.io/pm-openfga-operator/pkg/config"
 
@@ -40,7 +38,6 @@ var (
 	generatorCfg   config.Config
 	systemCfg      config.Config
 	log            *logger.Logger
-	setupLog       logr.Logger
 )
 
 var rootCmd = &cobra.Command{
@@ -98,19 +95,8 @@ func initLog() { // coverage-ignore
 	}
 
 	ctrl.SetLogger(log.Logr())
-	setupLog = ctrl.Log.WithName("setup") // coverage-ignore
 }
 
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
-}
-
-// getKCPConfig returns the kcp rest config of cfg: its kubeconfig, pointed at
-// the workspace of --kcp-workspace if that is set.
-func getKCPConfig(cfg *config.Config) (*rest.Config, error) {
-	restCfg, err := getKubeconfigFromPath(cfg.KCP.Kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	return kcpconfig.ForWorkspace(restCfg, cfg.KCP.Workspace)
 }
