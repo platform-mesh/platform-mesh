@@ -52,6 +52,7 @@ import (
 	"go.platform-mesh.io/iam-service/pkg/idm"
 	"go.platform-mesh.io/iam-service/pkg/idm/none"
 	"go.platform-mesh.io/iam-service/pkg/keycloak"
+	"go.platform-mesh.io/iam-service/pkg/middleware/cors"
 	idmmw "go.platform-mesh.io/iam-service/pkg/middleware/idm"
 	kcpmiddleware "go.platform-mesh.io/iam-service/pkg/middleware/kcp"
 	keycloakmw "go.platform-mesh.io/iam-service/pkg/middleware/keycloak"
@@ -376,7 +377,12 @@ func newRouter(
 		return nil, fmt.Errorf("failed to create cluster client: %w", err)
 	}
 
-	mws := pmmws.CreateMiddleware(log, true)
+	var mws []func(http.Handler) http.Handler
+	if len(serviceCfg.CORS.AllowedOrigins) > 0 {
+		// Has to come first: preflight requests carry no credentials.
+		mws = append(mws, cors.New(serviceCfg.CORS.AllowedOrigins))
+	}
+	mws = append(mws, pmmws.CreateMiddleware(log, true)...)
 	kcpmw := kcpmiddleware.New(mgr.GetLocalManager().GetConfig(), serviceCfg.IDM.ExcludedTenants, tenantRetriever, log)
 	mws = append(mws, kcpmw.SetKCPUserContext())
 
