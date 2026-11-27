@@ -1,3 +1,8 @@
+# access-vw
+
+kcp Access Virtual Workspace — serves SelfClusterAccessReview (which workspaces can the caller access) behind kcp's front-proxy at /services/access, answered from OpenFGA or from kcp RBAC. Renders kcp-operator VirtualWorkspace and Kubeconfig resources (kcp-operator v0.9.0 or newer required).
+
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 ## Requirements
 
 | Repository | Name | Description | Sources |
@@ -70,3 +75,56 @@ carries the groups of `openfga.serverGroups` for that.
 
 The kubeconfigs address the front-proxy by its external hostname, which has to
 resolve from inside the pod; where it does not, set `hostAliases`.
+## Values
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| clusterAccess.auth.kubeconfigSecretRef.key | string | `"kubeconfig"` |  |
+| clusterAccess.auth.kubeconfigSecretRef.name | string | `"access-vw-clusteraccess-kubeconfig"` | Secret with a kubeconfig for /services/access of the kcp front proxy; platform-mesh-operator creates it. |
+| clusterAccess.auth.kubeconfigSecretRef.namespace | string | `""` | Namespace of the Secret; defaults to the release namespace. |
+| clusterAccess.enabled | bool | `true` | Register the virtual workspace with the GraphQL gateway. Needs the ClusterAccess CRD of the gateway. |
+| clusterAccess.name | string | `"access"` | Name of the ClusterAccess. The gateway serves it at /api/clusters/<provider>-<name>/graphql, single-access in a Platform Mesh installation. |
+| clusterAccess.path | string | `""` | Name in the gateway URL, if it should differ from the name. |
+| controllersWorkspace | string | `"controllers"` | Workspace under workspacePrefix holding the APIExport (provider rbac). |
+| exposure.baseDomain | string | `""` | Public hostname without protocol or port; the kcp front-proxy is at kcp.api.<baseDomain>. |
+| exposure.port | int | `443` | Public port. |
+| external.hostname | string | `""` | External hostname of the kcp front-proxy; defaults to kcp.api.<exposure.baseDomain> |
+| external.port | string | `nil` | External port of the kcp front-proxy; defaults to exposure.port |
+| hostAliases.enabled | bool | `false` | Add the entries to the pod |
+| hostAliases.entries | list | `[]` | Entries, each with `ip` and `hostnames` |
+| image.registry | string | `"ghcr.io"` | The image registry |
+| image.repository | string | `"platform-mesh/platform-mesh/access-virtual-workspaces"` | The image repository path (without registry) |
+| image.tag | string | `""` | The image tag (defaults to appVersion) |
+| kcp.frontProxy | string | `"frontproxy"` | FrontProxy the Kubeconfig CRs target. Bootstrapping walks workspace paths, which only resolve through the front-proxy. |
+| kcp.rootShard | string | `"root"` | RootShard the VirtualWorkspace connects to. |
+| openfga.addr | string | `""` | gRPC address of OpenFGA, host:port; defaults to the `openfga` Service of the release namespace, port 8081. |
+| openfga.objectType | string | `"core_platform-mesh_io_account"` | OpenFGA type of an account. |
+| openfga.orgsWorkspace | string | `"root:orgs"` | Workspace holding the organizations, each with an OpenFGA store named by the Store object of the organization's name in it. |
+| openfga.relation | string | `"get"` | Relation a user needs on an account for its workspace to be listed. |
+| openfga.serverGroups | list | `["system:kcp:admin"]` | Groups of the identity the server reads kcp with. It has to get Stores in orgsWorkspace, and LogicalClusters and Workspaces in every workspace of an organization. |
+| provider | string | `"openfga"` | Where the answer of a review comes from. `openfga` asks OpenFGA per review and does not look at RBAC; a review has to be addressed to a workspace of an organization, /services/access/clusters/<workspace>/... `rbac` indexes the RBAC bindings of the workspaces that bind the access APIExport. `rbac,openfga` merges both: a workspace either of them lists is listed. |
+| replicas | int | `1` | The graph is held in memory; keep a single replica. |
+| resources.limits.memory | string | `"512Mi"` | Memory limit |
+| resources.requests.cpu | string | `"100m"` | CPU request |
+| resources.requests.memory | string | `"128Mi"` | Memory request |
+| server.apiExportEndpointSlice | string | `"access.platform-mesh.io"` | Name of the APIExportEndpointSlice for the access VW's APIExport (provider rbac). |
+| server.endpointBase | string | `""` | Base URL for per-cluster endpoints returned in SCAR responses; defaults to https://<external.hostname>:<external.port>/clusters/. |
+| workspacePrefix | string | `"root:access"` | Bootstrap (init container, provider rbac): workspace prefix for the access APIExport tree. |
+
+## Overriding Values
+
+The values in the `defaults:` section can be reused from other charts by using the lookup function "common.getKeyValue". It implements lookup on three levels:
+
+1. Looks for `keyOverride` in the chart's values.yaml
+2. Looks for `global.key` in the chart's or parent chart's values.yaml
+3. Uses the `key` in the chart's values.yaml
+4. Uses the `common.defaults.key` value from the table below.
+
+1 has precedence over 2 over 3 over 4 respectively. This approach allows for individual charts to have minimal configuration, while still being able to override parameters locally.
+
+Example
+```
+1) .Values.deployment.resources.limits.memoryOverride = 4096MB
+2) .Values.global.deployment.resources.limits.memory = 2048MB
+3) .Values.deployment.resources.limits.memory = 1024MB
+4) .Values.common.defaults.deployment.resources.limits.memory = default 512MB
+```
