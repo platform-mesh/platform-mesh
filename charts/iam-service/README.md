@@ -5,7 +5,7 @@ A Helm chart for Kubernetes
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| caSecret | string | `""` |  |
+| caSecret | string | `"domain-certificate"` |  |
 | exposure.baseDomain | string | `""` | Public hostname without protocol or port. Required for public resources; the platform-mesh operator supplies it from PlatformMesh.spec.exposure. |
 | exposure.normalizedPort | string | `""` | URL port string derived by the platform-mesh operator from protocol and port: empty for HTTP/80 or HTTPS/443, otherwise ":<port>". |
 | exposure.port | int | `443` | Public port. |
@@ -27,6 +27,7 @@ A Helm chart for Kubernetes
 | keycloak.client.id | string | `"iam-service"` |  |
 | keycloak.client.secret.key | string | `"client_secret"` |  |
 | keycloak.client.secret.name | string | `"iam-client-secret"` |  |
+| log.noJson | bool | `true` | Disable JSON log formatting |
 | openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` |  |
 | port | int | `8080` |  |
 | roles.raw.roles[0].groupResource | string | `"core.platform-mesh.io/Account"` |  |

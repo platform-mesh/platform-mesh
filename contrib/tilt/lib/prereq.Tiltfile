@@ -18,7 +18,7 @@
 # with only the selected parts enabled, each component claims its objects.
 
 load("./helpers.py", "REPO", "chart", "select_objects")
-load("./settings.Tiltfile", "BASE_DOMAIN", "FRONTEND_CORS", "NAMESPACE", "PORT")
+load("./settings.Tiltfile", "BASE_DOMAIN", "FRONTEND_CORS", "GATEWAY_PORT", "NAMESPACE", "PORT")
 
 # Workloads of the chart are named <release>-<subchart>.
 PREREQ_RELEASE = "platform-mesh-prerequisites-"
@@ -52,7 +52,8 @@ def prereq_blob(ctx):
                 "keycloak-operator.watchNamespaces=" + NAMESPACE,
                 "traefik.service.type=NodePort",
                 "traefik.service.spec.type=NodePort",
-                "traefik.ports.websecure.exposedPort=8443",
+                "traefik.ports.websecure.port={}".format(GATEWAY_PORT),
+                "traefik.ports.websecure.exposedPort={}".format(GATEWAY_PORT),
                 "traefik.ports.websecure.nodePort={}".format(PORT),
                 "localCertificates.dnsNames={{{},*.{},*.services.{}}}".format(BASE_DOMAIN, BASE_DOMAIN, BASE_DOMAIN),
             ],

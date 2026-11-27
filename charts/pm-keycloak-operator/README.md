@@ -6,7 +6,7 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| caSecret | string | `""` | Name of the secret containing the CA certificate for outbound TLS trust (key: tls.crt or ca.crt) |
+| caSecret | string | `"domain-certificate"` | Name of the secret containing the CA certificate for outbound TLS trust (key: tls.crt or ca.crt) |
 | clusterScopedName.prefix | string | `""` | Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one |
 | clusterScopedName.suffix | string | `""` | Suffix for the names of cluster-scoped resources |
 | deployment.resources.limits.cpu | string | `"260m"` |  |
@@ -47,7 +47,9 @@ Manages the Keycloak identity provider of a Platform Mesh installation (keycloak
 | keycloak.client.secret.key | string | `"client_secret"` |  |
 | keycloak.client.secret.name | string | `"pm-keycloak-operator-client-secret"` |  |
 | keycloakSecret | string | `"keycloak-admin"` | Name of the secret containing Keycloak admin credentials (keys: username, password, secret) |
-| kubeconfigSecret | string | `""` | The kubeconfig secret for the operator |
+| kubeconfigSecret | string | `"pm-keycloak-operator-kubeconfig"` | The kubeconfig secret for the operator |
+| log.level | string | `"info"` | Log level |
+| log.noJson | bool | `true` | Disable JSON log formatting |
 | operator.extraArgs | list | `[]` |  |
 | region | string | `""` | region indicator, used for logging and observability |
 | terminator.extraArgs | list | `[]` |  |

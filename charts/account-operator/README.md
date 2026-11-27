@@ -26,6 +26,8 @@ A Helm chart to deploy platform-mesh Account-Operator
 | kcp | object | `{"apiExportEndpointSliceName":"core.platform-mesh.io"}` | The kcp configuration |
 | kcp.apiExportEndpointSliceName | string | `"core.platform-mesh.io"` | kcp APIExportEndpointSliceName which is used for reconciliation |
 | kubeconfigSecret | string | `"account-operator-kubeconfig"` | Name of the Secret holding the kubeconfig used to reach the API server. This Secret is not created by this Helm chart and is not meant to be created by the user: in a regular Platform Mesh installation it is created and managed by the PM Operator, which provisions a `<component>-kubeconfig` Secret for each PM component. |
+| log.level | string | `"info"` | Log level |
+| log.noJson | bool | `true` | Disable JSON log formatting |
 | oidc | object | `{"caFileRef":{"key":"tls.crt","name":"domain-certificate-ca"},"clientSecretRefs":{},"clients":{},"issuerUrl":"","scopes":[]}` | An OIDC issuer that is the same for every account: an external issuer, used instead of Keycloak. The operator publishes it in every AccountInfo, where the portal reads it for the kubeconfigs it hands out. Leave the issuer empty with Keycloak, whose operator publishes the realm of each organization |
 | oidc.caFileRef | object | `{"key":"tls.crt","name":"domain-certificate-ca"}` | Secret with the CA of the issuer, published for clients to verify the issuer with. The default is the CA of the domain certificate, as for kcp. Set the name to "" for an issuer whose certificate is publicly trusted |
 | oidc.clientSecretRefs | object | `{}` | Secrets of the clients that are not public: client name to the `name` and `key` of a Secret in the release namespace that holds the client secret. The operator publishes them in every AccountInfo and the portal puts the one of `kubectl` into the kubeconfigs it hands out, so they protect nothing: only for an issuer whose clients cannot be public. Read at startup: restart the operator after changing a Secret |
@@ -38,6 +40,8 @@ A Helm chart to deploy platform-mesh Account-Operator
 | subroutines.workspace.enabled | bool | `true` | Enable workspace subroutine |
 | subroutines.workspaceReady.enabled | bool | `true` | Enable workspace ready subroutine |
 | subroutines.workspaceType.enabled | bool | `true` | Enable workspace type subroutine |
+| tracing.collector.endpoint | string | `"observability-opentelemetry-collector.observability.svc.cluster.local:4317"` | OpenTelemetry collector endpoint |
+| tracing.enabled | bool | `false` | Toggle to enable/disable OpenTelemetry tracing |
 | webhooks.additionalAccountTypes[0] | string | `"account"` |  |
 | webhooks.caDuration | string | `"2160h"` | CA certificate duration (default: 3 months) |
 | webhooks.caRenewBefore | string | `"720h"` | CA certificate renewal time before expiration (default: 30 days) |

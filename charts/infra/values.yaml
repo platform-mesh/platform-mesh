@@ -237,16 +237,16 @@ keycloak:
       # -- Database username (written to keycloak-db-credentials secret)
       username: keycloak
       # -- Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value.
-      password: ""
+      password: "keycloak-password"
     admin:
       # -- Bootstrap admin username (written to keycloak-admin secret)
       username: keycloak-admin
       # -- Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value.
-      password: ""
+      password: "admin"
       # -- Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value.
-      secret: ""
+      secret: "admin"
     # -- Secret with PEM CA for outbound HTTPS trust (e.g. local mkcert CA)
-    caSecret: ""
+    caSecret: "domain-certificate"
     # -- Enable plain HTTP on the Keycloak pod. Keycloak sits behind gatewayAPI, which
     # handles TLS termination.
     httpEnabled: true
@@ -281,9 +281,9 @@ keycloak:
   # -- service configuration
   service:
     # -- service name
-    name: keycloak
+    name: keycloak-service
     # -- service port
-    port: 80
+    port: 8080
 
 
 dex:
@@ -369,6 +369,7 @@ cnpg:
       tag: "18.6-system-trixie"
       # -- PostgreSQL image digest (when set, overrides tag)
       digest: ""
+    # -- PostgreSQL instances, including a standby for failover. Tilt overrides this to one for local development.
     instances: 2
     storage:
       size: 2Gi
@@ -380,12 +381,12 @@ cnpg:
       # -- PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret.
       username: keycloak
       # -- REQUIRED: set to a strong random value.
-      password: ""
+      password: "keycloak-password"
     openfga:
       # -- PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret.
       username: openfga
       # -- REQUIRED: set to a strong random value.
-      password: ""
+      password: "openfga-password"
   databases:
     - name: keycloak
       owner: keycloak

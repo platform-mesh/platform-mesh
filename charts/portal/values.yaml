@@ -17,6 +17,16 @@ image:
   digest: ""
   pullPolicyOverride: IfNotPresent
 
+# -- Name of the Secret containing the domain TLS CA certificate (key: ca.crt).
+# Trusted independently when set alone. When webhookCaSecret is also set, a combine-ca
+# init container merges both CAs into /etc/ssl/certs/ca-bundle.crt.
+caSecret: domain-certificate
+
+# -- Name of the Secret containing the pm-openfga-authz-webhook CA certificate (key: ca.crt).
+# Trusted independently when set alone, or combined with caSecret when both are set.
+# Setting both CA secrets to empty disables NODE_EXTRA_CA_CERTS.
+webhookCaSecret: pm-openfga-authz-webhook-cert
+
 validWebcomponentUrls: ".?"
 featureToggles: "enableSessionAutoRefresh=true"
 uiOptions: "enableFeatureToggleSetting"
@@ -32,14 +42,14 @@ kubeconfigSecret: ""
 kcp:
   # -- kcp API URL (e.g. https://localhost:8443 for local setup)
   url: ""
-  kubeconfigSecret: ""
+  kubeconfigSecret: portal-kubeconfig
 
 auth:
   default:
     # -- Explicit discovery URL; empty derives the public Keycloak realm discovery URL.
     discoveryUrl: ""
     # -- client id
-    clientId: ""
+    clientId: welcome
 health:
   # -- health port to be used by probes
   port: 8080
@@ -61,7 +71,7 @@ validation:
   # -- Protocol used to reach the extension-manager validation webhook. Permissible values: http, https
   protocol: "http"
 
-# -- init containers to run before the main container
+# -- additional init containers to run before the main container (appended after combine-ca when enabled)
 initContainers: []
 
 gatewayApi:
@@ -73,5 +83,6 @@ gatewayApi:
     hostnames: []
     parentRefs:
     - name: k8sapi-gateway
+      kind: Gateway
     # -- list of HTTPRoute filters (default: none)
     filters: []

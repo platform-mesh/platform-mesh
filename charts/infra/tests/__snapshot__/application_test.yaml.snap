@@ -665,9 +665,9 @@ Gateway API enabled:
         - backendRefs:
             - group: ""
               kind: Service
-              name: keycloak
+              name: keycloak-service
               namespace: platform-mesh-system
-              port: 80
+              port: 8080
           matches:
             - path:
                 type: PathPrefix
@@ -1339,9 +1339,9 @@ Istio disabled:
         - backendRefs:
             - group: ""
               kind: Service
-              name: keycloak
+              name: keycloak-service
               namespace: platform-mesh-system
-              port: 80
+              port: 8080
           matches:
             - path:
                 type: PathPrefix
@@ -2013,9 +2013,9 @@ Istio enabled:
         - backendRefs:
             - group: ""
               kind: Service
-              name: keycloak
+              name: keycloak-service
               namespace: platform-mesh-system
-              port: 80
+              port: 8080
           matches:
             - path:
                 type: PathPrefix
@@ -3025,9 +3025,9 @@ match snapshots:
         - backendRefs:
             - group: ""
               kind: Service
-              name: keycloak
+              name: keycloak-service
               namespace: platform-mesh-system
-              port: 80
+              port: 8080
           matches:
             - path:
                 type: PathPrefix
@@ -3707,9 +3707,9 @@ match snapshots w. hostAliases enabled:
         - backendRefs:
             - group: ""
               kind: Service
-              name: keycloak
+              name: keycloak-service
               namespace: platform-mesh-system
-              port: 80
+              port: 8080
           matches:
             - path:
                 type: PathPrefix
@@ -4381,9 +4381,9 @@ match snapshots w. kcp version:
         - backendRefs:
             - group: ""
               kind: Service
-              name: keycloak
+              name: keycloak-service
               namespace: platform-mesh-system
-              port: 80
+              port: 8080
           matches:
             - path:
                 type: PathPrefix
@@ -5055,9 +5055,9 @@ match snapshots with mailpit enabled:
         - backendRefs:
             - group: ""
               kind: Service
-              name: keycloak
+              name: keycloak-service
               namespace: platform-mesh-system
-              port: 80
+              port: 8080
           matches:
             - path:
                 type: PathPrefix

@@ -9,6 +9,20 @@ chart:
 release:
   name: portal
 tests:
+  - it: uses the configured OIDC discovery endpoint
+    set:
+      exposure.baseDomain: portal.example.com
+      exposure.port: 8443
+      exposure.normalizedPort: ":8443"
+      auth:
+        default:
+          discoveryUrl: https://issuer.example.com/dex/.well-known/openid-configuration
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DISCOVERY_ENDPOINT
+            value: https://issuer.example.com/dex/.well-known/openid-configuration
   - it: matches the snapshot
     values:
       - test-values.yaml
@@ -80,3 +94,83 @@ tests:
         content:
           name: OPENMFP_PORTAL_CONTEXT_IAM_SERVICE_API_URL
           value: https://${org-subdomain}example.com/iam/graphql
+
+  - it: combines the domain and webhook issuing CAs by default
+    asserts:
+    - equal:
+        path: spec.template.spec.initContainers[0].command
+        value: [node]
+    - equal:
+        path: spec.template.spec.initContainers[0].args[0]
+        value: -e
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: NODE_EXTRA_CA_CERTS
+          value: /etc/ssl/certs/ca-bundle.crt
+  - it: uses the portal image for CA initialization and the application
+    set:
+      image.registry: mirror.example.com
+      image.repository: platform-mesh/portal
+      image.tag: 2.0.0
+      image.digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    asserts:
+    - equal:
+        path: spec.template.spec.initContainers[0].image
+        value: mirror.example.com/platform-mesh/portal@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    - equal:
+        path: spec.template.spec.containers[0].image
+        value: mirror.example.com/platform-mesh/portal@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  - it: mounts a domain-only CA without an empty init-container list
+    set:
+      webhookCaSecret: ""
+    asserts:
+    - notExists:
+        path: spec.template.spec.initContainers
+    - contains:
+        path: spec.template.spec.containers[0].volumeMounts
+        content:
+          name: domain-ca
+          mountPath: /etc/ssl/certs/ca-bundle.crt
+          subPath: ca.crt
+          readOnly: true
+  - it: disables custom CA trust when both CA secrets are empty
+    set:
+      caSecret: ""
+      webhookCaSecret: ""
+    asserts:
+    - notExists:
+        path: spec.template.spec.initContainers
+    - notContains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: NODE_EXTRA_CA_CERTS
+          value: /etc/ssl/certs/ca-bundle.crt
+  - it: preserves explicit webhook URL and Node CA environment overrides
+    set:
+      extraEnvVars:
+      - name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+        value: https://custom.example.net/authorize
+      - name: NODE_EXTRA_CA_CERTS
+        value: /custom/ca.crt
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+          value: https://custom.example.net/authorize
+    - notContains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: OPENMFP_PORTAL_CONTEXT_AUTHZ_WEBHOOK_URL
+          value: https://pm-openfga-authz-webhook.NAMESPACE.svc.cluster.local:9443
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: NODE_EXTRA_CA_CERTS
+          value: /custom/ca.crt
+    - notContains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: NODE_EXTRA_CA_CERTS
+          value: /etc/ssl/certs/ca-bundle.crt

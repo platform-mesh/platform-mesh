@@ -34,7 +34,7 @@ tests:
       path: spec.infrastructure.annotations
       value:
         dns.gardener.cloud/class: garden
-- it: terminates HTTPS on a single hostname-less listener by default
+- it: shares a hostname-less HTTPS listener and derives the service wildcard
   templates:
   - gatewayapi/gateway.yaml
   set:
@@ -50,6 +50,12 @@ tests:
       path: spec.listeners
       content:
         name: terminate-wildstar
+      any: true
+  - contains:
+      path: spec.listeners
+      content:
+        name: terminate-services
+        hostname: "*.services.example.com"
       any: true
 - it: generates one passthrough listener for every configured kcp shard
   templates:

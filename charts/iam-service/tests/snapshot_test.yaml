@@ -62,3 +62,18 @@ tests:
         value:
         - custom.example.net
     template: httproute.yaml
+
+  - it: preserves the migrated no-json logging default
+    template: deploy.yaml
+    asserts:
+    - contains:
+        path: spec.template.spec.containers[0].args
+        content: --no-json
+  - it: allows JSON logging to be enabled explicitly
+    template: deploy.yaml
+    set:
+      log.noJson: false
+    asserts:
+    - notContains:
+        path: spec.template.spec.containers[0].args
+        content: --no-json

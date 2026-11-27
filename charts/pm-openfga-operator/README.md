@@ -6,7 +6,7 @@ Manages OpenFGA authorization of a Platform Mesh installation (openfga.platform-
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| caSecret | string | `""` | Name of the secret containing the CA certificate for outbound TLS trust (key: tls.crt or ca.crt) |
+| caSecret | string | `"domain-certificate"` | Name of the secret containing the CA certificate for outbound TLS trust (key: tls.crt or ca.crt) |
 | clusterScopedName.prefix | string | `""` | Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one |
 | clusterScopedName.suffix | string | `""` | Suffix for the names of cluster-scoped resources |
 | coreModule | string | `"\nmodule core\n\ntype user\n\ntype role\n  relations\n    define assignee: [user,user:*]\n\ntype core_platform-mesh_io_account\n  relations\n    define parent: [core_platform-mesh_io_account]\n\n    define owner: [role#assignee] or owner from parent\n    define member: [role#assignee] or owner\n\n    define get: member\n    define update: member\n    define patch: member\n    define delete: owner\n\n    define create_core_platform-mesh_io_accounts: member\n    define list_core_platform-mesh_io_accounts: member\n    define watch_core_platform-mesh_io_accounts: member\n\n    # org and account specific\n    define watch: member\n\n    define create_core_platform-mesh_io_accountinfos: member\n    define list_core_platform-mesh_io_accountinfos: member\n    define watch_core_platform-mesh_io_accountinfos: member\n\n    define list_core_kcp_io_logicalclusters: member\n    define watch_core_kcp_io_logicalclusters: member\n\n    # IAM specific\n    define manage_iam_roles: owner\n    define get_iam_roles: member\n    define get_iam_users: member\n\n    # APIExport binding control\n    define bind_inherited: [apis_kcp_io_apiexport] or bind_inherited from parent\n    define bind: [apis_kcp_io_apiexport] or bind_inherited\n\ntype core_platform-mesh_io_accountinfo\n  relations\n    define parent: [core_platform-mesh_io_account]\n\n    define member: member from parent\n    define owner: owner from parent\n\n    define get: member\n    define watch: member\n\n    # IAM specific\n    define manage_iam_roles: owner\n    define get_iam_roles: member\n    define get_iam_users: member\n\ntype core_kcp_io_logicalcluster\n  relations\n    define parent: [core_platform-mesh_io_account]\n\n    define member: member from parent\n\n    define get: member\n    define watch: member"` |  |
@@ -25,8 +25,9 @@ Manages OpenFGA authorization of a Platform Mesh installation (openfga.platform-
 | initializer.extraArgs | list | `[]` |  |
 | initializer.kubeconfigSecret | string | `"openfga-initializer-kubeconfig"` | The kubeconfig secret for the initializer |
 | initializer.subroutines.workspaceEnabled | bool | `true` | Enable WorkspaceInitializer subroutine (FGA Store + AccountInfo setup) |
-| kubeconfigSecret | string | `""` | The kubeconfig secret for operator and generator |
-| logLevel | string | `"info"` | Log level for all operator components. Permissible values: debug, info, warn, error |
+| kubeconfigSecret | string | `"pm-openfga-operator-kubeconfig"` | The kubeconfig secret for operator and generator |
+| log.level | string | `"info"` | Log level |
+| log.noJson | bool | `true` | Disable JSON log formatting |
 | openfga.endpoint | string | `"openfga.platform-mesh-system.svc.cluster.local:8081"` | OpenFGA gRPC endpoint (host:port) |
 | openfga.storeIDCacheTTL | string | `""` | TTL for the OpenFGA store ID cache (e.g. 5m, 1h). Empty uses app default (5m). |
 | operator.extraArgs | list | `[]` |  |

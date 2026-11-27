@@ -285,12 +285,12 @@ tests:
       - matchRegex:
           path: data["profile.yaml"]
           pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'cat /domain-ca/ca\.crt /webhook-ca/ca\.crt'
       - notMatchRegex:
           path: data["profile.yaml"]
-          pattern: 'cat /domain-ca/tls\.crt'
+          pattern: 'webhookCaSecret:'
+      - notMatchRegex:
+          path: data["profile.yaml"]
+          pattern: 'cat /domain-ca/(ca|tls)\.crt'
       - notMatchRegex:
           path: data["profile.yaml"]
           pattern: '__EXTERNAL_PORT__'
@@ -316,9 +316,6 @@ tests:
       - matchRegex:
           path: data["profile.yaml"]
           pattern: '(?s)openfga:.*?telemetry:\s+trace:\s+enabled: false'
-      - matchRegex:
-          path: data["profile.yaml"]
-          pattern: 'cat /domain-ca/ca\.crt /webhook-ca/ca\.crt'
       - notMatchRegex:
           path: data["profile.yaml"]
           pattern: 'cat /domain-ca/tls\.crt'

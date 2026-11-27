@@ -1,6 +1,11 @@
 image:
   tag: 12345
 
+exposure:
+  baseDomain: portal.example.com
+  port: 443
+  normalizedPort: ""
+
 baseDomains:
   - portal.example.com
   - portal2.example.com

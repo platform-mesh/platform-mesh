@@ -10,7 +10,7 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.cluster.image.registry | string | `"ghcr.io"` | PostgreSQL image registry |
 | cnpg.cluster.image.repository | string | `"cloudnative-pg/postgresql"` | PostgreSQL image repository (without registry) |
 | cnpg.cluster.image.tag | string | `"18.6-system-trixie"` | PostgreSQL image tag |
-| cnpg.cluster.instances | int | `2` |  |
+| cnpg.cluster.instances | int | `2` | PostgreSQL instances, including a standby for failover. Tilt overrides this to one for local development. |
 | cnpg.cluster.name | string | `"platform-mesh-pg"` |  |
 | cnpg.cluster.postgresql.maxConnections | string | `"200"` |  |
 | cnpg.cluster.postgresql.sharedBuffers | string | `"128MB"` |  |
@@ -20,9 +20,9 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | cnpg.databases[1].name | string | `"openfga"` |  |
 | cnpg.databases[1].owner | string | `"openfga"` |  |
 | cnpg.enabled | bool | `false` |  |
-| cnpg.roles.keycloak.password | string | `""` | REQUIRED: set to a strong random value. |
+| cnpg.roles.keycloak.password | string | `"keycloak-password"` | REQUIRED: set to a strong random value. |
 | cnpg.roles.keycloak.username | string | `"keycloak"` | PostgreSQL username for Keycloak. Written to the cnpg-keycloak-user secret. |
-| cnpg.roles.openfga.password | string | `""` | REQUIRED: set to a strong random value. |
+| cnpg.roles.openfga.password | string | `"openfga-password"` | REQUIRED: set to a strong random value. |
 | cnpg.roles.openfga.username | string | `"openfga"` | PostgreSQL username for OpenFGA. Written to the cnpg-openfga-user secret. |
 | dex.enabled | bool | `false` | Enable Dex as a local upstream OIDC identity provider |
 | dex.expiry | object | `{}` | Dex `expiry` settings (token lifetimes, refresh token rotation), rendered as given (default: Dex defaults) |
@@ -165,13 +165,13 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | keycloak.gatewayApi.filters | list | `[]` | list of HTTPRoute filters (default: none) |
 | keycloak.gatewayApi.hostnames | list | `[]` | hostnames for the Keycloak HTTPRoute |
 | keycloak.gatewayApi.pathPrefix | string | `"/keycloak"` | path prefix for the Keycloak HTTPRoute |
-| keycloak.operator.admin.password | string | `""` | Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
-| keycloak.operator.admin.secret | string | `""` | Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
+| keycloak.operator.admin.password | string | `"admin"` | Bootstrap admin password (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
+| keycloak.operator.admin.secret | string | `"admin"` | Bootstrap admin client secret (written to keycloak-admin secret). REQUIRED: set to a strong random value. |
 | keycloak.operator.admin.username | string | `"keycloak-admin"` | Bootstrap admin username (written to keycloak-admin secret) |
-| keycloak.operator.caSecret | string | `""` | Secret with PEM CA for outbound HTTPS trust (e.g. local mkcert CA) |
+| keycloak.operator.caSecret | string | `"domain-certificate"` | Secret with PEM CA for outbound HTTPS trust (e.g. local mkcert CA) |
 | keycloak.operator.db.database | string | `"keycloak"` | Database name |
 | keycloak.operator.db.host | string | `"platform-mesh-pg-rw.platform-mesh-system.svc.cluster.local"` | PostgreSQL host |
-| keycloak.operator.db.password | string | `""` | Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value. |
+| keycloak.operator.db.password | string | `"keycloak-password"` | Database password (written to keycloak-db-credentials secret). REQUIRED: set to a strong random value. |
 | keycloak.operator.db.port | int | `5432` | PostgreSQL port |
 | keycloak.operator.db.username | string | `"keycloak"` | Database username (written to keycloak-db-credentials secret) |
 | keycloak.operator.enabled | bool | `false` | Enable Keycloak CR and supporting secrets managed by Keycloak Operator |
@@ -199,9 +199,9 @@ Infrastructure dependencies for a Platform Mesh installation (kcp, Keycloak, cer
 | keycloak.operator.waitForDb.image.registry | string | `"docker.io"` | wait-for-db init container image registry |
 | keycloak.operator.waitForDb.image.repository | string | `"library/busybox"` | wait-for-db init container image repository (without registry) |
 | keycloak.operator.waitForDb.image.tag | string | `"1.38"` | wait-for-db init container image tag |
-| keycloak.service | object | `{"name":"keycloak","port":80}` | service configuration |
-| keycloak.service.name | string | `"keycloak"` | service name |
-| keycloak.service.port | int | `80` | service port |
+| keycloak.service | object | `{"name":"keycloak-service","port":8080}` | service configuration |
+| keycloak.service.name | string | `"keycloak-service"` | service name |
+| keycloak.service.port | int | `8080` | service port |
 | openfga.rbac.writePrincipals[0] | string | `"cluster.local/ns/platform-mesh-system/sa/iam-service"` |  |
 | openfga.rbac.writePrincipals[1] | string | `"cluster.local/ns/platform-mesh-system/sa/pm-openfga-operator"` |  |
 | openfga.rbac.writePrincipals[2] | string | `"cluster.local/ns/platform-mesh-system/sa/account-operator"` |  |

@@ -45,6 +45,9 @@ spec:
           - --roles-file-path=/roles/roles.yaml
           - --jwt-user-id-claim={{ .Values.jwt.userIdClaim  }}
           - --openfga-grpc-addr={{ .Values.openfga.endpoint }}
+          {{- if .Values.log.noJson }}
+          - --no-json
+          {{- end }}
           {{- include "common.extraArgs" . | indent 10 }}
         env:
           {{- include "common.basicEnvironment" . | nindent 10 }}

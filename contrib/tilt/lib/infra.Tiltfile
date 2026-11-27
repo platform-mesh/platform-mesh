@@ -26,6 +26,7 @@ load(
     "DEX_CLIENT_SECRET",
     "DEX_ISSUER",
     "DEX_USERS",
+    "GATEWAY_PORT",
     "NAMESPACE",
     "TEMPLATE_VARS",
 )
@@ -119,8 +120,10 @@ def infra_blob(ctx):
         # Second shard, exercised by the e2e tests only.
         shards = [{"name": "triton", "spec": {"resources": NO_REQUESTS}}]
         overrides = {
+            # One PostgreSQL instance is sufficient for local development.
+            "cnpg": {"cluster": {"instances": 1}},
             # Traefik exposes 8443; public URLs use the NodePort in the contract.
-            "gatewayApi": {"listenerPort": 8443},
+            "gatewayApi": {"listenerPort": GATEWAY_PORT},
             "kcp": {
                 "rootShard": {"resources": NO_REQUESTS},
                 "shards": shards if ctx.selected("kcp-triton") else [],

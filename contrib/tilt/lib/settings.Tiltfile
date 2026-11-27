@@ -97,6 +97,8 @@ def third_party_version(name, resource):
 CLUSTER_ID = cfg.get("cluster-id", "127-0-0-1")
 BASE_DOMAIN = "pm.{}.sslip.io".format(CLUSTER_ID)
 PORT = 31000 # the same port as mapped by the kind config
+# Gateway listeners use Traefik's service/entrypoint port, before NodePort translation.
+GATEWAY_PORT = 8443
 BASE_DOMAIN_PORT = "{}:{}".format(BASE_DOMAIN, PORT)
 KCP_URL = "https://kcp.api." + BASE_DOMAIN_PORT
 

@@ -9,7 +9,8 @@ match the Snapshot:
         - example.com
         - '*.example.com'
       parentRefs:
-        - name: k8sapi-gateway
+        - kind: Gateway
+          name: k8sapi-gateway
       rules:
         - backendRefs:
             - group: ""

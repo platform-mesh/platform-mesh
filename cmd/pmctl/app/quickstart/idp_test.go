@@ -26,6 +26,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"sigs.k8s.io/yaml"
 )
 
 // TestDexValues checks the additions against the kind profile of the operator
@@ -83,9 +84,15 @@ func TestDexValues(t *testing.T) {
 		e := e.(map[string]any)
 		names[e["name"].(string)] = e["value"]
 	}
-	assert.Contains(t, names, "NODE_EXTRA_CA_CERTS")
+	profileEnv, err := portalEnvOf(string(manifest))
+	require.NoError(t, err)
+	for _, entry := range profileEnv {
+		assert.Equal(t, entry["value"], names[entry["name"].(string)])
+	}
 	assert.Equal(t, "platform-mesh", names["OIDC_STATIC_CLIENT_ID"])
-	assert.Greater(t, len(env), 4)
+	assert.Equal(t, dexScope, names["OIDC_SCOPE"])
+	assert.Equal(t, "true", names["OIDC_CALLBACK_ON_BASE_DOMAIN"])
+	assert.Len(t, env, len(profileEnv)+4)
 }
 
 func TestValidateIDP(t *testing.T) {
@@ -101,12 +108,72 @@ func TestValidateIDP(t *testing.T) {
 	}
 }
 
-// TestWithServiceValues checks that ServiceValues are merged over the values
-// quickstart sets itself, and stand alone where it sets none.
+// The shipped profile no longer provides Node CA trust, but custom profiles
+// and older release profiles can still supply environment entries.
+func TestDexValuesPreservesPortalEnvironment(t *testing.T) {
+	manifest := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-mesh-profile
+data:
+  profile.yaml: |
+    components:
+      services:
+        portal:
+          values:
+            extraEnvVars:
+            - name: NODE_EXTRA_CA_CERTS
+              value: /custom/ca.crt
+            - name: ENVIRONMENT
+              value: custom
+`
+	o := NewOptions(genericiooptions.NewTestIOStreamsDiscard())
+	additions, err := o.dexValues(manifest)
+	require.NoError(t, err)
+	values, err := helmValues(operatorValues{PlatformMesh: additions})
+	require.NoError(t, err)
+	env, found, err := unstructured.NestedSlice(values, "platformMesh", "values", "services", "portal", "values", "extraEnvVars")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Len(t, env, 6)
+	assert.Equal(t, map[string]any{"name": "NODE_EXTRA_CA_CERTS", "value": "/custom/ca.crt"}, env[0])
+	assert.Equal(t, map[string]any{"name": "ENVIRONMENT", "value": "custom"}, env[1])
+
+	// A profile with no extra environment still gets the four Dex entries.
+	cm, err := profileOf(manifest)
+	require.NoError(t, err)
+	cm.Data[profileKey] = "components: {services: {portal: {values: {}}}}"
+	emptyManifest, err := yaml.Marshal(cm)
+	require.NoError(t, err)
+	additions, err = o.dexValues(string(emptyManifest))
+	require.NoError(t, err)
+	values, err = helmValues(operatorValues{PlatformMesh: additions})
+	require.NoError(t, err)
+	env, found, err = unstructured.NestedSlice(values, "platformMesh", "values", "services", "portal", "values", "extraEnvVars")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Len(t, env, 4)
+}
+
+// TestWithServiceValues checks local defaults and that ServiceValues take
+// precedence while preserving other values quickstart sets itself.
 func TestWithServiceValues(t *testing.T) {
 	o := NewOptions(genericiooptions.NewTestIOStreamsDiscard())
+	defaults, err := o.withServiceValues(operatorValues{})
+	require.NoError(t, err)
+	defaultValues, err := helmValues(defaults)
+	require.NoError(t, err)
+	instances, found, err := unstructured.NestedFieldNoCopy(defaultValues, "platformMesh", "values", "services", "infra", "values", "cnpg", "cluster", "instances")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.EqualValues(t, 1, instances)
+
 	o.ServiceValues = map[string]map[string]any{
-		"infra":   {"kcp": map[string]any{"cacheServer": map[string]any{"replicas": 1}}, "dex": map[string]any{"enabled": false}},
+		"infra": {
+			"kcp":  map[string]any{"cacheServer": map[string]any{"replicas": 1}},
+			"dex":  map[string]any{"enabled": false},
+			"cnpg": map[string]any{"cluster": map[string]any{"instances": 3}},
+		},
 		"gateway": {"resources": map[string]any{"requests": map[string]any{"cpu": "50m"}}},
 	}
 	o.ServiceDependsOn = map[string][]string{"infra": {"kcp-operator"}}
@@ -122,6 +189,8 @@ func TestWithServiceValues(t *testing.T) {
 			require.NoError(t, err)
 			services, _, _ := unstructured.NestedMap(values, "platformMesh", "values", "services")
 
+			instances, _, _ := unstructured.NestedFieldNoCopy(services, "infra", "values", "cnpg", "cluster", "instances")
+			assert.EqualValues(t, 3, instances)
 			replicas, _, _ := unstructured.NestedFieldNoCopy(services, "infra", "values", "kcp", "cacheServer", "replicas")
 			assert.EqualValues(t, 1, replicas)
 			cpu, _, _ := unstructured.NestedString(services, "gateway", "values", "resources", "requests", "cpu")

@@ -24,6 +24,7 @@ match the snapshots:
                 - --roles-file-path=/roles/roles.yaml
                 - --jwt-user-id-claim=email
                 - --openfga-grpc-addr=openfga.platform-mesh-system.svc.cluster.local:8081
+                - --no-json
                 - --test=abc
               env:
                 - name: KUBECONFIG
@@ -63,6 +64,10 @@ match the snapshots:
                   name: external-api-server
                 - mountPath: /roles
                   name: roles
+                - mountPath: /etc/ssl/certs/domain-ca.crt
+                  name: domain-ca
+                  readOnly: true
+                  subPath: tls.crt
           hostAliases: []
           serviceAccountName: iam-service
           volumes:
@@ -72,6 +77,9 @@ match the snapshots:
             - configMap:
                 name: iam-service-roles
               name: roles
+            - name: domain-ca
+              secret:
+                secretName: domain-certificate
   2: |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute

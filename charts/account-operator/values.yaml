@@ -63,6 +63,12 @@ subroutines:
     # -- Enable workspace ready subroutine
     enabled: true
 
+log:
+  # -- Log level
+  level: info
+  # -- Disable JSON log formatting
+  noJson: true
+
 controllers:
   accountInfo:
     # -- Enable AccountInfo controller
@@ -94,6 +100,13 @@ operator:
 
 istio:
   enabled: false
+
+tracing:
+  # -- Toggle to enable/disable OpenTelemetry tracing
+  enabled: false
+  collector:
+    # -- OpenTelemetry collector endpoint
+    endpoint: observability-opentelemetry-collector.observability.svc.cluster.local:4317
 
 clusterScopedName:
   # -- Prefix for the names of cluster-scoped resources (ClusterRoles, ClusterRoleBindings, webhook configurations), so several installations can share a cluster. A global.clusterScopedName value takes precedence over this one
