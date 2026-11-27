@@ -77,6 +77,8 @@ charts/common/test-chart/charts/
 tests/e2e/portal/test-results/
 tests/e2e/portal/node_modules/
 tests/e2e/portal/*.png
+tests/node_modules/
+tests/test-results/
 *.kubeconfig
 ocm/.ocmconfig
 /runtime-artifacts
