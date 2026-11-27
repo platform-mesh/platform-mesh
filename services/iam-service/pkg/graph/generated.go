@@ -53,7 +53,7 @@ type ComplexityRoot struct {
 		Me         func(childComplexity int) int
 		Roles      func(childComplexity int, context ResourceContext) int
 		User       func(childComplexity int, userID string) int
-		Users      func(childComplexity int, context ResourceContext, roleFilters []string, sortBy *SortByInput, page *PageInput) int
+		Users      func(childComplexity int, context ResourceContext, roleFilters []string, countRoleFilters []string, sortBy *SortByInput, page *PageInput) int
 	}
 
 	Role struct {
@@ -66,6 +66,11 @@ type ComplexityRoot struct {
 		AssignedCount func(childComplexity int) int
 		Errors        func(childComplexity int) int
 		Success       func(childComplexity int) int
+	}
+
+	RoleCount struct {
+		Count func(childComplexity int) int
+		Role  func(childComplexity int) int
 	}
 
 	RoleRemovalResult struct {
@@ -84,6 +89,7 @@ type ComplexityRoot struct {
 	UserConnection struct {
 		OwnersCount func(childComplexity int) int
 		PageInfo    func(childComplexity int) int
+		RoleCounts  func(childComplexity int) int
 		Users       func(childComplexity int) int
 	}
 
@@ -103,7 +109,7 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Roles(ctx context.Context, context ResourceContext) ([]*Role, error)
-	Users(ctx context.Context, context ResourceContext, roleFilters []string, sortBy *SortByInput, page *PageInput) (*UserConnection, error)
+	Users(ctx context.Context, context ResourceContext, roleFilters []string, countRoleFilters []string, sortBy *SortByInput, page *PageInput) (*UserConnection, error)
 	KnownUsers(ctx context.Context, sortBy *SortByInput, page *PageInput) (*UserConnection, error)
 	User(ctx context.Context, userID string) (*User, error)
 	Me(ctx context.Context) (*User, error)
@@ -224,7 +230,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.Users(childComplexity, args["context"].(ResourceContext), args["roleFilters"].([]string), args["sortBy"].(*SortByInput), args["page"].(*PageInput)), true
+		return e.ComplexityRoot.Query.Users(childComplexity, args["context"].(ResourceContext), args["roleFilters"].([]string), args["countRoleFilters"].([]string), args["sortBy"].(*SortByInput), args["page"].(*PageInput)), true
 
 	case "Role.description":
 		if e.ComplexityRoot.Role.Description == nil {
@@ -263,6 +269,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RoleAssignmentResult.Success(childComplexity), true
+
+	case "RoleCount.count":
+		if e.ComplexityRoot.RoleCount.Count == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoleCount.Count(childComplexity), true
+	case "RoleCount.role":
+		if e.ComplexityRoot.RoleCount.Role == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoleCount.Role(childComplexity), true
 
 	case "RoleRemovalResult.error":
 		if e.ComplexityRoot.RoleRemovalResult.Error == nil {
@@ -320,6 +339,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.UserConnection.PageInfo(childComplexity), true
+	case "UserConnection.roleCounts":
+		if e.ComplexityRoot.UserConnection.RoleCounts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UserConnection.RoleCounts(childComplexity), true
 	case "UserConnection.users":
 		if e.ComplexityRoot.UserConnection.Users == nil {
 			break
@@ -485,13 +510,21 @@ type UserRoles {
     roles: [Role!]!
 }
 
+""" Total number of users assigned to a role """
+type RoleCount {
+    role: Role!
+    count: Int!
+}
+
 """ Is a list of the users and their roles """
 type UserConnection {
     users: [UserRoles!]!
     """ number of granted users in the list """
     pageInfo: PageInfo!
-    """ number of users in the result set that have the owner role """
-    ownersCount: Int!
+    """ total number of users that have the owner role on the resource """
+    ownersCount: Int! @deprecated(reason: "Use roleCounts instead")
+    """ total user counts for the roles requested through countRoleFilters, independent of roleFilters and pagination. Roles that are not defined for the resource are omitted, and the order follows the role definitions rather than the request. """
+    roleCounts: [RoleCount!]!
 }
 
 """ Result of role assignment operation """
@@ -555,7 +588,7 @@ type Query {
     """ roles returns the list of assignable roles for a particular groupResource/resource e.g. What roles can be assigned for a specific core_platform-mesh_io_account"""
     roles(context: ResourceContext!): [Role]! @authorized(permission: "get_iam_roles")
     """ returns all users that have roles assigned for a particular groupResource/resource."""
-    users(context: ResourceContext!, roleFilters: [String!], sortBy: SortByInput, page: PageInput): UserConnection! @authorized(permission: "get_iam_users")
+    users(context: ResourceContext!, roleFilters: [String!], countRoleFilters: [String!], sortBy: SortByInput, page: PageInput): UserConnection! @authorized(permission: "get_iam_users")
     """ returns all users known to the system, regardless of whether they have roles assigned."""
     knownUsers(sortBy: SortByInput, page: PageInput): UserConnection!
     """ returns a specific user by userId"""
@@ -621,6 +654,16 @@ func (ec *executionContext) childFields_RoleAssignmentResult(ctx context.Context
 	return nil, fmt.Errorf("no field named %q was found under type RoleAssignmentResult", field.Name)
 }
 
+func (ec *executionContext) childFields_RoleCount(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "role":
+		return ec.fieldContext_RoleCount_role(ctx, field)
+	case "count":
+		return ec.fieldContext_RoleCount_count(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RoleCount", field.Name)
+}
+
 func (ec *executionContext) childFields_RoleRemovalResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "success":
@@ -655,6 +698,8 @@ func (ec *executionContext) childFields_UserConnection(ctx context.Context, fiel
 		return ec.fieldContext_UserConnection_pageInfo(ctx, field)
 	case "ownersCount":
 		return ec.fieldContext_UserConnection_ownersCount(ctx, field)
+	case "roleCounts":
+		return ec.fieldContext_UserConnection_roleCounts(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type UserConnection", field.Name)
 }
@@ -934,22 +979,30 @@ func (ec *executionContext) field_Query_users_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["roleFilters"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "sortBy",
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "countRoleFilters",
+		func(ctx context.Context, v any) ([]string, error) {
+			return ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["countRoleFilters"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "sortBy",
 		func(ctx context.Context, v any) (*SortByInput, error) {
 			return ec.unmarshalOSortByInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐSortByInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["sortBy"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "page",
+	args["sortBy"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "page",
 		func(ctx context.Context, v any) (*PageInput, error) {
 			return ec.unmarshalOPageInput2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐPageInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["page"] = arg3
+	args["page"] = arg4
 	return args, nil
 }
 
@@ -1315,7 +1368,7 @@ func (ec *executionContext) _Query_users(ctx context.Context, field graphql.Coll
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Users(ctx, fc.Args["context"].(ResourceContext), fc.Args["roleFilters"].([]string), fc.Args["sortBy"].(*SortByInput), fc.Args["page"].(*PageInput))
+			return ec.Resolvers.Query().Users(ctx, fc.Args["context"].(ResourceContext), fc.Args["roleFilters"].([]string), fc.Args["countRoleFilters"].([]string), fc.Args["sortBy"].(*SortByInput), fc.Args["page"].(*PageInput))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -1701,6 +1754,61 @@ func (ec *executionContext) fieldContext_RoleAssignmentResult_assignedCount(_ co
 	return graphql.NewScalarFieldContext("RoleAssignmentResult", field, false, false, "Int")
 }
 
+func (ec *executionContext) _RoleCount_role(ctx context.Context, field graphql.CollectedField, obj *RoleCount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoleCount_role(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Role, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *Role) graphql.Marshaler {
+			return ec.marshalNRole2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRole(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoleCount_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleCount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Role(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleCount_count(ctx context.Context, field graphql.CollectedField, obj *RoleCount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoleCount_count(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoleCount_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RoleCount", field, false, false, "Int")
+}
+
 func (ec *executionContext) _RoleRemovalResult_success(ctx context.Context, field graphql.CollectedField, obj *RoleRemovalResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1947,6 +2055,38 @@ func (ec *executionContext) _UserConnection_ownersCount(ctx context.Context, fie
 }
 func (ec *executionContext) fieldContext_UserConnection_ownersCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("UserConnection", field, false, false, "Int")
+}
+
+func (ec *executionContext) _UserConnection_roleCounts(ctx context.Context, field graphql.CollectedField, obj *UserConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UserConnection_roleCounts(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RoleCounts, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*RoleCount) graphql.Marshaler {
+			return ec.marshalNRoleCount2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleCountᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UserConnection_roleCounts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RoleCount(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _UserRoles_user(ctx context.Context, field graphql.CollectedField, obj *UserRoles) (ret graphql.Marshaler) {
@@ -3722,6 +3862,44 @@ func (ec *executionContext) _RoleAssignmentResult(ctx context.Context, sel ast.S
 	return out
 }
 
+var roleCountImplementors = []string{"RoleCount"}
+
+func (ec *executionContext) _RoleCount(ctx context.Context, sel ast.SelectionSet, obj *RoleCount) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roleCountImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RoleCount")
+		case "role":
+			out.Values[i] = ec._RoleCount_role(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._RoleCount_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
 var roleRemovalResultImplementors = []string{"RoleRemovalResult"}
 
 func (ec *executionContext) _RoleRemovalResult(ctx context.Context, sel ast.SelectionSet, obj *RoleRemovalResult) graphql.Marshaler {
@@ -3836,6 +4014,11 @@ func (ec *executionContext) _UserConnection(ctx context.Context, sel ast.Selecti
 			}
 		case "ownersCount":
 			out.Values[i] = ec._UserConnection_ownersCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "roleCounts":
+			out.Values[i] = ec._UserConnection_roleCounts(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -4352,6 +4535,30 @@ func (ec *executionContext) marshalNRoleAssignmentResult2ᚖgoᚗplatformᚑmesh
 		return graphql.Null
 	}
 	return ec._RoleAssignmentResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNRoleCount2ᚕᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleCountᚄ(ctx context.Context, sel ast.SelectionSet, v []*RoleCount) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNRoleCount2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleCount(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNRoleCount2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleCount(ctx context.Context, sel ast.SelectionSet, v *RoleCount) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "RoleCount!")
+		return graphql.Null
+	}
+	return ec._RoleCount(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNRoleRemovalResult2ᚖgoᚗplatformᚑmeshᚗioᚋiamᚑserviceᚋpkgᚋgraphᚐRoleRemovalResult(ctx context.Context, sel ast.SelectionSet, v *RoleRemovalResult) graphql.Marshaler {
