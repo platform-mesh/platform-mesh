@@ -289,13 +289,19 @@ func (s *Service) GetUsersByEmails(ctx context.Context, emails []string) (map[st
 	return result, nil
 }
 
+const (
+	// maxPageAttempts limits how often fetchAllUsers requests the same page
+	maxPageAttempts = 3
+	pageRetryDelay  = 100 * time.Millisecond
+)
+
 // fetchAllUsers retrieves all users from Keycloak using pagination
-// Caches individual users by email and uses best effort error handling
+// Caches individual users by email. A failed page is retried up to
+// maxPageAttempts times, then fetchAllUsers returns an error
 func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.User, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	allUsers := make([]*graph.User, 0)
-	var failedPages []int
 	pageSize := s.cfg.Keycloak.PageSize
 	var currentPage = 0
 
@@ -305,6 +311,10 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 		Msg("Starting to fetch all users from Keycloak")
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		// Calculate offset for current page
 		first := currentPage * pageSize
 
@@ -323,25 +333,9 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 			Int("max", pageSize).
 			Msg("Fetching users page")
 
-		// Query users for current page
-		resp, err := s.keycloakClient.GetUsersWithResponse(ctx, realm, params)
+		resp, err := s.fetchUsersPage(ctx, realm, params, currentPage)
 		if err != nil {
-			log.Err(err).
-				Int("page", currentPage).
-				Msg("Failed to fetch users page, continuing with next page")
-			failedPages = append(failedPages, currentPage)
-			currentPage++
-			continue
-		}
-
-		if resp.StatusCode() != http.StatusOK {
-			log.Error().
-				Int("status_code", resp.StatusCode()).
-				Int("page", currentPage).
-				Msg("Non-200 response from Keycloak, continuing with next page")
-			failedPages = append(failedPages, currentPage)
-			currentPage++
-			continue
+			return nil, err
 		}
 
 		if resp.JSON200 == nil {
@@ -398,17 +392,42 @@ func (s *Service) fetchAllUsers(ctx context.Context, realm string) ([]*graph.Use
 
 	log.Debug().
 		Int("total_users", len(allUsers)).
-		Int("failed_pages", len(failedPages)).
 		Int("pages_processed", currentPage).
 		Msg("Completed fetching all users from Keycloak")
 
-	if len(failedPages) > 0 {
-		log.Warn().
-			Interface("failed_pages", failedPages).
-			Msg("Some pages failed to fetch, returning partial results")
-	}
-
 	return allUsers, nil
+}
+
+// fetchUsersPage requests one users page, retrying it up to maxPageAttempts times
+func (s *Service) fetchUsersPage(ctx context.Context, realm string, params *keycloakClient.GetUsersParams, page int) (*keycloakClient.GetUsersResponse, error) {
+	log := logger.LoadLoggerFromContext(ctx)
+
+	for attempt := 1; ; attempt++ {
+		resp, err := s.keycloakClient.GetUsersWithResponse(ctx, realm, params)
+		if err != nil && ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if err == nil && resp.StatusCode() != http.StatusOK {
+			err = errors.New("keycloak API returned status %d", resp.StatusCode())
+		}
+		if err == nil {
+			return resp, nil
+		}
+		if attempt == maxPageAttempts {
+			return nil, errors.Wrap(err, "users page %d failed after %d attempts", page, attempt)
+		}
+
+		log.Warn().Err(err).
+			Int("page", page).
+			Int("attempt", attempt).
+			Msg("Failed to fetch users page, retrying")
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(pageRetryDelay):
+		}
+	}
 }
 
 // fetchUsersInParallel fetches multiple users from Keycloak in parallel using errgroup

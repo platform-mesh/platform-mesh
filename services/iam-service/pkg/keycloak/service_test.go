@@ -18,6 +18,7 @@ package keycloak
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -845,88 +846,46 @@ func TestFetchAllUsers_MultiplePages(t *testing.T) {
 	assert.Equal(t, userID3, result[2].UserID)
 }
 
-func TestFetchAllUsers_ErrorHandling(t *testing.T) {
-	// Test error handling with best effort approach
+func TestFetchAllUsers_RetriesFailedPage(t *testing.T) {
+	// A page that fails once is retried and its users are included
 	ctx := context.Background()
-	ctx = appcontext.SetKCPContext(ctx, appcontext.KCPContext{
-		IDMTenant: "test-realm",
-	})
 
 	mockClient := mocks.NewKeycloakClientInterface(t)
-	cfg := &config.ServiceConfig{
-		Keycloak: config.KeycloakConfig{
-			PageSize: 2,
-		},
-	}
 	service := &Service{
 		keycloakClient: mockClient,
-		cfg:            cfg,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 2}},
 	}
 
-	// Create test data: first page has 2 users (full page)
-	userID1 := "user-1"
-	userID2 := "user-2"
-	userEmail1 := "user1@example.com"
-	userEmail2 := "user2@example.com"
-	page1Users := []keycloakClient.UserRepresentation{
+	userID1, userID2, userID3 := "user-1", "user-2", "user-3"
+	userEmail1, userEmail2, userEmail3 := "user1@example.com", "user2@example.com", "user3@example.com"
+	fullPage := []keycloakClient.UserRepresentation{
 		{Id: &userID1, Email: &userEmail1},
 		{Id: &userID2, Email: &userEmail2},
 	}
-	page1Response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
-		JSON200:      &page1Users,
-	}
-
-	// Second page returns error (will be skipped)
-	errorResponse := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: http.StatusInternalServerError},
-	}
-
-	// Third page is successful but has less than pageSize (partial page)
-	userID3 := "user-3"
-	userEmail3 := "user3@example.com"
-	page3Users := []keycloakClient.UserRepresentation{
+	partialPage := []keycloakClient.UserRepresentation{
 		{Id: &userID3, Email: &userEmail3},
 	}
-	page3Response := &keycloakClient.GetUsersResponse{
-		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
-		JSON200:      &page3Users,
+	responses := []*keycloakClient.GetUsersResponse{
+		{HTTPResponse: &http.Response{StatusCode: http.StatusOK}, JSON200: &fullPage},
+		{HTTPResponse: &http.Response{StatusCode: http.StatusInternalServerError}},
+		{HTTPResponse: &http.Response{StatusCode: http.StatusOK}, JSON200: &partialPage},
 	}
-
-	// Mock page requests
+	var requested []int32
 	mockClient.EXPECT().GetUsersWithResponse(
 		ctx,
 		"test-realm",
-		mock.MatchedBy(func(params *keycloakClient.GetUsersParams) bool {
-			return params != nil && params.First != nil && *params.First == int32(0)
-		}),
 		mock.Anything,
-	).Return(page1Response, nil)
-
-	mockClient.EXPECT().GetUsersWithResponse(
-		ctx,
-		"test-realm",
-		mock.MatchedBy(func(params *keycloakClient.GetUsersParams) bool {
-			return params != nil && params.First != nil && *params.First == int32(2)
-		}),
 		mock.Anything,
-	).Return(errorResponse, nil)
+	).RunAndReturn(func(_ context.Context, _ string, params *keycloakClient.GetUsersParams, _ ...keycloakClient.RequestEditorFn) (*keycloakClient.GetUsersResponse, error) {
+		requested = append(requested, *params.First)
+		return responses[len(requested)-1], nil
+	}).Times(len(responses))
 
-	mockClient.EXPECT().GetUsersWithResponse(
-		ctx,
-		"test-realm",
-		mock.MatchedBy(func(params *keycloakClient.GetUsersParams) bool {
-			return params != nil && params.First != nil && *params.First == int32(4)
-		}),
-		mock.Anything,
-	).Return(page3Response, nil)
-
-	// Execute
 	result, err := service.fetchAllUsers(ctx, "test-realm")
 
-	// Assert - should continue despite errors and get users from pages 1 and 3
 	assert.NoError(t, err)
-	assert.Len(t, result, 3) // 2 from page 1, 1 from page 3
+	assert.Equal(t, []int32{0, 2, 2}, requested)
+	assert.Len(t, result, 3)
 	assert.Equal(t, userID1, result[0].UserID)
 	assert.Equal(t, userID2, result[1].UserID)
 	assert.Equal(t, userID3, result[2].UserID)
@@ -970,6 +929,232 @@ func TestFetchAllUsers_EmptyResult(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Empty(t, result)
+}
+
+func TestFetchAllUsers_ContextCancelled(t *testing.T) {
+	// A cancelled context stops before any Keycloak request
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	mockClient := mocks.NewKeycloakClientInterface(t)
+	service := &Service{
+		keycloakClient: mockClient,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 2}},
+	}
+
+	result, err := service.fetchAllUsers(ctx, "test-realm")
+
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, result)
+}
+
+func TestFetchAllUsers_ContextCancelledDuringRequest(t *testing.T) {
+	// A request failing because the context was cancelled is not skipped
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mockClient := mocks.NewKeycloakClientInterface(t)
+	service := &Service{
+		keycloakClient: mockClient,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 2}},
+	}
+
+	mockClient.EXPECT().GetUsersWithResponse(
+		mock.Anything,
+		"test-realm",
+		mock.Anything,
+		mock.Anything,
+	).RunAndReturn(func(ctx context.Context, _ string, _ *keycloakClient.GetUsersParams, _ ...keycloakClient.RequestEditorFn) (*keycloakClient.GetUsersResponse, error) {
+		cancel()
+		return nil, ctx.Err()
+	}).Once()
+
+	result, err := service.fetchAllUsers(ctx, "test-realm")
+
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, result)
+}
+
+func TestFetchAllUsers_ContextCancelledDuringRetryDelay(t *testing.T) {
+	// A cancellation while waiting to retry a failed page stops without another request
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mockClient := mocks.NewKeycloakClientInterface(t)
+	service := &Service{
+		keycloakClient: mockClient,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 2}},
+	}
+
+	mockClient.EXPECT().GetUsersWithResponse(
+		mock.Anything,
+		"test-realm",
+		mock.Anything,
+		mock.Anything,
+	).RunAndReturn(func(_ context.Context, _ string, _ *keycloakClient.GetUsersParams, _ ...keycloakClient.RequestEditorFn) (*keycloakClient.GetUsersResponse, error) {
+		cancel()
+		return &keycloakClient.GetUsersResponse{HTTPResponse: &http.Response{StatusCode: http.StatusInternalServerError}}, nil
+	}).Once()
+
+	result, err := service.fetchAllUsers(ctx, "test-realm")
+
+	assert.Equal(t, context.Canceled, err)
+	assert.Nil(t, result)
+}
+
+func TestFetchAllUsers_ContextCancelledOnLastAttempt(t *testing.T) {
+	// A cancellation is returned as is, even on the last allowed attempt
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mockClient := mocks.NewKeycloakClientInterface(t)
+	service := &Service{
+		keycloakClient: mockClient,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 2}},
+	}
+
+	calls := 0
+	mockClient.EXPECT().GetUsersWithResponse(
+		mock.Anything,
+		"test-realm",
+		mock.Anything,
+		mock.Anything,
+	).RunAndReturn(func(ctx context.Context, _ string, _ *keycloakClient.GetUsersParams, _ ...keycloakClient.RequestEditorFn) (*keycloakClient.GetUsersResponse, error) {
+		calls++
+		if calls == maxPageAttempts {
+			cancel()
+			return nil, ctx.Err()
+		}
+		return nil, errors.New("dial tcp: connection refused")
+	}).Times(maxPageAttempts)
+
+	result, err := service.fetchAllUsers(ctx, "test-realm")
+
+	assert.Equal(t, context.Canceled, err)
+	assert.Nil(t, result)
+}
+
+func TestFetchAllUsers_PersistentNon200(t *testing.T) {
+	// Keycloak answering 401 stops after maxPageAttempts requests for the first page
+	ctx := context.Background()
+
+	mockClient := mocks.NewKeycloakClientInterface(t)
+	service := &Service{
+		keycloakClient: mockClient,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 2}},
+	}
+
+	unauthorized := &keycloakClient.GetUsersResponse{
+		HTTPResponse: &http.Response{StatusCode: http.StatusUnauthorized},
+	}
+	var requested []int32
+	mockClient.EXPECT().GetUsersWithResponse(
+		ctx,
+		"test-realm",
+		mock.Anything,
+		mock.Anything,
+	).Run(func(_ context.Context, _ string, params *keycloakClient.GetUsersParams, _ ...keycloakClient.RequestEditorFn) {
+		requested = append(requested, *params.First)
+	}).Return(unauthorized, nil).Times(maxPageAttempts)
+
+	result, err := service.fetchAllUsers(ctx, "test-realm")
+
+	assert.EqualError(t, err, "users page 0 failed after 3 attempts: keycloak API returned status 401")
+	assert.Nil(t, result)
+	assert.Equal(t, []int32{0, 0, 0}, requested)
+}
+
+func TestFetchAllUsers_PageFailingAfterGoodPage(t *testing.T) {
+	// A page failing maxPageAttempts times returns an error instead of partial results
+	ctx := context.Background()
+
+	mockClient := mocks.NewKeycloakClientInterface(t)
+	service := &Service{
+		keycloakClient: mockClient,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 2}},
+	}
+
+	userID1, userID2 := "user-1", "user-2"
+	userEmail1, userEmail2 := "user1@example.com", "user2@example.com"
+	fullPage := []keycloakClient.UserRepresentation{
+		{Id: &userID1, Email: &userEmail1},
+		{Id: &userID2, Email: &userEmail2},
+	}
+	mockClient.EXPECT().GetUsersWithResponse(
+		ctx,
+		"test-realm",
+		mock.MatchedBy(func(params *keycloakClient.GetUsersParams) bool {
+			return params != nil && params.First != nil && *params.First == int32(0)
+		}),
+		mock.Anything,
+	).Return(&keycloakClient.GetUsersResponse{HTTPResponse: &http.Response{StatusCode: http.StatusOK}, JSON200: &fullPage}, nil).Once()
+
+	dialErr := errors.New("dial tcp: connection refused")
+	mockClient.EXPECT().GetUsersWithResponse(
+		ctx,
+		"test-realm",
+		mock.MatchedBy(func(params *keycloakClient.GetUsersParams) bool {
+			return params != nil && params.First != nil && *params.First == int32(2)
+		}),
+		mock.Anything,
+	).Return(nil, dialErr).Times(maxPageAttempts)
+
+	result, err := service.fetchAllUsers(ctx, "test-realm")
+
+	assert.ErrorIs(t, err, dialErr)
+	assert.EqualError(t, err, "users page 1 failed after 3 attempts: dial tcp: connection refused")
+	assert.Nil(t, result)
+}
+
+func TestFetchAllUsers_AttemptsArePerPage(t *testing.T) {
+	// Each page gets its own maxPageAttempts attempts
+	ctx := context.Background()
+
+	mockClient := mocks.NewKeycloakClientInterface(t)
+	service := &Service{
+		keycloakClient: mockClient,
+		cfg:            &config.ServiceConfig{Keycloak: config.KeycloakConfig{PageSize: 2}},
+	}
+
+	userID1, userID2, userID3 := "user-1", "user-2", "user-3"
+	userEmail1, userEmail2, userEmail3 := "user1@example.com", "user2@example.com", "user3@example.com"
+	fullPage := []keycloakClient.UserRepresentation{
+		{Id: &userID1, Email: &userEmail1},
+		{Id: &userID2, Email: &userEmail2},
+	}
+	partialPage := []keycloakClient.UserRepresentation{
+		{Id: &userID3, Email: &userEmail3},
+	}
+	failure := &keycloakClient.GetUsersResponse{
+		HTTPResponse: &http.Response{StatusCode: http.StatusInternalServerError},
+	}
+	responses := []*keycloakClient.GetUsersResponse{
+		failure,
+		failure,
+		{HTTPResponse: &http.Response{StatusCode: http.StatusOK}, JSON200: &fullPage},
+		failure,
+		failure,
+		{HTTPResponse: &http.Response{StatusCode: http.StatusOK}, JSON200: &partialPage},
+	}
+	var requested []int32
+	mockClient.EXPECT().GetUsersWithResponse(
+		ctx,
+		"test-realm",
+		mock.Anything,
+		mock.Anything,
+	).RunAndReturn(func(_ context.Context, _ string, params *keycloakClient.GetUsersParams, _ ...keycloakClient.RequestEditorFn) (*keycloakClient.GetUsersResponse, error) {
+		requested = append(requested, *params.First)
+		return responses[len(requested)-1], nil
+	}).Times(len(responses))
+
+	result, err := service.fetchAllUsers(ctx, "test-realm")
+
+	assert.NoError(t, err)
+	assert.Equal(t, []int32{0, 0, 0, 2, 2, 2}, requested)
+	assert.Len(t, result, 3)
+	assert.Equal(t, userID1, result[0].UserID)
+	assert.Equal(t, userID2, result[1].UserID)
+	assert.Equal(t, userID3, result[2].UserID)
 }
 
 func TestGetUsers_Success(t *testing.T) {
