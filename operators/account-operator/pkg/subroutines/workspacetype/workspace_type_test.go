@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
@@ -116,7 +117,7 @@ func TestFinalize(t *testing.T) {
 			if test.k8sMocks != nil {
 				test.k8sMocks(cl)
 			}
-			mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(cluster, nil)
+			mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 			cluster.EXPECT().GetClient().Return(cl)
 
 			s := workspacetype.New(mgr)
@@ -171,8 +172,8 @@ func TestProcess(t *testing.T) {
 			if test.k8sMocks != nil {
 				test.k8sMocks(cl)
 			}
-			mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(cluster, nil).Twice()
-			cluster.EXPECT().GetClient().Return(cl).Twice()
+			mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+			cluster.EXPECT().GetClient().Return(cl)
 
 			s := workspacetype.New(mgr)
 
@@ -214,8 +215,8 @@ func TestProcess_PreservesAuthenticationConfigurations(t *testing.T) {
 
 	cluster := mocks.NewCluster(t)
 	mgr := mocks.NewManager(t)
-	mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(cluster, nil).Twice()
-	cluster.EXPECT().GetClient().Return(fakeClient).Twice()
+	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+	cluster.EXPECT().GetClient().Return(fakeClient)
 
 	s := workspacetype.New(mgr)
 
@@ -236,4 +237,31 @@ func TestProcess_PreservesAuthenticationConfigurations(t *testing.T) {
 	require.NoError(t, fakeClient.Get(t.Context(), ctrlruntimeclient.ObjectKey{Name: "test-acc"}, updatedAccWst))
 	assert.Equal(t, existingAuthConfigs, updatedAccWst.Spec.AuthenticationConfigurations,
 		"AuthenticationConfigurations should be preserved on account workspace type")
+}
+
+func TestWorkspaceTypesWithoutPathAlias(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, kcptenancyv1alpha1.AddToScheme(scheme))
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	cluster := mocks.NewCluster(t)
+	cluster.EXPECT().GetClient().Return(client)
+	mgr := mocks.NewManager(t)
+	ctx := mccontext.WithCluster(t.Context(), "orgs-generated-id")
+	mgr.EXPECT().ClusterFromContext(ctx).Return(cluster, nil).Maybe()
+	mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("root:orgs")).Return(nil, errors.New("cluster not found")).Maybe()
+	account := &pmcorev1alpha1.Account{
+		ObjectMeta: metav1.ObjectMeta{Name: "org-a"},
+		Spec:       pmcorev1alpha1.AccountSpec{Type: pmcorev1alpha1.AccountTypeOrg},
+	}
+	s := workspacetype.New(mgr)
+	_, err := s.Process(ctx, account)
+	require.NoError(t, err)
+	for _, name := range []string{"org-a-org", "org-a-account"} {
+		require.NoError(t, client.Get(ctx, ctrlruntimeclient.ObjectKey{Name: name}, &kcptenancyv1alpha1.WorkspaceType{}))
+	}
+	_, err = s.Finalize(ctx, account)
+	require.NoError(t, err)
+	var remaining kcptenancyv1alpha1.WorkspaceTypeList
+	require.NoError(t, client.List(ctx, &remaining))
+	assert.Empty(t, remaining.Items)
 }
