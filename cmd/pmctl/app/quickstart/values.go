@@ -224,6 +224,8 @@ type ocmValues struct {
 	// SignatureName is the OCM signature the component is verified with;
 	// empty keeps the chart's.
 	SignatureName string `json:"signatureName,omitempty"`
+	// SigningIdentity is the identity that made the keyless signature, empty keeps the release tag of Version.
+	SigningIdentity string `json:"signingIdentity,omitempty"`
 	// InstallSigningCertificate set to false turns off the chart's own
 	// signing certificate Secret; unset keeps the chart's default.
 	InstallSigningCertificate *bool `json:"installSigningCertificate,omitempty"`
