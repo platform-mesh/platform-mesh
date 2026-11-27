@@ -49,8 +49,10 @@ moves them itself once the workspace binds the new export:
   `status.managedTuples` and the `authzmodel.core.platform-mesh.io/*`
   dependency finalizers, and annotates the deprecated Store
   `openfga.platform-mesh.io/migrated=true`. No second OpenFGA store is
-  created. The deprecated Store is deleted together with the organization
-  (terminator) and released without touching OpenFGA.
+  created. v26.11 keeps the deprecated Store until the organization is
+  deleted (terminator). The release after it deletes the deprecated Store
+  once the new one holds its `status.storeId`. Either way it is released
+  without touching OpenFGA.
 - The model generator writes its AuthorizationModels in the group the
   provider workspace bound (`provider-openfga` preferred). Once a new model
   adopted its deprecated twin, the generator deletes the twin.
@@ -112,12 +114,16 @@ old one in a later change.
 6. Once no deprecated objects are left anywhere:
 
    ```shell
+   kubectl get stores.core.platform-mesh.io --server=<kcp>/clusters/root:orgs
    kubectl get apiexportpolicies.core.platform-mesh.io --server=<kcp>/clusters/root:orgs
    kubectl get authorizationmodels.core.platform-mesh.io --server=<kcp>/clusters/root:providers:<provider>
    ```
 
    pm-openfga-operator can run with `--feature-gates=LegacyAPIs=false`
-   (chart value `featureGates.LegacyAPIs: false`). The deprecated kinds, the
+   (chart value `featureGates.LegacyAPIs: false`). Do not turn the gate off
+   while a deprecated Store is left: only the legacy reconciler releases its
+   finalizer, and deleting its organization would wait for it forever. The
+   deprecated kinds, the
    `fga`/`provider-fga` exports and the `apiexportpolicies` resource of the
    `system` export are removed in a later release, together with the
    `security` WorkspaceType.
@@ -127,4 +133,6 @@ old one in a later change.
 Deprecated objects that were not moved are unaffected by a downgrade. A moved
 object has its deprecated twin marked `openfga.platform-mesh.io/migrated=true`;
 remove that annotation to hand the OpenFGA state back to the deprecated
-object. Terminators must be switched back to `root:security` by hand.
+object. A deprecated Store that was already deleted (the release after
+v26.11 does so) cannot be handed back. Terminators must be switched back to
+`root:security` by hand.
