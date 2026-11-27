@@ -1,0 +1,10 @@
+{{- if and (include "kcp.audit.anyEnabled" .) (not ((.Values.kcp.audit).policy).existingConfigMap) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kcp-audit-policy
+  namespace: {{ .Values.kcp.namespace | default "kcp-system" }}
+data:
+  policy.yaml: |
+    {{- include "kcp.audit.policyContent" . | nindent 4 }}
+{{- end }}

@@ -124,6 +124,25 @@ kcp:
     port: 9443
     version: v1
 
+  audit:
+    # -- Enable kcp audit logging on the RootShard and all Shards. Requires at least one backend (log or webhook). Shards can override enabled, log and webhook via kcp.shards[].spec.audit.
+    enabled: false
+    policy:
+      # -- Full audit.k8s.io/v1 Policy replacing the built-in default (a copy of kcp's test-server audit policy, see files/kcp-audit-policy.yaml)
+      inline: {}
+      # -- Existing ConfigMap holding the audit policy, e.g. {name: my-policy, key: policy.yaml}. Takes precedence over inline. Shards are not restarted when it changes; restart them manually.
+      existingConfigMap: {}
+    log:
+      # -- Write audit events to the shard container's stdout. Events share stdout with kcp's own logs; collectors can select them as JSON lines with "kind":"Event".
+      enabled: false
+      # -- Audit log format, json or legacy
+      format: json
+    webhook:
+      # -- Send audit events to a webhook collector
+      enabled: false
+      # -- Name of a Secret with a kubeconfig describing the audit webhook collector. Required when webhook.enabled is true. Any other kcp-operator AuditWebhookSpec field (mode, batchMaxWait, truncateEnabled, ...) set here is passed through as-is.
+      configSecretName: ""
+
   proxy:
     replicas: ""
 
