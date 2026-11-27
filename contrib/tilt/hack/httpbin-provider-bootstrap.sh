@@ -75,7 +75,7 @@ kcp root:providers wait workspace/httpbin-provider --for=jsonpath='{.status.phas
 kcp "$workspace" apply -k manifests/httpbin-provider \
     || die "applying manifests/httpbin-provider failed"
 
-kcp "$workspace" wait apiexportendpointslice/orchestrate.platform-mesh.io --for=create --timeout=5m \
-    || die "APIExportEndpointSlice orchestrate.platform-mesh.io was not created"
-kcp "$workspace" wait apiexportendpointslice/orchestrate.platform-mesh.io --for=condition=APIExportValid --timeout=5m \
-    || die "APIExportEndpointSlice orchestrate.platform-mesh.io did not become valid"
+kcp "$workspace" wait apiexportendpointslice/httpbin --for=create --timeout=5m \
+    || die "APIExportEndpointSlice httpbin was not created"
+kcp "$workspace" wait apiexportendpointslice/httpbin --for=condition=APIExportValid --timeout=5m \
+    || die "APIExportEndpointSlice httpbin did not become valid"

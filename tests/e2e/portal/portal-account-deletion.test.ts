@@ -6,6 +6,7 @@ import {
   switchToOrganization,
   ensureExampleHttpbinProviderWorkspace,
   ensureAccountExists,
+  waitForHttpbinBindingReady,
   deleteAccount,
   waitForAccountDeleted,
   logStep,
@@ -13,6 +14,8 @@ import {
 import { newOrgName, testAccountName } from './helpers/constants';
 
 test.describe('Portal Account Deletion', () => {
+  // A retry may recreate a deleted account without its original shard selector.
+  test.describe.configure({ retries: 0 });
   test.setTimeout(600000);
 
   test('Account deletion flow', async ({ page }) => {
@@ -22,6 +25,10 @@ test.describe('Portal Account Deletion', () => {
     ensureExampleHttpbinProviderWorkspace();
 
     const url = await ensureAccountExists(page);
+
+    // Verify the provider binding's finalizer before deleting the account.
+    waitForHttpbinBindingReady(newOrgName, testAccountName);
+
     await deleteAccount(page, url);
     waitForAccountDeleted(newOrgName, testAccountName, 120);
     logStep(`deleteAccount:done account=${testAccountName}`);

@@ -65,6 +65,7 @@ function waitForAccountDeleted(orgName?: string, accountName?: string, timeoutSe
     kcpClusterServer(`root:orgs:${org}`),
     '--for=delete',
     `--timeout=${timeout}s`,
+    `--request-timeout=${timeout}s`,
     `accounts.core.platform-mesh.io/${account}`,
   ]);
   logStep(`waitForAccountDeleted:done account=${account}`);
