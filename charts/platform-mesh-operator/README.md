@@ -3,6 +3,17 @@
 A Helm chart to automate bootstrapping of new environment
 
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+## Service selection
+
+Set `services.<service-name>.enabled` to enable or disable a service:
+
+```shell
+helm upgrade platform-mesh-operator ./charts/platform-mesh-operator \
+  --namespace platform-mesh-system --reuse-values \
+  --set services.marketplace.enabled=false \
+  --set services.terminal-controller-manager.enabled=true
+```
+
 ## Profile lifecycle
 
 With `ocm.enabled=true`, Helm creates `platform-mesh-profile` once during install,
@@ -69,7 +80,7 @@ repeatedly apply install-mode renders must manage the profile separately.
 | platformMesh | object | `{"authentication":{},"extraFeatureToggles":[],"values":{}}` | Additions to the PlatformMesh resource (used when ocm.enabled=true). |
 | platformMesh.authentication | object | `{}` | `spec.authentication` of the PlatformMesh resource: the OIDC issuer kcp and the portal use instead of Keycloak. Needs the `feature-disable-keycloak` toggle. |
 | platformMesh.extraFeatureToggles | list | `[]` | Feature toggles to set on the PlatformMesh resource, next to the ones the chart sets, e.g. `feature-disable-keycloak`. |
-| platformMesh.values | object | `{}` | `spec.values` of the PlatformMesh resource: values merged over the services of the profile, e.g. to disable a service. |
+| platformMesh.values | object | `{}` | `spec.values` of the PlatformMesh resource: component chart values and deployment settings merged over the profile. Set service enabled flags in the top-level services map; they become spec.services. |
 | remoteInfra.enabled | bool | `false` | Enables reconciliation of PlatformMesh resources on remote clusters |
 | remoteInfra.secretKey | string | `"kubeconfig"` |  |
 | remoteInfra.secretName | string | `"platform-mesh-kubeconfig"` | Name of the secret containing the kubeconfig for remote cluster access where the PlatformMesh resources will be deployed |
@@ -78,6 +89,25 @@ repeatedly apply install-mode renders must manage the profile separately.
 | remoteRuntime.infra.secretName | string | `"platform-mesh-secret"` | Name of the secret containing Runtime cluster kubeconfig |
 | remoteRuntime.secretKey | string | `"kubeconfig"` |  |
 | remoteRuntime.secretName | string | `"platform-mesh-secret"` | Name of the secret containing the kubeconfig for the cluster where the created Infra artifacts will be created. NOTE: target deployment will always be same as the cluster where the Platform Mesh resource lives. |
+| services.account-operator.enabled | bool | `true` |  |
+| services.cnpg-operator.enabled | bool | `false` |  |
+| services.extension-manager-operator.enabled | bool | `true` |  |
+| services.extension-manager-virtual-workspace.enabled | bool | `true` |  |
+| services.iam-service.enabled | bool | `true` |  |
+| services.iam-ui.enabled | bool | `true` |  |
+| services.infra.enabled | bool | `true` |  |
+| services.kcp-operator.enabled | bool | `true` |  |
+| services.keycloak-operator.enabled | bool | `false` |  |
+| services.kubernetes-graphql-gateway.enabled | bool | `true` |  |
+| services.marketplace-ui.enabled | bool | `true` |  |
+| services.marketplace.enabled | bool | `true` |  |
+| services.observability.enabled | bool | `false` |  |
+| services.openfga.enabled | bool | `true` |  |
+| services.pm-keycloak-operator.enabled | bool | `true` |  |
+| services.pm-openfga-authz-webhook.enabled | bool | `true` |  |
+| services.pm-openfga-operator.enabled | bool | `true` |  |
+| services.portal.enabled | bool | `true` |  |
+| services.terminal-controller-manager.enabled | bool | `false` |  |
 | tracing.collector.endpoint | string | `"observability-opentelemetry-collector.observability.svc.cluster.local:4317"` |  |
 | tracing.enabled | bool | `false` |  |
 

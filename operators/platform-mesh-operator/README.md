@@ -266,6 +266,7 @@ The operator binary accepts the following CLI flags (defined in `internal/config
 | `--remote-runtime-infra-secret-name` | _(none)_ | Secret name for FluxCD to reach runtime |
 | `--remote-runtime-infra-secret-key` | _(none)_ | Secret key for FluxCD to reach runtime |
 | `--remote-infra-kubeconfig` | _(none)_ | Kubeconfig for remote infra cluster |
+| `--services-config-file` | _(none)_ | Mounted YAML file containing service enabled settings |
 
 ### PlatformMesh CR → Profile → Downstream Resources
 

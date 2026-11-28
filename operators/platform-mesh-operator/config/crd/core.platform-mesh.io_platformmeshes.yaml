@@ -338,6 +338,55 @@ spec:
                 required:
                 - name
                 type: object
+              services:
+                description: |-
+                  Services selects the component services managed by this PlatformMesh instance.
+                  When present, only entries with enabled=true are selected; omitted services
+                  are disabled. An empty list selects no component services.
+                  Available services: account-operator, extension-manager-operator,
+                  pm-keycloak-operator, pm-openfga-operator, infra, kubernetes-graphql-gateway,
+                  iam-service, pm-openfga-authz-webhook, extension-manager-virtual-workspace,
+                  marketplace, portal, marketplace-ui, iam-ui, openfga, kcp-operator,
+                  keycloak-operator, cnpg-operator, terminal-controller-manager, observability.
+                items:
+                  description: ServiceConfiguration configures one supported component
+                    service.
+                  properties:
+                    enabled:
+                      description: Enabled controls whether the service should be
+                        deployed.
+                      type: boolean
+                    name:
+                      description: Name identifies the service to configure.
+                      enum:
+                      - account-operator
+                      - cnpg-operator
+                      - extension-manager-operator
+                      - extension-manager-virtual-workspace
+                      - iam-service
+                      - iam-ui
+                      - infra
+                      - kcp-operator
+                      - keycloak-operator
+                      - kubernetes-graphql-gateway
+                      - marketplace
+                      - marketplace-ui
+                      - observability
+                      - openfga
+                      - pm-keycloak-operator
+                      - pm-openfga-authz-webhook
+                      - pm-openfga-operator
+                      - portal
+                      - terminal-controller-manager
+                      type: string
+                  required:
+                  - enabled
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
               values:
                 x-kubernetes-preserve-unknown-fields: true
               wait:

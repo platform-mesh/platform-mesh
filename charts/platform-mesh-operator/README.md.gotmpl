@@ -1,3 +1,14 @@
+## Service selection
+
+Set `services.<service-name>.enabled` to enable or disable a service:
+
+```shell
+helm upgrade platform-mesh-operator ./charts/platform-mesh-operator \
+  --namespace platform-mesh-system --reuse-values \
+  --set services.marketplace.enabled=false \
+  --set services.terminal-controller-manager.enabled=true
+```
+
 ## Profile lifecycle
 
 With `ocm.enabled=true`, Helm creates `platform-mesh-profile` once during install,

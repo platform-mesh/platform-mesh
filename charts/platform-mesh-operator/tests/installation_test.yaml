@@ -40,7 +40,7 @@ tests:
           path: spec.exposure.port
           value: 8443
         documentIndex: 3
-  - it: leaves the PlatformMesh resource alone without additions
+  - it: leaves optional additions absent from the PlatformMesh resource
     template: installation.yaml
     set:
       ocm:
@@ -66,6 +66,9 @@ tests:
         enabled: true
       gateway:
         baseDomain: platform.example.com
+      services:
+        iam-ui:
+          enabled: false
       platformMesh:
         extraFeatureToggles:
           - feature-disable-keycloak
@@ -75,8 +78,6 @@ tests:
             clientID: platform-mesh
         values:
           services:
-            iam-ui:
-              enabled: false
             portal:
               values:
                 extraEnvVars:
@@ -95,9 +96,11 @@ tests:
             issuerURL: https://platform.example.com/dex
             clientID: platform-mesh
         documentIndex: 3
-      - equal:
-          path: spec.values.services["iam-ui"].enabled
-          value: false
+      - contains:
+          path: spec.services
+          content:
+            name: iam-ui
+            enabled: false
         documentIndex: 3
       # Templates in the values are for the operator: Helm passes them on.
       - equal:

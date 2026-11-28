@@ -94,6 +94,8 @@ type operatorValues struct {
 	// PlatformMesh adds to the PlatformMesh resource; unset for Keycloak,
 	// which is what the chart installs by itself.
 	PlatformMesh *platformMeshValues `json:"platformMesh,omitempty"`
+	// Services selects components through charts that render spec.services.
+	Services map[string]enabledValues `json:"services,omitempty"`
 }
 
 // platformMeshValues are the chart's additions to the PlatformMesh resource.

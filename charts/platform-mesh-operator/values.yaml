@@ -42,7 +42,7 @@ platformMesh:
   extraFeatureToggles: []
   # -- `spec.authentication` of the PlatformMesh resource: the OIDC issuer kcp and the portal use instead of Keycloak. Needs the `feature-disable-keycloak` toggle.
   authentication: {}
-  # -- `spec.values` of the PlatformMesh resource: values merged over the services of the profile, e.g. to disable a service.
+  # -- `spec.values` of the PlatformMesh resource: component chart values and deployment settings merged over the profile. Set service enabled flags in the top-level services map; they become spec.services.
   values: {}
 
 # -- kcp connectivity configuration (used when ocm.enabled=true).
@@ -124,3 +124,51 @@ clusterScopedName:
   prefix: ""
   # -- Suffix for the names of cluster-scoped resources
   suffix: ""
+
+# Service enable/disable settings rendered into PlatformMesh.spec.services when ocm.enabled=true.
+services:
+  # operators
+  account-operator:
+    enabled: true
+  extension-manager-operator:
+    enabled: true
+  pm-keycloak-operator:
+    enabled: true
+  pm-openfga-operator:
+    enabled: true
+
+  # services
+  infra:
+    enabled: true
+  kubernetes-graphql-gateway:
+    enabled: true
+  iam-service:
+    enabled: true
+  pm-openfga-authz-webhook:
+    enabled: true
+  extension-manager-virtual-workspace:
+    enabled: true
+  marketplace:
+    enabled: true
+
+  # UI
+  portal:
+    enabled: true
+  marketplace-ui:
+    enabled: true
+  iam-ui:
+    enabled: true
+
+  # third party tools
+  openfga:
+    enabled: true
+  kcp-operator:
+    enabled: true
+  keycloak-operator:
+    enabled: false
+  cnpg-operator:
+    enabled: false
+  terminal-controller-manager:
+    enabled: false
+  observability:
+    enabled: false
