@@ -1,0 +1,129 @@
+# Copyright The Platform Mesh Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: '3'
+
+includes:
+  # Shared go-installable tooling (controller-gen, golangci-lint, mockery,
+  # apigen), installed once into the root bin/ and reused by every component.
+  tools:
+    taskfile: ../../tools/Taskfile.yaml
+    dir: .
+
+vars:
+  CRD_DIRECTORY: config/crd
+  RBAC_DIRECTORY: config/rbac
+
+tasks:
+  ## Development
+  manifests:
+    desc: Generate CRD manifests.
+    cmds:
+      - task: tools:generate-crds
+        vars:
+          PATH: /access/...
+          OUTPUT: '{{.CRD_DIRECTORY}}'
+      - task: tools:generate-rbac
+        vars:
+          PATHS: ./...
+          OUTPUT: '{{.RBAC_DIRECTORY}}'
+
+  apigen:
+    deps: [tools:apigen, tools:yaml-patch]
+    cmds:
+      - task: manifests
+      - cmd: |
+            apigen_crds=(
+                {{.CRD_DIRECTORY}}/access.platform-mesh.io_accessgrants.yaml
+            )
+            apigen_dest=(
+                {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiexport-access.platform-mesh.io.yaml
+                {{.TOPLEVEL}}/apis/static-assets/kcp/01-platform-mesh-system/apiresourceschema-accessgrants.access.platform-mesh.io.yaml
+            )
+
+            # NOTE: this script also applies yaml-patch files from {{.CRD_DIRECTORY}}/apigen/patches onto {{.CRD_DIRECTORY}}/apigen/out.
+            # Put patch files there if needed.
+            mkdir -p {{.CRD_DIRECTORY}}/apigen/{crds,out}
+            for manifest in "${apigen_crds[@]}"; do
+                cp "${manifest}" {{.CRD_DIRECTORY}}/apigen/crds
+            done
+            # Seed the output dir with the committed manifests so apigen can keep
+            # the name of every APIResourceSchema whose spec did not change.
+            for dest in "${apigen_dest[@]}"; do
+                [[ -f "${dest}" ]] && cp "${dest}" {{.CRD_DIRECTORY}}/apigen/out/
+            done
+
+            BOILERPLATE={{.HACK}}/boilerplate/boilerplate.yaml.txt
+
+            {{.APIGEN}} \
+                --header-file $BOILERPLATE \
+                --input-dir {{.CRD_DIRECTORY}}/apigen/crds \
+                --output-dir {{.CRD_DIRECTORY}}/apigen/out
+
+            for patch in ./config/crd/apigen/patches/*.yaml-patch; do
+                [[ -f "${patch}" ]] || continue
+                out="$(basename ${patch} | sed 's/-patch$//')"
+                (cat $BOILERPLATE; echo; {{.YAML_PATCH}} -o "${patch}" < "{{.CRD_DIRECTORY}}/apigen/out/${out}") > "{{.CRD_DIRECTORY}}/apigen/out/${out}.patched"
+                mv "{{.CRD_DIRECTORY}}/apigen/out/${out}.patched" "{{.CRD_DIRECTORY}}/apigen/out/${out}"
+            done
+
+            for dest in "${apigen_dest[@]}"; do
+                manifest="$(basename ${dest})"
+                mv "{{.CRD_DIRECTORY}}/apigen/out/${manifest}" "${dest}"
+            done
+        ignore_error: false
+
+  generate:
+    desc: Generate code (deepcopy, manifests, apigen).
+    cmds:
+      - task: manifests
+      - task: apigen
+        ignore_error: false
+
+  build:
+    desc: Build the operator binary.
+    cmds:
+      - go build ./...
+
+  docker-build:
+    desc: Build the Docker image.
+    cmds:
+      - docker build .
+
+  ## Testing
+  fmt:
+    cmds:
+      - go fmt ./...
+
+  lint:
+    desc: Lint the access-operator module.
+    cmds:
+      - task: fmt
+      - task: tools:lint
+
+  test:
+    desc: Run access-operator unit tests.
+    cmds:
+      - go test -count=1 ./...
+
+  test-e2e:
+    desc: No e2e tests for the access-operator module yet.
+    cmds:
+      - 'echo "access-operator: no e2e tests"'
+
+  ## Run
+  run:
+    desc: Run the operator locally.
+    cmds:
+      - go run main.go operator

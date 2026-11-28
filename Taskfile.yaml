@@ -57,11 +57,14 @@ vars:
 
     # shared
     - apis
+    - protocol
+    - sdk
     - subroutines
     - golang-commons
     - virtual-workspaces
 
     # operators
+    - access-operator
     - account-operator
     - extension-manager-operator
     - extension-manager-virtual-workspace
@@ -82,6 +85,8 @@ vars:
 
   LIBRARIES:
     - apis
+    - protocol
+    - sdk
     - subroutines
     - golang-commons
     - virtual-workspaces
@@ -89,6 +94,10 @@ vars:
   # Renovate CLI image. Cannot be placed in tools/ as vars from other
   # taskfile are not visible.
   RENOVATE_IMAGE: ghcr.io/renovatebot/renovate:44.202.1
+
+  # to disable BUILDKIT for tilt when on podman
+  BUILDKIT:
+    sh: 'echo 0'
 
 tasks:
   default:
@@ -100,6 +109,10 @@ tasks:
     preconditions:
       - sh: command -v helm
         msg: helm is not installed; the Tilt environment renders the charts with it.
+    env:
+      DOCKER_BUILDKIT: '{{.BUILDKIT}}'
+      DOCKER_HOST:
+        sh: ./contrib/tilt/hack/docker-host.bash
     vars:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
@@ -115,6 +128,10 @@ tasks:
     preconditions:
       - sh: command -v helm
         msg: helm is not installed; the Tilt environment renders the charts with it.
+    env:
+      DOCKER_BUILDKIT: '{{.BUILDKIT}}'
+      DOCKER_HOST:
+        sh: ./contrib/tilt/hack/docker-host.bash
     vars:
       KIND: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:kind' }
       TILT: { sh: 'env -u UGET_CHECKSUMS -u UGET_DIRECTORY UGET_PRINT_PATH=absolute task --dir {{.ROOT_DIR}} tools:tilt' }
@@ -175,7 +192,8 @@ tasks:
           authz   core + OpenFGA, pm-openfga-operator, pm-openfga-authz-webhook
           iam     authz + Keycloak, pm-keycloak-operator, iam-service, iam-ui
           api     core + kubernetes-graphql-gateway, marketplace, extension-manager-virtual-workspace
-          ui      api + iam + portal, marketplace-ui, extension-manager-operator
+          extern  core, access-operator
+          ui      api + iam + portal + extern, marketplace-ui, extension-manager-operator
           vw      kcp access and MCP virtual workspaces (charts kcp-access-vw, kcp-mcp-vw)
           e2e     HTTPBin provider fixture and a second kcp shard
           full    ui + e2e (default of tilt:ci; what task tilt:e2e expects)

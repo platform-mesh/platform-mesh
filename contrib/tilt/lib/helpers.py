@@ -321,12 +321,6 @@ def component_binary(name, path, deps, image, extra_dirs={}, labels=['platform-m
     extra_dirs: {repo-root-relative dir: path under /app} payload the binary
                 reads at runtime (none today; manifests and templates are embedded)
     """
-    # Each component gets its own context directory holding a single file named
-    # `entrypoint`, rather than one shared bin/ filtered with only=[name]. The
-    # restart_process extension builds two images and forwards the same kwargs to
-    # both, so a context-relative `only`/`build_args` meant for the first would
-    # leak into the second (whose context is the extension's own directory) and
-    # match nothing. A per-component context needs neither.
     bin_dir = os.path.join(TILT_DIR, 'bin', name)
     # Build inside the component module to not be affected by the root-level go.mod file.
     cmd = 'mkdir -p {bin} && (cd {path} && CGO_ENABLED=0 GOFIPS140=certified GOOS=linux GOARCH={arch} go build -o {bin}/entrypoint .)'.format(
@@ -341,13 +335,27 @@ def component_binary(name, path, deps, image, extra_dirs={}, labels=['platform-m
         labels=labels,
         allow_parallel=True,
     )
-    # entrypoint as a LIST, not a string: the extension runs a string entrypoint
-    # under `sh -c`, which swallows the container `args` the charts set (they pass
-    # args only and inherit the image entrypoint). A list is appended to verbatim.
-    docker_build_with_restart(
-        ref=image,
+
+    dockerfile_path = os.path.join(TILT_DIR, 'runtime.Dockerfile')
+    tar_path = '/tmp/tilt-{name}-image.tar'.format(name=name)
+    cluster_name = os.getenv('KIND_CLUSTER_NAME', 'platform-mesh')
+
+    build_cmd = '''
+        podman build -t $EXPECTED_REF -f {dockerfile} {context} && \
+        rm -f {tar} && \
+        podman save $EXPECTED_REF -o {tar} && \
+        KIND_EXPERIMENTAL_PROVIDER=podman kind load image-archive {tar} --name {cluster} && \
+        rm -f {tar}
+    '''.format(
+        dockerfile=dockerfile_path,
         context=bin_dir,
-        dockerfile=os.path.join(TILT_DIR, 'runtime.Dockerfile'),
-        entrypoint=['/app/entrypoint'],
-        live_update=[sync(bin_dir, '/app')],
+        tar=tar_path,
+        cluster=cluster_name,
+    )
+
+    custom_build(
+        ref=image,
+        command=build_cmd,
+        deps=[bin_dir, dockerfile_path],
+        skips_local_docker=True,
     )

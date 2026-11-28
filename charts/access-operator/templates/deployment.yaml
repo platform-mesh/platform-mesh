@@ -1,0 +1,71 @@
+{{- $tag := default .Chart.AppVersion .Values.image.tag -}}
+{{- $imageRef := printf "%s/%s:%s" .Values.image.registry .Values.image.repository $tag -}}
+{{- if .Values.image.digest -}}
+{{- $imageRef = printf "%s/%s@%s" .Values.image.registry .Values.image.repository .Values.image.digest -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.entity.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "common.labelMatcher" . | indent 6 }}
+  replicas: {{ .Values.deployment.replicas }}
+  template:
+    metadata:
+      labels:
+        {{- include "common.labelMatcher" . | indent 8 }}
+        {{- with .Values.deployment.specTemplate.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        control-plane: access-operator
+      annotations:
+        {{- with .Values.deployment.specTemplate.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "common.entity.name" . }}
+      {{- include "common.imagePullSecret" . | indent 6 }}
+      automountServiceAccountToken: {{ .Values.security.mountServiceAccountToken }}
+      containers:
+        - name: manager
+          image: {{ $imageRef }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            - name: health
+              containerPort: 8090
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+          args:
+            - operator
+            - --kcp-kubeconfig=/api-kubeconfig/kubeconfig
+            - --kcp-external-url={{ required "kcp.externalUrl is required" .Values.kcp.externalUrl }}
+            - --kcp-ca-bundle-path=/kcp-ca/{{ .Values.kcp.caBundleSecretKey }}
+            - --kcp-api-export-endpoint-slice-name={{ .Values.kcp.apiExportEndpointSliceName }}
+            - --leader-elect={{ .Values.operator.leaderElect }}
+          volumeMounts:
+            - name: kcp-kubeconfig
+              mountPath: /api-kubeconfig
+              readOnly: true
+            - name: kcp-ca
+              mountPath: /kcp-ca
+              readOnly: true
+      volumes:
+        - name: kcp-kubeconfig
+          secret:
+            secretName: {{ required "kubeconfigSecret is required" .Values.kubeconfigSecret }}
+        - name: kcp-ca
+          secret:
+            secretName: {{ .Values.kcp.caBundleSecret }}

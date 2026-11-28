@@ -63,9 +63,11 @@ components:
   # golang-commons must not.
   virtual-workspaces:
     path: golang-commons/virtual-workspaces
-    library: true
-
   # --- operators -------------------------------------------------------------
+  access-operator:
+    path: operators/access-operator
+    image: access-operator
+    chart: charts/access-operator
   account-operator:
     path: operators/account-operator
     image: account-operator
@@ -109,6 +111,10 @@ components:
     path: operators/pm-openfga-operator
     image: pm-openfga-operator
     chart: charts/pm-openfga-operator
+  sdk-access-operator:
+    path: operators/sdk-access-operator
+    image: sdk-access-operator
+    chart: charts/sdk-access-operator
   terminal-controller-manager:
     path: operators/terminal-controller-manager
     image: terminal-controller-manager
@@ -132,5 +138,9 @@ components:
     path: services/marketplace
     image: marketplace
     chart: charts/marketplace
+  sdk-access-server:
+    path: services/sdk-access-server
+    image: sdk-access-server
+    chart: charts/sdk-access-server
 
   # --- tests -----------------------------------------------------------------

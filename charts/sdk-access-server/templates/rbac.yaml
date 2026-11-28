@@ -1,0 +1,37 @@
+---
+# Server-side RBAC: reads AccessIdentity to resolve the sub claim,
+# reads the owned token Secret to recover the HMAC key, and creates
+# Access CRs + delivered-kubeconfig Secrets on a successful handshake.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "common.entity.name" . }}
+rules:
+  - apiGroups: ["access-sdk.platform-mesh.io"]
+    resources: ["accessidentities"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["access-sdk.platform-mesh.io"]
+    resources: ["accesses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["access-sdk.platform-mesh.io"]
+    resources: ["accessidentities/status", "accesses/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "common.entity.name" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "common.entity.name" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "common.entity.name" . }}
+    namespace: {{ .Release.Namespace }}

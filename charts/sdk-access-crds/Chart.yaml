@@ -1,0 +1,6 @@
+apiVersion: v2
+name: sdk-access-crds
+description: A Helm chart to deploy sdk-access CRDs on a user-side cluster.
+type: application
+version: 0.0.0
+appVersion: "0.0.0"

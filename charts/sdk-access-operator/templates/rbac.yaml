@@ -1,0 +1,40 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "common.entity.name" . }}
+rules:
+  - apiGroups: ["access-sdk.platform-mesh.io"]
+    resources: ["accessidentities"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["access-sdk.platform-mesh.io"]
+    resources: ["accessidentities/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["access-sdk.platform-mesh.io"]
+    resources: ["accesses"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["access-sdk.platform-mesh.io"]
+    resources: ["accesses/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "common.entity.name" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "common.entity.name" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "common.entity.name" . }}
+    namespace: {{ .Release.Namespace }}
