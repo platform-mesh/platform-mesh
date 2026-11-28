@@ -25,8 +25,8 @@ import (
 
 // ServiceDefaults groups the OCM images of a service.
 type ServiceDefaults struct {
-	ServiceName    string          `json:"serviceName"`
-	ImageResources []ImageResource `json:"imageResources"`
+	ServiceName    pmcorev1alpha1.ServiceName `json:"serviceName"`
+	ImageResources []ImageResource            `json:"imageResources"`
 }
 
 // ImageResource describes an OCM image
@@ -51,10 +51,10 @@ type ImageResourceAnnotations struct {
 }
 
 // injectDefaultImageResources fills missing imageResources for configured services.
-// Service enablement is supplied separately by the mounted configuration.
+// Service enablement is supplied separately by PlatformMesh.spec.services.
 func injectDefaultImageResources(services map[string]any) error {
 	for _, defaults := range DefaultImageResources {
-		service, ok := services[defaults.ServiceName].(map[string]any)
+		service, ok := services[string(defaults.ServiceName)].(map[string]any)
 		if !ok || service == nil {
 			continue
 		}

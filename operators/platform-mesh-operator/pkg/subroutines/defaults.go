@@ -219,7 +219,7 @@ var DEFAULT_WAIT_CONFIG = pmcorev1alpha1.WaitConfig{
 var DefaultImageResources = []ServiceDefaults{
 	// Platform Mesh operators.
 	{
-		ServiceName: "account-operator",
+		ServiceName: pmcorev1alpha1.AccountOperator,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -232,7 +232,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "extension-manager-operator",
+		ServiceName: pmcorev1alpha1.ExtensionManagerOperator,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -245,7 +245,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "pm-keycloak-operator",
+		ServiceName: pmcorev1alpha1.PMKeycloakOperator,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -258,7 +258,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "pm-openfga-operator",
+		ServiceName: pmcorev1alpha1.PMOpenFGAOperator,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -273,7 +273,7 @@ var DefaultImageResources = []ServiceDefaults{
 
 	// Platform Mesh services.
 	{
-		ServiceName: "infra",
+		ServiceName: pmcorev1alpha1.Infra,
 		ImageResources: []ImageResource{
 			{
 				Name:         "keycloak-image",
@@ -347,7 +347,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "kubernetes-graphql-gateway",
+		ServiceName: pmcorev1alpha1.KubernetesGraphQLGateway,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -360,7 +360,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "iam-service",
+		ServiceName: pmcorev1alpha1.IAMService,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -373,7 +373,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "pm-openfga-authz-webhook",
+		ServiceName: pmcorev1alpha1.PMOpenFGAAuthzWebhook,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -386,7 +386,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "extension-manager-virtual-workspace",
+		ServiceName: pmcorev1alpha1.ExtensionManagerVirtualWorkspace,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -399,7 +399,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "marketplace",
+		ServiceName: pmcorev1alpha1.Marketplace,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -414,7 +414,7 @@ var DefaultImageResources = []ServiceDefaults{
 
 	// UI.
 	{
-		ServiceName: "portal",
+		ServiceName: pmcorev1alpha1.Portal,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -427,7 +427,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "marketplace-ui",
+		ServiceName: pmcorev1alpha1.MarketplaceUI,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -440,7 +440,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "iam-ui",
+		ServiceName: pmcorev1alpha1.IAMUI,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -455,7 +455,7 @@ var DefaultImageResources = []ServiceDefaults{
 
 	// Third party tools.
 	{
-		ServiceName: "openfga",
+		ServiceName: pmcorev1alpha1.OpenFGA,
 		ImageResources: []ImageResource{
 			{
 				Name: "openfga-image",
@@ -470,7 +470,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "kcp-operator",
+		ServiceName: pmcorev1alpha1.KCPOperator,
 		ImageResources: []ImageResource{
 			{
 				Name: "kcp-operator-image",
@@ -484,7 +484,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "keycloak-operator",
+		ServiceName: pmcorev1alpha1.KeycloakOperator,
 		ImageResources: []ImageResource{
 			{
 				Name:         "keycloak-operator-keycloak-image",
@@ -519,7 +519,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "cnpg-operator",
+		ServiceName: pmcorev1alpha1.CNPGOperator,
 		ImageResources: []ImageResource{
 			{
 				Name: "cnpg-operator-image",
@@ -533,7 +533,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "terminal-controller-manager",
+		ServiceName: pmcorev1alpha1.TerminalControllerManager,
 		ImageResources: []ImageResource{
 			{
 				Annotations: ImageResourceAnnotations{
@@ -558,7 +558,7 @@ var DefaultImageResources = []ServiceDefaults{
 		},
 	},
 	{
-		ServiceName: "observability",
+		ServiceName: pmcorev1alpha1.Observability,
 		ImageResources: []ImageResource{
 			{
 				Name:         "otel-collector-image",

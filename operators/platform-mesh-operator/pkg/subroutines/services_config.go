@@ -17,64 +17,49 @@ limitations under the License.
 package subroutines
 
 import (
-	"os"
-
+	pmcorev1alpha1 "go.platform-mesh.io/apis/core/v1alpha1"
 	"go.platform-mesh.io/golang-commons/errors"
-	"go.platform-mesh.io/golang-commons/logger"
-	"go.platform-mesh.io/platform-mesh-operator/pkg/merge"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/yaml"
 )
 
-type serviceEnablementConfig struct {
-	Services map[string]*serviceEnablement `json:"services"`
-}
-
-type serviceEnablement struct {
-	Enabled *bool `json:"enabled"`
-}
-
-// applyServiceEnablementFromFile reads the mounted configuration for each render.
-// It overrides enabled flags only for services present in the merged profile/spec.
-func applyServiceEnablementFromFile(services map[string]any, path string, log *logger.Logger) (map[string]any, error) {
-	if path == "" {
+// applyServiceEnablement applies the instance's complete service selection.
+// An absent selection preserves legacy profile/spec enablement.
+func applyServiceEnablement(services map[string]any, selection []pmcorev1alpha1.ServiceConfiguration) (map[string]any, error) {
+	if selection == nil {
 		return services, nil
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read service configuration file %s", path)
+
+	supported := make(map[pmcorev1alpha1.ServiceName]struct{}, len(DefaultImageResources))
+	for _, defaults := range DefaultImageResources {
+		supported[defaults.ServiceName] = struct{}{}
 	}
-	var config serviceEnablementConfig
-	if err := yaml.UnmarshalStrict(raw, &config); err != nil {
-		return nil, errors.New("Failed to parse service configuration file %s; expected a services map with boolean enabled fields", path)
-	}
-	if config.Services == nil {
-		return nil, errors.New("Service configuration file %s must contain a services map", path)
-	}
-	// Validate the entire file before changing any service settings.
-	for name, service := range config.Services {
-		if service == nil || service.Enabled == nil {
-			return nil, errors.New("Service configuration file %s: services.%s.enabled must be a boolean", path, name)
+	// Validate the entire selection before changing any service settings.
+	seen := make(map[pmcorev1alpha1.ServiceName]struct{}, len(selection))
+	for _, setting := range selection {
+		if _, ok := supported[setting.Name]; !ok {
+			return nil, errors.New("service %q in spec.services is not supported", setting.Name)
+		}
+		if _, ok := seen[setting.Name]; ok {
+			return nil, errors.New("spec.services contains duplicate service %q", setting.Name)
+		}
+		seen[setting.Name] = struct{}{}
+		if setting.Enabled {
+			service, ok := services[string(setting.Name)].(map[string]any)
+			if !ok || service == nil {
+				return nil, errors.New("service %q is enabled in spec.services but has no configuration in the profile or spec.values", setting.Name)
+			}
 		}
 	}
-	var configuredServices map[string]*serviceEnablement
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(services, &configuredServices); err != nil {
-		return nil, errors.Wrap(err, "Failed to decode service enablement configuration")
-	}
-	overrides := make(map[string]*serviceEnablement)
-	for name, setting := range config.Services {
-		service := configuredServices[name]
-		if service == nil {
-			continue
+
+	// Keep deployment settings intact while disabling unlisted and custom services.
+	for _, raw := range services {
+		if service, ok := raw.(map[string]any); ok && service != nil {
+			service["enabled"] = false
 		}
-		service.Enabled = setting.Enabled
-		overrides[name] = service
 	}
-	resolved, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&overrides)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to serialize service enablement configuration")
+	for _, setting := range selection {
+		if service, ok := services[string(setting.Name)].(map[string]any); ok && service != nil {
+			service["enabled"] = setting.Enabled
+		}
 	}
-	// Merge only enablement overrides so arbitrary service settings remain intact.
-	return merge.MergeMaps(services, resolved, log)
+	return services, nil
 }

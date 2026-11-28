@@ -32,9 +32,58 @@ type PlatformMeshSpec struct {
 	Wait             *WaitConfig          `json:"wait,omitempty"`
 	ProfileConfigMap *ConfigMapReference  `json:"profileConfigMap,omitempty"`
 
+	// Services selects the component services managed by this PlatformMesh instance.
+	// When present, only entries with enabled=true are selected; omitted services
+	// are disabled. An empty list selects no component services.
+	// Available services: account-operator, extension-manager-operator,
+	// pm-keycloak-operator, pm-openfga-operator, infra, kubernetes-graphql-gateway,
+	// iam-service, pm-openfga-authz-webhook, extension-manager-virtual-workspace,
+	// marketplace, portal, marketplace-ui, iam-ui, openfga, kcp-operator,
+	// keycloak-operator, cnpg-operator, terminal-controller-manager, observability.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Services []ServiceConfiguration `json:"services,omitzero"`
+
 	// Authentication names the identity provider kcp and the portal use instead of Keycloak.
 	// +optional
 	Authentication *Authentication `json:"authentication,omitempty"`
+}
+
+// ServiceName identifies a supported PlatformMesh component service.
+// +k8s:enum
+type ServiceName string
+
+const (
+	AccountOperator                  ServiceName = "account-operator"
+	ExtensionManagerOperator         ServiceName = "extension-manager-operator"
+	PMKeycloakOperator               ServiceName = "pm-keycloak-operator"
+	PMOpenFGAOperator                ServiceName = "pm-openfga-operator"
+	Infra                            ServiceName = "infra"
+	KubernetesGraphQLGateway         ServiceName = "kubernetes-graphql-gateway"
+	IAMService                       ServiceName = "iam-service"
+	PMOpenFGAAuthzWebhook            ServiceName = "pm-openfga-authz-webhook"
+	ExtensionManagerVirtualWorkspace ServiceName = "extension-manager-virtual-workspace"
+	Marketplace                      ServiceName = "marketplace"
+	Portal                           ServiceName = "portal"
+	MarketplaceUI                    ServiceName = "marketplace-ui"
+	IAMUI                            ServiceName = "iam-ui"
+	OpenFGA                          ServiceName = "openfga"
+	KCPOperator                      ServiceName = "kcp-operator"
+	KeycloakOperator                 ServiceName = "keycloak-operator"
+	CNPGOperator                     ServiceName = "cnpg-operator"
+	TerminalControllerManager        ServiceName = "terminal-controller-manager"
+	Observability                    ServiceName = "observability"
+)
+
+// ServiceConfiguration configures one supported component service.
+type ServiceConfiguration struct {
+	// Name identifies the service to configure.
+	// +required
+	Name ServiceName `json:"name"`
+	// Enabled controls whether the service should be deployed.
+	// +required
+	Enabled bool `json:"enabled"`
 }
 
 // Authentication configures the identity providers kcp trusts.

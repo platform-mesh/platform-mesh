@@ -690,7 +690,7 @@ func (r *DeploymentSubroutine) buildComponentsTemplateVars(ctx context.Context, 
 		return nil, nil, errors.Wrap(err, "Failed to merge services from PlatformMesh.spec.Values with profile-components.yaml services")
 	}
 
-	mergedServices, err = applyServiceEnablementFromFile(mergedServices, r.cfgOperator.Subroutines.Deployment.ServicesConfigFile, log)
+	mergedServices, err = applyServiceEnablement(mergedServices, inst.Spec.Services)
 	if err != nil {
 		return nil, nil, err
 	}

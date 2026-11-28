@@ -33,7 +33,6 @@ func TestNewOperatorConfig(t *testing.T) {
 	assert.Equal(t, "kcp-cluster-admin-client-cert", cfg.KCP.ClusterAdminSecretName)
 
 	assert.True(t, cfg.Subroutines.Deployment.Enabled)
-	assert.Empty(t, cfg.Subroutines.Deployment.ServicesConfigFile)
 	assert.Equal(t, "kcp-webhook-secret", cfg.Subroutines.Deployment.AuthorizationWebhookSecretName)
 	assert.Equal(t, "pm-openfga-authz-webhook-cert", cfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName)
 	assert.True(t, cfg.Subroutines.Deployment.EnableIstio)
@@ -71,7 +70,6 @@ func TestOperatorConfigAddFlags(t *testing.T) {
 		"--idp-welcome-additional-post-logout-redirect-uris=https://extra.example.com/logout",
 		"--user-claim=sub",
 		"--subroutines-deployment-enabled=false",
-		"--services-config-file=/etc/platform-mesh/services/services.yaml",
 		"--authorization-webhook-secret-name=authz-secret",
 		"--authorization-webhook-secret-ca-name=authz-ca",
 		"--subroutines-deployment-enable-istio=false",
@@ -96,7 +94,6 @@ func TestOperatorConfigAddFlags(t *testing.T) {
 	assert.Equal(t, "sub", cfg.IDP.UserClaim)
 
 	assert.False(t, cfg.Subroutines.Deployment.Enabled)
-	assert.Equal(t, "/etc/platform-mesh/services/services.yaml", cfg.Subroutines.Deployment.ServicesConfigFile)
 	assert.Equal(t, "authz-secret", cfg.Subroutines.Deployment.AuthorizationWebhookSecretName)
 	assert.Equal(t, "authz-ca", cfg.Subroutines.Deployment.AuthorizationWebhookSecretCAName)
 	assert.False(t, cfg.Subroutines.Deployment.EnableIstio)

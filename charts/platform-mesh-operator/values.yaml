@@ -36,7 +36,7 @@ platformMesh:
   extraFeatureToggles: []
   # -- `spec.authentication` of the PlatformMesh resource: the OIDC issuer kcp and the portal use instead of Keycloak. Needs the `feature-disable-keycloak` toggle.
   authentication: {}
-  # -- `spec.values` of the PlatformMesh resource: values merged over the services of the profile. Set service enabled flags under services.
+  # -- `spec.values` of the PlatformMesh resource: component chart values and deployment settings merged over the profile. Set service enabled flags in the top-level services map; they become spec.services.
   values: {}
 
 # -- kcp connectivity configuration (used when ocm.enabled=true).
@@ -119,7 +119,7 @@ clusterScopedName:
   # -- Suffix for the names of cluster-scoped resources
   suffix: ""
 
-# Service enable/disable settings stored in the operator's mounted services Secret.
+# Service enable/disable settings rendered into PlatformMesh.spec.services when ocm.enabled=true.
 services:
   # operators
   account-operator:

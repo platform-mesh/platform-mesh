@@ -70,6 +70,15 @@ spec:
     component:
       name: platform-mesh
     referencePath: []
+  {{- if .Values.services }}
+  services:
+    {{- range $name := keys .Values.services | sortAlpha }}
+    - name: {{ $name | quote }}
+      enabled: {{ (index $.Values.services $name).enabled }}
+    {{- end }}
+  {{- else }}
+  services: []
+  {{- end }}
   featureToggles:
     - name: feature-accounts-in-accounts
     {{- if .Values.idp.allowUnverifiedEmails }}

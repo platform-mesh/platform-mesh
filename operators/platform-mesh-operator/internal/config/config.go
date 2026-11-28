@@ -52,7 +52,6 @@ type IDPConfig struct {
 
 type DeploymentSubroutineConfig struct {
 	Enabled                          bool
-	ServicesConfigFile               string
 	AuthorizationWebhookSecretName   string
 	AuthorizationWebhookSecretCAName string
 	EnableIstio                      bool
@@ -218,7 +217,6 @@ func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&c.Controllers.ManagedProvider.Enabled, "controllers-managed-provider-enabled", c.Controllers.ManagedProvider.Enabled, "Run the ManagedProvider controller; switch it off when deploying provider-operator")
 
 	fs.BoolVar(&c.Subroutines.Deployment.Enabled, "subroutines-deployment-enabled", c.Subroutines.Deployment.Enabled, "Enable deployment subroutine")
-	fs.StringVar(&c.Subroutines.Deployment.ServicesConfigFile, "services-config-file", c.Subroutines.Deployment.ServicesConfigFile, "Path to the mounted YAML file containing service enabled settings")
 	fs.StringVar(&c.Subroutines.Deployment.AuthorizationWebhookSecretName, "authorization-webhook-secret-name", c.Subroutines.Deployment.AuthorizationWebhookSecretName, "Authorization webhook secret name")
 	fs.StringVar(&c.Subroutines.Deployment.AuthorizationWebhookSecretCAName, "authorization-webhook-secret-ca-name", c.Subroutines.Deployment.AuthorizationWebhookSecretCAName, "Authorization webhook CA secret name")
 	fs.BoolVar(&c.Subroutines.Deployment.EnableIstio, "subroutines-deployment-enable-istio", c.Subroutines.Deployment.EnableIstio, "Enable Istio integration in deployment subroutine")

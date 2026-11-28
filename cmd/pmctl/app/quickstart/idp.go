@@ -251,5 +251,21 @@ func (o *Options) withIDP(ctx context.Context, helm *helmClient, src *source, va
 		return values, err
 	}
 	values.PlatformMesh, err = o.dexValues(manifest)
-	return values, err
+	if err != nil {
+		return values, err
+	}
+	defaults, err := helm.defaultValues(src.operator, src.chartVersion)
+	if err != nil {
+		return values, err
+	}
+	if _, supported := defaults["services"].(map[string]any); supported {
+		if values.Services == nil {
+			values.Services = make(map[string]enabledValues, len(keycloakServices))
+		}
+		for _, name := range keycloakServices {
+			values.Services[name] = enabledValues{Enabled: false}
+		}
+	}
+	// Keep the legacy spec.values flags for older charts without services.
+	return values, nil
 }
